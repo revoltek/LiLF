@@ -1,0 +1,13 @@
+msin =
+msin.datacolumn = DATA
+msout = .
+msout.datacolumn = CORRECTED_DATA
+#msout.storagemanager = dysco
+
+numthreads = 1 # bug fix
+
+steps = [corrbeam]
+
+corrbeam.type = applybeam
+corrbeam.invert = True
+corrbeam.usechannelfreq = False
