@@ -7,6 +7,11 @@ import lsmtool
 import logging
 logger = logging.getLogger('PiLL')
 
+
+def distanceEuclidean2D(Xs1, Ys1, Xs2, Ys2):
+    return np.sqrt(np.square(Xs1 - Xs2) + np.square(Ys1 - Ys2))
+
+
 def check_rm(regexp):
     """
     Check if file exists and remove it

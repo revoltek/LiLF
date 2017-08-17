@@ -2,6 +2,9 @@
 
 import os, sys
 import numpy as np
+
+import lib_pipeline
+
 import pyrap.tables as tb
 
 import logging
@@ -51,7 +54,31 @@ class Ms(object):
         """
         Check if MS is of a calibrator and return patch name
         """
-        ra, dec = self.get_phase_centre()
+        ra, dec                 = self.get_phase_centre()
+        
+        calibratorRAs           = numpy.array([24.4220808, 85.6505746, 277.3824204, 212.835495, 123.4001379, 299.8681525, 202.784479167]) # in degrees
+        calibratorDecs          = numpy.array([33.1597594, 49.8520094, 48.7461556,  52.202770,  48.2173778,  40.7339156,  30.509088])     # in degrees
+        calibratorNames         = numpy.array(["3C48",     "3C147",    "3C380",     "3C295",    "3C196",     "CygA",      "3C286"])
+        
+        distances               = lib_pipeline.distanceEuclidean2D(ra, dec, calibratorRAs, calibratorDecs)
+        
+        distanceCutoff          = 1                                                                                                       # in degrees
+        
+        calibratorIsNear        = (distances < distanceCutoff)
+        numberOfCalibratorsNear = numpy.sum(calibratorIsNear)
+        
+        if (numberOfCalibratorsNear == 0):
+            logger.info("Error: unknown calibrator.")
+            sys.exit()
+        elif (numberOfCalibratorsNear == 1):
+            calibratorNameCurrent = calibratorNames[calibratorIsNear]
+            logger.info("Calibrator found: %s." % calibratorNameCurrent)
+            return calibratorNameCurrent
+        else:
+            logger.info("Error: multiple calibrators were nearby.")
+            sys.exit()         
+        
+        '''
         if abs(ra - 24.4220808) < 1  and abs(dec - 33.1597594) < 1: return '3C48'
         if abs(ra - 85.6505746) < 1  and abs(dec - 49.8520094) < 1: calname = '3C147'
         if abs(ra - 277.3824204) < 1  and abs(dec - 48.7461556) < 1: calname = '3C380'
@@ -60,6 +87,7 @@ class Ms(object):
         if abs(ra - 299.8681525) < 1  and abs(dec - 40.7339156) < 1: calname = 'CygA'
         logger.info("Calibrator found: %s." % calname)
         return calname
+        '''
 
 
     def find_nchan(self):
