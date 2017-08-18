@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+
 '''
 Francesco de Gasperin & Martijn Oei, 2017
 In collaboration with: Tammo Jan Dijkema & Reinout van Weeren
@@ -10,11 +14,12 @@ This pipeline chunk
 5. Modifies the MSs to LOFAR format.
 '''
 
+import sys, os, glob, re
+import numpy as np
+from autocal.lib_pipeline import *
+
 from casacore import tables
-import numpy
-import os
 import shutil
-import sys
 
 
 def printLineBold(line):
@@ -77,7 +82,7 @@ printLineBold("pathMS:")
 print (pathMS)
 
 printLineBold("- Split-up of original MS '" + pathMS + "' -")
-for scanID, i in zip(scanIDs, numpy.arange(numberOfScans) + 1):
+for scanID, i in zip(scanIDs, np.arange(numberOfScans) + 1):
     pathMSNew = pathDirectoryMain + "scanID" + str(scanID) + ".MS"
     tables.taql("SELECT from $pathMS where SCAN_NUMBER = $scanID giving $pathMSNew as plain") # This command will overwrite the old sub-MSses, if created already!
 

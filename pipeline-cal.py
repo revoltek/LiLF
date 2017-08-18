@@ -47,7 +47,7 @@ for ms in mss.get_list_str():
                 log=msout+'_cp.log', cmd_type='NDPPP') # better than cp as activates dysco
 s.run(check=True)
 
-mss = AllMss( glob.glob('./*MS') )
+mss = AllMss( glob.glob('./*MS'), s )
 
 ############################################################   
 # flag bad stations, flags will propagate
