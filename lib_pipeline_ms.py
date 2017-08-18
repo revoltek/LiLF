@@ -38,10 +38,10 @@ class AllMss(object):
 
     def run(self, cmd, log, cmd_type):
         for ms in self.mss_list_str:
-            cmd = cmd.replace('$ms',ms)
-            log = log.replace('$ms',ms)
+            cmd = cmd.replace('$ms', ms)
+            log = log.replace('$ms', ms)
             self.s.add(cmd, log, cmd_type)
-        self.s.run(check=True)
+        self.s.run(check = True)
 
     
 class Ms(object):
@@ -56,6 +56,7 @@ class Ms(object):
         """
         RA, Dec                 = self.get_phase_centre()
         
+        # The following list should be expanded to include all calibrators that are possibly used.
         calibratorRAs           = np.array([24.4220808, 85.6505746, 277.3824204, 212.835495, 123.4001379, 299.8681525, 202.784479167]) # in degrees
         calibratorDecs          = np.array([33.1597594, 49.8520094, 48.7461556,  52.202770,  48.2173778,  40.7339156,  30.509088])     # in degrees
         calibratorNames         = np.array(["3C48",     "3C147",    "3C380",     "3C295",    "3C196",     "CygA",      "3C286"])
@@ -65,7 +66,7 @@ class Ms(object):
         distanceCutoff          = 1                                                                                                       # in degrees
         
         calibratorIsNear        = (distances < distanceCutoff)
-        numberOfCalibratorsNear = numpy.sum(calibratorIsNear)
+        numberOfCalibratorsNear = np.sum(calibratorIsNear)
         
         if (numberOfCalibratorsNear == 0):
             logger.info("Error: unknown calibrator.")
@@ -83,7 +84,7 @@ class Ms(object):
         """
         Find number of channels
         """
-        with tb.table(self.ms+'/SPECTRAL_WINDOW', ack=False) as t:
+        with tb.table(self.ms + '/SPECTRAL_WINDOW', ack = False) as t:
             nchan = t.getcol('NUM_CHAN')
         assert (nchan[0] == nchan).all() # all spw have same channels?
         logger.debug('%s: Number of channels: %i' (self.ms, nchan[0]))
@@ -94,10 +95,10 @@ class Ms(object):
         """
         Find bandwidth of a channel in Hz
         """
-        with tb.table(self.ms+'/SPECTRAL_WINDOW', ack=False) as t:
+        with tb.table(self.ms + '/SPECTRAL_WINDOW', ack = False) as t:
             chan_w = t.getcol('CHAN_WIDTH')[0]
-        assert all(x==chan_w[0] for x in chan_w) # all chans have same width
-        logger.debug('%s: Chan-width: %f MHz' (self.ms, chan_w[0]/1.e6))
+        assert all(x == chan_w[0] for x in chan_w) # all chans have same width
+        logger.debug('%s: Chan-width: %f MHz' (self.ms, chan_w[0] / 1.e6))
         return chan_w[0]
     
     
@@ -105,10 +106,10 @@ class Ms(object):
         """
         Get time interval in seconds
         """
-        with tb.table(self.ms, ack=False) as t:
+        with tb.table(self.ms, ack = False) as t:
             Ntimes = len(set(t.getcol('TIME')))
-        with tb.table(self.ms+'/OBSERVATION', ack=False) as t:
-            deltat = (t.getcol('TIME_RANGE')[0][1]-t.getcol('TIME_RANGE')[0][0])/Ntimes
+        with tb.table(self.ms + '/OBSERVATION', ack = False) as t:
+            deltat = (t.getcol('TIME_RANGE')[0][1] - t.getcol('TIME_RANGE')[0][0]) / Ntimes
         logger.debug('%s: Time interval: %f s' (self.ms, deltat))
         return deltat
     
@@ -120,15 +121,16 @@ class Ms(object):
         """
         field_no = 0
         ant_no = 0
-        with tb.table(self.ms + '/FIELD', ack=False) as field_table:
-            direction = field_table.getcol('PHASE_DIR')
-            ra = direction[ ant_no, field_no, 0 ]
-            dec = direction[ ant_no, field_no, 1 ]
-        logger.debug('%s: Phase centre: %f deg - %f deg' (self.ms, ra*180/np.pi, dec*180/np.pi))
-        if ra < 0: ra += 2*np.pi
+        with tb.table(self.ms + "/FIELD", ack = False) as field_table:
+            direction = field_table.getcol("PHASE_DIR")
+            ra        = direction[ ant_no, field_no, 0 ]
+            dec       = direction[ ant_no, field_no, 1 ]
+        logger.debug("%s: Phase centre: %f deg - %f deg" (self.ms, ra*180/np.pi, dec*180/np.pi))
+        if (ra < 0):
+            ra += 2 * np.pi
         return (ra*180/np.pi, dec*180/np.pi)
 
-
+'''
 def find_nchan(ms):
     """
     Find number of channel in this ms
@@ -175,4 +177,4 @@ def get_phase_centre(ms):
         ra = direction[ ant_no, field_no, 0 ]
         dec = direction[ ant_no, field_no, 1 ]
     return (ra*180/np.pi, dec*180/np.pi)
-
+'''
