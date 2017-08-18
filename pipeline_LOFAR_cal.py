@@ -3,14 +3,12 @@
 
 import sys, os, glob, re
 import numpy as np
-#from autocal.lib_pipeline import *
-import lib_pipeline_ms
-import lib_pipeline_util
+import lib_ms, lib_util
 
 
 parset_dir = '/home/fdg/scripts/autocal/parset_cal/'
-skymodel = '/home/fdg/scripts/model/calib-simple.skymodel'
-imaging = False
+skymodel   = '/home/fdg/scripts/model/calib-simple.skymodel'
+imaging    = False
 
 if 'tooth' in os.getcwd(): # tooth 2013
     datadir = '../cals-bkp/'
@@ -31,9 +29,9 @@ else:
 
 ########################################################
 logger  = set_logger('pipeline-cal.logger')
-lib_pipeline_util.check_rm('logs')
-s       = lib_pipeline_util.Scheduler(dry = False)
-mss     = lib_pipeline_ms.AllMss(glob.glob(datadir+'/*MS'))
+lib_util.check_rm('logs')
+s       = lib_util.Scheduler(dry = False)
+mss     = lib_ms.AllMss(glob.glob(datadir+'/*MS'))
 calname = mss.get_list_obj[0].get_calname()
 
 if (calname == 'CygA'):

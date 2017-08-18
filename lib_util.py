@@ -5,7 +5,7 @@ mpl.use("Agg")
 import lsmtool
 
 import logging
-logger = logging.getLogger('PiLL')
+logger = logging.getLogger("PiLL")
 
 
 def distanceOnSphere(RAs1, Decs1, RAs2, Decs2):
@@ -35,7 +35,7 @@ def check_rm(regexp):
     for filename in filenames:
         # glob is used to check if file exists
         for f in glob.glob(filename):
-            os.system('rm -r '+f)
+            os.system("rm -r " + f)
 
 
 def run_losoto(s, c, h5s, parsets):
@@ -46,12 +46,12 @@ def run_losoto(s, c, h5s, parsets):
     parsets : lists of parsets to execute
     """
 
-    logger.info('Running LoSoTo...')
+    logger.info("Running LoSoTo...")
 
     # concat
-    check_rm('cal-'+c+'.h5')
+    check_rm("cal-" + c + ".h5")
     s.add('H5parm_append.py -v -c freq -s sol000 -o cal-'+c+'.h5 '+' '.join(h5s), log='losoto-'+c+'.log', cmd_type='python', processors='max')
-    s.run(check=True)
+    s.run(check = True)
 
     check_rm('plots')
     os.makedirs('plots')
@@ -121,9 +121,12 @@ class Scheduler():
         """
         import socket
         hostname = socket.gethostname()
-        if hostname == 'lgc1' or hostname == 'lgc2': return 'Hamburg'
-        elif 'leidenuniv' in hostname: return 'Leiden'
-        elif hostname[0:3] == 'lof': return 'CEP3'
+        if (hostname == 'lgc1' or hostname == 'lgc2'):
+            return 'Hamburg'
+        elif ('leidenuniv' in hostname):
+            return 'Leiden'
+        elif (hostname[0 : 3] == 'lof'):
+            return 'CEP3'
         else: 
             logger.error('Hostname %s unknown.' % hostname)
             return 'Unknown'
@@ -314,18 +317,3 @@ class Scheduler():
             return 1
 
         return 0
-
-
-'''
-from lib_pipeline_ms import *
-from lib_pipeline_img import *
-from lib_pipeline_dd import *
-from lib_pipeline_log import *
-
-# Some parts of the modules below require utility functions from 'lib_pipeline'.
-# Therefore, these utility functions have to be loaded first before the modules below are loaded.
-import lib_pipeline_dd
-import lib_pipeline_img
-import lib_pipeline_log
-import lib_pipeline_ms
-'''

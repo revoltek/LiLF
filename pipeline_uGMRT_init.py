@@ -15,7 +15,7 @@ This pipeline chunk
 
 import sys, os, glob, re
 import numpy as np
-import lib_pipeline_ms
+import lib_ms
 
 from casacore import tables
 import shutil
@@ -86,7 +86,7 @@ for scanID, i in zip(scanIDs, np.arange(numberOfScans) + 1):
     tables.taql("SELECT from $pathMS where SCAN_NUMBER = $scanID giving $pathMSNew as plain")
     
     
-    MSObject = lib_pipeline_ms.Ms(pathMSNew)
+    MSObject = lib_ms.Ms(pathMSNew)
     print (MSObject.get_calname())    
     
     printLineBold(str(i) + " / " + str(numberOfScans) + ". Created MS '" + pathMSNew + "'.")

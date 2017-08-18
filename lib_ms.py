@@ -3,7 +3,7 @@
 import os, sys
 import numpy as np
 
-import lib_pipeline_util
+import lib_util
 
 import pyrap.tables as tb
 
@@ -61,7 +61,7 @@ class Ms(object):
         calibratorDecs          = np.array([33.1597594, 49.8520094, 48.7461556,  52.202770,  48.2173778,  40.7339156,  30.509088])     # in degrees
         calibratorNames         = np.array(["3C48",     "3C147",    "3C380",     "3C295",    "3C196",     "CygA",      "3C286"])
         
-        distances               = lib_pipeline_util.distanceOnSphere(RA, Dec, calibratorRAs, calibratorDecs)
+        distances               = lib_util.distanceOnSphere(RA, Dec, calibratorRAs, calibratorDecs)
         
         distanceCutoff          = 1                                                                                                       # in degrees
         
@@ -120,7 +120,7 @@ class Ms(object):
         values in deg
         """
         field_no = 0
-        ant_no = 0
+        ant_no   = 0
         with tb.table(self.ms + "/FIELD", ack = False) as field_table:
             direction = field_table.getcol("PHASE_DIR")
             ra        = direction[ ant_no, field_no, 0 ]

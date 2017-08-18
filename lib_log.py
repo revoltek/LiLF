@@ -1,5 +1,5 @@
 import logging
-import lib_pipeline_util
+import lib_util
 
 def add_coloring_to_emit_ansi(fn):
     # add methods we need to the class
@@ -33,7 +33,7 @@ def set_logger(filename = "pipeline.logging"):
     logging.StreamHandler.emit = add_coloring_to_emit_ansi(logging.StreamHandler.emit)
     
     # create file handler which logs even debug messages
-    lib_pipeline_util.check_rm(filename)
+    lib_util.check_rm(filename)
     fh = logging.FileHandler(filename)
     fh.setLevel(logging.DEBUG)
     
