@@ -72,7 +72,7 @@ class Ms(object):
             logger.info("Error: unknown calibrator.")
             sys.exit()
         elif (numberOfCalibratorsNear == 1):
-            calibratorNameCurrent = calibratorNames[calibratorIsNear]
+            calibratorNameCurrent = calibratorNames[calibratorIsNear][0]
             logger.info("Calibrator found: %s." % calibratorNameCurrent)
             return calibratorNameCurrent
         else:
@@ -125,7 +125,7 @@ class Ms(object):
             direction = field_table.getcol("PHASE_DIR")
             ra        = direction[ ant_no, field_no, 0 ]
             dec       = direction[ ant_no, field_no, 1 ]
-        logger.debug("%s: Phase centre: %f deg - %f deg" (self.ms, ra*180/np.pi, dec*180/np.pi))
+        #logger.debug("%s: Phase centre: %f deg - %f deg" (self.ms, ra*180/np.pi, dec*180/np.pi))
         if (ra < 0):
             ra += 2 * np.pi
         return (ra*180/np.pi, dec*180/np.pi)

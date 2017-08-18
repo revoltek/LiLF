@@ -1,6 +1,8 @@
 import os, sys
 import numpy as np
 
+# Load external script make_mask!
+
 import logging
 logger = logging.getLogger("PiLL")
 
