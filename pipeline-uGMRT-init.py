@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-
 '''
 Francesco de Gasperin & Martijn Oei, 2017
 In collaboration with: Tammo Jan Dijkema & Reinout van Weeren
@@ -84,6 +83,6 @@ print (pathMS)
 printLineBold("- Split-up of original MS '" + pathMS + "' -")
 for scanID, i in zip(scanIDs, np.arange(numberOfScans) + 1):
     pathMSNew = pathDirectoryMain + "scanID" + str(scanID) + ".MS"
-    tables.taql("SELECT from $pathMS where SCAN_NUMBER = $scanID giving $pathMSNew as plain") # This command will overwrite the old sub-MSses, if created already!
+    tables.taql("SELECT from $pathMS where SCAN_NUMBER = $scanID giving $pathMSNew as plain")
 
     printLineBold(str(i) + " / " + str(numberOfScans) + ". Created MS '" + pathMSNew + "'.")

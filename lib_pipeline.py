@@ -8,8 +8,21 @@ import logging
 logger = logging.getLogger('PiLL')
 
 
-def distanceEuclidean2D(Xs1, Ys1, Xs2, Ys2):
-    return np.sqrt(np.square(Xs1 - Xs2) + np.square(Ys1 - Ys2))
+def distanceOnSphere(RAs1, Decs1, RAs2, Decs2):
+    '''
+    Returns the distances on the sphere from the set of points '(RAs1, Decs1)' to the
+    set of points '(RAs2, Decs2)' using the spherical law of cosines.
+
+    It assumes that all inputs are given in degrees, and gives the output in degrees, too.
+
+    Using 'numpy.clip(..., -1, 1)' is necessary to counteract the effect of numerical errors, that can sometimes
+    incorrectly cause '...' to be slightly larger than 1 or slightly smaller than -1. This leads to NaNs in the arccosine.
+    '''
+
+    return np.degrees(np.arccos(np.clip(
+           np.sin(np.radians(Decs1)) * np.sin(np.radians(Decs2)) +
+           np.cos(np.radians(Decs1)) * np.cos(np.radians(Decs2)) *
+           np.cos(np.radians(RAs1 - RAs2)), -1, 1)))
 
 
 def check_rm(regexp):
