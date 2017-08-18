@@ -2,7 +2,7 @@ import os, sys
 import numpy as np
 
 import logging
-logger = logging.getLogger('PiLL')
+logger = logging.getLogger("PiLL")
 
 class Image(object):
     def __init__(self, imagename, region_facet = None, user_mask = None):
@@ -15,7 +15,7 @@ class Image(object):
 
     def make_mask(self, threshisl=5):
         """
-        Create a mask of the image where only belivable flux is
+        Create a mask of the image where only believable flux is
         """
         logger.info('%s: Making mask...' % self.imagename)
         if not os.path.exists(self.maskname):
@@ -38,7 +38,7 @@ class Image(object):
         logger.info('%s: Apply mask on skymodel...' % self.imagename)
         lsm = lsmtool.load(self.skymodel)
         lsm.select('%s == True' % self.maskname)
-        lsm.write(self.skymodel_cut, format='makesourcedb', clobber=True)
+        lsm.write(self.skymodel_cut, format = 'makesourcedb', clobber=True)
         del lsm
 
 
@@ -68,21 +68,21 @@ def flatten(f, channel = 0, freqaxis = 0):
     header["NAXIS"]=2
     copy=('EQUINOX','EPOCH')
     for k in copy:
-        r=f[0].header.get(k)
-        if r:
-            header[k]=r
+        r = f[0].header.get(k)
+        if (r):
+            header[k] = r
 
-    slice=[]
+    slice = []
     for i in range(naxis,0,-1):
-        if i<=2:
+        if (i <= 2):
             slice.append(np.s_[:],)
-        elif i==freqaxis:
+        elif (i == freqaxis):
             slice.append(channel)
         else:
             slice.append(0)
 
     # slice=(0,)*(naxis-2)+(np.s_[:],)*2
-    return header,f[0].data[slice]
+    return header, f[0].data[slice]
 
 
 def size_from_reg(filename, regions, coord):
@@ -107,11 +107,12 @@ def size_from_reg(filename, regions, coord):
     # ditance would overestimate, get max of x-x_c and y-y_c
     mask = np.ones(shape=data.shape, dtype=bool)
     for region in regions:
-        r = pyregion.open(region)
+        r    = pyregion.open(region)
         mask = (mask & r.get_mask(header=header, shape=data.shape))
     y, x = mask.nonzero()
 
-    if len(x) == 0: return 0
+    if (len(x) == 0):
+        return 0
 
     max_size = 2 * np.max([np.abs(np.array(y) - y_c), np.abs(np.array(x) - x_c)])
 
@@ -156,7 +157,8 @@ def blank_image_fits(filename, maskname, outfile=None, inverse=False, blankval=0
     """
     import astropy.io.fits as pyfits
 
-    if outfile == None: outfile = filename
+    if (outfile == None):
+        outfile = filename
 
     with pyfits.open(maskname) as fits:
         mask = fits[0].data
@@ -195,18 +197,23 @@ def blank_image_reg(filename, region, outfile=None, inverse=False, blankval=0., 
 
     # open fits
     with pyfits.open(filename) as fits:
-        origshape = fits[0].data.shape
+        origshape    = fits[0].data.shape
         header, data = flatten(fits)
-        sum_before = np.sum(data)
-        if op=='AND': total_mask = np.ones(shape=data.shape).astype(bool)
-        if op=='OR': total_mask = np.zeros(shape=data.shape).astype(bool)
+        sum_before   = np.sum(data)
+        if (op == 'AND'):
+            total_mask = np.ones(shape = data.shape).astype(bool)
+        if (op == 'OR'):
+            total_mask = np.zeros(shape = data.shape).astype(bool)
         for this_region in region:
             # extract mask
-            r = pyregion.open(this_region)
+            r    = pyregion.open(this_region)
             mask = r.get_mask(header=header, shape=data.shape)
-            if op=='AND': total_mask = total_mask & mask
-            if op=='OR': total_mask = total_mask | mask
-        if inverse: total_mask = ~total_mask
+            if (op == 'AND'):
+                total_mask = total_mask & mask
+            if (op == 'OR'):
+                total_mask = total_mask | mask
+        if (inverse):
+            total_mask = ~total_mask
         data[total_mask] = blankval
         # save fits
         fits[0].data = data.reshape(origshape)
@@ -223,6 +230,7 @@ def get_noise_img(filename, boxsize=None, niter=20, eps=1e-5):
     eps : convergency
     """
     import astropy.io.fits as pyfits
+    
     with pyfits.open(filename) as fits:
         data = fits[0].data
         if boxsize is None:
