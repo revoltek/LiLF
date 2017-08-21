@@ -3,7 +3,7 @@
 
 '''
 Francesco de Gasperin & Martijn Oei, 2017
-In collaboration with: Tammo Jan Dijkema & Reinout van Weeren
+In collaboration with: Tammo Jan Dijkema and Reinout van Weeren
 
 This pipeline chunk
 1. Downloads uGMRT data.
@@ -13,12 +13,13 @@ This pipeline chunk
 5. Modifies the MSs to LOFAR format.
 '''
 
-import sys, os, glob, re
-import numpy as np
-import lib_ms
+import sys, os, shutil
 
 from casacore import tables
-import shutil
+import numpy as np
+
+import lib_ms
+
 
 
 def printLineBold(line):
@@ -98,15 +99,19 @@ os.mkdir(pathDirectoryMain + "fieldsCalibrator/")
 
 
 
-# 4. Split up the MS, and place the fragments in the right position.
-verbose = False
+# 4. Split up the MS, and place the fragments in the right place within the file tree.
+verbose                   = False
+columnNameVisibilitiesNew = "DATA"
+columnNameFlagsNew        = "FLAG"
+columnNameWeightsNew      = "WEIGHT_SPECTRUM"
 
-scanIDs       = getScanIDs(pathMS)
-numberOfScans = len(scanIDs)
+scanIDs                   = getScanIDs(pathMS)
+numberOfScans             = len(scanIDs)
 
 printLineBold("pathMS:")
 print (pathMS)
 
+# Create temporary paths for the sub-MSs.
 pathsMSNew    = np.empty(len(scanIDs), dtype = object)
 i             = 0
 for scanID in scanIDs:
@@ -377,7 +382,13 @@ for pathMSNew in pathsMSNew:
     t.close()
 
     printLineBold("Finished work on MS at '" + pathMSNew + "'!")
+
+
+
+# Move the sub-MSs from a temporary place to their right locus in the file tree.
+for pathMSNew in pathsMSNew:
+    printLineBold("Moving MS at '" + pathMSNew + "'...")
     
-    
-#MSObject = lib_ms.Ms(pathMSNew)
-#print (MSObject.get_calname())
+    # Check whether field is a calibrator field. If not, don't call get_calname()
+    MSObject = lib_ms.Ms(pathMSNew)
+    print (MSObject.get_calname())

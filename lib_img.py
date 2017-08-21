@@ -51,9 +51,9 @@ def flatten(f, channel = 0, freqaxis = 0):
     from astropy import wcs
 
     naxis=f[0].header['NAXIS']
-    if naxis<2:
-        raise RadioError('Can\'t make map from this')
-    if naxis==2:
+    if (naxis < 2):
+        raise RadioError("Can\'t make map from this")
+    if (naxis == 2):
         return f[0].header,f[0].data
 
     w               = wcs.WCS(f[0].header)
@@ -67,7 +67,7 @@ def flatten(f, channel = 0, freqaxis = 0):
     wn.wcs.ctype[1] = w.wcs.ctype[1]
 
     header = wn.to_header()
-    header["NAXIS"]=2
+    header["NAXIS"] = 2
     copy=('EQUINOX','EPOCH')
     for k in copy:
         r = f[0].header.get(k)
@@ -98,12 +98,12 @@ def size_from_reg(filename, regions, coord):
     import astropy.wcs as pywcs
     import pyregion
 
-    fits = pyfits.open(filename)
+    fits         = pyfits.open(filename)
     header, data = flatten(fits)
-    w = pywcs.WCS(header)
+    w            = pywcs.WCS(header)
 
     # find max dist in pixel on reference image
-    x_c, y_c = w.all_world2pix(coord[0], coord[1], 0, ra_dec_order=True)
+    x_c, y_c     = w.all_world2pix(coord[0], coord[1], 0, ra_dec_order=True)
     #print x_c, y_c
     
     # ditance would overestimate, get max of x-x_c and y-y_c
@@ -141,12 +141,12 @@ def scale_from_ms(ms):
     t.close()
     #print 'Wavelength:', wavelength,'m (Freq: '+str(t.getcol('REF_FREQUENCY')[0]/1.e6)+' MHz)'
 
-    maxdist    = np.max( np.sqrt(col[:,0]**2 + col[:,1]**2) )
+    maxdist    = np.max( np.sqrt(col[:,0] ** 2 + col[:,1] ** 2) )
 
-    return int(round(wavelength/maxdist*(180/np.pi)*3600/3.)) # in arcseconds
+    return int(round(wavelength / maxdist * (180 / np.pi) * 3600 / 3.)) # in arcseconds
 
 
-def blank_image_fits(filename, maskname, outfile=None, inverse=False, blankval=0.):
+def blank_image_fits(filename, maskname, outfile = None, inverse = False, blankval = 0.):
     """
     Set to "blankval" all the pixels inside the given region
     if inverse=True, set to "blankval" pixels outside region.
@@ -165,7 +165,7 @@ def blank_image_fits(filename, maskname, outfile=None, inverse=False, blankval=0
     with pyfits.open(maskname) as fits:
         mask = fits[0].data
     
-    if inverse: mask = ~(mask.astype(bool))
+    if (inverse): mask = ~(mask.astype(bool))
 
     with pyfits.open(filename) as fits:
         data = fits[0].data
@@ -178,7 +178,7 @@ def blank_image_fits(filename, maskname, outfile=None, inverse=False, blankval=0
         fits.writeto(outfile, clobber=True)
 
  
-def blank_image_reg(filename, region, outfile=None, inverse=False, blankval=0., op='AND'):
+def blank_image_reg(filename, region, outfile = None, inverse = False, blankval = 0., op = "AND"):
     """
     Set to "blankval" all the pixels inside the given region
     if inverse=True, set to "blankval" pixels outside region.
