@@ -15,7 +15,9 @@ import lib_ms, lib_util
 
 
 def main():
-    pathDirectoryParSet = '/disks/strw3/oei/code/PiLF/parset_cal/'
+    pathDirectoryParSet = "/disks/strw3/oei/code/PiLF/parset_cal/"
+    nameParSetFlag      = "DPPP-uGMRT-flag.parset"
+    pathParSetFlag      = pathDirectoryParSet + nameParSetFlag
     
     #pathDirectoryMain   = "/disks/strw3/oei/uGMRTCosmosCut-PiLF"
     pathDirectoryMain   = "/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsTarget/P149.7+03.4/MSs"
@@ -44,7 +46,7 @@ def main():
     mss = lib_ms.AllMss(pathsMS, s)
     print (mss.get_list_str())
     
-    #mss.run("NDPPP " + pathDirectoryParSet + "/NDPPP-uGMRT-flag.parset msin=$ms flag1.baseline=" + bl2flag, log = "$ms_flag.log", cmd_type = "NDPPP")
+    #mss.run("NDPPP " + pathParSetFlag + " msin=$ms flag1.baseline=" + bl2flag, log = "$ms_flag.log", cmd_type = "NDPPP")
  
 
 
