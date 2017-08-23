@@ -77,14 +77,14 @@ def run_losoto(s, c, h5s, parsets):
 class Scheduler():
     def __init__(self, qsub = None, max_threads = None, max_processors = None, log_dir = 'logs', dry = False):
         """
-        qsub: if true call a shell script which call qsub and then wait 
-        for the process to finish before returning
-        max_threads: max number of parallel processes
-        dry: don't schedule job
+        qsub:           if true call a shell script which call qsub and then wait 
+                        for the process to finish before returning
+        max_threads:    max number of parallel processes
+        dry:            don't schedule job
         max_processors: max number of processors in a node (ignored if qsub=False)
         """
         self.cluster = self.get_cluster()
-        self.qsub = qsub
+        self.qsub    = qsub
         # if qsub/max_thread/max_processors not set, guess from the cluster
         # if they are set, double check number are reasonable
         if self.qsub == None:
@@ -113,10 +113,11 @@ class Scheduler():
             self.max_processors = max_processors
 
         self.dry = dry
-        logging.info("Scheduler initialized for cluster "+self.cluster+" (Nproc: "+str(self.max_threads)+", multinode: "+str(self.qsub)+", max_processors: "+str(self.max_processors)+").")
+        logging.info("Scheduler initialized for cluster " + self.cluster + " (Nproc: " + str(self.max_threads) + ", multinode: " +
+                     str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
 
         self.action_list = []
-        self.log_list = [] # list of 2-lenght tuple of the type: (log filename, type of action)
+        self.log_list    = [] # list of 2-length tuple of the type: (log filename, type of action)
 
         if not os.path.isdir(log_dir):
             logging.info('Creating log dir "'+log_dir+'".')

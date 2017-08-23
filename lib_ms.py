@@ -20,20 +20,20 @@ class AllMss(object):
         self.mss_list_str = sorted(mss)
         self.mss_list_obj = []
         for ms in sorted(mss):
-            mss_list_obj.append(Ms(ms))
+            self.mss_list_obj.append(Ms(ms))
 
     def get_list_obj(self):
         return self.mss_list_obj
 
     def get_list_str(self):
-        return self.mss_liat_str
+        return self.mss_list_str
 
     def get_str_wsclean(self):
         """
         Return a string with all mss names,
         useful for wsclean
         """
-        return ' '.join(self.mss_liat_str)
+        return ' '.join(self.mss_list_str)
 
     def run(self, cmd, log, cmd_type):
         for ms in self.mss_list_str:

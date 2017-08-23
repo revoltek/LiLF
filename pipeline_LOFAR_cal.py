@@ -50,7 +50,7 @@ for ms in mss.get_list_str():
                 log=msout+'_cp.log', cmd_type='NDPPP') # better than cp as activates dysco
 s.run(check=True)
 
-mss = AllMss( glob.glob('./*MS'), s )
+mss = lib_ms.AllMss( glob.glob('./*MS'), s )
 
 ############################################################   
 # flag bad stations, flags will propagate
@@ -62,7 +62,7 @@ logger.info('Predict...')
 mss.run('NDPPP '+parset_dir+'/NDPPP-predict.parset msin=$ms pre.sourcedb='+sourcedb+' pre.sources='+calname, log='$ms_pre.log', cmd_type='NDPPP')
 
 ##################################################
-# 1: find the FR and remve it
+# 1: find the FR and remove it
 
 # Beam correction DATA -> CORRECTED_DATA
 logger.info('Beam correction...')

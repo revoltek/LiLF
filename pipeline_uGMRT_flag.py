@@ -15,12 +15,14 @@ import lib_ms, lib_util
 
 
 def main():
-    #pathDirectoryMain = "/disks/strw3/oei/uGMRTCosmosCut-PiLF"
-    pathDirectoryMain = "/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsTarget/P149.7+03.4/MSs"
+    pathDirectoryParSet = '/disks/strw3/oei/code/PiLF/parset_cal/'
     
-    pathDirectoryLog  = "/disks/strw3/oei/uGMRTCosmosCut-PiLF/logs/"
-    nameFileLog       = "pipeline_uGMRT_flag.log"
-    pathFileLog       = pathDirectoryLog + nameFileLog
+    #pathDirectoryMain   = "/disks/strw3/oei/uGMRTCosmosCut-PiLF"
+    pathDirectoryMain   = "/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsTarget/P149.7+03.4/MSs"
+    
+    pathDirectoryLog    = "/disks/strw3/oei/uGMRTCosmosCut-PiLF/logs/"
+    nameFileLog         = "pipeline_uGMRT_flag.log"
+    pathFileLog         = pathDirectoryLog + nameFileLog
     
     
     lib_util.printLineBold("Starting log at '" + pathFileLog + "'...")
@@ -29,10 +31,21 @@ def main():
     logging.basicConfig(filename = pathFileLog, level = logging.DEBUG)
     logging.info("Started 'pipeline_uGMRT_flag.py'!")
     
-    for pathMS in glob.glob(pathDirectoryMain + "/*MS"):
+    pathsMS = glob.glob(pathDirectoryMain + "/*MS")
+    
+    for pathMS in pathsMS:
         MSObject = lib_ms.Ms(pathMS)
         print (MSObject.find_nchan())
         print (MSObject.find_chanband())
+    
+    logging.info('Flagging...')
+
+    s   = lib_util.Scheduler(dry = False)
+    mss = lib_ms.AllMss(pathsMS, s)
+    print (mss.get_list_str())
+    
+    #mss.run("NDPPP " + pathDirectoryParSet + "/NDPPP-uGMRT-flag.parset msin=$ms flag1.baseline=" + bl2flag, log = "$ms_flag.log", cmd_type = "NDPPP")
+ 
 
 
 if (__name__ == "__main__"):
