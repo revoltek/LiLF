@@ -1,14 +1,14 @@
-msin = 
+msin            = 
 msin.datacolumn = DATA
-msin.baseline = [CR]S*&
-msout = .
+msin.baseline   = [CR]S*&
+msout           = .
 
-numthreads = 1 # bug fix
+numthreads      = 1 # bug fix
 
-steps = [flag1, elev, count]
+steps           = [flag1, elev, count]
 
-flag1.type = preflagger
-flag1.baseline = 
+flag1.type      = preflagger
+flag1.baseline  = 
 
-elev.type = preflagger
-elev.elevation = 0deg..25deg
+elev.type       = preflagger
+elev.elevation  = 0deg..25deg

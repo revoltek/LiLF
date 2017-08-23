@@ -1,18 +1,18 @@
-msin = 
-msin.datacolumn = DATA
-msout = 
+msin                   = 
+msin.datacolumn        = DATA
+msout                  = .
 msout.writefullresflag = False
-#msout.storagemanager = dysco
+#msout.storagemanager   = dysco
 
-numthreads = 1 # bug fix
+numthreads             = 1 # bug fix
 
-steps = [filter,avg]
+steps                  = [filter, avg]
 
 # do not copy aucorr as they have too weird weights for dysco
 # do not copy international
-filter.remove=T
-filter.baseline='![CR]S&*'
+filter.remove          = T
+filter.baseline        = '![CR]S&*'
 
-avg.type = averager
-avg.freqstep = 1
-avg.timestep = 1
+avg.type               = averager
+avg.freqstep           = 1
+avg.timestep           = 1
