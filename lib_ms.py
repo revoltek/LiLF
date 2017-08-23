@@ -6,6 +6,7 @@ import numpy as np
 import lib_util
 
 import pyrap.tables as tb
+from casacore import tables
 
 import logging
 logger = logging.getLogger('PiLL')
@@ -48,8 +49,25 @@ class Ms(object):
 
     def __init__(self, filename):
         self.ms = filename
-
-
+        
+    def getName(self):
+        """
+        Retrieve field name.
+        """
+        pathFieldTable = self.ms + "/FIELD"
+        name           = (tables.taql("select NAME from $pathFieldTable")).getcol("NAME")[0]
+        return name
+    
+    def isCalibrator(self):
+        """
+        Returns whether the source is a calibrator or not.
+        """
+        if (self.getName() in ["CygA", "3C48", "3C147", "3C196", "3C286", "3C295", "3C380"]):
+            return True
+        else:
+            return False
+    
+    '''
     def get_calname(self):
         """
         Check if MS is of a calibrator and return patch name
@@ -78,7 +96,7 @@ class Ms(object):
         else:
             logger.info("Error: multiple calibrators were nearby.")
             sys.exit()         
-    
+    '''
     
     def find_nchan(self):
         """
@@ -92,7 +110,7 @@ class Ms(object):
     
     
     def find_chanband(self):
-        """
+        """+
         Find bandwidth of a channel in Hz
         """
         with tb.table(self.ms + '/SPECTRAL_WINDOW', ack = False) as t:
@@ -128,7 +146,7 @@ class Ms(object):
         #logger.debug("%s: Phase centre: %f deg - %f deg" (self.ms, ra*180/np.pi, dec*180/np.pi))
         if (ra < 0):
             ra += 2 * np.pi
-        return (ra*180/np.pi, dec*180/np.pi)
+        return (np.degrees(ra), np.degrees(dec))
 
 '''
 def find_nchan(ms):

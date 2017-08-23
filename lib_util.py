@@ -8,6 +8,16 @@ import logging
 logger = logging.getLogger("PiLL")
 
 
+def printLineBold(line):
+    """
+    Print a line of text 'line' using boldface.
+    """
+
+    boldStart = "\033[1m"
+    boldEnd   = "\033[0;0m"
+    print (boldStart + line + boldEnd)
+
+
 def distanceOnSphere(RAs1, Decs1, RAs2, Decs2):
     """
     Returns the distances on the sphere from the set of points '(RAs1, Decs1)' to the
