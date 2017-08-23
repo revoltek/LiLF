@@ -1,11 +1,11 @@
-import os, sys, re, pickle, random, shutil
+import os, sys, re, pickle, random, shutil, logging, glob
+
 import numpy as np
 import matplotlib as mpl
 mpl.use("Agg")
-import lsmtool
+#import lsmtool
 
-import logging
-logger = logging.getLogger("PiLL")
+#logger = logging.getLogger("PiLL")
 
 
 def printLineBold(line):
@@ -40,7 +40,6 @@ def check_rm(regexp):
     Check if file exists and remove it
     Handle reg exp of glob and spaces
     """
-    import os, glob
     filenames = regexp.split(' ')
     for filename in filenames:
         # glob is used to check if file exists
@@ -56,7 +55,7 @@ def run_losoto(s, c, h5s, parsets):
     parsets : lists of parsets to execute
     """
 
-    logger.info("Running LoSoTo...")
+    logging.info("Running LoSoTo...")
 
     # concat
     check_rm("cal-" + c + ".h5")
@@ -67,7 +66,7 @@ def run_losoto(s, c, h5s, parsets):
     os.makedirs('plots')
     
     for parset in parsets:
-        logger.debug('-- executing '+parset+'...')
+        logging.debug('-- executing '+parset+'...')
         s.add('losoto -v cal-'+c+'.h5 '+parset, log='losoto-'+c+'.log', log_append=True, cmd_type='python', processors='max')
         s.run(check=True)
 
@@ -94,7 +93,7 @@ class Scheduler():
         else:
             if (self.qsub == False and self.cluster == 'Hamburg') or \
                (self.qsub == True and (self.cluster == 'Leiden' or self.cluster == 'CEP3')):
-                logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
+                logging.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
                 sys.exit(1)
 
         if max_threads == None:
@@ -114,13 +113,13 @@ class Scheduler():
             self.max_processors = max_processors
 
         self.dry = dry
-        logger.info("Scheduler initialized for cluster "+self.cluster+" (Nproc: "+str(self.max_threads)+", multinode: "+str(self.qsub)+", max_processors: "+str(self.max_processors)+").")
+        logging.info("Scheduler initialized for cluster "+self.cluster+" (Nproc: "+str(self.max_threads)+", multinode: "+str(self.qsub)+", max_processors: "+str(self.max_processors)+").")
 
         self.action_list = []
         self.log_list = [] # list of 2-lenght tuple of the type: (log filename, type of action)
 
         if not os.path.isdir(log_dir):
-            logger.info('Creating log dir "'+log_dir+'".')
+            logging.info('Creating log dir "'+log_dir+'".')
             os.makedirs(log_dir)
         self.log_dir = log_dir
 
@@ -138,7 +137,7 @@ class Scheduler():
         elif (hostname[0 : 3] == 'lof'):
             return 'CEP3'
         else: 
-            logger.error('Hostname %s unknown.' % hostname)
+            logging.error('Hostname %s unknown.' % hostname)
             return 'Unknown'
 
 
@@ -188,7 +187,7 @@ class Scheduler():
 
         # since CASA can run in another dir, be sure log and pickle are in the pipeline working dir
         if log != '': log = os.getcwd()+'/'+self.log_dir+'/'+log
-        pfile = os.getcwd()+'/casaparams_'+str(random.randint(0,1e9))+'.pickle'
+        pfile = os.getcwd()+'/casaparams_'+str(random.randint(0, 1e9))+'.pickle'
         pickle.dump( params, open( pfile, "wb" ) )
 
         # exec in the script dir?
@@ -196,7 +195,7 @@ class Scheduler():
         elif os.path.isdir(wkd):
             casacmd = 'cd '+wkd+'; casa --nogui --log2term --nologger -c '+cmd+' '+pfile
         else:
-            logger.error('Cannot find CASA working dir: '+wkd)
+            logging.error('Cannot find CASA working dir: '+wkd)
             sys.exit(1)
 
         if self.qsub:
@@ -208,7 +207,7 @@ class Scheduler():
             if self.cluster == 'Hamburg':
                 self.action_list.append(casacmd+'; killall -9 -r dbus-daemon Xvfb python casa\*\'')
                 if processors != self.max_processors:
-                    logger.error('To clean annoying CASA remnants no more than 1 CASA per node is allowed.')
+                    logging.error('To clean annoying CASA remnants no more than 1 CASA per node is allowed.')
                     sys.exit(1)
             else:
                 self.action_list.append(casacmd+'\'')
@@ -239,13 +238,13 @@ class Scheduler():
                     # run on all cluster
                     cmd = 'salloc --job-name LBApipe --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
                             ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
-                subprocess.call(cmd, shell=True)
+                subprocess.call(cmd, shell = True)
     
         # limit threads only when qsub doesn't do it
         if max_threads != None: max_threads_run = min(max_threads, self.max_threads)
         else: max_threads_run = self.max_threads
 
-        q = Queue()
+        q       = Queue()
         threads = [Thread(target=worker, args=(q,)) for _ in range(max_threads_run)]
     
         for i, t in enumerate(threads): # start workers
@@ -265,10 +264,10 @@ class Scheduler():
 
         # reset list of commands
         self.action_list = []
-        self.log_list = []
+        self.log_list    = []
 
 
-    def check_run(self, log='', cmd_type=''):
+    def check_run(self, log = '', cmd_type = ''):
         """
         Produce a warning if a command didn't close the log properly i.e. it crashed
         NOTE: grep, -L inverse match, -l return only filename
@@ -276,13 +275,13 @@ class Scheduler():
         import subprocess
 
         if not os.path.exists(log):
-            logger.warning('No log file found to check results: '+log)
+            logging.warning('No log file found to check results: ' + log)
             return 1
 
         if cmd_type == 'BBS':
             out = subprocess.check_output('grep -L success '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
             if out != '':
-                logger.error('BBS run problem on:\n'+out.split("\n")[0])
+                logging.error('BBS run problem on:\n'+out.split("\n")[0])
                 return 1
 
         elif cmd_type == 'NDPPP':
@@ -290,7 +289,7 @@ class Scheduler():
             out += subprocess.check_output('grep -l "Exception" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
             out += subprocess.check_output('grep -l "**** uncaught exception ****" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
             if out != '':
-                logger.error('NDPPP run problem on:\n'+out.split("\n")[0])
+                logging.error('NDPPP run problem on:\n'+out.split("\n")[0])
                 return 1
 
         elif cmd_type == 'CASA':
@@ -298,14 +297,14 @@ class Scheduler():
             out += subprocess.check_output('grep -l "An error occurred running" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
             out += subprocess.check_output('grep -l "\*\*\* Error \*\*\*" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
             if out != '':
-                logger.error('CASA run problem on:\n'+out.split("\n")[0])
+                logging.error('CASA run problem on:\n'+out.split("\n")[0])
                 return 1
 
         elif cmd_type == 'wsclean':
             out = subprocess.check_output('grep -l "exception occurred" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
             out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
             if out != '':
-                logger.error('WSClean run problem on:\n'+out.split("\n")[0])
+                logging.error('WSClean run problem on:\n'+out.split("\n")[0])
                 return 1
 
         elif cmd_type == 'python':
@@ -313,17 +312,17 @@ class Scheduler():
             out += subprocess.check_output('grep -i -l "Error" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
             if out != '':
-                logger.error('Python run problem on:\n'+out.split("\n")[0])
+                logging.error('Python run problem on:\n'+out.split("\n")[0])
                 return 1
 
         elif cmd_type == 'general':
             out = subprocess.check_output('grep -l -i "error" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
             if out != '':
-                logger.error('Run problem on:\n'+out.split("\n")[0])
+                logging.error('Run problem on:\n'+out.split("\n")[0])
                 return 1
 
         else:
-            logger.warning('Unknown command type for log checking: "'+cmd_type+'"')
+            logging.warning('Unknown command type for log checking: "'+cmd_type+'"')
             return 1
 
         return 0

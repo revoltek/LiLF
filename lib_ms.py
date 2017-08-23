@@ -1,24 +1,22 @@
 #!/usr/bin/python
 
-import os, sys
+import os, sys, logging
+
+from casacore import tables
 import numpy as np
 
-import lib_util
 
-import pyrap.tables as tb
-from casacore import tables
+#logger = logging.getLogger("PiLL")
 
-import logging
-logger = logging.getLogger('PiLL')
 
 class AllMss(object):
 
     def __init__(self, mss, s):
         """
         mss : list of MS filenames
-        s : scheduler obj
+        s   : scheduler obj
         """
-        self.s = s
+        self.s            = s
         self.mss_list_str = sorted(mss)
         self.mss_list_obj = []
         for ms in sorted(mss):
@@ -44,30 +42,93 @@ class AllMss(object):
             self.s.add(cmd, log, cmd_type)
         self.s.run(check = True)
 
+
     
 class Ms(object):
-
+    
     def __init__(self, filename):
         self.ms = filename
-        
+    
+    
     def getName(self):
         """
-        Retrieve field name.
+        Retrieve source name.
         """
         pathFieldTable = self.ms + "/FIELD"
         name           = (tables.taql("select NAME from $pathFieldTable")).getcol("NAME")[0]
         return name
     
+    
     def isCalibrator(self):
         """
         Returns whether the source is a calibrator or not.
         """
-        if (self.getName() in ["CygA", "3C48", "3C147", "3C196", "3C286", "3C295", "3C380"]):
-            return True
-        else:
-            return False
+        return (self.getName() in ["CygA", "3C48", "3C147", "3C196", "3C286", "3C295", "3C380"]) # Expand this list!
+    
+    
+    def find_nchan(self):
+        """
+        Find number of channels
+        """
+        with tables.table(self.ms + "/SPECTRAL_WINDOW", ack = False) as t:
+            nchan = t.getcol("NUM_CHAN")
+        assert (nchan[0] == nchan).all() # all spw have same channels?
+        
+        logging.debug("%s: channel number: %i", self.ms, nchan[0])
+        #logger.debug("%s: channel number: %i", self.ms, nchan[0])
+        return nchan[0]
+    
+    
+    def find_chanband(self):
+        """+
+        Find bandwidth of a channel in Hz
+        """
+        with tables.table(self.ms + "/SPECTRAL_WINDOW", ack = False) as t:
+            chan_w = t.getcol("CHAN_WIDTH")[0]
+        assert all(x == chan_w[0] for x in chan_w) # all chans have same width
+        
+        logging.debug("%s: channel width (MHz): %f", self.ms, chan_w[0] / 1.e6)
+        #logger.debug("%s: channel width (MHz): %f", self.ms, chan_w[0] / 1.e6)
+        return chan_w[0]
+    
+    
+    def find_timeint(self):
+        """
+        Get time interval in seconds
+        """
+        with tables.table(self.ms, ack = False) as t:
+            Ntimes = len(set(t.getcol('TIME')))
+        with tables.table(self.ms + '/OBSERVATION', ack = False) as t:
+            deltat = (t.getcol('TIME_RANGE')[0][1] - t.getcol('TIME_RANGE')[0][0]) / Ntimes
+        
+        logging.debug("%s: Time interval: %f s", self.ms, deltat)
+        #logger.debug('%s: Time interval: %f s' (self.ms, deltat))
+        return deltat
+    
+    
+    def get_phase_centre(self):
+        """
+        Get the phase centre of the first source (is it a problem?) of an MS
+        values in deg
+        """
+        field_no = 0
+        ant_no   = 0
+        with tables.table(self.ms + "/FIELD", ack = False) as field_table:
+            direction = field_table.getcol("PHASE_DIR")
+            ra        = direction[ ant_no, field_no, 0 ]
+            dec       = direction[ ant_no, field_no, 1 ]
+        
+        if (ra < 0):
+            ra += 2 * np.pi
+        
+        logging.debug("%s: Phase centre: %f deg - %f deg", self.ms, np.degrees(ra), np.degrees(dec))
+        #logger.debug("%s: Phase centre: %f deg - %f deg", self.ms, np.degrees(ra), np.degrees(dec))
+        return (np.degrees(ra), np.degrees(dec))
+    
     
     '''
+    import lib_util
+    
     def get_calname(self):
         """
         Check if MS is of a calibrator and return patch name
@@ -97,102 +158,3 @@ class Ms(object):
             logger.info("Error: multiple calibrators were nearby.")
             sys.exit()         
     '''
-    
-    def find_nchan(self):
-        """
-        Find number of channels
-        """
-        with tb.table(self.ms + '/SPECTRAL_WINDOW', ack = False) as t:
-            nchan = t.getcol('NUM_CHAN')
-        assert (nchan[0] == nchan).all() # all spw have same channels?
-        logger.debug('%s: Number of channels: %i' (self.ms, nchan[0]))
-        return nchan[0]
-    
-    
-    def find_chanband(self):
-        """+
-        Find bandwidth of a channel in Hz
-        """
-        with tb.table(self.ms + '/SPECTRAL_WINDOW', ack = False) as t:
-            chan_w = t.getcol('CHAN_WIDTH')[0]
-        assert all(x == chan_w[0] for x in chan_w) # all chans have same width
-        logger.debug('%s: Chan-width: %f MHz' (self.ms, chan_w[0] / 1.e6))
-        return chan_w[0]
-    
-    
-    def find_timeint(self):
-        """
-        Get time interval in seconds
-        """
-        with tb.table(self.ms, ack = False) as t:
-            Ntimes = len(set(t.getcol('TIME')))
-        with tb.table(self.ms + '/OBSERVATION', ack = False) as t:
-            deltat = (t.getcol('TIME_RANGE')[0][1] - t.getcol('TIME_RANGE')[0][0]) / Ntimes
-        logger.debug('%s: Time interval: %f s' (self.ms, deltat))
-        return deltat
-    
-    
-    def get_phase_centre(self):
-        """
-        Get the phase centre of the first source (is it a problem?) of an MS
-        values in deg
-        """
-        field_no = 0
-        ant_no   = 0
-        with tb.table(self.ms + "/FIELD", ack = False) as field_table:
-            direction = field_table.getcol("PHASE_DIR")
-            ra        = direction[ ant_no, field_no, 0 ]
-            dec       = direction[ ant_no, field_no, 1 ]
-        #logger.debug("%s: Phase centre: %f deg - %f deg" (self.ms, ra*180/np.pi, dec*180/np.pi))
-        if (ra < 0):
-            ra += 2 * np.pi
-        return (np.degrees(ra), np.degrees(dec))
-
-'''
-def find_nchan(ms):
-    """
-    Find number of channel in this ms
-    """
-    with tb.table(ms+'/SPECTRAL_WINDOW', ack=False) as t:
-        nchan = t.getcol('NUM_CHAN')
-    assert (nchan[0] == nchan).all() # all spw have same channels?
-    logger.debug('Channel in '+ms+': '+str(nchan[0]))
-    return nchan[0]
-
-
-def find_chanband(ms):
-    """
-    Find bandwidth of a channel
-    """
-    with tb.table(ms+'/SPECTRAL_WINDOW', ack=False) as t:
-        chan_w = t.getcol('CHAN_WIDTH')[0]
-    assert all(x==chan_w[0] for x in chan_w) # all chans have same width
-    logger.debug('Channel width in '+ms+': '+str(chan_w[0]/1e6)+' MHz')
-    return chan_w[0]
-
-
-def find_timeint(ms):
-    """
-    Get time interval in seconds
-    """
-    with tb.table(ms, ack=False) as t:
-        Ntimes = len(set(t.getcol('TIME')))
-    with tb.table(ms+'/OBSERVATION', ack=False) as t:
-        deltat = (t.getcol('TIME_RANGE')[0][1]-t.getcol('TIME_RANGE')[0][0])/Ntimes
-    logger.debug('Time interval for '+ms+': '+str(deltat))
-    return deltat
-
-
-def get_phase_centre(ms):
-    """
-    Get the phase centre of the first source (is it a problem?) of an MS
-    values in deg
-    """
-    field_no = 0
-    ant_no = 0
-    with tb.table(ms + '/FIELD', ack=False) as field_table:
-        direction = field_table.getcol('PHASE_DIR')
-        ra = direction[ ant_no, field_no, 0 ]
-        dec = direction[ ant_no, field_no, 1 ]
-    return (ra*180/np.pi, dec*180/np.pi)
-'''

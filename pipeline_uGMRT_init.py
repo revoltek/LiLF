@@ -3,7 +3,7 @@
 
 '''
 Francesco de Gasperin & Martijn Oei, 2017
-In collaboration with: Tammo Jan Dijkema and Reinout van Weeren
+In collaboration with: Reinout van Weeren, Tammo Jan Dijkema and Andre Offringa
 
 This pipeline chunk
 1. Downloads uGMRT data.
@@ -19,8 +19,7 @@ import sys, os, shutil
 from casacore import tables
 import numpy as np
 
-import lib_ms
-import lib_util
+import lib_ms, lib_util
 
 
 

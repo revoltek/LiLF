@@ -34,20 +34,20 @@ def set_logger(filename = "pipeline.logging"):
     
     # create file handler which logs even debug messages
     lib_util.check_rm(filename)
-    fh = logging.FileHandler(filename)
-    fh.setLevel(logging.DEBUG)
+    handlerFile = logging.FileHandler(filename)
+    handlerFile.setLevel(logging.DEBUG)
     
     # create console handler with a higher log level
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
+    handlerConsole = logging.StreamHandler()
+    handlerConsole.setLevel(logging.INFO)
     
     # create formatter and add it to the handlers
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    fh.setFormatter(formatter)
-    ch.setFormatter(formatter)
+    handlerFile.setFormatter(formatter)
+    handlerConsole.setFormatter(formatter)
     
     # add the handlers to the logger
-    logger.addHandler(fh)
-    logger.addHandler(ch)
+    logger.addHandler(handlerFile)
+    logger.addHandler(handlerConsole)
     
     return logger

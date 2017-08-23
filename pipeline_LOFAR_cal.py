@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import sys, os, glob, re
+
 import numpy as np
-import lib_ms, lib_util
+
+import lib_log, lib_ms, lib_util
 
 
 parset_dir = '/home/fdg/scripts/autocal/parset_cal/'
@@ -28,7 +30,7 @@ else:
     bl2flag = ''
 
 ########################################################
-logger  = set_logger('pipeline-cal.logger')
+logger  = lib_log.set_logger('pipeline-cal.logger')
 lib_util.check_rm('logs')
 s       = lib_util.Scheduler(dry = False)
 mss     = lib_ms.AllMss(glob.glob(datadir+'/*MS'))
