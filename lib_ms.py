@@ -37,8 +37,8 @@ class AllMss(object):
 
     def run(self, cmd, log, cmd_type):
         for ms in self.mss_list_str:
-            cmd = cmd.replace('$ms', ms)
-            log = log.replace('$ms', ms)
+            cmd = cmd.replace("$ms", ms)
+            log = log.replace("$ms", ms)
             self.s.add(cmd, log, cmd_type)
         self.s.run(check = True)
 

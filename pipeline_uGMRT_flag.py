@@ -19,6 +19,9 @@ def main():
     nameParSetFlag      = "DPPP-uGMRT-flag.parset"
     pathParSetFlag      = pathDirectoryParSet + nameParSetFlag
     
+    # Baselines to flag completely
+    bl2flag             = ""
+    
     #pathDirectoryMain   = "/disks/strw3/oei/uGMRTCosmosCut-PiLF"
     pathDirectoryMain   = "/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsTarget/P149.7+03.4/MSs"
     
@@ -46,7 +49,7 @@ def main():
     mss = lib_ms.AllMss(pathsMS, s)
     print (mss.get_list_str())
     
-    #mss.run("NDPPP " + pathParSetFlag + " msin=$ms flag1.baseline=" + bl2flag, log = "$ms_flag.log", cmd_type = "NDPPP")
+    mss.run("DPPP " + pathParSetFlag + " msin=$ms flag1.baseline=" + bl2flag, log = "$ms_flag.log", cmd_type = "DPPP")
  
 
 
