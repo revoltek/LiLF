@@ -1,14 +1,14 @@
-msin            = 
-msin.datacolumn = DATA
-msin.baseline   = [CR]S*&
-msout           = .
+msin                         = 
+msin.datacolumn              = DATA
+msout                        = .
 
-numthreads      = 1 # bug fix
+steps                        = [flagBaselines, flagFrequencyRange, flagChannels, count]
 
-steps           = [flag1, elev, count]
+flagBaselines.type           = preflagger
+flagBaselines.baseline       =    # by default, flag no baselines (besides those already flagged by uGMRT staff)
 
-flag1.type      = preflagger
-flag1.baseline  = 
+flagFrequencyRange.type      = preflagger
+flagFrequencyRange.freqrange = [] # by default, flag no frequency range
 
-elev.type       = preflagger
-elev.elevation  = 0deg..25deg
+flagChannels.type            = preflagger
+flagChannels.chan            = [] # by default, flag no channels

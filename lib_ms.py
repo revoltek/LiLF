@@ -9,42 +9,48 @@ import numpy as np
 #logger = logging.getLogger("PiLL")
 
 
-class AllMss(object):
+class AllMSs(object):
 
-    def __init__(self, mss, s):
+    def __init__(self, MSs, scheduler):
         """
-        mss : list of MS filenames
+        MSs : list of MS filenames
         s   : scheduler obj
         """
-        self.s            = s
+        self.scheduler    = scheduler
+        
         self.mss_list_str = sorted(mss)
+        
         self.mss_list_obj = []
         for ms in sorted(mss):
             self.mss_list_obj.append(Ms(ms))
-
+    
+    
     def get_list_obj(self):
         return self.mss_list_obj
-
+    
+    
     def get_list_str(self):
         return self.mss_list_str
-
+    
+    
     def get_str_wsclean(self):
         """
         Return a string with all mss names,
         useful for wsclean
         """
         return ' '.join(self.mss_list_str)
-
+    
+    
     def run(self, cmd, log, cmd_type):
         for ms in self.mss_list_str:
             cmd = cmd.replace("$ms", ms)
             log = log.replace("$ms", ms)
             self.s.add(cmd, log, cmd_type)
+            
         self.s.run(check = True)
 
-
     
-class Ms(object):
+class MS(object):
     
     def __init__(self, filename):
         self.ms = filename
@@ -98,7 +104,7 @@ class Ms(object):
         """
         with tables.table(self.ms, ack = False) as t:
             Ntimes = len(set(t.getcol('TIME')))
-        with tables.table(self.ms + '/OBSERVATION', ack = False) as t:
+        with tables.table(self.ms + "/OBSERVATION", ack = False) as t:
             deltat = (t.getcol('TIME_RANGE')[0][1] - t.getcol('TIME_RANGE')[0][0]) / Ntimes
         
         logging.debug("%s: Time interval: %f s", self.ms, deltat)

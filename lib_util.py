@@ -119,8 +119,8 @@ class Scheduler():
         self.action_list = []
         self.log_list    = [] # list of 2-length tuple of the type: (log filename, type of action)
 
-        if not os.path.isdir(log_dir):
-            logging.info('Creating log dir "'+log_dir+'".')
+        if (not os.path.isdir(log_dir)):
+            logging.info("Creating log dir '" + log_dir + "'.")
             os.makedirs(log_dir)
         self.log_dir = log_dir
 
@@ -144,16 +144,19 @@ class Scheduler():
 
     def add(self, cmd = '', log = '', log_append = False, cmd_type = '', processors = None):
         """
-        Add cmd to the scheduler list
+        Add a command to the scheduler list
         cmd:        the command to run
         log:        log file name that can be checked at the end
-        log_append: if true append, otherwise replace
-        cmd_type:   can be a list of known command types as "BBS", "DPPP"...
+        log_append: if True append, otherwise replace
+        cmd_type:   can be a list of known command types as "BBS", "DPPP", ...
         processors: number of processors to use, can be "max" to automatically use max number of processors per node
         """
-        if log != '': log = self.log_dir + '/' + log
-        if log != '' and not log_append: cmd += ' > '+log+' 2>&1'
-        if log != '' and log_append: cmd += ' >> '+log+' 2>&1'
+        if (log != ''):
+            log = self.log_dir + '/' + log
+        if (log != '' and not log_append):
+            cmd += " > " + log + " 2>&1"
+        if (log != '' and log_append):
+            cmd += " >> " + log + " 2>&1"
 
         if processors != None and processors == 'max': processors = self.max_processors
 
