@@ -28,7 +28,7 @@ def columnExists(tableObject, columnName):
     Check whether a column with name 'columnName' exists in  table 'tableObject'.
     '''
     columnNames = tableObject.colnames()
-    
+
     return (columnName in columnNames)
 
 
@@ -118,7 +118,7 @@ print (pathsMSNew)
 lib_util.printLineBold("- Split-up of original MS '" + pathMS + "' -")
 for scanID, pathMSNew, i in zip(scanIDs, pathsMSNew, np.arange(numberOfScans) + 1):
     tables.taql("SELECT from $pathMS where SCAN_NUMBER = $scanID giving $pathMSNew as plain")
-    
+
     lib_util.printLineBold(str(i) + " / " + str(numberOfScans) + ". Created MS '" + pathMSNew + "'.")
 
 
@@ -381,9 +381,9 @@ for pathMSNew in pathsMSNew:
 
 # 6. Move the sub-MSs from a temporary place to their right locus in the file tree.
 for pathMSNew in pathsMSNew:
-    
-    MSObject    = lib_ms.Ms(pathMSNew)
-    
+
+    MSObject    = lib_ms.MS(pathMSNew)
+
     if (MSObject.isCalibrator()):
         pathDirectoryCalibrator = pathDirectoryMain + "fieldsCalibrator/" + pathMSNew[len(pathDirectoryMain) : -3]
         pathMSFinal             = pathDirectoryCalibrator + "/" + pathMSNew[len(pathDirectoryMain) : ]
@@ -403,6 +403,6 @@ for pathMSNew in pathsMSNew:
     lib_util.printLineBold("Moving MS at '" + pathMSNew + "' to '" + pathMSFinal + "'...")
     shutil.move(pathMSNew, pathMSFinal)
     MSObject.ms = pathMSFinal
-    
+
     print (MSObject.getName())
     print (MSObject.isCalibrator())
