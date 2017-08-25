@@ -72,22 +72,22 @@ def getTimes(pathMS, verbose = False):
 
 # 3. Set-up directory structure
 # Temporary:
-pathDirectoryMS   = "/disks/strw3/oei/"
+pathDirectoryMS   = "/disks/strw3/oei"
 nameMS            = "uGMRTCosmosCut.ms"
-pathMS            = pathDirectoryMS + nameMS
+pathMS            = pathDirectoryMS + '/' + nameMS
 
 if (not os.path.isdir(pathMS)):
     print ("'" + pathMS + "' is not a valid path.")
     sys.exit()
 
-pathDirectoryMain = pathDirectoryMS + nameMS[ : -3] + "-PiLF/"
+pathDirectoryMain = pathDirectoryMS + nameMS[ : -3] + "-PiLF"
 
 if (os.path.isdir(pathDirectoryMain)):
     shutil.rmtree(pathDirectoryMain)
 os.mkdir(pathDirectoryMain)
-os.mkdir(pathDirectoryMain + "fieldsTarget/")
-os.mkdir(pathDirectoryMain + "fieldsCalibrator/")
-os.mkdir(pathDirectoryMain + "logs/")
+os.mkdir(pathDirectoryMain + "/fieldsTarget")
+os.mkdir(pathDirectoryMain + "/fieldsCalibrator")
+os.mkdir(pathDirectoryMain + "/logs")
 
 
 

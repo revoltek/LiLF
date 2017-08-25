@@ -45,16 +45,19 @@ def pipeline_uGMRT_flag(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "./pa
         MSObject = lib_ms.MS(pathMS)
         print (MSObject.find_nchan())
         print (MSObject.find_chanband())
+        print (MSObject.pathDirectory)
+        print (MSObject.name)
 
 
     # 1. Flag user-specified data
     logging.info("Flagging user-specified data...")
     MSs.run(command = "DPPP " + pathParSetFlagUser + " msin=$ms flagBaselines.baseline=" + flagBaselinesUser +
             " flagFrequencyRanges.freqrange=" + flagFrequencyRangesUser + " flagChannels.chan=" + flagChannelsUser,
-            log = nameFileLog, commandType = "DPPP")
+            log = "flag_$name.log", commandType = "DPPP")
 
     # 2. Flag RFI
-    #logging.info("Flagging RFI...")
+    # This step is absent in the LOFAR pipeline, because in that case RFI is already flagged by the LOFAR observatory.
+    logging.info("Flagging RFI...")
     #MSs.run(command = "DPPP " + pathParSetFlagRFI + " msin=$ms", log = nameFileLog, commandType = "DPPP")
 
 

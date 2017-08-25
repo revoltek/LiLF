@@ -41,9 +41,9 @@ class AllMSs(object):
 
 
     def run(self, command, commandType, log):
-        for pathMS in self.mss_list_str:
+        for pathMS, objectMS in zip(self.mss_list_str, self.mss_list_obj):
             commandCurrent = command.replace("$ms", pathMS)
-            logCurrent     = log.replace("$ms", pathMS)
+            logCurrent     = log.replace("$name", objectMS.name)
             self.scheduler.add(commandCurrent, logCurrent, commandType)
 
         self.scheduler.run(check = True)
@@ -62,21 +62,21 @@ class MS(object):
         indexLastSlash     = self.pathMS.rfind('/')
 
         self.pathDirectory = self.pathMS[ : indexLastSlash]
-        self.nameMS        = self.pathMS[indexLastSlash + 1 : -3]
+        self.name          = self.pathMS[indexLastSlash + 1 : -3]
 
 
     def getName(self):
         """
-        Retrieve source name.
+        Retrieve field name.
         """
         pathFieldTable = self.pathMS + "/FIELD"
-        name           = (tables.taql("select NAME from $pathFieldTable")).getcol("NAME")[0]
-        return name
+        nameField      = (tables.taql("select NAME from $pathFieldTable")).getcol("NAME")[0]
+        return nameField
 
 
     def isCalibrator(self):
         """
-        Returns whether the source is a calibrator or not.
+        Returns whether the field is a calibrator field or not.
         """
         return (self.getName() in ["CygA", "3C48", "3C147", "3C196", "3C286", "3C295", "3C380"]) # This list should be expanded to include all potential calibrators.
 
