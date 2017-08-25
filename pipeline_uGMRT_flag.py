@@ -36,7 +36,7 @@ def pipeline_uGMRT_flag(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "./pa
     logging.info("Started 'pipeline_uGMRT_flag.py'!")
 
     # Initialise processing objects.
-    scheduler          = lib_util.Scheduler(dry = False, log_dir = pathDirectoryLog)
+    scheduler          = lib_util.Scheduler(dry = False, log_dir = pathDirectoryLogs)
     MSs                = lib_ms.AllMSs(pathsMS, scheduler)
 
 
@@ -64,7 +64,7 @@ if (__name__ == "__main__"):
     # If the program is run from the command line, parse arguments.
     parser    = argparse.ArgumentParser(description = "Pipeline step 2: Initial flagging of uGMRT data.")
 
-    parser.add_argument("pathsMS",           help = "Paths to the MSs to act upon.")
+    parser.add_argument("pathsMS", help = "Paths to the MSs to act upon.")
     parser.add_argument("pathDirectoryLogs", help = "Directory containing log files.")
     parser.add_argument("-p", "--pathDirectoryParSets", default = "./parsets", help = "Directory containing parameter sets.")
     parser.add_argument("-v", "--verbose", default = False, help = "Whether or not to provide extensive textual diagnostic output. Default: False")
@@ -72,20 +72,16 @@ if (__name__ == "__main__"):
     parser.add_argument("-r", "--flagFrequencyRangesUser", default = "[]", help = "String containing list with frequency ranges to flag.")
     parser.add_argument("-c", "--flagChannelsUser", default = "[]", help = "String containing list with channels to flag.")
     arguments = parser.parse_args()
-
+    
+    # Temporary!
+    arguments.pathsMS           = ["/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsTarget/P149.7+03.4/MSs/scanID2.MS",
+                                   "/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsTarget/P149.7+03.4/MSs/scanID14.MS"]
+    arguments.pathDirectoryLogs =  "/disks/strw3/oei/uGMRTCosmosCut-PiLF/logs"
+    
+    
     lib_util.printLineBold("Parameters to use:")
     print (arguments)
 
     # Run the program with appropriate input.
     pipeline_uGMRT_flag(arguments.pathsMS, arguments.pathDirectoryLogs, pathDirectoryParSets = arguments.pathDirectoryParSets, verbose = arguments.verbose,
                         flagBaselinesUser = arguments.flagBaselinesUser, flagFrequencyRangesUser = arguments.flagFrequencyRangesUser, flagChannelsUser = arguments.flagChannelsUser)
-
-
-
-#pathDirectoryParSet = "/disks/strw3/oei/code/PiLF/parset_cal"
-# Initialise main folder setting.
-#pathDirectoryMain   = "/disks/strw3/oei/uGMRTCosmosCut-PiLF"
-#pathDirectoryMain   = "/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsTarget/P149.7+03.4/MSs"
-#import glob
-#pathsMS = glob.glob(pathDirectoryMain + "/*MS")
-#pathDirectoryLog    = "/disks/strw3/oei/uGMRTCosmosCut-PiLF/logs"
