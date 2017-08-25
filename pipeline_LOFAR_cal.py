@@ -46,8 +46,8 @@ logger.info('Copy data...')
 for ms in mss.get_list_str():
     msout = ms.split('/')[-1]
     if os.path.exists(msout): continue
-    s.add('NDPPP '+parset_dir+'/NDPPP-avg.parset msin='+ms+' msout='+msout+' msin.datacolumn=DATA avg.timestep=1 avg.freqstep=1', \
-                log=msout+'_cp.log', cmd_type='NDPPP') # better than cp as activates dysco
+    s.add('NDPPP '+parset_dir+'/DPPP_avg.parset msin='+ms+' msout='+msout+' msin.datacolumn=DATA avg.timestep=1 avg.freqstep=1', \
+                log=msout+'_cp.log', cmd_type= "DPPP") # better than cp as activates dysco
 s.run(check=True)
 
 mss = lib_ms.AllMss( glob.glob('./*MS'), s )
@@ -55,18 +55,18 @@ mss = lib_ms.AllMss( glob.glob('./*MS'), s )
 ############################################################   
 # flag bad stations, flags will propagate
 logger.info('Flagging...')
-mss.run('NDPPP '+parset_dir+'/NDPPP-flag.parset msin=$ms flag1.baseline='+bl2flag, log='$ms_flag.log', cmd_type='NDPPP')
+mss.run('NDPPP '+parset_dir+'/DPPP_flag.parset msin=$ms flag1.baseline='+bl2flag, log='$ms_flag.log', cmd_type= "DPPP")
  
 # predict to save time ms:MODEL_DATA
 logger.info('Predict...')
-mss.run('NDPPP '+parset_dir+'/NDPPP-predict.parset msin=$ms pre.sourcedb='+sourcedb+' pre.sources='+calname, log='$ms_pre.log', cmd_type='NDPPP')
+mss.run('NDPPP '+parset_dir+'/DPPP_predict.parset msin=$ms pre.sourcedb='+sourcedb+' pre.sources='+calname, log='$ms_pre.log', cmd_type= "DPPP")
 
 ##################################################
 # 1: find the FR and remove it
 
 # Beam correction DATA -> CORRECTED_DATA
 logger.info('Beam correction...')
-mss.run('NDPPP '+parset_dir+'/NDPPP-beam.parset msin=$ms', log='$ms_beam.log', cmd_type='NDPPP')
+mss.run('NDPPP '+parset_dir+'/DPPP_beam.parset msin=$ms', log='$ms_beam.log', cmd_type= "DPPP")
 
 # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Converting to circular...')
@@ -79,8 +79,8 @@ mss.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $ms', log='$ms_smooth
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
 logger.info('Calibrating...')
 for ms in mss.get_list_str():
-    check_rm(ms+'/instrument')
-mss.run('NDPPP '+parset_dir+'/NDPPP-sol.parset msin=$ms', log='$ms_sol1.log', cmd_type='NDPPP')
+    lib_util.check_rm(ms+'/instrument')
+mss.run('NDPPP '+parset_dir+'/DPPP_sol.parset msin=$ms', log='$ms_sol1.log', cmd_type= "DPPP")
 
 # TODO: add losoto concat
 run_losoto(s, 'fr', mss.get_list_str(), [parset_dir+'/losoto-fr.parset'], outtab='rotationmeasure000', \
@@ -91,11 +91,11 @@ run_losoto(s, 'fr', mss.get_list_str(), [parset_dir+'/losoto-fr.parset'], outtab
 
 # Beam correction DATA -> CORRECTED_DATA
 logger.info('Beam correction...')
-mss.run('NDPPP '+parset_dir+'/NDPPP-beam.parset msin=$ms', log='$ms_beam.log', cmd_type='NDPPP')
+mss.run('NDPPP '+parset_dir+'/DPPP_beam.parset msin=$ms', log='$ms_beam.log', cmd_type= "DPPP")
 
 # Correct FR CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Faraday rotation correction...')
-mss.run('NDPPP '+parset_dir+'/NDPPP-cor.parset msin=$ms cor.parmdb=$ms/instrument-fr cor.correction=rotationmeasure', log='$ms_corFR.log', cmd_type='NDPPP')
+mss.run('NDPPP '+parset_dir+'/DPPP_cor.parset msin=$ms cor.parmdb=$ms/instrument-fr cor.correction=rotationmeasure', log='$ms_corFR.log', cmd_type= "DPPP")
 
 # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
 logger.info('BL-smooth...')
@@ -104,8 +104,8 @@ mss.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $ms', log='$ms_smooth
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
 logger.info('Calibrating...')
 for ms in mss.get_list_str():
-    check_rm(ms+'/instrument')
-mss.run('NDPPP '+parset_dir+'/NDPPP-sol.parset msin=$ms', log='$ms_sol2.log', cmd_type='NDPPP')
+    lib_util.check_rm(ms+'/instrument')
+mss.run('NDPPP '+parset_dir+'/DPPP_sol.parset msin=$ms', log='$ms_sol2.log', cmd_type= "DPPP")
 
 run_losoto(s, 'cd', mss.get_list_str(), [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-amp.parset',parset_dir+'/losoto-cd.parset'], outtab='amplitudeSmooth000,crossdelay', \
     inglobaldb='globaldb', outglobaldb='globaldb', ininstrument='instrument', outinstrument='instrument-cd', putback=True)
@@ -115,15 +115,15 @@ run_losoto(s, 'cd', mss.get_list_str(), [parset_dir+'/losoto-flag.parset',parset
 
 # Correct cd+amp DATA -> CORRECTED_DATA
 logger.info('Cross delay+ampBP correction...')
-mss.run('NDPPP '+parset_dir+'/NDPPP-cor.parset msin=$ms msin.datacolumn=DATA cor.parmdb=$ms/instrument-cd cor.correction=gain cor.updateweights=True', log='$ms_corCD.log', cmd_type='NDPPP')
+mss.run('NDPPP '+parset_dir+'/DPPP_cor.parset msin=$ms msin.datacolumn=DATA cor.parmdb=$ms/instrument-cd cor.correction=gain cor.updateweights=True', log='$ms_corCD.log', cmd_type= "DPPP")
 
 # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Beam correction...')
-mss.run('NDPPP '+parset_dir+'/NDPPP-beam.parset msin=$ms msin.datacolumn=CORRECTED_DATA corrbeam.updateweights=True', log='$ms_beam2.log', cmd_type='NDPPP')
+mss.run('NDPPP '+parset_dir+'/DPPP_beam.parset msin=$ms msin.datacolumn=CORRECTED_DATA corrbeam.updateweights=True', log='$ms_beam2.log', cmd_type= "DPPP")
 
 # Correct FR CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Faraday rotation correction...')
-mss.run('NDPPP '+parset_dir+'/NDPPP-cor.parset msin=$ms cor.parmdb=$ms/instrument-fr cor.correction=rotationmeasure', log='$ms_corFR2.log', cmd_type='NDPPP')
+mss.run('NDPPP '+parset_dir+'/DPPP_cor.parset msin=$ms cor.parmdb=$ms/instrument-fr cor.correction=rotationmeasure', log='$ms_corFR2.log', cmd_type= "DPPP")
 
 # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
 logger.info('BL-smooth...')
@@ -132,8 +132,8 @@ mss.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $ms', log='$ms_smooth
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
 logger.info('Calibrating...')
 for ms in mss.get_list_str():
-    check_rm(ms+'/instrument')
-mss.run('NDPPP '+parset_dir+'/NDPPP-sol.parset msin=$ms', log='$ms_sol3.log', cmd_type='NDPPP')
+    lib_util.check_rm(ms+'/instrument')
+mss.run('NDPPP '+parset_dir+'/DPPP_sol.parset msin=$ms', log='$ms_sol3.log', cmd_type= "DPPP")
 
 # if field model available, subtract it
 field_model = '/home/fdg/scripts/model/calfields/'+calname+'-field.skydb'
@@ -144,8 +144,8 @@ if os.path.exists(field_model):
            inglobaldb='globaldb', outglobaldb='globaldb', ininstrument='instrument', outinstrument='instrument', putback=True)
 
     logger.info('Ft+corrupt model...')
-    mss.run('NDPPP '+parset_dir+'/NDPPP-predict.parset msin=$ms pre.sourcedb='+field_model+' \
-                pre.applycal.parmdb=$ms/instrument pre.applycal.correction=gain', log='$ms_field_pre.log', cmd_type='NDPPP')
+    mss.run('NDPPP '+parset_dir+'/DPPP_predict.parset msin=$ms pre.sourcedb='+field_model+' \
+                pre.applycal.parmdb=$ms/instrument pre.applycal.correction=gain', log='$ms_field_pre.log', cmd_type= "DPPP")
 
     logger.info('Subtract model...')
     mss.run('taql "update $ms set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$ms_field_taql.log', cmd_type='general')
@@ -157,25 +157,25 @@ if os.path.exists(field_model):
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating...')
     for ms in mss.get_list_str():
-        check_rm(ms+'/instrument')
-    mss.run('NDPPP '+parset_dir+'/NDPPP-sol.parset msin=$ms', log='$ms_field_sol.log', cmd_type='NDPPP')
+        lib_util.check_rm(ms+'/instrument')
+    mss.run('NDPPP '+parset_dir+'/DPPP_sol.parset msin=$ms', log='$ms_field_sol.log', cmd_type= "DPPP")
 
-    run_losoto(s, 'iono', mss.get_list_str(), [parset_dir+'/losoto-iono.parset'], outtab='amplitude000,phaseOrig000', \
+    run_losoto(s, 'iono', mss.get_list_str(), [parset_dir+'/losoto_iono.parset'], outtab='amplitude000,phaseOrig000', \
            inglobaldb='globaldb', outglobaldb='globaldb', ininstrument='instrument', outinstrument='instrument', putback=True)
 
 # copy amp from cd h5parm to iono h5parm
 logger.info('Prepare final globaldb...')
-s.add('H5parm_merge.py cal-cd.h5:sol000 cal-iono.h5:solcd', log='losoto-iono.log', log_append=True, cmd_type='python', processors='max')
-s.run(check=True)
+s.add('H5parm_merge.py cal-cd.h5:sol000 cal-iono.h5:solcd', log='losoto-iono.log', log_append=True, cmd_type = 'python', processors='max')
+s.run(check = True)
 
-s.add('losoto -v cal-iono.h5 '+parset_dir+'/losoto-dup.parset', log='losoto-iono.log', log_append=True, cmd_type='python', processors='max')
-s.run(check=True)
+s.add('losoto -v cal-iono.h5 '+parset_dir+'/losoto_dup.parset', log='losoto-iono.log', log_append=True, cmd_type = 'python', processors='max')
+s.run(check = True)
 
 s.add('H5parm_exporter.py -v -c --soltab amplitudeSmooth000,phaseOrig000 cal-iono.h5 globaldb', log='losoto-iono.log', log_append=True, cmd_type='python', processors='max')
-s.run(check=True)
+s.run(check = True)
 
 if 'survey' in os.getcwd():
-    check_rm('globaldb/instrument*') # keep only filled instrument tables
+    lib_util.check_rm('globaldb/instrument*') # keep only filled instrument tables
     newglobaldb = 'globaldb_'+os.getcwd().split('/')[-2]
     logger.info('Copy: globaldb -> dsk:/disks/paradata/fdg/LBAsurvey/%s' % newglobaldb)
     os.system('ssh dsk "rm -rf /disks/paradata/fdg/LBAsurvey/%s"' % newglobaldb)
@@ -190,13 +190,13 @@ if imaging:
 
     # Correct all CORRECTED_DATA (beam, CD, FR, BP corrected) -> CORRECTED_DATA
     logger.info('Amp/ph correction...')
-    mss.run('NDPPP '+parset_dir+'/NDPPP-cor.parset msin=$ms cor.parmdb=$ms/instrument cor.correction=gain', log='$ms_corG.log', cmd_type='NDPPP')
+    mss.run('NDPPP '+parset_dir+'/DPPP_cor.parset msin=$ms cor.parmdb=$ms/instrument cor.correction=gain', log='$ms_corG.log', cmd_type= "DPPP")
 
     logger.info('Subtract model...')
     mss.run('taql "update $ms set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$ms_taql2.log', cmd_type='general')
 
     logger.info('Cleaning...')
-    check_rm('img')
+    lib_util.check_rm('img')
     os.makedirs('img')
     imagename = 'img/wide'
     s.add('wsclean -reorder -name ' + imagename + ' -size 5000 5000 -trim 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
