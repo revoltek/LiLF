@@ -12,9 +12,12 @@ This pipeline chunk
 4. Splits up the MS on a scan-by-scan basis.
 5. Modifies the MSs to LOFAR format.
 6. Puts the MSs in the right place in the file tree.
+
+Notes:
+Paths to directories do not end with a '/'.
 '''
 
-import sys, os, shutil
+import logging, os, shutil, sys
 
 from casacore import tables
 import numpy as np
@@ -60,6 +63,8 @@ def getTimes(pathMS, verbose = False):
     return times
 
 
+
+
 # 1. Download data from NCRA server
 
 
@@ -72,28 +77,39 @@ def getTimes(pathMS, verbose = False):
 
 # 3. Set-up directory structure
 # Temporary:
-pathDirectoryMS   = "/disks/strw3/oei"
-nameMS            = "uGMRTCosmosCut.ms"
-pathMS            = pathDirectoryMS + '/' + nameMS
+pathDirectoryMS               = "/disks/strw3/oei"
+nameMS                        = "uGMRTCosmosCut.ms"
+pathMS                        = pathDirectoryMS + '/' + nameMS
 
 if (not os.path.isdir(pathMS)):
     print ("'" + pathMS + "' is not a valid path.")
     sys.exit()
 
-pathDirectoryMain = pathDirectoryMS + nameMS[ : -3] + "-PiLF"
+pathDirectoryMain             = pathDirectoryMS + '/' + nameMS[ : -3] + "-PiLF"
+pathDirectoryFieldsTarget     = pathDirectoryMain + "/fieldsTarget"
+pathDirectoryFieldsCalibrator = pathDirectoryMain + "/fieldsCalibrator"
+pathDirectoryLogs             = pathDirectoryMain + "/logs"
 
 if (os.path.isdir(pathDirectoryMain)):
     shutil.rmtree(pathDirectoryMain)
 os.mkdir(pathDirectoryMain)
-os.mkdir(pathDirectoryMain + "/fieldsTarget")
-os.mkdir(pathDirectoryMain + "/fieldsCalibrator")
-os.mkdir(pathDirectoryMain + "/logs")
+os.mkdir(pathDirectoryFieldsTarget)
+os.mkdir(pathDirectoryFieldsCalibrator)
+os.mkdir(pathDirectoryLogs)
 
+# Initialise logging settings.
+nameFileLog        = "pipeline_uGMRT_init.log"
+pathFileLog        = pathDirectoryLogs + '/' + nameFileLog
+
+# Initialise logging.
+lib_util.printLineBold("Starting log at '" + pathFileLog + "'...")
+logging.basicConfig(filename = pathFileLog, level = logging.DEBUG)
+logging.info("Started 'pipeline_uGMRT_init.py'!")
 
 
 
 # 4. Split up the MS.
-verbose                   = False
+verbose                   = True
 columnNameVisibilitiesNew = "DATA"
 columnNameFlagsNew        = "FLAG"
 columnNameWeightsNew      = "WEIGHT_SPECTRUM"
@@ -101,37 +117,38 @@ columnNameWeightsNew      = "WEIGHT_SPECTRUM"
 scanIDs                   = getScanIDs(pathMS)
 numberOfScans             = len(scanIDs)
 
-lib_util.printLineBold("pathMS:")
-print (pathMS)
+
+logging.debug("pathMS:")
+logging.debug(pathMS)
 
 # Create temporary paths for the sub-MSs.
 pathsMSNew    = np.empty(len(scanIDs), dtype = object)
 i             = 0
 for scanID in scanIDs:
-    pathMSNew      = pathDirectoryMain + "scanID" + str(scanID) + ".MS"
+    pathMSNew      = pathDirectoryMain + "/scanID" + str(scanID) + ".MS"
     pathsMSNew[i]  = pathMSNew
     i             += 1
-lib_util.printLineBold("pathsMSNew:")
-print (pathsMSNew)
+logging.debug("pathsMSNew:")
+logging.debug(pathsMSNew)
 
 
-lib_util.printLineBold("- Split-up of original MS '" + pathMS + "' -")
+logging.info("- Split-up of original MS '" + pathMS + "' -")
 for scanID, pathMSNew, i in zip(scanIDs, pathsMSNew, np.arange(numberOfScans) + 1):
     tables.taql("SELECT from $pathMS where SCAN_NUMBER = $scanID giving $pathMSNew as plain")
 
-    lib_util.printLineBold(str(i) + " / " + str(numberOfScans) + ". Created MS '" + pathMSNew + "'.")
+    logging.info(str(i) + " / " + str(numberOfScans) + ". Created MS '" + pathMSNew + "'.")
 
 
 
 
 # 5. Convert MSs from uGMRT to LOFAR format.
 for pathMSNew in pathsMSNew:
-    lib_util.printLineBold("Starting work on MS at '" + pathMSNew + "'...")
+    logging.info("Starting work on MS at '" + pathMSNew + "'...")
 
 
     # 5.1
     # Removal of columns can give errors when executing LOFAR command 'msoverview'.
-    lib_util.printLineBold("- Removal of unnecessary data columns -")
+    logging.info("- Removal of unnecessary data columns -")
 
     t                        = tables.table(pathMSNew, readonly = False)
 
@@ -146,7 +163,7 @@ for pathMSNew in pathsMSNew:
     # 5.2
     # CORR_TYPE    column description comment: 'The polarization type for each correlation product, as a Stokes enum.'
     # CORR_PRODUCT column description comment: 'Indices describing receptors of feed going into correlation'
-    lib_util.printLineBold("- Adaptation of polarisation metadata -")
+    logging.info("- Adaptation of polarisation metadata -")
 
     t                        = tables.table(pathMSNew + "/POLARIZATION", readonly = False)
 
@@ -162,7 +179,7 @@ for pathMSNew in pathsMSNew:
 
 
     # 5.3
-    lib_util.printLineBold("- Adaptation of frequency metadata -")
+    logging.info("- Adaptation of frequency metadata -")
 
     t                       = tables.table(pathMSNew + "/SPECTRAL_WINDOW", readonly = False)
     frequencies             = t.getcol("CHAN_FREQ")
@@ -171,14 +188,14 @@ for pathMSNew in pathsMSNew:
     t.close()
 
     if (verbose):
-        lib_util.printLineBold("frequencies:")
-        print (frequencies)
-        lib_util.printLineBold("frequencies (updated):")
-        print (frequenciesNew)
+        logging.debug("frequencies:")
+        logging.debug(frequencies)
+        logging.debug("frequencies (updated):")
+        logging.debug(frequenciesNew)
 
 
     # 5.4
-    lib_util.printLineBold("- Adaptation of field information -")
+    logging.info("- Adaptation of field information -")
 
     pathMSNewField = pathMSNew + "/FIELD"
 
@@ -193,7 +210,7 @@ for pathMSNew in pathsMSNew:
 
 
     # 5.5
-    lib_util.printLineBold("- Adaptation of intervals -")
+    logging.info("- Adaptation of intervals -")
 
     times           = getTimes(pathMSNew)
     intervalPrecise = times[1] - times[0]
@@ -206,13 +223,12 @@ for pathMSNew in pathsMSNew:
     t.close()
 
     if (verbose):
-        lib_util.printLineBold("Time intervals (should be equal):")
-        print (times[1:] - times[:-1])
+        logging.debug("Time intervals (should be equal):")
+        logging.debug(times[1:] - times[:-1])
 
 
     # 5.6
-    lib_util.printLineBold("- Change existing or create alternative columns for data, flags and weights -")
-
+    logging.info("- Change existing (or create alternative) columns for data, flags and weights -")
     # Open the MS as a table in a way that changes can be made.
     t                        = tables.table(pathMSNew, readonly = False)
 
@@ -220,10 +236,10 @@ for pathMSNew in pathsMSNew:
     # If the visibilities were sorted in descending frequency order (id est given for high frequencies first),
     # they are converted to ascending frequency order. Note: applying this operation twice returns the MS to its old state!
     if (verbose):
-        lib_util.printLineBold("Loading visibilities...")
+        logging.info("Loading visibilities...")
     visibilities             = t.getcol("DATA")
     if (verbose):
-        lib_util.printLineBold("Visibilities loaded!")
+        logging.info("Visibilities loaded!")
 
     visibilities             = np.fliplr(visibilities)
     visibilitiesNew          = np.zeros((visibilities.shape[0], visibilities.shape[1], 4), dtype = np.complex128)
@@ -235,12 +251,12 @@ for pathMSNew in pathsMSNew:
     dataManagerInfo          = t.getdminfo("DATA")
 
     if (verbose):
-        lib_util.printLineBold("keywordNames:")
-        print (keywordNames)
-        lib_util.printLineBold("columnDescription:")
-        print (columnDescription)
-        lib_util.printLineBold("dataManagerInfo:")
-        print (dataManagerInfo)
+        logging.debug("keywordNames:")
+        logging.debug(keywordNames)
+        logging.debug("columnDescription:")
+        logging.debug(columnDescription)
+        logging.debug("dataManagerInfo:")
+        logging.debug(dataManagerInfo)
 
     dataManagerInfo["NAME"]                                  = "TiledDATAMartijn"
     dataManagerInfo["SPEC"]["DEFAULTTILESHAPE"]              = np.array([4, 40, 819], dtype = np.int32)
@@ -249,32 +265,32 @@ for pathMSNew in pathsMSNew:
     dataManagerInfo["SPEC"]["HYPERCUBES"]["*1"]["CellShape"] = np.array([4, visibilities.shape[1]], dtype = np.int32)
 
     if (verbose):
-        lib_util.printLineBold("dataManagerInfo (updated):")
-        print (dataManagerInfo)
+        logging.debug("dataManagerInfo (updated):")
+        logging.debug(dataManagerInfo)
 
     if (verbose):
-        lib_util.printLineBold("Removing column '" + columnNameVisibilitiesNew + "', if it exists...")
+        logging.info("Removing column '" + columnNameVisibilitiesNew + "', if it exists...")
     if (columnExists(t, columnNameVisibilitiesNew)):
         t.removecols(columnNameVisibilitiesNew)
 
     if (verbose):
-        lib_util.printLineBold("Adding column '" + columnNameVisibilitiesNew + "'...")
+        logging.info("Adding column '" + columnNameVisibilitiesNew + "'...")
     t.addcols(tables.makecoldesc(columnNameVisibilitiesNew, columnDescription), dataManagerInfo)
 
     if (verbose):
-        lib_util.printLineBold("Filling column '" + columnNameVisibilitiesNew + "'...")
+        logging.info("Filling column '" + columnNameVisibilitiesNew + "'...")
     t.putcol(columnNameVisibilitiesNew, visibilitiesNew)
 
     if (verbose):
-        lib_util.printLineBold("Visibilities flipped along frequency axis and placeholder polarisations added!")
+        logging.info("Visibilities flipped along frequency axis and placeholder polarisations added!")
 
 
 
     if (verbose):
-        lib_util.printLineBold("Loading flags...")
+        logging.info("Loading flags...")
     flags                    = t.getcol("FLAG")
     if (verbose):
-        lib_util.printLineBold("Flags loaded!")
+        logging.info("Flags loaded!")
 
     flags                    = np.fliplr(flags)
     flagsNew                 = np.zeros((flags.shape[0], flags.shape[1], 4), dtype = np.bool_)
@@ -286,14 +302,14 @@ for pathMSNew in pathsMSNew:
     keywordNames             = t.colkeywordnames("FLAG")
     columnDescription        = t.getcoldesc("FLAG")
     dataManagerInfo          = t.getdminfo("FLAG")
-
+    
     if (verbose):
-        lib_util.printLineBold("keywordNames:")
-        print (keywordNames)
-        lib_util.printLineBold("columnDescription:")
-        print (columnDescription)
-        lib_util.printLineBold("dataManagerInfo:")
-        print (dataManagerInfo)
+        logging.debug("keywordNames:")
+        logging.debug(keywordNames)
+        logging.debug("columnDescription:")
+        logging.debug(columnDescription)
+        logging.debug("dataManagerInfo:")
+        logging.debug(dataManagerInfo)
 
     dataManagerInfo["NAME"]                                  = "TiledFlagMartijn"
     dataManagerInfo["SPEC"]["DEFAULTTILESHAPE"]              = np.array([4, 40, 819], dtype = np.int32)
@@ -302,32 +318,32 @@ for pathMSNew in pathsMSNew:
     dataManagerInfo["SPEC"]["HYPERCUBES"]["*1"]["CellShape"] = np.array([4, flags.shape[1]], dtype = np.int32)
 
     if (verbose):
-        lib_util.printLineBold("dataManagerInfo (updated):")
-        print (dataManagerInfo)
+        logging.debug("dataManagerInfo (updated):")
+        logging.debug(dataManagerInfo)
 
     if (verbose):
-        lib_util.printLineBold("Removing column '" + columnNameFlagsNew + "', if it exists...")
+        logging.info("Removing column '" + columnNameFlagsNew + "', if it exists...")
     if (columnExists(t, columnNameFlagsNew)):
         t.removecols(columnNameFlagsNew)
 
     if (verbose):
-        lib_util.printLineBold("Adding column '" + columnNameFlagsNew + "'...")
+        logging.info("Adding column '" + columnNameFlagsNew + "'...")
     t.addcols(tables.makecoldesc(columnNameFlagsNew, columnDescription), dataManagerInfo)
 
     if (verbose):
-        lib_util.printLineBold("Filling column '" + columnNameFlagsNew + "'...")
+        logging.info("Adding column '" + columnNameFlagsNew + "'...")
     t.putcol(columnNameFlagsNew, flagsNew)
 
     if (verbose):
-        lib_util.printLineBold("Flags flipped along frequency axis and placeholder polarisations added!")
+        logging.info("Flags flipped along frequency axis and placeholder polarisations added!")
 
 
 
     if (verbose):
-        lib_util.printLineBold("Loading weights...")
+        logging.info("Loading weights...")
     weights                  = t.getcol("WEIGHT_SPECTRUM")
     if (verbose):
-        lib_util.printLineBold("Weights loaded!")
+        logging.info("Weights loaded!")
 
     weights                  = np.fliplr(weights)
     weightsNew               = np.zeros((weights.shape[0], weights.shape[1], 4), dtype = np.float64)
@@ -337,13 +353,14 @@ for pathMSNew in pathsMSNew:
     keywordNames             = t.colkeywordnames("WEIGHT_SPECTRUM")
     columnDescription        = t.getcoldesc("WEIGHT_SPECTRUM")
     dataManagerInfo          = t.getdminfo("WEIGHT_SPECTRUM")
+    
     if (verbose):
-        lib_util.printLineBold("keywordNames:")
-        print (keywordNames)
-        lib_util.printLineBold("columnDescription:")
-        print (columnDescription)
-        lib_util.printLineBold("dataManagerInfo:")
-        print (dataManagerInfo)
+        logging.debug("keywordNames:")
+        logging.debug(keywordNames)
+        logging.debug("columnDescription:")
+        logging.debug(columnDescription)
+        logging.debug("dataManagerInfo:")
+        logging.debug(dataManagerInfo)
 
     dataManagerInfo["NAME"]                                  = "TiledWgtSpectrumMartijn"
     dataManagerInfo["SPEC"]["DEFAULTTILESHAPE"]              = np.array([4, 40, 819], dtype = np.int32)
@@ -352,30 +369,30 @@ for pathMSNew in pathsMSNew:
     dataManagerInfo["SPEC"]["HYPERCUBES"]["*1"]["CellShape"] = np.array([4, weights.shape[1]], dtype = np.int32)
 
     if (verbose):
-        lib_util.printLineBold("dataManagerInfo (updated):")
-        print (dataManagerInfo)
+        logging.debug("dataManagerInfo (updated):")
+        logging.debug(dataManagerInfo)
 
     if (verbose):
-        lib_util.printLineBold("Removing column '" + columnNameWeightsNew + "', if it exists...")
+        logging.info("Removing column '" + columnNameWeightsNew + "', if it exists...")
     if (columnExists(t, columnNameWeightsNew)):
         t.removecols(columnNameWeightsNew)
 
     if (verbose):
-        lib_util.printLineBold("Adding column '" + columnNameWeightsNew + "'...")
+        logging.info("Adding column '" + columnNameWeightsNew + "'...")
     t.addcols(tables.makecoldesc(columnNameWeightsNew, columnDescription), dataManagerInfo)
 
     if (verbose):
-        lib_util.printLineBold("Filling column '" + columnNameWeightsNew + "'...")
+        logging.info("Filling column '" + columnNameWeightsNew + "'...")
     t.putcol(columnNameWeightsNew, weightsNew)
 
     if (verbose):
-        lib_util.printLineBold("Weights flipped along frequency axis and placeholder polarisations added!")
+        logging.info("Weights flipped along frequency axis and placeholder polarisations added!")
 
 
     t.close()
-
-    lib_util.printLineBold("Finished work on MS at '" + pathMSNew + "'!")
-
+    
+    logging.info("Finished work on MS at '" + pathMSNew + "'!")
+    
 
 
 
@@ -385,24 +402,21 @@ for pathMSNew in pathsMSNew:
     MSObject    = lib_ms.MS(pathMSNew)
 
     if (MSObject.isCalibrator()):
-        pathDirectoryCalibrator = pathDirectoryMain + "fieldsCalibrator/" + pathMSNew[len(pathDirectoryMain) : -3]
-        pathMSFinal             = pathDirectoryCalibrator + "/" + pathMSNew[len(pathDirectoryMain) : ]
+        pathDirectoryCalibrator = pathDirectoryFieldsCalibrator + '/' + MSObject.name
+        pathMSFinal             = pathDirectoryCalibrator + '/' + MSObject.name + ".MS"
         if (not os.path.isdir(pathDirectoryCalibrator)):
             os.mkdir(pathDirectoryCalibrator)
             os.mkdir(pathDirectoryCalibrator + "/plots")
             os.mkdir(pathDirectoryCalibrator + "/solutions")
     else:
-        pathDirectoryTarget = pathDirectoryMain + "fieldsTarget/" + MSObject.getName()
-        pathMSFinal         = pathDirectoryTarget + "/MSs/" + pathMSNew[len(pathDirectoryMain) : ]
+        pathDirectoryTarget = pathDirectoryFieldsTarget + '/' + MSObject.getNameField()
+        pathMSFinal         = pathDirectoryTarget + "/MSs/" + MSObject.name + ".MS"
         if (not os.path.isdir(pathDirectoryTarget)):
             os.mkdir(pathDirectoryTarget)
             os.mkdir(pathDirectoryTarget + "/plots")
             os.mkdir(pathDirectoryTarget + "/MSs")
             os.mkdir(pathDirectoryTarget + "/images")
 
-    lib_util.printLineBold("Moving MS at '" + pathMSNew + "' to '" + pathMSFinal + "'...")
-    shutil.move(pathMSNew, pathMSFinal)
-    MSObject.ms = pathMSFinal
-
-    print (MSObject.getName())
-    print (MSObject.isCalibrator())
+    logging.info("Moving MS at '" + pathMSNew + "' to '" + pathMSFinal + "'...")
+    
+    MSObject.move(pathMSFinal)

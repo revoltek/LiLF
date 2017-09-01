@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import os, sys, logging
+import logging, os, shutil, sys
 
 from casacore import tables
 import numpy as np
@@ -53,9 +53,16 @@ class MS(object):
 
     def __init__(self, pathMS):
         """
-        pathMS:        path to the MS
+        pathMS:        path to the MS, without '/' at the end!
         pathDirectory: path to the parent directory of the MS
-        nameMS:        name of the MS, without parent directories and extension
+        name:          name of the MS, without parent directories and extension (which is assumed to be ".MS" always)
+        """
+        self.setPathVariables(pathMS)
+    
+    
+    def setPathVariables(self, pathMS):
+        """
+        Set logistical variables.
         """
         self.pathMS        = pathMS
 
@@ -63,9 +70,17 @@ class MS(object):
 
         self.pathDirectory = self.pathMS[ : indexLastSlash]
         self.name          = self.pathMS[indexLastSlash + 1 : -3]
-
-
-    def getName(self):
+        
+    
+    def move(self, pathMSNew):
+        """
+        Move (or rename) the MS to another locus in the file system.
+        """
+        shutil.move(self.pathMS, pathMSNew)
+        self.setPathVariables(pathMSNew)
+    
+    
+    def getNameField(self):
         """
         Retrieve field name.
         """
@@ -78,7 +93,7 @@ class MS(object):
         """
         Returns whether the field is a calibrator field or not.
         """
-        return (self.getName() in ["CygA", "3C48", "3C147", "3C196", "3C286", "3C295", "3C380"]) # This list should be expanded to include all potential calibrators.
+        return (self.getNameField() in ["CygA", "3C48", "3C147", "3C196", "3C286", "3C295", "3C380"]) # This list should be expanded to include all potential calibrators.
 
 
     def find_nchan(self):
