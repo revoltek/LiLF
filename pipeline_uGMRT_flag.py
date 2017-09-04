@@ -50,6 +50,7 @@ def pipeline_uGMRT_flag(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "./pa
 
 
     # 1. Flag user-specified data
+    # This step is often redundant in a uGMRT pipeline, as bad antennae and autocorrelations are already flagged in India.
     logging.info("Flagging user-specified data...")
     MSs.run(command = "DPPP " + pathParSetFlagUser + " msin=$ms flagBaselines.baseline=" + flagBaselinesUser +
             " flagFrequencyRanges.freqrange=" + flagFrequencyRangesUser + " flagChannels.chan=" + flagChannelsUser,
@@ -57,15 +58,15 @@ def pipeline_uGMRT_flag(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "./pa
 
     # 2. Flag RFI
     # This step is absent in the LOFAR pipeline, because in that case RFI is already flagged by the LOFAR observatory.
-    logging.info("Flagging RFI...")
-    #MSs.run(command = "DPPP " + pathParSetFlagRFI + " msin=$ms", log = nameFileLog, commandType = "DPPP")
+    logging.info("Flagging RFI-affected data...")
+    MSs.run(command = "DPPP " + pathParSetFlagRFI + " msin=$ms", log = "flag_$name.log", commandType = "DPPP")
 
 
 
 if (__name__ == "__main__"):
 
     # If the program is run from the command line, parse arguments.
-    parser    = argparse.ArgumentParser(description = "Pipeline step 2: Initial flagging of uGMRT data.")
+    parser    = argparse.ArgumentParser(description = "Pipeline step 2: User-specified and RFI flagging of uGMRT data.")
 
     parser.add_argument("pathsMS", help = "Paths to the MSs to act upon.")
     parser.add_argument("pathDirectoryLogs", help = "Directory containing log files.")
@@ -75,13 +76,14 @@ if (__name__ == "__main__"):
     parser.add_argument("-r", "--flagFrequencyRangesUser", default = "[]", help = "String containing list with frequency ranges to flag.")
     parser.add_argument("-c", "--flagChannelsUser", default = "[]", help = "String containing list with channels to flag.")
     arguments = parser.parse_args()
-    
+
     # Temporary!
-    arguments.pathsMS           = ["/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsTarget/P149.7+03.4/MSs/scanID2.MS",
+    arguments.pathsMS           = ["/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsCalibrator/scanID1/scanID1.MS",
+                                   "/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsTarget/P149.7+03.4/MSs/scanID2.MS",
                                    "/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsTarget/P149.7+03.4/MSs/scanID14.MS"]
     arguments.pathDirectoryLogs =  "/disks/strw3/oei/uGMRTCosmosCut-PiLF/logs"
-    
-    
+
+
     lib_util.printLineBold("Parameters to use:")
     print (arguments)
 
