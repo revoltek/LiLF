@@ -398,15 +398,15 @@ def pipeline_uGMRT_init(pathDirectoryMS, nameMS, verbose = False):
         MSObject    = lib_ms.MS(pathMSNew)
 
         if (MSObject.isCalibrator()):
-            pathDirectoryCalibrator = pathDirectoryFieldsCalibrator + '/' + MSObject.name
-            pathMSFinal             = pathDirectoryCalibrator + '/' + MSObject.name + ".MS"
+            pathDirectoryCalibrator = pathDirectoryFieldsCalibrator + '/' + MSObject.nameMS
+            pathMSFinal             = pathDirectoryCalibrator + '/' + MSObject.nameMS + ".MS"
             if (not os.path.isdir(pathDirectoryCalibrator)):
                 os.mkdir(pathDirectoryCalibrator)
                 os.mkdir(pathDirectoryCalibrator + "/plots")
                 os.mkdir(pathDirectoryCalibrator + "/solutions")
         else:
             pathDirectoryTarget = pathDirectoryFieldsTarget + '/' + MSObject.getNameField()
-            pathMSFinal         = pathDirectoryTarget + "/MSs/" + MSObject.name + ".MS"
+            pathMSFinal         = pathDirectoryTarget + "/MSs/" + MSObject.nameMS + ".MS"
             if (not os.path.isdir(pathDirectoryTarget)):
                 os.mkdir(pathDirectoryTarget)
                 os.mkdir(pathDirectoryTarget + "/plots")

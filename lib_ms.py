@@ -41,10 +41,15 @@ class AllMSs(object):
 
 
     def run(self, command, commandType, log):
-        for pathMS, objectMS in zip(self.mss_list_str, self.mss_list_obj):
-            commandCurrent = command.replace("$ms", pathMS)
-            logCurrent     = log.replace("$name", objectMS.name)
+        for MSObject in self.mss_list_obj:
+            commandCurrent = MSObject.concretiseString(command)
+            logCurrent     = MSObject.concretiseString(log)
             self.scheduler.add(commandCurrent, logCurrent, commandType)
+
+        #for pathMS, objectMS in zip(self.mss_list_str, self.mss_list_obj):
+            #commandCurrent = command.replace("$ms", pathMS)
+            #logCurrent     = log.replace("$name", objectMS.name)
+            #self.scheduler.add(commandCurrent, logCurrent, commandType)
 
         self.scheduler.run(check = True)
 
@@ -55,7 +60,7 @@ class MS(object):
         """
         pathMS:        path to the MS, without '/' at the end!
         pathDirectory: path to the parent directory of the MS
-        name:          name of the MS, without parent directories and extension (which is assumed to be ".MS" always)
+        nameMS:        name of the MS, without parent directories and extension (which is assumed to be ".MS" always)
         """
         self.setPathVariables(pathMS)
 
@@ -69,7 +74,7 @@ class MS(object):
         indexLastSlash     = self.pathMS.rfind('/')
 
         self.pathDirectory = self.pathMS[ : indexLastSlash]
-        self.name          = self.pathMS[indexLastSlash + 1 : -3]
+        self.nameMS        = self.pathMS[indexLastSlash + 1 : -3]
 
 
     def move(self, pathMSNew):
@@ -94,6 +99,17 @@ class MS(object):
         Returns whether the field is a calibrator field or not.
         """
         return (self.getNameField() in ["CygA", "3C48", "3C147", "3C196", "3C286", "3C287", "3C295", "3C380"]) # This list should be expanded to include all potential calibrators.
+
+
+    def concretiseString(self, stringOriginal):
+        """
+        Returns a concretised version of the string 'stringOriginal', with keywords filled in.
+        """
+        stringCurrent = stringOriginal.replace("$pathMS",    self.pathMS)
+        stringCurrent = stringCurrent.replace( "$nameMS",    self.nameMS)
+        stringCurrent = stringCurrent.replace( "$nameField", self.getNameField())
+
+        return stringCurrent
 
 
     def find_nchan(self):

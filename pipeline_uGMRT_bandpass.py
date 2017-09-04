@@ -44,14 +44,14 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
         print (MSObject)
         print (MSObject.type)
         print (MSObject.isCalibrator())
-        print (MSObject.getName())
-    #calname = MSs.get_list_obj[0].getName()
-    #print (calname)
+        print (MSObject.getNameField())
 
     # Set model data column.
-    #logging.info("Predicting data...")
-    #MSs.run("DPPP " + pathParSetPredict + " msin=$ms predict.sourcedb= " + sourcedb + " pre.sources= " + calname, log = "$ms_pre.log", cmd_type = "DPPP")
+    logging.info("Predicting data...")
+    sourcedb = "./models/calib-simple.skydb"
+    MSs.run("DPPP " + pathParSetPredict + " msin=$pathMS predict.sourcedb= " + sourcedb + " predict.sources= " + calname, log = "bandpass_$nameMS.log", commandType = "DPPP")
 
+    # Find bandpass.
 
 
 if (__name__ == "__main__"):

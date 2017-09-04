@@ -46,29 +46,28 @@ def pipeline_uGMRT_flag(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "./pa
         print (MSObject.find_nchan())
         print (MSObject.find_chanband())
         print (MSObject.pathDirectory)
-        print (MSObject.name)
+        print (MSObject.nameMS)
 
 
     # 1. Flag user-specified data
     # This step is often redundant in a uGMRT pipeline, as bad antennae and autocorrelations are already flagged in India.
     logging.info("Flagging user-specified data...")
-    MSs.run(command = "DPPP " + pathParSetFlagUser + " msin=$ms flagBaselines.baseline=" + flagBaselinesUser +
+    MSs.run(command = "DPPP " + pathParSetFlagUser + " msin=$pathMS flagBaselines.baseline=" + flagBaselinesUser +
             " flagFrequencyRanges.freqrange=" + flagFrequencyRangesUser + " flagChannels.chan=" + flagChannelsUser,
-            log = "flag_$name.log", commandType = "DPPP")
+            log = "flag_$nameMS.log", commandType = "DPPP")
 
     # 2. Flag RFI
     # This step is absent in the LOFAR pipeline, because in that case RFI is already flagged by the LOFAR observatory.
     logging.info("Flagging RFI-affected data...")
-    MSs.run(command = "DPPP " + pathParSetFlagRFI + " msin=$ms", log = "flag_$name.log", commandType = "DPPP")
-    
-    
+    MSs.run(command = "DPPP " + pathParSetFlagRFI + " msin=$pathMS", log = "flag_$nameMS.log", commandType = "DPPP")
+
+
 
 
 if (__name__ == "__main__"):
 
     # If the program is run from the command line, parse arguments.
-    parser    = argparse.ArgumentParser(description = "Pipeline step 2: User-specified and RFI flagging of uGMRT data.")
-
+    parser                      = argparse.ArgumentParser(description = "Pipeline step 2: User-specified and RFI flagging of uGMRT data.")
     parser.add_argument("pathsMS", help = "Paths to the MSs to act upon.")
     parser.add_argument("pathDirectoryLogs", help = "Directory containing log files.")
     parser.add_argument("-p", "--pathDirectoryParSets", default = "./parsets", help = "Directory containing parameter sets.")
@@ -76,7 +75,7 @@ if (__name__ == "__main__"):
     parser.add_argument("-b", "--flagBaselinesUser", default = "", help = "String containing baselines to flag.")
     parser.add_argument("-r", "--flagFrequencyRangesUser", default = "[]", help = "String containing list with frequency ranges to flag.")
     parser.add_argument("-c", "--flagChannelsUser", default = "[]", help = "String containing list with channels to flag.")
-    arguments = parser.parse_args()
+    arguments                   = parser.parse_args()
 
     # Temporary!
     arguments.pathsMS           = ["/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsCalibrator/scanID1/scanID1.MS",
