@@ -41,6 +41,9 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
 
 
     for MSObject in MSs.get_list_obj():
+        print (MSObject)
+        print (MSObject.type)
+        print (MSObject.isCalibrator())
         print (MSObject.getName())
     #calname = MSs.get_list_obj[0].getName()
     #print (calname)
