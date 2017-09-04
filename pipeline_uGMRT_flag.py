@@ -60,7 +60,8 @@ def pipeline_uGMRT_flag(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "./pa
     # This step is absent in the LOFAR pipeline, because in that case RFI is already flagged by the LOFAR observatory.
     logging.info("Flagging RFI-affected data...")
     MSs.run(command = "DPPP " + pathParSetFlagRFI + " msin=$ms", log = "flag_$name.log", commandType = "DPPP")
-
+    
+    
 
 
 if (__name__ == "__main__"):

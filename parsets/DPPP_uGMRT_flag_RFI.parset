@@ -5,4 +5,4 @@ msout            = .
 steps            = [flagRFI, count]
 
 flagRFI.type     = aoflagger
-flagRFI.strategy = uGMRT.rfis
+flagRFI.strategy = ./parsets/uGMRT.rfis
