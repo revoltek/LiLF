@@ -1,0 +1,15 @@
+msin                   =
+msin.datacolumn        = DATA
+msout                  = .
+msout.datacolumn       = MODEL_DATA
+
+steps                  = [predict]
+
+predict.sourcedb       =
+predict.sources        =
+predict.usebeammodel   = True
+predict.usechannelfreq = False
+predict.beammode       = array_factor
+
+#pre.applycal.parmdb =
+#pre.applycal.correction = gain
