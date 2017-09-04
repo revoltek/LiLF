@@ -18,7 +18,7 @@ Paths to directories do not end with a '/'.
 
 def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "./parsets"):
 
-    # Predict.
+    # Initialise parameter set settings.
     nameParSetPredict = "DPPP_uGMRT_predict.parset"
     pathParSetPredict = pathDirectoryParSets + '/' + nameParSetPredict
 
@@ -36,9 +36,12 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     MSs                = lib_ms.AllMSs(pathsMS, scheduler)
 
 
-    # predict to save time ms:MODEL_DATA
-    #logging.info('Predict...')
-    #MSs.run("DPPP " + pathParSetPredict + " msin=$ms pre.sourcedb= " + sourcedb + " pre.sources= " + calname, log = "$ms_pre.log", cmd_type = "DPPP")
+    calname = MSs.get_list_obj[0].getName()
+    print (calname)
+
+    # Set model data column.
+    #logging.info("Predicting data...")
+    #MSs.run("DPPP " + pathParSetPredict + " msin=$ms predict.sourcedb= " + sourcedb + " pre.sources= " + calname, log = "$ms_pre.log", cmd_type = "DPPP")
 
 
 

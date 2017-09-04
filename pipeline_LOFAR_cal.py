@@ -37,9 +37,9 @@ mss     = lib_ms.AllMss(glob.glob(datadir+'/*MS'))
 calname = mss.get_list_obj[0].get_calname()
 
 if (calname == 'CygA'):
-    sourcedb = '/home/fdg/scripts/model/A-team_4_CC.skydb'
+    sourcedb = "/home/fdg/scripts/model/A-team_4_CC.skydb"
 else:
-    sourcedb = '/home/fdg/scripts/model/calib-simple.skydb'
+    sourcedb = "/home/fdg/scripts/model/calib-simple.skydb"
 
 ############################################################
 logger.info('Copy data...')
@@ -52,11 +52,11 @@ s.run(check=True)
 
 mss = lib_ms.AllMss( glob.glob('./*MS'), s )
 
-############################################################   
+############################################################
 # flag bad stations, flags will propagate
 logger.info('Flagging...')
 mss.run('NDPPP '+parset_dir+'/DPPP_flag.parset msin=$ms flag1.baseline='+bl2flag, log='$ms_flag.log', cmd_type= "DPPP")
- 
+
 # predict to save time ms:MODEL_DATA
 logger.info('Predict...')
 mss.run('NDPPP '+parset_dir+'/DPPP_predict.parset msin=$ms pre.sourcedb='+sourcedb+' pre.sources='+calname, log='$ms_pre.log', cmd_type= "DPPP")
@@ -149,7 +149,7 @@ if os.path.exists(field_model):
 
     logger.info('Subtract model...')
     mss.run('taql "update $ms set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$ms_field_taql.log', cmd_type='general')
-    
+
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
     mss.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $ms', log='$ms_field_smooth.log', cmd_type='python')
