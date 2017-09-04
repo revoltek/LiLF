@@ -40,8 +40,10 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     MSs                = lib_ms.AllMSs(pathsMS, scheduler)
 
 
-    calname = MSs.get_list_obj[0].getName()
-    print (calname)
+    for MSObject in MSs.get_list_obj():
+        print (MSObject.getName())
+    #calname = MSs.get_list_obj[0].getName()
+    #print (calname)
 
     # Set model data column.
     #logging.info("Predicting data...")
