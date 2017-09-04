@@ -17,7 +17,7 @@ Notes:
 Paths to directories do not end with a '/'.
 '''
 
-import logging, os, shutil, sys
+import argparse, logging, os, shutil, sys
 
 from casacore import tables
 import numpy as np
@@ -422,16 +422,15 @@ def pipeline_uGMRT_init(pathDirectoryMS, nameMS, verbose = False):
 if (__name__ == "__main__"):
 
     # If the program is run from the command line, parse arguments.
-    parser    = argparse.ArgumentParser(description = "Pipeline step 1: Retrieval and reformatting of uGMRT data.")
-
+    parser                    = argparse.ArgumentParser(description = "Pipeline step 1: Retrieval and reformatting of uGMRT data.")
     parser.add_argument("pathDirectoryMS",                  help = "Path of the directory containing target MS.")
     parser.add_argument("nameMS",                           help = "Name of the target MS, including extension.")
     parser.add_argument("-v", "--verbose", default = False, help = "Whether or not to provide extensive textual diagnostic output. Default: False")
-    arguments = parser.parse_args()
+    arguments                 = parser.parse_args()
 
     # Temporary!
-    arguments.pathDirectoryMS               = "/disks/strw3/oei"
-    arguments.nameMS                        = "uGMRTCosmosCut.ms"
+    arguments.pathDirectoryMS = "/disks/strw3/oei"
+    arguments.nameMS          = "uGMRTCosmosCut.ms"
 
     lib_util.printLineBold("Parameters to use:")
     print (arguments)
