@@ -52,7 +52,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     # This is a disk space versus computing time trade-off.
     logging.info("Predicting calibrator data...")
     sourcedb = "./models/calib-simple.skydb"
-    MSs.run("DPPP " + pathParSetPredict + " msin = $pathMS predict.sourcedb = " + sourcedb + " predict.sources = $nameField", log = "bandpass_$nameMS.log", commandType = "DPPP")
+    MSs.run("DPPP " + pathParSetPredict + " msin=$pathMS predict.sourcedb=" + sourcedb + " predict.sources=$nameField", log = "bandpass_$nameMS.log", commandType = "DPPP")
 
     # Calculate complex gains and store in ParmDB format.
     logging.info("Calculating complex gains...")
@@ -60,7 +60,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
         print (pathMS)
         lib_util.check_rm(pathMS + "/instrument")
 
-    MSs.run("DPPP " + pathParSetSolve + " msin = $pathMS gaincal.parmdb = $pathMS/instrument", log = "bandpass_$nameMS.log", commandType = "DPPP")
+    MSs.run("DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument", log = "bandpass_$nameMS.log", commandType = "DPPP")
 
     # Temporary:
     # ParmDB to H5
@@ -68,7 +68,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     # pip install --allow-external --upgrade --user https://github.com/revoltek/losoto/archive/master.zip # Dit installt het in Python
     # Dan, ergens in een directory dumpt-ie:
     # git clone https://github.com/revoltek/losoto.git # Dit zorgt ervoor dat je het in de command line kunt gebruiken
-    # ../rvweeren/software/lsoto/bin/losoto
+    # ../rvweeren/software/losoto/bin/losoto
 
 
 

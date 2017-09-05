@@ -1,10 +1,10 @@
-msin                   =
-msin.datacolumn        = DATA
-msout                  = .
-msout.datacolumn       = MODEL_DATA
+msin                 =
+msin.datacolumn      = DATA
+msout                = .
+msout.datacolumn     = MODEL_DATA
 
-steps                  = [predict]
+steps                = [predict]
 
-predict.sourcedb       =
-predict.sources        =
-predict.usebeammodel   = False
+predict.sourcedb     =
+predict.sources      =
+predict.usebeammodel = False
