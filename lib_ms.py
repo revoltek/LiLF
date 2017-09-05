@@ -41,19 +41,16 @@ class AllMSs(object):
 
 
     def run(self, command, commandType, log):
+        """
+        """
         for MSObject in self.mss_list_obj:
             commandCurrent = MSObject.concretiseString(command)
             logCurrent     = MSObject.concretiseString(log)
 
-            print (commandCurrent)
-            print (logCurrent)
+            print ("commandCurrent:\n", commandCurrent)
+            print ("logCurrent:\n",     logCurrent)
 
             self.scheduler.add(commandCurrent, logCurrent, commandType)
-
-        #for pathMS, objectMS in zip(self.mss_list_str, self.mss_list_obj):
-            #commandCurrent = command.replace("$ms", pathMS)
-            #logCurrent     = log.replace("$name", objectMS.name)
-            #self.scheduler.add(commandCurrent, logCurrent, commandType)
 
         self.scheduler.run(check = True)
 

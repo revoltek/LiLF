@@ -3,7 +3,9 @@ msin.datacolumn            = DATA
 msout                      = .
 msout.datacolumn           = CORRECTED_DATA
 
-steps                      = [gaincal]
+steps                      = [filter, gaincal]
+
+filter.blrange             =
 
 gaincal.caltype            = diagonal
 gaincal.maxiter            = 500

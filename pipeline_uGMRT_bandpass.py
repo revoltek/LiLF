@@ -41,7 +41,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     scheduler          = lib_util.Scheduler(dry = False, log_dir = pathDirectoryLogs)
     MSs                = lib_ms.AllMSs(pathsMS, scheduler)
 
-
+    # TEMPORARY:
     for MSObject in MSs.get_list_obj():
         print (MSObject)
         print (type(MSObject))
@@ -54,24 +54,23 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     sourcedb = "./models/calib-simple.skydb"
     MSs.run("DPPP " + pathParSetPredict + " msin=$pathMS predict.sourcedb=" + sourcedb + " predict.sources=$nameField", log = "bandpass_$nameMS.log", commandType = "DPPP")
 
+
     # Calculate complex gains and store in ParmDB format.
     logging.info("Calculating complex gains...")
     for pathMS in MSs.get_list_str():
         print (pathMS)
         lib_util.check_rm(pathMS + "/instrument")
-
     MSs.run("DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument", log = "bandpass_$nameMS.log", commandType = "DPPP")
 
-    # Temporary:
-    # ParmDB to H5
-    # Losoto H5parm_importer.py
-    # pip install --allow-external --upgrade --user https://github.com/revoltek/losoto/archive/master.zip # Dit installt het in Python
-    # Dan, ergens in een directory dumpt-ie:
-    # git clone https://github.com/revoltek/losoto.git # Dit zorgt ervoor dat je het in de command line kunt gebruiken
-    # ../rvweeren/software/losoto/bin/losoto
+
+    # As long as the transition from ParmDB to H5Parm is incomplete, the following conversion step remains.
+    logging.info("Converting ParmDB to H5Parm...")
+    MSs.run("H5parm_importer.py $nameMS.h5 $pathMS", log = "bandpass_$nameMS.log", commandType = "python")
 
 
-
+    # Determine and store amplitude and phase bandpass (as well as calibrator TEC solutions).
+    logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
+    MSs.run("dedicated_uGMRT_bandpass.py $nameMS.h5", log = "bandpass_$nameMS.log", commandType = "python")
 
 
 if (__name__ == "__main__"):
