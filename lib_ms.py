@@ -44,6 +44,10 @@ class AllMSs(object):
         for MSObject in self.mss_list_obj:
             commandCurrent = MSObject.concretiseString(command)
             logCurrent     = MSObject.concretiseString(log)
+
+            print (commandCurrent)
+            print (logCurrent)
+
             self.scheduler.add(commandCurrent, logCurrent, commandType)
 
         #for pathMS, objectMS in zip(self.mss_list_str, self.mss_list_obj):
