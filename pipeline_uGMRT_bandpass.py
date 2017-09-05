@@ -24,7 +24,9 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
 
     # Initialise parameter set settings.
     nameParSetPredict = "DPPP_uGMRT_predict.parset"
+    nameParSetSolve   = "DPPP_uGMRT_sol.parset"
     pathParSetPredict = pathDirectoryParSets + '/' + nameParSetPredict
+    pathParSetSolve   = pathDirectoryParSets + '/' + nameParSetSolve
 
     # Initialise logging settings.
     nameFileLog        = "pipeline_uGMRT_bandpass.log"
@@ -49,9 +51,15 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     # Set model data column.
     logging.info("Predicting calibrator data...")
     sourcedb = "./models/calib-simple.skydb"
-    MSs.run("DPPP " + pathParSetPredict + " msin=$pathMS predict.sourcedb= " + sourcedb + " predict.sources=$nameField", log = "bandpass_$nameMS.log", commandType = "DPPP")
+    MSs.run("DPPP " + pathParSetPredict + " msin = $pathMS predict.sourcedb = " + sourcedb + " predict.sources = $nameField", log = "bandpass_$nameMS.log", commandType = "DPPP")
 
     # Find bandpass.
+    logger.info("Calculating complex gains...")
+    for pathMS in MSs.get_list_str():
+        print (pathMS)
+        lib_util.check_rm(pathMS + "/instrument")
+    MSs.run("DPPP " + pathParSetSolve + " msin = $pathMS", log = "bandpass_$nameMS.log", commandType = "DPPP")
+
 
 
 if (__name__ == "__main__"):
