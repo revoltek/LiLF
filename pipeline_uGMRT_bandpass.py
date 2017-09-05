@@ -54,7 +54,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     MSs.run("DPPP " + pathParSetPredict + " msin = $pathMS predict.sourcedb = " + sourcedb + " predict.sources = $nameField", log = "bandpass_$nameMS.log", commandType = "DPPP")
 
     # Find bandpass.
-    logger.info("Calculating complex gains...")
+    logging.info("Calculating complex gains...")
     for pathMS in MSs.get_list_str():
         print (pathMS)
         lib_util.check_rm(pathMS + "/instrument")
