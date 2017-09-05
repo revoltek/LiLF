@@ -1,16 +1,14 @@
-msin                   =
-msin.datacolumn        = SMOOTHED_DATA
-msout                  = .
-msout.datacolumn       = CORRECTED_DATA
+msin                       =
+msin.datacolumn            = DATA
+msout                      = .
+msout.datacolumn           = CORRECTED_DATA
 
-steps                  = [filter, sol]
+steps                      = [gaincal]
 
-filter.blrange         = [3000, 1e30]
-
-sol.type               = gaincal
-sol.caltype            = diagonal
-sol.maxiter            = 500
-sol.nchan              = 1
-sol.solint             = 1
-sol.propagatesolutions = False
-sol.usemodelcolumn     = True
+gaincal.caltype            = diagonal
+gaincal.maxiter            = 500
+gaincal.nchan              = 1
+gaincal.solint             = 1
+gaincal.propagatesolutions = False
+gaincal.usemodelcolumn     = True
+gaincal.parmdb             =

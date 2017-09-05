@@ -7,9 +7,4 @@ steps                  = [predict]
 
 predict.sourcedb       =
 predict.sources        =
-predict.usebeammodel   = False #True
-#predict.usechannelfreq = False
-#predict.beammode       = array_factor
-
-#pre.applycal.parmdb =
-#pre.applycal.correction = gain
+predict.usebeammodel   = False

@@ -15,6 +15,23 @@ The various steps are visualised. The phase bandpass calculation also generates 
 #!/usr/local/bin/python3.5 # This line might not be required on your system.
 
 
+
+# import H5 to numpy!!!!!!
+from losoto import h5parm
+H5 = h5parm.h5parm("DI.circ.H5")
+#handy:
+H5.printInfo()
+sols = H5.getSolset("sol000")
+numpyArray = sols.phase000.val[:, 0, :, :] # would load for all polarisations, for the first (and hopefully only)
+
+#from losoto.h5parm import h5parm
+#H = h5parm(h5parmFile, readonly = True)
+#soltabs = H.getSoltabs(solset = solsetTo)
+#numpyArray = sols.val(...)
+
+# After amplitude and phase bandpass and TECs are created, save back to H5.
+# Also write back the TEC solutions in sols.tec000.val
+
 def filterMedian1D(array, kernelSize):
     '''
     Median filter a 1D array.

@@ -48,17 +48,29 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
         print (MSObject.isCalibrator())
         print (MSObject.getNameField())
 
-    # Set model data column.
+    # Set model data column. Instead of predicting 'on the fly' whilst calculating gains, we predict and store in MODEL_DATA.
+    # This is a disk space versus computing time trade-off.
     logging.info("Predicting calibrator data...")
     sourcedb = "./models/calib-simple.skydb"
     MSs.run("DPPP " + pathParSetPredict + " msin = $pathMS predict.sourcedb = " + sourcedb + " predict.sources = $nameField", log = "bandpass_$nameMS.log", commandType = "DPPP")
 
-    # Find bandpass.
+    # Calculate complex gains and store in ParmDB format.
     logging.info("Calculating complex gains...")
     for pathMS in MSs.get_list_str():
         print (pathMS)
         lib_util.check_rm(pathMS + "/instrument")
-    MSs.run("DPPP " + pathParSetSolve + " msin = $pathMS", log = "bandpass_$nameMS.log", commandType = "DPPP")
+
+    MSs.run("DPPP " + pathParSetSolve + " msin = $pathMS gaincal.parmdb = $pathMS/instrument", log = "bandpass_$nameMS.log", commandType = "DPPP")
+
+    # Temporary:
+    # ParmDB to H5
+    # Losoto H5parm_importer.py
+    # pip install --allow-external --upgrade --user https://github.com/revoltek/losoto/archive/master.zip # Dit installt het in Python
+    # Dan, ergens in een directory dumpt-ie:
+    # git clone https://github.com/revoltek/losoto.git # Dit zorgt ervoor dat je het in de command line kunt gebruiken
+    # ../rvweeren/software/lsoto/bin/losoto
+
+
 
 
 
