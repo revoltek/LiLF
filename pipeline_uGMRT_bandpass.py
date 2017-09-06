@@ -45,16 +45,9 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
 
 
     # Add model data column.
+    columnName         = "MODEL_DATA"
     for MSObject in MSs.get_list_obj():
-        # Some debug tests.
-        print (MSObject)
-        print (type(MSObject))
-        print (MSObject.isCalibrator())
-        print (MSObject.getNameField())
-
         t                       = tables.table(MSObject.pathMS, readonly = False)
-
-        columnName              = "MODEL_DATA"
 
         columnDescription       = t.getcoldesc("DATA")
         dataManagerInfo         = t.getdminfo("DATA")
@@ -71,18 +64,16 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
             logging.debug("dataManagerInfo (updated):")
             logging.debug(dataManagerInfo)
 
-        if (verbose):
-            logging.info("Removing column '" + columnName + "', if it exists...")
+        logging.info("Removing column '" + columnName + "', if it exists...")
         if (lib_util.columnExists(t, columnName)):
             t.removecols(columnName)
 
-        if (verbose):
-            logging.info("Adding column '" + columnName + "'...")
+        logging.info("Adding column '" + columnName + "'...")
         t.addcols(tables.makecoldesc(columnName, columnDescription), dataManagerInfo)
 
-        if (verbose):
-            logging.info("Filling column '" + columnName + "'...")
-        t.putcol(columnName, 0)
+        #if (verbose):
+        #    logging.info("Filling column '" + columnName + "'...")
+        #t.putcol(columnName, 0)
 
 
     # Set model data column. Instead of predicting 'on the fly' whilst calculating gains, we predict and store in MODEL_DATA.
