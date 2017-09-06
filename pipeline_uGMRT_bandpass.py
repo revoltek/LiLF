@@ -17,10 +17,12 @@ Paths to directories do not end with a '/'.
 
 import argparse, logging
 
+from casacore import tables
+
 import lib_ms, lib_util
 
 
-def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "./parsets"):
+def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "./parsets", verbose = False):
 
     # Initialise parameter set settings.
     nameParSetPredict = "DPPP_uGMRT_predict.parset"
@@ -41,12 +43,41 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     scheduler          = lib_util.Scheduler(dry = False, log_dir = pathDirectoryLogs)
     MSs                = lib_ms.AllMSs(pathsMS, scheduler)
 
-    # TEMPORARY:
+
+    # Add model data column.
     for MSObject in MSs.get_list_obj():
+        # Some debug tests.
         print (MSObject)
         print (type(MSObject))
         print (MSObject.isCalibrator())
         print (MSObject.getNameField())
+
+        t = tables.table(MSObject.pathMS, readonly = False)
+
+        columnName = "MODEL_DATA"
+
+        columnDescription        = t.getcoldesc("DATA")
+        dataManagerInfo          = t.getdminfo("DATA")
+
+        if (verbose):
+            logging.debug("columnDescription:")
+            logging.debug(columnDescription)
+            logging.debug("dataManagerInfo:")
+            logging.debug(dataManagerInfo)
+
+        if (verbose):
+            logging.info("Removing column '" + columnName + "', if it exists...")
+        if (lib_util.columnExists(t, columnName)):
+            t.removecols(columnName)
+
+        if (verbose):
+            logging.info("Adding column '" + columnName + "'...")
+        t.addcols(tables.makecoldesc(columnName, columnDescription), dataManagerInfo)
+
+        if (verbose):
+            logging.info("Filling column '" + columnName + "'...")
+        t.putcol(columnName, 0)
+
 
     # Set model data column. Instead of predicting 'on the fly' whilst calculating gains, we predict and store in MODEL_DATA.
     # This is a disk space versus computing time trade-off.
@@ -80,15 +111,17 @@ if (__name__ == "__main__"):
     parser.add_argument("pathsMS", help = "Paths to the MSs to act upon.")
     parser.add_argument("pathDirectoryLogs", help = "Directory containing log files.")
     parser.add_argument("-p", "--pathDirectoryParSets", default = "./parsets", help = "Directory containing parameter sets.")
+    parser.add_argument("-v", "--verbose", default = False, help = "Whether or not to provide extensive textual diagnostic output. Default: False")
     arguments                   = parser.parse_args()
 
     # Temporary!
     arguments.pathsMS           = ["/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsCalibrator/scanID1/scanID1.MS"]
     arguments.pathDirectoryLogs =  "/disks/strw3/oei/uGMRTCosmosCut-PiLF/logs"
+    arguments.verbose           = True
 
 
     lib_util.printLineBold("Parameters to use:")
     print (arguments)
 
     # Run the program with appropriate input.
-    pipeline_uGMRT_bandpass(arguments.pathsMS, arguments.pathDirectoryLogs, arguments.pathDirectoryParSets)
+    pipeline_uGMRT_bandpass(arguments.pathsMS, arguments.pathDirectoryLogs, arguments.pathDirectoryParSets, arguments.verbose)

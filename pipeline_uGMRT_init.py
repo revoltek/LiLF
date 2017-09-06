@@ -26,15 +26,6 @@ import lib_ms, lib_util
 
 
 
-def columnExists(tableObject, columnName):
-    '''
-    Check whether a column with name 'columnName' exists in  table 'tableObject'.
-    '''
-    columnNames = tableObject.colnames()
-
-    return (columnName in columnNames)
-
-
 def getScanIDs(pathMS, verbose = False):
     '''
     Return the different scan IDs in a MS.
@@ -150,7 +141,7 @@ def pipeline_uGMRT_init(pathDirectoryMS, nameMS, verbose = False):
 
         # Old array: ["EXPOSURE", "SIGMA_SPECTRUM"]. The column "EXPOSURE" seems necessary for LOFAR's msoverview and for DPPP.
         for columnName in ["SIGMA_SPECTRUM"]: # This list could possibly be expanded.
-            if (columnExists(t, columnName)):
+            if (lib_util.columnExists(t, columnName)):
                 t.removecols(columnName)
 
         t.close()
@@ -266,7 +257,7 @@ def pipeline_uGMRT_init(pathDirectoryMS, nameMS, verbose = False):
 
         if (verbose):
             logging.info("Removing column '" + columnNameVisibilitiesNew + "', if it exists...")
-        if (columnExists(t, columnNameVisibilitiesNew)):
+        if (lib_util.columnExists(t, columnNameVisibilitiesNew)):
             t.removecols(columnNameVisibilitiesNew)
 
         if (verbose):
@@ -319,7 +310,7 @@ def pipeline_uGMRT_init(pathDirectoryMS, nameMS, verbose = False):
 
         if (verbose):
             logging.info("Removing column '" + columnNameFlagsNew + "', if it exists...")
-        if (columnExists(t, columnNameFlagsNew)):
+        if (lib_util.columnExists(t, columnNameFlagsNew)):
             t.removecols(columnNameFlagsNew)
 
         if (verbose):
@@ -327,7 +318,7 @@ def pipeline_uGMRT_init(pathDirectoryMS, nameMS, verbose = False):
         t.addcols(tables.makecoldesc(columnNameFlagsNew, columnDescription), dataManagerInfo)
 
         if (verbose):
-            logging.info("Adding column '" + columnNameFlagsNew + "'...")
+            logging.info("Filling column '" + columnNameFlagsNew + "'...")
         t.putcol(columnNameFlagsNew, flagsNew)
 
         if (verbose):
@@ -370,7 +361,7 @@ def pipeline_uGMRT_init(pathDirectoryMS, nameMS, verbose = False):
 
         if (verbose):
             logging.info("Removing column '" + columnNameWeightsNew + "', if it exists...")
-        if (columnExists(t, columnNameWeightsNew)):
+        if (lib_util.columnExists(t, columnNameWeightsNew)):
             t.removecols(columnNameWeightsNew)
 
         if (verbose):

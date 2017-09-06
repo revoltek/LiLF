@@ -18,6 +18,14 @@ def printLineBold(line):
     print (boldStart + line + boldEnd)
 
 
+def columnExists(tableObject, columnName):
+    '''
+    Check whether a column with name 'columnName' exists in  table 'tableObject'.
+    '''
+    columnNames = tableObject.colnames()
+    return (columnName in columnNames)
+
+
 def getCalibratorProperties():
     """
     Return properties of known calibrators.
