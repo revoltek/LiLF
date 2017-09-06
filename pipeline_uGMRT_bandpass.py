@@ -49,6 +49,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     for MSObject in MSs.get_list_obj():
         t                       = tables.table(MSObject.pathMS, readonly = False)
 
+        visibilities            = t.getcol("DATA")
         columnDescription       = t.getcoldesc("DATA")
         dataManagerInfo         = t.getdminfo("DATA")
 
@@ -71,9 +72,8 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
         logging.info("Adding column '" + columnName + "'...")
         t.addcols(tables.makecoldesc(columnName, columnDescription), dataManagerInfo)
 
-        #if (verbose):
-        #    logging.info("Filling column '" + columnName + "'...")
-        #t.putcol(columnName, 0)
+        logging.info("Filling column '" + columnName + "' with zeros...")
+        t.putcol(columnName, np.zeros_like(visibilities))
 
 
     # Set model data column. Instead of predicting 'on the fly' whilst calculating gains, we predict and store in MODEL_DATA.
@@ -82,7 +82,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     sourcedb = "./models/calib-simple.skydb"
     MSs.run("DPPP " + pathParSetPredict + " msin=$pathMS predict.sourcedb=" + sourcedb + " predict.sources=$nameField", log = "bandpass_$nameMS.log", commandType = "DPPP")
 
-
+    '''
     # Calculate complex gains and store in ParmDB format.
     logging.info("Calculating complex gains...")
     for pathMS in MSs.get_list_str():
@@ -99,7 +99,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     # Determine and store amplitude and phase bandpass (as well as calibrator TEC solutions).
     logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
     MSs.run("dedicated_uGMRT_bandpass.py $nameMS.h5", log = "bandpass_$nameMS.log", commandType = "python")
-
+    '''
 
 if (__name__ == "__main__"):
 
