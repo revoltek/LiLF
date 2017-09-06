@@ -18,6 +18,7 @@ Paths to directories do not end with a '/'.
 import argparse, logging
 
 from casacore import tables
+import numpy as np
 
 import lib_ms, lib_util
 
