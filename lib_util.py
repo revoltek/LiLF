@@ -167,11 +167,11 @@ class Scheduler():
     def add(self, cmd = '', log = '', log_append = False, commandType = '', processors = None):
         """
         Add a command to the scheduler list
-        cmd:        the command to run
-        log:        log file name that can be checked at the end
-        log_append: if True append, otherwise replace
-        commandType:   can be a list of known command types as "BBS", "DPPP", ...
-        processors: number of processors to use, can be "max" to automatically use max number of processors per node
+        cmd:         the command to run
+        log:         log file name that can be checked at the end
+        log_append:  if True append, otherwise replace
+        commandType: can be a list of known command types as "BBS", "DPPP", ...
+        processors:  number of processors to use, can be "max" to automatically use max number of processors per node
         """
         if (log != ''):
             log = self.log_dir + '/' + log
@@ -180,7 +180,8 @@ class Scheduler():
         if (log != '' and log_append):
             cmd += " >> " + log + " 2>&1"
 
-        if processors != None and processors == 'max': processors = self.max_processors
+        if (processors != None and processors == 'max'):
+            processors = self.max_processors
 
         if self.qsub:
             # if number of processors not specified, try to find automatically
@@ -195,8 +196,8 @@ class Scheduler():
         else:
             self.action_list.append(cmd)
 
-        if log != '':
-            self.log_list.append((log,commandType))
+        if (log != ''):
+            self.log_list.append((log, commandType))
 
 
     def add_casa(self, cmd='', params={}, wkd=None, log='', log_append=False, processors=None):
@@ -238,12 +239,15 @@ class Scheduler():
             else:
                 self.action_list.append(casacmd+'\'')
         else:
-            if log != '' and not log_append: self.action_list.append(casacmd+' > '+log+' 2>&1')
-            elif log != '' and log_append: self.action_list.append(casacmd+' >> '+log+' 2>&1')
-            else: self.action_list.append(casacmd)
+            if (log != '' and not log_append):
+                self.action_list.append(casacmd + ' > ' + log + ' 2>&1')
+            elif (log != '' and log_append):
+                self.action_list.append(casacmd + ' >> ' + log + ' 2>&1')
+            else:
+                self.action_list.append(casacmd)
 
         if log != '':
-            self.log_list.append((log,'CASA'))
+            self.log_list.append((log, "CASA"))
 
 
     def run(self, check = False, max_threads = None):
@@ -267,8 +271,10 @@ class Scheduler():
                 subprocess.call(cmd, shell = True)
 
         # limit threads only when qsub doesn't do it
-        if max_threads != None: max_threads_run = min(max_threads, self.max_threads)
-        else: max_threads_run = self.max_threads
+        if (max_threads == None):
+            max_threads_run = self.max_threads
+        else:
+            max_threads_run = min(max_threads, self.max_threads)
 
         q       = Queue()
         threads = [Thread(target=worker, args=(q,)) for _ in range(max_threads_run)]
