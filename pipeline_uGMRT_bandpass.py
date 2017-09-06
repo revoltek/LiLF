@@ -52,17 +52,23 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
         print (MSObject.isCalibrator())
         print (MSObject.getNameField())
 
-        t = tables.table(MSObject.pathMS, readonly = False)
+        t                       = tables.table(MSObject.pathMS, readonly = False)
 
-        columnName = "MODEL_DATA"
+        columnName              = "MODEL_DATA"
 
-        columnDescription        = t.getcoldesc("DATA")
-        dataManagerInfo          = t.getdminfo("DATA")
+        columnDescription       = t.getcoldesc("DATA")
+        dataManagerInfo         = t.getdminfo("DATA")
 
         if (verbose):
             logging.debug("columnDescription:")
             logging.debug(columnDescription)
             logging.debug("dataManagerInfo:")
+            logging.debug(dataManagerInfo)
+
+        dataManagerInfo["NAME"] = "TiledMODEL_DATAMartijn"
+
+        if (verbose):
+            logging.debug("dataManagerInfo (updated):")
             logging.debug(dataManagerInfo)
 
         if (verbose):
