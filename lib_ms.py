@@ -51,10 +51,13 @@ class AllMSs(object):
             commandCurrent = MSObject.concretiseString(command)
             logCurrent     = MSObject.concretiseString(log)
 
-            print ("commandCurrent:\n", commandCurrent)
-            print ("logCurrent:\n",     logCurrent)
-
             self.scheduler.add(commandCurrent, logCurrent, commandType)
+
+            # Provide debug output.
+            lib_util.printLineBold("commandCurrent:")
+            print (commandCurrent)
+            lib_util.printLineBold("logCurrent:")
+            print (logCurrent)
 
         self.scheduler.run(check = True)
 
@@ -187,7 +190,6 @@ class MS(object):
         assert all(x == chan_w[0] for x in chan_w) # all chans have same width
 
         logging.debug("%s: channel width (MHz): %f", self.pathMS, chan_w[0] / 1.e6)
-        #logger.debug("%s: channel width (MHz): %f", self.pathMS, chan_w[0] / 1.e6)
         return chan_w[0]
 
 
@@ -200,26 +202,23 @@ class MS(object):
         with tables.table(self.pathMS + "/OBSERVATION", ack = False) as t:
             deltat = (t.getcol("TIME_RANGE")[0][1] - t.getcol("TIME_RANGE")[0][0]) / nTimes
 
-        logging.debug("%s: time interval (s): %f", self.pathMS, deltat)
-        #logger.debug("%s: time interval (s): %f", self.pathMS, deltat)
+        logging.debug("%s: time interval (seconds): %f", self.pathMS, deltat)
         return deltat
 
 
     def get_phase_centre(self):
         """
-        Get the phase centre of the first source (is it a problem?) of an MS
-        values in deg
+        Get the phase centre (in degrees) of the first source (is it a problem?) of an MS.
         """
         field_no = 0
         ant_no   = 0
         with tables.table(self.pathMS + "/FIELD", ack = False) as field_table:
             direction = field_table.getcol("PHASE_DIR")
-            ra        = direction[ant_no, field_no, 0]
-            dec       = direction[ant_no, field_no, 1]
+        RA        = direction[ant_no, field_no, 0]
+        Dec       = direction[ant_no, field_no, 1]
 
-        if (ra < 0):
-            ra += 2 * np.pi
+        if (RA < 0):
+            RA += 2 * np.pi
 
-        logging.debug("%s: phase centre (deg): %f - %f", self.pathMS, np.degrees(ra), np.degrees(dec))
-        #logger.debug("%s: phase centre (deg): %f - %f", self.pathMS, np.degrees(ra), np.degrees(dec))
-        return (np.degrees(ra), np.degrees(dec))
+        logging.debug("%s: phase centre (degrees): (%f, %f)", self.pathMS, np.degrees(RA), np.degrees(Dec))
+        return (np.degrees(RA), np.degrees(Dec))
