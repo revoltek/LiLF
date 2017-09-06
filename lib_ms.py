@@ -51,7 +51,7 @@ class AllMSs(object):
             commandCurrent = MSObject.concretiseString(command)
             logCurrent     = MSObject.concretiseString(log)
 
-            self.scheduler.add(commandCurrent, logCurrent, commandType)
+            self.scheduler.add(cmd = commandCurrent, log = logCurrent, commandType = commandType)
 
             # Provide debug output.
             lib_util.printLineBold("commandCurrent:")
