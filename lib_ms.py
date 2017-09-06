@@ -76,7 +76,12 @@ class MS(object):
         calibratorDistanceThreshold = 0.5 # in degrees
         if (not self.isCalibrator()):
             if (self.getCalibratorDistancesSorted()[0] < calibratorDistanceThreshold):
-                self.setNameField(self.getCalibratorNamesSorted()[0])
+                nameFieldOld = self.getNameField()
+                nameFieldNew = self.getCalibratorNamesSorted()[0]
+                logging.warning("Although the field name '" + nameFieldOld + "' is not recognised as a known calibrator name, " +
+                                "the phase centre coordinates suggest that this scan is a calibrator scan. Changing field name into '" +
+                                nameFieldNew + "'...")
+                self.setNameField(nameFieldNew)
 
 
     def setPathVariables(self, pathMS):
