@@ -26,13 +26,18 @@ import losoto, numpy
 import libraryRadioAstronomy
 
 
-def dedicated_uGMRT_bandpass(pathH5Parm):
+def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
 
     # Load the H5Parm file.
-    H5 = losoto.h5parm.h5parm("DI.circ.H5")
-    H5.printInfo()
-    sols = H5.getSolset("sol000")
-    numpyArray = sols.phase000.val[:, 0, :, :] # would load for all polarisations, for the first (and hopefully only)
+    fileH5Parm = losoto.h5parm.h5parm(pathH5Parm)
+
+    if (verbose):
+        fileH5Parm.printInfo()
+
+    solutionSet = fileH5Parm.getSolset("sol000")
+    amplitudes  = solutionSet.amp000.val[ : , 0, : , : ]
+    phases      = solutionSet.phase000.val[ : , 0, : , : ]
+
 
     # import H5 to numpy!!!!!!
     # ParmDB to H5

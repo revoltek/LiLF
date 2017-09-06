@@ -34,7 +34,7 @@ else:
 logger  = lib_log.set_logger('pipeline-cal.logger')
 lib_util.check_rm('logs')
 s       = lib_util.Scheduler(dry = False)
-MSs     = lib_ms.AllMss(glob.glob(datadir+'/*MS'))
+MSs     = lib_ms.AllMSs(glob.glob(datadir+'/*MS'))
 calname = MSs.get_list_obj[0].get_calname()
 
 if (calname == 'CygA'):

@@ -5,7 +5,7 @@ import logging, os, shutil, sys
 from casacore import tables
 import numpy as np
 
-
+import lib_util
 #logger = logging.getLogger("PiLL")
 
 
@@ -26,10 +26,14 @@ class AllMSs(object):
 
 
     def get_list_obj(self):
+        """
+        """
         return self.mss_list_obj
 
 
     def get_list_str(self):
+        """
+        """
         return self.mss_list_str
 
 
@@ -65,6 +69,17 @@ class MS(object):
         """
         self.setPathVariables(pathMS)
 
+        # If the field name is not a recognised calibrator name, one of two scenarios is true:
+        # 1. The field is not a calibrator field;
+        # 2. The field is a calibrator field, but the name was not properly set.
+        # The following lines correct the field name if scenario 2 is the case.
+        calibratorDistanceThreshold = 0.5 # in degrees
+        if (not self.isCalibrator()):
+            if (self.getCalibratorDistancesSorted()[0] < calibratorDistanceThreshold):
+                pathFieldTable = self.pathMS + "/FIELD"
+                nameField      = self.getCalibratorNamesSorted()[0]
+                tables.taql("update $pathFieldTable set NAME=$nameField")
+
 
     def setPathVariables(self, pathMS):
         """
@@ -95,16 +110,42 @@ class MS(object):
         return nameField
 
 
+    def getCalibratorDistancesSorted(self):
+        """
+        Returns a list of distances (in degrees) to known calibrators, sorted by distance from small to large.
+        """
+        myRA, myDec                                    = self.get_phase_centre()
+        calibratorRAs, calibratorDecs, calibratorNames = lib_util.getCalibratorProperties()
+        calibratorDistances                            = lib_util.distanceOnSphere(myRA, myDec, calibratorRAs, calibratorDecs)
+
+        calibratorDistancesSorted                      = np.sort(calibratorDistances)
+        return calibratorDistancesSorted
+
+
+    def getCalibratorNamesSorted(self):
+        """
+        Returns a list of names of known calibrators, sorted by distance from small to large.
+        """
+        myRA, myDec                                    = self.get_phase_centre()
+        calibratorRAs, calibratorDecs, calibratorNames = lib_util.getCalibratorProperties()
+        calibratorDistances                            = lib_util.distanceOnSphere(myRA, myDec, calibratorRAs, calibratorDecs)
+
+        calibratorNamesSorted                          = calibratorNames[np.argsort(calibratorDistances)]
+        return calibratorNamesSorted
+
+
     def isCalibrator(self):
         """
-        Returns whether the field is a calibrator field or not.
+        Returns whether the field is a known calibrator field or not.
         """
-        return (self.getNameField() in ["CygA", "3C48", "3C147", "3C196", "3C286", "3C287", "3C295", "3C380"]) # This list should be expanded to include all potential calibrators.
+        calibratorRAs, calibratorDecs, calibratorNames = lib_util.getCalibratorProperties()
+        return (self.getNameField() in calibratorNames)
 
 
     def concretiseString(self, stringOriginal):
         """
         Returns a concretised version of the string 'stringOriginal', with keywords filled in.
+        More keywords (which start with '$') and their conversions can be added below.
         """
         stringCurrent = stringOriginal.replace("$pathMS",    self.pathMS)
         stringCurrent = stringCurrent.replace( "$nameMS",    self.nameMS)
@@ -171,37 +212,3 @@ class MS(object):
         logging.debug("%s: phase centre (deg): %f - %f", self.pathMS, np.degrees(ra), np.degrees(dec))
         #logger.debug("%s: phase centre (deg): %f - %f", self.pathMS, np.degrees(ra), np.degrees(dec))
         return (np.degrees(ra), np.degrees(dec))
-
-
-    '''
-    import lib_util
-
-    def get_calname(self):
-        """
-        Check if MS is of a calibrator and return patch name
-        """
-        RA, Dec                 = self.get_phase_centre()
-
-        # The following list should be expanded to include all calibrators that are possibly used.
-        calibratorRAs           = np.array([24.4220808, 85.6505746, 277.3824204, 212.835495, 123.4001379, 299.8681525, 202.784479167]) # in degrees
-        calibratorDecs          = np.array([33.1597594, 49.8520094, 48.7461556,  52.202770,  48.2173778,  40.7339156,  30.509088])     # in degrees
-        calibratorNames         = np.array(["3C48",     "3C147",    "3C380",     "3C295",    "3C196",     "CygA",      "3C286"])
-
-        distances               = lib_util.distanceOnSphere(RA, Dec, calibratorRAs, calibratorDecs)
-
-        distanceCutoff          = 1                                                                                                       # in degrees
-
-        calibratorIsNear        = (distances < distanceCutoff)
-        numberOfCalibratorsNear = np.sum(calibratorIsNear)
-
-        if (numberOfCalibratorsNear == 0):
-            logger.info("Error: unknown calibrator.")
-            sys.exit()
-        elif (numberOfCalibratorsNear == 1):
-            calibratorNameCurrent = calibratorNames[calibratorIsNear][0]
-            logger.info("Calibrator found: %s." % calibratorNameCurrent)
-            return calibratorNameCurrent
-        else:
-            logger.info("Error: multiple calibrators were nearby.")
-            sys.exit()
-    '''

@@ -18,9 +18,23 @@ def printLineBold(line):
     print (boldStart + line + boldEnd)
 
 
+def getCalibratorProperties(self):
+    """
+    Return properties of known calibrators.
+    The lists below (sorted alphabetically by calibrator name) are incomplete,
+    and should be expanded to include all calibrators that could possibly be used.
+    """
+
+    calibratorRAs           = np.array([24.4220808, 85.6505746, 123.4001379, 202.784479167, 202.8569, 212.835495, 277.3824204, 299.8681525]) # in degrees
+    calibratorDecs          = np.array([33.1597594, 49.8520094, 48.2173778,  30.509088,     25.1429,  52.202770,  48.7461556,  40.7339156])  # in degrees
+    calibratorNames         = np.array(["3C48",     "3C147",    "3C196",     "3C286",       "3C287",  "3C295",    "3C380",     "CygA"])
+
+    return calibratorRAs, calibratorDecs, calibratorNames
+
+
 def distanceOnSphere(RAs1, Decs1, RAs2, Decs2):
     """
-    Returns the distances on the sphere from the set of points '(RAs1, Decs1)' to the
+    Return the distances on the sphere from the set of points '(RAs1, Decs1)' to the
     set of points '(RAs2, Decs2)' using the spherical law of cosines.
 
     It assumes that all inputs are given in degrees, and gives the output in degrees, too.
@@ -64,7 +78,7 @@ def run_losoto(s, c, h5s, parsets):
 
     check_rm('plots')
     os.makedirs('plots')
-    
+
     for parset in parsets:
         logging.debug('-- executing '+parset+'...')
         s.add('losoto -v cal-'+c+'.h5 '+parset, log='losoto-'+c+'.log', log_append=True, cmd_type='python', processors='max')
@@ -72,12 +86,12 @@ def run_losoto(s, c, h5s, parsets):
 
     check_rm('plots-' + c)
     os.system('mv plots plots-' + c)
-    
+
 
 class Scheduler():
     def __init__(self, qsub = None, max_threads = None, max_processors = None, log_dir = 'logs', dry = False):
         """
-        qsub:           if true call a shell script which call qsub and then wait 
+        qsub:           if true call a shell script which call qsub and then wait
                         for the process to finish before returning
         max_threads:    max number of parallel processes
         dry:            don't schedule job
@@ -127,7 +141,7 @@ class Scheduler():
 
     def get_cluster(self):
         """
-        Find in which computing cluster the pipeline is running       
+        Find in which computing cluster the pipeline is running
         """
         import socket
         hostname = socket.gethostname()
@@ -137,7 +151,7 @@ class Scheduler():
             return 'Leiden'
         elif (hostname[0 : 3] == 'lof'):
             return 'CEP3'
-        else: 
+        else:
             logging.error('Hostname %s unknown.' % hostname)
             return 'Unknown'
 
@@ -243,18 +257,18 @@ class Scheduler():
                     cmd = 'salloc --job-name LBApipe --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
                             ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
                 subprocess.call(cmd, shell = True)
-    
+
         # limit threads only when qsub doesn't do it
         if max_threads != None: max_threads_run = min(max_threads, self.max_threads)
         else: max_threads_run = self.max_threads
 
         q       = Queue()
         threads = [Thread(target=worker, args=(q,)) for _ in range(max_threads_run)]
-    
+
         for i, t in enumerate(threads): # start workers
             t.daemon = True
             t.start()
-    
+
         for action in self.action_list:
             if self.dry: continue # don't schedule if dry run
             q.put_nowait(action)

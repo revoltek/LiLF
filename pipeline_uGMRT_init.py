@@ -417,6 +417,10 @@ def pipeline_uGMRT_init(pathDirectoryMS, nameMS, verbose = False):
 
         MSObject.move(pathMSFinal)
 
+        # Temporary test!
+        print (MSObject.getCalibratorDistancesSorted())
+        print (MSObject.getCalibratorNamesSorted())
+
 
 
 if (__name__ == "__main__"):
