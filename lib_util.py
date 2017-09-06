@@ -18,7 +18,7 @@ def printLineBold(line):
     print (boldStart + line + boldEnd)
 
 
-def getCalibratorProperties(self):
+def getCalibratorProperties():
     """
     Return properties of known calibrators.
     The lists below (sorted alphabetically by calibrator name) are incomplete,
@@ -73,7 +73,7 @@ def run_losoto(s, c, h5s, parsets):
 
     # concat
     check_rm("cal-" + c + ".h5")
-    s.add('H5parm_append.py -v -c freq -s sol000 -o cal-'+c+'.h5 '+' '.join(h5s), log='losoto-'+c+'.log', cmd_type='python', processors='max')
+    s.add('H5parm_append.py -v -c freq -s sol000 -o cal-'+c+'.h5 '+' '.join(h5s), log='losoto-'+c+'.log', commandType='python', processors='max')
     s.run(check = True)
 
     check_rm('plots')
@@ -81,8 +81,8 @@ def run_losoto(s, c, h5s, parsets):
 
     for parset in parsets:
         logging.debug('-- executing '+parset+'...')
-        s.add('losoto -v cal-'+c+'.h5 '+parset, log='losoto-'+c+'.log', log_append=True, cmd_type='python', processors='max')
-        s.run(check=True)
+        s.add('losoto -v cal-'+c+'.h5 '+parset, log='losoto-'+c+'.log', log_append=True, commandType='python', processors='max')
+        s.run(check = True)
 
     check_rm('plots-' + c)
     os.system('mv plots plots-' + c)
@@ -156,13 +156,13 @@ class Scheduler():
             return 'Unknown'
 
 
-    def add(self, cmd = '', log = '', log_append = False, cmd_type = '', processors = None):
+    def add(self, cmd = '', log = '', log_append = False, commandType = '', processors = None):
         """
         Add a command to the scheduler list
         cmd:        the command to run
         log:        log file name that can be checked at the end
         log_append: if True append, otherwise replace
-        cmd_type:   can be a list of known command types as "BBS", "DPPP", ...
+        commandType:   can be a list of known command types as "BBS", "DPPP", ...
         processors: number of processors to use, can be "max" to automatically use max number of processors per node
         """
         if (log != ''):
@@ -188,7 +188,7 @@ class Scheduler():
             self.action_list.append(cmd)
 
         if log != '':
-            self.log_list.append((log,cmd_type))
+            self.log_list.append((log,commandType))
 
 
     def add_casa(self, cmd='', params={}, wkd=None, log='', log_append=False, processors=None):
@@ -238,7 +238,7 @@ class Scheduler():
             self.log_list.append((log,'CASA'))
 
 
-    def run(self, check=False, max_threads=None):
+    def run(self, check = False, max_threads = None):
         """
         If check=True then a check is done on every log in the log_list
         if max_thread != None, then it overrides the global values, useful for special commands that need a lower number of threads
@@ -277,15 +277,15 @@ class Scheduler():
 
         # check outcomes on logs
         if check:
-            for log, cmd_type in self.log_list:
-                self.check_run(log, cmd_type)
+            for log, commandType in self.log_list:
+                self.check_run(log, commandType)
 
         # reset list of commands
         self.action_list = []
         self.log_list    = []
 
 
-    def check_run(self, log = '', cmd_type = ''):
+    def check_run(self, log = '', commandType = ''):
         """
         Produce a warning if a command didn't close the log properly i.e. it crashed
         NOTE: grep, -L inverse match, -l return only filename
@@ -296,51 +296,51 @@ class Scheduler():
             logging.warning('No log file found to check results: ' + log)
             return 1
 
-        if cmd_type == 'BBS':
-            out = subprocess.check_output('grep -L success '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+        if commandType == 'BBS':
+            out = subprocess.check_output('grep -L success '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logging.error('BBS run problem on:\n'+out.split("\n")[0])
                 return 1
 
-        elif cmd_type == 'NDPPP':
-            out = subprocess.check_output('grep -L "Finishing processing" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Exception" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "**** uncaught exception ****" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+        elif commandType == 'NDPPP':
+            out = subprocess.check_output('grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "**** uncaught exception ****" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logging.error('NDPPP run problem on:\n'+out.split("\n")[0])
                 return 1
 
-        elif cmd_type == 'CASA':
-            out = subprocess.check_output('grep -l "[a-z]Error" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "An error occurred running" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "\*\*\* Error \*\*\*" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+        elif commandType == 'CASA':
+            out = subprocess.check_output('grep -l "[a-z]Error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "An error occurred running" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "\*\*\* Error \*\*\*" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logging.error('CASA run problem on:\n'+out.split("\n")[0])
                 return 1
 
-        elif cmd_type == 'wsclean':
-            out = subprocess.check_output('grep -l "exception occurred" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
-            out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+        elif commandType == 'wsclean':
+            out = subprocess.check_output('grep -l "exception occurred" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logging.error('WSClean run problem on:\n'+out.split("\n")[0])
                 return 1
 
-        elif cmd_type == 'python':
-            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
-            out += subprocess.check_output('grep -i -l "Error" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
-            out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+        elif commandType == 'python':
+            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -i -l "Error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logging.error('Python run problem on:\n'+out.split("\n")[0])
                 return 1
 
-        elif cmd_type == 'general':
-            out = subprocess.check_output('grep -l -i "error" '+log+' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+        elif commandType == 'general':
+            out = subprocess.check_output('grep -l -i "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logging.error('Run problem on:\n'+out.split("\n")[0])
                 return 1
 
         else:
-            logging.warning('Unknown command type for log checking: "'+cmd_type+'"')
+            logging.warning('Unknown command type for log checking: "'+commandType+'"')
             return 1
 
         return 0

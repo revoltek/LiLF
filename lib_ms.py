@@ -76,9 +76,7 @@ class MS(object):
         calibratorDistanceThreshold = 0.5 # in degrees
         if (not self.isCalibrator()):
             if (self.getCalibratorDistancesSorted()[0] < calibratorDistanceThreshold):
-                pathFieldTable = self.pathMS + "/FIELD"
-                nameField      = self.getCalibratorNamesSorted()[0]
-                tables.taql("update $pathFieldTable set NAME=$nameField")
+                self.setNameField(self.getCalibratorNamesSorted()[0])
 
 
     def setPathVariables(self, pathMS):
@@ -99,6 +97,14 @@ class MS(object):
         """
         shutil.move(self.pathMS, pathMSNew)
         self.setPathVariables(pathMSNew)
+
+
+    def setNameField(self, nameField):
+        """
+        Set field name.
+        """
+        pathFieldTable = self.pathMS + "/FIELD"
+        tables.taql("update $pathFieldTable set NAME=$nameField")
 
 
     def getNameField(self):
