@@ -46,6 +46,10 @@ class AllMSs(object):
 
     def run(self, command, commandType, log):
         """
+        Run command 'command' of type 'commandType', and use 'log' for logging,
+        for each MS of AllMSs.
+        The command and log file path can be customised for each MS using keywords (see: 'MS.concretiseString()').
+        Beware: depending on the value of 'Scheduler.max_threads' (see: lib_util.py), the commands are run in parallel.
         """
         for MSObject in self.mss_list_obj:
             commandCurrent = MSObject.concretiseString(command)

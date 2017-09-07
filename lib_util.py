@@ -121,7 +121,7 @@ class Scheduler():
                 sys.exit(1)
 
         if (max_threads == None):
-            if (self.cluster == "Hamburg"):
+            if   (self.cluster == "Hamburg"):
                 self.max_threads = 32
             elif (self.cluster == "Leiden"):
                 self.max_threads = 64
@@ -132,11 +132,15 @@ class Scheduler():
         else:
             self.max_threads = max_threads
 
-        if max_processors == None:
-            if self.cluster == "Hamburg": self.max_processors = 6
-            elif self.cluster == "Leiden": self.max_processors = 64
-            elif self.cluster == "CEP3": self.max_processors = 40
-            else: self.max_processors = 12
+        if (max_processors == None):
+            if   (self.cluster == "Hamburg"):
+                self.max_processors = 6
+            elif (self.cluster == "Leiden"):
+                self.max_processors = 64
+            elif (self.cluster == "CEP3"):
+                self.max_processors = 40
+            else:
+                self.max_processors = 12
         else:
             self.max_processors = max_processors
 
@@ -145,7 +149,7 @@ class Scheduler():
                      str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
 
         self.action_list = []
-        self.log_list    = [] # list of 2-length tuple of the type: (log filename, type of action)
+        self.log_list    = [] # list of 2-tuples of the type: (log filename, type of action)
 
         if (not os.path.isdir(log_dir)):
             logging.info("Creating log dir '" + log_dir + "'.")
@@ -170,7 +174,7 @@ class Scheduler():
             return 'Unknown'
 
 
-    def add(self, cmd = '', log = '', log_append = False, commandType = '', processors = None):
+    def add(self, cmd = '', log = '', log_append = True, commandType = '', processors = None):
         """
         Add a command to the scheduler list
         cmd:         the command to run
@@ -181,10 +185,11 @@ class Scheduler():
         """
         if (log != ''):
             log = self.log_dir + '/' + log
-        if (log != '' and not log_append):
-            cmd += " > " + log + " 2>&1"
-        if (log != '' and log_append):
-            cmd += " >> " + log + " 2>&1"
+
+            if (log_append):
+                cmd += " >> " + log + " 2>&1"
+            else:
+                cmd += " > "  + log + " 2>&1"
 
 
         # TESTTTT
@@ -225,7 +230,7 @@ class Scheduler():
         print ("self.log_list:",    self.log_list)
 
 
-    def add_casa(self, cmd='', params={}, wkd=None, log='', log_append=False, processors=None):
+    def add_casa(self, cmd = '', params = {}, wkd = None, log = '', log_append = False, processors = None):
         """
         Run a casa command pickling the parameters passed in params
         NOTE: running casa commands in parallel is a problem for the log file, better avoid
@@ -277,8 +282,8 @@ class Scheduler():
 
     def run(self, check = False, max_threads = None):
         """
-        If check=True then a check is done on every log in the log_list
-        if max_thread != None, then it overrides the global values, useful for special commands that need a lower number of threads
+        If 'check' is True, a check is done on every log in 'self.log_list'.
+        If max_thread != None, then it overrides the global values, useful for special commands that need a lower number of threads.
         """
         from threading import Thread
         from Queue import Queue
@@ -311,6 +316,7 @@ class Scheduler():
         for action in self.action_list:
             if self.dry: continue # don't schedule if dry run
             q.put_nowait(action)
+            print ("TEST!!! ", action)
         for _ in threads:
             q.put(None) # signal no more commands
         for t in threads:
