@@ -15,7 +15,7 @@ Notes:
 Paths to directories do not end with a '/'.
 '''
 
-import argparse, logging
+import argparse, logging, os
 
 from casacore import tables
 import numpy as np
@@ -134,11 +134,16 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     MSs.run(command = "DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument",
             commandType = "DPPP", log = "bandpass_$nameMS.log")
 
-
+    '''
     # As long as the transition from ParmDB to H5Parm is incomplete, the following conversion step remains.
     logging.info("Converting ParmDB to H5Parm...")
+
+    # Delete the H5Parm file if it already exists.
+    for MSObject in MSs.get_list_obj():
+        os.remove(MSObject.nameMS + ".h5")
+
     MSs.run(command = "H5parm_importer.py $nameMS.h5 $pathMS", commandType = "python", log = "bandpass_$nameMS.log")
-    '''
+
 
     # Determine and store amplitude and phase bandpass (as well as calibrator TEC solutions).
     logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
