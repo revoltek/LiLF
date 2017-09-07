@@ -147,7 +147,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     fileH5Parm = h5parm.h5parm("./scanID1.h5")
     #fileH5Parm.printInfo()
 
-    test = fileH5Parm.H.root.sol000.amplitude000.val[]
+    test = fileH5Parm.H.root.sol000.amplitude000.val
     print (test)
 
     #solutionSet = fileH5Parm.getSolset("sol000")
