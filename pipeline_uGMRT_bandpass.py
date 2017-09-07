@@ -93,7 +93,8 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     # This is a disk space versus computing time trade-off.
     logging.info("Predicting calibrator data...")
     sourceDB = "./models/calib-simple.skydb"
-    MSs.run("DPPP " + pathParSetPredict + " msin=$pathMS predict.sourcedb=" + sourceDB + " predict.sources=$nameField", "DPPP", "bandpass_$nameMS.log")
+    MSs.run(command = "DPPP " + pathParSetPredict + " msin=$pathMS predict.sourcedb=" + sourceDB + " predict.sources=$nameField",
+            commandType = "DPPP", log = "bandpass_$nameMS.log")
 
     print ("finished!")
     '''
@@ -102,17 +103,18 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     for pathMS in MSs.get_list_str():
         print (pathMS)
         lib_util.check_rm(pathMS + "/instrument")
-    MSs.run("DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument", log = "bandpass_$nameMS.log", commandType = "DPPP")
+    MSs.run(command = "DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument",
+            commandType = "DPPP", log = "bandpass_$nameMS.log")
 
 
     # As long as the transition from ParmDB to H5Parm is incomplete, the following conversion step remains.
     logging.info("Converting ParmDB to H5Parm...")
-    MSs.run("H5parm_importer.py $nameMS.h5 $pathMS", log = "bandpass_$nameMS.log", commandType = "python")
+    MSs.run("H5parm_importer.py $nameMS.h5 $pathMS", commandType = "python", log = "bandpass_$nameMS.log")
 
 
     # Determine and store amplitude and phase bandpass (as well as calibrator TEC solutions).
     logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
-    MSs.run("dedicated_uGMRT_bandpass.py $nameMS.h5", log = "bandpass_$nameMS.log", commandType = "python")
+    MSs.run("dedicated_uGMRT_bandpass.py $nameMS.h5", commandType = "python", log = "bandpass_$nameMS.log")
     '''
 
 if (__name__ == "__main__"):
