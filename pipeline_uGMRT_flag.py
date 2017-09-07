@@ -40,15 +40,6 @@ def pipeline_uGMRT_flag(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "./pa
     MSs                = lib_ms.AllMSs(pathsMS, scheduler)
 
 
-    # Test functionality of class MS.
-    for pathMS in pathsMS:
-        MSObject = lib_ms.MS(pathMS)
-        print (MSObject.find_nchan())
-        print (MSObject.find_chanband())
-        print (MSObject.pathDirectory)
-        print (MSObject.nameMS)
-
-
     # 1. Flag user-specified data
     # This step is often redundant in a uGMRT pipeline, as bad antennae and autocorrelations are already flagged in India.
     logging.info("Flagging user-specified data...")

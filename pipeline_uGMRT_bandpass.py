@@ -48,6 +48,13 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     # Add model data column.
     columnName         = "MODEL_DATA"
     for MSObject in MSs.get_list_obj():
+
+        # Test functionality of class MS.
+        print (MSObject.find_nchan())
+        print (MSObject.find_chanband())
+        print (MSObject.pathDirectory)
+        print (MSObject.nameMS)
+
         t                       = tables.table(MSObject.pathMS, readonly = False)
 
         visibilities            = t.getcol("DATA")
@@ -77,10 +84,10 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
         t.putcol(columnName, np.zeros_like(visibilities))
 
     #MSs.run("echo Martijn", "general", "testMartijn.log") #works!
-    MSs.run("DPPP msin=$pathMS msout=. steps=[]", "DPPP", "testMartijn.log")
-    import sys
-    print ("exiting...")
-    sys.exit()
+    #MSs.run("DPPP msin=$pathMS msout=. steps=[]", "DPPP", "testMartijn.log") #works!
+    #import sys
+    #print ("exiting...")
+    #sys.exit()
 
     # Set model data column. Instead of predicting 'on the fly' whilst calculating gains, we predict and store in MODEL_DATA.
     # This is a disk space versus computing time trade-off.
@@ -88,6 +95,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     sourceDB = "./models/calib-simple.skydb"
     MSs.run("DPPP " + pathParSetPredict + " msin=$pathMS predict.sourcedb=" + sourceDB + " predict.sources=$nameField", "DPPP", "bandpass_$nameMS.log")
 
+    print ("finished!")
     '''
     # Calculate complex gains and store in ParmDB format.
     logging.info("Calculating complex gains...")

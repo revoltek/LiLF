@@ -145,7 +145,7 @@ class Scheduler():
             self.max_processors = max_processors
 
         self.dry = dry
-        logging.info("Scheduler initialized for cluster " + self.cluster + " (Nproc: " + str(self.max_threads) + ", multinode: " +
+        logging.info("Scheduler initialised for cluster " + self.cluster + " (max_threads: " + str(self.max_threads) + ", qsub (multinode): " +
                      str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
 
         self.action_list = []
@@ -171,7 +171,7 @@ class Scheduler():
             return "CEP3"
         else:
             logging.error('Hostname %s unknown.' % hostname)
-            return 'Unknown'
+            return "Unknown"
 
 
     def add(self, cmd = '', log = '', log_append = True, commandType = '', processors = None):
