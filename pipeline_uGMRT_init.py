@@ -139,8 +139,8 @@ def pipeline_uGMRT_init(pathDirectoryMS, nameMS, verbose = False):
 
         t                        = tables.table(pathMSNew, readonly = False)
 
-        # Old array: ["EXPOSURE", "SIGMA_SPECTRUM"]. The column "EXPOSURE" seems necessary for LOFAR's msoverview and for DPPP.
-        for columnName in [ ]: # This list could possibly be expanded.
+        # Old array: ["EXPOSURE", "SIGMA_SPECTRUM"]. The column "EXPOSURE" seems necessary for DPPP (and LOFAR's msoverview), though.
+        for columnName in ["SIGMA_SPECTRUM"]: # This list could possibly be expanded.
             if (lib_util.columnExists(t, columnName)):
                 t.removecols(columnName)
 

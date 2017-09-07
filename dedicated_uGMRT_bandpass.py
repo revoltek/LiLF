@@ -23,7 +23,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import losoto, numpy
 
-import libraryRadioAstronomy
+#import libraryRadioAstronomy
 
 
 def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):

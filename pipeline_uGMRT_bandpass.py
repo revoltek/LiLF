@@ -56,6 +56,10 @@ def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNa
             logging.debug(dataManagerInfo)
 
         columnDescription["comment"] = ""
+        #!
+        # What about:
+        #columnDescription["dataManagerGroup"] = ...?
+        #!
         dataManagerInfo["NAME"]      = dataManagerInfoNameNew
 
         if (verbose):
@@ -103,9 +107,9 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     for MSObject in MSs.get_list_obj():
 
         columnAddSimilar(MSObject.pathMS, "MODEL_DATA",     "DATA", "TiledMODEL_DATAMartijn",
-                         overwrite = True, fillWithZeros = True, comment = "", verbose = True)
+                         overwrite = False, fillWithZeros = True, comment = "", verbose = True)
         columnAddSimilar(MSObject.pathMS, "CORRECTED_DATA", "DATA", "TiledCORRECTED_DATAMartijn",
-                         overwrite = True, fillWithZeros = True, comment = "", verbose = True)
+                         overwrite = False, fillWithZeros = True, comment = "", verbose = True)
 
         # Test functionality of class MS.
         print (MSObject.find_nchan())
@@ -113,6 +117,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
         print (MSObject.pathDirectory)
         print (MSObject.nameMS)
 
+    '''
     # Set model data column. Instead of predicting 'on the fly' whilst calculating gains, we predict and store in MODEL_DATA.
     # This is a disk space versus computing time trade-off.
     logging.info("Predicting calibrator data...")
@@ -133,10 +138,13 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     # As long as the transition from ParmDB to H5Parm is incomplete, the following conversion step remains.
     logging.info("Converting ParmDB to H5Parm...")
     MSs.run(command = "H5parm_importer.py $nameMS.h5 $pathMS", commandType = "python", log = "bandpass_$nameMS.log")
-
+    '''
 
     # Determine and store amplitude and phase bandpass (as well as calibrator TEC solutions).
-    #logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
+    logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
+
+    fileH5Parm = losoto.h5parm.h5parm("./scanID1.h5")
+    fileH5Parm.printInfo()
     #MSs.run(command = "dedicated_uGMRT_bandpass.py $nameMS.h5", commandType = "python", log = "bandpass_$nameMS.log")
 
 
