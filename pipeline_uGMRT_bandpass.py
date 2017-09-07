@@ -23,7 +23,7 @@ import numpy as np
 import lib_ms, lib_util
 
 
-def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithZeros = True, verbose = False):
+def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithZeros = True, comment = "", verbose = False):
     """
     Add a column to a MS that is similar to a pre-existing column (in shape, but not in values).
     pathMS:                 path of the MS
@@ -37,7 +37,7 @@ def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNa
     t = tables.table(pathMS, readonly = False)
 
     if (lib_util.columnExists(t, columnNameNew) and not overwrite):
-        logging.warning("Attempt to add column '" + columnNameNew + "' failed, as it already exists and 'columnAddSimilar.overwrite = False'.")
+        logging.warning("Attempt to add column '" + columnNameNew + "' failed, as it already exists and 'overwrite = False' in columnAddSimilar(...).")
     else: # Either the column does not exist yet, or it does but overwriting is allowed.
 
         # Remove column if necessary.
@@ -55,9 +55,12 @@ def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNa
             logging.debug("dataManagerInfo:")
             logging.debug(dataManagerInfo)
 
-        dataManagerInfo["NAME"] = dataManagerInfoNameNew
+        columnDescription["comment"] = ""
+        dataManagerInfo["NAME"]      = dataManagerInfoNameNew
 
         if (verbose):
+            logging.debug("columnDescription (updated):")
+            logging.debug(columnDescription)
             logging.debug("dataManagerInfo (updated):")
             logging.debug(dataManagerInfo)
 
@@ -99,8 +102,10 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     # Add model data column (for predict), and corrected data column (for gaincal).
     for MSObject in MSs.get_list_obj():
 
-        columnAddSimilar(MSObject.pathMS, "MODEL_DATA",     "DATA", "TiledMODEL_DATAMartijn",     overwrite = False, fillWithZeros = True, verbose = True)
-        columnAddSimilar(MSObject.pathMS, "CORRECTED_DATA", "DATA", "TiledCORRECTED_DATAMartijn", overwrite = False, fillWithZeros = True, verbose = True)
+        columnAddSimilar(MSObject.pathMS, "MODEL_DATA",     "DATA", "TiledMODEL_DATAMartijn",
+                         overwrite = True, fillWithZeros = True, comment = "", verbose = True)
+        columnAddSimilar(MSObject.pathMS, "CORRECTED_DATA", "DATA", "TiledCORRECTED_DATAMartijn",
+                         overwrite = True, fillWithZeros = True, comment = "", verbose = True)
 
         # Test functionality of class MS.
         print (MSObject.find_nchan())
@@ -131,8 +136,8 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
 
 
     # Determine and store amplitude and phase bandpass (as well as calibrator TEC solutions).
-    logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
-    MSs.run(command = "dedicated_uGMRT_bandpass.py $nameMS.h5", commandType = "python", log = "bandpass_$nameMS.log")
+    #logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
+    #MSs.run(command = "dedicated_uGMRT_bandpass.py $nameMS.h5", commandType = "python", log = "bandpass_$nameMS.log")
 
 
 if (__name__ == "__main__"):
