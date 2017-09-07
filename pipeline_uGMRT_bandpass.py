@@ -143,9 +143,16 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     # Determine and store amplitude and phase bandpass (as well as calibrator TEC solutions).
     logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
 
-    import losoto
-    fileH5Parm = losoto.h5parm.h5parm("./scanID1.h5")
+    from losoto import h5parm
+    fileH5Parm = h5parm.h5parm("./scanID1.h5")
     fileH5Parm.printInfo()
+
+    #fileH5Parm.H.root.sol000.amplitude000.val[]
+
+    solutionSet = fileH5Parm.getSolset("sol000")
+    amplitudes  = solutionSet.amp000.val[ : , 0, : , : ]
+    phases      = solutionSet.phase000.val[ : , 0, : , : ]
+
     #MSs.run(command = "dedicated_uGMRT_bandpass.py $nameMS.h5", commandType = "python", log = "bandpass_$nameMS.log")
 
 
