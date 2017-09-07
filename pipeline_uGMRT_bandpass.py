@@ -76,6 +76,8 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
         logging.info("Filling column '" + columnName + "' with zeros...")
         t.putcol(columnName, np.zeros_like(visibilities))
 
+    MSs.run("echo Martijn", commandType = "")
+    sys.exit()
 
     # Set model data column. Instead of predicting 'on the fly' whilst calculating gains, we predict and store in MODEL_DATA.
     # This is a disk space versus computing time trade-off.
