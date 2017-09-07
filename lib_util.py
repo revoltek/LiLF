@@ -200,24 +200,29 @@ class Scheduler():
 
         if self.qsub:
             # if number of processors not specified, try to find automatically
-            if processors == None:
+            if (processors == None):
                 processors = 1 # default use single CPU
-                if ("calibrate-stand-alone" == cmd[:21]):
+                if ("calibrate-stand-alone" == cmd[ : 21]):
                     processors = 1
-                if ("DPPP" == cmd[:5]):
+                if ("DPPP" == cmd[ : 5]):
                     processors = 1
-                if ("wsclean" == cmd[:7]):
+                if ("wsclean" == cmd[ : 7]):
                     processors = self.max_processors
-                if ("awimager" == cmd[:8]):
+                if ("awimager" == cmd[ : 8]):
                     processors = self.max_processors
             if (processors > self.max_processors):
                 processors = self.max_processors
-            self.action_list.append([str(processors),'\''+cmd+'\''])
+
+            self.action_list.append([str(processors), '\'' + cmd + '\''])
         else:
             self.action_list.append(cmd)
 
-        if (log != ''):
+        if (log != ""):
             self.log_list.append((log, commandType))
+
+        # TESTTTT
+        print ("self.action_list:", self.action_list)
+        print ("self.log_list:",    self.log_list)
 
 
     def add_casa(self, cmd='', params={}, wkd=None, log='', log_append=False, processors=None):
