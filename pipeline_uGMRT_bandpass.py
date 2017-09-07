@@ -76,14 +76,14 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
         logging.info("Filling column '" + columnName + "' with zeros...")
         t.putcol(columnName, np.zeros_like(visibilities))
 
-    MSs.run("echo Martijn", commandType = "")
+    MSs.run("echo Martijn", "", "")
     sys.exit()
 
     # Set model data column. Instead of predicting 'on the fly' whilst calculating gains, we predict and store in MODEL_DATA.
     # This is a disk space versus computing time trade-off.
     logging.info("Predicting calibrator data...")
     sourceDB = "./models/calib-simple.skydb"
-    MSs.run("DPPP " + pathParSetPredict + " msin=$pathMS predict.sourcedb=" + sourceDB + " predict.sources=$nameField", log = "bandpass_$nameMS.log", commandType = "DPPP")
+    MSs.run("DPPP " + pathParSetPredict + " msin=$pathMS predict.sourcedb=" + sourceDB + " predict.sources=$nameField", "DPPP", "bandpass_$nameMS.log")
 
     '''
     # Calculate complex gains and store in ParmDB format.

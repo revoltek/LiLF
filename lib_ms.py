@@ -63,7 +63,7 @@ class AllMSs(object):
             lib_util.printLineBold("logCurrent:")
             print (logCurrent)
 
-        print ("START RUNNINNNNNN")
+        print ("START RUNNING")
         self.scheduler.run(check = True)
 
 
