@@ -191,8 +191,7 @@ class Scheduler():
             else:
                 cmd += " > "  + log + " 2>&1"
 
-
-        # TESTTTT
+        # Test by Martijn: could be removed!
         print ("cmd:",         cmd)
         print ("log:",         log)
         print ("log_append:",  log_append)
@@ -225,7 +224,7 @@ class Scheduler():
         if (log != ""):
             self.log_list.append((log, commandType))
 
-        # TESTTTT
+        # Test by Martijn: could be removed!
         print ("self.action_list:", self.action_list)
         print ("self.log_list:",    self.log_list)
 
@@ -314,9 +313,9 @@ class Scheduler():
             t.start()
 
         for action in self.action_list:
-            if self.dry: continue # don't schedule if dry run
+            if (self.dry):
+                continue # don't schedule if dry run
             q.put_nowait(action)
-            print ("TEST!!! ", action)
         for _ in threads:
             q.put(None) # signal no more commands
         for t in threads:
@@ -343,13 +342,13 @@ class Scheduler():
             logging.warning("No log file found to check results: " + log)
             return 1
 
-        if (commandType == 'BBS'):
+        if (commandType == "BBS"):
             out = subprocess.check_output('grep -L success '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logging.error('BBS run problem on:\n'+out.split("\n")[0])
                 return 1
 
-        elif (commandType == 'DPPP'):
+        elif (commandType == "DPPP"):
             out = subprocess.check_output('grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "**** uncaught exception ****" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
@@ -365,7 +364,7 @@ class Scheduler():
                 logging.error('CASA run problem on:\n'+out.split("\n")[0])
                 return 1
 
-        elif (commandType == 'wsclean'):
+        elif (commandType == "wsclean"):
             out = subprocess.check_output('grep -l "exception occurred" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
@@ -380,14 +379,14 @@ class Scheduler():
                 logging.error('Python run problem on:\n'+out.split("\n")[0])
                 return 1
 
-        elif (commandType == 'general'):
+        elif (commandType == "general"):
             out = subprocess.check_output('grep -l -i "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logging.error('Run problem on:\n'+out.split("\n")[0])
                 return 1
 
         else:
-            logging.warning('Unknown command type for log checking: "'+commandType+'"')
+            logging.warning("Unknown command type for log checking: '" + commandType + "'")
             return 1
 
         return 0

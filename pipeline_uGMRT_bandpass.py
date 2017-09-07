@@ -85,11 +85,6 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
 
         t.close()
 
-    #MSs.run("echo Martijn", "general", "testMartijn.log") #works!
-    #MSs.run("DPPP msin=$pathMS msout=. steps=[]", "DPPP", "testMartijn.log") #works!
-    #import sys
-    #print ("exiting...")
-    #sys.exit()
 
     # Set model data column. Instead of predicting 'on the fly' whilst calculating gains, we predict and store in MODEL_DATA.
     # This is a disk space versus computing time trade-off.
@@ -98,8 +93,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     MSs.run(command = "DPPP " + pathParSetPredict + " msin=$pathMS predict.sourcedb=" + sourceDB + " predict.sources=$nameField",
             commandType = "DPPP", log = "bandpass_$nameMS.log")
 
-    print ("finished!")
-    '''
+
     # Calculate complex gains and store in ParmDB format.
     logging.info("Calculating complex gains...")
     for pathMS in MSs.get_list_str():
@@ -117,7 +111,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     # Determine and store amplitude and phase bandpass (as well as calibrator TEC solutions).
     logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
     MSs.run("dedicated_uGMRT_bandpass.py $nameMS.h5", commandType = "python", log = "bandpass_$nameMS.log")
-    '''
+
 
 if (__name__ == "__main__"):
 
