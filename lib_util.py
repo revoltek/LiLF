@@ -186,6 +186,15 @@ class Scheduler():
         if (log != '' and log_append):
             cmd += " >> " + log + " 2>&1"
 
+
+        # TESTTTT
+        print ("cmd:",         cmd)
+        print ("log:",         log)
+        print ("log_append:",  log_append)
+        print ("commandType:", commandType)
+        print ("processors:",  processors)
+
+
         if (processors != None and processors == 'max'):
             processors = self.max_processors
 
