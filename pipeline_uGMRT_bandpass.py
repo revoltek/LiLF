@@ -145,13 +145,14 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
 
     from losoto import h5parm
     fileH5Parm = h5parm.h5parm("./scanID1.h5")
-    fileH5Parm.printInfo()
+    #fileH5Parm.printInfo()
 
-    #fileH5Parm.H.root.sol000.amplitude000.val[]
+    test = fileH5Parm.H.root.sol000.amplitude000.val[]
+    print (test)
 
-    solutionSet = fileH5Parm.getSolset("sol000")
-    amplitudes  = solutionSet.amp000.val[ : , 0, : , : ]
-    phases      = solutionSet.phase000.val[ : , 0, : , : ]
+    #solutionSet = fileH5Parm.getSolset("sol000")
+    #amplitudes  = solutionSet.amp000.val[ : , 0, : , : ]
+    #phases      = solutionSet.phase000.val[ : , 0, : , : ]
 
     #MSs.run(command = "dedicated_uGMRT_bandpass.py $nameMS.h5", commandType = "python", log = "bandpass_$nameMS.log")
 
