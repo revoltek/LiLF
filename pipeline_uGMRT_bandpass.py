@@ -83,6 +83,8 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
         logging.info("Filling column '" + columnName + "' with zeros...")
         t.putcol(columnName, np.zeros_like(visibilities))
 
+        t.close()
+
     #MSs.run("echo Martijn", "general", "testMartijn.log") #works!
     #MSs.run("DPPP msin=$pathMS msout=. steps=[]", "DPPP", "testMartijn.log") #works!
     #import sys
