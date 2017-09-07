@@ -81,7 +81,7 @@ MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $ms', log='$ms_smooth
 logger.info('Calibrating...')
 for MS in MSs.get_list_str():
     lib_util.check_rm(ms+'/instrument')
-MSs.run('NDPPP ' + parset_dir + '/DPPP_LOFAR_sol.parset msin=$ms', log='$ms_sol1.log', commandType = "DPPP")
+MSs.run('DPPP ' + parset_dir + '/DPPP_LOFAR_sol.parset msin=$ms', log='$ms_sol1.log', commandType = "DPPP")
 
 # TODO: add losoto concat
 run_losoto(s, 'fr', MSs.get_list_str(), [parset_dir + '/losoto-fr.parset'], outtab='rotationmeasure000', \
@@ -92,11 +92,11 @@ run_losoto(s, 'fr', MSs.get_list_str(), [parset_dir + '/losoto-fr.parset'], outt
 
 # Beam correction DATA -> CORRECTED_DATA
 logger.info('Beam correction...')
-MSs.run('NDPPP ' + parset_dir + '/DPPP_LOFAR_beam.parset msin=$ms', log='$ms_beam.log', commandType = "DPPP")
+MSs.run('DPPP ' + parset_dir + '/DPPP_LOFAR_beam.parset msin=$ms', log='$ms_beam.log', commandType = "DPPP")
 
 # Correct FR CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Faraday rotation correction...')
-MSs.run('NDPPP ' + parset_dir + '/DPPP_LOFAR_cor.parset msin=$ms cor.parmdb=$ms/instrument-fr cor.correction=rotationmeasure', log='$ms_corFR.log', commandType = "DPPP")
+MSs.run('DPPP ' + parset_dir + '/DPPP_LOFAR_cor.parset msin=$ms cor.parmdb=$ms/instrument-fr cor.correction=rotationmeasure', log='$ms_corFR.log', commandType = "DPPP")
 
 # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
 logger.info('BL-smooth...')
@@ -106,7 +106,7 @@ MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $ms', log='$ms_smooth
 logger.info('Calibrating...')
 for MS in MSs.get_list_str():
     lib_util.check_rm(ms+'/instrument')
-MSs.run('NDPPP ' + parset_dir + '/DPPP_sol.parset msin=$ms', log='$ms_sol2.log', commandType = "DPPP")
+MSs.run('DPPP ' + parset_dir + '/DPPP_sol.parset msin=$ms', log='$ms_sol2.log', commandType = "DPPP")
 
 run_losoto(s, 'cd', MSs.get_list_str(), [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-amp.parset',parset_dir+'/losoto-cd.parset'], outtab='amplitudeSmooth000,crossdelay', \
     inglobaldb='globaldb', outglobaldb='globaldb', ininstrument='instrument', outinstrument='instrument-cd', putback=True)
@@ -116,15 +116,15 @@ run_losoto(s, 'cd', MSs.get_list_str(), [parset_dir + '/losoto-flag.parset',pars
 
 # Correct cd+amp DATA -> CORRECTED_DATA
 logger.info('Cross delay+ampBP correction...')
-MSs.run('NDPPP '+parset_dir+'/DPPP_cor.parset msin=$ms msin.datacolumn=DATA cor.parmdb=$ms/instrument-cd cor.correction=gain cor.updateweights=True', log='$ms_corCD.log', commandType = "DPPP")
+MSs.run('DPPP '+parset_dir+'/DPPP_cor.parset msin=$ms msin.datacolumn=DATA cor.parmdb=$ms/instrument-cd cor.correction=gain cor.updateweights=True', log='$ms_corCD.log', commandType = "DPPP")
 
 # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Beam correction...')
-MSs.run('NDPPP '+parset_dir+'/DPPP_beam.parset msin=$ms msin.datacolumn=CORRECTED_DATA corrbeam.updateweights=True', log='$ms_beam2.log', commandType = "DPPP")
+MSs.run('DPPP '+parset_dir+'/DPPP_beam.parset msin=$ms msin.datacolumn=CORRECTED_DATA corrbeam.updateweights=True', log='$ms_beam2.log', commandType = "DPPP")
 
 # Correct FR CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Faraday rotation correction...')
-MSs.run('NDPPP '+parset_dir+'/DPPP_cor.parset msin=$ms cor.parmdb=$ms/instrument-fr cor.correction=rotationmeasure', log='$ms_corFR2.log', commandType = "DPPP")
+MSs.run('DPPP '+parset_dir+'/DPPP_cor.parset msin=$ms cor.parmdb=$ms/instrument-fr cor.correction=rotationmeasure', log='$ms_corFR2.log', commandType = "DPPP")
 
 # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
 logger.info('BL-smooth...')
@@ -134,7 +134,7 @@ MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $ms', log='$ms_smooth
 logger.info('Calibrating...')
 for MS in MSs.get_list_str():
     lib_util.check_rm(ms+'/instrument')
-MSs.run('NDPPP '+parset_dir+'/DPPP_sol.parset msin=$ms', log='$ms_sol3.log', commandType = "DPPP")
+MSs.run('DPPP '+parset_dir+'/DPPP_sol.parset msin=$ms', log='$ms_sol3.log', commandType = "DPPP")
 
 # if field model available, subtract it
 field_model = '/home/fdg/scripts/model/calfields/'+calname+'-field.skydb'
@@ -145,7 +145,7 @@ if os.path.exists(field_model):
            inglobaldb='globaldb', outglobaldb='globaldb', ininstrument='instrument', outinstrument='instrument', putback=True)
 
     logger.info('Ft+corrupt model...')
-    MSs.run('NDPPP '+parset_dir+'/DPPP_predict.parset msin=$ms pre.sourcedb='+field_model+' \
+    MSs.run('DPPP '+parset_dir+'/DPPP_predict.parset msin=$ms pre.sourcedb='+field_model+' \
                 pre.applycal.parmdb=$ms/instrument pre.applycal.correction=gain', log='$ms_field_pre.log', commandType = "DPPP")
 
     logger.info('Subtract model...')
@@ -159,7 +159,7 @@ if os.path.exists(field_model):
     logger.info('Calibrating...')
     for MS in MSs.get_list_str():
         lib_util.check_rm(ms+'/instrument')
-    MSs.run('NDPPP '+parset_dir+'/DPPP_sol.parset msin=$ms', log='$ms_field_sol.log', commandType = "DPPP")
+    MSs.run('DPPP '+parset_dir+'/DPPP_sol.parset msin=$ms', log='$ms_field_sol.log', commandType = "DPPP")
 
     run_losoto(s, 'iono', MSs.get_list_str(), [parset_dir+'/losoto_iono.parset'], outtab='amplitude000,phaseOrig000', \
            inglobaldb='globaldb', outglobaldb='globaldb', ininstrument='instrument', outinstrument='instrument', putback=True)
@@ -232,7 +232,7 @@ if imaging:
     cRA, cDEC = get_phase_centre(MSs[0])
     lsm.select( lsm.getDistance(cRA, cDEC) > 0.1 )
     lsm.group('every')
-    lsm.write(imagename+'-sources-pb-cut.txt', format='makesourcedb', clobber=True)
+    lsm.write(imagename+'-sources-pb-cut.txt', format='makesourcedb', clobber = True)
     del lsm
 
 logger.info("Done.")

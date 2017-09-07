@@ -81,7 +81,7 @@ def run_losoto(s, c, h5s, parsets):
 
     # concat
     check_rm("cal-" + c + ".h5")
-    s.add('H5parm_append.py -v -c freq -s sol000 -o cal-'+c+'.h5 '+' '.join(h5s), log='losoto-'+c+'.log', commandType='python', processors='max')
+    s.add('H5parm_append.py -v -c freq -s sol000 -o cal-'+c+'.h5 '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
     s.run(check = True)
 
     check_rm('plots')
@@ -89,7 +89,7 @@ def run_losoto(s, c, h5s, parsets):
 
     for parset in parsets:
         logging.debug('-- executing '+parset+'...')
-        s.add('losoto -v cal-'+c+'.h5 '+parset, log='losoto-'+c+'.log', log_append=True, commandType='python', processors='max')
+        s.add('losoto -v cal-'+c+'.h5 '+parset, log='losoto-'+c+'.log', log_append=True, commandType="python", processors='max')
         s.run(check = True)
 
     check_rm('plots-' + c)
@@ -109,27 +109,33 @@ class Scheduler():
         self.qsub    = qsub
         # if qsub/max_thread/max_processors not set, guess from the cluster
         # if they are set, double check number are reasonable
-        if self.qsub == None:
-            if self.cluster == 'Hamburg': self.qsub = True
-            else: self.qsub = False
+        if (self.qsub == None):
+            if (self.cluster == "Hamburg"):
+                self.qsub = True
+            else:
+                self.qsub = False
         else:
-            if (self.qsub == False and self.cluster == 'Hamburg') or \
-               (self.qsub == True and (self.cluster == 'Leiden' or self.cluster == 'CEP3')):
+            if ((self.qsub == False and self.cluster == "Hamburg") or \
+               (self.qsub == True and (self.cluster == "Leiden" or self.cluster == "CEP3"))):
                 logging.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
                 sys.exit(1)
 
-        if max_threads == None:
-            if self.cluster == 'Hamburg': self.max_threads = 32
-            elif self.cluster == 'Leiden': self.max_threads = 64
-            elif self.cluster == 'CEP3': self.max_threads = 40
-            else: self.max_threads = 12
+        if (max_threads == None):
+            if (self.cluster == "Hamburg"):
+                self.max_threads = 32
+            elif (self.cluster == "Leiden"):
+                self.max_threads = 64
+            elif (self.cluster == "CEP3"):
+                self.max_threads = 40
+            else:
+                self.max_threads = 12
         else:
             self.max_threads = max_threads
 
         if max_processors == None:
-            if self.cluster == 'Hamburg': self.max_processors = 6
-            elif self.cluster == 'Leiden': self.max_processors = 64
-            elif self.cluster == 'CEP3': self.max_processors = 40
+            if self.cluster == "Hamburg": self.max_processors = 6
+            elif self.cluster == "Leiden": self.max_processors = 64
+            elif self.cluster == "CEP3": self.max_processors = 40
             else: self.max_processors = 12
         else:
             self.max_processors = max_processors
@@ -154,11 +160,11 @@ class Scheduler():
         import socket
         hostname = socket.gethostname()
         if (hostname == 'lgc1' or hostname == 'lgc2'):
-            return 'Hamburg'
+            return "Hamburg"
         elif ('leidenuniv' in hostname):
-            return 'Leiden'
+            return "Leiden"
         elif (hostname[0 : 3] == 'lof'):
-            return 'CEP3'
+            return "CEP3"
         else:
             logging.error('Hostname %s unknown.' % hostname)
             return 'Unknown'
@@ -187,11 +193,16 @@ class Scheduler():
             # if number of processors not specified, try to find automatically
             if processors == None:
                 processors = 1 # default use single CPU
-                if "calibrate-stand-alone" == cmd[:21]: processors = 1
-                if "NDPPP" == cmd[:5]: processors = 1
-                if "wsclean" == cmd[:7]: processors = self.max_processors
-                if "awimager" == cmd[:8]: processors = self.max_processors
-            if processors > self.max_processors: processors = self.max_processors
+                if ("calibrate-stand-alone" == cmd[:21]):
+                    processors = 1
+                if ("DPPP" == cmd[:5]):
+                    processors = 1
+                if ("wsclean" == cmd[:7]):
+                    processors = self.max_processors
+                if ("awimager" == cmd[:8]):
+                    processors = self.max_processors
+            if (processors > self.max_processors):
+                processors = self.max_processors
             self.action_list.append([str(processors),'\''+cmd+'\''])
         else:
             self.action_list.append(cmd)
@@ -231,7 +242,7 @@ class Scheduler():
             else: casacmd = str(processors)+' \''+casacmd
 
             # clean up casa remnants in Hamburg cluster
-            if self.cluster == 'Hamburg':
+            if self.cluster == "Hamburg":
                 self.action_list.append(casacmd+'; killall -9 -r dbus-daemon Xvfb python casa\*\'')
                 if processors != self.max_processors:
                     logging.error('To clean annoying CASA remnants no more than 1 CASA per node is allowed.')
@@ -261,7 +272,7 @@ class Scheduler():
 
         def worker(queue):
             for cmd in iter(queue.get, None):
-                if self.qsub and self.cluster == 'Hamburg':
+                if self.qsub and self.cluster == "Hamburg":
                     # run in priority nodes
                     #cmd = 'salloc --job-name LBApipe --reservation=important_science --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
                     #        ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
@@ -277,7 +288,7 @@ class Scheduler():
             max_threads_run = min(max_threads, self.max_threads)
 
         q       = Queue()
-        threads = [Thread(target=worker, args=(q,)) for _ in range(max_threads_run)]
+        threads = [Thread(target = worker, args=(q,)) for _ in range(max_threads_run)]
 
         for i, t in enumerate(threads): # start workers
             t.daemon = True
@@ -286,11 +297,13 @@ class Scheduler():
         for action in self.action_list:
             if self.dry: continue # don't schedule if dry run
             q.put_nowait(action)
-        for _ in threads: q.put(None) # signal no more commands
-        for t in threads: t.join()
+        for _ in threads:
+            q.put(None) # signal no more commands
+        for t in threads:
+            t.join()
 
         # check outcomes on logs
-        if check:
+        if (check):
             for log, commandType in self.log_list:
                 self.check_run(log, commandType)
 
@@ -299,32 +312,32 @@ class Scheduler():
         self.log_list    = []
 
 
-    def check_run(self, log = '', commandType = ''):
+    def check_run(self, log = "", commandType = ""):
         """
         Produce a warning if a command didn't close the log properly i.e. it crashed
         NOTE: grep, -L inverse match, -l return only filename
         """
         import subprocess
 
-        if not os.path.exists(log):
-            logging.warning('No log file found to check results: ' + log)
+        if (not os.path.exists(log)):
+            logging.warning("No log file found to check results: " + log)
             return 1
 
-        if commandType == 'BBS':
+        if (commandType == 'BBS'):
             out = subprocess.check_output('grep -L success '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logging.error('BBS run problem on:\n'+out.split("\n")[0])
                 return 1
 
-        elif commandType == 'NDPPP':
+        elif (commandType == 'DPPP'):
             out = subprocess.check_output('grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "**** uncaught exception ****" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
-                logging.error('NDPPP run problem on:\n'+out.split("\n")[0])
+                logging.error('DPPP run problem on:\n'+out.split("\n")[0])
                 return 1
 
-        elif commandType == 'CASA':
+        elif (commandType == "CASA"):
             out = subprocess.check_output('grep -l "[a-z]Error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "An error occurred running" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "\*\*\* Error \*\*\*" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
@@ -332,14 +345,14 @@ class Scheduler():
                 logging.error('CASA run problem on:\n'+out.split("\n")[0])
                 return 1
 
-        elif commandType == 'wsclean':
+        elif (commandType == 'wsclean'):
             out = subprocess.check_output('grep -l "exception occurred" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logging.error('WSClean run problem on:\n'+out.split("\n")[0])
                 return 1
 
-        elif commandType == 'python':
+        elif (commandType == "python"):
             out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l "Error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
@@ -347,7 +360,7 @@ class Scheduler():
                 logging.error('Python run problem on:\n'+out.split("\n")[0])
                 return 1
 
-        elif commandType == 'general':
+        elif (commandType == 'general'):
             out = subprocess.check_output('grep -l -i "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logging.error('Run problem on:\n'+out.split("\n")[0])
