@@ -23,6 +23,57 @@ import numpy as np
 import lib_ms, lib_util
 
 
+def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithZeros = True, verbose = False):
+    """
+    Add a column to a MS that is similar to a pre-existing column (in shape, but not in values).
+    pathMS:                 path of the MS
+    columnNameNew:          name of the column to be added
+    columnNameSimilar:      name of the column from which properties are copied (e.g. "DATA")
+    dataManagerInfoNameNew: string value for the data manager info (DMI) keyword "NAME" (should be unique in the MS)
+    overwrite:              whether or not to overwrite column 'columnNameNew' if it already exists
+    fillWithZeros:          whether or not to fill the newly-made column with zeros
+    verbose:                whether or not to produce abundant output
+    """
+    t = tables.table(pathMS, readonly = False)
+
+    if (lib_util.columnExists(t, columnNameNew) and not overwrite):
+        logging.warning("Attempt to add column '" + columnNameNew + "' failed, as it already exists and 'columnAddSimilar.overwrite = False'.")
+    else: # Either the column does not exist yet, or it does but overwriting is allowed.
+
+        # Remove column if necessary.
+        if (lib_util.columnExists(t, columnNameNew)):
+            logging.info("Removing column '" + columnNameNew + "'...")
+            t.removecols(columnNameNew)
+
+        # Add column.
+        columnDescription       = t.getcoldesc(columnNameSimilar)
+        dataManagerInfo         = t.getdminfo(columnNameSimilar)
+
+        if (verbose):
+            logging.debug("columnDescription:")
+            logging.debug(columnDescription)
+            logging.debug("dataManagerInfo:")
+            logging.debug(dataManagerInfo)
+
+        dataManagerInfo["NAME"] = dataManagerInfoNameNew
+
+        if (verbose):
+            logging.debug("dataManagerInfo (updated):")
+            logging.debug(dataManagerInfo)
+
+        logging.info("Adding column '" + columnNameNew + "'...")
+        t.addcols(tables.makecoldesc(columnNameNew, columnDescription), dataManagerInfo)
+
+        # Fill with zeros if desired.
+        if (fillWithZeros):
+            logging.info("Filling column '" + columnNameNew + "' with zeros...")
+            columnDataSimilar = t.getcol(columnNameSimilar)
+            t.putcol(columnNameNew, np.zeros_like(columnDataSimilar))
+
+    # Close the table to avoid that it is locked for further use.
+    t.close()
+
+
 def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "./parsets", verbose = False):
 
     # Initialise parameter set settings.
@@ -45,46 +96,17 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     MSs                = lib_ms.AllMSs(pathsMS, scheduler)
 
 
-    # Add model data column.
-    columnName         = "MODEL_DATA"
+    # Add model data column (for predict), and corrected data column (for gaincal).
     for MSObject in MSs.get_list_obj():
+
+        columnAddSimilar(MSObject.pathMS, "MODEL_DATA",     "DATA", "TiledMODEL_DATAMartijn",     overwrite = False, fillWithZeros = True, verbose = True)
+        columnAddSimilar(MSObject.pathMS, "CORRECTED_DATA", "DATA", "TiledCORRECTED_DATAMartijn", overwrite = False, fillWithZeros = True, verbose = True)
 
         # Test functionality of class MS.
         print (MSObject.find_nchan())
         print (MSObject.find_chanband())
         print (MSObject.pathDirectory)
         print (MSObject.nameMS)
-
-        t                       = tables.table(MSObject.pathMS, readonly = False)
-
-        visibilities            = t.getcol("DATA")
-        columnDescription       = t.getcoldesc("DATA")
-        dataManagerInfo         = t.getdminfo("DATA")
-
-        if (verbose):
-            logging.debug("columnDescription:")
-            logging.debug(columnDescription)
-            logging.debug("dataManagerInfo:")
-            logging.debug(dataManagerInfo)
-
-        dataManagerInfo["NAME"] = "TiledMODEL_DATAMartijn"
-
-        if (verbose):
-            logging.debug("dataManagerInfo (updated):")
-            logging.debug(dataManagerInfo)
-
-        logging.info("Removing column '" + columnName + "', if it exists...")
-        if (lib_util.columnExists(t, columnName)):
-            t.removecols(columnName)
-
-        logging.info("Adding column '" + columnName + "'...")
-        t.addcols(tables.makecoldesc(columnName, columnDescription), dataManagerInfo)
-
-        logging.info("Filling column '" + columnName + "' with zeros...")
-        t.putcol(columnName, np.zeros_like(visibilities))
-
-        t.close()
-
 
     # Set model data column. Instead of predicting 'on the fly' whilst calculating gains, we predict and store in MODEL_DATA.
     # This is a disk space versus computing time trade-off.
@@ -105,12 +127,12 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
 
     # As long as the transition from ParmDB to H5Parm is incomplete, the following conversion step remains.
     logging.info("Converting ParmDB to H5Parm...")
-    MSs.run("H5parm_importer.py $nameMS.h5 $pathMS", commandType = "python", log = "bandpass_$nameMS.log")
+    MSs.run(command = "H5parm_importer.py $nameMS.h5 $pathMS", commandType = "python", log = "bandpass_$nameMS.log")
 
 
     # Determine and store amplitude and phase bandpass (as well as calibrator TEC solutions).
     logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
-    MSs.run("dedicated_uGMRT_bandpass.py $nameMS.h5", commandType = "python", log = "bandpass_$nameMS.log")
+    MSs.run(command = "dedicated_uGMRT_bandpass.py $nameMS.h5", commandType = "python", log = "bandpass_$nameMS.log")
 
 
 if (__name__ == "__main__"):
