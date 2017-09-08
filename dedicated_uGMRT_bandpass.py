@@ -6,23 +6,27 @@ from losoto import h5parm
 
 def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
     # Load H5Parm file.
-    objectH5Parm = h5parm.h5parm(pathH5Parm)
+    objectH5Parm       = h5parm.h5parm(pathH5Parm)
     objectH5Parm.printInfo()
 
-    gainAmplitudes = (objectH5Parm.H.root.sol000.amplitude000.val)[ : , 0, : , : ]
-    gainPhases     = (objectH5Parm.H.root.sol000.phase000.val)    [ : , 0, : , : ]
-
-    print (gainAmplitudes.shape)
-    print (gainPhases.shape)
+    # Load antenna-based gains.
+    gainAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.val)[ : , 0, : , : ]
+    gainPhases         = (objectH5Parm.H.root.sol000.phase000.val)    [ : , 0, : , : ]
 
     gainAmplitudesPol1 = gainAmplitudes[0]
     gainAmplitudesPol2 = gainAmplitudes[1]
 
+    gainPhasesPol1     = gainPhases[0]
+    gainPhasesPol2     = gainPhases[1]
+
+    print (gainAmplitudes.shape)
+    print (gainPhases.shape)
     print (gainAmplitudesPol1.shape)
+    print (gainPhasesPol2.shape)
     print ("MIAUW")
 
 
-if (__name__ = "__main__"):
+if (__name__ == "__main__"):
     # If the program is run from the command line, parse arguments.
     parser                      = argparse.ArgumentParser(description = "Pipeline step 3: Generation of bandpasses.")
     parser.add_argument("pathH5Parm", help = "Path of the H5Parm file to act upon.")

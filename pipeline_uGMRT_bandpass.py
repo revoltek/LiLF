@@ -133,7 +133,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
         lib_util.check_rm(pathMS + "/instrument")
     MSs.run(command = "DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument",
             commandType = "DPPP", log = "bandpass_$nameMS.log")
-    '''
+
 
     # As long as the transition from ParmDB to H5Parm is incomplete, the following conversion step remains.
     logging.info("Converting ParmDB to H5Parm...")
@@ -147,7 +147,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
 
     # Create H5Parm files.
     MSs.run(command = "H5parm_importer.py $pathDirectory/solutions/gainsRaw.h5 $pathMS", commandType = "python", log = "bandpass_$nameMS.log")
-
+    '''
 
     # Determine and store amplitude and phase bandpass (as well as calibrator TEC solutions).
     logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
