@@ -39,7 +39,7 @@ if (__name__ == "__main__"):
     lib_util.printLineBold("Parameters to use:")
     print (arguments)
 
-    dedicated_uGMRT_bandpass(pathH5Parm)
+    dedicated_uGMRT_bandpass(arguments.pathH5Parm)
 
 # '''
 # Martijn Oei, 2017
