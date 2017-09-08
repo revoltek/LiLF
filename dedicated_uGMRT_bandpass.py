@@ -4,8 +4,45 @@
 import argparse
 
 from losoto import h5parm
+from matplotlib import pyplot
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import lib_util
+
+
+def plotAmplitudes2D(amplitudes, antennaeWorking, pathDirectoryPlots, namePolarisation, nameField, timeStart, timeRange,
+                     frequencyStart = 300, frequencyRange = 200, nameH5Parm = "?", nameTelescope = "uGMRT"):
+    """
+    """
+    numberOfAntennae   = amplitudes.shape[0]
+    numberOfChannels   = amplitudes.shape[1]
+    numberOfTimeStamps = amplitudes.shape[2]
+
+    for i in range(numberOfAntennae):
+        if (antennaeWorking[i]):
+            print ("Starting gain amplitudes visualisation for antenna ID " + str(i) + " and polarisation " + polarisationName + "...")
+
+            # Create 2D antenna-based gain amplitudes plot.
+            figure   = pyplot.figure(figsize = (12, 6))
+            image    = pyplot.imshow(amplitudes[i], aspect = "auto", interpolation = "nearest", cmap = cm.viridis, vmin = 0, vmax = 1)
+
+            pyplot.xlabel("time (s)")
+            pyplot.ylabel("frequency (MHz)")
+            pyplot.xticks(numpy.linspace(0, numberOfTimeStamps - 1, num = 5, endpoint = True),
+                          numpy.linspace(timeStart, timeStart + timeRange, num = 5, endpoint = True).astype(int))
+            pyplot.yticks(numpy.linspace(0, numberOfChannels - 1, num = 5, endpoint = True),
+                          numpy.linspace(frequencyStart, frequencyStart + frequencyRange, num = 5, endpoint = True).astype(int))
+            pyplot.title("antenna-based gain amplitudes of uncalibrated calibrator visibilities\ndata set: "
+                         + nameH5Parm + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
+                         + nameField + " | polarisation: " + namePolarisation)
+
+            colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
+            colorBar = pyplot.colorbar(image, cax = colorBarAxis, ticks = [0, 0.2, 0.4, 0.6, 0.8, 1])
+            colorBar.ax.set_ylabel("gain amplitude ($1$)")
+
+            pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
+            pyplot.savefig(pathDirectoryPlots + "/amplitudes2D_ant" + str(i) + "_pol" + namePolarisation + ".pdf")
+            pyplot.close()
 
 
 def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
@@ -28,6 +65,24 @@ def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
     print (gainAmplitudesPol1.shape)
     print (gainPhasesPol2.shape)
     print ("MIAUW")
+
+    numberOfAntennae   = gainAmplitudes.shape[1]
+    numberOfChannels   = gainAmplitudes.shape[2]
+    numberOfTimeStamps = gainAmplitudes.shape[3]
+
+    # These values can be taken from the MS, and perhaps also from the H5Parm file.
+    # Temporary!
+    pathDirectoryPlots = "/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsCalibrator/scanID1/plots"
+    nameField          = "3C147"
+    timeStart          = 0                         # in seconds
+    timeRange          = numberOfTimeStamps * 8.05 # in seconds
+
+    plotAmplitudes2D(gainAmplitudesPol1, [True] * numberOfAntennae, pathDirectoryPlots, "1", nameField, timeStart, timeRange)
+    plotAmplitudes2D(gainAmplitudesPol2, [True] * numberOfAntennae, pathDirectoryPlots, "2", nameField, timeStart, timeRange)
+
+
+    # After amplitude and phase bandpass and TECs are created, save back to H5Parm file.
+    # Write the TEC solutions to 'objectH5Parm.H.root.sol000.tec000.val'.
 
 
 if (__name__ == "__main__"):
@@ -267,7 +322,7 @@ if (__name__ == "__main__"):
 #
 #     # Initialise gain calculation parameters.
 #     timeBinInterval             = 10 # user choice, in seconds
-#     numberOfFrequencyBins       = 2048 # user choice, in 1
+#     numberOfChannels       = 2048 # user choice, in 1
 #     nameReferenceAntenna        = "C13" # user choice, e.g. "C00" or "C13"
 #
 #     # We normalise the frequency bandpasses using the following arbitrary criterion:
@@ -283,8 +338,8 @@ if (__name__ == "__main__"):
 #
 #
 #     # Check whether the settings are valid.
-#     if (numpy.mod(numberOfFrequencyChannels, numberOfFrequencyBins) == 0):
-#         numberOfChannelsPerBin = numberOfFrequencyChannels / numberOfFrequencyBins
+#     if (numpy.mod(numberOfFrequencyChannels, numberOfChannels) == 0):
+#         numberOfChannelsPerBin = numberOfFrequencyChannels / numberOfChannels
 #     else:
 #         print ("Error: the number of frequency channels per bin is not an integer!")
 #         sys.exit()
@@ -348,7 +403,7 @@ if (__name__ == "__main__"):
 #         numberOfAntennae = len(numpy.unique(antenna1IDs))
 #
 #         # Infer the number of time bins from the data and the number of antennae.
-#         numberOfTimeBins = gainsComplex.shape[2] / numberOfAntennae
+#         numberOfTimeStamps = gainsComplex.shape[2] / numberOfAntennae
 #
 #         # Calculate the gain amplitudes and phases.
 #         gainAmplitudes = numpy.absolute(gainsComplex) # in 1
@@ -381,7 +436,7 @@ if (__name__ == "__main__"):
 #             flagsPol2Current          = []
 #
 #             # Add a row to each of the arrays, which corresponds to a specific time.
-#             for j in range(numberOfTimeBins):
+#             for j in range(numberOfTimeStamps):
 #                 gainAmplitudesPol1Current.append(gainAmplitudesPol1[ : , i + j * numberOfAntennae])
 #                 gainAmplitudesPol2Current.append(gainAmplitudesPol2[ : , i + j * numberOfAntennae])
 #                 gainPhasesPol1Current.append(    gainPhasesPol1    [ : , i + j * numberOfAntennae])
@@ -420,7 +475,7 @@ if (__name__ == "__main__"):
 #         numpy.save(pathOutputCalTableNumPy, dataAll)
 #
 #         # Print diagnostic information.
-#         print ("numberOfTimeBins:\n", numberOfTimeBins)
+#         print ("numberOfTimeStamps:\n", numberOfTimeStamps)
 #         print ("gainsComplex.shape:\n", gainsComplex.shape)
 #         print (gainAmplitudesPol1.shape,         gainAmplitudesPol2.shape)
 #         print (gainAmplitudesPol1Reshaped.shape, gainAmplitudesPol2Reshaped.shape)
@@ -462,11 +517,11 @@ if (__name__ == "__main__"):
 #                 antennaeWorking.append(True)
 #
 #         # Create 'gridFrequencies' and 'gridTimes', which are used for calculations and 3D plotting.
-#         numberOfTimeBins              = data.shape[3]
-#         timeRange                     = timeBinInterval * numberOfTimeBins # in seconds
-#         gridIndexRow, gridIndexColumn = numpy.mgrid[0 : numberOfFrequencyBins, 0 : numberOfTimeBins]
-#         gridFrequencies               = numpy.divide(gridIndexRow, numberOfFrequencyBins - 1) * frequencyRange + frequencyStart # in MHz
-#         gridTimes                     = numpy.divide(gridIndexColumn, numberOfTimeBins - 1) * timeRange + timeStart # in seconds
+#         numberOfTimeStamps              = data.shape[3]
+#         timeRange                     = timeBinInterval * numberOfTimeStamps # in seconds
+#         gridIndexRow, gridIndexColumn = numpy.mgrid[0 : numberOfChannels, 0 : numberOfTimeStamps]
+#         gridFrequencies               = numpy.divide(gridIndexRow, numberOfChannels - 1) * frequencyRange + frequencyStart # in MHz
+#         gridTimes                     = numpy.divide(gridIndexColumn, numberOfTimeStamps - 1) * timeRange + timeStart # in seconds
 #
 #         # Print diagnostic information.
 #         print ("data.shape:",                 data.shape) # E.g. (6, 30, 16, 67): 6 data types (amplitudes, phases, flags - for both pol.), 30 antennae, 16 frequency bins and 67 time bins
@@ -491,9 +546,9 @@ if (__name__ == "__main__"):
 #                                           aspect = "auto", interpolation = "nearest", cmap = cm.viridis, vmin = 0, vmax = 1)
 #                     pyplot.xlabel("time (s)")
 #                     pyplot.ylabel("frequency (MHz)")
-#                     pyplot.xticks(numpy.linspace(0, numberOfTimeBins - 1, num = 5, endpoint = True),
+#                     pyplot.xticks(numpy.linspace(0, numberOfTimeStamps - 1, num = 5, endpoint = True),
 #                                   numpy.linspace(timeStart, timeStart + timeRange, num = 5, endpoint = True).astype(int))
-#                     pyplot.yticks(numpy.linspace(0, numberOfFrequencyBins - 1, num = 5, endpoint = True),
+#                     pyplot.yticks(numpy.linspace(0, numberOfChannels - 1, num = 5, endpoint = True),
 #                                   numpy.linspace(frequencyStart, frequencyStart + frequencyRange, num = 5, endpoint = True).astype(int))
 #                     pyplot.title("antenna-based gain amplitudes of uncalibrated calibrator visibilities\ndata set: "
 #                                  + nameMS[ : -3] + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
@@ -543,9 +598,9 @@ if (__name__ == "__main__"):
 #                                           aspect = "auto", interpolation = "none", cmap = cm.hsv, vmin = -180, vmax = 180)
 #                     pyplot.xlabel("time (s)")
 #                     pyplot.ylabel("frequency (MHz)")
-#                     pyplot.xticks(numpy.linspace(0, numberOfTimeBins - 1, num = 5, endpoint = True),
+#                     pyplot.xticks(numpy.linspace(0, numberOfTimeStamps - 1, num = 5, endpoint = True),
 #                                   numpy.linspace(timeStart, timeStart + timeRange, num = 5, endpoint = True).astype(int))
-#                     pyplot.yticks(numpy.linspace(0, numberOfFrequencyBins - 1, num = 5, endpoint = True),
+#                     pyplot.yticks(numpy.linspace(0, numberOfChannels - 1, num = 5, endpoint = True),
 #                                   numpy.linspace(frequencyStart, frequencyStart + frequencyRange, num = 5, endpoint = True).astype(int))
 #                     pyplot.title("antenna-based gain phases of uncalibrated calibrator visibilities\ndata set: "
 #                                  + nameMS[ : -3] + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
@@ -607,8 +662,8 @@ if (__name__ == "__main__"):
 #                         bandpassAmplitudePol2Iter1 = numpy.nanmedian(gainAmplitudesPol2[i], axis = 1)
 #
 #                     # Tile the bandpass into a grid.
-#                     gridBandpassAmplitudePol1 = numpy.tile(bandpassAmplitudePol1Iter1, (numberOfTimeBins, 1)).T
-#                     gridBandpassAmplitudePol2 = numpy.tile(bandpassAmplitudePol2Iter1, (numberOfTimeBins, 1)).T
+#                     gridBandpassAmplitudePol1 = numpy.tile(bandpassAmplitudePol1Iter1, (numberOfTimeStamps, 1)).T
+#                     gridBandpassAmplitudePol2 = numpy.tile(bandpassAmplitudePol2Iter1, (numberOfTimeStamps, 1)).T
 #
 #                     # Remove the bandpass from the data. Residuals will be centered around 1.
 #                     gridResidualsPol1 = numpy.divide(gainAmplitudesPol1[i], gridBandpassAmplitudePol1)
@@ -807,8 +862,8 @@ if (__name__ == "__main__"):
 #
 #                 #'''
 #                 # Create a grid of residuals. CURRENTLY NOT USED IN THE ALGORITHM!
-#                 derivTimeFitPol1            = numpy.multiply(gridFrequenciesInverse[ : , : -1], numpy.tile(derivTimeDTECsIter1Pol1, (numberOfFrequencyBins, 1))) * 1210 * 400 # in degrees per second
-#                 derivTimeFitPol2            = numpy.multiply(gridFrequenciesInverse[ : , : -1], numpy.tile(derivTimeDTECsIter1Pol2, (numberOfFrequencyBins, 1))) * 1210 * 400 # in degrees per second
+#                 derivTimeFitPol1            = numpy.multiply(gridFrequenciesInverse[ : , : -1], numpy.tile(derivTimeDTECsIter1Pol1, (numberOfChannels, 1))) * 1210 * 400 # in degrees per second
+#                 derivTimeFitPol2            = numpy.multiply(gridFrequenciesInverse[ : , : -1], numpy.tile(derivTimeDTECsIter1Pol2, (numberOfChannels, 1))) * 1210 * 400 # in degrees per second
 #                 derivTimeResidualsPol1      = derivTimePol1 - derivTimeFitPol1
 #                 derivTimeResidualsPol2      = derivTimePol2 - derivTimeFitPol2
 #
@@ -825,7 +880,7 @@ if (__name__ == "__main__"):
 #                 # Find DTECs by integrating along time for both polarisations (iteration 1).
 #                 DTECsIter1Pol1              = [0]
 #                 DTECsIter1Pol2              = [0]
-#                 for j in range(numberOfTimeBins - 1):
+#                 for j in range(numberOfTimeStamps - 1):
 #                     DTECsIter1Pol1.append(timeBinInterval * numpy.nansum(derivTimeDTECsIter1Pol1[ : j + 1]))
 #                     DTECsIter1Pol2.append(timeBinInterval * numpy.nansum(derivTimeDTECsIter1Pol2[ : j + 1]))
 #                 '''
@@ -833,7 +888,7 @@ if (__name__ == "__main__"):
 #                 # on the availability of data at both the previous and the next time slice.
 #                 # For easy array manipulation, we artificially add a DTEC for the last time slice.
 #                 # On the basis of time coherency, we add a copy of the last value.
-#                 # In this way, the lists contain 'numberOfTimeBins' DTECs.
+#                 # In this way, the lists contain 'numberOfTimeStamps' DTECs.
 #                 # Note: this makes the last time slice of the gain phases to be unreliable!
 #                 DTECsIter1Pol1.append(DTECsIter1Pol1[-1])
 #                 DTECsIter1Pol2.append(DTECsIter1Pol2[-1])
@@ -854,9 +909,9 @@ if (__name__ == "__main__"):
 #
 #                 # Calculate the fitted plasma opacity phase effect (iteration 1).
 #                 gridPlasmaOpIter1Pol1       = wrapPhasesCenter0(numpy.multiply(
-#                                               gridFrequenciesInverse, numpy.tile(DTECsIter1Pol1, (numberOfFrequencyBins, 1))) * 1210 * 400) # in degrees
+#                                               gridFrequenciesInverse, numpy.tile(DTECsIter1Pol1, (numberOfChannels, 1))) * 1210 * 400) # in degrees
 #                 gridPlasmaOpIter1Pol2       = wrapPhasesCenter0(numpy.multiply(
-#                                               gridFrequenciesInverse, numpy.tile(DTECsIter1Pol2, (numberOfFrequencyBins, 1))) * 1210 * 400) # in degrees
+#                                               gridFrequenciesInverse, numpy.tile(DTECsIter1Pol2, (numberOfChannels, 1))) * 1210 * 400) # in degrees
 #
 #                 # We now determine the bandpass by subtracting the plasma opacity phase effect from the original data.
 #                 # As we flag outliers in the process, we repeat this procedure several times.
@@ -898,8 +953,8 @@ if (__name__ == "__main__"):
 #                     #print(numpy.sum(numpy.isnan(bandpassPhaseIter1Pol1)))
 #
 #                     # Remove the phase bandpass from the static pattern to keep residuals, which we will use for flagging.
-#                     gridResidualsIter1Pol1      = wrapPhasesCenter0(gridStaticIter1Pol1 - numpy.tile(bandpassPhaseIter1Pol1, (numberOfTimeBins, 1)).T)
-#                     gridResidualsIter1Pol2      = wrapPhasesCenter0(gridStaticIter1Pol2 - numpy.tile(bandpassPhaseIter1Pol2, (numberOfTimeBins, 1)).T)
+#                     gridResidualsIter1Pol1      = wrapPhasesCenter0(gridStaticIter1Pol1 - numpy.tile(bandpassPhaseIter1Pol1, (numberOfTimeStamps, 1)).T)
+#                     gridResidualsIter1Pol2      = wrapPhasesCenter0(gridStaticIter1Pol2 - numpy.tile(bandpassPhaseIter1Pol2, (numberOfTimeStamps, 1)).T)
 #
 #
 #                     # Calculate the standard deviation of the residuals.
@@ -921,8 +976,8 @@ if (__name__ == "__main__"):
 #
 #
 #                 # Remove the phase bandpass from the original data.
-#                 gridIonosOnlyPol1               = wrapPhasesCenter0(gainPhasesPol1[i] - numpy.tile(bandpassPhaseIter1Pol1, (numberOfTimeBins, 1)).T)
-#                 gridIonosOnlyPol2               = wrapPhasesCenter0(gainPhasesPol2[i] - numpy.tile(bandpassPhaseIter1Pol2, (numberOfTimeBins, 1)).T)
+#                 gridIonosOnlyPol1               = wrapPhasesCenter0(gainPhasesPol1[i] - numpy.tile(bandpassPhaseIter1Pol1, (numberOfTimeStamps, 1)).T)
+#                 gridIonosOnlyPol2               = wrapPhasesCenter0(gainPhasesPol2[i] - numpy.tile(bandpassPhaseIter1Pol2, (numberOfTimeStamps, 1)).T)
 #
 #                 # Calculate DTECs directly by fitting to the ionospheric data only (iteration 2).
 #                 DTECsIter2Pol1                  = numpy.nanmean(gridIonosOnlyPol1 * gridFrequencies / (1210 * 400), axis = 0)#numpy.linalg.lstsq(matrix, numpy.ma.masked_array(gridIonosOnlyPol1, flagsPol1[i]))[0][0] # in TECUs
@@ -931,9 +986,9 @@ if (__name__ == "__main__"):
 #
 #                 # Calculate the fitted plasma opacity phase effect (iteration 2).
 #                 gridPlasmaOpIter2Pol1           = wrapPhasesCenter0(numpy.multiply(
-#                                                   gridFrequenciesInverse, numpy.tile(DTECsIter2Pol1, (numberOfFrequencyBins, 1))) * 1210 * 400) # in degrees
+#                                                   gridFrequenciesInverse, numpy.tile(DTECsIter2Pol1, (numberOfChannels, 1))) * 1210 * 400) # in degrees
 #                 gridPlasmaOpIter2Pol2           = wrapPhasesCenter0(numpy.multiply(
-#                                                   gridFrequenciesInverse, numpy.tile(DTECsIter2Pol2, (numberOfFrequencyBins, 1))) * 1210 * 400) # in degrees
+#                                                   gridFrequenciesInverse, numpy.tile(DTECsIter2Pol2, (numberOfChannels, 1))) * 1210 * 400) # in degrees
 #
 #
 #                 # Subtract the time-variable ionospheric effect from the gain phases.
@@ -941,8 +996,8 @@ if (__name__ == "__main__"):
 #                 gridStaticIter2Pol2             = wrapPhasesCenter0(gainPhasesPol2[i] - gridPlasmaOpIter2Pol2)#numpy.ma.masked_array(wrapPhasesCenter0(gainPhasesPol2[i] - gridPlasmaOpIter2Pol2), flagsPol2[i])
 #
 #                 # Remove the phase bandpass from the static pattern to keep residuals, which we will use for flagging.
-#                 gridResidualsIter2Pol1          = wrapPhasesCenter0(gridStaticIter2Pol1 - numpy.tile(bandpassPhaseIter1Pol1, (numberOfTimeBins, 1)).T)
-#                 gridResidualsIter2Pol2          = wrapPhasesCenter0(gridStaticIter2Pol2 - numpy.tile(bandpassPhaseIter1Pol2, (numberOfTimeBins, 1)).T)
+#                 gridResidualsIter2Pol1          = wrapPhasesCenter0(gridStaticIter2Pol1 - numpy.tile(bandpassPhaseIter1Pol1, (numberOfTimeStamps, 1)).T)
+#                 gridResidualsIter2Pol2          = wrapPhasesCenter0(gridStaticIter2Pol2 - numpy.tile(bandpassPhaseIter1Pol2, (numberOfTimeStamps, 1)).T)
 #
 #                 # Calculate the standard deviation of the residuals.
 #                 STDIter2Pol1                    = numpy.nanstd(gridResidualsIter2Pol1)
@@ -976,16 +1031,16 @@ if (__name__ == "__main__"):
 #                 BPPhaseFitPol1 = []
 #                 BPPhaseFitPol2 = []
 #
-#                 for indexRefPol1 in range(numberOfFrequencyBins):
+#                 for indexRefPol1 in range(numberOfChannels):
 #                     if (not numpy.isnan(bandpassPhaseIter1Pol1[indexRefPol1])):
 #                         break
-#                 for indexRefPol2 in range(numberOfFrequencyBins):
+#                 for indexRefPol2 in range(numberOfChannels):
 #                     if (not numpy.isnan(bandpassPhaseIter1Pol2[indexRefPol2])):
 #                         break
 #
 #                 print("indexRefPol1, indexRefPol2:", indexRefPol1, indexRefPol2)
 #
-#                 for j in range(numberOfFrequencyBins):
+#                 for j in range(numberOfChannels):
 #                     BPPhaseFitPol1.append(bandpassPhaseIter1Pol1[indexRefPol1] + frequencyBinInterval * (j - indexRefPol1) * slopePol1)
 #                     BPPhaseFitPol2.append(bandpassPhaseIter1Pol2[indexRefPol2] + frequencyBinInterval * (j - indexRefPol2) * slopePol2)
 #
@@ -1009,7 +1064,7 @@ if (__name__ == "__main__"):
 #                 '''
 #                 BPPhaseFitPol1 = [bandpassPhaseIter1Pol1[0]]
 #                 BPPhaseFitPol2 = [bandpassPhaseIter1Pol2[0]]
-#                 for j in range(numberOfFrequencyBins - 1):
+#                 for j in range(numberOfChannels - 1):
 #                     BPPhaseFitPol1.append(BPPhaseFitPol1[0] + frequencyBinInterval * (j + 1) * slopePol1)
 #                     BPPhaseFitPol2.append(BPPhaseFitPol2[0] + frequencyBinInterval * (j + 1) * slopePol2)
 #                 '''
@@ -1050,9 +1105,9 @@ if (__name__ == "__main__"):
 #                         image = pyplot.imshow(polarisationDataGrid, aspect = "auto", cmap = cm.coolwarm, vmin = -2, vmax = 2)
 #                         pyplot.xlabel("time (s)")
 #                         pyplot.ylabel("frequency (MHz)")
-#                         pyplot.xticks(  numpy.linspace(0, numberOfTimeBins - 1 - 1, num = 5, endpoint = True),
+#                         pyplot.xticks(  numpy.linspace(0, numberOfTimeStamps - 1 - 1, num = 5, endpoint = True),
 #                                         numpy.linspace(timeStart + timeBinInterval / 2, timeStart + timeRange - timeBinInterval / 2, num = 5, endpoint = True).astype(int))
-#                         pyplot.yticks(  numpy.linspace(0, numberOfFrequencyBins - 1, num = 5, endpoint = True),
+#                         pyplot.yticks(  numpy.linspace(0, numberOfChannels - 1, num = 5, endpoint = True),
 #                                         numpy.linspace(frequencyStart, frequencyStart + frequencyRange, num = 5, endpoint = True).astype(int))
 #                         pyplot.subplots_adjust(left = .08, right = .9)
 #                         pyplot.title("time derivative of antenna-based gain phases of uncalibrated calibrator visibilities\ndata set: "
@@ -1093,9 +1148,9 @@ if (__name__ == "__main__"):
 #                         image = pyplot.imshow(polarisationDataGrid, aspect = "auto", cmap = cm.coolwarm, vmin = -2, vmax = 2)
 #                         pyplot.xlabel("time (s)")
 #                         pyplot.ylabel("frequency (MHz)")
-#                         pyplot.xticks(  numpy.linspace(0, numberOfTimeBins - 1 - 1, num = 5, endpoint = True),
+#                         pyplot.xticks(  numpy.linspace(0, numberOfTimeStamps - 1 - 1, num = 5, endpoint = True),
 #                                         numpy.linspace(timeStart + timeBinInterval / 2, timeStart + timeRange - timeBinInterval / 2, num = 5, endpoint = True).astype(int))
-#                         pyplot.yticks(  numpy.linspace(0, numberOfFrequencyBins - 1, num = 5, endpoint = True),
+#                         pyplot.yticks(  numpy.linspace(0, numberOfChannels - 1, num = 5, endpoint = True),
 #                                         numpy.linspace(frequencyStart, frequencyStart + frequencyRange, num = 5, endpoint = True).astype(int))
 #                         pyplot.subplots_adjust(left = .08, right = .9)
 #                         pyplot.title("residuals of time derivative of antenna-based gain phases of uncalibrated calibrator visibilities\ndata set: "

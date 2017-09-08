@@ -41,7 +41,7 @@ def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNa
     t = tables.table(pathMS, readonly = False)
 
     if (columnExists(t, columnNameNew) and not overwrite):
-        logging.warning("Attempt to add column '" + columnNameNew + "' failed, as it already exists and 'overwrite = False' in columnAddSimilar(...).")
+        logging.warning("Attempt to add column '" + columnNameNew + "' aborted, as it already exists and 'overwrite = False' in columnAddSimilar(...).")
     else: # Either the column does not exist yet, or it does but overwriting is allowed.
 
         # Remove column if necessary.
@@ -244,9 +244,10 @@ class Scheduler():
             log = self.log_dir + '/' + log
 
             if (log_append):
-                cmd += " >> " + log + " 2>&1"
+                cmd += " >> "
             else:
-                cmd += " > "  + log + " 2>&1"
+                cmd += " > "
+            cmd += log + " 2>&1"
 
         # Test by Martijn: could be removed!
         print ("cmd:",         cmd)
