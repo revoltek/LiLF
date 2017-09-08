@@ -47,6 +47,12 @@ def plotAmplitudes2D(amplitudes, antennaeWorking, pathDirectoryPlots, namePolari
             pyplot.close()
 
 
+def plotPhases2D():
+    """
+    """
+    print ("Under construction!")
+
+
 def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
     # Load H5Parm file.
     objectH5Parm       = h5parm.h5parm(pathH5Parm)
@@ -66,7 +72,6 @@ def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
     print (gainPhases.shape)
     print (gainAmplitudesPol1.shape)
     print (gainPhasesPol2.shape)
-    print ("MIAUW")
 
     numberOfAntennae   = gainAmplitudes.shape[1]
     numberOfChannels   = gainAmplitudes.shape[2]
@@ -79,9 +84,13 @@ def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
     timeStart          = 0                         # in seconds
     timeRange          = numberOfTimeStamps * 8.05 # in seconds
 
+    # Plot gain amplitudes.
     plotAmplitudes2D(gainAmplitudesPol1, [True] * numberOfAntennae, pathDirectoryPlots, "1", nameField, timeStart, timeRange)
     plotAmplitudes2D(gainAmplitudesPol2, [True] * numberOfAntennae, pathDirectoryPlots, "2", nameField, timeStart, timeRange)
 
+    # Plot gain phases.
+    plotPhases2D()
+    plotPhases2D()
 
     # After amplitude and phase bandpass and TECs are created, save back to H5Parm file.
     # Write the TEC solutions to 'objectH5Parm.H.root.sol000.tec000.val'.
