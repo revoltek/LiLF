@@ -156,12 +156,16 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     objectH5Parm = h5parm.h5parm((MSs.get_list_obj()[0]).pathDirectory + "/solutions/gainsRaw.h5")
     objectH5Parm.printInfo()
 
-    test = objectH5Parm.H.root.sol000.amplitude000.val
-    print (test)
+    gainAmplitudes = (objectH5Parm.H.root.sol000.amplitude000.val)[ : , 0, : , : ]
+    gainPhases     = (objectH5Parm.H.root.sol000.phase000.val)    [ : , 0, : , : ]
 
-    phases = test[:,0,:,:]
-    print (type(phases))
-    print (phases.shape)
+    print (gainAmplitudes.shape)
+    print (gainPhases.shape)
+
+    gainAmplitudesPol1 = gainAmplitudes[0]
+    gainAmplitudesPol2 = gainAmplitudes[1]
+
+    print (gainAmplitudesPol1.shape)
 
     #solutionSet = fileH5Parm.getSolset("sol000")
     #amplitudes  = solutionSet.amp000.val[ : , 0, : , : ]
