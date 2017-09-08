@@ -70,8 +70,8 @@ class MS(object):
 
     def __init__(self, pathMS):
         """
-        pathMS:        path to the MS, without '/' at the end!
-        pathDirectory: path to the parent directory of the MS
+        pathMS:        path of the MS, without '/' at the end!
+        pathDirectory: path of the parent directory of the MS
         nameMS:        name of the MS, without parent directories and extension (which is assumed to be ".MS" always)
         """
         self.setPathVariables(pathMS)
@@ -165,9 +165,10 @@ class MS(object):
         Returns a concretised version of the string 'stringOriginal', with keywords filled in.
         More keywords (which start with '$') and their conversions can be added below.
         """
-        stringCurrent = stringOriginal.replace("$pathMS",    self.pathMS)
-        stringCurrent = stringCurrent.replace( "$nameMS",    self.nameMS)
-        stringCurrent = stringCurrent.replace( "$nameField", self.getNameField())
+        stringCurrent = stringOriginal.replace("$pathMS",        self.pathMS)
+        stringCurrent = stringCurrent.replace( "$pathDirectory", self.pathDirectory)
+        stringCurrent = stringCurrent.replace( "$nameMS",        self.nameMS)
+        stringCurrent = stringCurrent.replace( "$nameField",     self.getNameField())
 
         return stringCurrent
 
