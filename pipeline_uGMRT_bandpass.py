@@ -17,68 +17,9 @@ Paths to directories do not end with a '/'.
 
 import argparse, logging, os
 
-from casacore import tables
 import numpy as np
 
 import lib_ms, lib_util
-
-
-def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithZeros = True, comment = "", verbose = False):
-    """
-    Add a column to a MS that is similar to a pre-existing column (in shape, but not in values).
-    pathMS:                 path of the MS
-    columnNameNew:          name of the column to be added
-    columnNameSimilar:      name of the column from which properties are copied (e.g. "DATA")
-    dataManagerInfoNameNew: string value for the data manager info (DMI) keyword "NAME" (should be unique in the MS)
-    overwrite:              whether or not to overwrite column 'columnNameNew' if it already exists
-    fillWithZeros:          whether or not to fill the newly-made column with zeros
-    verbose:                whether or not to produce abundant output
-    """
-    t = tables.table(pathMS, readonly = False)
-
-    if (lib_util.columnExists(t, columnNameNew) and not overwrite):
-        logging.warning("Attempt to add column '" + columnNameNew + "' failed, as it already exists and 'overwrite = False' in columnAddSimilar(...).")
-    else: # Either the column does not exist yet, or it does but overwriting is allowed.
-
-        # Remove column if necessary.
-        if (lib_util.columnExists(t, columnNameNew)):
-            logging.info("Removing column '" + columnNameNew + "'...")
-            t.removecols(columnNameNew)
-
-        # Add column.
-        columnDescription       = t.getcoldesc(columnNameSimilar)
-        dataManagerInfo         = t.getdminfo(columnNameSimilar)
-
-        if (verbose):
-            logging.debug("columnDescription:")
-            logging.debug(columnDescription)
-            logging.debug("dataManagerInfo:")
-            logging.debug(dataManagerInfo)
-
-        columnDescription["comment"] = ""
-        #!
-        # What about:
-        #columnDescription["dataManagerGroup"] = ...?
-        #!
-        dataManagerInfo["NAME"]      = dataManagerInfoNameNew
-
-        if (verbose):
-            logging.debug("columnDescription (updated):")
-            logging.debug(columnDescription)
-            logging.debug("dataManagerInfo (updated):")
-            logging.debug(dataManagerInfo)
-
-        logging.info("Adding column '" + columnNameNew + "'...")
-        t.addcols(tables.makecoldesc(columnNameNew, columnDescription), dataManagerInfo)
-
-        # Fill with zeros if desired.
-        if (fillWithZeros):
-            logging.info("Filling column '" + columnNameNew + "' with zeros...")
-            columnDataSimilar = t.getcol(columnNameSimilar)
-            t.putcol(columnNameNew, np.zeros_like(columnDataSimilar))
-
-    # Close the table to avoid that it is locked for further use.
-    t.close()
 
 
 def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "./parsets", verbose = False):
@@ -106,10 +47,10 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     # Add model data column (for predict), and corrected data column (for gaincal).
     for MSObject in MSs.get_list_obj():
 
-        columnAddSimilar(MSObject.pathMS, "MODEL_DATA",     "DATA", "TiledMODEL_DATAMartijn",
-                         overwrite = False, fillWithZeros = True, comment = "", verbose = True)
-        columnAddSimilar(MSObject.pathMS, "CORRECTED_DATA", "DATA", "TiledCORRECTED_DATAMartijn",
-                         overwrite = False, fillWithZeros = True, comment = "", verbose = True)
+        lib_util.columnAddSimilar(MSObject.pathMS, "MODEL_DATA",     "DATA", "TiledMODEL_DATAMartijn",
+                                  overwrite = False, fillWithZeros = True, comment = "", verbose = True)
+        lib_util.columnAddSimilar(MSObject.pathMS, "CORRECTED_DATA", "DATA", "TiledCORRECTED_DATAMartijn",
+                                  overwrite = False, fillWithZeros = True, comment = "", verbose = True)
 
         # Test functionality of class MS.
         print (MSObject.find_nchan())
@@ -151,23 +92,6 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
 
     # Determine and store amplitude and phase bandpass (as well as calibrator TEC solutions).
     logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
-
-    '''
-    from losoto import h5parm
-    objectH5Parm = h5parm.h5parm((MSs.get_list_obj()[0]).pathDirectory + "/solutions/gainsRaw.h5")
-    objectH5Parm.printInfo()
-
-    gainAmplitudes = (objectH5Parm.H.root.sol000.amplitude000.val)[ : , 0, : , : ]
-    gainPhases     = (objectH5Parm.H.root.sol000.phase000.val)    [ : , 0, : , : ]
-
-    print (gainAmplitudes.shape)
-    print (gainPhases.shape)
-
-    gainAmplitudesPol1 = gainAmplitudes[0]
-    gainAmplitudesPol2 = gainAmplitudes[1]
-
-    print (gainAmplitudesPol1.shape)
-    '''
 
     MSs.run(command = "dedicated_uGMRT_bandpass.py $pathDirectory/solutions/gainsRaw.h5", commandType = "python", log = "bandpass_$nameMS.log")
 

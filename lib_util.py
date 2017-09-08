@@ -1,5 +1,6 @@
 import os, sys, re, pickle, random, shutil, logging, glob
 
+from casacore import tables
 import numpy as np
 import matplotlib as mpl
 mpl.use("Agg")
@@ -24,6 +25,62 @@ def columnExists(tableObject, columnName):
     '''
     columnNames = tableObject.colnames()
     return (columnName in columnNames)
+
+
+def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithZeros = True, comment = "", verbose = False):
+    """
+    Add a column to a MS that is similar to a pre-existing column (in shape, but not in values).
+    pathMS:                 path of the MS
+    columnNameNew:          name of the column to be added
+    columnNameSimilar:      name of the column from which properties are copied (e.g. "DATA")
+    dataManagerInfoNameNew: string value for the data manager info (DMI) keyword "NAME" (should be unique in the MS)
+    overwrite:              whether or not to overwrite column 'columnNameNew' if it already exists
+    fillWithZeros:          whether or not to fill the newly-made column with zeros
+    verbose:                whether or not to produce abundant output
+    """
+    t = tables.table(pathMS, readonly = False)
+
+    if (columnExists(t, columnNameNew) and not overwrite):
+        logging.warning("Attempt to add column '" + columnNameNew + "' failed, as it already exists and 'overwrite = False' in columnAddSimilar(...).")
+    else: # Either the column does not exist yet, or it does but overwriting is allowed.
+
+        # Remove column if necessary.
+        if (columnExists(t, columnNameNew)):
+            logging.info("Removing column '" + columnNameNew + "'...")
+            t.removecols(columnNameNew)
+
+        # Add column.
+        columnDescription       = t.getcoldesc(columnNameSimilar)
+        dataManagerInfo         = t.getdminfo(columnNameSimilar)
+
+        if (verbose):
+            logging.debug("columnDescription:")
+            logging.debug(columnDescription)
+            logging.debug("dataManagerInfo:")
+            logging.debug(dataManagerInfo)
+
+        columnDescription["comment"] = ""
+        # What about adding something here like:
+        #columnDescription["dataManagerGroup"] = ...?
+        dataManagerInfo["NAME"]      = dataManagerInfoNameNew
+
+        if (verbose):
+            logging.debug("columnDescription (updated):")
+            logging.debug(columnDescription)
+            logging.debug("dataManagerInfo (updated):")
+            logging.debug(dataManagerInfo)
+
+        logging.info("Adding column '" + columnNameNew + "'...")
+        t.addcols(tables.makecoldesc(columnNameNew, columnDescription), dataManagerInfo)
+
+        # Fill with zeros if desired.
+        if (fillWithZeros):
+            logging.info("Filling column '" + columnNameNew + "' with zeros...")
+            columnDataSimilar = t.getcol(columnNameSimilar)
+            t.putcol(columnNameNew, np.zeros_like(columnDataSimilar))
+
+    # Close the table to avoid that it is locked for further use.
+    t.close()
 
 
 def getCalibratorProperties():
