@@ -138,10 +138,14 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     # As long as the transition from ParmDB to H5Parm is incomplete, the following conversion step remains.
     logging.info("Converting ParmDB to H5Parm...")
 
-    # Delete the H5Parm file if it already exists.
+    # Delete H5Parm files if already existing.
     for MSObject in MSs.get_list_obj():
-        os.remove(MSObject.pathDirectory + "/solutions/gainsRaw.h5")
+        pathH5Parm = MSObject.pathDirectory + "/solutions/gainsRaw.h5"
+        if (os.path.isfile(pathH5Parm)):
+            logging.info("Removing old H5Parm file at '" + pathH5Parm + "'...")
+            os.remove(pathH5Parm)
 
+    # Create H5Parm files.
     MSs.run(command = "H5parm_importer.py $pathDirectory/solutions/gainsRaw.h5 $pathMS", commandType = "python", log = "bandpass_$nameMS.log")
 
 
@@ -149,10 +153,10 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
 
     from losoto import h5parm
-    fileH5Parm = h5parm.h5parm((MSs.get_list_obj()[0]).pathDirectory + "/solutions/gainsRaw.h5")
-    fileH5Parm.printInfo()
+    objectH5Parm = h5parm.h5parm((MSs.get_list_obj()[0]).pathDirectory + "/solutions/gainsRaw.h5")
+    objectH5Parm.printInfo()
 
-    test = fileH5Parm.H.root.sol000.amplitude000.val
+    test = objectH5Parm.H.root.sol000.amplitude000.val
     print (test)
 
     phases = test[:,0,:,:]
