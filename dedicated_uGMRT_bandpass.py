@@ -4,6 +4,7 @@
 import argparse
 
 from losoto import h5parm
+from matplotlib import cm
 from matplotlib import pyplot
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -20,7 +21,7 @@ def plotAmplitudes2D(amplitudes, antennaeWorking, pathDirectoryPlots, namePolari
 
     for i in range(numberOfAntennae):
         if (antennaeWorking[i]):
-            print ("Starting gain amplitudes visualisation for antenna ID " + str(i) + " and polarisation " + polarisationName + "...")
+            print ("Starting gain amplitudes visualisation for antenna ID " + str(i) + " and polarisation " + namePolarisation + "...")
 
             # Create 2D antenna-based gain amplitudes plot.
             figure   = pyplot.figure(figsize = (12, 6))
