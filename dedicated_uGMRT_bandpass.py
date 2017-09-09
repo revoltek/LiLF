@@ -28,8 +28,8 @@ def plotAmplitudes2D(amplitudes, antennaeWorking, pathDirectoryPlots, namePolari
             logging.info("Generating gain amplitudes plot for antenna ID " + str(i) + " and polarisation " + namePolarisation + "...")
 
             # Create 2D antenna-based gain amplitudes plot.
-            figure   = pyplot.figure(figsize = (12, 6))
-            image    = pyplot.imshow(amplitudes[i], aspect = "auto", interpolation = "nearest", cmap = cm.viridis, vmin = 0, vmax = 1)
+            figure       = pyplot.figure(figsize = (12, 6))
+            image        = pyplot.imshow(amplitudes[i], aspect = "auto", interpolation = "nearest", cmap = cm.viridis, vmin = 0, vmax = 1)
 
             pyplot.xlabel("time (s)")
             pyplot.ylabel("frequency (MHz)")
@@ -42,15 +42,16 @@ def plotAmplitudes2D(amplitudes, antennaeWorking, pathDirectoryPlots, namePolari
                          + nameField + " | polarisation: " + namePolarisation)
 
             colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
-            colorBar = pyplot.colorbar(image, cax = colorBarAxis, ticks = [0, 0.2, 0.4, 0.6, 0.8, 1])
-            colorBar.ax.set_ylabel("gain amplitude ($1$)")
+            colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [0, 0.2, 0.4, 0.6, 0.8, 1])
+            colorBar.ax.set_ylabel("gain amplitude $(1)$")
 
             pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
             pyplot.savefig(pathDirectoryPlots + "/amplitudes2D_ant" + str(i) + "_pol" + namePolarisation + ".pdf")
             pyplot.close()
 
 
-def plotPhases2D():
+def plotPhases2D(phases, antennaeWorking, pathDirectoryPlots, namePolarisation, nameField, timeStart, timeRange,
+                 frequencyStart = 300, frequencyRange = 200, nameH5Parm = "?", nameTelescope = "uGMRT"):
     """
     Generate time-frequency plots of antenna-based gain phases, of one specific polarisation.
     """
@@ -62,8 +63,8 @@ def plotPhases2D():
             logging.info("Generating gain phases plot for antenna ID " + str(i) + " and polarisation " + namePolarisation + "...")
 
             # Create 2D antenna-based gain phases plot.
-            figure = pyplot.figure(figsize = (12, 6))
-            image  = pyplot.imshow(phases[i], aspect = "auto", interpolation = "none", cmap = cm.hsv, vmin = -180, vmax = 180)
+            figure       = pyplot.figure(figsize = (12, 6))
+            image        = pyplot.imshow(phases[i], aspect = "auto", interpolation = "none", cmap = cm.hsv, vmin = -180, vmax = 180)
 
             pyplot.xlabel("time (s)")
             pyplot.ylabel("frequency (MHz)")
@@ -75,12 +76,12 @@ def plotPhases2D():
                          + nameH5Parm + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
                          + nameField + " | polarisation: " + namePolarisation)
 
-            colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "3%", pad = .05)
-            colorBar = pyplot.colorbar(image, cax = colorBarAxis, ticks = [-180, -120, -60, 0, 60, 120, 180])
-            colorBar.ax.set_ylabel("gain phase ($\degree$)")
+            colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
+            colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [-180, -120, -60, 0, 60, 120, 180])
+            colorBar.ax.set_ylabel("gain phase $(\degree)$")
 
-            pyplot.subplots_adjust(left = .07, right = .93, bottom = 0.08, top = 0.91)
-            pyplot.savefig(pathPlotDirectory + "phases2D_Ant" + str(i) + "_Pol" + polarisationName + ".pdf")
+            pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
+            pyplot.savefig(pathDirectoryPlots + "/phases2D_ant" + str(i) + "_pol" + namePolarisation + ".pdf")
             pyplot.close()
 
 
@@ -116,12 +117,12 @@ def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
     timeRange          = numberOfTimeStamps * 8.05 # in seconds
 
     # Plot gain amplitudes.
-    plotAmplitudes2D(gainAmplitudesPol1, [True] * numberOfAntennae, pathDirectoryPlots, "1", nameField, timeStart, timeRange)
-    plotAmplitudes2D(gainAmplitudesPol2, [True] * numberOfAntennae, pathDirectoryPlots, "2", nameField, timeStart, timeRange)
+    plotAmplitudes2D(gainAmplitudesPol1, [True] * numberOfAntennae, pathDirectoryPlots, "LL", nameField, timeStart, timeRange)
+    plotAmplitudes2D(gainAmplitudesPol2, [True] * numberOfAntennae, pathDirectoryPlots, "RR", nameField, timeStart, timeRange)
 
     # Plot gain phases.
-    plotPhases2D()
-    plotPhases2D()
+    plotPhases2D(    gainPhasesPol1,     [True] * numberOfAntennae, pathDirectoryPlots, "LL", nameField, timeStart, timeRange)
+    plotPhases2D(    gainPhasesPol2,     [True] * numberOfAntennae, pathDirectoryPlots, "RR", nameField, timeStart, timeRange)
 
     # After amplitude and phase bandpass and TECs are created, save back to H5Parm file.
     # Write the TEC solutions to 'objectH5Parm.H.root.sol000.tec000.val'.
