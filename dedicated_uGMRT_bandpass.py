@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import argparse
+import argparse, logging
 
 from losoto import h5parm
 from matplotlib import cm
@@ -15,14 +15,17 @@ import lib_util
 def plotAmplitudes2D(amplitudes, antennaeWorking, pathDirectoryPlots, namePolarisation, nameField, timeStart, timeRange,
                      frequencyStart = 300, frequencyRange = 200, nameH5Parm = "?", nameTelescope = "uGMRT"):
     """
+    Generate time-frequency plots of antenna-based gain amplitudes, of one specific polarisation.
     """
-    numberOfAntennae   = amplitudes.shape[0]
-    numberOfChannels   = amplitudes.shape[1]
-    numberOfTimeStamps = amplitudes.shape[2]
+
+    numberOfAntennae, numberOfChannels, numberOfTimeStamps = amplitudes.shape
+    #numberOfAntennae   = amplitudes.shape[0]
+    #numberOfChannels   = amplitudes.shape[1]
+    #numberOfTimeStamps = amplitudes.shape[2]
 
     for i in range(numberOfAntennae):
         if (antennaeWorking[i]):
-            print ("Starting gain amplitudes visualisation for antenna ID " + str(i) + " and polarisation " + namePolarisation + "...")
+            logging.info("Generating gain amplitudes plot for antenna ID " + str(i) + " and polarisation " + namePolarisation + "...")
 
             # Create 2D antenna-based gain amplitudes plot.
             figure   = pyplot.figure(figsize = (12, 6))
@@ -49,8 +52,36 @@ def plotAmplitudes2D(amplitudes, antennaeWorking, pathDirectoryPlots, namePolari
 
 def plotPhases2D():
     """
+    Generate time-frequency plots of antenna-based gain phases, of one specific polarisation.
     """
-    print ("Under construction!")
+
+    numberOfAntennae, numberOfChannels, numberOfTimeStamps = amplitudes.shape
+
+    for i in range(numberOfAntennae):
+        if (antennaeWorking[i]):
+            logging.info("Generating gain phases plot for antenna ID " + str(i) + " and polarisation " + namePolarisation + "...")
+
+            # Create 2D antenna-based gain phases plot.
+            figure = pyplot.figure(figsize = (12, 6))
+            image  = pyplot.imshow(phases[i], aspect = "auto", interpolation = "none", cmap = cm.hsv, vmin = -180, vmax = 180)
+
+            pyplot.xlabel("time (s)")
+            pyplot.ylabel("frequency (MHz)")
+            pyplot.xticks(numpy.linspace(0, numberOfTimeStamps - 1, num = 5, endpoint = True),
+                          numpy.linspace(timeStart, timeStart + timeRange, num = 5, endpoint = True).astype(int))
+            pyplot.yticks(numpy.linspace(0, numberOfChannels - 1, num = 5, endpoint = True),
+                          numpy.linspace(frequencyStart, frequencyStart + frequencyRange, num = 5, endpoint = True).astype(int))
+            pyplot.title("antenna-based gain phases of uncalibrated calibrator visibilities\ndata set: "
+                         + nameH5Parm + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
+                         + nameField + " | polarisation: " + namePolarisation)
+
+            colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "3%", pad = .05)
+            colorBar = pyplot.colorbar(image, cax = colorBarAxis, ticks = [-180, -120, -60, 0, 60, 120, 180])
+            colorBar.ax.set_ylabel("gain phase ($\degree$)")
+
+            pyplot.subplots_adjust(left = .07, right = .93, bottom = 0.08, top = 0.91)
+            pyplot.savefig(pathPlotDirectory + "phases2D_Ant" + str(i) + "_Pol" + polarisationName + ".pdf")
+            pyplot.close()
 
 
 def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
