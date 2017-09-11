@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import argparse, logging
+import argparse, logging, sys
 
 from losoto import h5parm
 from matplotlib import cm
@@ -119,12 +119,27 @@ def dedicated_uGMRT_bandpass(pathH5Parm, referenceAntennaID = 0, verbose = False
     objectH5Parm.printInfo()
 
     # Load antenna-based gains.
-    gainAmplitudes           = (objectH5Parm.H.root.sol000.amplitude000.val)   [ : , 0, : , : ]
-    gainPhases               = (objectH5Parm.H.root.sol000.phase000.val)       [ : , 0, : , : ]
+    # '(objectH5Parm.H.root.sol000.amplitude000.val).shape' is e.g. (2, 1, 30, 2048, 75):
+    # 2 polarisations, 1 direction, 30 antennae, 2048 frequency channels, 75 time stamps.
+    gainAmplitudes           = (objectH5Parm.H.root.sol000.amplitude000.val)   [ : , 0, : , : , : ]
+    gainPhases               = (objectH5Parm.H.root.sol000.phase000.val)       [ : , 0, : , : , : ]
 
     # Load weights (generalised flags).
-    weightsForAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.weight)[ : , 0, : , : ]
-    weightsForPhases         = (objectH5Parm.H.root.sol000.phase000.weight)    [ : , 0, : , : ]
+    weightsForAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.weight)[ : , 0, : , : , : ]
+    weightsForPhases         = (objectH5Parm.H.root.sol000.phase000.weight)    [ : , 0, : , : , : ]
+
+    # Load dimension sizes.
+    numberOfPolarisations, numberOfAntennae, numberOfChannels, numberOfTimeStamps = gainAmplitudes.shape
+
+    # Stop program if deviant data shape found.
+    if (numberOfPolarisations != 2):
+        logging.error("2 polarisations expected, but " + str(numberOfPolarisations) + " received. Aborting...")
+        sys.exit()
+
+    # Make gain phases relative to reference antenna, clip and convert from radians to degrees.
+    gainPhases -= numpy.tile(gainPhases[ : , referenceAntennaID, : , : ], (1, numberOfAntennae, 1, 1))
+    gainPhases  = wrapPhasesZeroCentred(gainPhases, unitDegree = False)
+    gainPhases  = numpy.degrees(gainPhases)
 
     # Split-up gains by polarisation.
     gainAmplitudesPol1       = gainAmplitudes[0]
@@ -138,20 +153,17 @@ def dedicated_uGMRT_bandpass(pathH5Parm, referenceAntennaID = 0, verbose = False
     weightsForPhasesPol1     = weightsForPhases[0]
     weightsForPhasesPol2     = weightsForPhases[1]
 
-    # Establish data properties.
-    numberOfAntennae, numberOfChannels, numberOfTimeStamps = gainAmplitudesPol1.shape
-
     # Make gain phases relative to reference antenna.
-    gainPhasesPol1 -= numpy.tile(gainPhasesPol1[referenceAntennaID, : , : ], (numberOfAntennae, 1, 1))
-    gainPhasesPol2 -= numpy.tile(gainPhasesPol2[referenceAntennaID, : , : ], (numberOfAntennae, 1, 1))
-    gainPhasesPol1  = wrapPhasesZeroCentred(gainPhasesPol1, unitDegree = False)
-    gainPhasesPol2  = wrapPhasesZeroCentred(gainPhasesPol2, unitDegree = False)
+    #gainPhasesPol1 -= numpy.tile(gainPhasesPol1[referenceAntennaID, : , : ], (numberOfAntennae, 1, 1))
+    #gainPhasesPol2 -= numpy.tile(gainPhasesPol2[referenceAntennaID, : , : ], (numberOfAntennae, 1, 1))
+    #gainPhasesPol1  = wrapPhasesZeroCentred(gainPhasesPol1, unitDegree = False)
+    #gainPhasesPol2  = wrapPhasesZeroCentred(gainPhasesPol2, unitDegree = False)
 
     # Convert gain phases from degrees to radians.
-    gainPhasesPol1  = numpy.degrees(gainPhasesPol1)
-    gainPhasesPol2  = numpy.degrees(gainPhasesPol2)
-    print(numpy.amax(gainPhasesPol1), numpy.amin(gainPhasesPol2))
+    #gainPhasesPol1  = numpy.degrees(gainPhasesPol1)
+    #gainPhasesPol2  = numpy.degrees(gainPhasesPol2)
 
+    print(numpy.amax(gainPhasesPol1), numpy.amin(gainPhasesPol2))
     print ((objectH5Parm.H.root.sol000.amplitude000.val).shape)
 
     #for valsThisTime, weights, coord, selection in getValuesIter(returnAxes = ["time",'freq'], weights = True):
