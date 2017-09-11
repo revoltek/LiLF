@@ -93,37 +93,43 @@ def plotPhases2D(phases, antennaeWorking, pathDirectoryPlots, namePolarisation, 
 
 def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
     # Load H5Parm file.
-    objectH5Parm       = h5parm.h5parm(pathH5Parm)
+    objectH5Parm             = h5parm.h5parm(pathH5Parm)
     objectH5Parm.printInfo()
 
     # Load antenna-based gains.
-    gainAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.val)[ : , 0, : , : ]
-    gainPhases         = (objectH5Parm.H.root.sol000.phase000.val)    [ : , 0, : , : ]
+    gainAmplitudes           = (objectH5Parm.H.root.sol000.amplitude000.val)   [ : , 0, : , : ]
+    gainPhases               = (objectH5Parm.H.root.sol000.phase000.val)       [ : , 0, : , : ]
 
     # Load weights (generalised flags).
-    weights = objectH5Parm.H.root.sol000.weight000.val
-    print (type(weights))
-    import sys
-    sys.exit()
-    #weightsPol1 = weigths[0]
-    #weightsPol2 = weights[1]
+    weightsForAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.weight)[ : , 0, : , : ]
+    weightsForPhases         = (objectH5Parm.H.root.sol000.phase000.weight)    [ : , 0, : , : ]
 
     # Split-up gains by polarisation.
-    gainAmplitudesPol1 = gainAmplitudes[0]
-    gainAmplitudesPol2 = gainAmplitudes[1]
-    gainPhasesPol1     = gainPhases[0]
-    gainPhasesPol2     = gainPhases[1]
+    gainAmplitudesPol1       = gainAmplitudes[0]
+    gainAmplitudesPol2       = gainAmplitudes[1]
+    gainPhasesPol1           = gainPhases[0]
+    gainPhasesPol2           = gainPhases[1]
 
-    print (gainAmplitudes.shape)
-    print (gainPhases.shape)
-    print (gainAmplitudesPol1.shape)
-    print (gainPhasesPol2.shape)
+    # Split-up weights by polarisation.
+    weightsForAmplitudesPol1 = weightsForAmplitudes[0]
+    weightsForAmplitudesPol2 = weightsForAmplitudes[1]
+    weightsForPhasesPol1     = weightsForPhases[0]
+    weightsForPhasesPol2     = weightsForPhases[1]
 
     # Establish data properties.
     numberOfAntennae, numberOfChannels, numberOfTimeStamps = gainAmplitudesPol1.shape
-    #numberOfAntennae   = gainAmplitudes.shape[1]
-    #numberOfChannels   = gainAmplitudes.shape[2]
-    #numberOfTimeStamps = gainAmplitudes.shape[3]
+
+    # Output debug info.
+    print (gainAmplitudes.shape)
+    print (gainPhases.shape)
+    print (gainAmplitudesPol1.shape)
+    print (gainPhasesPol1.shape)
+    print (weightsForAmplitudesPol2.shape)
+    print (weightsForPhasesPol2.shape)
+    print (numberOfAntennae, numberOfChannels, numberOfTimeStamps)
+
+    import sys
+    sys.exit()
 
     # These values can be taken from the MS, and perhaps also from the H5Parm file.
     # Temporary!
