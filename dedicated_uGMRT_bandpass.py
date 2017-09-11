@@ -137,7 +137,7 @@ def dedicated_uGMRT_bandpass(pathH5Parm, referenceAntennaID = 0, verbose = False
         sys.exit()
 
     # Make gain phases relative to reference antenna, clip and convert from radians to degrees.
-    gainPhases -= numpy.tile(gainPhases[ : , referenceAntennaID, : , : ], (1, numberOfAntennae, 1, 1))
+    gainPhases -= numpy.tile(gainPhases[ : , referenceAntennaID : referenceAntennaID + 1, : , : ], (1, numberOfAntennae, 1, 1))
     gainPhases  = wrapPhasesZeroCentred(gainPhases, unitDegree = False)
     gainPhases  = numpy.degrees(gainPhases)
 
