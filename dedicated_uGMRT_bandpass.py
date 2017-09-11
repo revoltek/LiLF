@@ -4,9 +4,9 @@
 import argparse, logging
 
 from losoto import h5parm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib import cm
 from matplotlib import pyplot
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy
 
 import lib_util
@@ -126,7 +126,7 @@ def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
     print (gainPhasesPol1.shape)
     print (weightsForAmplitudesPol2.shape)
     print (weightsForPhasesPol2.shape)
-    print (numberOfAntennae, numberOfChannels, numberOfTimeStamps)
+    print ("numberOfAntennae:", numberOfAntennae, "numberOfChannels:", numberOfChannels, "numberOfTimeStamps:", numberOfTimeStamps)
 
     import sys
     sys.exit()
