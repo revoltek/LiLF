@@ -57,7 +57,7 @@ def plotPhases2D(phases, antennaeWorking, pathDirectoryPlots, namePolarisation, 
     """
 
     # Establish data properties.
-    numberOfAntennae, numberOfChannels, numberOfTimeStamps = amplitudes.shape
+    numberOfAntennae, numberOfChannels, numberOfTimeStamps = phases.shape
 
     for i in range(numberOfAntennae):
         if (antennaeWorking[i]):
@@ -126,8 +126,8 @@ def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
     timeRange          = numberOfTimeStamps * timeStampLength # in seconds
 
     # Plot gain amplitudes.
-    #plotAmplitudes2D(gainAmplitudesPol1, [True] * numberOfAntennae, pathDirectoryPlots, "LL", nameField, timeStart, timeRange)
-    #plotAmplitudes2D(gainAmplitudesPol2, [True] * numberOfAntennae, pathDirectoryPlots, "RR", nameField, timeStart, timeRange)
+    plotAmplitudes2D(gainAmplitudesPol1, [True] * numberOfAntennae, pathDirectoryPlots, "LL", nameField, timeStart, timeRange)
+    plotAmplitudes2D(gainAmplitudesPol2, [True] * numberOfAntennae, pathDirectoryPlots, "RR", nameField, timeStart, timeRange)
 
     # Plot gain phases.
     plotPhases2D(    gainPhasesPol1,     [True] * numberOfAntennae, pathDirectoryPlots, "LL", nameField, timeStart, timeRange)
