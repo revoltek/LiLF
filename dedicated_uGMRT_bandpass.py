@@ -12,6 +12,30 @@ import numpy
 import lib_util
 
 
+def wrapPhasesZeroCentred(phases, unitDegree = True):
+        '''
+        This method assumes that 'phases' is expressed on a -180 to 180 degree scale (or -pi to pi if 'unitDegree' is False),
+        with some of the phases lying out of bounds - which is the motivation to call this function.
+        It correctly phase wraps these phases, and returns them expressed on the same scale.
+        '''
+        if (unitDegree):
+            # Move the phases to a 0 to 360 degrees scale (with some out of bounds).
+            phases += 180
+
+            # Next, put all phases between 0 and 360 degrees.
+            # Note: 'numpy.mod(...)' correctly handles negative numbers. So e.g. 'numpy.mod([-10, -365], 360) == [350, 355]'.
+            phases  = numpy.mod(phases, 360)
+
+            # Move back to a -180 to 180 degree scale (with none out of bounds).
+            phases -= 180
+        else:
+            phases += numpy.pi
+            phases  = numpy.mod(phases, 2 * numpy.pi)
+            phases -= numpy.pi
+
+        return phases
+
+
 def plotAmplitudes2D(amplitudes, antennaeWorking, pathDirectoryPlots, namePolarisation, nameField, timeStart, timeRange,
                      frequencyStart = 300, frequencyRange = 200, nameH5Parm = "?", nameTelescope = "uGMRT"):
     """
@@ -88,7 +112,7 @@ def plotPhases2D(phases, antennaeWorking, pathDirectoryPlots, namePolarisation, 
             logging.info("Skipping gain phases visualisation for antenna ID " + str(i) + " and polarisation " + namePolarisation + ": all data are flagged.")
 
 
-def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
+def dedicated_uGMRT_bandpass(pathH5Parm, referenceAntennaID = 0, verbose = False):
 
     # Load H5Parm file.
     objectH5Parm             = h5parm.h5parm(pathH5Parm)
@@ -97,8 +121,6 @@ def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
     # Load antenna-based gains.
     gainAmplitudes           = (objectH5Parm.H.root.sol000.amplitude000.val)   [ : , 0, : , : ]
     gainPhases               = (objectH5Parm.H.root.sol000.phase000.val)       [ : , 0, : , : ]
-    gainPhases               = numpy.degrees(gainPhases)
-    print(numpy.amax(gainPhases), numpy.amin(gainPhases))
 
     # Load weights (generalised flags).
     weightsForAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.weight)[ : , 0, : , : ]
@@ -118,6 +140,23 @@ def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
 
     # Establish data properties.
     numberOfAntennae, numberOfChannels, numberOfTimeStamps = gainAmplitudesPol1.shape
+
+    # Make gain phases relative to reference antenna.
+    gainPhasesPol1 -= numpy.tile(gainPhasesPol1[referenceAntennaID, : , : ], (numberOfAntennae, 1, 1))
+    gainPhasesPol2 -= numpy.tile(gainPhasesPol2[referenceAntennaID, : , : ], (numberOfAntennae, 1, 1))
+    gainPhasesPol1  = wrapPhasesZeroCentred(gainPhasesPol1, unitDegree = False)
+    gainPhasesPol2  = wrapPhasesZeroCentred(gainPhasesPol2, unitDegree = False)
+
+    # Convert gain phases from degrees to radians.
+    gainPhasesPol1  = numpy.degrees(gainPhasesPol1)
+    gainPhasesPol2  = numpy.degrees(gainPhasesPol2)
+    print(numpy.amax(gainPhasesPol1), numpy.amin(gainPhasesPol2))
+
+    print ((objectH5Parm.H.root.sol000.amplitude000.val).shape)
+
+    #for valsThisTime, weights, coord, selection in getValuesIter(returnAxes = ["time",'freq'], weights = True):
+    #    valsThisTime *= 2
+    #    setValues(selection = selection)
 
     # These values can be taken from the MS, and perhaps also from the H5Parm file.
     # Temporary!
