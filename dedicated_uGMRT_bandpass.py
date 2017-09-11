@@ -101,7 +101,7 @@ def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
     gainPhases         = (objectH5Parm.H.root.sol000.phase000.val)    [ : , 0, : , : ]
 
     # Load weights (generalised flags).
-    weights = objectH5Parm.H.root.sol000.weights000.val
+    weights = objectH5Parm.H.root.sol000.weight000.val
     print (type(weights))
     import sys
     sys.exit()
