@@ -4,9 +4,9 @@
 import argparse, logging
 
 from losoto import h5parm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib import cm
 from matplotlib import pyplot
+from matplotlib import cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy
 
 import lib_util
