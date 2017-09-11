@@ -4,8 +4,8 @@
 import argparse, logging
 
 from losoto import h5parm
-from matplotlib import pyplot
 from matplotlib import cm
+from matplotlib import pyplot
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy
 
@@ -20,9 +20,6 @@ def plotAmplitudes2D(amplitudes, antennaeWorking, pathDirectoryPlots, namePolari
 
     # Establish data properties.
     numberOfAntennae, numberOfChannels, numberOfTimeStamps = amplitudes.shape
-    #numberOfAntennae   = amplitudes.shape[0]
-    #numberOfChannels   = amplitudes.shape[1]
-    #numberOfTimeStamps = amplitudes.shape[2]
 
     for i in range(numberOfAntennae):
         if (antennaeWorking[i]):
@@ -92,6 +89,7 @@ def plotPhases2D(phases, antennaeWorking, pathDirectoryPlots, namePolarisation, 
 
 
 def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
+
     # Load H5Parm file.
     objectH5Parm             = h5parm.h5parm(pathH5Parm)
     objectH5Parm.printInfo()
@@ -119,18 +117,6 @@ def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
     # Establish data properties.
     numberOfAntennae, numberOfChannels, numberOfTimeStamps = gainAmplitudesPol1.shape
 
-    # Output debug info.
-    print (gainAmplitudes.shape)
-    print (gainPhases.shape)
-    print (gainAmplitudesPol1.shape)
-    print (gainPhasesPol1.shape)
-    print (weightsForAmplitudesPol2.shape)
-    print (weightsForPhasesPol2.shape)
-    print ("numberOfAntennae:", numberOfAntennae, "numberOfChannels:", numberOfChannels, "numberOfTimeStamps:", numberOfTimeStamps)
-
-    import sys
-    sys.exit()
-
     # These values can be taken from the MS, and perhaps also from the H5Parm file.
     # Temporary!
     pathDirectoryPlots = "/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsCalibrator/scanID1/plots"
@@ -147,6 +133,18 @@ def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
     plotPhases2D(    gainPhasesPol1,     [True] * numberOfAntennae, pathDirectoryPlots, "LL", nameField, timeStart, timeRange)
     plotPhases2D(    gainPhasesPol2,     [True] * numberOfAntennae, pathDirectoryPlots, "RR", nameField, timeStart, timeRange)
 
+
+    # Output debug info.
+    print (gainAmplitudes.shape)
+    print (gainPhases.shape)
+    print (gainAmplitudesPol1.shape)
+    print (gainPhasesPol1.shape)
+    print (weightsForAmplitudesPol2.shape)
+    print (weightsForPhasesPol2.shape)
+    print ("numberOfAntennae:", numberOfAntennae, "numberOfChannels:", numberOfChannels, "numberOfTimeStamps:", numberOfTimeStamps)
+
+    import sys
+    sys.exit()
 
     '''
     In this step, the amplitude bandpasses for each antenna are determined in two iterations.
