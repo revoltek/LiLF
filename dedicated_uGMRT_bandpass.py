@@ -97,6 +97,8 @@ def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
     # Load antenna-based gains.
     gainAmplitudes           = (objectH5Parm.H.root.sol000.amplitude000.val)   [ : , 0, : , : ]
     gainPhases               = (objectH5Parm.H.root.sol000.phase000.val)       [ : , 0, : , : ]
+    gainPhases               = numpy.degrees(gainPhases)
+    print(numpy.amax(gainPhases), numpy.amin(gainPhases))
 
     # Load weights (generalised flags).
     weightsForAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.weight)[ : , 0, : , : ]
