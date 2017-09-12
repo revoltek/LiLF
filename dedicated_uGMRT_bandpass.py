@@ -112,11 +112,16 @@ def plotPhases2D(phases, antennaeWorking, pathDirectoryPlots, namePolarisation, 
             logging.info("Skipping gain phases visualisation for antenna ID " + str(i) + " and polarisation " + namePolarisation + ": all data are flagged.")
 
 
-def dedicated_uGMRT_bandpass(pathH5Parm, referenceAntennaID = 0, verbose = False):
+def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID = 0, verbose = False):
 
     # Load H5Parm file.
     objectH5Parm             = h5parm.h5parm(pathH5Parm)
     objectH5Parm.printInfo()
+
+    objectSolSet = objectH5Parm.getSolset("sol000")
+    namesSolTabs = objectSolSet.getSoltabNames()
+    print (namesSolTabs)
+    sys.exit()
 
     # Load antenna-based gains.
     # '(objectH5Parm.H.root.sol000.amplitude000.val).shape' is e.g. (2, 1, 30, 2048, 75):
@@ -158,12 +163,14 @@ def dedicated_uGMRT_bandpass(pathH5Parm, referenceAntennaID = 0, verbose = False
     # We choose to set flagged amplitudes and phases to 'numpy.nan'. (This leads to undesired colormap behaviour in 3D plotting, however.)
     gainAmplitudesPol1 = numpy.where(numpy.logical_not(weightsForAmplitudesPol1), numpy.nan, gainAmplitudesPol1)
     gainAmplitudesPol2 = numpy.where(numpy.logical_not(weightsForAmplitudesPol2), numpy.nan, gainAmplitudesPol2)
-    gainPhasesPol1     = numpy.where(numpy.logical_not(weightsForPhasesPol1), numpy.nan, gainPhasesPol1)
-    gainPhasesPol2     = numpy.where(numpy.logical_not(weightsForPhasesPol2), numpy.nan, gainPhasesPol2)
+    gainPhasesPol1     = numpy.where(numpy.logical_not(weightsForPhasesPol1),     numpy.nan, gainPhasesPol1)
+    gainPhasesPol2     = numpy.where(numpy.logical_not(weightsForPhasesPol2),     numpy.nan, gainPhasesPol2)
 
-    print(numpy.amax(gainPhasesPol1), numpy.amin(gainPhasesPol2))
-    print ((objectH5Parm.H.root.sol000.amplitude000.val).shape)
-    print (type(weightsForPhases[0, 0, 0, 0]))
+
+
+    #print(numpy.amax(gainPhasesPol1), numpy.amin(gainPhasesPol2))
+    #print ((objectH5Parm.H.root.sol000.amplitude000.val).shape)
+    #print (type(weightsForPhases[0, 0, 0, 0]))
 
     #for valsThisTime, weights, coord, selection in getValuesIter(returnAxes = ["time",'freq'], weights = True):
     #    valsThisTime *= 2
@@ -171,7 +178,6 @@ def dedicated_uGMRT_bandpass(pathH5Parm, referenceAntennaID = 0, verbose = False
 
     # These values can be taken from the MS, and perhaps also from the H5Parm file.
     # Temporary!
-    pathDirectoryPlots = "/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsCalibrator/scanID1/plots"
     nameField          = "3C147"
     timeStart          = 0                                    # in seconds
     timeStampLength    = 8.05                                 # in seconds
@@ -382,17 +388,20 @@ def dedicated_uGMRT_bandpass(pathH5Parm, referenceAntennaID = 0, verbose = False
     # After amplitude and phase bandpass and TECs are created, save back to H5Parm file.
     # Write the TEC solutions to 'objectH5Parm.H.root.sol000.tec000.val'.
 
-
 if (__name__ == "__main__"):
     # If the program is run from the command line, parse arguments.
     parser                      = argparse.ArgumentParser(description = "Pipeline step 3: Generation of bandpasses.")
     parser.add_argument("pathH5Parm", help = "Path of the H5Parm file to act upon.")
+    parser.add_argument("pathDirectoryPlots", help = "Path of the directory where plots are stored.")
     arguments                   = parser.parse_args()
+
+    # Temporary!
+    arguments.pathDirectoryPlots = "/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsCalibrator/scanID1/plots"
 
     lib_util.printLineBold("Parameters to use:")
     print (arguments)
 
-    dedicated_uGMRT_bandpass(arguments.pathH5Parm)
+    dedicated_uGMRT_bandpass(arguments.pathH5Parm, arguments.pathDirectoryPlots)
 
 # '''
 # Martijn Oei, 2017
