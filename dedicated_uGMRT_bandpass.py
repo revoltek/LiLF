@@ -121,6 +121,7 @@ def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID 
     objectSolSet = objectH5Parm.getSolset("sol000")
     namesSolTabs = objectSolSet.getSoltabNames()
     print (namesSolTabs)
+    import sys
     sys.exit()
 
     # Load antenna-based gains.
