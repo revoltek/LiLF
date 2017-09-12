@@ -153,18 +153,17 @@ def dedicated_uGMRT_bandpass(pathH5Parm, referenceAntennaID = 0, verbose = False
     weightsForPhasesPol1     = weightsForPhases[0]
     weightsForPhasesPol2     = weightsForPhases[1]
 
-    # Make gain phases relative to reference antenna.
-    #gainPhasesPol1 -= numpy.tile(gainPhasesPol1[referenceAntennaID, : , : ], (numberOfAntennae, 1, 1))
-    #gainPhasesPol2 -= numpy.tile(gainPhasesPol2[referenceAntennaID, : , : ], (numberOfAntennae, 1, 1))
-    #gainPhasesPol1  = wrapPhasesZeroCentred(gainPhasesPol1, unitDegree = False)
-    #gainPhasesPol2  = wrapPhasesZeroCentred(gainPhasesPol2, unitDegree = False)
-
-    # Convert gain phases from degrees to radians.
-    #gainPhasesPol1  = numpy.degrees(gainPhasesPol1)
-    #gainPhasesPol2  = numpy.degrees(gainPhasesPol2)
+    # Flagged data should not be used in calculations.
+    # Masking using 'numpy.ma.masked_array(...)' is not always practical - the mask is lost during some NumPy operations.
+    # We choose to set flagged amplitudes and phases to 'numpy.nan'. (This leads to undesired colormap behaviour in 3D plotting, however.)
+    gainAmplitudesPol1 = numpy.where(numpy.logical_not(weightsForAmplitudesPol1), numpy.nan, gainAmplitudesPol1)
+    gainAmplitudesPol2 = numpy.where(numpy.logical_not(weightsForAmplitudesPol2), numpy.nan, gainAmplitudesPol2)
+    gainPhasesPol1     = numpy.where(numpy.logical_not(weightsForPhasesPol1), numpy.nan, gainPhasesPol1)
+    gainPhasesPol2     = numpy.where(numpy.logical_not(weightsForPhasesPol2), numpy.nan, gainPhasesPol2)
 
     print(numpy.amax(gainPhasesPol1), numpy.amin(gainPhasesPol2))
     print ((objectH5Parm.H.root.sol000.amplitude000.val).shape)
+    print (type(weightsForPhases[0, 0, 0, 0]))
 
     #for valsThisTime, weights, coord, selection in getValuesIter(returnAxes = ["time",'freq'], weights = True):
     #    valsThisTime *= 2
