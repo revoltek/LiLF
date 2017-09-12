@@ -122,6 +122,13 @@ def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID 
     namesSolTabs = objectSolSet.getSoltabNames()
     print (namesSolTabs)
     print (namesSolTabs, "JAA!")
+
+    objectSolTabGainAmplitudes = objectSolSet.getSoltab("amplitude000")
+    objectSolTabGainPhases     = objectSolSet.getSoltab("phase000")
+
+    gainAmplitudes, gainAmplitudesAxisValues = objectSolTabGainAmplitudes.getValues(retAxesVals = True)
+    print (gainAmplitudes.shape)
+    print (gainAmplitudesAxisValues)
     import sys
     sys.exit()
 
