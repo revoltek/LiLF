@@ -114,25 +114,28 @@ def plotPhases2D(phases, antennaeWorking, pathDirectoryPlots, namePolarisation, 
 
 def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID = 0, verbose = False):
 
-    # Load H5Parm file.
-    objectH5Parm             = h5parm.h5parm(pathH5Parm)
-    objectH5Parm.printInfo()
+    # Initialise H5Parm file objects.
+    objectH5Parm                             = h5parm.h5parm(pathH5Parm)
+    objectSolSet                             = objectH5Parm.getSolset("sol000")
+    objectSolTabGainAmplitudes               = objectSolSet.getSoltab("amplitude000")
+    objectSolTabGainPhases                   = objectSolSet.getSoltab("phase000")
 
-    objectSolSet = objectH5Parm.getSolset("sol000")
-    namesSolTabs = objectSolSet.getSoltabNames()
-    print (namesSolTabs)
-    print (namesSolTabs, "JAA!")
-
-    objectSolTabGainAmplitudes = objectSolSet.getSoltab("amplitude000")
-    objectSolTabGainPhases     = objectSolSet.getSoltab("phase000")
-
+    # Load antenna-based gains.
     gainAmplitudes, gainAmplitudesAxisValues = objectSolTabGainAmplitudes.getValues(retAxesVals = True)
+    gainPhases                               = objectSolTabGainPhases.getValues(    retAxesVals = False)
+
+    # Initialise axes arrays.
+    #frequencies =
+    #times       =
+    objectH5Parm.printInfo()
     print (gainAmplitudes.shape)
     print (gainAmplitudesAxisValues)
+    namesSolTabs = objectSolSet.getSoltabNames()
+    print (namesSolTabs)
     import sys
     sys.exit()
 
-    # Load antenna-based gains.
+
     # '(objectH5Parm.H.root.sol000.amplitude000.val).shape' is e.g. (2, 1, 30, 2048, 75):
     # 2 polarisations, 1 direction, 30 antennae, 2048 frequency channels, 75 time stamps.
     gainAmplitudes           = (objectH5Parm.H.root.sol000.amplitude000.val)   [ : , 0, : , : , : ]
