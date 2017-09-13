@@ -129,11 +129,15 @@ def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID 
     weightsForPhases           = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = True) [ : , 0, : , : , : ]
 
     # Initialise axes arrays.
-    print (type(axes))
+    namesPolarisation          = axes["pol"]
+    namesAntenna               = axes["ant"]
+    frequencies                = axes["freq"]
+    times                      = axes["time"]
+
     #antennaNames, polarisationNames, frequencies, times = axes
 
-    print (antennaNames)
-    print (axes[1])
+    print (namesAntenna)
+    print (frequencies)
     #frequencies =
     #times       =
     objectH5Parm.printInfo()
