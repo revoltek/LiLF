@@ -59,8 +59,8 @@ def plotAmplitudes2D(amplitudes, times, frequencies, antennaeWorking, pathDirect
                           numpy.linspace(times[0], times[-1], num = 5, endpoint = True).astype(int))
             pyplot.yticks(numpy.linspace(0, numberOfChannels - 1, num = 5, endpoint = True),
                           numpy.linspace(frequencies[0], frequencies[-1], num = 5, endpoint = True).astype(int))
-            pyplot.title("antenna-based gain amplitudes of uncalibrated calibrator visibilities\ndata set: "
-                         + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
+            pyplot.title("$\mathbf{antenna-based\ gain\ amplitudes\ of\ uncalibrated\ calibrator\ visibilities}$\ndata set: "
+                         + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: " + str(i) + " | calibrator: "
                          + nameField + " | polarisation: " + namePolarisation, fontsize = 9)
 
             colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
@@ -97,8 +97,8 @@ def plotPhases2D(phases, times, frequencies, antennaeWorking, pathDirectoryPlots
                           numpy.linspace(times[0], times[-1], num = 5, endpoint = True).astype(int))
             pyplot.yticks(numpy.linspace(0, numberOfChannels - 1, num = 5, endpoint = True),
                           numpy.linspace(frequencies[0], frequencies[-1], num = 5, endpoint = True).astype(int))
-            pyplot.title("antenna-based gain phases of uncalibrated calibrator visibilities\ndata set: "
-                         + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
+            pyplot.title("$\mathbf{antenna-based\ gain\ phases\ of\ uncalibrated\ calibrator\ visibilities}$\ndata set: "
+                         + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: " + str(i) + " | calibrator: "
                          + nameField + " | polarisation: " + namePolarisation, fontsize = 9)
 
             colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
