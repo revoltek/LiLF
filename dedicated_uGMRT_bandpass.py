@@ -61,7 +61,7 @@ def plotAmplitudes2D(amplitudes, times, frequencies, antennaeWorking, pathDirect
                           numpy.linspace(frequencies[0], frequencies[-1], num = 5, endpoint = True).astype(int))
             pyplot.title("antenna-based gain amplitudes of uncalibrated calibrator visibilities\ndata set: "
                          + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
-                         + nameField + " | polarisation: " + namePolarisation, fontsize = 10)
+                         + nameField + " | polarisation: " + namePolarisation, fontsize = 9)
 
             colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
             colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [0, 0.2, 0.4, 0.6, 0.8, 1])
@@ -99,7 +99,7 @@ def plotPhases2D(phases, times, frequencies, antennaeWorking, pathDirectoryPlots
                           numpy.linspace(frequencies[0], frequencies[-1], num = 5, endpoint = True).astype(int))
             pyplot.title("antenna-based gain phases of uncalibrated calibrator visibilities\ndata set: "
                          + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
-                         + nameField + " | polarisation: " + namePolarisation, fontsize = 10)
+                         + nameField + " | polarisation: " + namePolarisation, fontsize = 9)
 
             colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
             colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [-180, -120, -60, 0, 60, 120, 180])
@@ -188,6 +188,10 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
     # Determine which antennae are working.
     antennaeWorking            = [True] * numberOfAntennae # Temporary!
+
+
+    # As long as the wrong polarisation names are in the H5Parm file, we replace these ourselves. Temporary!
+    namesPolarisation          = ["RR", "LL"]
 
 
     # Plot gain amplitudes.
