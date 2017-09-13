@@ -115,24 +115,25 @@ def plotPhases2D(phases, antennaeWorking, pathDirectoryPlots, namePolarisation, 
 def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID = 0, verbose = False):
 
     # Initialise H5Parm file objects.
-    objectH5Parm                             = h5parm.h5parm(pathH5Parm)
-    objectSolSet                             = objectH5Parm.getSolset("sol000")
-    objectSolTabGainAmplitudes               = objectSolSet.getSoltab("amplitude000")
-    objectSolTabGainPhases                   = objectSolSet.getSoltab("phase000")
+    objectH5Parm               = h5parm.h5parm(pathH5Parm)
+    objectSolSet               = objectH5Parm.getSolset("sol000")
+    objectSolTabGainAmplitudes = objectSolSet.getSoltab("amplitude000")
+    objectSolTabGainPhases     = objectSolSet.getSoltab("phase000")
 
     # Load antenna-based gains.
-    gainAmplitudes, gainAmplitudesAxisValues = objectSolTabGainAmplitudes.getValues(retAxesVals = True,  weight = False)
-    gainPhases                               = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)
+    _, axes                    = objectSolTabGainAmplitudes.getValues(retAxesVals = True)
+    gainAmplitudes             = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = False)[ : , 0, : , : , : ]
+    gainPhases                 = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)[ : , 0, : , : , : ]
 
-    weightsForAmplitudes                     = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = True)
-    weightsForPhases                         = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = True)
+    weightsForAmplitudes       = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = True) [ : , 0, : , : , : ]
+    weightsForPhases           = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = True) [ : , 0, : , : , : ]
 
     # Initialise axes arrays.
     #frequencies =
     #times       =
     objectH5Parm.printInfo()
     print (gainAmplitudes.shape)
-    print (gainAmplitudesAxisValues)
+    print (axes)
     namesSolTabs = objectSolSet.getSoltabNames()
     print (namesSolTabs)
     import sys
