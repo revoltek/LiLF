@@ -61,7 +61,7 @@ def plotAmplitudes2D(amplitudes, times, frequencies, antennaeWorking, pathDirect
                           numpy.linspace(frequencies[0], frequencies[-1], num = 5, endpoint = True).astype(int))
             pyplot.title("antenna-based gain amplitudes of uncalibrated calibrator visibilities\ndata set: "
                          + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
-                         + nameField + " | polarisation: " + namePolarisation, fontsize = 14)
+                         + nameField + " | polarisation: " + namePolarisation, fontsize = 10)
 
             colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
             colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [0, 0.2, 0.4, 0.6, 0.8, 1])
@@ -99,7 +99,7 @@ def plotPhases2D(phases, times, frequencies, antennaeWorking, pathDirectoryPlots
                           numpy.linspace(frequencies[0], frequencies[-1], num = 5, endpoint = True).astype(int))
             pyplot.title("antenna-based gain phases of uncalibrated calibrator visibilities\ndata set: "
                          + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
-                         + nameField + " | polarisation: " + namePolarisation, fontsize = 14)
+                         + nameField + " | polarisation: " + namePolarisation, fontsize = 10)
 
             colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
             colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [-180, -120, -60, 0, 60, 120, 180])
@@ -149,7 +149,7 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     # Initialise axes arrays.
     namesPolarisation          = axes["pol"]
     namesAntenna               = axes["ant"]
-    frequencies                = axes["freq"] / 1e8             # in MHz
+    frequencies                = axes["freq"] / 1e6             # in MHz
     times                      = axes["time"] - axes["time"][0] # in s
 
 
