@@ -1,0 +1,19 @@
+Suggestions for improvement of DPPP, LoSoTo and other LOFAR-related software,
+as conceived during PiLF development.
+
+DPPP:
+- Currently (Sept. 2017), DPPP exports ParmDB files, which can be converted into H5Parm files using
+  Francesco's h5parm_importer.py. In the future, DPPP will export H5Parm files directly.
+  DPPP should read the MS POLARIZATION subtable to read polarisation names (and not blindly assume
+  that the polarisations are 'XX', 'XY', 'YX' and 'YY'). This is important for the uGMRT, which uses
+  circular polarisation.
+- DPPP should add the field name (e.g. '3C147') to the H5Parm file. This is useful for plotting in LoSoTo.
+
+LoSoTo:
+- The PiLF uGMRT-dedicated bandpass - TEC separator program should be incorporated in LoSoTo as a function.
+
+PiLF:
+- Logged text currently looks ugly, because of color coding pre- and suffixes added to logging expressions.
+  This color coding looks great on the command line, but a system should be devised where the color coding
+  is not added for stored text files.
+- Documentation should be written to explain the code structure of PiLF for future developers.

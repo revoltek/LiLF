@@ -9,7 +9,7 @@ from matplotlib import pyplot
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy
 
-import lib_util
+import lib_ms, lib_util
 
 
 def wrapPhasesZeroCentred(phases, unitDegree = True):
@@ -112,7 +112,14 @@ def plotPhases2D(phases, antennaeWorking, pathDirectoryPlots, namePolarisation, 
             logging.info("Skipping gain phases visualisation for antenna ID " + str(i) + " and polarisation " + namePolarisation + ": all data are flagged.")
 
 
-def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID = 0, verbose = False):
+def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = False):
+
+    # Initialise logistics.
+    nameMS                     = pathDirectoryMS[pathDirectoryMS.rfind('/') + 1 : ]
+    pathMS                     = pathDirectoryMS + nameMS + ".MS"
+    pathH5Parm                 = pathDirectoryMS + "/solutions/gainsRaw.h5"
+    pathDirectoryPlots         = pathDirectoryMS + "/plots"
+
 
     # Initialise H5Parm file objects.
     objectH5Parm               = h5parm.h5parm(pathH5Parm)
@@ -168,15 +175,17 @@ def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID 
     # Flagged data should not be used in calculations.
     # Masking using 'numpy.ma.masked_array(...)' is not always practical - the mask is lost during some NumPy operations.
     # We choose to set flagged amplitudes and phases to 'numpy.nan'. (This leads to undesired colormap behaviour in 3D plotting, however.)
-    gainAmplitudesPol1 = numpy.where(numpy.logical_not(weightsForAmplitudesPol1), numpy.nan, gainAmplitudesPol1)
-    gainAmplitudesPol2 = numpy.where(numpy.logical_not(weightsForAmplitudesPol2), numpy.nan, gainAmplitudesPol2)
-    gainPhasesPol1     = numpy.where(numpy.logical_not(weightsForPhasesPol1),     numpy.nan, gainPhasesPol1)
-    gainPhasesPol2     = numpy.where(numpy.logical_not(weightsForPhasesPol2),     numpy.nan, gainPhasesPol2)
+    gainAmplitudesPol1         = numpy.where(numpy.logical_not(weightsForAmplitudesPol1), numpy.nan, gainAmplitudesPol1)
+    gainAmplitudesPol2         = numpy.where(numpy.logical_not(weightsForAmplitudesPol2), numpy.nan, gainAmplitudesPol2)
+    gainPhasesPol1             = numpy.where(numpy.logical_not(weightsForPhasesPol1),     numpy.nan, gainPhasesPol1)
+    gainPhasesPol2             = numpy.where(numpy.logical_not(weightsForPhasesPol2),     numpy.nan, gainPhasesPol2)
 
 
-    namesSolTabs = objectSolSet.getSoltabNames()
-    print (namesSolTabs)
+    # Load the field name.
+    objectMS                   = lib_ms.MS(pathMS)
+    nameField                  = objectMS.getNameField()
 
+    print("ANTWOORDJE:", nameField)
 
     import sys
     sys.exit()
@@ -419,17 +428,16 @@ def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID 
 if (__name__ == "__main__"):
     # If the program is run from the command line, parse arguments.
     parser                      = argparse.ArgumentParser(description = "Pipeline step 3: Generation of bandpasses.")
-    parser.add_argument("pathH5Parm", help = "Path of the H5Parm file to act upon.")
-    parser.add_argument("pathDirectoryPlots", help = "Path of the directory where plots are stored.")
+    parser.add_argument("pathDirectoryMS", help = "Path of the directory that contains the calibrator scan MS (directory).")
     arguments                   = parser.parse_args()
 
     # Temporary!
-    arguments.pathDirectoryPlots = "/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsCalibrator/scanID1/plots"
+    arguments.pathDirectoryMS = "/disks/strw3/oei/uGMRTCosmosCut-PiLF/fieldsCalibrator/scanID1"
 
     lib_util.printLineBold("Parameters to use:")
     print (arguments)
 
-    dedicated_uGMRT_bandpass(arguments.pathH5Parm, arguments.pathDirectoryPlots)
+    dedicated_uGMRT_bandpass(arguments.pathDirectoryMS)
 
 # '''
 # Martijn Oei, 2017
