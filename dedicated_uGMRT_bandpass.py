@@ -12,12 +12,50 @@ import numpy
 import lib_ms, lib_util
 
 
+def filterMedian1D(array, kernelSize):
+    """
+    Median filter a 1D array (except for the edges).
+    'kernelSize' must be an odd integer, bigger than or equal to 3.
+    """
+    kernelRadius               = (kernelSize - 1) / 2
+
+    arrayNew                   = numpy.zeros_like(array)
+    arrayNew[ : kernelRadius]  = array[ : kernelRadius]
+    arrayNew[-kernelRadius : ] = array[-kernelRadius : ]
+
+    for index in range(kernelRadius, len(array) - kernelRadius):
+        arrayNew[index] = numpy.nanmedian(array[index - kernelRadius : index + kernelRadius + 1])
+
+    return arrayNew
+
+
+def fillGaps1D(array):
+    """
+    Replace 'numpy.nan' values wherever they lie between parts of 'array' that have measured values
+    via linear interpolation.
+    Occurences of 'numpy.nan' at the beginning or end of the array are not replaced, as it is unclear
+    how this should be done via interpolation.
+    """
+    indexDatumLast = None # index of the last encountered valid value (not 'numpy.nan')
+    arrayNew       = numpy.copy(array)
+
+    for index in range(len(array)):
+        if (not numpy.isnan(array[index])):
+
+            if (not (indexDatumLast == None) and indexDatumLast < index - 1):
+                interpolation                        = numpy.linspace(array[indexDatumLast], array[index], num = index - indexDatumLast + 1, endpoint = True)[1 : -1]
+                arrayNew[indexDatumLast + 1 : index] = interpolation
+            indexDatumLast = index
+
+    return arrayNew
+
+
 def wrapPhasesZeroCentred(phases, unitDegree = True):
-        '''
+        """
         This method assumes that 'phases' is expressed on a -180 to 180 degree scale (or -pi to pi if 'unitDegree' is False),
         with some of the phases lying out of bounds - which is the motivation to call this function.
         It correctly phase wraps these phases, and returns them expressed on the same scale.
-        '''
+        """
         if (unitDegree):
             # Move the phases to a 0 to 360 degrees scale (with some out of bounds).
             phases += 180
@@ -112,6 +150,32 @@ def plotPhases2D(phases, times, frequencies, antennaeWorking, pathDirectoryPlots
             logging.info("Skipping gain phases visualisation for antenna ID " + str(i) + " and polarisation " + namePolarisation + ": all data are flagged.")
 
 
+def plotBandpassesAmplitude(bandpassesAmplitudePol1, bandpassesAmplitudePol2, frequencies, pathDirectoryPlots,
+                            nameIteration = "?", nameField = "?", nameDataSet = "?", nameTelescope = "uGMRT"):
+    """
+    Generate plots of amplitude bandpasses, for two polarisations.
+    """
+
+    for i in range(numberOfAntennae):
+
+    # Create plot of amplitude bandpass (for both polarisations, iteration 1).
+    pyplot.figure(figsize = (12, 6))
+    pyplot.scatter(frequencies, bandpassAmplitudePol1Iter1, c = "navy", s = 16, lw = 0, label = "polarisation 1\nnorm. factor: " + str(numpy.round(bandpassNormalisationFactorPol1, 3)))
+    pyplot.scatter(frequencies, bandpassAmplitudePol2Iter1, c = "orangered", s = 16, lw = 0, label = "polarisation 2\nnorm. factor: " + str(numpy.round(bandpassNormalisationFactorPol2, 3)))
+    pyplot.grid(linestyle = "--")
+    pyplot.legend()
+    pyplot.xlabel("frequency channel centre (MHz)")
+    pyplot.ylabel("antenna-based gain amplitude (1)")
+    pyplot.xlim(frequencyStart - plotFrequencyLimit, frequencyStart + frequencyRange + plotFrequencyLimit)
+    pyplot.ylim(0, 2 + plotAmplitudeLimit)
+    pyplot.title("$\mathbf{amplitude\ bandpass\ (iteration\ " + nameIteration + ")}$\ndata set: "
+                 + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: " + str(i) + " | calibrator: "
+                 + nameField, fontsize = 9)
+    pyplot.subplots_adjust(left = .07, right = .98, bottom = 0.08, top = 0.91)
+    pyplot.savefig(pathDirectoryPlots + "/bandpassAmplitude_ant" + str(i) + "_iter" + nameIteration + ".pdf")
+    pyplot.close()
+
+
 def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = False):
 
     # Initialise logistics.
@@ -127,15 +191,22 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     objectSolTabGainAmplitudes = objectSolSet.getSoltab("amplitude000")
     objectSolTabGainPhases     = objectSolSet.getSoltab("phase000")
 
-    # Load antenna-based gains and weights (generalised flags, in a sense).
+    # Load antenna-based gains and weights.
     # 'objectSolTabGainAmplitudes.getValues(retAxesVals = False).shape' is e.g. (2, 1, 30, 2048, 75):
     # 2 polarisations, 1 direction, 30 antennae, 2048 frequency channels, 75 time stamps.
     _, axes                    = objectSolTabGainAmplitudes.getValues(retAxesVals = True)
+
     gainAmplitudes             = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = False)[ : , 0, : , : , : ]
     gainPhases                 = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)[ : , 0, : , : , : ]
 
     weightsForAmplitudes       = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = True) [ : , 0, : , : , : ]
     weightsForPhases           = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = True) [ : , 0, : , : , : ]
+
+
+    # Calculate flags from weights, which are (inverted) generalised flags, in a sense. This program uses only flags.
+    flagsForAmplitudes         = numpy.logical_not(weightsForAmplitudes)
+    flagsForPhases             = numpy.logical_not(weightsForPhases)
+
 
     # Load dimensions.
     numberOfPolarisations, numberOfAntennae, numberOfChannels, numberOfTimeStamps = gainAmplitudes.shape
@@ -165,20 +236,20 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     gainPhasesPol1             = gainPhases[0]
     gainPhasesPol2             = gainPhases[1]
 
-    # Split-up weights by polarisation.
-    weightsForAmplitudesPol1   = weightsForAmplitudes[0]
-    weightsForAmplitudesPol2   = weightsForAmplitudes[1]
-    weightsForPhasesPol1       = weightsForPhases[0]
-    weightsForPhasesPol2       = weightsForPhases[1]
+    # Split-up flags by polarisation.
+    flagsForAmplitudesPol1   = flagsForAmplitudes[0]
+    flagsForAmplitudesPol2   = flagsForAmplitudes[1]
+    flagsForPhasesPol1       = flagsForPhases[0]
+    flagsForPhasesPol2       = flagsForPhases[1]
 
 
     # Flagged data should not be used in calculations.
     # Masking using 'numpy.ma.masked_array(...)' is not always practical - the mask is lost during some NumPy operations.
     # We choose to set flagged amplitudes and phases to 'numpy.nan'. (This leads to undesired colormap behaviour in 3D plotting, however.)
-    gainAmplitudesPol1         = numpy.where(numpy.logical_not(weightsForAmplitudesPol1), numpy.nan, gainAmplitudesPol1)
-    gainAmplitudesPol2         = numpy.where(numpy.logical_not(weightsForAmplitudesPol2), numpy.nan, gainAmplitudesPol2)
-    gainPhasesPol1             = numpy.where(numpy.logical_not(weightsForPhasesPol1),     numpy.nan, gainPhasesPol1)
-    gainPhasesPol2             = numpy.where(numpy.logical_not(weightsForPhasesPol2),     numpy.nan, gainPhasesPol2)
+    gainAmplitudesPol1         = numpy.where(flagsForAmplitudesPol1, numpy.nan, gainAmplitudesPol1)
+    gainAmplitudesPol2         = numpy.where(flagsForAmplitudesPol2, numpy.nan, gainAmplitudesPol2)
+    gainPhasesPol1             = numpy.where(flagsForPhasesPol1,     numpy.nan, gainPhasesPol1)
+    gainPhasesPol2             = numpy.where(flagsForPhasesPol2,     numpy.nan, gainPhasesPol2)
 
 
     # Load the field name.
@@ -203,45 +274,16 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     plotPhases2D(    gainPhasesPol2,     times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5Parm)
 
 
-    #print(numpy.amax(gainPhasesPol1), numpy.amin(gainPhasesPol2))
-    #print ((objectH5Parm.H.root.sol000.amplitude000.val).shape)
-    #print (type(weightsForPhases[0, 0, 0, 0]))
-
-    #for valsThisTime, weights, coord, selection in getValuesIter(returnAxes = ["time",'freq'], weights = True):
-    #    valsThisTime *= 2
-    #    setValues(selection = selection)
-
-        #antennaNames, polarisationNames, frequencies, times = axes
-    #print (namesAntenna)
-    #print (frequencies)
-    #print (gainAmplitudes.shape)
-    #print (axes)
-    # '(objectH5Parm.H.root.sol000.amplitude000.val).shape' is e.g. (2, 1, 30, 2048, 75):
-    # 2 polarisations, 1 direction, 30 antennae, 2048 frequency channels, 75 time stamps.
-    #gainAmplitudes           = (objectH5Parm.H.root.sol000.amplitude000.val)   [ : , 0, : , : , : ]
-    #gainPhases               = (objectH5Parm.H.root.sol000.phase000.val)       [ : , 0, : , : , : ]
-
-    # Load weights (generalised flags).
-    #weightsForAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.weight)[ : , 0, : , : , : ]
-    #weightsForPhases         = (objectH5Parm.H.root.sol000.phase000.weight)    [ : , 0, : , : , : ]
-
-    # These values can be taken from the MS, and perhaps also from the H5Parm file.
-    # Temporary!
-    #timeStart          = 0                                    # in seconds
-    #timeStampLength    = 8.05                                 # in seconds
-    #timeRange          = numberOfTimeStamps * timeStampLength # in seconds
 
     # Output debug info.
     print (gainAmplitudes.shape)
     print (gainPhases.shape)
     print (gainAmplitudesPol1.shape)
     print (gainPhasesPol1.shape)
-    print (weightsForAmplitudesPol2.shape)
-    print (weightsForPhasesPol2.shape)
+    print (flagsForAmplitudesPol2.shape)
+    print (flagsForPhasesPol2.shape)
     print ("numberOfAntennae:", numberOfAntennae, "numberOfChannels:", numberOfChannels, "numberOfTimeStamps:", numberOfTimeStamps)
 
-    import sys
-    sys.exit()
 
     '''
     In this step, the amplitude bandpasses for each antenna are determined in two iterations.
@@ -250,18 +292,25 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     '''
 
     # Create lists that store the normalised amplitude bandpasses and the bandpass normalisation factors.
-    bandpassesAmplitudePol1          = []
-    bandpassesAmplitudePol2          = []
-    bandpassNormalisationFactorsPol1 = []
-    bandpassNormalisationFactorsPol2 = []
+    bandpassesAmplitudePol1Iter1               = []
+    bandpassesAmplitudePol2Iter1               = []
+    bandpassesAmplitudePol1Iter2               = []
+    bandpassesAmplitudePol2Iter2               = []
+    #bandpassNormalisationFactorsPol1           = []
+    #bandpassNormalisationFactorsPol2           = []
+
+    bandpassAmplitudeNumberOfSubiterations     = 3
+    bandpassAmplitudeFlaggingThresholdFactor   = 3
+    bandpassAmplitudeMedianFilteringKernelSize = 7
+
 
     for i in range(numberOfAntennae):
         if (antennaeWorking[i]):
             print ("Starting amplitude bandpass calculation for antenna ID " + str(i) + "...")
 
-            for subIteration in range(numberOfSubIterationsBandpassAmplitude):
-                # Determine the amplitude bandpass (iteration 1).
-                if (subIteration == numberOfSubIterationsBandpassAmplitude - 1): # If in the last iteration, determine the amplitude bandpass using the mean.
+            # Determine the amplitude bandpass (iteration 1).
+            for subiteration in range(bandpassAmplitudeNumberOfSubiterations):
+                if (subiteration == bandpassAmplitudeNumberOfSubiterations - 1): # If in the last subiteration, determine the amplitude bandpass using the mean.
                     bandpassAmplitudePol1Iter1 = numpy.nanmean(gainAmplitudesPol1[i], axis = 1)
                     bandpassAmplitudePol2Iter1 = numpy.nanmean(gainAmplitudesPol2[i], axis = 1)
                 else: # During earlier iterations, to avoid e.g. RFI signatures, we use the median.
@@ -272,75 +321,84 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
                 gridBandpassAmplitudePol1 = numpy.tile(bandpassAmplitudePol1Iter1, (numberOfTimeStamps, 1)).T
                 gridBandpassAmplitudePol2 = numpy.tile(bandpassAmplitudePol2Iter1, (numberOfTimeStamps, 1)).T
 
-                # Remove the bandpass from the data. Residuals will be centered around 1.
-                gridResidualsPol1 = numpy.divide(gainAmplitudesPol1[i], gridBandpassAmplitudePol1)
-                gridResidualsPol2 = numpy.divide(gainAmplitudesPol2[i], gridBandpassAmplitudePol2)
+                # Divide the data by the provisional bandpass. Residuals will be centered around 1.
+                gridResidualsPol1         = numpy.divide(gainAmplitudesPol1[i], gridBandpassAmplitudePol1)
+                gridResidualsPol2         = numpy.divide(gainAmplitudesPol2[i], gridBandpassAmplitudePol2)
 
                 # Calculate the standard deviation of the residuals.
-                STDPol1 = numpy.nanstd(gridResidualsPol1)
-                STDPol2 = numpy.nanstd(gridResidualsPol2)
+                STDPol1                   = numpy.nanstd(gridResidualsPol1)
+                STDPol2                   = numpy.nanstd(gridResidualsPol2)
 
                 # Determine outliers and update the flags. This makes sure that the bandpass in the next iterations is better.
-                gridIsOutlierPol1 = numpy.greater(numpy.absolute(gridResidualsPol1 - 1), flaggingThresholdFactorAmplitude * STDPol1)
-                gridIsOutlierPol2 = numpy.greater(numpy.absolute(gridResidualsPol2 - 1), flaggingThresholdFactorAmplitude * STDPol2)
-                flagsPol1[i] = numpy.logical_or(flagsPol1[i], gridIsOutlierPol1)
-                flagsPol2[i] = numpy.logical_or(flagsPol2[i], gridIsOutlierPol2)
+                gridIsOutlierPol1         = numpy.greater(numpy.absolute(gridResidualsPol1 - 1), bandpassAmplitudeFlaggingThresholdFactor * STDPol1)
+                gridIsOutlierPol2         = numpy.greater(numpy.absolute(gridResidualsPol2 - 1), bandpassAmplitudeFlaggingThresholdFactor * STDPol2)
+                flagsForAmplitudesPol1[i] = numpy.logical_or(flagsForAmplitudesPol1[i], gridIsOutlierPol1)
+                flagsForAmplitudesPol2[i] = numpy.logical_or(flagsForAmplitudesPol2[i], gridIsOutlierPol2)
 
-                # Set flagged data to 'numpy.nan'.
-                gainAmplitudesPol1[i] = numpy.where(flagsPol1[i], numpy.nan, gainAmplitudesPol1[i])
-                gainAmplitudesPol2[i] = numpy.where(flagsPol2[i], numpy.nan, gainAmplitudesPol2[i])
-                gainPhasesPol1[i]     = numpy.where(flagsPol1[i], numpy.nan, gainPhasesPol1[i])
-                gainPhasesPol2[i]     = numpy.where(flagsPol2[i], numpy.nan, gainPhasesPol2[i])
-#
-#                 # Median filter and interpolate the amplitude bandpass (iteration 2).
-#                 bandpassAmplitudePol1Iter2 = fillGaps1D(filterMedian1D(bandpassAmplitudePol1Iter1, kernelSize = 7))
-#                 bandpassAmplitudePol2Iter2 = fillGaps1D(filterMedian1D(bandpassAmplitudePol2Iter1, kernelSize = 7))
-#
-#                 '''
-#                 # Use this piece of code to debug the second iteration of the amplitude bandpass.
-#                 pyplot.plot(gridFrequencies[ : , 0], bandpassAmplitudePol1Iter1, c = 'r', linestyle = "--")
-#                 pyplot.plot(gridFrequencies[ : , 0], bandpassAmplitudePol1Iter2, c = 'b', linestyle = ":")
-#                 pyplot.scatter(gridFrequencies[ : , 0], bandpassAmplitudePol1Iter1, s = 4, c = 'r')
-#                 pyplot.scatter(gridFrequencies[ : , 0], bandpassAmplitudePol1Iter2, s = 4, c = 'b')
-#                 pyplot.show()
-#                 sys.exit()
-#                 '''
-#
-#                 # Normalise the amplitude bandpass for both polarisations.
-#                 # We do not normalise by determining the factor that scales the amplitude bandpass peak to 1,
-#                 # as this would result in wrong scaling behaviour in cases where the 'real' peak is absent in the
-#                 # bandpass due to flagging.
-#                 # We also do not normalise by determining the factor that would scale the mean of the bandpass
-#                 # to 1, as this requires taking the mean of all channels except for those flagged. In such case,
-#                 # when many channels at the lower and upper end of the frequency band are non-flagged, the scaling
-#                 # is different than when many of those edge channels are flagged.
-#                 # We conclude that the best thing to do is to normalise by determining the factor that would scale
-#                 # the mean bandpass in a selected range of frequency channels to 1. These channels are chosen such
-#                 # that the bandpass is approximately constant over them.
-#                 # If we normalise bandpass iteration 2, then we could use 'numpy.mean' instead of 'numpy.nanmean' as well
-#                 # in the determination of 'bandpassNormalisationFactorPolX'. After all, due to the linear interpolation
-#                 # only the edges of the frequency band still lack a bandpass value. We still prefer using 'numpy.nanmean'
-#                 # for antennae with a lot of flagged channels at the outer parts of the frequency band, as in such cases
-#                 # a few 'numpy.nan's might lie into the domain '[frequencyNormalisationStart, frequencyNormalisationEnd]'.
-#
-#
-#                 # Determine the normalisation factors.
-#                 indexStart = numpy.argmax(gridFrequencies[ : , 0] > frequencyNormalisationStart)
-#                 indexEnd   = numpy.argmax(gridFrequencies[ : , 0] > frequencyNormalisationEnd)
-#                 bandpassNormalisationFactorPol1 = numpy.nanmean(bandpassAmplitudePol1Iter2[indexStart : indexEnd]) # 'numpy.mean' would work too, mostly
-#                 bandpassNormalisationFactorPol2 = numpy.nanmean(bandpassAmplitudePol2Iter2[indexStart : indexEnd]) # 'numpy.mean' would work too, mostly
-#
-#                 # Divide the amplitude bandpasses by the normalisation factor.
-#                 bandpassAmplitudePol1Iter1 = numpy.divide(bandpassAmplitudePol1Iter1, bandpassNormalisationFactorPol1)
-#                 bandpassAmplitudePol2Iter1 = numpy.divide(bandpassAmplitudePol2Iter1, bandpassNormalisationFactorPol2)
-#                 bandpassAmplitudePol1Iter2 = numpy.divide(bandpassAmplitudePol1Iter2, bandpassNormalisationFactorPol1)
-#                 bandpassAmplitudePol2Iter2 = numpy.divide(bandpassAmplitudePol2Iter2, bandpassNormalisationFactorPol2)
-#
-#                 # Add the normalised amplitude bandpasses and normalisation factors to the appropriate lists.
-#                 bandpassesAmplitudePol1.append(bandpassAmplitudePol1Iter2)
-#                 bandpassesAmplitudePol2.append(bandpassAmplitudePol2Iter2)
-#                 bandpassNormalisationFactorsPol1.append(bandpassNormalisationFactorPol1)
-#                 bandpassNormalisationFactorsPol2.append(bandpassNormalisationFactorPol2)
+                # Set flagged amplitudes to 'numpy.nan'.
+                gainAmplitudesPol1[i]     = numpy.where(flagsForAmplitudesPol1[i], numpy.nan, gainAmplitudesPol1[i])
+                gainAmplitudesPol2[i]     = numpy.where(flagsForAmplitudesPol2[i], numpy.nan, gainAmplitudesPol2[i])
+
+            bandpassesAmplitudePol1Iter1.append(bandpassAmplitudePol1Iter1)
+            bandpassesAmplitudePol2Iter1.append(bandpassAmplitudePol2Iter1)
+
+
+            # Determine the amplitude bandpass (iteration 2).
+
+            # Median filter and interpolate the amplitude bandpass.
+            bandpassAmplitudePol1Iter2 = fillGaps1D(filterMedian1D(bandpassAmplitudePol1Iter1, kernelSize = bandpassAmplitudeMedianFilteringKernelSize))
+            bandpassAmplitudePol2Iter2 = fillGaps1D(filterMedian1D(bandpassAmplitudePol2Iter1, kernelSize = bandpassAmplitudeMedianFilteringKernelSize))
+
+            '''
+            # Use this piece of code to debug the second iteration of the amplitude bandpass.
+            pyplot.plot(gridFrequencies[ : , 0], bandpassAmplitudePol1Iter1, c = 'r', linestyle = "--")
+            pyplot.plot(gridFrequencies[ : , 0], bandpassAmplitudePol1Iter2, c = 'b', linestyle = ":")
+            pyplot.scatter(gridFrequencies[ : , 0], bandpassAmplitudePol1Iter1, s = 4, c = 'r')
+            pyplot.scatter(gridFrequencies[ : , 0], bandpassAmplitudePol1Iter2, s = 4, c = 'b')
+            pyplot.show()
+            sys.exit()
+            '''
+
+            # Normalise the amplitude bandpass for both polarisations.
+            # We do not normalise by determining the factor that scales the amplitude bandpass peak to 1,
+            # as this would result in wrong scaling behaviour in cases where the 'real' peak is absent in the
+            # bandpass due to flagging.
+            # We also do not normalise by determining the factor that would scale the mean of the bandpass
+            # to 1, as this requires taking the mean of all channels except for those flagged. In such case,
+            # when many channels at the lower and upper end of the frequency band are non-flagged, the scaling
+            # is different than when many of those edge channels are flagged.
+            # We conclude that the best thing to do is to normalise by determining the factor that would scale
+            # the mean bandpass in a selected range of frequency channels to 1. These channels are chosen such
+            # that the bandpass is approximately constant over them.
+            # If we normalise bandpass iteration 2, then we could use 'numpy.mean' instead of 'numpy.nanmean' as well
+            # in the determination of 'bandpassNormalisationFactorPolX'. After all, due to the linear interpolation
+            # only the edges of the frequency band still lack a bandpass value. We still prefer using 'numpy.nanmean'
+            # for antennae with a lot of flagged channels at the outer parts of the frequency band, as in such cases
+            # a few 'numpy.nan's might lie into the domain '[frequencyNormalisationStart, frequencyNormalisationEnd]'.
+
+
+            # Determine the normalisation factors.
+            #indexStart = numpy.argmax(gridFrequencies[ : , 0] > frequencyNormalisationStart)
+            #indexEnd   = numpy.argmax(gridFrequencies[ : , 0] > frequencyNormalisationEnd)
+            #bandpassNormalisationFactorPol1 = numpy.nanmean(bandpassAmplitudePol1Iter2[indexStart : indexEnd]) # 'numpy.mean' would work too, mostly
+            #bandpassNormalisationFactorPol2 = numpy.nanmean(bandpassAmplitudePol2Iter2[indexStart : indexEnd]) # 'numpy.mean' would work too, mostly
+
+            # Divide the amplitude bandpasses by the normalisation factor.
+            #bandpassAmplitudePol1Iter1 = numpy.divide(bandpassAmplitudePol1Iter1, bandpassNormalisationFactorPol1)
+            #bandpassAmplitudePol2Iter1 = numpy.divide(bandpassAmplitudePol2Iter1, bandpassNormalisationFactorPol2)
+            #bandpassAmplitudePol1Iter2 = numpy.divide(bandpassAmplitudePol1Iter2, bandpassNormalisationFactorPol1)
+            #bandpassAmplitudePol2Iter2 = numpy.divide(bandpassAmplitudePol2Iter2, bandpassNormalisationFactorPol2)
+
+            # Add the normalised amplitude bandpasses and normalisation factors to the appropriate lists.
+            bandpassesAmplitudePol1Iter2.append(bandpassAmplitudePol1Iter2)
+            bandpassesAmplitudePol2Iter2.append(bandpassAmplitudePol2Iter2)
+            #bandpassNormalisationFactorsPol1.append(bandpassNormalisationFactorPol1)
+            #bandpassNormalisationFactorsPol2.append(bandpassNormalisationFactorPol2)
+
+    # Plot amplitude bandpasses.
+    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, pathDirectoryPlots, nameIteration = "1")
+    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, pathDirectoryPlots, nameIteration = "2")
+
 #
 #
 #                 if (plot):
@@ -440,6 +498,35 @@ if (__name__ == "__main__"):
     print (arguments)
 
     dedicated_uGMRT_bandpass(arguments.pathDirectoryMS)
+
+
+#print(numpy.amax(gainPhasesPol1), numpy.amin(gainPhasesPol2))
+#print ((objectH5Parm.H.root.sol000.amplitude000.val).shape)
+#print (type(weightsForPhases[0, 0, 0, 0]))
+
+#for valsThisTime, weights, coord, selection in getValuesIter(returnAxes = ["time",'freq'], weights = True):
+#    valsThisTime *= 2
+#    setValues(selection = selection)
+
+    #antennaNames, polarisationNames, frequencies, times = axes
+#print (namesAntenna)
+#print (frequencies)
+#print (gainAmplitudes.shape)
+#print (axes)
+# '(objectH5Parm.H.root.sol000.amplitude000.val).shape' is e.g. (2, 1, 30, 2048, 75):
+# 2 polarisations, 1 direction, 30 antennae, 2048 frequency channels, 75 time stamps.
+#gainAmplitudes           = (objectH5Parm.H.root.sol000.amplitude000.val)   [ : , 0, : , : , : ]
+#gainPhases               = (objectH5Parm.H.root.sol000.phase000.val)       [ : , 0, : , : , : ]
+
+# Load weights (generalised flags).
+#weightsForAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.weight)[ : , 0, : , : , : ]
+#weightsForPhases         = (objectH5Parm.H.root.sol000.phase000.weight)    [ : , 0, : , : , : ]
+
+# These values can be taken from the MS, and perhaps also from the H5Parm file.
+# Temporary!
+#timeStart          = 0                                    # in seconds
+#timeStampLength    = 8.05                                 # in seconds
+#timeRange          = numberOfTimeStamps * timeStampLength # in seconds
 
 # '''
 # Martijn Oei, 2017
