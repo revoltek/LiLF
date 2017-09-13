@@ -121,8 +121,11 @@ def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID 
     objectSolTabGainPhases                   = objectSolSet.getSoltab("phase000")
 
     # Load antenna-based gains.
-    gainAmplitudes, gainAmplitudesAxisValues = objectSolTabGainAmplitudes.getValues(retAxesVals = True)
-    gainPhases                               = objectSolTabGainPhases.getValues(    retAxesVals = False)
+    gainAmplitudes, gainAmplitudesAxisValues = objectSolTabGainAmplitudes.getValues(retAxesVals = True,  weight = False)
+    gainPhases                               = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)
+
+    weightsForAmplitudes                     = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = True)
+    weightsForPhases                         = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = True)
 
     # Initialise axes arrays.
     #frequencies =
@@ -138,12 +141,12 @@ def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID 
 
     # '(objectH5Parm.H.root.sol000.amplitude000.val).shape' is e.g. (2, 1, 30, 2048, 75):
     # 2 polarisations, 1 direction, 30 antennae, 2048 frequency channels, 75 time stamps.
-    gainAmplitudes           = (objectH5Parm.H.root.sol000.amplitude000.val)   [ : , 0, : , : , : ]
-    gainPhases               = (objectH5Parm.H.root.sol000.phase000.val)       [ : , 0, : , : , : ]
+    #gainAmplitudes           = (objectH5Parm.H.root.sol000.amplitude000.val)   [ : , 0, : , : , : ]
+    #gainPhases               = (objectH5Parm.H.root.sol000.phase000.val)       [ : , 0, : , : , : ]
 
     # Load weights (generalised flags).
-    weightsForAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.weight)[ : , 0, : , : , : ]
-    weightsForPhases         = (objectH5Parm.H.root.sol000.phase000.weight)    [ : , 0, : , : , : ]
+    #weightsForAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.weight)[ : , 0, : , : , : ]
+    #weightsForPhases         = (objectH5Parm.H.root.sol000.phase000.weight)    [ : , 0, : , : , : ]
 
     # Load dimension sizes.
     numberOfPolarisations, numberOfAntennae, numberOfChannels, numberOfTimeStamps = gainAmplitudes.shape
