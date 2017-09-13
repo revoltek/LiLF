@@ -120,43 +120,15 @@ def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID 
     objectSolTabGainAmplitudes = objectSolSet.getSoltab("amplitude000")
     objectSolTabGainPhases     = objectSolSet.getSoltab("phase000")
 
-    # Load antenna-based gains.
+    # Load antenna-based gains and weights (generalised flags, in a sense).
+    # 'objectSolTabGainAmplitudes.getValues(retAxesVals = False).shape' is e.g. (2, 1, 30, 2048, 75):
+    # 2 polarisations, 1 direction, 30 antennae, 2048 frequency channels, 75 time stamps.
     _, axes                    = objectSolTabGainAmplitudes.getValues(retAxesVals = True)
     gainAmplitudes             = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = False)[ : , 0, : , : , : ]
     gainPhases                 = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)[ : , 0, : , : , : ]
 
     weightsForAmplitudes       = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = True) [ : , 0, : , : , : ]
     weightsForPhases           = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = True) [ : , 0, : , : , : ]
-
-    # Initialise axes arrays.
-    namesPolarisation          = axes["pol"]
-    namesAntenna               = axes["ant"]
-    frequencies                = axes["freq"]
-    times                      = axes["time"]
-
-    #antennaNames, polarisationNames, frequencies, times = axes
-
-    print (namesAntenna)
-    print (frequencies)
-    #frequencies =
-    #times       =
-    objectH5Parm.printInfo()
-    print (gainAmplitudes.shape)
-    print (axes)
-    namesSolTabs = objectSolSet.getSoltabNames()
-    print (namesSolTabs)
-    import sys
-    sys.exit()
-
-
-    # '(objectH5Parm.H.root.sol000.amplitude000.val).shape' is e.g. (2, 1, 30, 2048, 75):
-    # 2 polarisations, 1 direction, 30 antennae, 2048 frequency channels, 75 time stamps.
-    #gainAmplitudes           = (objectH5Parm.H.root.sol000.amplitude000.val)   [ : , 0, : , : , : ]
-    #gainPhases               = (objectH5Parm.H.root.sol000.phase000.val)       [ : , 0, : , : , : ]
-
-    # Load weights (generalised flags).
-    #weightsForAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.weight)[ : , 0, : , : , : ]
-    #weightsForPhases         = (objectH5Parm.H.root.sol000.phase000.weight)    [ : , 0, : , : , : ]
 
     # Load dimension sizes.
     numberOfPolarisations, numberOfAntennae, numberOfChannels, numberOfTimeStamps = gainAmplitudes.shape
@@ -166,22 +138,32 @@ def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID 
         logging.error("2 polarisations expected, but " + str(numberOfPolarisations) + " received. Aborting...")
         sys.exit()
 
+
+    # Initialise axes arrays.
+    namesPolarisation          = axes["pol"]
+    namesAntenna               = axes["ant"]
+    frequencies                = axes["freq"]
+    times                      = axes["time"]
+
+
     # Make gain phases relative to reference antenna, clip and convert from radians to degrees.
-    gainPhases -= numpy.tile(gainPhases[ : , referenceAntennaID : referenceAntennaID + 1, : , : ], (1, numberOfAntennae, 1, 1))
-    gainPhases  = wrapPhasesZeroCentred(gainPhases, unitDegree = False)
-    gainPhases  = numpy.degrees(gainPhases)
+    gainPhases                -= numpy.tile(gainPhases[ : , referenceAntennaID : referenceAntennaID + 1, : , : ], (1, numberOfAntennae, 1, 1))
+    gainPhases                 = wrapPhasesZeroCentred(gainPhases, unitDegree = False)
+    gainPhases                 = numpy.degrees(gainPhases)
+
 
     # Split-up gains by polarisation.
-    gainAmplitudesPol1       = gainAmplitudes[0]
-    gainAmplitudesPol2       = gainAmplitudes[1]
-    gainPhasesPol1           = gainPhases[0]
-    gainPhasesPol2           = gainPhases[1]
+    gainAmplitudesPol1         = gainAmplitudes[0]
+    gainAmplitudesPol2         = gainAmplitudes[1]
+    gainPhasesPol1             = gainPhases[0]
+    gainPhasesPol2             = gainPhases[1]
 
     # Split-up weights by polarisation.
-    weightsForAmplitudesPol1 = weightsForAmplitudes[0]
-    weightsForAmplitudesPol2 = weightsForAmplitudes[1]
-    weightsForPhasesPol1     = weightsForPhases[0]
-    weightsForPhasesPol2     = weightsForPhases[1]
+    weightsForAmplitudesPol1   = weightsForAmplitudes[0]
+    weightsForAmplitudesPol2   = weightsForAmplitudes[1]
+    weightsForPhasesPol1       = weightsForPhases[0]
+    weightsForPhasesPol2       = weightsForPhases[1]
+
 
     # Flagged data should not be used in calculations.
     # Masking using 'numpy.ma.masked_array(...)' is not always practical - the mask is lost during some NumPy operations.
@@ -192,6 +174,13 @@ def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID 
     gainPhasesPol2     = numpy.where(numpy.logical_not(weightsForPhasesPol2),     numpy.nan, gainPhasesPol2)
 
 
+    namesSolTabs = objectSolSet.getSoltabNames()
+    print (namesSolTabs)
+
+
+    import sys
+    sys.exit()
+
 
     #print(numpy.amax(gainPhasesPol1), numpy.amin(gainPhasesPol2))
     #print ((objectH5Parm.H.root.sol000.amplitude000.val).shape)
@@ -200,6 +189,20 @@ def dedicated_uGMRT_bandpass(pathH5Parm, pathDirectoryPlots, referenceAntennaID 
     #for valsThisTime, weights, coord, selection in getValuesIter(returnAxes = ["time",'freq'], weights = True):
     #    valsThisTime *= 2
     #    setValues(selection = selection)
+
+        #antennaNames, polarisationNames, frequencies, times = axes
+    #print (namesAntenna)
+    #print (frequencies)
+    #print (gainAmplitudes.shape)
+    #print (axes)
+    # '(objectH5Parm.H.root.sol000.amplitude000.val).shape' is e.g. (2, 1, 30, 2048, 75):
+    # 2 polarisations, 1 direction, 30 antennae, 2048 frequency channels, 75 time stamps.
+    #gainAmplitudes           = (objectH5Parm.H.root.sol000.amplitude000.val)   [ : , 0, : , : , : ]
+    #gainPhases               = (objectH5Parm.H.root.sol000.phase000.val)       [ : , 0, : , : , : ]
+
+    # Load weights (generalised flags).
+    #weightsForAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.weight)[ : , 0, : , : , : ]
+    #weightsForPhases         = (objectH5Parm.H.root.sol000.phase000.weight)    [ : , 0, : , : , : ]
 
     # These values can be taken from the MS, and perhaps also from the H5Parm file.
     # Temporary!
