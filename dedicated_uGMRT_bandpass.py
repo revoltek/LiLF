@@ -36,13 +36,13 @@ def wrapPhasesZeroCentred(phases, unitDegree = True):
         return phases
 
 
-def plotAmplitudes2D(amplitudes, antennaeWorking, pathDirectoryPlots, namePolarisation, nameField, timeStart, timeRange,
-                     frequencyStart = 300, frequencyRange = 200, nameH5Parm = "?", nameTelescope = "uGMRT"):
+def plotAmplitudes2D(amplitudes, times, frequencies, antennaeWorking, pathDirectoryPlots,
+                     namePolarisation = "?", nameField = "?", nameDataSet = "?", nameTelescope = "uGMRT"):
     """
     Generate time-frequency plots of antenna-based gain amplitudes, of one specific polarisation.
     """
 
-    # Establish data properties.
+    # Load dimensions.
     numberOfAntennae, numberOfChannels, numberOfTimeStamps = amplitudes.shape
 
     for i in range(numberOfAntennae):
@@ -56,11 +56,11 @@ def plotAmplitudes2D(amplitudes, antennaeWorking, pathDirectoryPlots, namePolari
             pyplot.xlabel("time (s)")
             pyplot.ylabel("frequency (MHz)")
             pyplot.xticks(numpy.linspace(0, numberOfTimeStamps - 1, num = 5, endpoint = True),
-                          numpy.linspace(timeStart, timeStart + timeRange, num = 5, endpoint = True).astype(int))
+                          numpy.linspace(times[0], times[-1], num = 5, endpoint = True).astype(int))
             pyplot.yticks(numpy.linspace(0, numberOfChannels - 1, num = 5, endpoint = True),
-                          numpy.linspace(frequencyStart, frequencyStart + frequencyRange, num = 5, endpoint = True).astype(int))
+                          numpy.linspace(frequencies[0], frequencies[-1], num = 5, endpoint = True).astype(int))
             pyplot.title("antenna-based gain amplitudes of uncalibrated calibrator visibilities\ndata set: "
-                         + nameH5Parm + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
+                         + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
                          + nameField + " | polarisation: " + namePolarisation)
 
             colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
@@ -74,13 +74,13 @@ def plotAmplitudes2D(amplitudes, antennaeWorking, pathDirectoryPlots, namePolari
             logging.info("Skipping gain amplitudes visualisation for antenna ID " + str(i) + " and polarisation " + namePolarisation + ": all data are flagged.")
 
 
-def plotPhases2D(phases, antennaeWorking, pathDirectoryPlots, namePolarisation, nameField, timeStart, timeRange,
-                 frequencyStart = 300, frequencyRange = 200, nameH5Parm = "?", nameTelescope = "uGMRT"):
+def plotPhases2D(phases, times, frequencies, antennaeWorking, pathDirectoryPlots,
+                 namePolarisation = "?", nameField = "?", nameDataSet = "?", nameTelescope = "uGMRT"):
     """
     Generate time-frequency plots of antenna-based gain phases, of one specific polarisation.
     """
 
-    # Establish data properties.
+    # Load dimensions.
     numberOfAntennae, numberOfChannels, numberOfTimeStamps = phases.shape
 
     for i in range(numberOfAntennae):
@@ -94,11 +94,11 @@ def plotPhases2D(phases, antennaeWorking, pathDirectoryPlots, namePolarisation, 
             pyplot.xlabel("time (s)")
             pyplot.ylabel("frequency (MHz)")
             pyplot.xticks(numpy.linspace(0, numberOfTimeStamps - 1, num = 5, endpoint = True),
-                          numpy.linspace(timeStart, timeStart + timeRange, num = 5, endpoint = True).astype(int))
+                          numpy.linspace(times[0], times[-1], num = 5, endpoint = True).astype(int))
             pyplot.yticks(numpy.linspace(0, numberOfChannels - 1, num = 5, endpoint = True),
-                          numpy.linspace(frequencyStart, frequencyStart + frequencyRange, num = 5, endpoint = True).astype(int))
+                          numpy.linspace(frequencies[0], frequencies[-1], num = 5, endpoint = True).astype(int))
             pyplot.title("antenna-based gain phases of uncalibrated calibrator visibilities\ndata set: "
-                         + nameH5Parm + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
+                         + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
                          + nameField + " | polarisation: " + namePolarisation)
 
             colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
@@ -137,7 +137,7 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     weightsForAmplitudes       = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = True) [ : , 0, : , : , : ]
     weightsForPhases           = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = True) [ : , 0, : , : , : ]
 
-    # Load dimension sizes.
+    # Load dimensions.
     numberOfPolarisations, numberOfAntennae, numberOfChannels, numberOfTimeStamps = gainAmplitudes.shape
 
     # Stop program if deviant data shape found.
@@ -185,11 +185,18 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     objectMS                   = lib_ms.MS(pathMS)
     nameField                  = objectMS.getNameField()
 
-    print("ANTWOORDJE:", nameField)
-    print(nameMS)
 
-    import sys
-    sys.exit()
+    # Determine which antennae are working.
+    antennaeWorking            = [True] * numberOfAntennae # Temporary!
+
+
+    # Plot gain amplitudes.
+    plotAmplitudes2D(gainAmplitudesPol1, times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5Parm)
+    plotAmplitudes2D(gainAmplitudesPol2, times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5Parm)
+
+    # Plot gain phases.
+    plotPhases2D(    gainPhasesPol1,     times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5Parm)
+    plotPhases2D(    gainPhasesPol2,     times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5Parm)
 
 
     #print(numpy.amax(gainPhasesPol1), numpy.amin(gainPhasesPol2))
@@ -216,19 +223,9 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
     # These values can be taken from the MS, and perhaps also from the H5Parm file.
     # Temporary!
-    nameField          = "3C147"
-    timeStart          = 0                                    # in seconds
-    timeStampLength    = 8.05                                 # in seconds
-    timeRange          = numberOfTimeStamps * timeStampLength # in seconds
-
-    # Plot gain amplitudes.
-    plotAmplitudes2D(gainAmplitudesPol1, [True] * numberOfAntennae, pathDirectoryPlots, "LL", nameField, timeStart, timeRange)
-    plotAmplitudes2D(gainAmplitudesPol2, [True] * numberOfAntennae, pathDirectoryPlots, "RR", nameField, timeStart, timeRange)
-
-    # Plot gain phases.
-    plotPhases2D(    gainPhasesPol1,     [True] * numberOfAntennae, pathDirectoryPlots, "LL", nameField, timeStart, timeRange)
-    plotPhases2D(    gainPhasesPol2,     [True] * numberOfAntennae, pathDirectoryPlots, "RR", nameField, timeStart, timeRange)
-
+    #timeStart          = 0                                    # in seconds
+    #timeStampLength    = 8.05                                 # in seconds
+    #timeRange          = numberOfTimeStamps * timeStampLength # in seconds
 
     # Output debug info.
     print (gainAmplitudes.shape)
