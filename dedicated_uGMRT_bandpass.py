@@ -116,7 +116,7 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
     # Initialise logistics.
     nameMS                     = pathDirectoryMS[pathDirectoryMS.rfind('/') + 1 : ]
-    pathMS                     = pathDirectoryMS + nameMS + ".MS"
+    pathMS                     = pathDirectoryMS + '/' + nameMS + ".MS"
     pathH5Parm                 = pathDirectoryMS + "/solutions/gainsRaw.h5"
     pathDirectoryPlots         = pathDirectoryMS + "/plots"
 
@@ -186,6 +186,7 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     nameField                  = objectMS.getNameField()
 
     print("ANTWOORDJE:", nameField)
+    print(nameMS)
 
     import sys
     sys.exit()
