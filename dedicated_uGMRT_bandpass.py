@@ -402,16 +402,9 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     plotBandpassesAmplitude2D(bandpassesAmplitudePol1Iter2, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5ParmInput)
     plotBandpassesAmplitude2D(bandpassesAmplitudePol2Iter2, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5ParmInput)
 
-
+    # Create final data products.
     cubeBandpassAmplitudeValues  = numpy.array([bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2])
     cubeBandpassAmplitudeWeights = numpy.logical_not(numpy.isnan(cubeBandpassAmplitudeValues))
-
-    # Save the amplitude bandpasses.
-    lib_util.check_rm(pathH5ParmOutput)
-    objectH5Parm = h5parm.h5parm(pathH5ParmOutput, readonly = False)
-    objectSolSet = objectH5Parm.makeSolset(solsetName = "sol000", addTables = True) # This doesn't actually add 'antenna' and 'source' tables - the function doesn't know an MS to generate them from.
-    objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "bandpassAmplitude", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassAmplitudeValues, weights = cubeBandpassAmplitudeWeights)
-    objectH5Parm.close()
 
 
     #
@@ -456,6 +449,25 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 #                 derivTimeDTECsIter1Pol2Grid = derivTimePol2 * gridFrequencies[ : , : -1] / (1210 * 400)
 #                 derivTimeDTECsIter1Pol2     = numpy.nanmean(derivTimeDTECsIter1Pol2Grid, axis = 0)
 
+
+
+    # Create final data products.
+    cubeBandpassPhaseValues  = numpy.array([bandpassesPhasePol1, bandpassesPhasePol2])
+    cubeBandpassPhaseWeights = numpy.logical_not(numpy.isnan(cubeBandpassPhaseValues))
+
+    # Create final data products.
+    # gridTECValues  =
+    # gridTECWeights =
+
+
+    # Save the amplitude and phase bandpasses.
+    lib_util.check_rm(pathH5ParmOutput)
+    objectH5Parm = h5parm.h5parm(pathH5ParmOutput, readonly = False)
+    objectSolSet = objectH5Parm.makeSolset(solsetName = "sol000", addTables = True) # This doesn't actually add 'antenna' and 'source' tables - the function doesn't know an MS to generate them from.
+    objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "bandpassAmplitude", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassAmplitudeValues, weights = cubeBandpassAmplitudeWeights)
+    #objectSolSet.makeSoltab(soltype = "phase",     soltabName = "bandpassPhase",     axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassPhaseValues,     weights = cubeBandpassPhaseWeights)
+    #objectSolSet.makeSoltab(soltype = "tec",       soltabName = "TEC",               axesNames = ["ant", "time"],        axesVals = [namesAntenna, times],                          vals = gridTECValues,               weights = gridTECWeights)
+    objectH5Parm.close()
 
 
     # After amplitude and phase bandpass and TECs are created, save back to H5Parm file.
