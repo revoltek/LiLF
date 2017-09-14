@@ -185,6 +185,27 @@ def plotBandpassesAmplitude(bandpassesAmplitudePol1, bandpassesAmplitudePol2, fr
             logging.info("Skipping amplitude bandpass visualisation for antenna ID " + str(i) + ": all data are flagged.")
 
 
+def plotBandpassesAmplitude2D(bandpassesAmplitude, pathDirectoryPlots, namePolarisation = "?", nameField = "?", nameDataSet = "?", nameTelescope = "uGMRT"):
+    """
+    Generate frequency-antenna plots of amplitude bandpasses, of one specific polarisation.
+    """
+    logging.info("Starting amplitude bandpass visualisation for polarisation " + namePolarisation + "...")
+
+
+    pyplot.figure(figsize = (12, 6))
+
+    pyplot.imshow(numpy.array(bandpassesAmplitude), aspect = "auto", interpolation = "none")
+
+    pyplot.xlabel("frequency channel centre (MHz)")
+    pyplot.ylabel("antenna ID")
+    pyplot.title("$\mathbf{amplitude\ bandpasses}$\ndata set: " + nameDataSet
+                 + " | telescope: " + nameTelescope + " | calibrator: " + nameField
+                 + " | polarisation: " + namePolarisation, fontsize = 9)
+
+    pyplot.savefig(pathDirectoryPlots + "/bandpassAmplitudeAll2D_pol" + namePolarisation + ".pdf")
+    pyplot.close()
+
+
 def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = False):
 
     # Initialise logistics.
@@ -196,8 +217,8 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
 
     # Initialise H5Parm file objects.
-    objectH5ParmInput          = h5parm.h5parm(pathH5ParmInput, readonly = True)
-    objectSolSet               = objectH5ParmInput.getSolset("sol000")
+    objectH5Parm               = h5parm.h5parm(pathH5ParmInput, readonly = True)
+    objectSolSet               = objectH5Parm.getSolset("sol000")
     objectSolTabGainAmplitudes = objectSolSet.getSoltab("amplitude000")
     objectSolTabGainPhases     = objectSolSet.getSoltab("phase000")
 
@@ -211,6 +232,9 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
     weightsForAmplitudes       = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = True) [ : , 0, : , : , : ]
     weightsForPhases           = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = True) [ : , 0, : , : , : ]
+
+    # Close H5Parm file, freeing up memory.
+    objectH5Parm.close()
 
 
     # Calculate flags from weights, which are (inverted) generalised flags, in a sense. This program uses only flags.
@@ -276,12 +300,12 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
 
     # Plot gain amplitudes.
-    #plotAmplitudes2D(gainAmplitudesPol1, times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5Parm)
-    #plotAmplitudes2D(gainAmplitudesPol2, times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5Parm)
+    #plotAmplitudes2D(gainAmplitudesPol1, times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5ParmInput)
+    #plotAmplitudes2D(gainAmplitudesPol2, times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5ParmInput)
 
     # Plot gain phases.
-    #plotPhases2D(    gainPhasesPol1,     times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5Parm)
-    #plotPhases2D(    gainPhasesPol2,     times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5Parm)
+    #plotPhases2D(    gainPhasesPol1,     times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5ParmInput)
+    #plotPhases2D(    gainPhasesPol2,     times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5ParmInput)
 
 
 
@@ -306,8 +330,6 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     bandpassesAmplitudePol2Iter1               = []
     bandpassesAmplitudePol1Iter2               = []
     bandpassesAmplitudePol2Iter2               = []
-    #bandpassNormalisationFactorsPol1           = []
-    #bandpassNormalisationFactorsPol2           = []
 
     bandpassAmplitudeNumberOfSubiterations     = 3
     bandpassAmplitudeFlaggingThresholdFactor   = 3
@@ -380,30 +402,30 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
 
     # Plot amplitude bandpasses.
-    #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5Parm)
-    #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5Parm)
+    #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5ParmInput)
+    #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5ParmInput)
 
-    pyplot.imshow(numpy.array(bandpassesAmplitudePol1Iter2), aspect = "auto", interpolation = "none")
-    pyplot.savefig("/disks/strw3/oei/bandpassessssssPol1.pdf")
-    pyplot.close()
-    pyplot.imshow(numpy.array(bandpassesAmplitudePol2Iter2), aspect = "auto", interpolation = "none")
-    pyplot.savefig("/disks/strw3/oei/bandpassessssssPol2.pdf")
-    pyplot.close()
+    plotBandpassesAmplitude2D(bandpassesAmplitudePol1Iter2, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5ParmInput)
+    plotBandpassesAmplitude2D(bandpassesAmplitudePol2Iter2, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5ParmInput)
 
-    cubeBandpassesAmplitude = numpy.array([bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2])
+
+    cubeBandpassAmplitudeValues  = numpy.array([bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2])
+    cubeBandpassAmplitudeWeights = numpy.logical_not(numpy.isnan(cubeBandpassAmplitudeValues))
     print (cubeBandpassesAmplitude.shape)
     print (type(cubeBandpassesAmplitude))
     print (cubeBandpassesAmplitude[0].shape)
 
     # Save the amplitude bandpasses.
     lib_util.check_rm(pathH5ParmOutput)
-    objectH5ParmOutput = h5parm.h5parm(pathH5ParmOutput, readonly = False)
-    objectSolSetOutput = objectH5ParmOutput.makeSolset(solsetName = "sol000", addTables = True)
+    objectH5Parm = h5parm.h5parm(pathH5ParmOutput, readonly = False)
+    objectSolSet = objectH5Parm.makeSolset(solsetName = "sol000", addTables = True) # This doesn't actually add 'antenna' and 'source' tables - the function doesn't know an MS to generate them from.
+    objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "bandpassAmplitude", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassAmplitudeValues, weights = cubeBandpassAmplitudeWeights)
+
 
     # Delete the old solution table, if it exists.
     #if ("amplitude bandpass" in objectSolSet.getSoltabNames()):
     #    (objectSolSet.getSoltab("amplitude bandpass")).delete()
-    #objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "bandpassAmplitude", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassesAmplitude)
+
 
     # After amplitude and phase bandpass and TECs are created, save back to H5Parm file.
     # Write the TEC solutions to 'objectH5Parm.H.root.sol000.tec000.val'.

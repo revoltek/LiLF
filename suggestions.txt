@@ -1,6 +1,7 @@
 Suggestions for improvement of DPPP, LoSoTo and other LOFAR-related software,
 as conceived during PiLF development.
 
+
 DPPP:
 - Currently (Sept. 2017), DPPP exports ParmDB files, which can be converted into H5Parm files using
   Francesco's h5parm_importer.py. In the future, DPPP will export H5Parm files directly.
@@ -9,8 +10,12 @@ DPPP:
   circular polarisation.
 - DPPP should add the field name (e.g. '3C147') to the H5Parm file. This is useful for plotting in LoSoTo.
 
+
 LoSoTo:
 - The PiLF uGMRT-dedicated bandpass - TEC separator program should be incorporated in LoSoTo as a function.
+- When using the function losoto.h5parm.h5parm.makeSolset(addTables = True), one should have an option to
+  give a path to a MS where the 'antenna' and 'source' tables are created from.
+
 
 PiLF:
 - Logged text currently looks ugly, because of color coding pre- and suffixes added to logging expressions.
