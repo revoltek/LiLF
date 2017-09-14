@@ -398,7 +398,7 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     # Delete the old solution table, if it exists.
     if ("amplitude bandpass" in objectSolSet.getSoltabNames()):
         (objectSolSet.getSoltab("amplitude bandpass")).delete()
-    objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "amplitude bandpass", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassesAmplitude)
+    objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "bandpassAmplitude", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassesAmplitude)
 
     # After amplitude and phase bandpass and TECs are created, save back to H5Parm file.
     # Write the TEC solutions to 'objectH5Parm.H.root.sol000.tec000.val'.
