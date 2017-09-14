@@ -1,12 +1,10 @@
 msin                       =
 msin.datacolumn            = DATA
 
-steps                      = [filter, gaincal]
-
-filter.blrange             =
+steps                      = [gaincal]
 
 gaincal.caltype            = diagonal
-gaincal.maxiter            = 500
+gaincal.maxiter            = 1
 gaincal.nchan              = 1
 gaincal.solint             = 1
 gaincal.propagatesolutions = False

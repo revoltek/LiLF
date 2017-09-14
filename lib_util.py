@@ -27,7 +27,7 @@ def columnExists(tableObject, columnName):
     return (columnName in columnNames)
 
 
-def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithZeros = True, comment = "", verbose = False):
+def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithOnes = True, comment = "", verbose = False):
     """
     Add a column to a MS that is similar to a pre-existing column (in shape, but not in values).
     pathMS:                 path of the MS
@@ -73,11 +73,11 @@ def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNa
         logging.info("Adding column '" + columnNameNew + "'...")
         t.addcols(tables.makecoldesc(columnNameNew, columnDescription), dataManagerInfo)
 
-        # Fill with zeros if desired.
-        if (fillWithZeros):
-            logging.info("Filling column '" + columnNameNew + "' with zeros...")
+        # Fill with ones if desired.
+        if (fillWithOnes):
+            logging.info("Filling column '" + columnNameNew + "' with ones...")
             columnDataSimilar = t.getcol(columnNameSimilar)
-            t.putcol(columnNameNew, np.zeros_like(columnDataSimilar))
+            t.putcol(columnNameNew, np.ones_like(columnDataSimilar))
 
     # Close the table to avoid that it is locked for further use.
     t.close()

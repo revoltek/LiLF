@@ -47,9 +47,9 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     # Add model data column (for predict), and corrected data column (for gaincal).
     for MSObject in MSs.get_list_obj():
         lib_util.columnAddSimilar(MSObject.pathMS, "MODEL_DATA",     "DATA", "TiledMODEL_DATAMartijn",
-                                  overwrite = False, fillWithZeros = True, comment = "", verbose = True)
+                                  overwrite = False, fillWithOnes = True, comment = "", verbose = True)
         lib_util.columnAddSimilar(MSObject.pathMS, "CORRECTED_DATA", "DATA", "TiledCORRECTED_DATAMartijn",
-                                  overwrite = False, fillWithZeros = True, comment = "", verbose = True)
+                                  overwrite = False, fillWithOnes = True, comment = "", verbose = True)
 
 
     # Set model data column. Instead of predicting 'on the fly' whilst calculating gains, we predict and store in MODEL_DATA.
@@ -87,6 +87,7 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
     logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
 
     MSs.run(command = "python dedicated_uGMRT_bandpass.py $pathDirectory", commandType = "python", log = "bandpass_$nameMS.log")
+
 
 
 if (__name__ == "__main__"):
