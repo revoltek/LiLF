@@ -162,8 +162,8 @@ def plotBandpassesAmplitude(bandpassesAmplitudePol1, bandpassesAmplitudePol2, fr
             # Create plot of amplitude bandpass (for both polarisations).
             pyplot.figure(figsize = (12, 6))
 
-            pyplot.scatter(frequencies, bandpassesAmplitudePol1[i], c = "navy", s = 16, lw = 0, label = "polarisation 1\nnorm. factor: " + str(numpy.round(bandpassNormalisationFactorPol1, 3)))
-            pyplot.scatter(frequencies, bandpassesAmplitudePol2[i], c = "orangered", s = 16, lw = 0, label = "polarisation 2\nnorm. factor: " + str(numpy.round(bandpassNormalisationFactorPol2, 3)))
+            pyplot.scatter(frequencies, bandpassesAmplitudePol1[i], c = "navy", s = 16, lw = 0, label = "polarisation 1")#\nnorm. factor: " + str(numpy.round(bandpassNormalisationFactorPol1, 3)))
+            pyplot.scatter(frequencies, bandpassesAmplitudePol2[i], c = "orangered", s = 16, lw = 0, label = "polarisation 2")#\nnorm. factor: " + str(numpy.round(bandpassNormalisationFactorPol2, 3)))
 
             pyplot.grid(linestyle = "--")
             pyplot.legend()
