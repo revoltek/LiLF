@@ -157,7 +157,6 @@ def plotBandpassesAmplitude(bandpassesAmplitudePol1, bandpassesAmplitudePol2, fr
     """
     numberOfAntennae   = len(antennaeWorking)
     plotFrequencyLimit = 1     # in MHz
-    plotAmplitudeLimit = -0.95 # in 1
 
     for i in range(numberOfAntennae):
         if (antennaeWorking[i]):
@@ -166,15 +165,15 @@ def plotBandpassesAmplitude(bandpassesAmplitudePol1, bandpassesAmplitudePol2, fr
             # Create plot of amplitude bandpass (for both polarisations).
             pyplot.figure(figsize = (12, 6))
 
-            pyplot.scatter(frequencies, bandpassesAmplitudePol1[i], c = "navy",      s = 16, lw = 0, label = namesPolarisation[0])
-            pyplot.scatter(frequencies, bandpassesAmplitudePol2[i], c = "orangered", s = 16, lw = 0, label = namesPolarisation[1])
+            pyplot.scatter(frequencies, bandpassesAmplitudePol1[i], c = "navy",      s = 12, lw = 0, label = namesPolarisation[0])
+            pyplot.scatter(frequencies, bandpassesAmplitudePol2[i], c = "orangered", s = 12, lw = 0, label = namesPolarisation[1])
 
-            pyplot.grid(linestyle = "--")
-            pyplot.legend(title = "polarisation:")
+            pyplot.grid(linestyle = "--", alpha = 0.5)
+            pyplot.legend(title = "polarisation")
             pyplot.xlabel("frequency channel centre (MHz)")
             pyplot.ylabel("antenna-based gain amplitude (1)")
             pyplot.xlim(frequencies[0] - plotFrequencyLimit, frequencies[-1] + plotFrequencyLimit)
-            pyplot.ylim(0, 2 + plotAmplitudeLimit)
+            pyplot.ylim(0, 1.05)
             pyplot.title("$\mathbf{amplitude\ bandpass\ (iteration\ " + nameIteration + ")}$\ndata set: "
                          + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: " + str(i) + " | calibrator: "
                          + nameField, fontsize = 9)
@@ -312,13 +311,17 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     bandpassAmplitudeNumberOfSubiterations     = 3
     bandpassAmplitudeFlaggingThresholdFactor   = 3
     bandpassAmplitudeMedianFilteringKernelSize = 7
+    bandpassAmplitudeNaNs                      = numpy.ones_like(frequencies) * numpy.nan
 
 
     for i in range(numberOfAntennae):
         if (antennaeWorking[i]):
             print ("Starting amplitude bandpass calculation for antenna ID " + str(i) + "...")
 
+
+            #
             # Determine the amplitude bandpass (iteration 1).
+            #
             for subiteration in range(bandpassAmplitudeNumberOfSubiterations):
                 if (subiteration == bandpassAmplitudeNumberOfSubiterations - 1): # If in the last subiteration, determine the amplitude bandpass using the mean.
                     bandpassAmplitudePol1Iter1 = numpy.nanmean(gainAmplitudesPol1[i], axis = 1)
@@ -349,148 +352,45 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
                 gainAmplitudesPol1[i]     = numpy.where(flagsForAmplitudesPol1[i], numpy.nan, gainAmplitudesPol1[i])
                 gainAmplitudesPol2[i]     = numpy.where(flagsForAmplitudesPol2[i], numpy.nan, gainAmplitudesPol2[i])
 
+
+            # Store, in appropriate lists, the amplitude bandpasses (iteration 1).
             bandpassesAmplitudePol1Iter1.append(bandpassAmplitudePol1Iter1)
             bandpassesAmplitudePol2Iter1.append(bandpassAmplitudePol2Iter1)
 
 
+            #
             # Determine the amplitude bandpass (iteration 2).
+            #
 
             # Median filter and interpolate the amplitude bandpass.
             bandpassAmplitudePol1Iter2 = fillGaps1D(filterMedian1D(bandpassAmplitudePol1Iter1, kernelSize = bandpassAmplitudeMedianFilteringKernelSize))
             bandpassAmplitudePol2Iter2 = fillGaps1D(filterMedian1D(bandpassAmplitudePol2Iter1, kernelSize = bandpassAmplitudeMedianFilteringKernelSize))
 
-            '''
-            # Use this piece of code to debug the second iteration of the amplitude bandpass.
-            pyplot.plot(gridFrequencies[ : , 0], bandpassAmplitudePol1Iter1, c = 'r', linestyle = "--")
-            pyplot.plot(gridFrequencies[ : , 0], bandpassAmplitudePol1Iter2, c = 'b', linestyle = ":")
-            pyplot.scatter(gridFrequencies[ : , 0], bandpassAmplitudePol1Iter1, s = 4, c = 'r')
-            pyplot.scatter(gridFrequencies[ : , 0], bandpassAmplitudePol1Iter2, s = 4, c = 'b')
-            pyplot.show()
-            sys.exit()
-            '''
 
-            # Normalise the amplitude bandpass for both polarisations.
-            # We do not normalise by determining the factor that scales the amplitude bandpass peak to 1,
-            # as this would result in wrong scaling behaviour in cases where the 'real' peak is absent in the
-            # bandpass due to flagging.
-            # We also do not normalise by determining the factor that would scale the mean of the bandpass
-            # to 1, as this requires taking the mean of all channels except for those flagged. In such case,
-            # when many channels at the lower and upper end of the frequency band are non-flagged, the scaling
-            # is different than when many of those edge channels are flagged.
-            # We conclude that the best thing to do is to normalise by determining the factor that would scale
-            # the mean bandpass in a selected range of frequency channels to 1. These channels are chosen such
-            # that the bandpass is approximately constant over them.
-            # If we normalise bandpass iteration 2, then we could use 'numpy.mean' instead of 'numpy.nanmean' as well
-            # in the determination of 'bandpassNormalisationFactorPolX'. After all, due to the linear interpolation
-            # only the edges of the frequency band still lack a bandpass value. We still prefer using 'numpy.nanmean'
-            # for antennae with a lot of flagged channels at the outer parts of the frequency band, as in such cases
-            # a few 'numpy.nan's might lie into the domain '[frequencyNormalisationStart, frequencyNormalisationEnd]'.
-
-
-            # Determine the normalisation factors.
-            #indexStart = numpy.argmax(gridFrequencies[ : , 0] > frequencyNormalisationStart)
-            #indexEnd   = numpy.argmax(gridFrequencies[ : , 0] > frequencyNormalisationEnd)
-            #bandpassNormalisationFactorPol1 = numpy.nanmean(bandpassAmplitudePol1Iter2[indexStart : indexEnd]) # 'numpy.mean' would work too, mostly
-            #bandpassNormalisationFactorPol2 = numpy.nanmean(bandpassAmplitudePol2Iter2[indexStart : indexEnd]) # 'numpy.mean' would work too, mostly
-
-            # Divide the amplitude bandpasses by the normalisation factor.
-            #bandpassAmplitudePol1Iter1 = numpy.divide(bandpassAmplitudePol1Iter1, bandpassNormalisationFactorPol1)
-            #bandpassAmplitudePol2Iter1 = numpy.divide(bandpassAmplitudePol2Iter1, bandpassNormalisationFactorPol2)
-            #bandpassAmplitudePol1Iter2 = numpy.divide(bandpassAmplitudePol1Iter2, bandpassNormalisationFactorPol1)
-            #bandpassAmplitudePol2Iter2 = numpy.divide(bandpassAmplitudePol2Iter2, bandpassNormalisationFactorPol2)
-
-            # Add the normalised amplitude bandpasses and normalisation factors to the appropriate lists.
+            # Store, in appropriate lists, the amplitude bandpasses (iteration 2).
             bandpassesAmplitudePol1Iter2.append(bandpassAmplitudePol1Iter2)
             bandpassesAmplitudePol2Iter2.append(bandpassAmplitudePol2Iter2)
-            #bandpassNormalisationFactorsPol1.append(bandpassNormalisationFactorPol1)
-            #bandpassNormalisationFactorsPol2.append(bandpassNormalisationFactorPol2)
+        else:
+            # Store, in appropriate lists, NaN-filled amplitude bandpasses.
+            bandpassesAmplitudePol1Iter1.append(bandpassAmplitudeNaNs)
+            bandpassesAmplitudePol2Iter1.append(bandpassAmplitudeNaNs)
+            bandpassesAmplitudePol1Iter2.append(bandpassAmplitudeNaNs)
+            bandpassesAmplitudePol2Iter2.append(bandpassAmplitudeNaNs)
+
 
     # Plot amplitude bandpasses.
-    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5Parm)
-    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5Parm)
+    #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5Parm)
+    #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5Parm)
 
-#
-#
-#                 if (plot):
-#                     print ("Starting amplitude bandpass visualisation for antenna ID " + str(i) + "...")
-#
-#                     # Create plot of amplitude bandpass (for both polarisations, iteration 1).
-#                     pyplot.figure(figsize = (12, 6))
-#                     pyplot.scatter(gridFrequencies[ : , 0], bandpassAmplitudePol1Iter1, c = "navy", s = 16, lw = 0, label = "polarisation 1\nnorm. factor: " + str(numpy.round(bandpassNormalisationFactorPol1, 3)))
-#                     pyplot.scatter(gridFrequencies[ : , 0], bandpassAmplitudePol2Iter1, c = "orangered", s = 16, lw = 0, label = "polarisation 2\nnorm. factor: " + str(numpy.round(bandpassNormalisationFactorPol2, 3)))
-#                     pyplot.grid(linestyle = "--")
-#                     pyplot.legend()
-#                     pyplot.xlabel("frequency channel centre (MHz)")
-#                     pyplot.ylabel("antenna-based gain amplitude (1)")
-#                     pyplot.xlim(frequencyStart - plotFrequencyLimit, frequencyStart + frequencyRange + plotFrequencyLimit)
-#                     pyplot.ylim(0, 2 + plotAmplitudeLimit)
-#                     pyplot.title("normalised amplitude bandpass (iteration 1)\ndata set: "
-#                                  + nameMS[ : -3] + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
-#                                  + nameField) # 'nameMS[ : -3]' ensures that we remove '.MS' from the name.
-#                     pyplot.subplots_adjust(left = .07, right = .98, bottom = 0.08, top = 0.91)
-#                     pyplot.savefig(pathPlotDirectory + "bandpassAmplitudeIter1_" + "Ant" + str(i) + ".pdf")
-#                     pyplot.close()
-#
-#                     # Create plot of amplitude bandpass (for both polarisations, iteration 2).
-#                     pyplot.figure(figsize = (12, 6))
-#                     pyplot.scatter(gridFrequencies[ : , 0], bandpassAmplitudePol1Iter2, c = "navy", s = 16, lw = 0, label = "polarisation 1\nnorm. factor: " + str(numpy.round(bandpassNormalisationFactorPol1, 3)))
-#                     pyplot.scatter(gridFrequencies[ : , 0], bandpassAmplitudePol2Iter2, c = "orangered", s = 16, lw = 0, label = "polarisation 2\nnorm. factor: " + str(numpy.round(bandpassNormalisationFactorPol2, 3)))
-#                     pyplot.grid(linestyle = "--")
-#                     pyplot.legend()
-#                     pyplot.xlabel("frequency channel centre (MHz)")
-#                     pyplot.ylabel("antenna-based gain amplitude (1)")
-#                     pyplot.xlim(frequencyStart - plotFrequencyLimit, frequencyStart + frequencyRange + plotFrequencyLimit)
-#                     pyplot.ylim(0, 2 + plotAmplitudeLimit)
-#                     pyplot.title("normalised amplitude bandpass (iteration 2)\ndata set: "
-#                                  + nameMS[ : -3] + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
-#                                  + nameField) # 'nameMS[ : -3]' ensures that we remove '.MS' from the name.
-#                     pyplot.subplots_adjust(left = .07, right = .98, bottom = 0.08, top = 0.91)
-#                     pyplot.savefig(pathPlotDirectory + "bandpassAmplitudeIter2_" + "Ant" + str(i) + ".pdf")
-#                     pyplot.close()
-#
-#                     if (plot3D):
-#                         dataGrids = [gridBandpassAmplitudePol1, gridBandpassAmplitudePol2]
-#                         for dataGrid, polarisationName in zip(dataGrids, polarisationNames):
-#                             figure = pyplot.figure(figsize = (12, 6))
-#                             axes3D = figure.add_subplot(111, projection = "3d")
-#                             axes3D.plot_surface(gridFrequencies, gridTimes, numpy.where(numpy.isnan(dataGrid), 0, dataGrid), cmap = cm.Spectral_r, alpha = .8, rstride = 1, cstride = 1)
-#                             axes3D.view_init(elev = angleElevation, azim = angleAzimuthal)
-#                             axes3D.set_xlabel("frequency (MHz)")
-#                             axes3D.set_ylabel("time (s)")
-#                             axes3D.set_zlabel("amplitude ($1$)")
-#                             axes3D.set_zlim(0, 1)
-#                             axes3D.set_zticks([0, 0.2, 0.4, 0.6, 0.8, 1])
-#                             axes3D.set_title("unnormalised amplitude bandpass (iteration 1)\ndata set: "
-#                                          + nameMS[ : -3] + " | telescope: " + nameTelescope + " | antenna ID: " + str(i) + " | calibrator: "
-#                                          + nameField + " | polarisation: " + polarisationName) # 'nameMS[ : -3]' ensures that we remove '.MS' from the name.
-#                             pyplot.subplots_adjust(left = .08, right = .9, bottom = .05, top = .95)
-#                             pyplot.savefig(pathPlotDirectory + "bandpassAmplitude3DIter1_Ant" + str(i) + "_Pol" + polarisationName + ".png")
-#                             pyplot.close()
-#
-#                         # Create 3D plots of antenna-based gain amplitude residuals.
-#                         dataGrids = [gridResidualsPol1, gridResidualsPol2]
-#                         STDs = [STDPol1, STDPol2]
-#                         for dataGrid, STD, polarisationName in zip(dataGrids, STDs, polarisationNames):
-#                             figure = pyplot.figure(figsize = (12, 6))
-#                             axes3D = figure.add_subplot(111, projection = "3d")
-#                             axes3D.plot_surface(gridFrequencies, gridTimes, numpy.where(numpy.isnan(dataGrid), 1, dataGrid), cmap = cm.YlOrRd, alpha = .8, rstride = 1, cstride = 1)
-#                             axes3D.view_init(elev = angleElevation, azim = angleAzimuthal)
-#                             axes3D.set_xlabel("frequency (MHz)")
-#                             axes3D.set_ylabel("time (s)")
-#                             axes3D.set_zlabel("amplitude (1)")
-#                             axes3D.set_zlim(1 - .1, 1 + .1)
-#                             axes3D.set_title("antenna-based gain amplitude residuals (iteration 1) | $\sigma$ = " + str(numpy.round(STD, 3)) + "\ndata set: "
-#                                          + nameMS[ : -3] + " | telescope: " + nameTelescope + " | antenna ID: " + str(i) + " | calibrator: "
-#                                          + nameField + " | polarisation: " + polarisationName) # 'nameMS[ : -3]' ensures that we remove '.MS' from the name.
-#                             pyplot.subplots_adjust(left = .08, right = .9, bottom = .05, top = .95)
-#                             pyplot.savefig(pathPlotDirectory + "residualsAmplitudeIter1_Ant" + str(i) + "_Pol" + polarisationName + ".png")
-#                             pyplot.close()
-#             else:
-#                 print ("Skipping amplitude bandpass calculation for antenna ID " + str(i) + ": all data are flagged.")
-#
-#         # Save the normalised amplitude bandpasses and their normalisation factors, after all working antennae have been looped over.
-#         numpy.save(pathOutputBPsAmplitude, [bandpassesAmplitudePol1, bandpassesAmplitudePol2, bandpassNormalisationFactorsPol1, bandpassNormalisationFactorsPol2, antennaeWorking])
-#
+    pyplot.imshow(numpy.array(bandpassesAmplitudePol1Iter2))
+    pyplot.savefig("/disks/strw3/oei/bandpassessssssPol1.pdf")
+    pyplot.close()
+    pyplot.imshow(numpy.array(bandpassesAmplitudePol2Iter2))
+    pyplot.savefig("/disks/strw3/oei/bandpassessssssPol2.pdf")
+    pyplot.close()
+
+    # Save the amplitude bandpasses.
+    #objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "amplitude bandpass",
 
     # After amplitude and phase bandpass and TECs are created, save back to H5Parm file.
     # Write the TEC solutions to 'objectH5Parm.H.root.sol000.tec000.val'.
