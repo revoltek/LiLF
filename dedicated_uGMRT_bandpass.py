@@ -156,8 +156,8 @@ def plotBandpassesAmplitude(bandpassesAmplitudePol1, bandpassesAmplitudePol2, fr
     Generate plots of amplitude bandpasses, for two polarisations.
     """
     numberOfAntennae   = len(antennaeWorking)
-    plotFrequencyLimit = 1    # in MHz
-    plotAmplitudeLimit = 0.02 # in 1
+    plotFrequencyLimit = 1     # in MHz
+    plotAmplitudeLimit = -0.95 # in 1
 
     for i in range(numberOfAntennae):
         if (antennaeWorking[i]):
@@ -402,8 +402,8 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
             #bandpassNormalisationFactorsPol2.append(bandpassNormalisationFactorPol2)
 
     # Plot amplitude bandpasses.
-    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, nameIteration = "1")
-    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, nameIteration = "2")
+    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, nameIteration = "1", nameField = nameField, nameDataSet = pathH5Parm)
+    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, nameIteration = "2", nameField = nameField, nameDataSet = pathH5Parm)
 
 #
 #
