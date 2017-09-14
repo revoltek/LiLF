@@ -103,7 +103,7 @@ def plotAmplitudes2D(amplitudes, times, frequencies, antennaeWorking, pathDirect
 
             colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
             colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [0, 0.2, 0.4, 0.6, 0.8, 1])
-            colorBar.ax.set_ylabel("gain amplitude $(1)$")
+            colorBar.ax.set_ylabel("antenna-based gain amplitude (1)")
 
             pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
             pyplot.savefig(pathDirectoryPlots + "/amplitudes2D_ant" + str(i) + "_pol" + namePolarisation + ".pdf")
@@ -194,7 +194,7 @@ def plotBandpassesAmplitude2D(bandpassesAmplitude, pathDirectoryPlots, namePolar
 
     pyplot.figure(figsize = (12, 6))
 
-    pyplot.imshow(numpy.array(bandpassesAmplitude), aspect = "auto", interpolation = "none")
+    image = pyplot.imshow(numpy.array(bandpassesAmplitude), aspect = "auto", interpolation = "none")
 
     pyplot.xlabel("frequency channel centre (MHz)")
     pyplot.ylabel("antenna ID")
@@ -202,6 +202,11 @@ def plotBandpassesAmplitude2D(bandpassesAmplitude, pathDirectoryPlots, namePolar
                  + " | telescope: " + nameTelescope + " | calibrator: " + nameField
                  + " | polarisation: " + namePolarisation, fontsize = 9)
 
+    colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
+    colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [0, 0.2, 0.4, 0.6, 0.8, 1])
+    colorBar.ax.set_ylabel("antenna-based gain amplitude (1)")
+
+    pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
     pyplot.savefig(pathDirectoryPlots + "/bandpassAmplitudeAll2D_pol" + namePolarisation + ".pdf")
     pyplot.close()
 
@@ -421,7 +426,7 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     objectH5Parm = h5parm.h5parm(pathH5ParmOutput, readonly = False)
     objectSolSet = objectH5Parm.makeSolset(solsetName = "sol000", addTables = True) # This doesn't actually add 'antenna' and 'source' tables - the function doesn't know an MS to generate them from.
     objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "bandpassAmplitude", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassAmplitudeValues, weights = cubeBandpassAmplitudeWeights)
-
+    objectH5Parm.close()
 
     # Delete the old solution table, if it exists.
     #if ("amplitude bandpass" in objectSolSet.getSoltabNames()):
