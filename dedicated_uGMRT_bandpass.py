@@ -379,14 +379,14 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
 
     # Plot amplitude bandpasses.
-    #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5Parm)
-    #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5Parm)
+    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5Parm)
+    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5Parm)
 
-    pyplot.imshow(numpy.array(bandpassesAmplitudePol1Iter2))
+    pyplot.imshow(numpy.array(bandpassesAmplitudePol1Iter2), aspect = "auto", interpolation = "none")
     pyplot.savefig("/disks/strw3/oei/bandpassessssssPol1.pdf")
     pyplot.close()
     pyplot.imshow(numpy.array(bandpassesAmplitudePol2Iter2))
-    pyplot.savefig("/disks/strw3/oei/bandpassessssssPol2.pdf")
+    pyplot.savefig("/disks/strw3/oei/bandpassessssssPol2.pdf", aspect = "auto", interpolation = "none")
     pyplot.close()
 
     # Save the amplitude bandpasses.
