@@ -138,8 +138,8 @@ def plotAmplitudes2D(amplitudes, times, frequencies, antennaeWorking, pathDirect
             logging.info("Starting gain amplitudes visualisation for antenna ID " + str(i) + " and polarisation " + namePolarisation + "...")
 
             # Create 2D antenna-based gain amplitudes plot.
-            figure       = pyplot.figure(figsize = (12, 6))
-            image        = pyplot.imshow(amplitudes[i], aspect = "auto", interpolation = "nearest", cmap = cm.viridis, vmin = 0, vmax = 1)
+            figure = pyplot.figure(figsize = (12, 6))
+            image  = pyplot.imshow(amplitudes[i], aspect = "auto", interpolation = "nearest", cmap = cm.viridis, vmin = 0, vmax = 1)
 
             pyplot.xlabel("time (s)")
             pyplot.ylabel("frequency (MHz)")
@@ -176,8 +176,8 @@ def plotPhases2D(phases, times, frequencies, antennaeWorking, pathDirectoryPlots
             logging.info("Starting gain phases visualisation for antenna ID " + str(i) + " and polarisation " + namePolarisation + "...")
 
             # Create 2D antenna-based gain phases plot.
-            figure       = pyplot.figure(figsize = (12, 6))
-            image        = pyplot.imshow(phases[i], aspect = "auto", interpolation = "none", cmap = cm.hsv, vmin = -180, vmax = 180)
+            figure = pyplot.figure(figsize = (12, 6))
+            image  = pyplot.imshow(phases[i], aspect = "auto", interpolation = "none", cmap = cm.hsv, vmin = -180, vmax = 180)
 
             pyplot.xlabel("time (s)")
             pyplot.ylabel("frequency (MHz)")
@@ -461,6 +461,8 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     # In this step, the phase bandpass is found in an iterative process. Calibrator DTEC(t) is found as a side product.
     #
 
+    timeStampDuration             = times[1] - times[0] # in s (we assume that the time stamp lengths are uniform)
+
     # Create a 2D and a 1D array of inverse frequencies over the frequency band.
     gridIndexRow, gridIndexColumn = numpy.mgrid[0 : numberOfChannels, 0 : numberOfTimeStamps]
     gridFrequencies               = numpy.divide(gridIndexRow, numberOfChannels - 1) * (frequencies[-1] - frequencies[0]) + frequencies[0] # in MHz
@@ -468,9 +470,9 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     frequenciesInverse            = gridFrequenciesInverse[ : , 0]                                                                         # in MHz^-1
 
     # Create lists that will contain, for each antenna, the two phase bandpasses and the function DTEC(t).
-    bandpassesPhasePol1    = []
-    bandpassesPhasePol2    = []
-    DTECs                  = []
+    bandpassesPhasePol1           = []
+    bandpassesPhasePol2           = []
+    DTECs                         = []
 
     for i in range(numberOfAntennae):
         if (antennaeWorking[i]):
@@ -479,25 +481,27 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
             # Calculate the first derivative of gain phase to time in a way robust to phase wrapping (for both polarisations).
             # We do so by calculating the derivative for each time-frequency bin 2 times: one with the ordinary data, and once after shifting
             # - all the phases by 180 degrees to place them in the [0, 360) domain, and
-            # - another 180 degrees to effect a shift within that domain.
+            # - another 180 degrees to effect a maximum shift within that domain.
 
-            derivTimePol1Choice1        = computeDerivative2D(gainPhasesPol1[i], timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
-            derivTimePol1Choice2        = computeDerivative2D(numpy.mod(gainPhasesPol1[i] + 180 + 180, 360), timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
+            derivTimePol1Choice1        = computeDerivative2D(gainPhasesPol1[i],                             timeStampDuration, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
+            derivTimePol1Choice2        = computeDerivative2D(numpy.mod(gainPhasesPol1[i] + 180 + 180, 360), timeStampDuration, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
             derivTimePol1               = numpy.where(numpy.less(numpy.absolute(derivTimePol1Choice1), numpy.absolute(derivTimePol1Choice2)),
                                                       derivTimePol1Choice1, derivTimePol1Choice2) # in degrees per MHz^2
 
-            derivTimePol2Choice1        = computeDerivative2D(gainPhasesPol2[i], timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
-            derivTimePol2Choice2        = computeDerivative2D(numpy.mod(gainPhasesPol2[i] + 180 + 180, 360), timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
+            derivTimePol2Choice1        = computeDerivative2D(gainPhasesPol2[i],                             timeStampDuration, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
+            derivTimePol2Choice2        = computeDerivative2D(numpy.mod(gainPhasesPol2[i] + 180 + 180, 360), timeStampDuration, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
             derivTimePol2               = numpy.where(numpy.less(numpy.absolute(derivTimePol2Choice1), numpy.absolute(derivTimePol2Choice2)),
                                                       derivTimePol2Choice1, derivTimePol2Choice2) # in degrees per MHz^2
 
 
-#                 # Determine the DTEC time derivative for both polarisations (iteration 1).
-#                 derivTimeDTECsIter1Pol1Grid = derivTimePol1 * gridFrequencies[ : , : -1] / (1210 * 400)
-#                 derivTimeDTECsIter1Pol1     = numpy.nanmean(derivTimeDTECsIter1Pol1Grid, axis = 0)
-#
-#                 derivTimeDTECsIter1Pol2Grid = derivTimePol2 * gridFrequencies[ : , : -1] / (1210 * 400)
-#                 derivTimeDTECsIter1Pol2     = numpy.nanmean(derivTimeDTECsIter1Pol2Grid, axis = 0)
+            # Determine the DTEC time derivative for both polarisations (iteration 1).
+            derivTimeDTECsIter1Pol1Grid = derivTimePol1 * gridFrequencies[ : , : -1] / (1210 * 400)
+            derivTimeDTECsIter1Pol1     = numpy.nanmean(derivTimeDTECsIter1Pol1Grid, axis = 0)
+
+            derivTimeDTECsIter1Pol2Grid = derivTimePol2 * gridFrequencies[ : , : -1] / (1210 * 400)
+            derivTimeDTECsIter1Pol2     = numpy.nanmean(derivTimeDTECsIter1Pol2Grid, axis = 0)
+
+
 
 
 
