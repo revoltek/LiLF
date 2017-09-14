@@ -74,6 +74,56 @@ def wrapPhasesZeroCentred(phases, unitDegree = True):
         return phases
 
 
+def computeDerivative2D(grid, stepSize, axis = 0, degree = 1, intermediateSampling = False):
+    """
+    This function computes a numerical approximation to the first or second derivative.
+    Derivatives can either be taken along the rows ('axis = 0'), or along the columns ('axis = 1').
+
+    If the coordinates of the columns of 'grid' are t_0, t_1, t_2, ..., t_{N-1}, then
+    the derivatives are given at t_1, t_2, ..., t_{N-2}.
+
+    Sometimes, e.g. for numerical integration, it is desirable that derivatives are given at
+    the intermediate points: (t_0 + t_1) / 2, (t_1 + t_2) / 2, ..., (t_{N-2} + t_{N-1}) / 2.
+    In such cases, set 'intermediateSampling' to True. Beware that output array dimensions change!
+    """
+    if (axis == 0):
+        if (degree == 0):
+            gridResult = grid
+        elif (degree == 1):
+            if (intermediateSampling):
+                gridResult = (grid[1 : , : ] - grid[ : -1, : ]) / stepSize
+            else:
+                gridResult = (grid[2 : , : ] - grid[ : -2, : ]) / (2 * stepSize)
+        elif (degree == 2):
+            if (intermediateSampling):
+                print ("Error: intermediate sampling is not yet featured for the second derivative.")
+                sys.exit()
+            else:
+                gridResult = (grid[4 : , : ] + grid[ : -4, : ] - 2 * grid[2 : -2, : ]) / (4 * stepSize ** 2)
+        else:
+            print ("Error: 'computeDerivative2D' does not support calculating derivatives of degree " + str(degree) + ".")
+            sys.exit()
+    else:
+        if (degree == 0):
+            gridResult = grid
+        elif (degree == 1):
+            if (intermediateSampling):
+                gridResult = (grid[ : , 1 : ] - grid[ : , : -1]) / stepSize
+            else:
+                gridResult = (grid[ : , 2 : ] - grid[ : , : -2]) / (2 * stepSize)
+        elif (degree == 2):
+            if (intermediateSampling):
+                print ("Error: intermediate sampling is not yet featured for the second derivative.")
+                sys.exit()
+            else:
+                gridResult = (grid[ : , 4 : ] + grid[ : , : -4] - 2 * grid[ : , 2 : -2]) / (4 * stepSize ** 2)
+        else:
+            print ("Error: 'computeDerivative2D' does not support calculating derivatives of degree " + str(degree) + ".")
+            sys.exit()
+
+    return gridResult
+
+
 def plotAmplitudes2D(amplitudes, times, frequencies, antennaeWorking, pathDirectoryPlots,
                      namePolarisation = "?", nameField = "?", nameDataSet = "?", nameTelescope = "uGMRT"):
     """
@@ -422,26 +472,26 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     bandpassesPhasePol2    = []
     DTECs                  = []
 
-     for i in range(numberOfAntennae):
-         if (antennaeWorking[i]):
-             print ("Starting phase bandpass (and DTEC) calculation for antenna ID " + str(i) + "...")
+    for i in range(numberOfAntennae):
+        if (antennaeWorking[i]):
+            print ("Starting phase bandpass (and DTEC) calculation for antenna ID " + str(i) + "...")
 
-             # Calculate the first derivative of gain phase to time in a way robust to phase wrapping (for both polarisations).
-             # We do so by calculating the derivative for each time-frequency bin 2 times: one with the ordinary data, and once after shifting
-             # - all the phases by 180 degrees to place them in the [0, 360) domain, and
-             # - another 180 degrees to effect a shift within that domain.
+            # Calculate the first derivative of gain phase to time in a way robust to phase wrapping (for both polarisations).
+            # We do so by calculating the derivative for each time-frequency bin 2 times: one with the ordinary data, and once after shifting
+            # - all the phases by 180 degrees to place them in the [0, 360) domain, and
+            # - another 180 degrees to effect a shift within that domain.
 
-#                 derivTimePol1Choice1        = computeDerivative2D(gainPhasesPol1[i], timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
-#                 derivTimePol1Choice2        = computeDerivative2D(numpy.mod(gainPhasesPol1[i] + 180 + 180, 360), timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
-#                 derivTimePol1               = numpy.where(numpy.less(numpy.absolute(derivTimePol1Choice1), numpy.absolute(derivTimePol1Choice2)),
-#                                                           derivTimePol1Choice1, derivTimePol1Choice2) # in degrees per MHz^2
-#
-#                 derivTimePol2Choice1        = computeDerivative2D(gainPhasesPol2[i], timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
-#                 derivTimePol2Choice2        = computeDerivative2D(numpy.mod(gainPhasesPol2[i] + 180 + 180, 360), timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
-#                 derivTimePol2               = numpy.where(numpy.less(numpy.absolute(derivTimePol2Choice1), numpy.absolute(derivTimePol2Choice2)),
-#                                                           derivTimePol2Choice1, derivTimePol2Choice2) # in degrees per MHz^2
-#
-#
+            derivTimePol1Choice1        = computeDerivative2D(gainPhasesPol1[i], timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
+            derivTimePol1Choice2        = computeDerivative2D(numpy.mod(gainPhasesPol1[i] + 180 + 180, 360), timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
+            derivTimePol1               = numpy.where(numpy.less(numpy.absolute(derivTimePol1Choice1), numpy.absolute(derivTimePol1Choice2)),
+                                                      derivTimePol1Choice1, derivTimePol1Choice2) # in degrees per MHz^2
+
+            derivTimePol2Choice1        = computeDerivative2D(gainPhasesPol2[i], timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
+            derivTimePol2Choice2        = computeDerivative2D(numpy.mod(gainPhasesPol2[i] + 180 + 180, 360), timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
+            derivTimePol2               = numpy.where(numpy.less(numpy.absolute(derivTimePol2Choice1), numpy.absolute(derivTimePol2Choice2)),
+                                                      derivTimePol2Choice1, derivTimePol2Choice2) # in degrees per MHz^2
+
+
 #                 # Determine the DTEC time derivative for both polarisations (iteration 1).
 #                 derivTimeDTECsIter1Pol1Grid = derivTimePol1 * gridFrequencies[ : , : -1] / (1210 * 400)
 #                 derivTimeDTECsIter1Pol1     = numpy.nanmean(derivTimeDTECsIter1Pol1Grid, axis = 0)
@@ -632,57 +682,6 @@ if (__name__ == "__main__"):
 #             sys.exit()
 #
 #         return arrayResult
-#
-#
-#     def computeDerivative2D(grid, stepSize, axis = 0, degree = 1, intermediateSampling = False):
-#         '''
-#         This function computes a numerical approximation to the first or second derivative.
-#         Derivatives can either be taken along the rows ('axis = 0'), or along the columns ('axis = 1').
-#
-#         If the coordinates of the columns of 'grid' are t_0, t_1, t_2, ..., t_{N-1}, then
-#         the derivatives are given at t_1, t_2, ..., t_{N-2}.
-#
-#         Sometimes, e.g. for numerical integration, it is desirable that derivatives are given at
-#         the intermediate points: (t_0 + t_1) / 2, (t_1 + t_2) / 2, ..., (t_{N-2} + t_{N-1}) / 2.
-#         In such cases, set 'intermediateSampling' to True. Beware that output array dimensions change!
-#         '''
-#         if (axis == 0):
-#             if (degree == 0):
-#                 gridResult = grid
-#             elif (degree == 1):
-#                 if (intermediateSampling):
-#                     gridResult = (grid[1 : , : ] - grid[ : -1, : ]) / stepSize
-#                 else:
-#                     gridResult = (grid[2 : , : ] - grid[ : -2, : ]) / (2 * stepSize)
-#             elif (degree == 2):
-#                 if (intermediateSampling):
-#                     print ("Error: intermediate sampling is not yet featured for the second derivative.")
-#                     sys.exit()
-#                 else:
-#                     gridResult = (grid[4 : , : ] + grid[ : -4, : ] - 2 * grid[2 : -2, : ]) / (4 * stepSize ** 2)
-#             else:
-#                 print ("Error: 'computeDerivative2D' does not support calculating derivatives of degree " + str(degree) + ".")
-#                 sys.exit()
-#         else:
-#             if (degree == 0):
-#                 gridResult = grid
-#             elif (degree == 1):
-#                 if (intermediateSampling):
-#                     gridResult = (grid[ : , 1 : ] - grid[ : , : -1]) / stepSize
-#                 else:
-#                     gridResult = (grid[ : , 2 : ] - grid[ : , : -2]) / (2 * stepSize)
-#             elif (degree == 2):
-#                 if (intermediateSampling):
-#                     print ("Error: intermediate sampling is not yet featured for the second derivative.")
-#                     sys.exit()
-#                 else:
-#                     gridResult = (grid[ : , 4 : ] + grid[ : , : -4] - 2 * grid[ : , 2 : -2]) / (4 * stepSize ** 2)
-#             else:
-#                 print ("Error: 'computeDerivative2D' does not support calculating derivatives of degree " + str(degree) + ".")
-#                 sys.exit()
-#
-#         return gridResult
-#
 #
 #
 #     # Initialise settings specific to the MS and telescope used.
