@@ -150,30 +150,33 @@ def plotPhases2D(phases, times, frequencies, antennaeWorking, pathDirectoryPlots
             logging.info("Skipping gain phases visualisation for antenna ID " + str(i) + " and polarisation " + namePolarisation + ": all data are flagged.")
 
 
-def plotBandpassesAmplitude(bandpassesAmplitudePol1, bandpassesAmplitudePol2, frequencies, pathDirectoryPlots,
+def plotBandpassesAmplitude(bandpassesAmplitudePol1, bandpassesAmplitudePol2, frequencies, antennaeWorking, pathDirectoryPlots,
                             nameIteration = "?", nameField = "?", nameDataSet = "?", nameTelescope = "uGMRT"):
     """
     Generate plots of amplitude bandpasses, for two polarisations.
     """
 
     for i in range(numberOfAntennae):
+        if (antennaeWorking[i]):
+            # Create plot of amplitude bandpass (for both polarisations).
+            pyplot.figure(figsize = (12, 6))
 
-    # Create plot of amplitude bandpass (for both polarisations, iteration 1).
-    pyplot.figure(figsize = (12, 6))
-    pyplot.scatter(frequencies, bandpassAmplitudePol1Iter1, c = "navy", s = 16, lw = 0, label = "polarisation 1\nnorm. factor: " + str(numpy.round(bandpassNormalisationFactorPol1, 3)))
-    pyplot.scatter(frequencies, bandpassAmplitudePol2Iter1, c = "orangered", s = 16, lw = 0, label = "polarisation 2\nnorm. factor: " + str(numpy.round(bandpassNormalisationFactorPol2, 3)))
-    pyplot.grid(linestyle = "--")
-    pyplot.legend()
-    pyplot.xlabel("frequency channel centre (MHz)")
-    pyplot.ylabel("antenna-based gain amplitude (1)")
-    pyplot.xlim(frequencyStart - plotFrequencyLimit, frequencyStart + frequencyRange + plotFrequencyLimit)
-    pyplot.ylim(0, 2 + plotAmplitudeLimit)
-    pyplot.title("$\mathbf{amplitude\ bandpass\ (iteration\ " + nameIteration + ")}$\ndata set: "
-                 + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: " + str(i) + " | calibrator: "
-                 + nameField, fontsize = 9)
-    pyplot.subplots_adjust(left = .07, right = .98, bottom = 0.08, top = 0.91)
-    pyplot.savefig(pathDirectoryPlots + "/bandpassAmplitude_ant" + str(i) + "_iter" + nameIteration + ".pdf")
-    pyplot.close()
+            pyplot.scatter(frequencies, bandpassesAmplitudePol1[i], c = "navy", s = 16, lw = 0, label = "polarisation 1\nnorm. factor: " + str(numpy.round(bandpassNormalisationFactorPol1, 3)))
+            pyplot.scatter(frequencies, bandpassesAmplitudePol2[i], c = "orangered", s = 16, lw = 0, label = "polarisation 2\nnorm. factor: " + str(numpy.round(bandpassNormalisationFactorPol2, 3)))
+
+            pyplot.grid(linestyle = "--")
+            pyplot.legend()
+            pyplot.xlabel("frequency channel centre (MHz)")
+            pyplot.ylabel("antenna-based gain amplitude (1)")
+            pyplot.xlim(frequencies[0] - plotFrequencyLimit, frequencies[-1] + plotFrequencyLimit)
+            pyplot.ylim(0, 2 + plotAmplitudeLimit)
+            pyplot.title("$\mathbf{amplitude\ bandpass\ (iteration\ " + nameIteration + ")}$\ndata set: "
+                         + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: " + str(i) + " | calibrator: "
+                         + nameField, fontsize = 9)
+
+            pyplot.subplots_adjust(left = .07, right = .98, bottom = 0.08, top = 0.91)
+            pyplot.savefig(pathDirectoryPlots + "/bandpassAmplitude_ant" + str(i) + "_iter" + nameIteration + ".pdf")
+            pyplot.close()
 
 
 def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = False):
@@ -396,8 +399,10 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
             #bandpassNormalisationFactorsPol2.append(bandpassNormalisationFactorPol2)
 
     # Plot amplitude bandpasses.
-    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, pathDirectoryPlots, nameIteration = "1")
-    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, pathDirectoryPlots, nameIteration = "2")
+    plotFrequencyLimit = 1 # in MHz
+
+    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, nameIteration = "1")
+    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, nameIteration = "2")
 
 #
 #
