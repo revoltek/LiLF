@@ -155,6 +155,7 @@ def plotBandpassesAmplitude(bandpassesAmplitudePol1, bandpassesAmplitudePol2, fr
     """
     Generate plots of amplitude bandpasses, for two polarisations.
     """
+    numberOfAntennae = len(antennaeWorking)
 
     for i in range(numberOfAntennae):
         if (antennaeWorking[i]):
@@ -269,12 +270,12 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
 
     # Plot gain amplitudes.
-    plotAmplitudes2D(gainAmplitudesPol1, times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5Parm)
-    plotAmplitudes2D(gainAmplitudesPol2, times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5Parm)
+    #plotAmplitudes2D(gainAmplitudesPol1, times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5Parm)
+    #plotAmplitudes2D(gainAmplitudesPol2, times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5Parm)
 
     # Plot gain phases.
-    plotPhases2D(    gainPhasesPol1,     times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5Parm)
-    plotPhases2D(    gainPhasesPol2,     times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5Parm)
+    #plotPhases2D(    gainPhasesPol1,     times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5Parm)
+    #plotPhases2D(    gainPhasesPol2,     times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5Parm)
 
 
 
