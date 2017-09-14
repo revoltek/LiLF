@@ -190,13 +190,14 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     # Initialise logistics.
     nameMS                     = pathDirectoryMS[pathDirectoryMS.rfind('/') + 1 : ]
     pathMS                     = pathDirectoryMS + '/' + nameMS + ".MS"
-    pathH5Parm                 = pathDirectoryMS + "/solutions/gainsRaw.h5"
+    pathH5ParmInput            = pathDirectoryMS + "/solutions/gainsRaw.h5"
+    pathH5ParmOutput           = pathDirectoryMS + "/solutions/bandpassesTECs.h5"
     pathDirectoryPlots         = pathDirectoryMS + "/plots"
 
 
     # Initialise H5Parm file objects.
-    objectH5Parm               = h5parm.h5parm(pathH5Parm, readonly = False)
-    objectSolSet               = objectH5Parm.getSolset("sol000")
+    objectH5ParmInput          = h5parm.h5parm(pathH5ParmInput, readonly = True)
+    objectSolSet               = objectH5ParmInput.getSolset("sol000")
     objectSolTabGainAmplitudes = objectSolSet.getSoltab("amplitude000")
     objectSolTabGainPhases     = objectSolSet.getSoltab("phase000")
 
@@ -395,10 +396,14 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     print (cubeBandpassesAmplitude[0].shape)
 
     # Save the amplitude bandpasses.
+    lib_util.check_rm(pathH5ParmOutput)
+    objectH5ParmOutput = h5parm.h5parm(pathH5ParmOutput, readonly = False)
+    objectSolSetOutput = objectH5ParmOutput.makeSolset(solsetName = "sol000", addTables = True)
+
     # Delete the old solution table, if it exists.
-    if ("amplitude bandpass" in objectSolSet.getSoltabNames()):
-        (objectSolSet.getSoltab("amplitude bandpass")).delete()
-    objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "bandpassAmplitude", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassesAmplitude)
+    #if ("amplitude bandpass" in objectSolSet.getSoltabNames()):
+    #    (objectSolSet.getSoltab("amplitude bandpass")).delete()
+    #objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "bandpassAmplitude", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassesAmplitude)
 
     # After amplitude and phase bandpass and TECs are created, save back to H5Parm file.
     # Write the TEC solutions to 'objectH5Parm.H.root.sol000.tec000.val'.
