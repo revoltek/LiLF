@@ -195,7 +195,7 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
 
     # Initialise H5Parm file objects.
-    objectH5Parm               = h5parm.h5parm(pathH5Parm)
+    objectH5Parm               = h5parm.h5parm(pathH5Parm, readonly = False)
     objectSolSet               = objectH5Parm.getSolset("sol000")
     objectSolTabGainAmplitudes = objectSolSet.getSoltab("amplitude000")
     objectSolTabGainPhases     = objectSolSet.getSoltab("phase000")
