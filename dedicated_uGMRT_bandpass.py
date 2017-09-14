@@ -196,8 +196,8 @@ def plotBandpassesAmplitude2D(bandpassesAmplitude, pathDirectoryPlots, namePolar
 
     image = pyplot.imshow(numpy.array(bandpassesAmplitude), aspect = "auto", interpolation = "none")
 
-    pyplot.xlabel("frequency channel centre (MHz)")
-    pyplot.ylabel("antenna ID")
+    pyplot.xlabel("frequency channel index")
+    pyplot.ylabel("antenna index")
     pyplot.title("$\mathbf{amplitude\ bandpasses}$\ndata set: " + nameDataSet
                  + " | telescope: " + nameTelescope + " | calibrator: " + nameField
                  + " | polarisation: " + namePolarisation, fontsize = 9)
@@ -313,22 +313,11 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     #plotPhases2D(    gainPhasesPol2,     times, frequencies, antennaeWorking, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5ParmInput)
 
 
-
-    # Output debug info.
-    print (gainAmplitudes.shape)
-    print (gainPhases.shape)
-    print (gainAmplitudesPol1.shape)
-    print (gainPhasesPol1.shape)
-    print (flagsForAmplitudesPol2.shape)
-    print (flagsForPhasesPol2.shape)
-    print ("numberOfAntennae:", numberOfAntennae, "numberOfChannels:", numberOfChannels, "numberOfTimeStamps:", numberOfTimeStamps)
-
-
-    '''
-    In this step, the amplitude bandpasses for each antenna are determined in two iterations.
-    Iteration 1 is subdivided into several 'subiterations' that are meant to flag outliers.
-    Iteration 2 takes the bandpass results from iteration 1 and performs median filtering and interpolation.
-    '''
+    #
+    # In this step, the amplitude bandpasses for each antenna are determined in two iterations.
+    # Iteration 1 is subdivided into several 'subiterations' that are meant to flag outliers.
+    # Iteration 2 takes the bandpass results from iteration 1 and performs median filtering and interpolation.
+    #
 
     # Create lists that store the normalised amplitude bandpasses and the bandpass normalisation factors.
     bandpassesAmplitudePol1Iter1               = []
@@ -345,7 +334,6 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     for i in range(numberOfAntennae):
         if (antennaeWorking[i]):
             print ("Starting amplitude bandpass calculation for antenna ID " + str(i) + "...")
-
 
             #
             # Determine the amplitude bandpass (iteration 1).
@@ -417,9 +405,6 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
     cubeBandpassAmplitudeValues  = numpy.array([bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2])
     cubeBandpassAmplitudeWeights = numpy.logical_not(numpy.isnan(cubeBandpassAmplitudeValues))
-    print (cubeBandpassAmplitudeValues.shape)
-    print (type(cubeBandpassAmplitudeValues))
-    print (cubeBandpassAmplitudeValues[0].shape)
 
     # Save the amplitude bandpasses.
     lib_util.check_rm(pathH5ParmOutput)
@@ -428,9 +413,26 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "bandpassAmplitude", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassAmplitudeValues, weights = cubeBandpassAmplitudeWeights)
     objectH5Parm.close()
 
+
+    # Find phase bandpasses and calibrator TECs.
+
+    #print (cubeBandpassAmplitudeValues.shape)
+    #print (type(cubeBandpassAmplitudeValues))
+    #print (cubeBandpassAmplitudeValues[0].shape)
+
     # Delete the old solution table, if it exists.
     #if ("amplitude bandpass" in objectSolSet.getSoltabNames()):
     #    (objectSolSet.getSoltab("amplitude bandpass")).delete()
+
+    # Output debug info.
+    print (gainAmplitudes.shape)
+    print (gainPhases.shape)
+    print (gainAmplitudesPol1.shape)
+    print (gainPhasesPol1.shape)
+    print (flagsForAmplitudesPol2.shape)
+    print (flagsForPhasesPol2.shape)
+    print ("numberOfAntennae:", numberOfAntennae, "numberOfChannels:", numberOfChannels, "numberOfTimeStamps:", numberOfTimeStamps)
+
 
 
     # After amplitude and phase bandpass and TECs are created, save back to H5Parm file.
