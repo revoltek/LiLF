@@ -405,15 +405,16 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5ParmInput)
     #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5ParmInput)
 
+    # Plot amplitude bandpass overviews.
     plotBandpassesAmplitude2D(bandpassesAmplitudePol1Iter2, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5ParmInput)
     plotBandpassesAmplitude2D(bandpassesAmplitudePol2Iter2, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5ParmInput)
 
 
     cubeBandpassAmplitudeValues  = numpy.array([bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2])
     cubeBandpassAmplitudeWeights = numpy.logical_not(numpy.isnan(cubeBandpassAmplitudeValues))
-    print (cubeBandpassesAmplitude.shape)
-    print (type(cubeBandpassesAmplitude))
-    print (cubeBandpassesAmplitude[0].shape)
+    print (cubeBandpassAmplitudeValues.shape)
+    print (type(cubeBandpassAmplitudeValues))
+    print (cubeBandpassAmplitudeValues[0].shape)
 
     # Save the amplitude bandpasses.
     lib_util.check_rm(pathH5ParmOutput)
