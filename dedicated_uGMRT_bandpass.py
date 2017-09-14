@@ -421,16 +421,16 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     bandpassesPhasePol1    = []
     bandpassesPhasePol2    = []
     DTECs                  = []
-#
-#         for i in range(numberOfAntennae):
-#             if (antennaeWorking[i]):
-#
-#                 print ("Starting DTEC and phase bandpass calculation for antenna ID " + str(i) + "...")
-#
-#                 # Calculate the first derivative of gain phase to time in a way robust to phase wrapping (for both polarisations).
-#                 # We do so by calculating the derivative for each time-frequency bin 2 times: one with the ordinary data, and once after shifting
-#                 # - all the phases by 180 degrees to place them in the [0, 360) domain, and
-#                 # - another 180 degrees to effect a shift within that domain.
+
+     for i in range(numberOfAntennae):
+         if (antennaeWorking[i]):
+             print ("Starting phase bandpass (and DTEC) calculation for antenna ID " + str(i) + "...")
+
+             # Calculate the first derivative of gain phase to time in a way robust to phase wrapping (for both polarisations).
+             # We do so by calculating the derivative for each time-frequency bin 2 times: one with the ordinary data, and once after shifting
+             # - all the phases by 180 degrees to place them in the [0, 360) domain, and
+             # - another 180 degrees to effect a shift within that domain.
+
 #                 derivTimePol1Choice1        = computeDerivative2D(gainPhasesPol1[i], timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
 #                 derivTimePol1Choice2        = computeDerivative2D(numpy.mod(gainPhasesPol1[i] + 180 + 180, 360), timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
 #                 derivTimePol1               = numpy.where(numpy.less(numpy.absolute(derivTimePol1Choice1), numpy.absolute(derivTimePol1Choice2)),

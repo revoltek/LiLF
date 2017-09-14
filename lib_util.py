@@ -35,7 +35,7 @@ def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNa
     columnNameSimilar:      name of the column from which properties are copied (e.g. "DATA")
     dataManagerInfoNameNew: string value for the data manager info (DMI) keyword "NAME" (should be unique in the MS)
     overwrite:              whether or not to overwrite column 'columnNameNew' if it already exists
-    fillWithZeros:          whether or not to fill the newly-made column with zeros
+    fillWithOnes:           whether or not to fill the newly-made column with ones
     verbose:                whether or not to produce abundant output
     """
     t = tables.table(pathMS, readonly = False)
