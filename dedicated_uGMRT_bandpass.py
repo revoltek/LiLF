@@ -389,13 +389,16 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     pyplot.savefig("/disks/strw3/oei/bandpassessssssPol2.pdf")
     pyplot.close()
 
-    cube = numpy.array([bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2])
-    print (cube.shape)
-    print (cube.type)
-    print (cube[0].shape)
+    cubeBandpassesAmplitude = numpy.array([bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2])
+    print (cubeBandpassesAmplitude.shape)
+    print (type(cubeBandpassesAmplitude))
+    print (cubeBandpassesAmplitude[0].shape)
 
     # Save the amplitude bandpasses.
-    #objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "amplitude bandpass",
+    # Delete the old solution table, if it exists.
+    if ("amplitude bandpass" in objectSolSet.getSoltabNames()):
+        (objectSolSet.getSoltab("amplitude bandpass")).delete()
+    objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "amplitude bandpass", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassesAmplitude)
 
     # After amplitude and phase bandpass and TECs are created, save back to H5Parm file.
     # Write the TEC solutions to 'objectH5Parm.H.root.sol000.tec000.val'.
