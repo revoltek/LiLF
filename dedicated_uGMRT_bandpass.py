@@ -763,8 +763,8 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
         bandpassesAmplitudePol2Iter1.append(bandpassAmplitudePol2Iter1)
         bandpassesAmplitudePol2Iter2.append(bandpassAmplitudePol2Iter2)
 
-        print (bandpassAmplitudePol1Iter1.shape)
-        print (bandpassAmplitudePol1Iter2.shape)
+
+    print (numpy.array(bandpassesAmplitudePol1Iter1).shape)
 
 
     #
