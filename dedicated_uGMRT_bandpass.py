@@ -12,6 +12,7 @@ import numpy
 import lib_ms, lib_util
 
 
+
 def filterMedian1D(array, kernelSize):
     """
     Median filter a 1D array (except for the edges).
@@ -27,6 +28,7 @@ def filterMedian1D(array, kernelSize):
         arrayNew[index] = numpy.nanmedian(array[index - kernelRadius : index + kernelRadius + 1])
 
     return arrayNew
+
 
 
 def fillGaps1D(array):
@@ -50,6 +52,7 @@ def fillGaps1D(array):
     return arrayNew
 
 
+
 def sigmaClip1D(array, numberOfSigmas = 3.0, iterationNumberMax = 100, verbose = True):
     '''
     This function takes a 1D array and performs sigma clipping on it.
@@ -57,13 +60,14 @@ def sigmaClip1D(array, numberOfSigmas = 3.0, iterationNumberMax = 100, verbose =
 
     'array' may contain NaNs. 'arraySliced' does not.
     '''
-    isNaN = numpy.isnan(array)
 
+    isNaN       = numpy.isnan(array)
     arraySliced = array[numpy.logical_not(isNaN)]
 
     if (verbose):
         print ("sigma clipping has started...")
         print ("# array elements (initially): " + str(len(array)) + " | # NaNs: " + str(numpy.sum(isNaN)) + " | # array elements (remaining): " + str(len(arraySliced)))
+
 
     for iterationCurrent in range(1, iterationNumberMax + 1):
         if (verbose):
@@ -88,11 +92,12 @@ def sigmaClip1D(array, numberOfSigmas = 3.0, iterationNumberMax = 100, verbose =
         print ("sigma clipping has ended...")
 
     # Computes the 1D mean, median and standard deviation arrays.
-    mean   = numpy.mean(arraySliced)
-    median = numpy.median(arraySliced)
-    sigma  = numpy.std(arraySliced)
+    mean        = numpy.mean(arraySliced)
+    median      = numpy.median(arraySliced)
+    sigma       = numpy.std(arraySliced)
 
     return (mean, median, sigma)
+
 
 
 def wrapPhasesZeroCentred(phases, unitDegree = True):
@@ -117,6 +122,7 @@ def wrapPhasesZeroCentred(phases, unitDegree = True):
             phases -= numpy.pi
 
         return phases
+
 
 
 def computeDerivative1D(array, stepSize, degree = 1, intermediateSampling = False):
@@ -147,6 +153,7 @@ def computeDerivative1D(array, stepSize, degree = 1, intermediateSampling = Fals
         sys.exit()
 
     return arrayResult
+
 
 
 def computeDerivative2D(grid, stepSize, axis = 0, degree = 1, intermediateSampling = False):
@@ -199,6 +206,87 @@ def computeDerivative2D(grid, stepSize, axis = 0, degree = 1, intermediateSampli
     return gridResult
 
 
+
+def calculateBandpassAmplitude(gainAmplitudes, flags, numberOfSubiterations = 3, flaggingThresholdFactor = 3, medianFilteringKernelSize = 7):
+    """
+    Generate an amplitude bandpass from a time-frequency grid of gain amplitudes, for a certain polarisation and antenna.
+    The process will output 2 amplitude bandpasses, one for each of 2 iterations.
+    Iteration 1 consists out of subiterations, during which outliers are flagged.
+    Iteration 2 takes the results from iteration 1 and performs median filtering and interpolation.
+
+    gainAmplitudes: two-dimensional grid of gain amplitudes
+    flags:          two-dimensional grid of flags
+    """
+
+    _, numberOfTimeStamps = gainAmplitudes.shape
+
+    #
+    # Determine amplitude bandpass (iteration 1).
+    #
+    for subiteration in range(numberOfSubiterations):
+
+        # If in the last subiteration, determine the amplitude bandpass using the mean.
+        # During earlier iterations, to avoid e.g. RFI signatures, we use the median.
+        if (subiteration == numberOfSubiterations - 1):
+            bandpassAmplitudeIter1 = numpy.nanmean(gainAmplitudes, axis = 1)
+        else:
+            bandpassAmplitudeIter1 = numpy.nanmedian(gainAmplitudes, axis = 1)
+
+            # Tile the bandpass into a grid.
+            gridBandpassAmplitude = numpy.tile(bandpassAmplitudeIter1, (numberOfTimeStamps, 1)).T
+
+            # Divide the data by the provisional bandpass. Residuals will be centered around 1.
+            gridResiduals         = numpy.divide(gainAmplitudes, gridBandpassAmplitude)
+
+            # Calculate the standard deviation of the residuals.
+            STDResiduals          = numpy.nanstd(gridResiduals)
+
+            # Determine outliers and update the flags. This makes sure that the bandpass in the next iterations is better.
+            gridIsOutlier         = numpy.greater(numpy.absolute(gridResiduals - 1), flaggingThresholdFactor * STDResiduals)
+            flags                 = numpy.logical_or(flags, gridIsOutlier)
+
+            # Set flagged amplitudes to 'numpy.nan'.
+            gainAmplitudes        = numpy.where(flags, numpy.nan, gainAmplitudes)
+
+    #
+    # Determine amplitude bandpass (iteration 2).
+    #
+
+    # Median filter and interpolate the amplitude bandpass.
+    bandpassAmplitudeIter2 = fillGaps1D(filterMedian1D(bandpassAmplitudeIter1, kernelSize = medianFilteringKernelSize))
+
+    return bandpassAmplitudeIter1, bandpassAmplitudeIter2
+
+
+
+def calculateBandpassPhaseNoIonosphere(gainPhases, useMedian = True):
+    """
+    Generate a phase bandpass from a time-frequency grid of gain phases, for a certain polarisation and antenna.
+    The method is robust to phase wrapping.
+    Do this under the assumption that the input gain phases are approximately time-independent; that is,
+    ionospheric imprints are already taken out.
+
+    gainPhases: two-dimensional grid of gain phases (zero-centred, in degrees)
+    useMedian:  if True, use median to determine bandpass; if False, use mean
+    """
+    if (useMedian):
+        bandpassPhaseChoice1 = numpy.nanmedian(gainPhases, axis = 1)                                                                # in degrees
+        bandpassPhaseChoice2 = wrapPhasesZeroCentred(numpy.nanmedian(numpy.mod(gainPhases + 180 + 180, 360), axis = 1) - 180 - 180) # in degrees
+    else:
+        bandpassPhaseChoice1 = numpy.nanmean(gainPhases, axis = 1)                                                                  # in degrees
+        bandpassPhaseChoice2 = wrapPhasesZeroCentred(numpy.nanmean(numpy.mod(gainPhases + 180 + 180, 360), axis = 1) - 180 - 180)   # in degrees
+
+    # Calculate, for each frequency channel, the variability in the gain phases. Variability can arise from phase wrapping.
+    STDChoice1    = numpy.nanstd(gainPhases, axis = 1)                                                                              # in degrees
+    STDChoice2    = numpy.nanstd(numpy.mod(gainPhases + 180 + 180, 360), axis = 1)                                                  # in degrees
+
+    # Construct the bandpass by choosing, for each frequency channel, the bandpass option that is associated with least variability.
+    bandpassPhase = numpy.where(numpy.less(STDChoice1, STDChoice2), bandpassPhaseChoice1, bandpassPhaseChoice2)                     # in degrees
+
+    return bandpassPhase
+
+
+
 def plotAmplitudes2D(amplitudes, times, frequencies, antennaeWorking, pathDirectoryPlots,
                      namePolarisation = "?", nameField = "?", nameDataSet = "?", nameTelescope = "uGMRT"):
     """
@@ -235,6 +323,7 @@ def plotAmplitudes2D(amplitudes, times, frequencies, antennaeWorking, pathDirect
             pyplot.close()
         else:
             logging.info("Skipping gain amplitudes visualisation for antenna ID " + str(i) + " and polarisation " + namePolarisation + ": all data are flagged.")
+
 
 
 def plotPhases2D(phases, times, frequencies, antennaeWorking, pathDirectoryPlots,
@@ -275,6 +364,7 @@ def plotPhases2D(phases, times, frequencies, antennaeWorking, pathDirectoryPlots
             logging.info("Skipping gain phases visualisation for antenna ID " + str(i) + " and polarisation " + namePolarisation + ": all data are flagged.")
 
 
+
 def plotBandpassesAmplitude(bandpassesAmplitudePol1, bandpassesAmplitudePol2, frequencies, antennaeWorking, pathDirectoryPlots,
                             namesPolarisation = ["?", "?"], nameIteration = "?", nameField = "?", nameDataSet = "?", nameTelescope = "uGMRT"):
     """
@@ -310,6 +400,7 @@ def plotBandpassesAmplitude(bandpassesAmplitudePol1, bandpassesAmplitudePol2, fr
             logging.info("Skipping amplitude bandpass visualisation for antenna ID " + str(i) + ": all data are flagged.")
 
 
+
 def plotBandpassesAmplitude2D(bandpassesAmplitude, pathDirectoryPlots, namePolarisation = "?", nameField = "?", nameDataSet = "?", nameTelescope = "uGMRT"):
     """
     Generate frequency-antenna plots of amplitude bandpasses, of one specific polarisation.
@@ -334,6 +425,7 @@ def plotBandpassesAmplitude2D(bandpassesAmplitude, pathDirectoryPlots, namePolar
     pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
     pyplot.savefig(pathDirectoryPlots + "/bandpassAmplitudeAll2D_pol" + namePolarisation + ".pdf")
     pyplot.close()
+
 
 
 def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = False):
@@ -449,87 +541,39 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     bandpassAmplitudeFlaggingThresholdFactor   = 3
     bandpassAmplitudeMedianFilteringKernelSize = 7
 
-    bandpassPhaseNumberOfSubiterations         = 2
+    bandpassPhaseNumberOfSubiterations         = 3
     bandpassPhaseFlaggingThresholdFactor       = 3
+    bandpassPhaseMedianFilteringKernelSize     = 7
 
     bandpassNaNs                               = numpy.ones_like(frequencies) * numpy.nan
+    functionDTECNaNs                           = numpy.ones_like(times) * numpy.nan
+
+
 
     #
-    # In this step, the amplitude bandpasses for each antenna are determined in two iterations.
-    # Iteration 1 is subdivided into several 'subiterations' that are meant to flag outliers.
-    # Iteration 2 takes the bandpass results from iteration 1 and performs median filtering and interpolation.
+    # Generate amplitude bandpasses (in an iterative way).
     #
 
-    # Create lists that store the normalised amplitude bandpasses and the bandpass normalisation factors.
-    bandpassesAmplitudePol1Iter1               = []
-    bandpassesAmplitudePol2Iter1               = []
-    bandpassesAmplitudePol1Iter2               = []
-    bandpassesAmplitudePol2Iter2               = []
-
-
-
+    # Create lists that store, for each antenna, 4 amplitude bandpasses (2 polarisations, 2 iterations).
+    bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter1, bandpassesAmplitudePol2Iter2 = [[]] * 4
 
     for i in range(numberOfAntennae):
+
+        # Produce amplitude bandpasses.
         if (antennaeWorking[i]):
             print ("Starting amplitude bandpass calculation for antenna ID " + str(i) + "...")
-
-            #
-            # Determine the amplitude bandpass (iteration 1).
-            #
-            for subiteration in range(bandpassAmplitudeNumberOfSubiterations):
-                if (subiteration == bandpassAmplitudeNumberOfSubiterations - 1): # If in the last subiteration, determine the amplitude bandpass using the mean.
-                    bandpassAmplitudePol1Iter1 = numpy.nanmean(gainAmplitudesPol1[i], axis = 1)
-                    bandpassAmplitudePol2Iter1 = numpy.nanmean(gainAmplitudesPol2[i], axis = 1)
-                else: # During earlier iterations, to avoid e.g. RFI signatures, we use the median.
-                    bandpassAmplitudePol1Iter1 = numpy.nanmedian(gainAmplitudesPol1[i], axis = 1)
-                    bandpassAmplitudePol2Iter1 = numpy.nanmedian(gainAmplitudesPol2[i], axis = 1)
-
-                # Tile the bandpass into a grid.
-                gridBandpassAmplitudePol1 = numpy.tile(bandpassAmplitudePol1Iter1, (numberOfTimeStamps, 1)).T
-                gridBandpassAmplitudePol2 = numpy.tile(bandpassAmplitudePol2Iter1, (numberOfTimeStamps, 1)).T
-
-                # Divide the data by the provisional bandpass. Residuals will be centered around 1.
-                gridResidualsPol1         = numpy.divide(gainAmplitudesPol1[i], gridBandpassAmplitudePol1)
-                gridResidualsPol2         = numpy.divide(gainAmplitudesPol2[i], gridBandpassAmplitudePol2)
-
-                # Calculate the standard deviation of the residuals.
-                STDPol1                   = numpy.nanstd(gridResidualsPol1)
-                STDPol2                   = numpy.nanstd(gridResidualsPol2)
-
-                # Determine outliers and update the flags. This makes sure that the bandpass in the next iterations is better.
-                gridIsOutlierPol1         = numpy.greater(numpy.absolute(gridResidualsPol1 - 1), bandpassAmplitudeFlaggingThresholdFactor * STDPol1)
-                gridIsOutlierPol2         = numpy.greater(numpy.absolute(gridResidualsPol2 - 1), bandpassAmplitudeFlaggingThresholdFactor * STDPol2)
-                flagsForAmplitudesPol1[i] = numpy.logical_or(flagsForAmplitudesPol1[i], gridIsOutlierPol1)
-                flagsForAmplitudesPol2[i] = numpy.logical_or(flagsForAmplitudesPol2[i], gridIsOutlierPol2)
-
-                # Set flagged amplitudes to 'numpy.nan'.
-                gainAmplitudesPol1[i]     = numpy.where(flagsForAmplitudesPol1[i], numpy.nan, gainAmplitudesPol1[i])
-                gainAmplitudesPol2[i]     = numpy.where(flagsForAmplitudesPol2[i], numpy.nan, gainAmplitudesPol2[i])
-
-
-            # Store, in appropriate lists, the amplitude bandpasses (iteration 1).
-            bandpassesAmplitudePol1Iter1.append(bandpassAmplitudePol1Iter1)
-            bandpassesAmplitudePol2Iter1.append(bandpassAmplitudePol2Iter1)
-
-
-            #
-            # Determine the amplitude bandpass (iteration 2).
-            #
-
-            # Median filter and interpolate the amplitude bandpass.
-            bandpassAmplitudePol1Iter2 = fillGaps1D(filterMedian1D(bandpassAmplitudePol1Iter1, kernelSize = bandpassAmplitudeMedianFilteringKernelSize))
-            bandpassAmplitudePol2Iter2 = fillGaps1D(filterMedian1D(bandpassAmplitudePol2Iter1, kernelSize = bandpassAmplitudeMedianFilteringKernelSize))
-
-
-            # Store, in appropriate lists, the amplitude bandpasses (iteration 2).
-            bandpassesAmplitudePol1Iter2.append(bandpassAmplitudePol1Iter2)
-            bandpassesAmplitudePol2Iter2.append(bandpassAmplitudePol2Iter2)
+            bandpassAmplitudePol1Iter1, bandpassAmplitudePol1Iter2 = calculateBandpassAmplitude(gainAmplitudesPol1[i], flagsForAmplitudesPol1[i],
+                                                                                                numberOfSubiterations = bandpassAmplitudeNumberOfSubiterations, flaggingThresholdFactor = bandpassAmplitudeFlaggingThresholdFactor, medianFilteringKernelSize = bandpassAmplitudeMedianFilteringKernelSize)
+            bandpassAmplitudePol2Iter1, bandpassAmplitudePol2Iter2 = calculateBandpassAmplitude(gainAmplitudesPol2[i], flagsForAmplitudesPol2[i],
+                                                                                                numberOfSubiterations = bandpassAmplitudeNumberOfSubiterations, flaggingThresholdFactor = bandpassAmplitudeFlaggingThresholdFactor, medianFilteringKernelSize = bandpassAmplitudeMedianFilteringKernelSize)
         else:
-            # Store, in appropriate lists, NaN-filled amplitude bandpasses.
-            bandpassesAmplitudePol1Iter1.append(bandpassNaNs)
-            bandpassesAmplitudePol2Iter1.append(bandpassNaNs)
-            bandpassesAmplitudePol1Iter2.append(bandpassNaNs)
-            bandpassesAmplitudePol2Iter2.append(bandpassNaNs)
+            bandpassAmplitudePol1Iter1, bandpassAmplitudePol1Iter2, bandpassAmplitudePol2Iter1, bandpassAmplitudePol2Iter2 = [bandpassNaNs] * 4
+
+        # Save amplitude bandpasses.
+        bandpassesAmplitudePol1Iter1.append(bandpassAmplitudePol1Iter1)
+        bandpassesAmplitudePol1Iter2.append(bandpassAmplitudePol1Iter2)
+        bandpassesAmplitudePol2Iter1.append(bandpassAmplitudePol2Iter1)
+        bandpassesAmplitudePol2Iter2.append(bandpassAmplitudePol2Iter2)
 
 
     # Plot amplitude bandpasses.
@@ -545,283 +589,51 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     cubeBandpassAmplitudeWeights = numpy.logical_not(numpy.isnan(cubeBandpassAmplitudeValues))
 
 
+
     #
-    # In this step, the phase bandpass is found in an iterative process. Calibrator DTEC(t) is found as a side product.
+    # Generate phase bandpasses (in an iterative way). Calibrator DTECs are found as a side product.
     #
 
-    timeStampDuration             = times[1] - times[0]             # in s (we assume that the time stamp lengths are uniform)
-    frequencyChannelWidth         = frequencies[1] - frequencies[0] # in MHz
-
-    # Create a 2D and a 1D array of inverse frequencies over the frequency band.
-    gridIndexRow, gridIndexColumn = numpy.mgrid[0 : numberOfChannels, 0 : numberOfTimeStamps]
-    gridFrequencies               = numpy.divide(gridIndexRow, numberOfChannels - 1) * (frequencies[-1] - frequencies[0]) + frequencies[0] # in MHz
-    gridFrequenciesInverse        = numpy.divide(1, gridFrequencies)                                                                       # in MHz^-1
-    frequenciesInverse            = gridFrequenciesInverse[ : , 0]                                                                         # in MHz^-1
-
-    # Create lists that will contain, for each antenna, the two phase bandpasses and the function DTEC(t).
-    bandpassesPhasePol1           = []
-    bandpassesPhasePol2           = []
-    DTECs                         = []
+    # Create lists that store, for each antenna, 4 phase bandpasses (2 polarisations, 2 iterations) and 2 functions DTEC(t) (2 polarisations; should be identical).
+    bandpassesPhasePol1Iter1, bandpassesPhasePol1Iter2, bandpassesPhasePol2Iter1, bandpassesPhasePol2Iter2, functionsDTECPol1, functionsDTECPol2 = [[]] * 6
 
     for i in range(numberOfAntennae):
+
+        # Produce phase bandpasses and DTECs.
         if (antennaeWorking[i]):
             print ("Starting phase bandpass (and DTEC) calculation for antenna ID " + str(i) + "...")
 
-            # Calculate the first derivative of gain phase to time in a way robust to phase wrapping (for both polarisations).
-            # We do so by calculating the derivative for each time-frequency bin 2 times: one with the ordinary data, and once after shifting
-            # - all the phases by 180 degrees to place them in the [0, 360) domain, and
-            # - another 180 degrees to effect a maximum shift within that domain.
+            bandpassPhasePol1Iter1, bandpassPhasePol1Iter2, functionDTECPol1 = calculateBandpassPhase(gainPhasesPol1[i], flagsForPhasesPol1[i], frequencies, times,
+                                                                                                      numberOfSubiterations = bandpassPhaseNumberOfSubiterations, flaggingThresholdFactor = bandpassPhaseFlaggingThresholdFactor, medianFilteringKernelSize = bandpassPhaseMedianFilteringKernelSize)
+            bandpassPhasePol2Iter1, bandpassPhasePol2Iter2, functionDTECPol2 = calculateBandpassPhase(gainPhasesPol2[i], flagsForPhasesPol2[i], frequencies, times,
+                                                                                                      numberOfSubiterations = bandpassPhaseNumberOfSubiterations, flaggingThresholdFactor = bandpassPhaseFlaggingThresholdFactor, medianFilteringKernelSize = bandpassPhaseMedianFilteringKernelSize)
+        else:
+            bandpassPhasePol1Iter1, bandpassPhasePol1Iter2, bandpassPhasePol2Iter1, bandpassPhasePol2Iter2 = [bandpassNaNs] * 4
+            functionDTECPol1, functionDTECPol2                                                             = [functionDTECNaNs] * 2
 
-            derivTimePol1Choice1        = computeDerivative2D(gainPhasesPol1[i],                             timeStampDuration, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
-            derivTimePol1Choice2        = computeDerivative2D(numpy.mod(gainPhasesPol1[i] + 180 + 180, 360), timeStampDuration, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
-            derivTimePol1               = numpy.where(numpy.less(numpy.absolute(derivTimePol1Choice1), numpy.absolute(derivTimePol1Choice2)),
-                                                      derivTimePol1Choice1, derivTimePol1Choice2) # in degrees per MHz^2
-
-            derivTimePol2Choice1        = computeDerivative2D(gainPhasesPol2[i],                             timeStampDuration, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
-            derivTimePol2Choice2        = computeDerivative2D(numpy.mod(gainPhasesPol2[i] + 180 + 180, 360), timeStampDuration, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
-            derivTimePol2               = numpy.where(numpy.less(numpy.absolute(derivTimePol2Choice1), numpy.absolute(derivTimePol2Choice2)),
-                                                      derivTimePol2Choice1, derivTimePol2Choice2) # in degrees per MHz^2
-
-
-            # Determine the DTEC time derivative for both polarisations (iteration 1).
-            derivTimeDTECsIter1Pol1Grid = derivTimePol1 * gridFrequencies[ : , : -1] / (1210 * 400)
-            derivTimeDTECsIter1Pol2Grid = derivTimePol2 * gridFrequencies[ : , : -1] / (1210 * 400)
-            derivTimeDTECsIter1Pol1     = numpy.nanmean(derivTimeDTECsIter1Pol1Grid, axis = 0)
-            derivTimeDTECsIter1Pol2     = numpy.nanmean(derivTimeDTECsIter1Pol2Grid, axis = 0)
-
-            '''
-            # Create a grid of residuals. CURRENTLY NOT USED IN THE ALGORITHM!
-            derivTimeFitPol1            = numpy.multiply(gridFrequenciesInverse[ : , : -1], numpy.tile(derivTimeDTECsIter1Pol1, (numberOfChannels, 1))) * 1210 * 400 # in degrees per second
-            derivTimeFitPol2            = numpy.multiply(gridFrequenciesInverse[ : , : -1], numpy.tile(derivTimeDTECsIter1Pol2, (numberOfChannels, 1))) * 1210 * 400 # in degrees per second
-            derivTimeResidualsPol1      = derivTimePol1 - derivTimeFitPol1
-            derivTimeResidualsPol2      = derivTimePol2 - derivTimeFitPol2
-
-            # To do: flag or mask the worst outliers, and fit 'derivTimeDTECsIter1PolX' again with the new flags.
-            '''
-
-            # Whenever there are NaNs in 'derivTimeDTECsIter1PolX', then 'DTECsIter1PolX' is not well-determined.
-            # If NaNs occur at the beginning or end, they are replaced by zeros.
-            derivTimeDTECsIter1Pol1     = fillGaps1D(derivTimeDTECsIter1Pol1)
-            derivTimeDTECsIter1Pol2     = fillGaps1D(derivTimeDTECsIter1Pol2)
+        # Save phase bandpasses and DTECs.
+        bandpassesPhasePol1Iter1.append(bandpassPhasePol1Iter1)
+        bandpassesPhasePol1Iter2.append(bandpassPhasePol1Iter2)
+        bandpassesPhasePol2Iter1.append(bandpassPhasePol2Iter1)
+        bandpassesPhasePol2Iter2.append(bandpassPhasePol2Iter2)
+        functionsDTECPol1.append(functionDTECPol1)
+        functionsDTECPol2.append(functionDTECPol2)
 
 
-            # Find DTECs by integrating along time for both polarisations (iteration 1).
-            DTECsIter1Pol1              = [0]
-            DTECsIter1Pol2              = [0]
-            for j in range(numberOfTimeStamps - 1):
-                DTECsIter1Pol1.append(timeStampDuration * numpy.nansum(derivTimeDTECsIter1Pol1[ : j + 1]))
-                DTECsIter1Pol2.append(timeStampDuration * numpy.nansum(derivTimeDTECsIter1Pol2[ : j + 1]))
+    # Plot phase bandpasses.
 
-            # NumPy-ify the 1D arrays.
-            DTECsIter1Pol1              = numpy.array(DTECsIter1Pol1)
-            DTECsIter1Pol2              = numpy.array(DTECsIter1Pol2)
-
-
-            # Flag DTEC values appropriately, or do median filtering?
-            '''
-            '''
-
-            # Subtract the mean or median from the DTEC values, so that they lie around 0.
-            DTECsIter1Pol1             -= numpy.mean(DTECsIter1Pol1)
-            DTECsIter1Pol2             -= numpy.mean(DTECsIter1Pol2)
-
-
-            # Calculate the fitted plasma opacity phase effect (iteration 1).
-            gridPlasmaOpIter1Pol1       = wrapPhasesZeroCentred(numpy.multiply(
-                                          gridFrequenciesInverse, numpy.tile(DTECsIter1Pol1, (numberOfChannels, 1))) * 1210 * 400) # in degrees
-            gridPlasmaOpIter1Pol2       = wrapPhasesZeroCentred(numpy.multiply(
-                                          gridFrequenciesInverse, numpy.tile(DTECsIter1Pol2, (numberOfChannels, 1))) * 1210 * 400) # in degrees
-
-
-            # We now determine the bandpass by subtracting the plasma opacity phase effect from the original data.
-            # As we flag outliers in the process, we repeat this procedure several times.
-            # During the last subiteration, the bandpass is calculated by taking the mean along time, whereas in
-            # earlier iterations we calculate the bandpass using the median.
-            for subiteration in range(bandpassPhaseNumberOfSubiterations):
-                # Subtract the time-variable ionospheric effect from the gain phases.
-                gridStaticIter1Pol1 = wrapPhasesZeroCentred(gainPhasesPol1[i] - gridPlasmaOpIter1Pol1)
-                gridStaticIter1Pol2 = wrapPhasesZeroCentred(gainPhasesPol2[i] - gridPlasmaOpIter1Pol2)
-
-
-                # Calculate the phase bandpass for both polarisations in a way robust to phase wrapping (iteration 1).
-                # This is again done by creating two candidate means where one is found by first shifting the phases by 180 degrees.
-                # Then the standard deviations for both mean candidates are calculated. The mean candidate is chosen that has the lowest standard deviation.
-                if (subiteration == bandpassPhaseNumberOfSubiterations - 1): # If in the last iteration, determine the phase bandpass using the mean.
-                    bandpassPhaseIter1Pol1Choice1 = numpy.nanmean(gridStaticIter1Pol1, axis = 1)
-                    bandpassPhaseIter1Pol2Choice1 = numpy.nanmean(gridStaticIter1Pol2, axis = 1)
-                    bandpassPhaseIter1Pol1Choice2 = wrapPhasesZeroCentred(numpy.nanmean(numpy.mod(gridStaticIter1Pol1 + 180 + 180, 360), axis = 1) - 180 - 180)
-                    bandpassPhaseIter1Pol2Choice2 = wrapPhasesZeroCentred(numpy.nanmean(numpy.mod(gridStaticIter1Pol2 + 180 + 180, 360), axis = 1) - 180 - 180)
-                else: # During earlier iterations, to avoid RFI signatures, we use the median.
-                    bandpassPhaseIter1Pol1Choice1 = numpy.nanmedian(gridStaticIter1Pol1, axis = 1)
-                    bandpassPhaseIter1Pol2Choice1 = numpy.nanmedian(gridStaticIter1Pol2, axis = 1)
-                    bandpassPhaseIter1Pol1Choice2 = wrapPhasesZeroCentred(numpy.nanmedian(numpy.mod(gridStaticIter1Pol1 + 180 + 180, 360), axis = 1) - 180 - 180)
-                    bandpassPhaseIter1Pol2Choice2 = wrapPhasesZeroCentred(numpy.nanmedian(numpy.mod(gridStaticIter1Pol2 + 180 + 180, 360), axis = 1) - 180 - 180)
-
-                bandpassPhaseErrorIter1Pol1Choice1 = numpy.nanstd(gridStaticIter1Pol1, axis = 1)
-                bandpassPhaseErrorIter1Pol2Choice1 = numpy.nanstd(gridStaticIter1Pol2, axis = 1)
-                bandpassPhaseErrorIter1Pol1Choice2 = numpy.nanstd(numpy.mod(gridStaticIter1Pol1 + 180 + 180, 360), axis = 1)
-                bandpassPhaseErrorIter1Pol2Choice2 = numpy.nanstd(numpy.mod(gridStaticIter1Pol2 + 180 + 180, 360), axis = 1)
-
-                # Calculate the phase bandpasses. NOTE: although these are called 'bandpassPhaseIter1PolX', we can remove 'Iter1'!
-                # We won't update the bandpass anymore after this, so no need for the extra tag 'Iter1'.
-                # September 2017: The above seems false! There is an iter 2!
-                bandpassPhaseIter1Pol1      = numpy.where(numpy.less(bandpassPhaseErrorIter1Pol1Choice1, bandpassPhaseErrorIter1Pol1Choice2),
-                                                          bandpassPhaseIter1Pol1Choice1, bandpassPhaseIter1Pol1Choice2) # in degrees
-                bandpassPhaseIter1Pol2      = numpy.where(numpy.less(bandpassPhaseErrorIter1Pol2Choice1, bandpassPhaseErrorIter1Pol2Choice2),
-                                                          bandpassPhaseIter1Pol2Choice1, bandpassPhaseIter1Pol2Choice2) # in degrees
-
-                #print(numpy.sum(numpy.isnan(bandpassPhaseIter1Pol1)))
-
-                # Remove the phase bandpass from the static pattern to keep residuals, which we will use for flagging.
-                gridResidualsIter1Pol1      = wrapPhasesZeroCentred(gridStaticIter1Pol1 - numpy.tile(bandpassPhaseIter1Pol1, (numberOfTimeStamps, 1)).T)
-                gridResidualsIter1Pol2      = wrapPhasesZeroCentred(gridStaticIter1Pol2 - numpy.tile(bandpassPhaseIter1Pol2, (numberOfTimeStamps, 1)).T)
-
-                # Calculate the standard deviation of the residuals.
-                STDIter1Pol1                = numpy.nanstd(gridResidualsIter1Pol1)
-                STDIter1Pol2                = numpy.nanstd(gridResidualsIter1Pol2)
-
-                # Determine outliers and update the flags. This makes sure that the bandpass in the next iterations is better.
-                gridIsOutlierPol1           = numpy.greater(numpy.absolute(gridResidualsIter1Pol1), bandpassPhaseFlaggingThresholdFactor * STDIter1Pol1)
-                gridIsOutlierPol2           = numpy.greater(numpy.absolute(gridResidualsIter1Pol2), bandpassPhaseFlaggingThresholdFactor * STDIter1Pol2)
-                flagsForPhasesPol1[i]       = numpy.logical_or(flagsForPhasesPol1[i], gridIsOutlierPol1)
-                flagsForPhasesPol2[i]       = numpy.logical_or(flagsForPhasesPol2[i], gridIsOutlierPol2)
-
-                # Set flagged phases to 'numpy.nan'.
-                gainPhasesPol1[i]           = numpy.where(flagsForPhasesPol1[i], numpy.nan, gainPhasesPol1[i])
-                gainPhasesPol2[i]           = numpy.where(flagsForPhasesPol2[i], numpy.nan, gainPhasesPol2[i])
-
-
-
-            # Remove the phase bandpass from the original data.
-            gridIonosOnlyPol1               = wrapPhasesZeroCentred(gainPhasesPol1[i] - numpy.tile(bandpassPhaseIter1Pol1, (numberOfTimeStamps, 1)).T)
-            gridIonosOnlyPol2               = wrapPhasesZeroCentred(gainPhasesPol2[i] - numpy.tile(bandpassPhaseIter1Pol2, (numberOfTimeStamps, 1)).T)
-
-
-            # Calculate DTECs directly by fitting to the ionospheric data only (iteration 2).
-            DTECsIter2Pol1                  = numpy.nanmean(gridIonosOnlyPol1 * gridFrequencies / (1210 * 400), axis = 0) # in TECUs
-            DTECsIter2Pol2                  = numpy.nanmean(gridIonosOnlyPol2 * gridFrequencies / (1210 * 400), axis = 0) # in TECUs
-
-
-            # Calculate the fitted plasma opacity phase effect (iteration 2).
-            gridPlasmaOpIter2Pol1           = wrapPhasesZeroCentred(numpy.multiply(
-                                              gridFrequenciesInverse, numpy.tile(DTECsIter2Pol1, (numberOfChannels, 1))) * 1210 * 400) # in degrees
-            gridPlasmaOpIter2Pol2           = wrapPhasesZeroCentred(numpy.multiply(
-                                              gridFrequenciesInverse, numpy.tile(DTECsIter2Pol2, (numberOfChannels, 1))) * 1210 * 400) # in degrees
-
-
-            # Subtract the time-variable ionospheric effect from the gain phases.
-            gridStaticIter2Pol1             = wrapPhasesZeroCentred(gainPhasesPol1[i] - gridPlasmaOpIter2Pol1)#numpy.ma.masked_array(wrapPhasesZeroCentred(gainPhasesPol1[i] - gridPlasmaOpIter2Pol1), flagsPol1[i])
-            gridStaticIter2Pol2             = wrapPhasesZeroCentred(gainPhasesPol2[i] - gridPlasmaOpIter2Pol2)#numpy.ma.masked_array(wrapPhasesZeroCentred(gainPhasesPol2[i] - gridPlasmaOpIter2Pol2), flagsPol2[i])
-
-
-            # Remove the phase bandpass from the static pattern to keep residuals, which we will use for flagging.
-            gridResidualsIter2Pol1          = wrapPhasesZeroCentred(gridStaticIter2Pol1 - numpy.tile(bandpassPhaseIter1Pol1, (numberOfTimeStamps, 1)).T)
-            gridResidualsIter2Pol2          = wrapPhasesZeroCentred(gridStaticIter2Pol2 - numpy.tile(bandpassPhaseIter1Pol2, (numberOfTimeStamps, 1)).T)
-
-
-            # Calculate the standard deviation of the residuals.
-            STDIter2Pol1                    = numpy.nanstd(gridResidualsIter2Pol1)
-            STDIter2Pol2                    = numpy.nanstd(gridResidualsIter2Pol2)
-
-
-            # Calculate the derivative of the phase bandpass to frequency (for both polarisations).
-            bandpassPhaseDerivPol1          = computeDerivative1D(bandpassPhaseIter1Pol1, stepSize = frequencyChannelWidth, intermediateSampling = True)
-            bandpassPhaseDerivPol2          = computeDerivative1D(bandpassPhaseIter1Pol2, stepSize = frequencyChannelWidth, intermediateSampling = True)
-
-            # Determine the mean, median and standard deviation of the derivative after sigma clipping (for both polarisations).
-            meanPol1, medianPol1, sigmaPol1 = libraryRadioAstronomy.sigmaClip1D(bandpassPhaseDerivPol1, verbose = False) # in degrees per MHz
-            meanPol2, medianPol2, sigmaPol2 = libraryRadioAstronomy.sigmaClip1D(bandpassPhaseDerivPol2, verbose = False) # in degrees per MHz
-
-            # Determine whether the mean or median should be used for generating the bandpass fit (for both polarisations).
-            if (sigmaPol1 < 10): # in degrees per MHz
-                slopePol1 = meanPol1
-                print("Phase bandpass fit | slope type: mean")
-            else:
-                slopePol1 = medianPol1
-                print("Phase bandpass fit | slope type: median")
-            if (sigmaPol2 < 10): # in degrees per MHz
-                slopePol2 = meanPol2
-                print("Phase bandpass fit | slope type: mean")
-            else:
-                slopePol2 = medianPol2
-                print("Phase bandpass fit | slope type: median")
-
-            # Calculate the bandpass fit (for both polarisations).
-            BPPhaseFitPol1 = []
-            BPPhaseFitPol2 = []
-
-            for indexRefPol1 in range(numberOfChannels):
-                if (not numpy.isnan(bandpassPhaseIter1Pol1[indexRefPol1])):
-                    break
-            for indexRefPol2 in range(numberOfChannels):
-                if (not numpy.isnan(bandpassPhaseIter1Pol2[indexRefPol2])):
-                    break
-#
-#                 print("indexRefPol1, indexRefPol2:", indexRefPol1, indexRefPol2)
-#
-#                 for j in range(numberOfChannels):
-#                     BPPhaseFitPol1.append(bandpassPhaseIter1Pol1[indexRefPol1] + frequencyBinInterval * (j - indexRefPol1) * slopePol1)
-#                     BPPhaseFitPol2.append(bandpassPhaseIter1Pol2[indexRefPol2] + frequencyBinInterval * (j - indexRefPol2) * slopePol2)
-#
-#                 # NumPy-ify the 1D arrays, and ensure phase wrapping.
-#                 BPPhaseFitPol1 = wrapPhasesZeroCentred(numpy.array(BPPhaseFitPol1))
-#                 BPPhaseFitPol2 = wrapPhasesZeroCentred(numpy.array(BPPhaseFitPol2))
-#
-#
-#                 # Calculate the residuals that remain after the fit has been subtracted from the data.
-#                 BPPhaseRes1Pol1 = wrapPhasesZeroCentred(bandpassPhaseIter1Pol1 - BPPhaseFitPol1)
-#                 BPPhaseRes1Pol2 = wrapPhasesZeroCentred(bandpassPhaseIter1Pol2 - BPPhaseFitPol2)
-#
-#                 # We hope we can now apply median filtering and interpolation, as we removed the phase ramps.
-#                 BPPhaseRes2Pol1 = fillGaps1D(filterMedian1D(BPPhaseRes1Pol1, kernelSize = 7))
-#                 BPPhaseRes2Pol2 = fillGaps1D(filterMedian1D(BPPhaseRes1Pol2, kernelSize = 7))
-#
-#                 # Now add back in the phase ramps.
-#                 bandpassPhaseIter2Pol1 = wrapPhasesZeroCentred(BPPhaseRes2Pol1 + BPPhaseFitPol1)
-#                 bandpassPhaseIter2Pol2 = wrapPhasesZeroCentred(BPPhaseRes2Pol2 + BPPhaseFitPol2)
-#
-#                 '''
-#                 BPPhaseFitPol1 = [bandpassPhaseIter1Pol1[0]]
-#                 BPPhaseFitPol2 = [bandpassPhaseIter1Pol2[0]]
-#                 for j in range(numberOfChannels - 1):
-#                     BPPhaseFitPol1.append(BPPhaseFitPol1[0] + frequencyBinInterval * (j + 1) * slopePol1)
-#                     BPPhaseFitPol2.append(BPPhaseFitPol2[0] + frequencyBinInterval * (j + 1) * slopePol2)
-#                 '''
-#                 '''
-#                 pyplot.scatter(range(len(bandpassPhaseDerivPol1)), bandpassPhaseDerivPol1,s = 4)
-#                 pyplot.scatter(range(len(bandpassPhaseDerivPol2)), bandpassPhaseDerivPol2, s= 4)
-#                 pyplot.axhline(y = medianPol1)
-#                 pyplot.axhline(y = medianPol2)
-#                 pyplot.axhline(y = meanPol1, ls = "--")
-#                 pyplot.axhline(y = meanPol2, ls = "--")
-#                 pyplot.axhline(y = medianPol1 - sigmaPol1, ls = ":", c = 'b')
-#                 pyplot.axhline(y = medianPol1 + sigmaPol1, ls = ":", c = 'b')
-#                 pyplot.show()
-#                 '''
-#                 '''
-#                 pyplot.scatter(range(len(BPPhaseRes1Pol1)), BPPhaseRes1Pol1, s= 4)
-#                 pyplot.scatter(range(len(BPPhaseRes1Pol2)), BPPhaseRes1Pol2, s=4)
-#                 pyplot.show()
-#                 '''
-#
-#                 # Append the final phase bandpasses to their respective lists, which will be saved to disk.
-#                 bandpassesPhasePol1.append(bandpassPhaseIter2Pol1)
-#                 bandpassesPhasePol2.append(bandpassPhaseIter2Pol2)
-#
-#                 # Append the mean of the two DTEC time series to the final list with DTECs.
-#                 # The data is averaged because both polarisations should measure the same DTEC.
-#                 #DTECsList.append(numpy.add(DTECsIter2Pol1, DTECsIter2Pol2) / 2)
-#                 DTECsList.append(numpy.nan_to_num(fillGaps1D(numpy.add(DTECsIter2Pol1, DTECsIter2Pol2) / 2)))
-#
-#
-
-
+    # Plot TECs.
 
     # Create final data products.
     cubeBandpassPhaseValues  = numpy.array([bandpassesPhasePol1, bandpassesPhasePol2])
     cubeBandpassPhaseWeights = numpy.logical_not(numpy.isnan(cubeBandpassPhaseValues))
 
     # Create final data products.
+    # Calculate final DTECs by averaging the DTECs found for 2 polarisations.
+    # Append the mean of the two DTEC time series to the final list with DTECs.
+    # The data is averaged because both polarisations should measure the same DTEC.
+    #DTECsList.append(numpy.add(DTECsIter2Pol1, DTECsIter2Pol2) / 2)
+    #DTECsList.append(numpy.nan_to_num(fillGaps1D(numpy.add(DTECsIter2Pol1, DTECsIter2Pol2) / 2)))
     # gridTECValues  =
     # gridTECWeights =
 
@@ -829,15 +641,13 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     # Save the amplitude and phase bandpasses.
     lib_util.check_rm(pathH5ParmOutput)
     objectH5Parm = h5parm.h5parm(pathH5ParmOutput, readonly = False)
-    objectSolSet = objectH5Parm.makeSolset(solsetName = "sol000", addTables = True) # This doesn't actually add 'antenna' and 'source' tables - the function doesn't know an MS to generate them from.
+    objectSolSet = objectH5Parm.makeSolset(solsetName = "sol000", addTables = False)
     objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "bandpassAmplitude", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassAmplitudeValues, weights = cubeBandpassAmplitudeWeights)
-    #objectSolSet.makeSoltab(soltype = "phase",     soltabName = "bandpassPhase",     axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassPhaseValues,     weights = cubeBandpassPhaseWeights)
-    #objectSolSet.makeSoltab(soltype = "tec",       soltabName = "TEC",               axesNames = ["ant", "time"],        axesVals = [namesAntenna, times],                          vals = gridTECValues,               weights = gridTECWeights)
+    objectSolSet.makeSoltab(soltype = "phase",     soltabName = "bandpassPhase",     axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassPhaseValues,     weights = cubeBandpassPhaseWeights)
+    objectSolSet.makeSoltab(soltype = "tec",       soltabName = "TEC",               axesNames = ["ant", "time"],        axesVals = [namesAntenna, times],                          vals = gridTECValues,               weights = gridTECWeights)
     objectH5Parm.close()
 
 
-    # After amplitude and phase bandpass and TECs are created, save back to H5Parm file.
-    # Write the TEC solutions to 'objectH5Parm.H.root.sol000.tec000.val'.
 
 if (__name__ == "__main__"):
     # If the program is run from the command line, parse arguments.
@@ -852,6 +662,192 @@ if (__name__ == "__main__"):
     print (arguments)
 
     dedicated_uGMRT_bandpass(arguments.pathDirectoryMS)
+
+
+
+
+def calculateBandpassPhaseAndTECs(gainPhases, flags, frequencies, times, numberOfSubiterations = 3, flaggingThresholdFactor = 3, medianFilteringKernelSize = 7):
+    """
+    Generate phase bandpasses from a time-frequency grid of gain phases, for a certain polarisation and antenna.
+    The process will output 2 phase bandpasses, one for each of 2 iterations.
+    Iteration 1 consists out of subiterations, during which outliers are flagged.
+    Iteration 2 takes the results from iteration 1 and performs median filtering and interpolation.
+
+    gainPhases: two-dimensional grid of gain phases
+    flags:      two-dimensional grid of flags
+    """
+
+    timeStampDuration             = times[1] - times[0]             # in s (we assume that the time stamp lengths are uniform)
+    frequencyChannelWidth         = frequencies[1] - frequencies[0] # in MHz
+
+    # Create a 2D and a 1D array of inverse frequencies over the frequency band.
+    gridIndexRow, gridIndexColumn = numpy.mgrid[0 : numberOfChannels, 0 : numberOfTimeStamps]
+    gridFrequencies               = numpy.divide(gridIndexRow, numberOfChannels - 1) * (frequencies[-1] - frequencies[0]) + frequencies[0] # in MHz
+    gridFrequenciesInverse        = numpy.divide(1, gridFrequencies)                                                                       # in MHz^-1
+    frequenciesInverse            = gridFrequenciesInverse[ : , 0]                                                                         # in MHz^-1
+
+
+
+    # Calculate the first derivative of gain phase to time in a way robust to phase wrapping (for both polarisations).
+    # We do so by calculating the derivative for each time-frequency bin 2 times: one with the ordinary data, and once after shifting
+    # - all the phases by 180 degrees to place them in the [0, 360) domain, and
+    # - another 180 degrees to effect a maximum shift within that domain.
+
+    derivTimeChoice1        = computeDerivative2D(gainPhases,                             timeStampDuration, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
+    derivTimeChoice2        = computeDerivative2D(numpy.mod(gainPhases + 180 + 180, 360), timeStampDuration, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
+    derivTime               = numpy.where(numpy.less(numpy.absolute(derivTimeChoice1), numpy.absolute(derivTimeChoice2)), derivTimeChoice1, derivTimeChoice2)   # in degrees per MHz^2
+
+
+    # Determine the DTEC time derivative for both polarisations (iteration 1).
+    derivTimeDTECsIter1Grid = derivTime * gridFrequencies[ : , : -1] / (1210 * 400)
+    derivTimeDTECsIter1     = numpy.nanmean(derivTimeDTECsIter1Grid, axis = 0)
+
+    '''
+    # Create a grid of residuals. CURRENTLY NOT USED IN THE ALGORITHM!
+    derivTimeFitPol1            = numpy.multiply(gridFrequenciesInverse[ : , : -1], numpy.tile(derivTimeDTECsIter1Pol1, (numberOfChannels, 1))) * 1210 * 400 # in degrees per second
+    derivTimeResidualsPol1      = derivTimePol1 - derivTimeFitPol1
+
+    # To do: flag or mask the worst outliers, and fit 'derivTimeDTECsIter1PolX' again with the new flags.
+    '''
+
+    # Whenever there are NaNs in 'derivTimeDTECsIter1', then 'DTECsIter1' is not well-determined.
+    # We assume continuity of the time derivative of DTEC, and thus interpolate.
+    derivTimeDTECsIter1     = fillGaps1D(derivTimeDTECsIter1)
+
+    # Find DTECs by integrating along time (iteration 1).
+    DTECsIter1              = [0]
+    for j in range(numberOfTimeStamps - 1):
+        DTECsIter1.append(timeStampDuration * numpy.nansum(derivTimeDTECsIter1[ : j + 1]))
+
+    # NumPy-ify the 1D array.
+    DTECsIter1              = numpy.array(DTECsIter1)
+
+
+    # Flag DTEC values appropriately, or do median filtering?
+    '''
+    '''
+
+    # Subtract the mean or median from the DTEC values, so that they lie around 0.
+    DTECsIter1             -= numpy.mean(DTECsIter1)
+
+
+    # Calculate the fitted plasma opacity phase effect (iteration 1).
+    gridPlasmaOpIter1       = wrapPhasesZeroCentred(numpy.multiply(gridFrequenciesInverse, numpy.tile(DTECsIter1, (numberOfChannels, 1))) * 1210 * 400) # in degrees
+
+
+    # We now determine the bandpass by subtracting the plasma opacity phase effect from the original data.
+    # As we flag outliers in the process, we repeat this procedure several times.
+    # During the last subiteration, the bandpass is calculated by taking the mean along time, whereas in
+    # earlier iterations we calculate the bandpass using the median.
+    for subiteration in range(bandpassPhaseNumberOfSubiterations):
+
+        # Subtract the time-variable ionospheric effect from the gain phases.
+        gridStaticIter1    = wrapPhasesZeroCentred(gainPhases - gridPlasmaOpIter1)
+
+        # Determine bandpasses. Use median for all but the last subiteration.
+        bandpassPhaseIter1 = calculateBandpassPhaseNoIonosphere(gridStaticIter1, useMedian = (subiteration < bandpassPhaseNumberOfSubiterations - 1))
+
+        # Remove the phase bandpass from the static pattern to keep residuals, which we will use for flagging.
+        gridResidualsIter1 = wrapPhasesZeroCentred(gridStaticIter1 - numpy.tile(bandpassPhaseIter1, (numberOfTimeStamps, 1)).T)
+
+        # Calculate the standard deviation of the residuals.
+        STDIter1           = numpy.nanstd(gridResidualsIter1)
+
+        # Determine outliers and update the flags. This makes sure that the bandpass in the next iterations is better.
+        gridIsOutlier      = numpy.greater(numpy.absolute(gridResidualsIter1), flaggingThresholdFactor * STDIter1)
+        flags              = numpy.logical_or(flags, gridIsOutlier)
+
+        # Set flagged phases to 'numpy.nan'.
+        gainPhases         = numpy.where(flags, numpy.nan, gainPhases)
+
+        # Temporary debug output!
+        print ("# NaNs:", numpy.sum(numpy.isnan(bandpassPhaseIter1)))
+
+
+    # Remove the phase bandpass from the original data.
+    gridIonosOnlyPol1               = wrapPhasesZeroCentred(gainPhasesPol1[i] - numpy.tile(bandpassPhaseIter1Pol1, (numberOfTimeStamps, 1)).T)
+
+    # Calculate DTECs directly by fitting to the ionospheric data only (iteration 2).
+    DTECsIter2Pol1                  = numpy.nanmean(gridIonosOnlyPol1 * gridFrequencies / (1210 * 400), axis = 0) # in TECUs
+
+    # Calculate the fitted plasma opacity phase effect (iteration 2).
+    gridPlasmaOpIter2Pol1           = wrapPhasesZeroCentred(numpy.multiply(
+                                      gridFrequenciesInverse, numpy.tile(DTECsIter2Pol1, (numberOfChannels, 1))) * 1210 * 400) # in degrees
+
+    # Subtract the time-variable ionospheric effect from the gain phases.
+    gridStaticIter2Pol1             = wrapPhasesZeroCentred(gainPhasesPol1[i] - gridPlasmaOpIter2Pol1)
+
+    # Remove the phase bandpass from the static pattern to keep residuals, which we will use for flagging.
+    gridResidualsIter2Pol1          = wrapPhasesZeroCentred(gridStaticIter2Pol1 - numpy.tile(bandpassPhaseIter1Pol1, (numberOfTimeStamps, 1)).T)
+
+    # Calculate the standard deviation of the residuals.
+    STDIter2Pol1                    = numpy.nanstd(gridResidualsIter2Pol1)
+
+    # Calculate the derivative of the phase bandpass to frequency (for both polarisations).
+    bandpassPhaseDerivPol1          = computeDerivative1D(bandpassPhaseIter1Pol1, stepSize = frequencyChannelWidth, intermediateSampling = True)
+
+    # Determine the mean, median and standard deviation of the derivative after sigma clipping (for both polarisations).
+    meanPol1, medianPol1, sigmaPol1 = sigmaClip1D(bandpassPhaseDerivPol1, verbose = False) # in degrees per MHz
+
+    # Determine whether the mean or median should be used for generating the bandpass fit (for both polarisations).
+    if (sigmaPol1 < 10): # in degrees per MHz
+        slopePol1 = meanPol1
+        print("Phase bandpass fit | slope type: mean")
+    else:
+        slopePol1 = medianPol1
+        print("Phase bandpass fit | slope type: median")
+
+    # Calculate the bandpass fit (for both polarisations).
+    BPPhaseFitPol1 = []
+
+    for indexRefPol1 in range(numberOfChannels):
+        if (not numpy.isnan(bandpassPhaseIter1Pol1[indexRefPol1])):
+            break
+
+    print("indexRefPol1:", indexRefPol1)
+
+    for j in range(numberOfChannels):
+        BPPhaseFitPol1.append(bandpassPhaseIter1Pol1[indexRefPol1] + frequencyBinInterval * (j - indexRefPol1) * slopePol1)
+
+    # NumPy-ify the 1D arrays, and ensure phase wrapping.
+    BPPhaseFitPol1 = wrapPhasesZeroCentred(numpy.array(BPPhaseFitPol1))
+
+    # Calculate the residuals that remain after the fit has been subtracted from the data.
+    BPPhaseRes1Pol1 = wrapPhasesZeroCentred(bandpassPhaseIter1Pol1 - BPPhaseFitPol1)
+
+    # We hope we can now apply median filtering and interpolation, as we removed the phase ramps.
+    BPPhaseRes2Pol1 = fillGaps1D(filterMedian1D(BPPhaseRes1Pol1, kernelSize = bandpassPhaseMedianFilteringKernelSize))
+
+    # Now add back in the phase ramps.
+    bandpassPhaseIter2Pol1 = wrapPhasesZeroCentred(BPPhaseRes2Pol1 + BPPhaseFitPol1)
+
+    '''
+    BPPhaseFitPol1 = [bandpassPhaseIter1Pol1[0]]
+    BPPhaseFitPol2 = [bandpassPhaseIter1Pol2[0]]
+    for j in range(numberOfChannels - 1):
+        BPPhaseFitPol1.append(BPPhaseFitPol1[0] + frequencyBinInterval * (j + 1) * slopePol1)
+        BPPhaseFitPol2.append(BPPhaseFitPol2[0] + frequencyBinInterval * (j + 1) * slopePol2)
+    '''
+    '''
+    pyplot.scatter(range(len(bandpassPhaseDerivPol1)), bandpassPhaseDerivPol1,s = 4)
+    pyplot.scatter(range(len(bandpassPhaseDerivPol2)), bandpassPhaseDerivPol2, s= 4)
+    pyplot.axhline(y = medianPol1)
+    pyplot.axhline(y = medianPol2)
+    pyplot.axhline(y = meanPol1, ls = "--")
+    pyplot.axhline(y = meanPol2, ls = "--")
+    pyplot.axhline(y = medianPol1 - sigmaPol1, ls = ":", c = 'b')
+    pyplot.axhline(y = medianPol1 + sigmaPol1, ls = ":", c = 'b')
+    pyplot.show()
+    '''
+    '''
+    pyplot.scatter(range(len(BPPhaseRes1Pol1)), BPPhaseRes1Pol1, s= 4)
+    pyplot.scatter(range(len(BPPhaseRes1Pol2)), BPPhaseRes1Pol2, s=4)
+    pyplot.show()
+    '''
+
+    # Append the final phase bandpasses to their respective lists, which will be saved to disk.
+    bandpassesPhasePol1.append(bandpassPhaseIter2Pol1)
+
 
 
 #print(numpy.amax(gainPhasesPol1), numpy.amin(gainPhasesPol2))
@@ -875,12 +871,6 @@ if (__name__ == "__main__"):
 # Load weights (generalised flags).
 #weightsForAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.weight)[ : , 0, : , : , : ]
 #weightsForPhases         = (objectH5Parm.H.root.sol000.phase000.weight)    [ : , 0, : , : , : ]
-
-# These values can be taken from the MS, and perhaps also from the H5Parm file.
-# Temporary!
-#timeStart          = 0                                    # in seconds
-#timeStampLength    = 8.05                                 # in seconds
-#timeRange          = numberOfTimeStamps * timeStampLength # in seconds
 
     #print (cubeBandpassAmplitudeValues.shape)
     #print (type(cubeBandpassAmplitudeValues))
@@ -978,41 +968,10 @@ if (__name__ == "__main__"):
 #     pathOutputDirectory         = "../data/DDTB247/" # path to storage of non-CASA data products (bandpasses and DTECs) - e.g. "../data/DDTB247/" or "../data/31_008COSMOS/"
 #     pathPlotDirectory           = "../figures/calibrationBandpass/DDTB247/" + nameField + "/" # e.g. "../figures/calibrationBandpass/DDTB247/" or "../figures/calibrationBandpass/31_008COSMOS/"
 #
-#     pathOutputCalTableCASA      = pathMS[ : -3]  + "-cal/bandpassGains"     + nameField + "_" + nameScan + ".table"
-#     pathOutputCalTableNumPy     = pathOutputDirectory + "bandpassGains"     + nameField + "_" + nameScan + ".npy" # NumPy path to antenna-based gains
-#     pathOutputBPsAmplitude      = pathOutputDirectory + "bandpassAmplitude" + nameField + "_" + nameScan + ".npy" # NumPy path to amplitude bandpasses
-#     pathOutputBPsPhase          = pathOutputDirectory + "bandpassPhase"     + nameField + "_" + nameScan + ".npy" # NumPy path to phase     bandpasses
-#     pathOutputDTECs             = pathOutputDirectory + "DTECs"             + nameField + "_" + nameScan + ".npy" # NumPy path to DTECs
-#
-#     nameTelescope               = "uGMRT"
-#     numberOfFrequencyChannels   = 2048 # telescope property
-#     timeStart                   = 0 # in seconds
-#     frequencyRange              = 200 # in MHz
-#     frequencyStart              = 300 # in MHz
-#
 #     # Initialise gain calculation parameters.
 #     timeBinInterval             = 10 # user choice, in seconds
 #     numberOfChannels       = 2048 # user choice, in 1
 #     nameReferenceAntenna        = "C13" # user choice, e.g. "C00" or "C13"
-#
-#     # We normalise the frequency bandpasses using the following arbitrary criterion:
-#     # the mean gain between 'frequencyNormalisationStart' and 'frequencyNormalisationEnd' must be 1.
-#     frequencyNormalisationStart = 375 # in MHz
-#     frequencyNormalisationEnd   = 450 # in MHz
-#
-#     # Initialise bandpass calculation algorithm settings.
-#     numberOfSubIterationsBandpassAmplitude = 3
-#     numberOfSubIterationsBandpassPhase     = 2
-#     flaggingThresholdFactorAmplitude       = 3
-#     bandpassPhaseFlaggingThresholdFactor           = 3
-#
-#
-#     # Check whether the settings are valid.
-#     if (numpy.mod(numberOfFrequencyChannels, numberOfChannels) == 0):
-#         numberOfChannelsPerBin = numberOfFrequencyChannels / numberOfChannels
-#     else:
-#         print ("Error: the number of frequency channels per bin is not an integer!")
-#         sys.exit()
 #
 #     # Sets plotting parameters.
 #     polarisationNames      = ["1", "2"] # name of the two polarisation modes (influences plot titles and file names)
@@ -1295,18 +1254,32 @@ if (__name__ == "__main__"):
 #                             pyplot.close()
 #             else:
 #                 print ("Skipping DeltaTEC and phase bandpass calculation for antenna ID " + str(i) + ": all data are flagged.")
-#
-#         # Save the DTEC values found to a NumPy array, alongside the IDs of the antennae.
-#         numpy.save(pathOutputBPsPhase, [bandpassesPhasePol1, bandpassesPhasePol2])
-#         numpy.save(pathOutputDTECs, [DTECsList, antennaeWorking])
-#
-#
-# if (__name__ = "__main__"):
-#
-#     # If the program is run from the command line, parse arguments.
-#     parser                      = argparse.ArgumentParser(description = "Pipeline step 3: Generation of bandpasses.")
-#
-#     # Temporary!
-#     pathH5Parm                  = "./scanID1.H5"
-#
-#     dedicated_uGMRT_bandpass(pathH5Parm)
+
+'''
+                # Calculate the phase bandpass for both polarisations in a way robust to phase wrapping (iteration 1).
+                # This is again done by creating two candidate means where one is found by first shifting the phases by 180 degrees.
+                # Then the standard deviations for both mean candidates are calculated. The mean candidate is chosen that has the lowest standard deviation.
+                if (subiteration == bandpassPhaseNumberOfSubiterations - 1): # If in the last iteration, determine the phase bandpass using the mean.
+                    bandpassPhaseIter1Pol1Choice1 = numpy.nanmean(gridStaticIter1Pol1, axis = 1)
+                    bandpassPhaseIter1Pol2Choice1 = numpy.nanmean(gridStaticIter1Pol2, axis = 1)
+                    bandpassPhaseIter1Pol1Choice2 = wrapPhasesZeroCentred(numpy.nanmean(numpy.mod(gridStaticIter1Pol1 + 180 + 180, 360), axis = 1) - 180 - 180)
+                    bandpassPhaseIter1Pol2Choice2 = wrapPhasesZeroCentred(numpy.nanmean(numpy.mod(gridStaticIter1Pol2 + 180 + 180, 360), axis = 1) - 180 - 180)
+                else: # During earlier iterations, to avoid RFI signatures, we use the median.
+                    bandpassPhaseIter1Pol1Choice1 = numpy.nanmedian(gridStaticIter1Pol1, axis = 1)
+                    bandpassPhaseIter1Pol2Choice1 = numpy.nanmedian(gridStaticIter1Pol2, axis = 1)
+                    bandpassPhaseIter1Pol1Choice2 = wrapPhasesZeroCentred(numpy.nanmedian(numpy.mod(gridStaticIter1Pol1 + 180 + 180, 360), axis = 1) - 180 - 180)
+                    bandpassPhaseIter1Pol2Choice2 = wrapPhasesZeroCentred(numpy.nanmedian(numpy.mod(gridStaticIter1Pol2 + 180 + 180, 360), axis = 1) - 180 - 180)
+
+                bandpassPhaseErrorIter1Pol1Choice1 = numpy.nanstd(gridStaticIter1Pol1, axis = 1)
+                bandpassPhaseErrorIter1Pol2Choice1 = numpy.nanstd(gridStaticIter1Pol2, axis = 1)
+                bandpassPhaseErrorIter1Pol1Choice2 = numpy.nanstd(numpy.mod(gridStaticIter1Pol1 + 180 + 180, 360), axis = 1)
+                bandpassPhaseErrorIter1Pol2Choice2 = numpy.nanstd(numpy.mod(gridStaticIter1Pol2 + 180 + 180, 360), axis = 1)
+
+                # Calculate the phase bandpasses. NOTE: although these are called 'bandpassPhaseIter1PolX', we can remove 'Iter1'!
+                # We won't update the bandpass anymore after this, so no need for the extra tag 'Iter1'.
+                # September 2017: The above seems false! There is an iter 2!
+                bandpassPhaseIter1Pol1      = numpy.where(numpy.less(bandpassPhaseErrorIter1Pol1Choice1, bandpassPhaseErrorIter1Pol1Choice2),
+                                                          bandpassPhaseIter1Pol1Choice1, bandpassPhaseIter1Pol1Choice2) # in degrees
+                bandpassPhaseIter1Pol2      = numpy.where(numpy.less(bandpassPhaseErrorIter1Pol2Choice1, bandpassPhaseErrorIter1Pol2Choice2),
+                                                          bandpassPhaseIter1Pol2Choice1, bandpassPhaseIter1Pol2Choice2) # in degrees
+                '''
