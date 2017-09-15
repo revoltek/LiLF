@@ -294,9 +294,13 @@ def calculateBandpassPhase(gainPhases, flags, frequencies, times, numberOfSubite
     Iteration 1 consists out of subiterations, during which outliers are flagged.
     Iteration 2 takes the results from iteration 1 and performs median filtering and interpolation.
 
-    gainPhases: two-dimensional grid of gain phases
-    flags:      two-dimensional grid of flags
+    gainPhases:  two-dimensional array of gain phases
+    flags:       two-dimensional array of flags
+    frequencies: one-dimensional array of frequencies
+    times:       one-dimensional array of times
     """
+
+    numberOfChannels, numberOfTimeStamps = gainPhases.shape
 
     timeStampDuration             = times[1] - times[0]             # in s (we assume that the time stamp lengths are uniform)
     frequencyChannelWidth         = frequencies[1] - frequencies[0] # in MHz
