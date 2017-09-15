@@ -634,7 +634,7 @@ def plotBandpassesPhase2D(bandpassesPhase, pathDirectoryPlots, namePolarisation 
                  + " | polarisation: " + namePolarisation, fontsize = 9)
 
     colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
-    colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [0, 0.2, 0.4, 0.6, 0.8, 1])
+    colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [-180, -120, -60, 0, 60, 120, 180])
     colorBar.ax.set_ylabel("antenna-based gain phase $(\degree)$")
 
     pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
@@ -863,6 +863,8 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     print (type(functionsDTECPol1))
     print ((numpy.array(functionsDTECPol1)).shape)
     print ((numpy.array(functionsDTECPol2)).shape)
+    functionsDTECMean = numpy.nan_to_num(fillGaps1D(numpy.add(functionsDTECPol1, functionsDTECPol2) / 2))
+    print (functionsDTECMean.shape)
     #DTECsList.append(numpy.add(DTECsIter2Pol1, DTECsIter2Pol2) / 2)
     #DTECsList.append(numpy.nan_to_num(fillGaps1D(numpy.add(DTECsIter2Pol1, DTECsIter2Pol2) / 2)))
     # gridTECValues  =
