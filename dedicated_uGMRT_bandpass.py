@@ -648,11 +648,12 @@ def plotFunctionsDTEC2D(functionsDTEC, pathDirectoryPlots, suffixFilename = "", 
     """
     logging.info("Starting DTEC function visualisation with comment '" + comment + "'...")
 
-    colorScaleMaxDTEC = numpy.nanmax(numpy.absolute(functionsDTEC))
+    colorScaleMaxDTEC = numpy.round(numpy.nanmax(numpy.absolute(functionsDTEC)), 3)
 
     pyplot.figure(figsize = (12, 6))
 
-    image = pyplot.imshow(numpy.array(functionsDTEC), aspect = "auto", interpolation = "none", cmap = cm.coolwarm, vmin = -colorScaleMaxDTEC, vmax = colorScaleMaxDTEC)
+    image             = pyplot.imshow(numpy.array(functionsDTEC), aspect = "auto", interpolation = "none", cmap = cm.coolwarm,
+                                      vmin = -colorScaleMaxDTEC, vmax = colorScaleMaxDTEC)
 
     pyplot.xlabel("time stamp index")
     pyplot.ylabel("antenna index")
@@ -660,8 +661,9 @@ def plotFunctionsDTEC2D(functionsDTEC, pathDirectoryPlots, suffixFilename = "", 
                  + " | telescope: " + nameTelescope + " | calibrator: " + nameField
                  + " | comment: " + comment, fontsize = 9)
 
-    colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
-    colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = numpy.round(numpy.array([-1, -2 / 3., -1 / 3., 0, 1 / 3., 2 / 3., 1]) * colorScaleMaxDTEC, 3))
+    colorBarAxis      = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
+    colorBar          = pyplot.colorbar(image, cax = colorBarAxis,
+                                        ticks = numpy.round(numpy.array([-1, -2 / 3., -1 / 3., 0, 1 / 3., 2 / 3., 1]) * colorScaleMaxDTEC, 3))
     colorBar.ax.set_ylabel("$\Delta\mathrm{TEC}\ (\mathrm{TECU})$")
 
     pyplot.subplots_adjust(left = .05, right = .93, bottom = 0.08, top = 0.91)
@@ -890,9 +892,6 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     # Calculate final DTECs by averaging the DTECs found for 2 polarisations.
     # Append the mean of the two DTEC time series to the final list with DTECs.
     # The data is averaged because both polarisations should measure the same DTEC.
-    print (type(functionsDTECPol1))
-    print ((numpy.array(functionsDTECPol1)).shape)
-    print ((numpy.array(functionsDTECPol2)).shape)
 
     gridTECValues = []
     for functionDTECPol1, functionDTECPol2 in zip(functionsDTECPol1, functionsDTECPol2):
@@ -901,13 +900,6 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     print (gridTECValues.shape)
 
     gridTECWeights = numpy.ones_like(gridTECValues)
-
-    #functionsDTECMean = numpy.nan_to_num(fillGaps1D(numpy.add(functionsDTECPol1, functionsDTECPol2) / 2))
-    #print (functionsDTECMean.shape)
-    #DTECsList.append(numpy.add(DTECsIter2Pol1, DTECsIter2Pol2) / 2)
-    #DTECsList.append(numpy.nan_to_num(fillGaps1D(numpy.add(DTECsIter2Pol1, DTECsIter2Pol2) / 2)))
-    # gridTECValues  =
-    # gridTECWeights =
 
 
     # Save the amplitude and phase bandpasses.
@@ -945,19 +937,6 @@ if (__name__ == "__main__"):
 #    valsThisTime *= 2
 #    setValues(selection = selection)
 
-    #antennaNames, polarisationNames, frequencies, times = axes
-#print (namesAntenna)
-#print (frequencies)
-#print (gainAmplitudes.shape)
-#print (axes)
-# '(objectH5Parm.H.root.sol000.amplitude000.val).shape' is e.g. (2, 1, 30, 2048, 75):
-# 2 polarisations, 1 direction, 30 antennae, 2048 frequency channels, 75 time stamps.
-#gainAmplitudes           = (objectH5Parm.H.root.sol000.amplitude000.val)   [ : , 0, : , : , : ]
-#gainPhases               = (objectH5Parm.H.root.sol000.phase000.val)       [ : , 0, : , : , : ]
-
-# Load weights (generalised flags).
-#weightsForAmplitudes     = (objectH5Parm.H.root.sol000.amplitude000.weight)[ : , 0, : , : , : ]
-#weightsForPhases         = (objectH5Parm.H.root.sol000.phase000.weight)    [ : , 0, : , : , : ]
 
     #print (cubeBandpassAmplitudeValues.shape)
     #print (type(cubeBandpassAmplitudeValues))
@@ -977,33 +956,6 @@ if (__name__ == "__main__"):
 #     print ("numberOfAntennae:", numberOfAntennae, "numberOfChannels:", numberOfChannels, "numberOfTimeStamps:", numberOfTimeStamps)
 
 
-# '''
-# Martijn Oei, 2017
-# This program:
-#
-# 1. Takes the measured and modelled visibilities of a single calibrator field from a Measurement Set,
-# and calculates antenna-based gains for many time-frequency bins for both polarisations seperately.
-# The resulting Calibration Table is stored and read-out again. A NumPy array containing the same data,
-# but reordered in a more convenient format, is generated.
-#
-# 2. Visualises the gain amplitudes and phases by creating both 2D image and 3D landscape plots.
-#
-# 3. Finds the amplitude and phase bandpasses in multi-step processes, during which some flagging is performed.
-# The various steps are visualised. The phase bandpass calculation also generates a function DeltaTEC(t) for each antenna.
-# '''
-# #!/usr/local/bin/python3.5 # This line might not be required on your system.
-#
-# import argparse, sys
-#
-# from matplotlib import cm
-# from matplotlib import colors
-# from matplotlib import pyplot
-# from mpl_toolkits.mplot3d import Axes3D
-# from mpl_toolkits.axes_grid1 import make_axes_locatable
-# import losoto, numpy
-#
-# #import libraryRadioAstronomy
-#
 #
 # def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
 #
@@ -1046,18 +998,6 @@ if (__name__ == "__main__"):
 #     # After amplitude and phase bandpass and TECs are created, save back to H5.
 #     # Also write back the TEC solutions in sols.tec000.val
 #
-#
-#     # Initialise settings specific to the MS and telescope used.
-#     nameMS                      = "DDTB247-GWB_FULLPOL.MS" # e.g. "DDTB247-GWB_FULLPOL.MS" or "31_008_23feb2017_gwb4.MS"
-#     pathMS                      = "/data1/MartijnOei/400MUGSPilotPilot/" + nameMS # e.g. "/data1/MartijnOei/400MUGSPilotPilot/" + ... or "/data1/MartijnOei/400MUGSPilot/" + ...
-#     nameField                   = "3C286" # calibrator to use - e.g. "3C286" or "3C147"
-#     nameScan                    = "89" # scans of this calibrator to use - e.g. "89" or "53", or "1"
-#     pathOutputDirectory         = "../data/DDTB247/" # path to storage of non-CASA data products (bandpasses and DTECs) - e.g. "../data/DDTB247/" or "../data/31_008COSMOS/"
-#     pathPlotDirectory           = "../figures/calibrationBandpass/DDTB247/" + nameField + "/" # e.g. "../figures/calibrationBandpass/DDTB247/" or "../figures/calibrationBandpass/31_008COSMOS/"
-#
-#     # Initialise gain calculation parameters.
-#     timeBinInterval             = 10 # user choice, in seconds
-#     numberOfChannels       = 2048 # user choice, in 1
 #     nameReferenceAntenna        = "C13" # user choice, e.g. "C00" or "C13"
 #
 #     # Sets plotting parameters.
@@ -1088,56 +1028,7 @@ if (__name__ == "__main__"):
 #         print ("antennaeWorking:",            antennaeWorking)
 #         print ("number of working antennae:", numpy.sum(antennaeWorking))
 #
-#
-#     if (performStepBandpassPhases):
-#         '''
-#         In this step, the phase bandpass is found in an iterative process. DTEC(t) (for the calibrator)
-#         is found as a side product.
-#         '''
-#
-#         # Create a 2D and a 1D array of inverse frequencies over the frequency band.
-#         gridFrequenciesInverse = numpy.divide(1, gridFrequencies) # in MHz^-1
-#         frequenciesInverse     = gridFrequenciesInverse[ : , 0] # in MHz^-1
-#
-#         # Create lists that will contain, for each antenna, the two phase bandpasses and the function DTEC(t).
-#         bandpassesPhasePol1    = []
-#         bandpassesPhasePol2    = []
-#         DTECsList              = []
-#
-#         for i in range(numberOfAntennae):
-#             if (antennaeWorking[i]):
-#
-#                 print ("Starting DTEC and phase bandpass calculation for antenna ID " + str(i) + "...")
-#
-#                 # Calculate the first derivative of gain phase to time in a way robust to phase wrapping (for both polarisations).
-#                 # We do so by calculating the derivative for each time-frequency bin 2 times: one with the ordinary data, and once after shifting
-#                 # - all the phases by 180 degrees to place them in the [0, 360) domain, and
-#                 # - another 180 degrees to effect a shift within that domain.
-#                 derivTimePol1Choice1        = computeDerivative2D(gainPhasesPol1[i], timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
-#                 derivTimePol1Choice2        = computeDerivative2D(numpy.mod(gainPhasesPol1[i] + 180 + 180, 360), timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
-#                 derivTimePol1               = numpy.where(numpy.less(numpy.absolute(derivTimePol1Choice1), numpy.absolute(derivTimePol1Choice2)),
-#                                                           derivTimePol1Choice1, derivTimePol1Choice2) # in degrees per MHz^2
-#
-#                 derivTimePol2Choice1        = computeDerivative2D(gainPhasesPol2[i], timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
-#                 derivTimePol2Choice2        = computeDerivative2D(numpy.mod(gainPhasesPol2[i] + 180 + 180, 360), timeBinInterval, axis = 1, degree = 1, intermediateSampling = True) # in degrees per second
-#                 derivTimePol2               = numpy.where(numpy.less(numpy.absolute(derivTimePol2Choice1), numpy.absolute(derivTimePol2Choice2)),
-#                                                           derivTimePol2Choice1, derivTimePol2Choice2) # in degrees per MHz^2
-#
-#
-#                 # Determine the DTEC time derivative for both polarisations (iteration 1).
-#                 derivTimeDTECsIter1Pol1Grid = derivTimePol1 * gridFrequencies[ : , : -1] / (1210 * 400)
-#                 derivTimeDTECsIter1Pol1     = numpy.nanmean(derivTimeDTECsIter1Pol1Grid, axis = 0)
-#
-#                 derivTimeDTECsIter1Pol2Grid = derivTimePol2 * gridFrequencies[ : , : -1] / (1210 * 400)
-#                 derivTimeDTECsIter1Pol2     = numpy.nanmean(derivTimeDTECsIter1Pol2Grid, axis = 0)
-#
-#
-#
-#                 if (plot):
-#                     print ("Starting DeltaTEC and phase bandpass visualisation for antenna ID " + str(i) + "...")
-#
-#                     # Create images of the time derivative of the gain phases (for both polarisations).
-#                     polarisationDataGrids = [derivTimePol1, derivTimePol2]
+#erivTimePol1, derivTimePol2]
 #                     for polarisationName, polarisationDataGrid in zip(polarisationNames, polarisationDataGrids):
 #                         figure = pyplot.figure(figsize = (12, 6))
 #                         image = pyplot.imshow(polarisationDataGrid, aspect = "auto", cmap = cm.coolwarm, vmin = -2, vmax = 2)
@@ -1341,32 +1232,3 @@ if (__name__ == "__main__"):
 #                             pyplot.close()
 #             else:
 #                 print ("Skipping DeltaTEC and phase bandpass calculation for antenna ID " + str(i) + ": all data are flagged.")
-
-'''
-                # Calculate the phase bandpass for both polarisations in a way robust to phase wrapping (iteration 1).
-                # This is again done by creating two candidate means where one is found by first shifting the phases by 180 degrees.
-                # Then the standard deviations for both mean candidates are calculated. The mean candidate is chosen that has the lowest standard deviation.
-                if (subiteration == bandpassPhaseNumberOfSubiterations - 1): # If in the last iteration, determine the phase bandpass using the mean.
-                    bandpassPhaseIter1Pol1Choice1 = numpy.nanmean(gridStaticIter1Pol1, axis = 1)
-                    bandpassPhaseIter1Pol2Choice1 = numpy.nanmean(gridStaticIter1Pol2, axis = 1)
-                    bandpassPhaseIter1Pol1Choice2 = wrapPhasesZeroCentred(numpy.nanmean(numpy.mod(gridStaticIter1Pol1 + 180 + 180, 360), axis = 1) - 180 - 180)
-                    bandpassPhaseIter1Pol2Choice2 = wrapPhasesZeroCentred(numpy.nanmean(numpy.mod(gridStaticIter1Pol2 + 180 + 180, 360), axis = 1) - 180 - 180)
-                else: # During earlier iterations, to avoid RFI signatures, we use the median.
-                    bandpassPhaseIter1Pol1Choice1 = numpy.nanmedian(gridStaticIter1Pol1, axis = 1)
-                    bandpassPhaseIter1Pol2Choice1 = numpy.nanmedian(gridStaticIter1Pol2, axis = 1)
-                    bandpassPhaseIter1Pol1Choice2 = wrapPhasesZeroCentred(numpy.nanmedian(numpy.mod(gridStaticIter1Pol1 + 180 + 180, 360), axis = 1) - 180 - 180)
-                    bandpassPhaseIter1Pol2Choice2 = wrapPhasesZeroCentred(numpy.nanmedian(numpy.mod(gridStaticIter1Pol2 + 180 + 180, 360), axis = 1) - 180 - 180)
-
-                bandpassPhaseErrorIter1Pol1Choice1 = numpy.nanstd(gridStaticIter1Pol1, axis = 1)
-                bandpassPhaseErrorIter1Pol2Choice1 = numpy.nanstd(gridStaticIter1Pol2, axis = 1)
-                bandpassPhaseErrorIter1Pol1Choice2 = numpy.nanstd(numpy.mod(gridStaticIter1Pol1 + 180 + 180, 360), axis = 1)
-                bandpassPhaseErrorIter1Pol2Choice2 = numpy.nanstd(numpy.mod(gridStaticIter1Pol2 + 180 + 180, 360), axis = 1)
-
-                # Calculate the phase bandpasses. NOTE: although these are called 'bandpassPhaseIter1PolX', we can remove 'Iter1'!
-                # We won't update the bandpass anymore after this, so no need for the extra tag 'Iter1'.
-                # September 2017: The above seems false! There is an iter 2!
-                bandpassPhaseIter1Pol1      = numpy.where(numpy.less(bandpassPhaseErrorIter1Pol1Choice1, bandpassPhaseErrorIter1Pol1Choice2),
-                                                          bandpassPhaseIter1Pol1Choice1, bandpassPhaseIter1Pol1Choice2) # in degrees
-                bandpassPhaseIter1Pol2      = numpy.where(numpy.less(bandpassPhaseErrorIter1Pol2Choice1, bandpassPhaseErrorIter1Pol2Choice2),
-                                                          bandpassPhaseIter1Pol2Choice1, bandpassPhaseIter1Pol2Choice2) # in degrees
-                '''
