@@ -559,7 +559,7 @@ def plotBandpassesAmplitude(bandpassesAmplitudePol1, bandpassesAmplitudePol2, fr
     Generate plots of amplitude bandpasses, for two polarisations.
     """
     numberOfAntennae   = len(antennaeWorking)
-    plotFrequencyLimit = 1     # in MHz
+    plotFrequencyLimit = 1 # in MHz
 
     for i in range(numberOfAntennae):
         if (antennaeWorking[i]):
@@ -586,6 +586,42 @@ def plotBandpassesAmplitude(bandpassesAmplitudePol1, bandpassesAmplitudePol2, fr
             pyplot.close()
         else:
             logging.info("Skipping amplitude bandpass visualisation for antenna ID " + str(i) + ": all data are flagged.")
+
+
+
+def plotBandpassesPhase(bandpassesPhasePol1, bandpassesPhasePol2, frequencies, antennaeWorking, pathDirectoryPlots,
+                            namesPolarisation = ["?", "?"], nameIteration = "?", nameField = "?", nameDataSet = "?", nameTelescope = "uGMRT"):
+    """
+    Generate plots of phase bandpasses, for two polarisations.
+    """
+    numberOfAntennae   = len(antennaeWorking)
+    plotFrequencyLimit = 1 # in MHz
+
+    for i in range(numberOfAntennae):
+        if (antennaeWorking[i]):
+            logging.info("Starting phase bandpass visualisation for antenna ID " + str(i) + "...")
+
+            # Create plot of phase bandpass (for both polarisations).
+            pyplot.figure(figsize = (12, 6))
+
+            pyplot.scatter(frequencies, bandpassesPhasePol1[i], c = "navy",      s = 12, lw = 0, label = namesPolarisation[0])
+            pyplot.scatter(frequencies, bandpassesPhasePol2[i], c = "orangered", s = 12, lw = 0, label = namesPolarisation[1])
+
+            pyplot.grid(linestyle = "--", alpha = 0.5)
+            pyplot.legend(title = "polarisation")
+            pyplot.xlabel("frequency channel centre (MHz)")
+            pyplot.ylabel("antenna-based gain phase $(\degree)$")
+            pyplot.xlim(frequencies[0] - plotFrequencyLimit, frequencies[-1] + plotFrequencyLimit)
+            pyplot.ylim(-180, 180)
+            pyplot.title("$\mathbf{phase\ bandpass\ (iteration\ " + nameIteration + ")}$\ndata set: "
+                         + nameDataSet + " | telescope: " + nameTelescope + " | antenna ID: " + str(i) + " | calibrator: "
+                         + nameField, fontsize = 9)
+
+            pyplot.subplots_adjust(left = .07, right = .98, bottom = 0.08, top = 0.91)
+            pyplot.savefig(pathDirectoryPlots + "/bandpassPhase_ant" + str(i) + "_iter" + nameIteration + ".pdf")
+            pyplot.close()
+        else:
+            logging.info("Skipping phase bandpass visualisation for antenna ID " + str(i) + ": all data are flagged.")
 
 
 
@@ -857,6 +893,7 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
         functionsDTECPol2.append(functionDTECPol2)
 
 
+
     # Plot amplitude bandpasses.
     plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5ParmInput)
     plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5ParmInput)
@@ -867,8 +904,8 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
 
     # Plot phase bandpasses.
-    #plotBandpassesPhase(bandpassesPhasePol1Iter1, bandpassesPhasePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5ParmInput)
-    #plotBandpassesPhase(bandpassesPhasePol1Iter2, bandpassesPhasePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5ParmInput)
+    plotBandpassesPhase(bandpassesPhasePol1Iter1, bandpassesPhasePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5ParmInput)
+    plotBandpassesPhase(bandpassesPhasePol1Iter2, bandpassesPhasePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5ParmInput)
 
     # Plot phase bandpass overviews.
     plotBandpassesPhase2D(bandpassesPhasePol1Iter2, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5ParmInput)
@@ -877,9 +914,12 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
     # Plot TECs.
 
+
     # Plot TEC overviews.
     plotFunctionsDTEC2D(functionsDTECPol1, pathDirectoryPlots, suffixFilename = "_pol" + namesPolarisation[0], comment = "derived from polarisation " + namesPolarisation[0], nameField = nameField, nameDataSet = pathH5ParmInput)
     plotFunctionsDTEC2D(functionsDTECPol2, pathDirectoryPlots, suffixFilename = "_pol" + namesPolarisation[1], comment = "derived from polarisation " + namesPolarisation[1], nameField = nameField, nameDataSet = pathH5ParmInput)
+
+
 
     # Create final data products.
     cubeBandpassAmplitudeValues  = numpy.array([bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2])
@@ -888,18 +928,13 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     cubeBandpassPhaseValues      = numpy.array([bandpassesPhasePol1Iter2, bandpassesPhasePol2Iter2])
     cubeBandpassPhaseWeights     = numpy.logical_not(numpy.isnan(cubeBandpassPhaseValues))
 
-    # Create final data products.
-    # Calculate final DTECs by averaging the DTECs found for 2 polarisations.
-    # Append the mean of the two DTEC time series to the final list with DTECs.
-    # The data is averaged because both polarisations should measure the same DTEC.
-
-    gridTECValues = []
+    # Calculate final DTECs by averaging, per antenna, the DTECs found for the 2 polarisations: both polarisations should measure the same DTEC.
+    gridTECValues                = []
     for functionDTECPol1, functionDTECPol2 in zip(functionsDTECPol1, functionsDTECPol2):
         gridTECValues.append(numpy.nan_to_num(fillGaps1D(numpy.add(functionDTECPol1, functionDTECPol2) / 2)))
-    gridTECValues = numpy.array(gridTECValues)
-    print (gridTECValues.shape)
+    gridTECValues                = numpy.array(gridTECValues)
+    gridTECWeights               = numpy.ones_like(gridTECValues)
 
-    gridTECWeights = numpy.ones_like(gridTECValues)
 
 
     # Save the amplitude and phase bandpasses.
