@@ -817,6 +817,7 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     cubeBandpassAmplitudeWeights = numpy.logical_not(numpy.isnan(cubeBandpassAmplitudeValues))
 
     cubeBandpassPhaseValues      = numpy.array([bandpassesPhasePol1Iter2, bandpassesPhasePol2Iter2])
+    print (numpy.array(bandpassesAmplitudePol1Iter2).shape)
     print (type(cubeBandpassAmplitudeValues))
     print (type(cubeBandpassPhaseValues))
     print (cubeBandpassAmplitudeValues.shape)
