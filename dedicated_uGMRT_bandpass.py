@@ -849,6 +849,10 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
     # Plot TECs.
 
+    # Plot TEC overviews.
+    #plotFunctionsDTEC2D()
+    #plotFunctionsDTEC2D()
+
     # Create final data products.
     cubeBandpassAmplitudeValues  = numpy.array([bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2])
     cubeBandpassAmplitudeWeights = numpy.logical_not(numpy.isnan(cubeBandpassAmplitudeValues))
@@ -886,7 +890,7 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     objectSolSet = objectH5Parm.makeSolset(solsetName = "sol000", addTables = False)
     objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "bandpassAmplitude", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassAmplitudeValues, weights = cubeBandpassAmplitudeWeights)
     objectSolSet.makeSoltab(soltype = "phase",     soltabName = "bandpassPhase",     axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassPhaseValues,     weights = cubeBandpassPhaseWeights)
-    #objectSolSet.makeSoltab(soltype = "tec",       soltabName = "TEC",               axesNames = ["ant", "time"],        axesVals = [namesAntenna, times],                          vals = gridTECValues,               weights = gridTECWeights)
+    objectSolSet.makeSoltab(soltype = "tec",       soltabName = "TEC",               axesNames = ["ant", "time"],        axesVals = [namesAntenna, times],                          vals = gridTECValues,               weights = gridTECWeights)
     objectH5Parm.close()
 
 
