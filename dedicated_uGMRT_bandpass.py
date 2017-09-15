@@ -806,6 +806,9 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
 
     # Plot phase bandpasses.
+    #plotBandpassesPhase(bandpassesPhasePol1Iter1, bandpassesPhasePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5ParmInput)
+    #plotBandpassesPhase(bandpassesPhasePol1Iter2, bandpassesPhasePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5ParmInput)
+
 
     # Plot TECs.
 
