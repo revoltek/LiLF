@@ -648,8 +648,7 @@ def plotFunctionsDTEC2D(functionsDTEC, pathDirectoryPlots, suffixFilename = "", 
     """
     logging.info("Starting DTEC function visualisation with comment '" + comment + "'...")
 
-    colorScaleMaxDTEC = 0.05
-
+    colorScaleMaxDTEC = numpy.amax(numpy.absolute(functionsDTEC))
 
     pyplot.figure(figsize = (12, 6))
 
@@ -657,12 +656,12 @@ def plotFunctionsDTEC2D(functionsDTEC, pathDirectoryPlots, suffixFilename = "", 
 
     pyplot.xlabel("time stamp index")
     pyplot.ylabel("antenna index")
-    pyplot.title("$\mathbf{\Delta\mathrm{TEC}}$\ndata set: " + nameDataSet
+    pyplot.title("$\mathbf{\Delta TEC}$\ndata set: " + nameDataSet
                  + " | telescope: " + nameTelescope + " | calibrator: " + nameField
                  + " | comment: " + comment, fontsize = 9)
 
     colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
-    colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = numpy.array([-1, -2 / 3, -1 / 3, 0, 1 / 3, 2 / 3, 1]) * colorScaleMaxDTEC)#[-colorScaleMaxDTEC, -2 / 3 * colorScaleMaxDTEC, -1 / 3 * colorScaleMaxDTEC, 0, 1 / 3 * colorScaleMaxDTEC, 2 / 3 * colorScaleMaxDTEC, colorScaleMaxDTEC])
+    colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = numpy.round(numpy.array([-1, -2 / 3., -1 / 3., 0, 1 / 3., 2 / 3., 1]) * colorScaleMaxDTEC, 3))
     colorBar.ax.set_ylabel("$\Delta\mathrm{TEC}\ (\mathrm{TECU})$")
 
     pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
