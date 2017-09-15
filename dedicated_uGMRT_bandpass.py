@@ -384,7 +384,8 @@ def calculateBandpassPhase(gainPhases, flags, frequencies, times, numberOfSubite
         gainPhases         = numpy.where(flags, numpy.nan, gainPhases)
 
         # Temporary debug output!
-        print ("# NaNs:", numpy.sum(numpy.isnan(bandpassPhaseIter1)))
+        print ("# NaNs bandpassPhaseIter1:", numpy.sum(numpy.isnan(bandpassPhaseIter1)))
+        print ("# NaNs gainPhases:", numpy.sum(numpy.isnan(gainPhases)))
 
 
     # Remove the phase bandpass from the original data.
@@ -432,8 +433,6 @@ def calculateBandpassPhase(gainPhases, flags, frequencies, times, numberOfSubite
     for indexRef in range(numberOfChannels):
         if (not numpy.isnan(bandpassPhaseIter2[indexRef])):
             break
-
-    print("indexRef:", indexRef)
 
     for j in range(numberOfChannels):
         BPPhaseFit.append(bandpassPhaseIter2[indexRef] + frequencyChannelWidth * (j - indexRef) * slope)
@@ -765,20 +764,6 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
         bandpassesAmplitudePol2Iter2.append(bandpassAmplitudePol2Iter2)
 
 
-    # Plot amplitude bandpasses.
-    #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5ParmInput)
-    #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5ParmInput)
-
-    # Plot amplitude bandpass overviews.
-    plotBandpassesAmplitude2D(bandpassesAmplitudePol1Iter2, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5ParmInput)
-    plotBandpassesAmplitude2D(bandpassesAmplitudePol2Iter2, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5ParmInput)
-
-    # Create final data products.
-    cubeBandpassAmplitudeValues  = numpy.array([bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2])
-    cubeBandpassAmplitudeWeights = numpy.logical_not(numpy.isnan(cubeBandpassAmplitudeValues))
-
-
-
     #
     # Generate phase bandpasses (in an iterative way). Calibrator DTECs are found as a side product.
     #
@@ -809,16 +794,30 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
         functionsDTECPol2.append(functionDTECPol2)
 
 
+    # Plot amplitude bandpasses.
+    #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5ParmInput)
+    #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5ParmInput)
+
+    # Plot amplitude bandpass overviews.
+    plotBandpassesAmplitude2D(bandpassesAmplitudePol1Iter2, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5ParmInput)
+    plotBandpassesAmplitude2D(bandpassesAmplitudePol2Iter2, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5ParmInput)
+
+
     # Plot phase bandpasses.
     #plotBandpassesPhase(bandpassesPhasePol1Iter1, bandpassesPhasePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5ParmInput)
     #plotBandpassesPhase(bandpassesPhasePol1Iter2, bandpassesPhasePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5ParmInput)
+
+    # Plot phase bandpass overviews.
 
 
     # Plot TECs.
 
     # Create final data products.
-    cubeBandpassPhaseValues  = numpy.array([bandpassesPhasePol1, bandpassesPhasePol2])
-    cubeBandpassPhaseWeights = numpy.logical_not(numpy.isnan(cubeBandpassPhaseValues))
+    cubeBandpassAmplitudeValues  = numpy.array([bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2])
+    cubeBandpassAmplitudeWeights = numpy.logical_not(numpy.isnan(cubeBandpassAmplitudeValues))
+
+    cubeBandpassPhaseValues      = numpy.array([bandpassesPhasePol1Iter2, bandpassesPhasePol2Iter2])
+    cubeBandpassPhaseWeights     = numpy.logical_not(numpy.isnan(cubeBandpassPhaseValues))
 
     # Create final data products.
     # Calculate final DTECs by averaging the DTECs found for 2 polarisations.
@@ -836,7 +835,7 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     objectSolSet = objectH5Parm.makeSolset(solsetName = "sol000", addTables = False)
     objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "bandpassAmplitude", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassAmplitudeValues, weights = cubeBandpassAmplitudeWeights)
     objectSolSet.makeSoltab(soltype = "phase",     soltabName = "bandpassPhase",     axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassPhaseValues,     weights = cubeBandpassPhaseWeights)
-    objectSolSet.makeSoltab(soltype = "tec",       soltabName = "TEC",               axesNames = ["ant", "time"],        axesVals = [namesAntenna, times],                          vals = gridTECValues,               weights = gridTECWeights)
+    #objectSolSet.makeSoltab(soltype = "tec",       soltabName = "TEC",               axesNames = ["ant", "time"],        axesVals = [namesAntenna, times],                          vals = gridTECValues,               weights = gridTECWeights)
     objectH5Parm.close()
 
 
