@@ -362,13 +362,13 @@ def calculateBandpassPhase(gainPhases, flags, frequencies, times, numberOfSubite
     # As we flag outliers in the process, we repeat this procedure several times.
     # During the last subiteration, the bandpass is calculated by taking the mean along time, whereas in
     # earlier iterations we calculate the bandpass using the median.
-    for subiteration in range(bandpassPhaseNumberOfSubiterations):
+    for subiteration in range(numberOfSubiterations):
 
         # Subtract the time-variable ionospheric effect from the gain phases.
         gridStaticIter1    = wrapPhasesZeroCentred(gainPhases - gridPlasmaOpIter1)
 
         # Determine bandpass. Use median for all but the last subiteration.
-        bandpassPhaseIter1 = calculateBandpassPhaseNoIonosphere(gridStaticIter1, useMedian = (subiteration < bandpassPhaseNumberOfSubiterations - 1))
+        bandpassPhaseIter1 = calculateBandpassPhaseNoIonosphere(gridStaticIter1, useMedian = (subiteration < numberOfSubiterations - 1))
 
         # Remove the phase bandpass from the static pattern to keep residuals, which we will use for flagging.
         gridResidualsIter1 = wrapPhasesZeroCentred(gridStaticIter1 - numpy.tile(bandpassPhaseIter1, (numberOfTimeStamps, 1)).T)
@@ -445,7 +445,7 @@ def calculateBandpassPhase(gainPhases, flags, frequencies, times, numberOfSubite
     BPPhaseRes1                 = wrapPhasesZeroCentred(bandpassPhaseIter2 - BPPhaseFit)
 
     # We hope we can now apply median filtering and interpolation, as we removed the phase ramps.
-    BPPhaseRes2                 = fillGaps1D(filterMedian1D(BPPhaseRes1, kernelSize = bandpassPhaseMedianFilteringKernelSize))
+    BPPhaseRes2                 = fillGaps1D(filterMedian1D(BPPhaseRes1, kernelSize = medianFilteringKernelSize))
 
     # Now add back in the phase ramps.
     bandpassPhaseIter3          = wrapPhasesZeroCentred(BPPhaseRes2 + BPPhaseFit)
