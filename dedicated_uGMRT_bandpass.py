@@ -506,7 +506,7 @@ def plotAmplitudes2D(amplitudes, times, frequencies, antennaeWorking, pathDirect
             colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [0, 0.2, 0.4, 0.6, 0.8, 1])
             colorBar.ax.set_ylabel("antenna-based gain amplitude (1)")
 
-            pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
+            pyplot.subplots_adjust(left = .05, right = .93, bottom = 0.08, top = 0.91)
             pyplot.savefig(pathDirectoryPlots + "/amplitudes2D_ant" + str(i) + "_pol" + namePolarisation + ".pdf")
             pyplot.close()
         else:
@@ -545,7 +545,7 @@ def plotPhases2D(phases, times, frequencies, antennaeWorking, pathDirectoryPlots
             colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [-180, -120, -60, 0, 60, 120, 180])
             colorBar.ax.set_ylabel("antenna-based gain phase $(\degree)$")
 
-            pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
+            pyplot.subplots_adjust(left = .05, right = .93, bottom = 0.08, top = 0.91)
             pyplot.savefig(pathDirectoryPlots + "/phases2D_ant" + str(i) + "_pol" + namePolarisation + ".pdf")
             pyplot.close()
         else:
@@ -610,7 +610,7 @@ def plotBandpassesAmplitude2D(bandpassesAmplitude, pathDirectoryPlots, namePolar
     colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [0, 0.2, 0.4, 0.6, 0.8, 1])
     colorBar.ax.set_ylabel("antenna-based gain amplitude (1)")
 
-    pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
+    pyplot.subplots_adjust(left = .05, right = .93, bottom = 0.08, top = 0.91)
     pyplot.savefig(pathDirectoryPlots + "/bandpassAmplitudeAll2D_pol" + namePolarisation + ".pdf")
     pyplot.close()
 
@@ -637,7 +637,7 @@ def plotBandpassesPhase2D(bandpassesPhase, pathDirectoryPlots, namePolarisation 
     colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [-180, -120, -60, 0, 60, 120, 180])
     colorBar.ax.set_ylabel("antenna-based gain phase $(\degree)$")
 
-    pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
+    pyplot.subplots_adjust(left = .05, right = .93, bottom = 0.08, top = 0.91)
     pyplot.savefig(pathDirectoryPlots + "/bandpassPhaseAll2D_pol" + namePolarisation + ".pdf")
     pyplot.close()
 
@@ -664,7 +664,7 @@ def plotFunctionsDTEC2D(functionsDTEC, pathDirectoryPlots, suffixFilename = "", 
     colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = numpy.round(numpy.array([-1, -2 / 3., -1 / 3., 0, 1 / 3., 2 / 3., 1]) * colorScaleMaxDTEC, 3))
     colorBar.ax.set_ylabel("$\Delta\mathrm{TEC}\ (\mathrm{TECU})$")
 
-    pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
+    pyplot.subplots_adjust(left = .05, right = .93, bottom = 0.08, top = 0.91)
     pyplot.savefig(pathDirectoryPlots + "/functionsDTECAll2D" + suffixFilename + ".pdf")
     pyplot.close()
 
@@ -856,8 +856,8 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
 
     # Plot amplitude bandpasses.
-    #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5ParmInput)
-    #plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5ParmInput)
+    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol2Iter1, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "1", nameField = nameField, nameDataSet = pathH5ParmInput)
+    plotBandpassesAmplitude(bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5ParmInput)
 
     # Plot amplitude bandpass overviews.
     plotBandpassesAmplitude2D(bandpassesAmplitudePol1Iter2, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5ParmInput)
