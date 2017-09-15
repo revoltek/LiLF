@@ -648,7 +648,7 @@ def plotFunctionsDTEC2D(functionsDTEC, pathDirectoryPlots, suffixFilename = "", 
     """
     logging.info("Starting DTEC function visualisation with comment '" + comment + "'...")
 
-    colorScaleMaxDTEC = numpy.amax(numpy.absolute(functionsDTEC))
+    colorScaleMaxDTEC = numpy.nanmax(numpy.absolute(functionsDTEC))
 
     pyplot.figure(figsize = (12, 6))
 
