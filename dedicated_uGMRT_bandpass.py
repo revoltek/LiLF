@@ -543,7 +543,7 @@ def plotPhases2D(phases, times, frequencies, antennaeWorking, pathDirectoryPlots
 
             colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
             colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [-180, -120, -60, 0, 60, 120, 180])
-            colorBar.ax.set_ylabel("gain phase $(\degree)$")
+            colorBar.ax.set_ylabel("antenna-based gain phase $(\degree)$")
 
             pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
             pyplot.savefig(pathDirectoryPlots + "/phases2D_ant" + str(i) + "_pol" + namePolarisation + ".pdf")
@@ -612,6 +612,33 @@ def plotBandpassesAmplitude2D(bandpassesAmplitude, pathDirectoryPlots, namePolar
 
     pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
     pyplot.savefig(pathDirectoryPlots + "/bandpassAmplitudeAll2D_pol" + namePolarisation + ".pdf")
+    pyplot.close()
+
+
+
+def plotBandpassesPhase2D(bandpassesPhase, pathDirectoryPlots, namePolarisation = "?", nameField = "?", nameDataSet = "?", nameTelescope = "uGMRT"):
+    """
+    Generate frequency-antenna plots of phase bandpasses, of one specific polarisation.
+    """
+    logging.info("Starting phase bandpass visualisation for polarisation " + namePolarisation + "...")
+
+
+    pyplot.figure(figsize = (12, 6))
+
+    image = pyplot.imshow(numpy.array(bandpassesPhase), aspect = "auto", interpolation = "none", cmap = cm.hsv, vmin = -180, vmax = 180)
+
+    pyplot.xlabel("frequency channel index")
+    pyplot.ylabel("antenna index")
+    pyplot.title("$\mathbf{phase\ bandpasses}$\ndata set: " + nameDataSet
+                 + " | telescope: " + nameTelescope + " | calibrator: " + nameField
+                 + " | polarisation: " + namePolarisation, fontsize = 9)
+
+    colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
+    colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = [0, 0.2, 0.4, 0.6, 0.8, 1])
+    colorBar.ax.set_ylabel("antenna-based gain phase $(\degree)$")
+
+    pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
+    pyplot.savefig(pathDirectoryPlots + "/bandpassPhaseAll2D_pol" + namePolarisation + ".pdf")
     pyplot.close()
 
 
@@ -816,6 +843,8 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     #plotBandpassesPhase(bandpassesPhasePol1Iter2, bandpassesPhasePol2Iter2, frequencies, antennaeWorking, pathDirectoryPlots, namesPolarisation = namesPolarisation, nameIteration = "2", nameField = nameField, nameDataSet = pathH5ParmInput)
 
     # Plot phase bandpass overviews.
+    plotBandpassesPhase2D(bandpassesPhasePol1Iter2, pathDirectoryPlots, namePolarisation = namesPolarisation[0], nameField = nameField, nameDataSet = pathH5ParmInput)
+    plotBandpassesPhase2D(bandpassesPhasePol2Iter2, pathDirectoryPlots, namePolarisation = namesPolarisation[1], nameField = nameField, nameDataSet = pathH5ParmInput)
 
 
     # Plot TECs.
@@ -825,18 +854,15 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     cubeBandpassAmplitudeWeights = numpy.logical_not(numpy.isnan(cubeBandpassAmplitudeValues))
 
     cubeBandpassPhaseValues      = numpy.array([bandpassesPhasePol1Iter2, bandpassesPhasePol2Iter2])
-    print (numpy.array(bandpassesAmplitudePol1Iter2).shape)
-    print (type(cubeBandpassAmplitudeValues))
-    print (type(cubeBandpassPhaseValues))
-    print (cubeBandpassAmplitudeValues.shape)
-    print (cubeBandpassPhaseValues.shape)
-
     cubeBandpassPhaseWeights     = numpy.logical_not(numpy.isnan(cubeBandpassPhaseValues))
 
     # Create final data products.
     # Calculate final DTECs by averaging the DTECs found for 2 polarisations.
     # Append the mean of the two DTEC time series to the final list with DTECs.
     # The data is averaged because both polarisations should measure the same DTEC.
+    print (type(functionsDTECPol1))
+    print ((numpy.array(functionsDTECPol1)).shape)
+    print ((numpy.array(functionsDTECPol2)).shape)
     #DTECsList.append(numpy.add(DTECsIter2Pol1, DTECsIter2Pol2) / 2)
     #DTECsList.append(numpy.nan_to_num(fillGaps1D(numpy.add(DTECsIter2Pol1, DTECsIter2Pol2) / 2)))
     # gridTECValues  =
