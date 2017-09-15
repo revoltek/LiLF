@@ -863,8 +863,17 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     print (type(functionsDTECPol1))
     print ((numpy.array(functionsDTECPol1)).shape)
     print ((numpy.array(functionsDTECPol2)).shape)
-    functionsDTECMean = numpy.nan_to_num(fillGaps1D(numpy.add(functionsDTECPol1, functionsDTECPol2) / 2))
-    print (functionsDTECMean.shape)
+
+    gridTECValues = []
+    for functionDTECPol1, functionDTECPol2 in zip(functionsDTECPol1, functionsDTECPol2):
+        gridTECValues.append(numpy.nan_to_num(fillGaps1D(numpy.add(functionDTECPol1, functionDTECPol2) / 2)))
+    gridTECValues = numpy.array(gridTECValues)
+    print (gridTECValues.shape)
+
+    gridTECWeights = numpy.ones_like(gridTECValues)
+
+    #functionsDTECMean = numpy.nan_to_num(fillGaps1D(numpy.add(functionsDTECPol1, functionsDTECPol2) / 2))
+    #print (functionsDTECMean.shape)
     #DTECsList.append(numpy.add(DTECsIter2Pol1, DTECsIter2Pol2) / 2)
     #DTECsList.append(numpy.nan_to_num(fillGaps1D(numpy.add(DTECsIter2Pol1, DTECsIter2Pol2) / 2)))
     # gridTECValues  =
