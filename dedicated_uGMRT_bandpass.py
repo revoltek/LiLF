@@ -743,7 +743,11 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     #
 
     # Create lists that store, for each antenna, 4 amplitude bandpasses (2 polarisations, 2 iterations).
-    bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter1, bandpassesAmplitudePol2Iter2 = [[]] * 4
+    #bandpassesAmplitudePol1Iter1, bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter1, bandpassesAmplitudePol2Iter2 = [[]] * 4
+    bandpassesAmplitudePol1Iter1 = []
+    bandpassesAmplitudePol1Iter2 = []
+    bandpassesAmplitudePol2Iter1 = []
+    bandpassesAmplitudePol2Iter2 = []
 
     for i in range(numberOfAntennae):
 
