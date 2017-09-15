@@ -642,6 +642,33 @@ def plotBandpassesPhase2D(bandpassesPhase, pathDirectoryPlots, namePolarisation 
     pyplot.close()
 
 
+def plotFunctionsDTEC2D(functionsDTEC, pathDirectoryPlots, suffixFilename = "", comment = "-", nameField = "?", nameDataSet = "?", nameTelescope = "uGMRT"):
+    """
+    Generate time-antenna plots of DTECs.
+    """
+    logging.info("Starting DTEC function visualisation with comment '" + comment + "'...")
+
+    colorScaleMaxDTEC = 0.05
+
+
+    pyplot.figure(figsize = (12, 6))
+
+    image = pyplot.imshow(numpy.array(functionsDTEC), aspect = "auto", interpolation = "none", cmap = cm.coolwarm, vmin = -colorScaleMaxDTEC, vmax = colorScaleMaxDTEC)
+
+    pyplot.xlabel("time stamp index")
+    pyplot.ylabel("antenna index")
+    pyplot.title("$\mathbf{\Delta\mathrm{TEC}}$\ndata set: " + nameDataSet
+                 + " | telescope: " + nameTelescope + " | calibrator: " + nameField
+                 + " | comment: " + comment, fontsize = 9)
+
+    colorBarAxis = make_axes_locatable(pyplot.gca()).append_axes("right", size = "2%", pad = .05)
+    colorBar     = pyplot.colorbar(image, cax = colorBarAxis, ticks = numpy.array([-1, -2 / 3, -1 / 3, 0, 1 / 3, 2 / 3, 1]) * colorScaleMaxDTEC)#[-colorScaleMaxDTEC, -2 / 3 * colorScaleMaxDTEC, -1 / 3 * colorScaleMaxDTEC, 0, 1 / 3 * colorScaleMaxDTEC, 2 / 3 * colorScaleMaxDTEC, colorScaleMaxDTEC])
+    colorBar.ax.set_ylabel("$\Delta\mathrm{TEC}\ (\mathrm{TECU})$")
+
+    pyplot.subplots_adjust(left = .06, right = .94, bottom = 0.08, top = 0.91)
+    pyplot.savefig(pathDirectoryPlots + "/functionsDTECAll2D" + suffixFilename + ".pdf")
+    pyplot.close()
+
 
 def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = False):
 
@@ -850,8 +877,8 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     # Plot TECs.
 
     # Plot TEC overviews.
-    #plotFunctionsDTEC2D()
-    #plotFunctionsDTEC2D()
+    plotFunctionsDTEC2D(functionsDTECPol1, pathDirectoryPlots, suffixFilename = "_pol" + namesPolarisation[0], comment = "derived from polarisation " + namesPolarisation[0], nameField = nameField, nameDataSet = pathH5ParmInput)
+    plotFunctionsDTEC2D(functionsDTECPol2, pathDirectoryPlots, suffixFilename = "_pol" + namesPolarisation[1], comment = "derived from polarisation " + namesPolarisation[1], nameField = nameField, nameDataSet = pathH5ParmInput)
 
     # Create final data products.
     cubeBandpassAmplitudeValues  = numpy.array([bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2])
