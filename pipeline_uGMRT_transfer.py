@@ -46,6 +46,7 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     bandpassesAmplitude             = objectSolTabBandpassesAmplitude.getValues(retAxesVals = False, weight = False)
     bandpassesPhase                 = objectSolTabBandpassesPhase.getValues(    retAxesVals = False, weight = False)
     objectH5Parm.close()
+    print (bandpassesAmplitude.shape)
 
 
     # 2. Fill target H5Parms with bandpass solutions.
@@ -57,6 +58,7 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         gainAmplitudes             = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = False)
         gainPhases                 = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)
         numberOfTimeStamps         = gainAmplitudes.shape[4]
+        print (gainAmplitudes.shape)
         # Fill 'gainAmplitudes' and 'gainPhases' with values from 'bandpassesAmplitude' and 'bandpassesPhase'.
         # Make 'numberOfTimeStamps' copies.
         #gainAmplitudes             =
@@ -68,9 +70,9 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
 
 
     # Apply solutions to target fields.
-    MSs.run(command = "DPPP " + pathParSetApply + " msin=$pathMS " +
-            "applyBandpassAmplitude.parmdb=$pathDirectory/$nameMS.h5 applyBandpassPhase.parmdb=$pathDirectory/$nameMS.h5",
-            commandType = "DPPP", log = "transfer_$nameMS.log")
+    #MSs.run(command = "DPPP " + pathParSetApply + " msin=$pathMS " +
+    #        "applyBandpassAmplitude.parmdb=$pathDirectory/$nameMS.h5 applyBandpassPhase.parmdb=$pathDirectory/$nameMS.h5",
+    #        commandType = "DPPP", log = "transfer_$nameMS.log")
 
 
 
