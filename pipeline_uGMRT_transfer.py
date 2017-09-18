@@ -55,6 +55,11 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     a = np.expand_dims(a, axis = 4)
     a = np.tile(a, (1, 1, 1, 1, 24))
     print (a.shape)
+    from matplotlib import pyplot
+    for ant in [0, 1]:
+        pyplot.imshow(a[0, 0, ant, :, :])
+        pyplot.show()
+
 
 
     # 2. Fill target H5Parms with bandpass solutions.
