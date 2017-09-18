@@ -58,7 +58,8 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     from matplotlib import pyplot
     for ant in [0, 1]:
         pyplot.imshow(a[0, 0, ant, :, :])
-        pyplot.show()
+        pyplot.savefig("/disks/strw3/oei/uGMRTCosmosCut-PiLF/test" + str(ant) + ".pdf")
+        pyplot.close()
 
 
 
