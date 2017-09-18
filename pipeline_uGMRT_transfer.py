@@ -8,6 +8,7 @@ In collaboration with: Reinout van Weeren, Tammo Jan Dijkema and Andre Offringa
 
 import argparse
 
+import numpy as np
 from losoto import h5parm
 
 import lib_ms, lib_util
@@ -31,11 +32,11 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
                                   overwrite = False, fillWithOnes = True, comment = "", verbose = True)
 
     # Create ParmDBs with dummy values.
-    MSs.run(command = "DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument",
-            commandType = "DPPP", log = "transfer_$nameMS.log")
+    #MSs.run(command = "DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument",
+    #        commandType = "DPPP", log = "transfer_$nameMS.log")
 
     # Create H5Parm files.
-    MSs.run(command = "H5parm_importer.py $pathDirectory/$nameMS.h5 $pathMS", commandType = "python", log = "transfer_$nameMS.log")
+    #MSs.run(command = "H5parm_importer.py $pathDirectory/$nameMS.h5 $pathMS", commandType = "python", log = "transfer_$nameMS.log")
 
     # Open H5Parm files, and fill with bandpass from 'pathCalibratorH5Parm'.
     # 1. Load calibrator data.
@@ -47,6 +48,13 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     bandpassesPhase                 = objectSolTabBandpassesPhase.getValues(    retAxesVals = False, weight = False)
     objectH5Parm.close()
     print (bandpassesAmplitude.shape)
+
+    # Reshape (2, 30, 2048) array to (2, 1, 30, 2048, 24)... How? Using numpy.tile? numpy.broadcast_to? numpy.reshape...?
+    a = np.copy(bandpassesAmplitude)
+    a = np.expand_dims(a, axis = 1)
+    a = np.expand_dims(a, axis = 4)
+    a = np.tile(a, (1, 1, 1, 1, 24))
+    print (a.shape)
 
 
     # 2. Fill target H5Parms with bandpass solutions.
@@ -63,7 +71,7 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         # Make 'numberOfTimeStamps' copies.
         #gainAmplitudes             =
         #gainPhases                 =
-        weights                    = numpy.logical_not(numpy.isnan(gainAmplitudes))
+        weights                    = np.logical_not(np.isnan(gainAmplitudes))
         # Fill existing SolTabs with 'gainAmplitudes', 'gainPhases' and 'weights'.
         objectH5Parm.close()
     # 3. Save H5Parms.
