@@ -964,50 +964,6 @@ if (__name__ == "__main__"):
 
 
 
-#print(numpy.amax(gainPhasesPol1), numpy.amin(gainPhasesPol2))
-#print ((objectH5Parm.H.root.sol000.amplitude000.val).shape)
-#print (type(weightsForPhases[0, 0, 0, 0]))
-
-#for valsThisTime, weights, coord, selection in getValuesIter(returnAxes = ["time",'freq'], weights = True):
-#    valsThisTime *= 2
-#    setValues(selection = selection)
-
-
-    #print (cubeBandpassAmplitudeValues.shape)
-    #print (type(cubeBandpassAmplitudeValues))
-    #print (cubeBandpassAmplitudeValues[0].shape)
-
-    # Delete the old solution table, if it exists.
-    #if ("amplitude bandpass" in objectSolSet.getSoltabNames()):
-    #    (objectSolSet.getSoltab("amplitude bandpass")).delete()
-
-   ##  Output debug info.
-#     print (gainAmplitudes.shape)
-#     print (gainPhases.shape)
-#     print (gainAmplitudesPol1.shape)
-#     print (gainPhasesPol1.shape)
-#     print (flagsForAmplitudesPol2.shape)
-#     print (flagsForPhasesPol2.shape)
-#     print ("numberOfAntennae:", numberOfAntennae, "numberOfChannels:", numberOfChannels, "numberOfTimeStamps:", numberOfTimeStamps)
-
-
-#
-# def dedicated_uGMRT_bandpass(pathH5Parm, verbose = False):
-#
-#     # Load the H5Parm file.
-#     fileH5Parm = losoto.h5parm.h5parm(pathH5Parm)
-#
-#     if (verbose):
-#         fileH5Parm.printInfo()
-#
-#     solutionSet = fileH5Parm.getSolset("sol000")
-#     amplitudes  = solutionSet.amp000.val[ : , 0, : , : ]
-#     phases      = solutionSet.phase000.val[ : , 0, : , : ]
-#
-#
-#     # import H5 to numpy!!!!!!
-#     # ParmDB to H5
-#     # Losoto H5parm_importer.py
 #     # pip install --allow-external --upgrade --user https://github.com/revoltek/losoto/archive/master.zip # Dit installt het in Python
 #     # Dan, ergens in een directory dumpt-ie:
 #     # git clone https://github.com/revoltek/losoto.git # Dit zorgt ervoor dat je het in de command line kunt gebruiken
@@ -1164,43 +1120,6 @@ if (__name__ == "__main__"):
 #                                  + nameField) # 'nameMS[ : -3]' ensures that we remove '.MS' from the name.
 #                     pyplot.subplots_adjust(left = .08, right = .98, bottom = .08, top = .91)
 #                     pyplot.savefig(pathPlotDirectory + "DTECIter2_Ant" + str(i) + ".pdf")
-#                     pyplot.close()
-#
-#
-#                     # Create plot of phase bandpass (for both polarisations, iteration 1).
-#                     pyplot.figure(figsize = (12, 6))
-#                     pyplot.scatter(gridFrequencies[ : , 0], bandpassPhaseIter1Pol1, c = "navy", lw = 0, label = "polarisation 1", s = 16)
-#                     pyplot.scatter(gridFrequencies[ : , 0], bandpassPhaseIter1Pol2, c = "orangered", lw = 0, label = "polarisation 2", s = 16)
-#                     pyplot.grid(linestyle = "--")
-#                     pyplot.legend()
-#                     pyplot.xlabel("frequency channel centre (MHz)")
-#                     pyplot.ylabel("gain phase ($\degree$)")
-#                     pyplot.xlim(frequencyStart - plotFrequencyLimit, frequencyStart + frequencyRange + plotFrequencyLimit)
-#                     pyplot.ylim(-180 - plotPhaseLimit, 180 + plotPhaseLimit)
-#                     pyplot.yticks(numpy.linspace(-180, 180, num = 9, endpoint = True))
-#                     pyplot.title("phase bandpass (iteration 1)\ndata set: "
-#                                  + nameMS[ : -3] + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
-#                                  + nameField) # 'nameMS[ : -3]' ensures that we remove '.MS' from the name.
-#                     pyplot.subplots_adjust(left = 0.07, right = 0.98, bottom = 0.08, top = 0.91)
-#                     pyplot.savefig(pathPlotDirectory + "bandpassPhaseIter1_" + "Ant" + str(i) + ".pdf")
-#                     pyplot.close()
-#
-#                     # Create plot of phase bandpass (for both polarisations, iteration 2).
-#                     pyplot.figure(figsize = (12, 6))
-#                     pyplot.scatter(gridFrequencies[ : , 0], bandpassPhaseIter2Pol1, c = "navy", lw = 0, label = "polarisation 1", s = 16)
-#                     pyplot.scatter(gridFrequencies[ : , 0], bandpassPhaseIter2Pol2, c = "orangered", lw = 0, label = "polarisation 2", s = 16)
-#                     pyplot.grid(linestyle = "--")
-#                     pyplot.legend()
-#                     pyplot.xlabel("frequency channel centre (MHz)")
-#                     pyplot.ylabel("gain phase ($\degree$)")
-#                     pyplot.xlim(frequencyStart - plotFrequencyLimit, frequencyStart + frequencyRange + plotFrequencyLimit)
-#                     pyplot.ylim(-180 - plotPhaseLimit, 180 + plotPhaseLimit)
-#                     pyplot.yticks(numpy.linspace(-180, 180, num = 9, endpoint = True))
-#                     pyplot.title("phase bandpass (iteration 2)\ndata set: "
-#                                  + nameMS[ : -3] + " | telescope: " + nameTelescope + " | antenna ID: $\mathbf{" + str(i) + "}$ | calibrator: "
-#                                  + nameField) # 'nameMS[ : -3]' ensures that we remove '.MS' from the name.
-#                     pyplot.subplots_adjust(left = 0.07, right = 0.98, bottom = 0.08, top = 0.91)
-#                     pyplot.savefig(pathPlotDirectory + "bandpassPhaseIter2_" + "Ant" + str(i) + ".pdf")
 #                     pyplot.close()
 #
 #                     if (plot3D):

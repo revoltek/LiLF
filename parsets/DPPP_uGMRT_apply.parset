@@ -1,0 +1,9 @@
+msin                              =
+
+steps                             = [applyBandpassAmplitude, applyBandpassPhase]
+
+applyBandpassAmplitude.type       = applycal
+applyBandpassAmplitude.correction = amplitude000
+
+applyBandpassPhase.type           = applycal
+applyBandpassPhase.correction     = phase000

@@ -16,12 +16,14 @@ import lib_ms, lib_util
 def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pathDirectoryParSets = "./parsets"):
 
     # Initialise parameter set settings.
-    nameParSetSolve   = "DPPP_uGMRT_sol_dummy.parset"
-    pathParSetSolve   = pathDirectoryParSets + '/' + nameParSetSolve
+    nameParSetSolve                 = "DPPP_uGMRT_sol_dummy.parset"
+    nameParSetApply                 = "DPPP_uGMRT_apply.parset"
+    pathParSetSolve                 = pathDirectoryParSets + "/" + nameParSetSolve
+    pathParSetApply                 = pathDirectoryParSets + "/" + nameParSetApply
 
     # Initialise processing objects.
-    scheduler          = lib_util.Scheduler(dry = False, log_dir = pathDirectoryLogs)
-    MSs                = lib_ms.AllMSs(pathsMS, scheduler)
+    scheduler                       = lib_util.Scheduler(dry = False, log_dir = pathDirectoryLogs)
+    MSs                             = lib_ms.AllMSs(pathsMS, scheduler)
 
     # Add model column, and fill with ones.
     for MSObject in MSs.get_list_obj():
@@ -37,15 +39,38 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
 
     # Open H5Parm files, and fill with bandpass from 'pathCalibratorH5Parm'.
     # 1. Load calibrator data.
+    objectH5Parm                    = h5parm.h5parm(pathCalibratorH5Parm, readonly = True)
+    objectSolSet                    = objectH5Parm.getSolset("sol000")
+    objectSolTabBandpassesAmplitude = objectSolSet.getSoltab("bandpassAmplitude")
+    objectSolTabBandpassesPhase     = objectSolSet.getSoltab("bandpassPhase")
+    bandpassesAmplitude             = objectSolTabBandpassesAmplitude.getValues(retAxesVals = False, weight = False)
+    bandpassesPhase                 = objectSolTabBandpassesPhase.getValues(    retAxesVals = False, weight = False)
+    objectH5Parm.close()
+
+
     # 2. Fill target H5Parms with bandpass solutions.
     for MSObject in MSs.get_list_obj():
-        objectH5Parm = h5parm.h5parm(MSObject.pathDirectory + "/" + MSObject.nameMS + ".h5", readonly = False)
-        # Do stuff.
-        print ("Under construction!")
+        objectH5Parm               = h5parm.h5parm(MSObject.pathDirectory + "/" + MSObject.nameMS + ".h5", readonly = False)
+        objectSolSet               = objectH5Parm.getSolset("sol000")
+        objectSolTabGainAmplitudes = objectSolSet.getSoltab("amplitude000")
+        objectSolTabGainPhases     = objectSolSet.getSoltab("phase000")
+        gainAmplitudes             = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = False)
+        gainPhases                 = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)
+        numberOfTimeStamps         = gainAmplitudes.shape[4]
+        # Fill 'gainAmplitudes' and 'gainPhases' with values from 'bandpassesAmplitude' and 'bandpassesPhase'.
+        # Make 'numberOfTimeStamps' copies.
+        #gainAmplitudes             =
+        #gainPhases                 =
+        weights                    = numpy.logical_not(numpy.isnan(gainAmplitudes))
+        # Fill existing SolTabs with 'gainAmplitudes', 'gainPhases' and 'weights'.
         objectH5Parm.close()
     # 3. Save H5Parms.
 
+
     # Apply solutions to target fields.
+    MSs.run(command = "DPPP " + pathParSetApply + " msin=$pathMS " +
+            "applyBandpassAmplitude.parmdb=$pathDirectory/$nameMS.h5 applyBandpassPhase.parmdb=$pathDirectory/$nameMS.h5",
+            commandType = "DPPP", log = "transfer_$nameMS.log")
 
 
 
