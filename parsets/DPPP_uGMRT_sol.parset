@@ -1,5 +1,6 @@
 msin                       =
 msin.datacolumn            = DATA
+msout                      = . # unused, though required
 
 steps                      = [filter, gaincal]
 
