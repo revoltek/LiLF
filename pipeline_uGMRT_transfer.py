@@ -62,7 +62,7 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     print (bandpassesPhaseTiled.shape)
     from matplotlib import pyplot
     from matplotlib import cm
-    for ant in [0, 1]:
+    for ant in [0, 1, 29]:
         pyplot.imshow(bandpassesAmplitudeTiled[0, 0, ant, :, :], interpolation = "none", aspect = "auto")
         pyplot.savefig("/disks/strw3/oei/uGMRTCosmosCut-PiLF/test" + str(ant) + ".pdf")
         pyplot.close()
