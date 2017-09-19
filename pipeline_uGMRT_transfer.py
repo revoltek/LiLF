@@ -47,18 +47,28 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     bandpassesAmplitude             = objectSolTabBandpassesAmplitude.getValues(retAxesVals = False, weight = False)
     bandpassesPhase                 = objectSolTabBandpassesPhase.getValues(    retAxesVals = False, weight = False)
     objectH5Parm.close()
-    print (bandpassesAmplitude.shape)
 
     # Reshape (2, 30, 2048) array to (2, 1, 30, 2048, 24)... How? Using numpy.tile? numpy.broadcast_to? numpy.reshape...?
-    a = np.copy(bandpassesAmplitude)
-    a = np.expand_dims(a, axis = 1)
-    a = np.expand_dims(a, axis = 4)
-    a = np.tile(a, (1, 1, 1, 1, 24))
-    print (a.shape)
+    print (bandpassesAmplitude.shape)
+    bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitude,         axis = 1)
+    bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitudeReshaped, axis = 4)
+
+    bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhase,             axis = 1)
+    bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhaseReshaped,     axis = 4)
+
+    bandpassesAmplitudeTiled = np.tile(bandpassesAmplitudeReshaped, (1, 1, 1, 1, 24))
+    bandpassesPhaseTiled     = np.tile(bandpassesPhaseReshaped,     (1, 1, 1, 1, 24))
+    print (bandpassesAmplitudeTiled.shape)
+    print (bandpassesPhaseTiled.shape)
     from matplotlib import pyplot
+    from matplotlib import cm
     for ant in [0, 1]:
-        pyplot.imshow(a[0, 0, ant, :, :], interpolation = "none", aspect = "auto")
+        pyplot.imshow(bandpassesAmplitudeTiled[0, 0, ant, :, :], interpolation = "none", aspect = "auto")
         pyplot.savefig("/disks/strw3/oei/uGMRTCosmosCut-PiLF/test" + str(ant) + ".pdf")
+        pyplot.close()
+
+        pyplot.imshow(bandpassesPhaseTiled[0, 0, ant, :, :], interpolation = "none", cmap = cm.hsv, vmin = -180, vmax = 180)
+        pyplot.savefig("/disks/strw3/oei/uGMRTCosmosCut-PiLF/testFase" + str(ant) + ".pdf")
         pyplot.close()
 
 
