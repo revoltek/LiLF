@@ -6,7 +6,7 @@ Francesco de Gasperin & Martijn Oei, 2017
 In collaboration with: Reinout van Weeren, Tammo Jan Dijkema and Andre Offringa
 '''
 
-import argparse
+import argparse, logging
 
 import numpy as np
 from losoto import h5parm
@@ -21,6 +21,15 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     nameParSetApply                 = "DPPP_uGMRT_apply.parset"
     pathParSetSolve                 = pathDirectoryParSets + "/" + nameParSetSolve
     pathParSetApply                 = pathDirectoryParSets + "/" + nameParSetApply
+
+    # Initialise logging settings.
+    nameFileLog                     = "pipeline_uGMRT_transfer.log"
+    pathFileLog                     = pathDirectoryLogs + "/" + nameFileLog
+
+    # Initialise logging.
+    lib_util.printLineBold("Starting log at '" + pathFileLog + "'...")
+    logging.basicConfig(filename = pathFileLog, level = logging.DEBUG)
+    logging.info("Started 'pipeline_uGMRT_transfer.py'!")
 
     # Initialise processing objects.
     scheduler                       = lib_util.Scheduler(dry = False, log_dir = pathDirectoryLogs)
@@ -102,9 +111,9 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         objectH5Parm.close()
 
     # Apply solutions to target fields.
-    #MSs.run(command = "DPPP " + pathParSetApply + " msin=$pathMS " +
-    #        "applyBandpassAmplitude.parmdb=$pathDirectory/$nameMS.h5 applyBandpassPhase.parmdb=$pathDirectory/$nameMS.h5",
-    #        commandType = "DPPP", log = "transfer_$nameMS.log")
+    MSs.run(command = "DPPP " + pathParSetApply + " msin=$pathMS " +
+            "applyBandpassAmplitude.parmdb=$pathDirectory/$nameMS.h5 applyBandpassPhase.parmdb=$pathDirectory/$nameMS.h5",
+            commandType = "DPPP", log = "transfer_$nameMS.log")
 
 
 
