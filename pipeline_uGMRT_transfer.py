@@ -67,7 +67,7 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         pyplot.savefig("/disks/strw3/oei/uGMRTCosmosCut-PiLF/test" + str(ant) + ".pdf")
         pyplot.close()
 
-        pyplot.imshow(bandpassesPhaseTiled[0, 0, ant, :, :], interpolation = "none", cmap = cm.hsv, vmin = -180, vmax = 180)
+        pyplot.imshow(bandpassesPhaseTiled[0, 0, ant, :, :], interpolation = "none", aspect = "auto", cmap = cm.hsv, vmin = -180, vmax = 180)
         pyplot.savefig("/disks/strw3/oei/uGMRTCosmosCut-PiLF/testFase" + str(ant) + ".pdf")
         pyplot.close()
 
@@ -83,6 +83,10 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         gainPhases                 = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)
         numberOfTimeStamps         = gainAmplitudes.shape[4]
         print (gainAmplitudes.shape)
+
+        bandpassesAmplitudeTiled = np.tile(bandpassesAmplitudeReshaped, (1, 1, 1, 1, numberOfTimeStamps))
+        bandpassesPhaseTiled     = np.tile(bandpassesPhaseReshaped,     (1, 1, 1, 1, numberOfTimeStamps))
+        print (bandpassesAmplitudeTiled.shape)
         # Fill 'gainAmplitudes' and 'gainPhases' with values from 'bandpassesAmplitude' and 'bandpassesPhase'.
         # Make 'numberOfTimeStamps' copies.
         #gainAmplitudes             =
