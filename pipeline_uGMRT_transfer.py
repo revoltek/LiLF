@@ -38,8 +38,9 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     # Create H5Parm files.
     #MSs.run(command = "H5parm_importer.py $pathDirectory/$nameMS.h5 $pathMS", commandType = "python", log = "transfer_$nameMS.log")
 
+
     # Open H5Parm files, and fill with bandpass from 'pathCalibratorH5Parm'.
-    # 1. Load calibrator data.
+    # Load calibrator data.
     objectH5Parm                    = h5parm.h5parm(pathCalibratorH5Parm, readonly = True)
     objectSolSet                    = objectH5Parm.getSolset("sol000")
     objectSolTabBandpassesAmplitude = objectSolSet.getSoltab("bandpassAmplitude")
@@ -48,14 +49,19 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     bandpassesPhase                 = objectSolTabBandpassesPhase.getValues(    retAxesVals = False, weight = False)
     objectH5Parm.close()
 
-    # Reshape (2, 30, 2048) array to (2, 1, 30, 2048, 24)... How? Using numpy.tile? numpy.broadcast_to? numpy.reshape...?
-    print (bandpassesAmplitude.shape)
+    # Convert bandpass phases to radians.
+    bandpassesPhase                 = np.radians(bandpassesPhase)
+
+    # Reshape (2, 30, 2048) arrays to (2, 1, 30, 2048, 1) arrays, which are then tiled along the last axis
+    # on a scan-by-scan basis, depending on the number of time stamps of each scan.
     bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitude,         axis = 1)
     bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitudeReshaped, axis = 4)
 
     bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhase,             axis = 1)
     bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhaseReshaped,     axis = 4)
 
+    '''
+    print (bandpassesAmplitude.shape)
     bandpassesAmplitudeTiled = np.tile(bandpassesAmplitudeReshaped, (1, 1, 1, 1, 24))
     bandpassesPhaseTiled     = np.tile(bandpassesPhaseReshaped,     (1, 1, 1, 1, 24))
     print (bandpassesAmplitudeTiled.shape)
@@ -70,10 +76,9 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         pyplot.imshow(bandpassesPhaseTiled[0, 0, ant, :, :], interpolation = "none", aspect = "auto", cmap = cm.hsv, vmin = -180, vmax = 180)
         pyplot.savefig("/disks/strw3/oei/uGMRTCosmosCut-PiLF/testFase" + str(ant) + ".pdf")
         pyplot.close()
+    '''
 
-
-
-    # 2. Fill target H5Parms with bandpass solutions.
+    # Fill target H5Parms with bandpass solutions.
     for MSObject in MSs.get_list_obj():
         objectH5Parm               = h5parm.h5parm(MSObject.pathDirectory + "/" + MSObject.nameMS + ".h5", readonly = False)
         objectSolSet               = objectH5Parm.getSolset("sol000")
@@ -82,20 +87,19 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         gainAmplitudes             = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = False)
         gainPhases                 = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)
         numberOfTimeStamps         = gainAmplitudes.shape[4]
-        print (gainAmplitudes.shape)
 
-        bandpassesAmplitudeTiled = np.tile(bandpassesAmplitudeReshaped, (1, 1, 1, 1, numberOfTimeStamps))
-        bandpassesPhaseTiled     = np.tile(bandpassesPhaseReshaped,     (1, 1, 1, 1, numberOfTimeStamps))
-        print (bandpassesAmplitudeTiled.shape)
-        # Fill 'gainAmplitudes' and 'gainPhases' with values from 'bandpassesAmplitude' and 'bandpassesPhase'.
-        # Make 'numberOfTimeStamps' copies.
-        #gainAmplitudes             =
-        #gainPhases                 =
-        weights                    = np.logical_not(np.isnan(gainAmplitudes))
-        # Fill existing SolTabs with 'gainAmplitudes', 'gainPhases' and 'weights'.
+        gainAmplitudesNew          = np.tile(bandpassesAmplitudeReshaped, (1, 1, 1, 1, numberOfTimeStamps))
+        gainPhasesNew              = np.tile(bandpassesPhaseReshaped,     (1, 1, 1, 1, numberOfTimeStamps))
+        weightsForAmplitudes       = np.logical_not(np.isnan(gainAmplitudesNew))
+        weightsForPhases           = np.logical_not(np.isnan(gainPhasesNew))
+
+        objectSolTabGainAmplitudes.setValues(gainAmplitudesNew,    weight = False)
+        objectSolTabGainAmplitudes.setValues(weightsForAmplitudes, weight = True)
+
+        objectSolTabGainPhases.setValues(gainPhasesNew,    weight = False)
+        objectSolTabGainPhases.setValues(weightsForPhases, weight = True)
+
         objectH5Parm.close()
-    # 3. Save H5Parms.
-
 
     # Apply solutions to target fields.
     #MSs.run(command = "DPPP " + pathParSetApply + " msin=$pathMS " +
