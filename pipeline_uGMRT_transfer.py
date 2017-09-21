@@ -41,11 +41,11 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
                                   overwrite = False, fillWithOnes = True, comment = "", verbose = True)
 
     # Create ParmDBs with dummy values.
-    #MSs.run(command = "DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument",
-    #        commandType = "DPPP", log = "transfer_$nameMS.log")
+    MSs.run(command = "DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument",
+            commandType = "DPPP", log = "transfer_$nameMS.log")
 
     # Create H5Parm files.
-    #MSs.run(command = "H5parm_importer.py $pathDirectory/$nameMS.h5 $pathMS", commandType = "python", log = "transfer_$nameMS.log")
+    MSs.run(command = "H5parm_importer.py $pathDirectory/$nameMS.h5 $pathMS", commandType = "python", log = "transfer_$nameMS.log")
 
 
     # Open H5Parm files, and fill with bandpass from 'pathCalibratorH5Parm'.
@@ -69,30 +69,17 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhase,             axis = 1)
     bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhaseReshaped,     axis = 4)
 
-    '''
-    print (bandpassesAmplitude.shape)
-    bandpassesAmplitudeTiled = np.tile(bandpassesAmplitudeReshaped, (1, 1, 1, 1, 24))
-    bandpassesPhaseTiled     = np.tile(bandpassesPhaseReshaped,     (1, 1, 1, 1, 24))
-    print (bandpassesAmplitudeTiled.shape)
-    print (bandpassesPhaseTiled.shape)
-    from matplotlib import pyplot
-    from matplotlib import cm
-    for ant in [0, 1, 29]:
-        pyplot.imshow(bandpassesAmplitudeTiled[0, 0, ant, :, :], interpolation = "none", aspect = "auto")
-        pyplot.savefig("/disks/strw3/oei/uGMRTCosmosCut-PiLF/test" + str(ant) + ".pdf")
-        pyplot.close()
-
-        pyplot.imshow(bandpassesPhaseTiled[0, 0, ant, :, :], interpolation = "none", aspect = "auto", cmap = cm.hsv, vmin = -180, vmax = 180)
-        pyplot.savefig("/disks/strw3/oei/uGMRTCosmosCut-PiLF/testFase" + str(ant) + ".pdf")
-        pyplot.close()
-    '''
-
     # Fill target H5Parms with bandpass solutions.
     for MSObject in MSs.get_list_obj():
         objectH5Parm               = h5parm.h5parm(MSObject.pathDirectory + "/" + MSObject.nameMS + ".h5", readonly = False)
         objectSolSet               = objectH5Parm.getSolset("sol000")
         objectSolTabGainAmplitudes = objectSolSet.getSoltab("amplitude000")
         objectSolTabGainPhases     = objectSolSet.getSoltab("phase000")
+
+        _, axes                    = objectSolTabGainAmplitudes.getValues(retAxesVals = True)
+        frequencies                = axes["freq"]
+        frequenciesInverted        = np.flip(frequencies, 0)
+
         gainAmplitudes             = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = False)
         gainPhases                 = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)
         numberOfTimeStamps         = gainAmplitudes.shape[4]
@@ -104,9 +91,11 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
 
         objectSolTabGainAmplitudes.setValues(gainAmplitudesNew,    weight = False)
         objectSolTabGainAmplitudes.setValues(weightsForAmplitudes, weight = True)
+        objectSolTabGainAmplitudes.setAxisValues("freq", frequenciesInverted)
 
         objectSolTabGainPhases.setValues(gainPhasesNew,    weight = False)
         objectSolTabGainPhases.setValues(weightsForPhases, weight = True)
+        objectSolTabGainPhases.setAxisValues("freq", frequenciesInverted)
 
         objectH5Parm.close()
 

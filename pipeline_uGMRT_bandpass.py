@@ -83,7 +83,6 @@ def pipeline_uGMRT_bandpass(pathsMS, pathDirectoryLogs, pathDirectoryParSets = "
 
     # Determine and store amplitude and phase bandpass (as well as calibrator TEC solutions).
     logging.info("Calculating amplitude bandpass, phase bandpass and calibrator TEC solutions...")
-
     MSs.run(command = "python dedicated_uGMRT_bandpass.py $pathDirectory", commandType = "python", log = "bandpass_$nameMS.log")
 
 

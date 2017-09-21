@@ -922,9 +922,14 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
 
 
     # Create final data products.
+    # Invert along frequency axis. Note: this flip of the data is not reflected in the plots above, which might be confusing...
+    #frequenciesInverted          = numpy.flip(frequencies, 0)
+
+    #cubeBandpassAmplitudeValues  = numpy.flip(numpy.array([bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2]), 2)
     cubeBandpassAmplitudeValues  = numpy.array([bandpassesAmplitudePol1Iter2, bandpassesAmplitudePol2Iter2])
     cubeBandpassAmplitudeWeights = numpy.logical_not(numpy.isnan(cubeBandpassAmplitudeValues))
 
+    #cubeBandpassPhaseValues      = numpy.flip(numpy.array([bandpassesPhasePol1Iter2, bandpassesPhasePol2Iter2]), 2)
     cubeBandpassPhaseValues      = numpy.array([bandpassesPhasePol1Iter2, bandpassesPhasePol2Iter2])
     cubeBandpassPhaseWeights     = numpy.logical_not(numpy.isnan(cubeBandpassPhaseValues))
 
@@ -943,7 +948,9 @@ def dedicated_uGMRT_bandpass(pathDirectoryMS, referenceAntennaID = 0, verbose = 
     objectSolSet = objectH5Parm.makeSolset(solsetName = "sol000", addTables = False)
     objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "bandpassAmplitude", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassAmplitudeValues, weights = cubeBandpassAmplitudeWeights)
     objectSolSet.makeSoltab(soltype = "phase",     soltabName = "bandpassPhase",     axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequencies], vals = cubeBandpassPhaseValues,     weights = cubeBandpassPhaseWeights)
-    objectSolSet.makeSoltab(soltype = "tec",       soltabName = "TEC",               axesNames = ["ant", "time"],        axesVals = [namesAntenna, times],                          vals = gridTECValues,               weights = gridTECWeights)
+    #objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "bandpassAmplitude", axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequenciesInverted], vals = cubeBandpassAmplitudeValues, weights = cubeBandpassAmplitudeWeights)
+    #objectSolSet.makeSoltab(soltype = "phase",     soltabName = "bandpassPhase",     axesNames = ["pol", "ant", "freq"], axesVals = [namesPolarisation, namesAntenna, frequenciesInverted], vals = cubeBandpassPhaseValues,     weights = cubeBandpassPhaseWeights)
+    objectSolSet.makeSoltab(soltype = "tec",       soltabName = "TEC",               axesNames = ["ant", "time"],        axesVals = [namesAntenna, times],                                  vals = gridTECValues,               weights = gridTECWeights)
     objectH5Parm.close()
 
 
