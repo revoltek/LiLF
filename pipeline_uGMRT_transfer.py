@@ -78,7 +78,8 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
 
         _, axes                    = objectSolTabGainAmplitudes.getValues(retAxesVals = True)
         frequencies                = axes["freq"]
-        frequenciesInverted        = np.flip(frequencies, 0)
+        print (type(frequencies))
+        frequenciesInverted        = np.flip(np.array(frequencies), 0)
 
         gainAmplitudes             = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = False)
         gainPhases                 = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)
