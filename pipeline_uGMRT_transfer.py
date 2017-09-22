@@ -89,6 +89,11 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
 
         gainAmplitudesNew          = np.tile(bandpassesAmplitudeReshaped, (1, 1, 1, 1, numberOfTimeStamps))
         gainPhasesNew              = np.tile(bandpassesPhaseReshaped,     (1, 1, 1, 1, numberOfTimeStamps))
+
+        print (gainAmplitudesNew.shape)
+        gainAmplitudesNew          = np.moveaxis(gainAmplitudesNew, 3, 0)
+        print (gainAmplitudesNew.shape)
+
         weightsForAmplitudes       = np.logical_not(np.isnan(gainAmplitudesNew))
         weightsForPhases           = np.logical_not(np.isnan(gainPhasesNew))
 
