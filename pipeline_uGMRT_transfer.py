@@ -45,7 +45,7 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     #        commandType = "DPPP", log = "transfer_$nameMS.log")
 
     # Create H5Parm files.
-    #MSs.run(command = "H5parm_importer.py $pathDirectory/$nameMS.h5 $pathMS", commandType = "python", log = "transfer_$nameMS.log")
+    MSs.run(command = "H5parm_importer.py $pathDirectory/$nameMS.h5 $pathMS", commandType = "python", log = "transfer_$nameMS.log")
 
 
     # Open H5Parm files, and fill with bandpass from 'pathCalibratorH5Parm'.
