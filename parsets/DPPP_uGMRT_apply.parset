@@ -6,9 +6,9 @@ msout.datacolumn                  = CORRECTED_DATA
 steps                             = [applyBandpassAmplitude, applyBandpassPhase]
 
 applyBandpassAmplitude.type       = applycal
-applyBandpassAmplitude.correction = amplitude000
+applyBandpassAmplitude.correction = amplitude001
 applyBandpassAmplitude.parmdb     =
 
 applyBandpassPhase.type           = applycal
-applyBandpassPhase.correction     = phase000
+applyBandpassPhase.correction     = phase001
 applyBandpassPhase.parmdb         =
