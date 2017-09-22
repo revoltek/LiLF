@@ -105,11 +105,11 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
 
         objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "amplitude001", axesNames = ["freq", "pol", "dir", "ant", "time"],
                                 axesVals = [axisFrequencies, axisPolarisations, axisDirections, axisAntennae, axisTimes],
-                                vals = gainAmplitudesNew, weights = weightsForAmplitudes)
+                                vals = gainAmplitudesNew, weights = weightsForAmplitudes, parmdbType = "gain")
 
         objectSolSet.makeSoltab(soltype = "phase", soltabName = "phase001", axesNames = ["freq", "pol", "dir", "ant", "time"],
                                 axesVals = [axisFrequencies, axisPolarisations, axisDirections, axisAntennae, axisTimes],
-                                vals = gainPhasesNew, weights = weightsForPhases)
+                                vals = gainPhasesNew, weights = weightsForPhases, parmdbType = "gain")
 
 
         #objectSolTabGainAmplitudes.setValues(gainAmplitudesNew,    weight = False)
