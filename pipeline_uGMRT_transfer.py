@@ -41,11 +41,11 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
                                   overwrite = False, fillWithOnes = True, comment = "", verbose = True)
 
     # Create ParmDBs with dummy values.
-    MSs.run(command = "DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument",
-            commandType = "DPPP", log = "transfer_$nameMS.log")
+    #MSs.run(command = "DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument",
+    #        commandType = "DPPP", log = "transfer_$nameMS.log")
 
     # Create H5Parm files.
-    MSs.run(command = "H5parm_importer.py $pathDirectory/$nameMS.h5 $pathMS", commandType = "python", log = "transfer_$nameMS.log")
+    #MSs.run(command = "H5parm_importer.py $pathDirectory/$nameMS.h5 $pathMS", commandType = "python", log = "transfer_$nameMS.log")
 
 
     # Open H5Parm files, and fill with bandpass from 'pathCalibratorH5Parm'.
@@ -77,9 +77,11 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         objectSolTabGainPhases     = objectSolSet.getSoltab("phase000")
 
         _, axes                    = objectSolTabGainAmplitudes.getValues(retAxesVals = True)
-        frequencies                = axes["freq"]
-        print (type(frequencies))
-        frequenciesInverted        = np.flip(np.array(frequencies), 0)
+        print (type(axes))
+        print (axes)
+        #frequencies                = axes["freq"]
+        #print (type(frequencies))
+        #frequenciesInverted        = np.flip(np.array(frequencies), 0)
 
         gainAmplitudes             = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = False)
         gainPhases                 = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)
@@ -92,11 +94,11 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
 
         objectSolTabGainAmplitudes.setValues(gainAmplitudesNew,    weight = False)
         objectSolTabGainAmplitudes.setValues(weightsForAmplitudes, weight = True)
-        objectSolTabGainAmplitudes.setAxisValues("freq", frequenciesInverted)
+        #objectSolTabGainAmplitudes.setAxisValues("freq", frequenciesInverted)
 
         objectSolTabGainPhases.setValues(gainPhasesNew,    weight = False)
         objectSolTabGainPhases.setValues(weightsForPhases, weight = True)
-        objectSolTabGainPhases.setAxisValues("freq", frequenciesInverted)
+        #objectSolTabGainPhases.setAxisValues("freq", frequenciesInverted)
 
         objectH5Parm.close()
 
