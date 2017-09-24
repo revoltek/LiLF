@@ -35,14 +35,17 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     scheduler                       = lib_util.Scheduler(dry = False, log_dir = pathDirectoryLogs)
     MSs                             = lib_ms.AllMSs(pathsMS, scheduler)
 
+
     # Add model column, and fill with ones.
     for MSObject in MSs.get_list_obj():
         lib_util.columnAddSimilar(MSObject.pathMS, "MODEL_DATA", "DATA", "TiledMODEL_DATAMartijn",
                                   overwrite = False, fillWithOnes = True, comment = "", verbose = True)
 
+
     # Create ParmDBs with dummy values.
     #MSs.run(command = "DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument",
     #        commandType = "DPPP", log = "transfer_$nameMS.log")
+
 
     # Create H5Parm files.
     MSs.run(command = "H5parm_importer.py $pathDirectory/$nameMS.h5 $pathMS", commandType = "python", log = "transfer_$nameMS.log")
@@ -84,13 +87,11 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         axisDirections             = axes["dir"]
         axisAntennae               = axes["ant"]
         axisTimes                  = axes["time"]
-        #frequencies                = axes["freq"]
-        #print (type(frequencies))
-        #frequenciesInverted        = np.flip(np.array(frequencies), 0)
 
-        gainAmplitudes             = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = False)
-        gainPhases                 = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)
-        numberOfTimeStamps         = gainAmplitudes.shape[4]
+        #gainAmplitudes             = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = False)
+        #gainPhases                 = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)
+        #numberOfTimeStamps         = gainAmplitudes.shape[4]
+        numberOfTimeStamps         = len(axisTimes)
 
         gainAmplitudesNew          = np.tile(bandpassesAmplitudeReshaped, (1, 1, 1, 1, numberOfTimeStamps))
         gainPhasesNew              = np.tile(bandpassesPhaseReshaped,     (1, 1, 1, 1, numberOfTimeStamps))
@@ -103,6 +104,7 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         weightsForAmplitudes       = np.logical_not(np.isnan(gainAmplitudesNew))
         weightsForPhases           = np.logical_not(np.isnan(gainPhasesNew))
 
+        # Create new solution tables for gain amplitudes and phases. Not sure about argument 'parmdbType'!
         objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "amplitude001", axesNames = ["freq", "pol", "dir", "ant", "time"],
                                 axesVals = [axisFrequencies, axisPolarisations, axisDirections, axisAntennae, axisTimes],
                                 vals = gainAmplitudesNew, weights = weightsForAmplitudes, parmdbType = "gain")
