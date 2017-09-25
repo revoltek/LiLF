@@ -99,6 +99,8 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         print (axes)
 
         axisPolarisations          = axes["pol"]
+        axisPolarisations[0]       = "RR"
+        axisPolarisations[1]       = "LL"
         axisDirections             = axes["dir"]
         axisAntennae               = axes["ant"]
         axisTimes                  = axes["time"]
