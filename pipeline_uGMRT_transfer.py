@@ -70,11 +70,19 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     # Reshape (2, 30, 2048) arrays to (2, 1, 30, 1, 2048) arrays.
     # These are then tiled along the one-to-last axis on a scan-by-scan basis, depending on the number of time stamps of each scan.
     bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitude,         axis = 1)
-    bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitudeReshaped, axis = 3) #4
-    #bandpassesAmplitudeReshaped     = np.moveaxis(   bandpassesAmplitudeReshaped, 3, 0)
+    #(2, 1, 30, 2048)
+    bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitudeReshaped, axis = 3)
+    #(2, 1, 30, 1, 2048)
 
     bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhase,             axis = 1)
     bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhaseReshaped,     axis = 3) #4
+
+    #bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitude,         axis = 1)
+    #bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitudeReshaped, axis = 3) #4
+    #bandpassesAmplitudeReshaped     = np.moveaxis(   bandpassesAmplitudeReshaped, 3, 0)
+
+    #bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhase,             axis = 1)
+    #bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhaseReshaped,     axis = 3) #4
     #bandpassesPhaseReshaped         = np.moveaxis(   bandpassesPhaseReshaped,     3, 0)
 
 
@@ -101,8 +109,10 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         #numberOfTimeStamps         = gainAmplitudes.shape[4]
         numberOfTimeStamps         = len(axisTimes)
 
-        gainAmplitudesNew          = np.tile(bandpassesAmplitudeReshaped, (1, 1, 1, numberOfTimeStamps, 1))
-        gainPhasesNew              = np.tile(bandpassesPhaseReshaped,     (1, 1, 1, numberOfTimeStamps, 1))
+        #gainAmplitudesNew          = np.tile(bandpassesAmplitudeReshaped, (1, 1, 1, numberOfTimeStamps, 1))
+        #gainPhasesNew              = np.tile(bandpassesPhaseReshaped,     (1, 1, 1, numberOfTimeStamps, 1))
+        gainAmplitudesNew          = np.tile(bandpassesAmplitudeReshaped, (1, numberOfTimeStamps, 1, 1, 1))
+        gainPhasesNew              = np.tile(bandpassesPhaseReshaped,     (1, numberOfTimeStamps, 1, 1, 1))
 
         print (numberOfTimeStamps)
         print (gainAmplitudesNew.shape)
@@ -114,6 +124,14 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         weightsForPhases           = np.logical_not(np.isnan(gainPhasesNew))
 
         # Create new solution tables for gain amplitudes and phases. Not sure about argument 'parmdbType'!
+        objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "amplitude001", axesNames = ["pol", "time", "ant", "dir", "freq"],
+                                axesVals = [axisPolarisations, axisTimes, axisAntennae, axisDirections, axisFrequencies],
+                                vals = gainAmplitudesNew, weights = weightsForAmplitudes)#, parmdbType = "gain")
+
+        objectSolSet.makeSoltab(soltype = "phase", soltabName = "phase001", axesNames = ["pol", "time", "ant", "dir", "freq"],
+                                axesVals = [axisPolarisations, axisTimes, axisAntennae, axisDirections, axisFrequencies],
+                                vals = gainPhasesNew, weights = weightsForPhases)#, parmdbType = "gain")
+        '''
         objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "amplitude001", axesNames = ["pol", "dir", "ant", "time", "freq"],
                                 axesVals = [axisPolarisations, axisDirections, axisAntennae, axisTimes, axisFrequencies],
                                 vals = gainAmplitudesNew, weights = weightsForAmplitudes)#, parmdbType = "gain")
@@ -121,7 +139,7 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         objectSolSet.makeSoltab(soltype = "phase", soltabName = "phase001", axesNames = ["pol", "dir", "ant", "time", "freq"],
                                 axesVals = [axisPolarisations, axisDirections, axisAntennae, axisTimes, axisFrequencies],
                                 vals = gainPhasesNew, weights = weightsForPhases)#, parmdbType = "gain")
-
+        '''
         print(objectSolSet.getSoltabNames())
 
 
