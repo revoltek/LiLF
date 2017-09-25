@@ -64,13 +64,16 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     # Convert bandpass phases to radians.
     bandpassesPhase                 = np.radians(bandpassesPhase)
 
-    # Reshape (2, 30, 2048) arrays to (2, 1, 30, 2048, 1) arrays, which are then tiled along the last axis
-    # on a scan-by-scan basis, depending on the number of time stamps of each scan.
+    # Reshape (2, 30, 2048) arrays to (2, 1, 30, 2048, 1) arrays, and then move frequency axis to obtain (2048, 2, 1, 30, 1) arrays.
+    # These are then tiled along the last axis on a scan-by-scan basis, depending on the number of time stamps of each scan.
     bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitude,         axis = 1)
     bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitudeReshaped, axis = 4)
+    bandpassesAmplitudeReshaped     = np.moveaxis(   bandpassesAmplitudeReshaped, 3, 0)
 
     bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhase,             axis = 1)
     bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhaseReshaped,     axis = 4)
+    bandpassesPhaseReshaped         = np.moveaxis(   bandpassesPhaseReshaped,     3, 0)
+
 
     # Fill target H5Parms with bandpass solutions.
     for MSObject in MSs.get_list_obj():
@@ -97,9 +100,9 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         gainPhasesNew              = np.tile(bandpassesPhaseReshaped,     (1, 1, 1, 1, numberOfTimeStamps))
 
         print (gainAmplitudesNew.shape)
-        gainAmplitudesNew          = np.moveaxis(gainAmplitudesNew, 3, 0)
-        gainPhasesNew              = np.moveaxis(gainPhasesNew,     3, 0)
-        print (gainAmplitudesNew.shape)
+        #gainAmplitudesNew          = np.moveaxis(gainAmplitudesNew, 3, 0)
+        #gainPhasesNew              = np.moveaxis(gainPhasesNew,     3, 0)
+        #print (gainAmplitudesNew.shape)
 
         weightsForAmplitudes       = np.logical_not(np.isnan(gainAmplitudesNew))
         weightsForPhases           = np.logical_not(np.isnan(gainPhasesNew))
@@ -119,7 +122,6 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         #objectSolTabGainAmplitudes.setValues(gainAmplitudesNew,    weight = False)
         #objectSolTabGainAmplitudes.setValues(weightsForAmplitudes, weight = True)
         #objectSolTabGainAmplitudes.setAxisValues("freq", frequenciesInverted)
-
         #objectSolTabGainPhases.setValues(gainPhasesNew,    weight = False)
         #objectSolTabGainPhases.setValues(weightsForPhases, weight = True)
         #objectSolTabGainPhases.setAxisValues("freq", frequenciesInverted)
