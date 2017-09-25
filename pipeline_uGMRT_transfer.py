@@ -114,12 +114,12 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         weightsForPhases           = np.logical_not(np.isnan(gainPhasesNew))
 
         # Create new solution tables for gain amplitudes and phases. Not sure about argument 'parmdbType'!
-        objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "amplitude001", axesNames = ["freq", "pol", "dir", "ant", "time"],
-                                axesVals = [axisFrequencies, axisPolarisations, axisDirections, axisAntennae, axisTimes],
+        objectSolSet.makeSoltab(soltype = "amplitude", soltabName = "amplitude001", axesNames = ["pol", "dir", "ant", "time", "freq"],
+                                axesVals = [axisPolarisations, axisDirections, axisAntennae, axisTimes, axisFrequencies],
                                 vals = gainAmplitudesNew, weights = weightsForAmplitudes, parmdbType = "gain")
 
-        objectSolSet.makeSoltab(soltype = "phase", soltabName = "phase001", axesNames = ["freq", "pol", "dir", "ant", "time"],
-                                axesVals = [axisFrequencies, axisPolarisations, axisDirections, axisAntennae, axisTimes],
+        objectSolSet.makeSoltab(soltype = "phase", soltabName = "phase001", axesNames = ["pol", "dir", "ant", "time", "freq"],
+                                axesVals = [axisPolarisations, axisDirections, axisAntennae, axisTimes, axisFrequencies],
                                 vals = gainPhasesNew, weights = weightsForPhases, parmdbType = "gain")
 
         print(objectSolSet.getSoltabNames())
