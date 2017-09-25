@@ -43,8 +43,8 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
 
 
     # Create ParmDBs with dummy values.
-    MSs.run(command = "DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument",
-            commandType = "DPPP", log = "transfer_$nameMS.log")
+    #MSs.run(command = "DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument",
+    #        commandType = "DPPP", log = "transfer_$nameMS.log")
 
 
     # Create H5Parm files.
