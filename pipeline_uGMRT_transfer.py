@@ -43,8 +43,8 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
 
 
     # Create ParmDBs with dummy values.
-    #MSs.run(command = "DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument",
-    #        commandType = "DPPP", log = "transfer_$nameMS.log")
+    MSs.run(command = "DPPP " + pathParSetSolve + " msin=$pathMS gaincal.parmdb=$pathMS/instrument",
+            commandType = "DPPP", log = "transfer_$nameMS.log")
 
 
     # Create H5Parm files.
@@ -99,6 +99,7 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         gainAmplitudesNew          = np.tile(bandpassesAmplitudeReshaped, (1, 1, 1, 1, numberOfTimeStamps))
         gainPhasesNew              = np.tile(bandpassesPhaseReshaped,     (1, 1, 1, 1, numberOfTimeStamps))
 
+        print (numberOfTimeStamps)
         print (gainAmplitudesNew.shape)
         #gainAmplitudesNew          = np.moveaxis(gainAmplitudesNew, 3, 0)
         #gainPhasesNew              = np.moveaxis(gainPhasesNew,     3, 0)
