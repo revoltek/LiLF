@@ -66,18 +66,22 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
 
     # Reshape (2, 30, 2048) arrays to (2, 1, 30, 2048, 1) arrays, and then move frequency axis to obtain (2048, 2, 1, 30, 1) arrays.
     # These are then tiled along the last axis on a scan-by-scan basis, depending on the number of time stamps of each scan.
+
+    # Reshape (2, 30, 2048) arrays to (2, 1, 30, 1, 2048) arrays.
+    # These are then tiled along the one-to-last axis on a scan-by-scan basis, depending on the number of time stamps of each scan.
     bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitude,         axis = 1)
-    bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitudeReshaped, axis = 4)
-    bandpassesAmplitudeReshaped     = np.moveaxis(   bandpassesAmplitudeReshaped, 3, 0)
+    bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitudeReshaped, axis = 3) #4
+    #bandpassesAmplitudeReshaped     = np.moveaxis(   bandpassesAmplitudeReshaped, 3, 0)
 
     bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhase,             axis = 1)
-    bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhaseReshaped,     axis = 4)
-    bandpassesPhaseReshaped         = np.moveaxis(   bandpassesPhaseReshaped,     3, 0)
+    bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhaseReshaped,     axis = 3) #4
+    #bandpassesPhaseReshaped         = np.moveaxis(   bandpassesPhaseReshaped,     3, 0)
 
 
     # Fill target H5Parms with bandpass solutions.
     for MSObject in MSs.get_list_obj():
         objectH5Parm               = h5parm.h5parm(MSObject.pathDirectory + "/" + MSObject.nameMS + ".h5", readonly = False)
+        print (objectH5Parm.getSolsetsNames())
         objectSolSet               = objectH5Parm.getSolset("sol000")
         objectSolTabGainAmplitudes = objectSolSet.getSoltab("amplitude000")
         objectSolTabGainPhases     = objectSolSet.getSoltab("phase000")
@@ -85,19 +89,20 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         _, axes                    = objectSolTabGainAmplitudes.getValues(retAxesVals = True)
         print (type(axes))
         print (axes)
-        axisFrequencies            = axes["freq"]
+
         axisPolarisations          = axes["pol"]
         axisDirections             = axes["dir"]
         axisAntennae               = axes["ant"]
         axisTimes                  = axes["time"]
+        axisFrequencies            = axes["freq"]
 
         #gainAmplitudes             = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = False)
         #gainPhases                 = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)
         #numberOfTimeStamps         = gainAmplitudes.shape[4]
         numberOfTimeStamps         = len(axisTimes)
 
-        gainAmplitudesNew          = np.tile(bandpassesAmplitudeReshaped, (1, 1, 1, 1, numberOfTimeStamps))
-        gainPhasesNew              = np.tile(bandpassesPhaseReshaped,     (1, 1, 1, 1, numberOfTimeStamps))
+        gainAmplitudesNew          = np.tile(bandpassesAmplitudeReshaped, (1, 1, 1, numberOfTimeStamps, 1))
+        gainPhasesNew              = np.tile(bandpassesPhaseReshaped,     (1, 1, 1, numberOfTimeStamps, 1))
 
         print (numberOfTimeStamps)
         print (gainAmplitudesNew.shape)
