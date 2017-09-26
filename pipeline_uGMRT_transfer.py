@@ -77,12 +77,7 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
     bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhase,             axis = 1)
     bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhaseReshaped,     axis = 3) #4
 
-    #bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitude,         axis = 1)
-    #bandpassesAmplitudeReshaped     = np.expand_dims(bandpassesAmplitudeReshaped, axis = 3) #4
     #bandpassesAmplitudeReshaped     = np.moveaxis(   bandpassesAmplitudeReshaped, 3, 0)
-
-    #bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhase,             axis = 1)
-    #bandpassesPhaseReshaped         = np.expand_dims(bandpassesPhaseReshaped,     axis = 3) #4
     #bandpassesPhaseReshaped         = np.moveaxis(   bandpassesPhaseReshaped,     3, 0)
 
 
@@ -106,9 +101,6 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
         axisTimes                  = axes["time"]
         axisFrequencies            = axes["freq"]
 
-        #gainAmplitudes             = objectSolTabGainAmplitudes.getValues(retAxesVals = False, weight = False)
-        #gainPhases                 = objectSolTabGainPhases.getValues(    retAxesVals = False, weight = False)
-        #numberOfTimeStamps         = gainAmplitudes.shape[4]
         numberOfTimeStamps         = len(axisTimes)
 
         #gainAmplitudesNew          = np.tile(bandpassesAmplitudeReshaped, (1, 1, 1, numberOfTimeStamps, 1))
@@ -118,9 +110,6 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
 
         print (numberOfTimeStamps)
         print (gainAmplitudesNew.shape)
-        #gainAmplitudesNew          = np.moveaxis(gainAmplitudesNew, 3, 0)
-        #gainPhasesNew              = np.moveaxis(gainPhasesNew,     3, 0)
-        #print (gainAmplitudesNew.shape)
 
         weightsForAmplitudes       = np.logical_not(np.isnan(gainAmplitudesNew))
         weightsForPhases           = np.logical_not(np.isnan(gainPhasesNew))
@@ -143,14 +132,6 @@ def pipeline_uGMRT_transfer(pathsMS, pathCalibratorH5Parm, pathDirectoryLogs, pa
                                 vals = gainPhasesNew, weights = weightsForPhases)#, parmdbType = "gain")
         '''
         print(objectSolSet.getSoltabNames())
-
-
-        #objectSolTabGainAmplitudes.setValues(gainAmplitudesNew,    weight = False)
-        #objectSolTabGainAmplitudes.setValues(weightsForAmplitudes, weight = True)
-        #objectSolTabGainAmplitudes.setAxisValues("freq", frequenciesInverted)
-        #objectSolTabGainPhases.setValues(gainPhasesNew,    weight = False)
-        #objectSolTabGainPhases.setValues(weightsForPhases, weight = True)
-        #objectSolTabGainPhases.setAxisValues("freq", frequenciesInverted)
 
         objectH5Parm.close()
 
