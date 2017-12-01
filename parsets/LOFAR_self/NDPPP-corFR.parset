@@ -1,0 +1,13 @@
+msin =
+msin.datacolumn = CORRECTED_DATA
+msout = .
+msout.datacolumn = CORRECTED_DATA
+#msout.storagemanager = dysco
+
+numthreads = 1 # bug fix
+
+steps = [cor, count]
+
+cor.type = correct
+cor.parmdb = 
+cor.correction = RotationMeasure

@@ -49,5 +49,6 @@ def set_logger(filename = "pipeline.logging"):
     # add the handlers to the logger
     logger.addHandler(handlerFile)
     logger.addHandler(handlerConsole)
-    
-    return logger
+
+# this is used by all libraries for logging
+logger = logging.getLogger("PiLL")

@@ -1,0 +1,11 @@
+LoSoTo.Steps = [resetA]
+LoSoTo.Solset = [sol000]
+LoSoTo.Soltab = []
+LoSoTo.SolType = []
+LoSoTo.ant = []
+LoSoTo.pol = []
+LoSoTo.dir = []
+LoSoTo.Ncpu = 0
+
+LoSoTo.Steps.resetA.Operation = RESET
+LoSoTo.Steps.resetA.Soltab = [sol000/amplitude000]

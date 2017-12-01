@@ -1,0 +1,17 @@
+msin = 
+msin.datacolumn = DATA
+msout = .
+msout.datacolumn = MODEL_DATA
+
+#numthreads = 1
+
+steps = [pre]
+
+pre.type = predict
+pre.sourcedb = 
+pre.sources = 
+pre.usebeammodel = False
+# and corrupt
+#pre.applycal.h5parm = 
+#pre.applycal.correction = tec000
+#pre.applycal.direction = 

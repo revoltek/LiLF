@@ -1,0 +1,19 @@
+msin = 
+msin.datacolumn = CORRECTED_DATA
+msout = .
+msout.datacolumn = CORRECTED_DATA
+
+numthreads = 1
+
+steps=[cor1, cor2]
+#steps=[cor1]
+
+cor1.type = applycal
+cor1.parmdb=
+cor1.correction=tec000
+cor1.direction=
+
+cor2.type = applycal
+cor2.parmdb=
+cor2.correction=scalarphase000
+cor2.direction=

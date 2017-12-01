@@ -1,0 +1,14 @@
+msin =
+msin.datacolumn = CORRECTED_DATA
+
+msout = .
+msout.datacolumn = CORRECTED_DATA
+
+numthreads = 1 # bug fix
+
+steps = [corrbeam]
+
+corrbeam.type = applybeam
+corrbeam.invert = True
+corrbeam.usechannelfreq = False
+corrbeam.updateweights = True # add reweight

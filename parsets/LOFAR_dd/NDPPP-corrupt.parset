@@ -1,0 +1,21 @@
+msin =
+msin.datacolumn = MODEL_DATA
+msout = .
+msout.datacolumn = MODEL_DATA
+
+numthreads = 1 # bug fix
+
+steps = [cor1, cor2]
+#steps = [cor1]
+
+cor1.type = applycal
+cor1.parmdb =
+cor1.correction = tec000
+cor1.invert = False
+cor1.direction=
+
+cor2.type = applycal
+cor2.parmdb =
+cor2.correction = scalarphase000
+cor2.invert = False
+cor2.direction=

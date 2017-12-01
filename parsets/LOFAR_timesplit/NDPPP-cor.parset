@@ -1,0 +1,18 @@
+msin =
+msin.datacolumn = DATA
+msout = .
+msout.datacolumn = CORRECTED_DATA
+
+numthreads = 1 # bug fix
+
+#steps = [cor1] # fulltrans
+steps = [cor1, cor2] # clock trans
+
+cor1.type = correct
+cor1.parmdb = 
+cor1.correction = gain
+cor1.updateweights = True # correct for wrong weights in the bandpass
+
+cor2.type = correct
+cor2.parmdb = 
+cor2.correction = clock

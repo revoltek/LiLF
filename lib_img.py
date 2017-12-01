@@ -3,8 +3,7 @@ import numpy as np
 
 # Load external script make_mask!
 
-import logging
-logger = logging.getLogger("PiLL")
+from lib_log import logger
 
 class Image(object):
     def __init__(self, imagename, region_facet = None, user_mask = None):

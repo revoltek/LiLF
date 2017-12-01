@@ -14,8 +14,7 @@ except:
     logger.error("Load latest scipy with 'use Pythonlibs'")
     sys.exit(1)
 
-import logging
-logger = logging.getLogger('PiLL')
+from lib_log import logger
 
 def table_to_circ_region(table, outfile, racol='RA', deccol='DEC', sizecol='size', color='red', label=True):
     """

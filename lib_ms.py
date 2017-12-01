@@ -1,13 +1,12 @@
 #!/usr/bin/python
 
-import logging, os, shutil, sys
+import os, sys, shutil
 
 from casacore import tables
 import numpy as np
-
 import lib_util
-#logger = logging.getLogger("PiLL")
 
+from lib_log import logger
 
 class AllMSs(object):
 
@@ -46,7 +45,7 @@ class AllMSs(object):
 
     def run(self, command, commandType, log):
         """
-        Run command 'command' of type 'commandType', and use 'log' for logging,
+        Run command 'command' of type 'commandType', and use 'log' for logger,
         for each MS of AllMSs.
         The command and log file path can be customised for each MS using keywords (see: 'MS.concretiseString()').
         Beware: depending on the value of 'Scheduler.max_threads' (see: lib_util.py), the commands are run in parallel.
@@ -58,10 +57,10 @@ class AllMSs(object):
             self.scheduler.add(cmd = commandCurrent, log = logCurrent, commandType = commandType)
 
             # Provide debug output.
-            lib_util.printLineBold("commandCurrent:")
-            print (commandCurrent)
-            lib_util.printLineBold("logCurrent:")
-            print (logCurrent)
+            #lib_util.printLineBold("commandCurrent:")
+            #print (commandCurrent)
+            #lib_util.printLineBold("logCurrent:")
+            #print (logCurrent)
 
         self.scheduler.run(check = True)
 
@@ -85,10 +84,10 @@ class MS(object):
             if (self.getCalibratorDistancesSorted()[0] < calibratorDistanceThreshold):
                 nameFieldOld = self.getNameField()
                 nameFieldNew = self.getCalibratorNamesSorted()[0]
-                logging.warning("Although the field name '" + nameFieldOld + "' is not recognised as a known calibrator name, " +
-                                "the phase centre coordinates suggest that this scan is a calibrator scan. Changing field name into '" +
-                                nameFieldNew + "'...")
-                self.setNameField(nameFieldNew)
+                #logger.warning("Although the field name '" + nameFieldOld + "' is not recognised as a known calibrator name, " +
+                #                "the phase centre coordinates suggest that this scan is a calibrator scan. Changing field name into '" +
+                #                nameFieldNew + "'...")
+                #self.setNameField(nameFieldNew)
 
 
     def setPathVariables(self, pathMS):
@@ -181,7 +180,7 @@ class MS(object):
             nchan = t.getcol("NUM_CHAN")
         assert (nchan[0] == nchan).all() # all SpWs have same channels?
 
-        logging.debug("%s: channel number (1): %i", self.pathMS, nchan[0])
+        logger.debug("%s: channel number (1): %i", self.pathMS, nchan[0])
         #logger.debug("%s: channel number (1): %i", self.pathMS, nchan[0])
         return nchan[0]
 
@@ -194,7 +193,7 @@ class MS(object):
             chan_w = t.getcol("CHAN_WIDTH")[0]
         assert all(x == chan_w[0] for x in chan_w) # all chans have same width
 
-        logging.debug("%s: channel width (MHz): %f", self.pathMS, chan_w[0] / 1.e6)
+        logger.debug("%s: channel width (MHz): %f", self.pathMS, chan_w[0] / 1.e6)
         return chan_w[0]
 
 
@@ -207,7 +206,7 @@ class MS(object):
         with tables.table(self.pathMS + "/OBSERVATION", ack = False) as t:
             deltat = (t.getcol("TIME_RANGE")[0][1] - t.getcol("TIME_RANGE")[0][0]) / nTimes
 
-        logging.debug("%s: time interval (seconds): %f", self.pathMS, deltat)
+        logger.debug("%s: time interval (seconds): %f", self.pathMS, deltat)
         return deltat
 
 
@@ -225,5 +224,7 @@ class MS(object):
         if (RA < 0):
             RA += 2 * np.pi
 
-        logging.debug("%s: phase centre (degrees): (%f, %f)", self.pathMS, np.degrees(RA), np.degrees(Dec))
+        logger.debug("%s: phase centre (degrees): (%f, %f)", self.pathMS, np.degrees(RA), np.degrees(Dec))
         return (np.degrees(RA), np.degrees(Dec))
+
+

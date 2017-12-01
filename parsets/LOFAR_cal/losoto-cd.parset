@@ -1,0 +1,85 @@
+# losoto parset
+LoSoTo.Steps = [duplicateBkp, plotPi, plotPi2, crossdelay, plotCD, residuals, plotPr, plotPr2]
+LoSoTo.Solset = [sol000]
+LoSoTo.Soltab = []
+LoSoTo.SolType = []
+LoSoTo.ant = []
+LoSoTo.pol = [XX, YY]
+LoSoTo.dir = []
+LoSoTo.Ncpu = 0
+
+# bkp copy
+LoSoTo.Steps.duplicateBkp.Operation = DUPLICATE
+LoSoTo.Steps.duplicateBkp.InTable = sol000/phase000
+LoSoTo.Steps.duplicateBkp.OutTable = sol000/phaseOrig000
+
+# plot initials
+LoSoTo.Steps.plotPi.Operation = PLOT
+LoSoTo.Steps.plotPi.Soltab = [sol000/phase000]
+LoSoTo.Steps.plotPi.Axes = [time,freq]
+LoSoTo.Steps.plotPi.TableAxis = ant
+LoSoTo.Steps.plotPi.DiffAxis = pol
+LoSoTo.Steps.plotPi.PlotFlag = True
+LoSoTo.Steps.plotPi.Prefix = plots/ph-init_
+LoSoTo.Steps.plotPi.Reference = 'CS002LBA'
+LoSoTo.Steps.plotPi.MinMax = [-1,+1]
+
+LoSoTo.Steps.plotPi2.Operation = PLOT
+LoSoTo.Steps.plotPi2.Soltab = [sol000/phase000]
+LoSoTo.Steps.plotPi2.time.minmax = [0,1e20,500]
+LoSoTo.Steps.plotPi2.Axes = freq
+LoSoTo.Steps.plotPi2.TableAxis = ant
+LoSoTo.Steps.plotPi2.ColorAxis = pol
+LoSoTo.Steps.plotPi2.PlotFlag = True
+LoSoTo.Steps.plotPi2.Prefix = plots/ph-init_
+LoSoTo.Steps.plotPi2.Reference = 'CS002LBA'
+LoSoTo.Steps.plotPi2.MinMax = [-3.14,3.14]
+
+# cross delay
+LoSoTo.Steps.crossdelay.Soltab = [sol000/phase000]
+LoSoTo.Steps.crossdelay.Operation = CROSSDELAY
+LoSoTo.Steps.crossdelay.OutTable = crossdelay
+LoSoTo.Steps.crossdelay.Smooth = 201
+LoSoTo.Steps.crossdelay.Reference = 'CS002LBA'
+
+# plot cross delay
+LoSoTo.Steps.plotCD.Operation = PLOT
+LoSoTo.Steps.plotCD.Soltab = [sol000/crossdelay]
+LoSoTo.Steps.plotCD.Axes = [time,freq]
+LoSoTo.Steps.plotCD.TableAxis = ant
+LoSoTo.Steps.plotCD.DiffAxis = pol
+LoSoTo.Steps.plotCD.PlotFlag = True
+LoSoTo.Steps.plotCD.Prefix = plots/ph-CD_
+LoSoTo.Steps.plotCD.Reference = 'CS002LBA'
+LoSoTo.Steps.plotCD.MinMax = [-1,+1]
+
+LoSoTo.Steps.residuals.Operation = RESIDUALS
+LoSoTo.Steps.residuals.Soltab = [sol000/phase000]
+LoSoTo.Steps.residuals.Sub = [sol000/crossdelay]
+
+# plot residuals
+LoSoTo.Steps.plotPr.Operation = PLOT
+LoSoTo.Steps.plotPr.Soltab = [sol000/phase000]
+LoSoTo.Steps.plotPr.Axes = [time,freq]
+LoSoTo.Steps.plotPr.TableAxis = ant
+LoSoTo.Steps.plotPr.DiffAxis = pol
+LoSoTo.Steps.plotPr.PlotFlag = True
+LoSoTo.Steps.plotPr.Prefix = plots/ph-res_
+LoSoTo.Steps.plotPr.Reference = 'CS002LBA'
+LoSoTo.Steps.plotPr.MinMax = [-1,+1]
+
+LoSoTo.Steps.plotPr2.Operation = PLOT
+LoSoTo.Steps.plotPr2.Soltab = [sol000/phase000]
+LoSoTo.Steps.plotPr2.time.minmax = [0,1e20,500]
+LoSoTo.Steps.plotPr2.Axes = freq
+LoSoTo.Steps.plotPr2.TableAxis = ant
+LoSoTo.Steps.plotPr2.ColorAxis = pol
+LoSoTo.Steps.plotPr2.PlotFlag = True
+LoSoTo.Steps.plotPr2.Prefix = plots/ph-res_
+LoSoTo.Steps.plotPr2.Reference = 'CS002LBA'
+LoSoTo.Steps.plotPr2.MinMax = [-3.14,3.14]
+
+# reset remotes as FR can still corrput
+#LoSoTo.Steps.reset.Operation = RESET
+#LoSoTo.Steps.reset.Soltab = [sol000/crossdelay]
+#LoSoTo.Steps.reset.ant = ['RS310LBA','RS210LBA','RS509LBA','RS508LBA','RS407LBA']
