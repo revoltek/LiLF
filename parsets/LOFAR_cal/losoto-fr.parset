@@ -1,51 +1,46 @@
-# losoto parset
-LoSoTo.Steps = [duplicateBkp, plotPi, faraday, plotFR, residuals, plotPr]
-LoSoTo.Solset = [sol000]
-LoSoTo.Soltab = []
-LoSoTo.SolType = []
-LoSoTo.ant = []
-LoSoTo.pol = [XX, YY]
-LoSoTo.dir = []
-LoSoTo.Ncpu = 0
+Ncpu = 0
 
-# bkp copy
-LoSoTo.Steps.duplicateBkp.Operation = DUPLICATE
-LoSoTo.Steps.duplicateBkp.InTable = sol000/phase000
-LoSoTo.Steps.duplicateBkp.OutTable = sol000/phaseOrig000
+[duplicate]
+operation = DUPLICATE
+soltab = sol000/phase000
+soltabOut = phaseOrig000
 
-# plot initials
-LoSoTo.Steps.plotPi.Operation = PLOT
-LoSoTo.Steps.plotPi.Soltab = [sol000/phase000]
-LoSoTo.Steps.plotPi.Axes = [time,freq]
-LoSoTo.Steps.plotPi.TableAxis = ant
-LoSoTo.Steps.plotPi.DiffAxis = pol
-LoSoTo.Steps.plotPi.PlotFlag = True
-LoSoTo.Steps.plotPi.Prefix = plots/ph-rot_
-LoSoTo.Steps.plotPi.Reference = 'CS002LBA'
-LoSoTo.Steps.plotPi.MinMax = [-3.14,3.14]
+[plot1]
+operation = PLOT
+soltab = [sol000/phase000]
+axesInPlot = [time,freq]
+AxisInTable = ant
+AxisDiff = pol
+plotFlag = True
+prefix = plots/ph-rot
+refAnt = CS002LBA
+minmax = [-3.14,3.14]
 
-# faraday rotation extraction
-LoSoTo.Steps.faraday.Operation = FARADAY
-LoSoTo.Steps.faraday.Soltab = [sol000/phase000]
-LoSoTo.Steps.faraday.RefAnt = 'CS002LBA'
+[faraday]
+operation = FARADAY
+soltab = [sol000/phase000]
+refAnt = CS002LBA
+maxResidual = 1.
 
-LoSoTo.Steps.plotFR.Operation = PLOT
-LoSoTo.Steps.plotFR.Soltab = [sol000/rotationmeasure000]
-LoSoTo.Steps.plotFR.Axes = [time]
-LoSoTo.Steps.plotFR.TableAxis = ant
-LoSoTo.Steps.plotFR.Prefix = plots/fr
+[plot2]
+operation = PLOT
+soltab = [sol000/rotationmeasure000]
+axesInPlot = [time]
+axisInTable = ant
+prefix = plots/fr
 
-# calculate residuals
-LoSoTo.Steps.residuals.Operation = RESIDUALS
-LoSoTo.Steps.residuals.Soltab = [sol000/phase000]
-LoSoTo.Steps.residuals.Sub = [sol000/rotationmeasure000]
+[residuals]
+operation = RESIDUALS
+soltab = [sol000/phase000]
+soltabsToSub = rotationmeasure000
 
-LoSoTo.Steps.plotPr.Operation = PLOT
-LoSoTo.Steps.plotPr.Soltab = [sol000/phase000]
-LoSoTo.Steps.plotPr.Axes = [time,freq]
-LoSoTo.Steps.plotPr.TableAxis = ant
-LoSoTo.Steps.plotPr.DiffAxis = pol
-LoSoTo.Steps.plotPr.PlotFlag = True
-LoSoTo.Steps.plotPr.Prefix = plots/phRes-rot_
-LoSoTo.Steps.plotPr.Reference = 'CS002LBA'
-LoSoTo.Steps.plotPr.MinMax = [-3.14,3.14]
+[plot3]
+operation = PLOT
+soltab = [sol000/phase000]
+axesInPlot = [time,freq]
+AxisInTable = ant
+AxisDiff = pol
+plotFlag = True
+prefix = plots/phRes-rot
+refAnt = CS002LBA
+minmax = [-3.14,3.14]
