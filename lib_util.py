@@ -138,7 +138,7 @@ def run_losoto(s, c, h5s, parsets):
 
     # concat
     check_rm("cal-" + c + ".h5")
-    s.add('H5parm_concat.py -V -c freq -s sol000 -o cal-'+c+'.h5 '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
+    s.add('H5parm_collector.py -V -c freq -s sol000 -o cal-'+c+'.h5 '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
     s.run(check = True)
 
     check_rm('plots')
