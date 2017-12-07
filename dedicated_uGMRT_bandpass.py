@@ -982,7 +982,7 @@ if (__name__ == "__main__"):
 #     #sols = H5.getSolset("sol000")
 #     #numpyArray = sols.phase000.val[:, 0, :, :] # would load for all polarisations, for the first (and hopefully only)
 #     #H5parm_importer.py -v LXXXXX_3c295.h5 LXXXXX_3c295.MS
-#     #for MSObject in MSs.get_list_obj():
+#     #for MSObject in MSs.getListObj():
 #     #    MSs.
 #     #losoto.H5parm_importer(
 #     # copy amp from cd h5parm to iono h5parm

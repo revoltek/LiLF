@@ -1,9 +1,0 @@
-msin=
-msin.datacolumn = CORRECTED_DATA
-msout=.
-
-numthreads = 6
-
-steps=[aoflagger, count]
-aoflagger.strategy=/home/fdg/scripts/autocal/parset_self/LBAdefault.rfis
-aoflagger.memoryperc=6

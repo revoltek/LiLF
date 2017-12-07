@@ -393,18 +393,6 @@ def make_voronoi_reg(directions, fitsfile, outdir='regions/', beam_reg='', png=N
         pl.savefig(png)
 
 
-def make_beam_reg(ra_c, dec_c, pb_cut, outfile):
-    """
-    Create a ds9 region of the beam
-    """
-    logger.debug('Making PB region: '+outfile)
-    t         = Table()
-    t['RA']   = [ra_c]
-    t['DEC']  = [dec_c]
-    t['size'] = [pb_cut/2.]
-    table_to_circ_region(t, outfile, racol='RA', deccol='DEC', sizecol='size', color='blue', label=False)
-  
-
 def voronoi_finite_polygons_2d_box(vor, box):
     """
     Reconstruct infinite voronoi regions in a 2D diagram to finite

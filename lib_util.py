@@ -86,7 +86,7 @@ def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNa
 def getCalibratorProperties():
     """
     Return properties of known calibrators.
-    The lists below (sorted alphabetically by calibrator name) are incomplete,
+    The lists below (sorted in RA) are incomplete,
     and should be expanded to include all calibrators that could possibly be used.
     """
 
@@ -126,7 +126,7 @@ def check_rm(regexp):
             os.system("rm -r " + f)
 
 
-def run_losoto(s, c, h5s, parsets):
+def run_losoto(s, c, h5s, parsets, concat='freq'):
     """
     s : scheduler
     c : cycle name, e.g. "final"
@@ -137,16 +137,20 @@ def run_losoto(s, c, h5s, parsets):
     logger.info("Running LoSoTo...")
 
     # concat
-    check_rm("cal-" + c + ".h5")
-    s.add('H5parm_collector.py -V -c freq -s sol000 -o cal-'+c+'.h5 '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
-    s.run(check = True)
+    if len(h5s) > 1:
+        h5 = 'cal-'+c+'.h5'
+        check_rm("cal-" + c + ".h5")
+        s.add('H5parm_collector.py -V -c '+concat+' -s sol000 -o '+h5+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
+        s.run(check = True)
+    else:
+        h5 = h5s[0]
 
     check_rm('plots')
     os.makedirs('plots')
 
     for parset in parsets:
         logger.debug('-- executing '+parset+'...')
-        s.add('losoto -V cal-'+c+'.h5 '+parset, log='losoto-'+c+'.log', log_append=True, commandType="python", processors='max')
+        s.add('losoto -V '+h5+' '+parset, log='losoto-'+c+'.log', log_append=True, commandType="python", processors='max')
         s.run(check = True)
 
     check_rm('plots-' + c)

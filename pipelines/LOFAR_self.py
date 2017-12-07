@@ -14,16 +14,19 @@
 
 import sys, os, glob, re
 import numpy as np
-from autocal.lib_pipeline import *
 import pyrap.tables as pt
-from make_mask import make_mask
 import lsmtool
 
-parset_dir = '/home/fdg/scripts/autocal/parset_self/'
-skymodel = '/home/fdg/scripts/model/calib-simple.skymodel'
+parset_dir = '/home/fdg/scripts/autocal/parset_self'
 niter = 3
-user_mask = None
 cc_predict = True
+
+########################################################
+from LiLF import lib_ms, lib_util, lib_log, make_mask
+lib_log.set_logger('pipeline-self.logger')
+logger = lib_log.logger
+lib_util.check_rm('logs')
+s = lib_util.Scheduler(dry = False)
 
 if 'tooth' in os.getcwd():
     sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/toothbrush.LBA.skydb'
@@ -33,13 +36,15 @@ if 'tooth' in os.getcwd():
 elif 'bootes' in os.getcwd():
     sourcedb = '/home/fdg/scripts/model/Bootes_HBA.corr.skydb'
     apparent = False
+    user_mask = None
     multiepoch = False
 else:
     # Survey
-    multiepoch = True
     obs = os.getcwd().split('/')[-1]
     sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/skymodels/%s.skydb' % obs
     apparent = False
+    user_mask = None
+    multiepoch = True
     if not os.path.exists('mss'):
         os.makedirs('mss')
         for i, tc in enumerate(glob.glob('../../c*-o*/%s/mss/*' % obs)):
@@ -74,19 +79,19 @@ def ft_model_wsclean(mss, imagename, c, user_mask = None, keep_in_beam=True, res
         logger.info('Predict (resamp)...')
         for model in sorted(glob.glob(imagename+'*model.fits')):
             model_out = model.replace(imagename, imagename+'-resamp')
-            s.add('/home/fdg/opt/src/nnradd/build/nnradd '+resamp+' '+model_out+' '+model, log='resamp-c'+str(c)+'.log', log_append=True, cmd_type='general')
+            s.add('/home/fdg/opt/src/nnradd/build/nnradd '+resamp+' '+model_out+' '+model, log='resamp-c'+str(c)+'.log', log_append=True, cmdType='general')
         s.run(check=True)
         imagename = imagename+'-resamp'
  
     logger.info('Predict (ft)...')
     s.add('wsclean -predict -name ' + imagename + ' -mem 90 -j '+str(s.max_processors)+' -channelsout 10 '+' '.join(mss), \
-            log='wscleanPRE-c'+str(c)+'.log', cmd_type='wsclean', processors='max')
+            log='wscleanPRE-c'+str(c)+'.log', cmdType='wsclean', processors='max')
     s.run(check=True)
 
     if model_column != 'MODEL_DATA':
         logger.info('Predict (set %s = MODEL_DATA)...' % model_column)
         for ms in mss:
-            s.add('taql "update '+ms+' set '+model_column+' = MODEL_DATA"', log=ms+'_taql0-c'+str(c)+'.log', cmd_type='general')
+            s.add('taql "update '+ms+' set '+model_column+' = MODEL_DATA"', log=ms+'_taql0-c'+str(c)+'.log', cmdType='general')
         s.run(check=True)
 
 
@@ -120,78 +125,56 @@ def ft_model_cc(mss, imagename, c, user_mask = None, keep_in_beam=True, model_co
 
     # convert to skydb
     logger.info('Predict (makesourcedb)...')
-    check_rm(skydb)
-    s.add('makesourcedb outtype="blob" format="<" in="'+skymodel_cut+'" out="'+skydb+'"', log='makesourcedb-c'+str(c)+'.log', cmd_type='general')
+    lib_util.check_rm(skydb)
+    s.add('makesourcedb outtype="blob" format="<" in="'+skymodel_cut+'" out="'+skydb+'"', log='makesourcedb-c'+str(c)+'.log', cmdType='general')
     s.run(check=True)
 
     # predict
     logger.info('Predict (ft)...')
     for ms in mss:
-        s.add('NDPPP '+parset_dir+'/NDPPP-predict.parset msin='+ms+' msout.datacolumn='+model_column+' pre.usebeammodel=false pre.sourcedb='+skydb, \
-                log=ms+'_pre-c'+str(c)+'.log', cmd_type='NDPPP')
+        s.add('DPPP '+parset_dir+'/DPPP-predict.parset msin='+ms+' msout.datacolumn='+model_column+' pre.usebeammodel=false pre.sourcedb='+skydb, \
+                log=ms+'_pre-c'+str(c)+'.log', cmdType='DPPP')
     s.run(check=True)
 
-
 #############################################################################
-
-logger = set_logger('pipeline-self.logger')
-check_rm('logs')
-s = Scheduler(dry=False)
-
-##################################################
 # Clear
 logger.info('Cleaning...')
 
-check_rm('img')
+lib_util.check_rm('img')
 os.makedirs('img')
 os.makedirs('logs/mss')
 
 # here images, models, solutions for each group will be saved
-check_rm('self')
+lib_util.check_rm('self')
 if not os.path.exists('self/images'): os.makedirs('self/images')
 if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
 
-mss = sorted(glob.glob('mss/TC*[0-9].MS'))
+MSs = lib_ms.MSs( glob.glob('mss/TC*[0-9].MS') )
 concat_ms = 'mss/concat.MS'
 
 # make beam
-phasecentre = get_phase_centre(mss[0])
-make_beam_reg(phasecentre[0], phasecentre[1], 12, 'self/beam.reg') # go to 12 deg, first null
-#make_beam_reg(phasecentre[0], phasecentre[1], 8, 'self/beam.reg') # go to 7 deg, first null
+phasecentre = MSs.getListObs()[0].getPhaseCentre()
+MSs.getListObs()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
 
 ###############################################################################################
 # Create columns (non compressed)
 logger.info('Creating MODEL_DATA_HIGHRES and SUBTRACTED_DATA...')
-for ms in mss:
-    s.add('addcol2ms.py -m '+ms+' -c MODEL_DATA_HIGHRES,SUBTRACTED_DATA', log=ms+'_addcol.log', cmd_type='python')
-s.run(check=True)
+MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', cmdType='python')
 
 ##################################################################################################
 # Add model to MODEL_DATA
 # copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
 sourcedb_basename = sourcedb.split('/')[-1]
-for ms in mss:
-    check_rm(ms+'/'+sourcedb_basename)
-    logger.debug('Copy: '+sourcedb+' -> '+ms)
-    os.system('cp -r '+sourcedb+' '+ms)
-logger.info('Add model to MODEL_DATA...')
-for ms in mss:
-    if apparent:
-        s.add('NDPPP '+parset_dir+'/NDPPP-predict.parset msin='+ms+' pre.usebeammodel=false pre.sourcedb='+ms+'/'+sourcedb_basename, log=ms+'_pre.log', cmd_type='NDPPP')
-    else:
-        s.add('NDPPP '+parset_dir+'/NDPPP-predict.parset msin='+ms+' pre.usebeammodel=true pre.sourcedb='+ms+'/'+sourcedb_basename, log=ms+'_pre.log', cmd_type='NDPPP')
-s.run(check=True)
+for MS in MSs.getListStr:
+    lib_util.check_rm(MS+'/'+sourcedb_basename)
+    logger.debug('Copy: '+sourcedb+' -> '+MS)
+    os.system('cp -r '+sourcedb+' '+MS)
 
-###################################################################################
-# Preapre fake FR parmdb
-logger.info('Prepare fake FR parmdb...')
-for ms in mss:
-    if os.path.exists(ms+'/instrument-fr'): continue
-    s.add('calibrate-stand-alone -f --parmdb-name instrument-fr '+ms+' '+parset_dir+'/bbs-fakeparmdb-fr.parset '+skymodel, log=ms+'_fakeparmdb-fr.log', cmd_type='BBS')
-s.run(check=True)
-for ms in mss:
-    s.add('taql "update '+ms+'/instrument-fr::NAMES set NAME=replace(NAME,\':@MODEL_DATA\',\'\')"', log=ms+'_taql.log', cmd_type='general')
-s.run(check=True)
+logger.info('Add model to MODEL_DATA...')
+if apparent:
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log'$nameMS_pre.log', cmdType='DPPP')
+else:
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', cmdType='DPPP')
 
 #####################################################################################################
 # Self-cal cycle
@@ -207,37 +190,32 @@ for c in xrange(niter):
         incol = 'SUBTRACTED_DATA'
 
     logger.info('BL-based smoothing...')
-    for ms in mss:
-        s.add('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA '+ms, log=ms+'_smooth1-c'+str(c)+'.log', cmd_type='python')
-    s.run(check=True, max_threads=6)
+    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', cmdType='python', maxThread=6)
 
     logger.info('Concatenating TCs...')
-    check_rm(concat_ms+'*')
-    pt.msutil.msconcat(mss, concat_ms, concatTime=False)
+    lib_util.check_rm(concat_ms+'*')
+    pt.msutil.msconcat(MSs.getListStr(), concat_ms, concatTime=False)
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving TEC...')
-    for ms in mss:
-        check_rm(ms+'/instrument-tec')
-        s.add('NDPPP '+parset_dir+'/NDPPP-solTEC.parset msin='+ms+' sol.parmdb='+ms+'/instrument-tec', \
-                log=ms+'_solTEC-c'+str(c)+'.log', cmd_type='NDPPP')
-    s.run(check=True)
+    for MS in MSs.get_list_str():
+        lib_util.check_rm(MS+'/tec.h5')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
+                log='$nameMS_solTEC-c'+str(c)+'.log', cmdType='DPPP')
 
     # LoSoTo plot
     if multiepoch:
-        for i, ms in enumerate(mss):
-            run_losoto(s, 'tec'+str(c)+'-ms'+str(i), [ms], [parset_dir+'/losoto-plot.parset'], ininstrument='instrument-tec', putback=False)
+        for i, MS in enumerate(MSs.getListStr()):
+            lib_util.run_losoto(s, 'tec'+str(c)+'-ms'+str(i), [MS+'/tec.h5'], [parset_dir+'/losoto-plot.parset'])
     else:
-        run_losoto(s, 'tec'+str(c), mss, [parset_dir+'/losoto-plot.parset'], ininstrument='instrument-tec', putback=False)
+        lib_util.run_losoto(s, 'tec'+str(c), [ms+'/tec.h5' for ms in MSs.get_list_str()], [parset_dir+'/losoto-plot.parset'], concat='time')
     os.system('mv plots-tec'+str(c)+'* self/solutions/')
     os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
 
     # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC...')
-    for ms in mss:
-        s.add('NDPPP '+parset_dir+'/NDPPP-corTEC.parset msin='+ms+' msin.datacolumn='+incol+' cor1.parmdb='+ms+'/instrument-tec cor2.parmdb='+ms+'/instrument-tec', \
-                log=ms+'_corTEC-c'+str(c)+'.log', cmd_type='NDPPP')
-    s.run(check=True)
+    MSs.add('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn='+incol+' cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
+                log='$nameMS_corTEC-c'+str(c)+'.log', cmdType='DPPP')
 
     #####################################################################################################
     # Cross-delay + Faraday rotation correction
@@ -246,126 +224,100 @@ for c in xrange(niter):
         # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
         # TODO: check -w, is it ok?
         logger.info('Convert to circular...')
-        for ms in mss:
-            s.add('/home/fdg/scripts/mslin2circ.py -i '+ms+':CORRECTED_DATA -o '+ms+':CORRECTED_DATA', log=ms+'_circ2lin-c'+str(c)+'.log', cmd_type='python')
-        s.run(check=True, max_threads=4)
+        MSs.run('/home/fdg/scripts/mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin-c'+str(c)+'.log', cmdType='python', maxThread=4)
  
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
-        for ms in mss:
-            s.add('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA '+ms, log=ms+'_smooth2-c'+str(c)+'.log', cmd_type='python')
-        s.run(check=True, max_threads=6)
+        MSs.run('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2-c'+str(c)+'.log', cmdType='python', maxThread=6)
 
         # Solve G SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Solving G...')
-        for ms in mss:
-            check_rm(ms+'/instrument-g')
-            s.add('NDPPP '+parset_dir+'/NDPPP-solG.parset msin='+ms+' sol.parmdb='+ms+'/instrument-g sol.solint=30 sol.nchan=8', \
-                    log=ms+'_sol-g1-c'+str(c)+'.log', cmd_type='NDPPP')
-        s.run(check=True)
+        for MS in MSs.get_list_str():
+            lib_util.check_rm(MS+'/fr.h5')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5 sol.solint=30 sol.nchan=8', \
+                    log='$nameMS_sol-g1-c'+str(c)+'.log', cmdType='DPPP')
 
         if multiepoch:
-            for i, ms in enumerate(mss):
-                run_losoto(s, 'fr'+str(c)+'-ms'+str(i), [ms], [parset_dir+'/losoto-fr.parset'], ininstrument='instrument-g', inglobaldb='globaldb',
-                outinstrument='instrument-fr', outglobaldb='globaldb-fr', outtab='rotationmeasure000', putback=True)
+            for i, MS in enumerate(MSs.get_list_str()):
+                lib_util.run_losoto(s, 'fr'+str(c)+'-ms'+str(i), [MS+'/fr.h5'], [parset_dir+'/losoto-fr.parset'])
         else:
-            run_losoto(s, 'fr'+str(c), mss, [parset_dir+'/losoto-fr.parset'], ininstrument='instrument-g', inglobaldb='globaldb',
-            outinstrument='instrument-fr', outglobaldb='globaldb-fr', outtab='rotationmeasure000', putback=True)
+            lib_util.run_losoto(s, 'fr'+str(c), [ms+'/fr.h5' for ms in MSs.get_list_str()], [parset_dir+'/losoto-fr.parset'])
         os.system('mv plots-fr'+str(c)+'* self/solutions/')
         os.system('mv cal-fr'+str(c)+'*.h5 self/solutions/')
        
         # To linear - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (linear)
         logger.info('Convert to linear...')
-        for ms in mss:
-            s.add('/home/fdg/scripts/mslin2circ.py -r -i '+ms+':CORRECTED_DATA -o '+ms+':CORRECTED_DATA', log=ms+'_circ2lin-c'+str(c)+'.log', cmd_type='python')
-        s.run(check=True, max_threads=4)
+        MSs.run('/home/fdg/scripts/mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin-c'+str(c)+'.log', cmdType='python', maxThreads=4)
         
         # Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
         logger.info('Faraday rotation correction...')
-        for ms in mss:
-            s.add('NDPPP '+parset_dir+'/NDPPP-cor.parset msin='+ms+' cor.parmdb='+ms+'/instrument-fr cor.correction=RotationMeasure', log=ms+'_corFR-c'+str(c)+'.log', cmd_type='NDPPP')
-        s.run(check=True)
+        if multiepoch: h5 = '$pathMS/fr.h5'
+        else: h5 = 'cal-fr'+str(c)+'.h5'
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
+                    log='$nameMs_corFR-c'+str(c)+'.log', cmdType='DPPP')
 
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
-        for ms in mss:
-            s.add('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA '+ms, log=ms+'_smooth3-c'+str(c)+'.log', cmd_type='python')
-        s.run(check=True, max_threads=6)
+        MSs.run('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', cmdType='python', maxThreads=6)
 
         # Solve G SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Solving G...')
-        for ms in mss:
-            check_rm(ms+'/instrument-g')
-            s.add('NDPPP '+parset_dir+'/NDPPP-solG.parset msin='+ms+' sol.parmdb='+ms+'/instrument-g sol.solint=30 sol.nchan=8', \
-                    log=ms+'_sol-g2-c'+str(c)+'.log', cmd_type='NDPPP')
-        s.run(check=True)
+        for MS in MSs.get_list_str():
+            lib_util.check_rm(ms+'/amp.h5')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5 sol.solint=30 sol.nchan=8', \
+                    log='$nameMS_sol-g2-c'+str(c)+'.log', cmdType='DPPP')
 
         if multiepoch:
-            for i, ms in enumerate(mss):
-                run_losoto(s, 'cd'+str(c)+'-ms'+str(i), [ms], [parset_dir+'/losoto-cd.parset'], ininstrument='instrument-g', inglobaldb='globaldb',
-                    outinstrument='instrument-cd', outglobaldb='globaldb', outtab='amplitude000,crossdelay', putback=True)
+            for i, MS in enumerate(MSs.get_list_str()):
+                lib_util.run_losoto(s, 'amp'+str(c)+'-ms'+str(i), [MS+'/amp.h5'], [parset_dir+'/losoto-align.parset',parset_dir+'/losoto-amp.parset'])
         else:
-            run_losoto(s, 'cd'+str(c), mss, [parset_dir+'/losoto-cd.parset'], ininstrument='instrument-g', inglobaldb='globaldb',
-                outinstrument='instrument-cd', outglobaldb='globaldb', outtab='amplitude000,crossdelay', putback=True)
-        os.system('mv plots-cd'+str(c)+'* self/solutions/')
-        os.system('mv cal-cd'+(str(c))+'*.h5 self/solutions/')
-
-        if multiepoch:
-            for i, ms in enumerate(mss):
-                run_losoto(s, 'amp'+str(c)+'-ms'+str(i), [ms], [parset_dir+'/losoto-amp.parset'], ininstrument='instrument-g', inglobaldb='globaldb',
-                    outinstrument='instrument-amp', outglobaldb='globaldb', outtab='amplitude000,phase000', putback=True)
-        else:
-            run_losoto(s, 'amp'+str(c), mss, [parset_dir+'/losoto-amp.parset'], ininstrument='instrument-g', inglobaldb='globaldb',
-                outinstrument='instrument-amp', outglobaldb='globaldb', outtab='amplitude000,phase000', putback=True)
+            lib_util.run_losoto(s, 'amp'+str(c), [ms+'/amp.h5' for ms in MSs.get_list_str()], [parset_dir+'/losoto-align.parset'])
         os.system('mv plots-amp'+str(c)+'* self/solutions/')
-        os.system('mv cal-amp'+str(c)+'*.h5 self/solutions/')
+        os.system('mv cal-amp'+(str(c))+'*.h5 self/solutions/')
 
         # Correct CD SB.MS:SUBTRACTED_DATA->CORRECTED_DATA
-        logger.info('Cross-delay correction...')
-        for ms in mss:
-            s.add('NDPPP '+parset_dir+'/NDPPP-cor.parset msin='+ms+' msin.datacolumn=SUBTRACTED_DATA cor.parmdb='+ms+'/instrument-cd cor.correction=Gain', log=ms+'_corCD-c'+str(c)+'.log', cmd_type='NDPPP')
-        s.run(check=True)
+        logger.info('Pol-align correction...')
+        if multiepoch: h5 = '$pathMS/amp.h5'
+        else: h5 = 'cal-amp'+str(c)+'.h5'
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb='+h5+' cor.correction=polalign', log=ms+'_corPA-c'+str(c)+'.log', cmdType='DPPP')
         # Correct beam amp SB.MS:CORRECTED_DATA->CORRECTED_DATA
         logger.info('Beam amp correction...')
-        for ms in mss:
-            s.add('NDPPP '+parset_dir+'/NDPPP-cor.parset msin='+ms+' msin.datacolumn=CORRECTED_DATA cor.parmdb='+ms+'/instrument-amp cor.correction=Gain', log=ms+'_corAMP-c'+str(c)+'.log', cmd_type='NDPPP')
-        s.run(check=True)
+        if multiepoch: h5 = '$pathMS/amp.h5'
+        else: h5 = 'cal-amp'+str(c)+'.h5'
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmd='+h5' cor.correction=amplitude000', log=ms+'_corAMP-c'+str(c)+'.log', cmdType='DPPP')
         # Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
         logger.info('Faraday rotation correction...')
-        for ms in mss:
-            s.add('NDPPP '+parset_dir+'/NDPPP-cor.parset msin='+ms+' msin.datacolumn=CORRECTED_DATA cor.parmdb='+ms+'/instrument-fr cor.correction=RotationMeasure', \
-                    log=ms+'_corFR-c'+str(c)+'.log', cmd_type='NDPPP')
-        s.run(check=True)
+        if multiepoch: h5 = '$pathMS/fr.h5'
+        else: h5 = 'cal-fr'+str(c)+'.h5'
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
+                    log=ms+'_corFR-c'+str(c)+'.log', cmdType='DPPP')
 
         # Finally re-calculate TEC
         logger.info('BL-based smoothing...')
-        for ms in mss:
-            s.add('BLsmooth.py -r -f 0.2 -i CORRECTED_DATA -o SMOOTHED_DATA '+ms, log=ms+'_smooth3-c'+str(c)+'.log', cmd_type='python')
-        s.run(check=True, max_threads=6)
+        MSs.run('BLsmooth.py -r -f 0.2 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', cmdType='python', maxThreads=6)
 
         # solve TEC - group*_TC.MS:SMOOTHED_DATA
         logger.info('Solving TEC...')
-        for ms in mss:
-            check_rm(ms+'/instrument-tec')
-            s.add('NDPPP '+parset_dir+'/NDPPP-solTEC.parset msin='+ms+' sol.parmdb='+ms+'/instrument-tec', \
-                    log=ms+'_solTEC-c'+str(c)+'.log', cmd_type='NDPPP')
-        s.run(check=True)
+        for MS in MSs.get_list_str():
+            lib_util.check_rm(ms+'/tec.h5')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
+                    log=ms+'_solTEC-c'+str(c)+'.log', cmdType='DPPP')
 
         # LoSoTo plot
         if multiepoch:
-            for i, ms in enumerate(mss):
-                run_losoto(s, 'tec'+str(c)+'b-ms'+str(i), [ms], [parset_dir+'/losoto-plot.parset'], ininstrument='instrument-tec', putback=False)
+            for i, MS in enumerate(MSs.get_list_str()):
+                lib_util.run_losoto(s, 'tec'+str(c)+'b-ms'+str(i), [MS+'/tec.h5'], [parset_dir+'/losoto-plot.parset'])
         else:
-            run_losoto(s, 'tec'+str(c)+'b', mss, [parset_dir+'/losoto-plot.parset'], ininstrument='instrument-tec', putback=False)
+            lib_util.run_losoto(s, 'tec'+str(c)+'b', [ms+'/tec.h5' for ms in MSs.get_list_str()], [parset_dir+'/losoto-plot.parset'])
         os.system('mv plots-tec'+str(c)+'b* self/solutions')
         os.system('mv cal-tec'+str(c)+'b*.h5 self/solutions')
 
         # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting TEC...')
-        for ms in mss:
-            s.add('NDPPP '+parset_dir+'/NDPPP-corTEC.parset msin='+ms+' msin.datacolumn=CORRECTED_DATA cor1.parmdb='+ms+'/instrument-tec cor2.parmdb='+ms+'/instrument-tec', \
-                    log=ms+'_corTECb-c'+str(c)+'.log', cmd_type='NDPPP')
-        s.run(check=True)
+        if multiepoch: h5 = '$pathMS/tec.h5'
+        else: h5 = 'cal-tec'+str(c)+'b.h5'
+        MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor1.parmdb='+h5+' cor2.parmdb='+h5, \
+                    log=ms+'_corTECb-c'+str(c)+'.log', cmdType='DPPP')
 
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA (FR/TEC corrected, beam corrected)
@@ -375,34 +327,34 @@ for c in xrange(niter):
         # beam corrected: -use-differential-lofar-beam' - no baseline avg!
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
-        s.add('wsclean -reorder -name ' + imagename + ' -size 4000 4000 -trim 3500 3500 -mem 90 -j '+str(s.max_processors)+' \
+        s.add('wsclean -reorder -name ' + imagename + ' -size 3500 3500 -mem 90 -j '+str(s.max_processors)+' \
                 -scale 8arcsec -weight briggs 0.0 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
                 -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
                 -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -apply-primary-beam -use-differential-lofar-beam -minuv-l 30 '+' '.join(mss), \
-                log='wscleanBeam-c'+str(c)+'.log', cmd_type='wsclean', processors='max')
+                log='wscleanBeam-c'+str(c)+'.log', cmdType='wsclean', processors='max')
         s.run(check=True)
 
         logger.info('Cleaning beam high-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamHR'
-        s.add('wsclean -reorder -name ' + imagename + ' -size 6000 6000 -trim 5500 5500 -mem 90 -j '+str(s.max_processors)+' \
+        s.add('wsclean -reorder -name ' + imagename + ' -size 5500 5500 -mem 90 -j '+str(s.max_processors)+' \
                 -scale 4arcsec -weight briggs -1.5 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
                 -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
                 -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -apply-primary-beam -use-differential-lofar-beam -minuv-l 30 '+' '.join(mss), \
-                log='wscleanBeamHR-c'+str(c)+'.log', cmd_type='wsclean', processors='max')
+                log='wscleanBeamHR-c'+str(c)+'.log', cmdType='wsclean', processors='max')
         s.run(check=True)
 
     # clean mask clean (cut at 5k lambda)
     # no MODEL_DATA update with -baseline-averaging
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wide-'+str(c)
-    s.add('wsclean -reorder -name ' + imagename + ' -size 4000 4000 -trim 3500 3500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+    s.add('wsclean -reorder -name ' + imagename + ' -size 3500 3500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 12arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -maxuv-l 5000 -mgain 0.9 \
             -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 20 -minuv-l 30 '+' '.join(mss), \
-            log='wsclean-c'+str(c)+'.log', cmd_type='wsclean', processors='max')
+            log='wsclean-c'+str(c)+'.log', cmdType='wsclean', processors='max')
     s.run(check=True)
 
     maskname = imagename+'-mask.fits'
-    make_mask(image_name = imagename+'-MFS-image.fits', mask_name = maskname, threshisl = 3, atrous_do=True)
+    make_mask.make_mask(image_name = imagename+'-MFS-image.fits', mask_name = maskname, threshisl = 3, atrous_do=True)
     if user_mask is not None: 
         blank_image_reg(maskname, user_mask, inverse=False, blankval=1)
 
@@ -411,18 +363,18 @@ for c in xrange(niter):
     #TODO: -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,9 \
     if cc_predict:
         #s.add('wsclean -reorder -name ' + imagename + ' -size 3000 3000 -trim 2500 2500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-        s.add('wsclean -reorder -name ' + imagename + ' -size 4000 4000 -trim 3500 3500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+        s.add('wsclean -reorder -name ' + imagename + ' -size 3500 3500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 12arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -maxuv-l 5000 -mgain 0.8 \
             -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
             -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 0.1 -minuv-l 30 -save-source-list -fitsmask '+maskname+' '+' '.join(mss), \
-            log='wscleanM-c'+str(c)+'.log', cmd_type='wsclean', processors='max')
+            log='wscleanM-c'+str(c)+'.log', cmdType='wsclean', processors='max')
     else:
         #s.add('wsclean -reorder -name ' + imagename + ' -size 3000 3000 -trim 2500 2500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-        s.add('wsclean -reorder -name ' + imagename + ' -size 4000 4000 -trim 3500 3500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+        s.add('wsclean -reorder -name ' + imagename + ' -size 3500 3500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 12arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -maxuv-l 5000 -mgain 0.8 \
             -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
             -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 0.1 -minuv-l 30 -fitsmask '+maskname+' '+' '.join(mss), \
-            log='wscleanM-c'+str(c)+'.log', cmd_type='wsclean', processors='max')
+            log='wscleanM-c'+str(c)+'.log', cmdType='wsclean', processors='max')
     s.run(check=True)
     os.system('cat logs/wscleanM-c'+str(c)+'.log | grep "background noise"')
 
@@ -440,7 +392,7 @@ for c in xrange(niter):
 
         # Subtract model from all TCs - concat.MS:CORRECTED_DATA - MODEL_DATA -> concat.MS:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
         logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_HIGHRES)...')
-        s.add('taql "update '+concat_ms+' set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_HIGHRES"', log='taql1-c'+str(c)+'.log', cmd_type='general')
+        s.add('taql "update '+concat_ms+' set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_HIGHRES"', log='taql1-c'+str(c)+'.log', cmdType='general')
         s.run(check=True)
     
         # reclean low-resolution
@@ -451,13 +403,13 @@ for c in xrange(niter):
             s.add('wsclean -reorder -name ' + imagename_lr + ' -size 6000 6000 -trim 5500 5500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
                 -scale 20arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -maxuv-l 2000 -mgain 0.8 \
                 -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 1 -minuv-l 100 -save-source-list '+' '.join(mss), \
-                log='wsclean-lr.log', cmd_type='wsclean', processors='max')
+                log='wsclean-lr.log', cmdType='wsclean', processors='max')
         else:
             #s.add('wsclean -reorder -name ' + imagename_lr + ' -size 4500 4500 -trim 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             s.add('wsclean -reorder -name ' + imagename_lr + ' -size 6000 6000 -trim 5500 5500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
                 -scale 20arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -maxuv-l 2000 -mgain 0.8 \
                 -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 1 -minuv-l 100 '+' '.join(mss), \
-                log='wsclean-lr.log', cmd_type='wsclean', processors='max')
+                log='wsclean-lr.log', cmdType='wsclean', processors='max')
         s.run(check=True)
        
         if cc_predict:
@@ -466,28 +418,27 @@ for c in xrange(niter):
             ft_model_wsclean(mss, imagename_lr, 'lr', user_mask=None, resamp='10asec', keep_in_beam=False)
 
         # corrupt model with TEC solutions ms:MODEL_DATA -> ms:MODEL_DATA
-        for ms in mss:
-            s.add('NDPPP '+parset_dir+'/NDPPP-corTEC.parset msin='+ms+' msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                cor1.parmdb='+ms+'/instrument-tec cor1.invert=false cor2.parmdb='+ms+'/instrument-tec cor2.invert=false', \
-                log=ms+'_corrupt.log', cmd_type='NDPPP')
-        s.run(check=True)
+        if multiepoch: h5 = '$pathMS/tec.h5'
+        else: h5 = 'cal-tec'+str(c)+'b.h5'
+        MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                cor1.parmdb='+h5+' cor1.invert=false cor2.parmdb='+h5+' cor2.invert=false', \
+                log=ms+'_corrupt.log', cmdType='DPPP')
     
         # Subtract low-res model - concat.MS:CORRECTED_DATA - MODEL_DATA -> concat.MS:CORRECTED_DATA (empty)
         logger.info('Subtracting low-res model (SUBTRACTED_DATA = DATA - MODEL_DATA)...')
-        s.add('taql "update '+concat_ms+' set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='taql2-c'+str(c)+'.log', cmd_type='general')
+        s.add('taql "update '+concat_ms+' set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='taql2-c'+str(c)+'.log', cmdType='general')
         s.run(check=True)
 
         # Restore best model
         logger.info('Restoring high-res model (MODEL_DATA = MODEL_DATA_HIGHRES)...')
-        s.add('taql "update '+concat_ms+' set MODEL_DATA = MODEL_DATA_HIGHRES"', log='taql3-c'+str(c)+'.log', cmd_type='general')
+        s.add('taql "update '+concat_ms+' set MODEL_DATA = MODEL_DATA_HIGHRES"', log='taql3-c'+str(c)+'.log', cmdType='general')
         s.run(check=True)
-
 
     ###############################################################################################################
     # Flag on residuals (CORRECTED_DATA)
     #logger.info('Flagging residuals...')
     #for ms in mss:
-    #    s.add('NDPPP '+parset_dir+'/NDPPP-flag.parset msin='+ms, log=ms+'_flag-c'+str(c)+'.log', cmd_type='NDPPP')
+    #    s.add('DPPP '+parset_dir+'/DPPP-flag.parset msin='+ms, log=ms+'_flag-c'+str(c)+'.log', cmdType='DPPP')
     #s.run(check=True
     
 # make beam

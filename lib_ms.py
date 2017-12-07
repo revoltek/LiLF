@@ -4,6 +4,8 @@ import os, sys, shutil
 
 from casacore import tables
 import numpy as np
+import pyregion
+from pyregion.parser_helper import Shape
 import lib_util
 
 from lib_log import logger
@@ -17,40 +19,40 @@ class AllMSs(object):
         """
         self.scheduler    = scheduler
 
-        self.mss_list_str = sorted(pathsMS)
+        self.mssListStr = sorted(pathsMS)
 
-        self.mss_list_obj = []
-        for pathMS in self.mss_list_str:
-            self.mss_list_obj.append(MS(pathMS))
+        self.mssListObj = []
+        for pathMS in self.mssListStr:
+            self.mssListObj.append(MS(pathMS))
 
 
-    def get_list_obj(self):
+    def getListObj(self):
         """
         """
-        return self.mss_list_obj
+        return self.mssListObj
 
 
-    def get_list_str(self):
+    def getListStr(self):
         """
         """
-        return self.mss_list_str
+        return self.mssListStr
 
 
-    def get_str_wsclean(self):
+    def getStrWsclean(self):
         """
         Return a string with all MS paths, useful for wsclean
         """
-        return ' '.join(self.mss_list_str)
+        return ' '.join(self.mssListStr)
 
 
-    def run(self, command, commandType, log):
+    def run(self, command, commandType, log, maxThreads=None):
         """
         Run command 'command' of type 'commandType', and use 'log' for logger,
         for each MS of AllMSs.
         The command and log file path can be customised for each MS using keywords (see: 'MS.concretiseString()').
         Beware: depending on the value of 'Scheduler.max_threads' (see: lib_util.py), the commands are run in parallel.
         """
-        for MSObject in self.mss_list_obj:
+        for MSObject in self.mssListObj:
             commandCurrent = MSObject.concretiseString(command)
             logCurrent     = MSObject.concretiseString(log)
 
@@ -62,7 +64,7 @@ class AllMSs(object):
             #lib_util.printLineBold("logCurrent:")
             #print (logCurrent)
 
-        self.scheduler.run(check = True)
+        self.scheduler.run(check = True, max_threads = maxThreads)
 
 
 class MS(object):
@@ -106,6 +108,7 @@ class MS(object):
         """
         Move (or rename) the MS to another locus in the file system.
         """
+        logger.debug('Move: '+self.pathMS+' -> '+pathMSNew)
         shutil.move(self.pathMS, pathMSNew)
         self.setPathVariables(pathMSNew)
 
@@ -172,7 +175,7 @@ class MS(object):
         return stringCurrent
 
 
-    def find_nchan(self):
+    def getNchan(self):
         """
         Find number of channels
         """
@@ -181,11 +184,10 @@ class MS(object):
         assert (nchan[0] == nchan).all() # all SpWs have same channels?
 
         logger.debug("%s: channel number (1): %i", self.pathMS, nchan[0])
-        #logger.debug("%s: channel number (1): %i", self.pathMS, nchan[0])
         return nchan[0]
 
 
-    def find_chanband(self):
+    def getChanband(self):
         """
         Find bandwidth of a channel in Hz
         """
@@ -197,7 +199,7 @@ class MS(object):
         return chan_w[0]
 
 
-    def find_timeint(self):
+    def getTimeInt(self):
         """
         Get time interval in seconds
         """
@@ -210,7 +212,7 @@ class MS(object):
         return deltat
 
 
-    def get_phase_centre(self):
+    def getPhaseCentre(self):
         """
         Get the phase centre (in degrees) of the first source (is it a problem?) of an MS.
         """
@@ -227,4 +229,43 @@ class MS(object):
         logger.debug("%s: phase centre (degrees): (%f, %f)", self.pathMS, np.degrees(RA), np.degrees(Dec))
         return (np.degrees(RA), np.degrees(Dec))
 
+    def getObsMode(self):
+        """
+        If LBA observation, return obs mode: INNER, OUTER, SPARSE_EVEN, SPARSE_ODD
+        """
+        with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
+            return t.getcol("LOFAR_ANTENNA_SET")[0]
 
+    def makeBeamReg(self, outfile, pb_cut=None):
+        """
+        Create a ds9 region of the beam
+        outfile : str
+            output file
+        pb_cut : float, optional
+            diameter of the beam
+        """
+        logger.debug('Making PB region: '+outfile)
+        ra, dec = self.getPhaseCentre()
+
+        if pb_cut is None:
+            if 'OUTER' in self.getObsMode():
+                seize = 7./2. # OUTER
+            elif 'SPARSE' in self.getObsMode():
+                seize = 12./2. # OUTER
+            else:
+                logger.error('Cannot find beam size, only LBA_OUTER or LBA_SPARSE_* are implemented. Assuming beam diameter = 7 deg.')
+                seize = 7./2.
+        else:
+            size = pb_cut/2.
+
+        s = Shape('circle', None)
+        s.coord_format = 'fk5'
+        s.coord_list = [ ra, dec, size ] # ra, dec, radius
+        s.coord_format = 'fk5'
+        s.attr = ([], {'width': '2', 'point': 'cross',
+                       'font': '"helvetica 16 normal roman"'})
+        s.comment = 'color=red text="beam"'
+
+        regions = pyregion.ShapeList([s])
+        check_rm(outfile)
+        regions.write(outfile)
