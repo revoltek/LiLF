@@ -1,0 +1,18 @@
+msin =
+msin.datacolumn = DATA
+msout = .
+msout.datacolumn = CORRECTED_DATA
+#msout.storagemanager = dysco
+
+numthreads = 1 # bug fix
+
+#steps = [cor1, count]
+steps = [cor1, cor2, count]
+
+cor1.type = applycal
+cor1.parmdb =
+cor1.correction = tec000
+
+cor2.type = applycal
+cor2.parmdb =
+cor2.correction = scalarphase000
