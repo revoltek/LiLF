@@ -1,0 +1,17 @@
+msin = 
+msin.datacolumn = DATA
+
+msout = 
+msout.writefullresflag = False
+# no dysco here, before need to fix weights
+
+numthreads = 1 # bug fix
+
+steps = [filter, avg]
+
+filter.remove=T
+filter.baseline='![CR]S&*'
+
+avg.type = averager
+avg.freqstep = 1
+avg.timestep = 1

@@ -1,0 +1,14 @@
+msin = 
+msin.datacolumn = DATA
+msin.baseline = '[CR]S*&'
+msout = 
+msout.writefullresflag = False
+#msout.storagemanager = dysco
+
+numthreads = 1 # bug fix
+
+steps = [avg]
+
+avg.type = averager
+avg.freqstep = 1
+avg.timestep = 1
