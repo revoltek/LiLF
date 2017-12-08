@@ -128,6 +128,7 @@ MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
 
 # Create time-chunks
+logger.info('Splitting in time...')
 for groupname in groupnames:
     ms = groupname+'/'+groupname+'.MS'
     if not os.path.exists(ms): continue
@@ -139,7 +140,7 @@ for groupname in groupnames:
 
     tc = initc
     for timerange in np.array_split(t.getcol('TIME'), round(hours)):
-        logger.debug('%02i - Splitting timerange %f %f' % (tc, timerange[0], timerange[-1]))
+        logger.info('%02i - Splitting timerange %f %f' % (tc, timerange[0], timerange[-1]))
         t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[-1]), sortlist='TIME,ANTENNA1,ANTENNA2')
         splitms = groupname+'/TC%02i.MS' % tc
         lib_util.check_rm(splitms)

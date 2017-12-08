@@ -143,7 +143,7 @@ if rename:
                 s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
         else:
             logger.info('Move data - no averaging...')
-            for MS in MSs.getObjList():
+            for MS in MSs.getListObj():
                 MSout = getName(MS.pathMS)
                 MS.move(MSout)
 
