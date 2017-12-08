@@ -1,8 +1,8 @@
 import os, sys
 import numpy as np
-
-# Load external script make_mask!
-
+import astropy.io.fits as pyfits
+import lsmtool
+from LiLF import make_mask
 from lib_log import logger
 
 class Image(object):
@@ -14,22 +14,22 @@ class Image(object):
         self.region_facet = region_facet
         self.user_mask    = user_mask
 
-    def make_mask(self, threshisl=5):
+    def makeMask(self, threshisl=5):
         """
         Create a mask of the image where only believable flux is
         """
         logger.info('%s: Making mask...' % self.imagename)
         if not os.path.exists(self.maskname):
-            make_mask(image_name=self.imagename, mask_name=self.maskname, threshisl=threshisl, atrous_do=True)
+            make_mask.make_mask(image_name=self.imagename, mask_name=self.maskname, threshisl=threshisl, atrous_do=True)
         if self.user_mask is not None:
             logger.info('%s: Adding user mask (%s)...' % (self.imagename, self.user_mask))
             blank_image_reg(self.maskname, self.user_mask, inverse=False, blankval=1)
 
-    def select_cc(self):
+    def selectCC(self):
         """
         remove cc from a skymodel according to masks
         """
-        self.make_mask()
+        self.makeMask()
 
         if self.region_facet is not None:
             logger.info('Predict (apply facet mask %s)...' % self.region_facet)
@@ -41,6 +41,35 @@ class Image(object):
         lsm.select('%s == True' % self.maskname)
         lsm.write(self.skymodel_cut, format = 'makesourcedb', clobber=True)
         del lsm
+
+    def getNoise(self, boxsize=None, niter=20, eps=1e-5):
+        """
+        Return the rms of all the pixels in an image
+        boxsize : limit to central box of this pixelsize
+        niter : robust rms estimation
+        eps : convergency
+        """   
+        with pyfits.open(self.imagename) as fits:
+            data = fits[0].data
+            if boxsize is None:
+                subim = data
+            else:
+               if len(data.shape)==4:
+                    _,_,ys,xs = data.shape
+                    subim = data[0,0,ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
+               else:
+                    ys,xs = data.shape
+                    subim = data[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
+            oldrms = 1.
+            for i in range(niter):
+                rms = np.nanstd(subim)
+                #print len(subim),rms
+                if np.abs(oldrms-rms)/rms < eps:
+                    return rms
+                subim=subim[np.abs(subim)<5*rms]
+                oldrms=rms
+            raise Exception('Failed to converge')
+
 
 
 def flatten(f, channel = 0, freqaxis = 0):
@@ -222,36 +251,6 @@ def blank_image_reg(filename, region, outfile = None, inverse = False, blankval 
 
     logger.debug("%s: Blanking (%s): sum of values: %f -> %f" % (filename, region, sum_before, np.sum(data)))
 
-
-def get_noise_img(filename, boxsize=None, niter=20, eps=1e-5):
-    """
-    Return the rms of all the pixels in an image
-    boxsize : limit to central box of this pixelsize
-    niter : robust rms estimation
-    eps : convergency
-    """
-    import astropy.io.fits as pyfits
-    
-    with pyfits.open(filename) as fits:
-        data = fits[0].data
-        if boxsize is None:
-            subim = data
-        else:
-           if len(data.shape)==4:
-                _,_,ys,xs = data.shape
-                subim = data[0,0,ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
-           else:
-                ys,xs = data.shape
-                subim = data[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
-        oldrms = 1.
-        for i in range(niter):
-            rms = np.nanstd(subim)
-            #print len(subim),rms
-            if np.abs(oldrms-rms)/rms < eps:
-                return rms
-            subim=subim[np.abs(subim)<5*rms]
-            oldrms=rms
-        raise Exception('Failed to converge')
 
 #def nan2zeros(filename):
 #    """

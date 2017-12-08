@@ -14,7 +14,7 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/amp_
-columns = 4
+NColFig = 4
 figSize = [20,20]
 #minmax = [1e-4,3e-3]
 
@@ -83,7 +83,7 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/ampRes_
-columns = 4
+NColFig = 4
 figSize = [20,20]
 minmax = [-1,1]
 

@@ -9,9 +9,9 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/amp_
-columns = 4
+NColFig = 4
 figSize = [20,20]
-minmax = [1e-4,3e-3]
+#minmax = [1e-4,3e-3]
 
 [plotAi2]
 operation = PLOT
@@ -22,7 +22,7 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/amp_
-minmax = [1e-4,3e-3]
+#minmax = [1e-4,3e-3]
 
 [plotAi3]
 operation = PLOT
@@ -30,13 +30,13 @@ soltab = sol000/amplitude000
 axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
-prefix = plots/amp
-minmax = [100,300]
+prefix = plots/amp_
+#minmax = [100,300]
 
 [duplicatePbkp]
 operation = DUPLICATE
-InTable = sol000/phase000
-OutTable = phaseOrig000
+soltab = sol000/phase000
+soltabOut = phaseOrig000
 
 [plotPi1]
 operation = PLOT
@@ -49,7 +49,7 @@ plotFlag = True
 prefix = plots/ph_
 refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]
-columns = 4
+NColFig = 4
 figSize = [20,20]
 
 [plotPi2]
@@ -70,7 +70,7 @@ soltab = sol000/phase000
 axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
-prefix = plots/ph
+prefix = plots/ph_
 refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]
 
@@ -79,7 +79,7 @@ operation = PLOT
 soltab = sol000/phase000
 axesInPlot = [time,freq]
 axisInTable = ant
-DiffAxis = pol
+axisDiff = pol
 plotFlag = True
 prefix = plots/ph-dif
 refAnt = 'CS002LBA'
@@ -142,7 +142,7 @@ plotFlag = True
 prefix = plots/phRes_
 refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]
-columns = 4
+NColFig = 4
 figSize = [20,20]
 
 [PlotPr2]

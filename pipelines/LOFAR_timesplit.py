@@ -1,117 +1,103 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# data preparation for selfcal, apply cal solutions and split SB in time and concatenate in freq
-# Input:
-# Virgin target MSs and a globaldb of the calibrator
-# Output:
-# set of group*_TC*.MS file with DATA = calibrator corrected data, beam corrected, flagged
+
+# Data preparation for selfcal, apply cal solutions
+# and split SB in time and concatenate in frequency.
 
 import sys, os, glob, re
 import numpy as np
-from autocal.lib_pipeline import *
 from astropy.time import Time
 import casacore.tables as pt
 
-parset_dir = '/home/fdg/scripts/autocal/parset_timesplit'
-initc = 0 # initial tc num (useful for multiple observation of same target) - tooth10==12
-clock = False
+parset_dir = '/home/fdg/scripts/LiLF/parsets/LOFAR_timesplit'
+initc = 0 # initial tc num (useful for multiple observation of same target)
 
+# temporary
 if 'LBAsurvey' in os.getcwd():
     ngroups = 1 # number of groups (totalSB/SBperFREQgroup)
     datadir = '../../download/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
-    globaldb = 'dsk:/disks/paradata/fdg/LBAsurvey/globaldb_'+os.getcwd().split('/')[-2]
+    soldir = 'dsk:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]
 else:
     ngroups = 2
     datadir = '../tgts-bkp/' 
-    if clock:
-        globaldb = '../cals/globaldb-clock'
-    else:
-        globaldb = '../cals/globaldb'
-    assert os.path.isdir(globaldb)
+    soldir = '../cals/'
+    assert os.path.isdir(soldir)
 
-##################################################################################################
-logger = set_logger('pipeline-timesplit.logger')
-check_rm('logs')
-s = Scheduler(dry=False)
+########################################################
+from LiLF import lib_ms, lib_util, lib_log
+lib_log.set_logger('pipeline-timesplit.logger')
+logger = lib_log.logger
+lib_util.check_rm('logs')
+s = lib_util.Scheduler(dry = False)
 
 #################################################
 # Clear
 logger.info('Cleaning...')
-check_rm('mss*')
-mss = sorted(glob.glob(datadir+'/*MS'))
+lib_util.check_rm('mss*')
+MSs = lib_ms.AllMSs( glob.glob(datadir+'/*MS'), s )
 
 ##############################################
 # Avg to 4 chan and 4 sec
 # Remove internationals
 # TODO: move to download pipeline
-nchan = find_nchan(mss[0])
-timeint = find_timeint(mss[0])
-if nchan % 4 != 0 and nchan != 1:
-    logger.error('Channels should be a multiple of 4.')
-    sys.exit(1)
+#nchan = find_nchan(mss[0])
+#timeint = find_timeint(mss[0])
+#if nchan % 4 != 0 and nchan != 1:
+#    logger.error('Channels should be a multiple of 4.')
+#    sys.exit(1)
+#
+#avg_factor_f = nchan / 4 # to 4 ch/SB
+#if avg_factor_f < 1: avg_factor_f = 1
+#avg_factor_t = int(np.round(4/timeint)) # to 4 sec
+#if avg_factor_t < 1: avg_factor_t = 1
+#
+#if avg_factor_f != 1 or avg_factor_t != 1:
+#    logger.info('Average in freq (factor of %i) and time (factor of %i)...' % (avg_factor_f, avg_factor_t))
+#    for ms in mss:
+#        msout = ms.replace('.MS','-avg.MS').split('/')[-1]
+#        if os.path.exists(msout): lib_util.check_rm(ms)
+#        s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+ms+' msout='+msout+' msin.datacolumn=DATA avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
+#                log=msout+'_avg.log', commandType='DPPP')
+#    s.run(check=True)
+#    nchan = nchan / avg_factor_f
+#    timeint = timeint * avg_factor_t
+#else:
+logger.info('Copy data...')
+for MS in MSs.getListObj():
+    MS.move(MS.nameMS+'.MS', keepOrig=True)
 
-avg_factor_f = nchan / 4 # to 4 ch/SB
-if avg_factor_f < 1: avg_factor_f = 1
-avg_factor_t = int(np.round(4/timeint)) # to 4 sec
-if avg_factor_t < 1: avg_factor_t = 1
-
-if avg_factor_f != 1 or avg_factor_t != 1:
-    logger.info('Average in freq (factor of %i) and time (factor of %i)...' % (avg_factor_f, avg_factor_t))
-    for ms in mss:
-        msout = ms.replace('.MS','-avg.MS').split('/')[-1]
-        if os.path.exists(msout): check_rm(ms)
-        s.add('NDPPP '+parset_dir+'/NDPPP-avg.parset msin='+ms+' msout='+msout+' msin.datacolumn=DATA avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
-                log=msout+'_avg.log', cmd_type='NDPPP')
-    s.run(check=True)
-    nchan = nchan / avg_factor_f
-    timeint = timeint * avg_factor_t
-else:
-    logger.info('Copy data - no averaging...')
-    for ms in mss:
-        msout = ms.replace('.MS','-avg.MS').split('/')[-1]
-        # weights are changed here, so be sure to delete previous MSs
-        if os.path.exists(msout): check_rm(msout)
-        os.system('cp -r '+ms+' '+msout)
-
-mss = sorted(glob.glob('*.MS'))
+MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 ####################################################
 # Correct fist for BP(diag)+TEC+Clock and then for beam
 # Copy instrument tables
-for ms in mss:
-    tnum = re.findall(r't\d+', ms)[0][1:]
-    sbnum = re.findall(r'SB\d+', ms)[0][2:]
-    #logger.info('Copy: '+globaldb+'/sol000_instrument-'+str(tnum)+'-'+str(sbnum)+' '+ms+'/instrument')
-    check_rm(ms+'/instrument')
-    os.system('scp -q -r '+globaldb+'/sol000_instrument-'+str(tnum)+'-'+str(sbnum)+' '+ms+'/instrument')
+# TODO: this can now be made AFTER grouping
+logger.info('Copy solutions...')
+if not os.path.exists('cal-amp.h5'):
+    os.system('scp -q '+soldir+'/cal-amp.h5 .')
+if not os.path.exists('cal-iono.h5'):
+    os.system('scp -q '+soldir+'/cal-iono.h5 .')
 
 # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (calibrator corrected+reweight, beam corrected, circular)
 logger.info('Apply solutions...')
-for ms in mss:
-    if clock:
-        s.add('NDPPP '+parset_dir+'/NDPPP-cor.parset msin='+ms+' steps=[cor1,cor2] cor1.parmdb='+ms+'/instrument'+' cor2.parmdb='+ms+'/instrument', log=ms+'_cor.log', cmd_type='NDPPP')
-    else:
-        s.add('NDPPP '+parset_dir+'/NDPPP-cor.parset msin='+ms+' steps=[cor1] cor1.parmdb='+ms+'/instrument', log=ms+'_cor.log', cmd_type='NDPPP')
-s.run(check=True)
+MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.steps=[amp,ph] \
+        cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth000 cor.amp.updateweights = True\
+        cor.ph.parmdb=cal-iono.h5 cor.ph.correction=phaseOrig000', log='$nameMS_cor.log', commandType='DPPP')
 
 # Beam correction CORRECTED_DATA -> CORRECTED_DATA (beam corrected+reweight)
 logger.info('Beam correction...')
-for ms in mss:
-    s.add('NDPPP '+parset_dir+'/NDPPP-beam.parset msin='+ms, log=ms+'_beam.log', cmd_type='NDPPP')
-s.run(check=True)
+MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam.log', commandType='DPPP')
 
 # Re-set weights of flagged data to 0 - this is necessary if we want to use dysco
-# due to NDPPP leaving flagged weight at super-high values compared to unflagged ones
+# due to DPPP leaving flagged weight at super-high values compared to unflagged ones
 #logger.info('Set weight of flagged data to 0...')
-#for ms in mss:
-#    s.add('flag_weight_to_zero.py '+ms, log=ms+'_resetweight.log', cmd_type='python')
-#s.run(check=True)
+#MSs.run('flag_weight_to_zero.py $pathMS', log='$nameMS_resetweight.log', commandType='python')
 
 ###################################################################################################
 # Create groups
 groupnames = []
 logger.info('Concatenating in frequency...')
-timechunks = set([re.findall(r'_t\d+', ms)[0][2:] for ms in mss ])
+timechunks = set([re.findall(r'_t\d+', ms)[0][2:] for ms in MSs.getListStr() ])
 for timechunk in timechunks:
     for i, msg in enumerate(np.array_split(sorted(glob.glob('*_t'+timechunk+'_*MS')), ngroups)):
         if ngroups == 1:
@@ -119,8 +105,8 @@ for timechunk in timechunks:
         else:
             groupname = 'mss_t%s-%02i' % (timechunk, i)
         groupnames.append(groupname)
-        check_rm(groupname)
-        os.system('mkdir '+groupname)
+        lib_util.check_rm(groupname)
+        os.makedirs(groupname)
 
         # add missing SB with a fake name not to leave frequency holes
         num_init = int(re.findall(r'\d+', msg[0])[-1])
@@ -131,16 +117,15 @@ for timechunk in timechunks:
             msg.append(ms_name_init.replace('SB%03i' % num_init, 'SB%03i' % j))
 
         # prepare concatenated time chunks (TC) - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected, circular)
-        s.add('NDPPP '+parset_dir+'/NDPPP-concat.parset msin="['+','.join(msg)+']"  msout='+groupname+'/'+groupname+'.MS', \
-                    log=groupname+'_NDPPP_concat.log', cmd_type='NDPPP')
+        s.add('DPPP '+parset_dir+'/DPPP-concat.parset msin="['+','.join(msg)+']"  msout='+groupname+'/'+groupname+'.MS', \
+                    log=groupname+'_DPPP_concat.log', commandType='DPPP')
     s.run(check=True)
 
 # Flagging on concatenated dataset - also flag low-elevation
 logger.info('Flagging...')
-for groupname in groupnames:
-    s.add('NDPPP '+parset_dir+'/NDPPP-flag.parset msin='+groupname+'/'+groupname+'.MS', \
-                log=groupname+'_NDPPP_flag.log', cmd_type='NDPPP')
-s.run(check=True)
+MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
+MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
+                log='$nameMS_DPPP_flag.log', commandType='DPPP')
 
 # Create time-chunks
 for groupname in groupnames:
@@ -152,35 +137,31 @@ for groupname in groupnames:
     hours = (endtime-starttime)/3600.
     logger.debug(ms+' has length of '+str(hours)+' h.')
 
-    # split this ms into many TCs (#hours, i.e. chunks of 60 min)
-    # to re-concat:
-    #   t = table(['T0','T1',...])
-    #   t.sort('TIME').copy('output.MS', deep = True)
     tc = initc
     for timerange in np.array_split(t.getcol('TIME'), round(hours)):
         logger.debug('%02i - Splitting timerange %f %f' % (tc, timerange[0], timerange[-1]))
         t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[-1]), sortlist='TIME,ANTENNA1,ANTENNA2')
         splitms = groupname+'/TC%02i.MS' % tc
-        check_rm(splitms)
+        lib_util.check_rm(splitms)
         t1.copy(splitms, True)
         t1.close()
         tc += 1
     t.close()
 
-    check_rm(ms) # remove not-timesplitted file
+    lib_util.check_rm(ms) # remove not-timesplitted file
 
 # put everything together
 if ngroups == 1:
-    check_rm('mss')
+    lib_util.check_rm('mss')
     os.makedirs('mss')
     os.system('mv mss_t*/*MS mss')
-    check_rm('mss_t*')
+    lib_util.check_rm('mss_t*')
 else:
     for group in xrange(ngroups):
         groupname = 'mss-%02i' % group
-        check_rm(groupname)
+        lib_util.check_rm(groupname)
         os.makedirs(groupname)
         os.system('mv mss_t*-%02i/*MS %s' % (group, groupname))
-    check_rm('mss_t*')
+    lib_util.check_rm('mss_t*')
 
 logger.info("Done.")

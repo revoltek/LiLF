@@ -84,41 +84,41 @@ if not download_file is None:
             ms = re.findall(r'L[0-9]*.*_SB[0-9]*_uv', line)[0]
             if ms+'.MS' in downloaded or ms+'.dppp.MS' in downloaded: continue
             if ms+'.MS' in glob.glob('*MS') or ms+'.dppp.MS' in glob.glob('*MS'): continue
-            s.add('wget -nv "'+line[:-1]+'" -O - | tar -x', log=ms+'_download.log', cmd_type='general')
+            s.add('wget -nv "'+line[:-1]+'" -O - | tar -x', log=ms+'_download.log', commandType='general')
         #    print 'wget -nv "'+line[:-1]+'" -O - | tar -x'
             logger.debug('Queue download of: '+line[:-1])
-        s.run(check=True, max_threads=4)
+        s.run(check=True, maxThreads=4)
 
 MSs = lib_ms.AllMSs(glob.glob('*MS'), s)
-if len(MSs) == 0:
+if len(MSs.getListStr()) == 0:
     logger.info('Done.')
     sys.exit(0)
 
 #######################################
 if fix_tables:
     logger.info('Fix MS table...')
-    MSs.run('fixMS_TabRef.py $pathMS', log='$nameMS_fixms.log')
+    MSs.run('fixMS_TabRef.py $pathMS', log='$nameMS_fixms.log', commandType='python')
 
     # only ms created in range (2/2013->2/2014)
-    with pt.table(MSs.getListStr[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
+    with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
         t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
         time = np.int(t.iso.replace('-','')[0:8])
     if time > 20130200 and time < 20140300:
         logger.info('Fix beam table...')
-        MSs.run('/home/fdg/scripts/fixinfo/fixbeaminfo $pathMS', log='$nameMS_fixbeam.log')
+        MSs.run('/home/fdg/scripts/fixinfo/fixbeaminfo $pathMS', log='$nameMS_fixbeam.log', commandType='python')
 
 ########################################
 if flag_elev:
     logger.info('Flagging elevation...')
-    MSs.run('NDPPP '+parset_dir+'/NDPPP-flag-elev.parset msin=$pathMS', log='$nameMS_flag-elev.log', cmd_type='NDPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-flag-elev.parset msin=$pathMS', log='$nameMS_flag-elev.log', commandType='DPPP')
 
 ######################################
 # Avg to 4 chan and 4 sec
 # Remove internationals
 if rename:
     logger.info('Renaming/averaging...')
-    nchan = MSs.getListObj[0].getNchan()
-    timeint = MSs.getListObj[0].getTimeInt()
+    nchan = MSs.getListObj()[0].getNchan()
+    timeint = MSs.getListObj()[0].getTimeInt()
     if nchan % 4 != 0 and nchan != 1:
         logger.error('Channels should be a multiple of 4.')
         sys.exit(1)
@@ -132,22 +132,19 @@ if rename:
         logger.info('Average in freq (factor of %i) and time (factor of %i)...' % (avg_factor_f, avg_factor_t))
 
     with open('renamed.txt','a') as flog:
-        MSs = lib_ms.AllMSs([MS in glob.glob(datadir+'/*MS') if not os.path.exists(getName(MS))], s)
+        MSs = lib_ms.AllMSs([MS for MS in glob.glob('*MS') if not os.path.exists(getName(MS))], s)
         if avg_factor_f != 1 or avg_factor_t != 1:
             for MS in MSs.getListStr():
                 flog.write(MS+'\n')
                 MSout = getName(MS)
-                s.add('NDPPP '+parset_dir+'/NDPPP-avg.parset msin='+MS+' msout='+MSout+' msin.datacolumn=DATA \
+                s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS+' msout='+MSout+' msin.datacolumn=DATA \
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
-                        log=MS+'_avg.log', cmd_type='NDPPP')
-                s.run(check=True, max_threads=20) # limit threads to prevent I/O isssues
+                        log=MS+'_avg.log', commandType='DPPP')
+                s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
         else:
             logger.info('Move data - no averaging...')
             for MS in MSs.getObjList():
                 MSout = getName(MS.pathMS)
                 MS.move(MSout)
-
-    #logger.info('Cleaning up...')
-    #lib_util.check_rm('*MS')
 
 logger.info("Done.")

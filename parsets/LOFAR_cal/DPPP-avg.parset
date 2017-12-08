@@ -6,7 +6,7 @@ msout.writefullresflag = False
 
 numthreads = 1 # bug fix
 
-steps = [filter,avg]
+steps = [filter, avg, count]
 
 # do not copy aucorr as they have too weird weights for dysco
 # do not copy international

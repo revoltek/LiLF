@@ -45,7 +45,7 @@ class AllMSs(object):
         return ' '.join(self.mssListStr)
 
 
-    def run(self, command, commandType, log, maxThreads=None):
+    def run(self, command, log, commandType='', maxThreads=None):
         """
         Run command 'command' of type 'commandType', and use 'log' for logger,
         for each MS of AllMSs.
@@ -64,7 +64,7 @@ class AllMSs(object):
             #lib_util.printLineBold("logCurrent:")
             #print (logCurrent)
 
-        self.scheduler.run(check = True, max_threads = maxThreads)
+        self.scheduler.run(check = True, maxThreads = maxThreads)
 
 
 class MS(object):
@@ -89,7 +89,7 @@ class MS(object):
                 #logger.warning("Although the field name '" + nameFieldOld + "' is not recognised as a known calibrator name, " +
                 #                "the phase centre coordinates suggest that this scan is a calibrator scan. Changing field name into '" +
                 #                nameFieldNew + "'...")
-                #self.setNameField(nameFieldNew)
+                self.setNameField(nameFieldNew)
 
 
     def setPathVariables(self, pathMS):
@@ -104,13 +104,20 @@ class MS(object):
         self.nameMS        = self.pathMS[indexLastSlash + 1 : -3]
 
 
-    def move(self, pathMSNew):
+    def move(self, pathMSNew, overwrite=False, keepOrig=False):
         """
         Move (or rename) the MS to another locus in the file system.
         """
         logger.debug('Move: '+self.pathMS+' -> '+pathMSNew)
-        shutil.move(self.pathMS, pathMSNew)
-        self.setPathVariables(pathMSNew)
+        if overwrite == True:
+            lib_util.check_rm(pathMSNew)
+        if not os.path.exists(pathMSNew):
+            if keepOrig:
+                shutil.copytree(self.pathMS, pathMSNew)
+            else:
+                shutil.move(self.pathMS, pathMSNew)
+
+            self.setPathVariables(pathMSNew)
 
 
     def setNameField(self, nameField):
@@ -134,7 +141,7 @@ class MS(object):
         """
         Returns a list of distances (in degrees) to known calibrators, sorted by distance from small to large.
         """
-        myRA, myDec                                    = self.get_phase_centre()
+        myRA, myDec                                    = self.getPhaseCentre()
         calibratorRAs, calibratorDecs, calibratorNames = lib_util.getCalibratorProperties()
         calibratorDistances                            = lib_util.distanceOnSphere(myRA, myDec, calibratorRAs, calibratorDecs)
 
@@ -146,7 +153,7 @@ class MS(object):
         """
         Returns a list of names of known calibrators, sorted by distance from small to large.
         """
-        myRA, myDec                                    = self.get_phase_centre()
+        myRA, myDec                                    = self.getPhaseCentre()
         calibratorRAs, calibratorDecs, calibratorNames = lib_util.getCalibratorProperties()
         calibratorDistances                            = lib_util.distanceOnSphere(myRA, myDec, calibratorRAs, calibratorDecs)
 

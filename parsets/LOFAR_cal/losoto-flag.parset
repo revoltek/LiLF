@@ -7,10 +7,6 @@ Ncpu = 20
 #flagBad = False
 #ant = [CS031LBA, RS409LBA]
 
-#LoSoTo.Steps.reweight.Operation = REWEIGHT
-#LoSoTo.Steps.reweight.WeightVal = 0.
-#LoSoTo.Steps.reweight.time.minmax = [4868874002,4868874015] # first 3 timeslots
-
 [plotA1]
 operation = PLOT
 soltab = sol000/amplitude000

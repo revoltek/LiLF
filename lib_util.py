@@ -150,7 +150,7 @@ def run_losoto(s, c, h5s, parsets, concat='freq'):
 
     for parset in parsets:
         logger.debug('-- executing '+parset+'...')
-        s.add('losoto -V '+h5+' '+parset, log='losoto-'+c+'.log', log_append=True, commandType="python", processors='max')
+        s.add('losoto -V '+h5+' '+parset, log='losoto-'+c+'.log', logAppend=True, commandType="python", processors='max')
         s.run(check = True)
 
     check_rm('plots-' + c)
@@ -158,11 +158,11 @@ def run_losoto(s, c, h5s, parsets, concat='freq'):
 
 
 class Scheduler():
-    def __init__(self, qsub = None, max_threads = None, max_processors = None, log_dir = 'logs', dry = False):
+    def __init__(self, qsub = None, maxThreads = None, max_processors = None, log_dir = 'logs', dry = False):
         """
         qsub:           if true call a shell script which call qsub and then wait
                         for the process to finish before returning
-        max_threads:    max number of parallel processes
+        maxThreads:    max number of parallel processes
         dry:            don't schedule job
         max_processors: max number of processors in a node (ignored if qsub=False)
         """
@@ -181,17 +181,17 @@ class Scheduler():
                 logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
                 sys.exit(1)
 
-        if (max_threads == None):
+        if (maxThreads == None):
             if   (self.cluster == "Hamburg"):
-                self.max_threads = 32
+                self.maxThreads = 32
             elif (self.cluster == "Leiden"):
-                self.max_threads = 64
+                self.maxThreads = 64
             elif (self.cluster == "CEP3"):
-                self.max_threads = 40
+                self.maxThreads = 40
             else:
-                self.max_threads = 12
+                self.maxThreads = 12
         else:
-            self.max_threads = max_threads
+            self.maxThreads = maxThreads
 
         if (max_processors == None):
             if   (self.cluster == "Hamburg"):
@@ -206,7 +206,7 @@ class Scheduler():
             self.max_processors = max_processors
 
         self.dry = dry
-        logger.info("Scheduler initialised for cluster " + self.cluster + " (max_threads: " + str(self.max_threads) + ", qsub (multinode): " +
+        logger.info("Scheduler initialised for cluster " + self.cluster + " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
                      str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
 
         self.action_list = []
@@ -235,19 +235,19 @@ class Scheduler():
             return "Unknown"
 
 
-    def add(self, cmd = '', log = '', log_append = True, commandType = '', processors = None):
+    def add(self, cmd = '', log = '', logAppend = True, commandType = '', processors = None):
         """
         Add a command to the scheduler list
         cmd:         the command to run
         log:         log file name that can be checked at the end
-        log_append:  if True append, otherwise replace
+        logAppend:  if True append, otherwise replace
         commandType: can be a list of known command types as "BBS", "DPPP", ...
         processors:  number of processors to use, can be "max" to automatically use max number of processors per node
         """
         if (log != ''):
             log = self.log_dir + '/' + log
 
-            if (log_append):
+            if (logAppend):
                 cmd += " >> "
             else:
                 cmd += " > "
@@ -278,7 +278,7 @@ class Scheduler():
         if (log != ""):
             self.log_list.append((log, commandType))
 
-#    def add_casa(self, cmd = '', params = {}, wkd = None, log = '', log_append = False, processors = None):
+#    def add_casa(self, cmd = '', params = {}, wkd = None, log = '', logAppend = False, processors = None):
 #        """
 #        Run a casa command pickling the parameters passed in params
 #        NOTE: running casa commands in parallel is a problem for the log file, better avoid
@@ -304,8 +304,8 @@ class Scheduler():
 #            sys.exit(1)
 #
 #        if self.qsub:
-#            if log != '' and not log_append: casacmd = str(processors)+' \''+casacmd+' > '+log+' 2>&1'
-#            elif log != '' and log_append: casacmd = str(processors)+' \''+casacmd+' >> '+log+' 2>&1'
+#            if log != '' and not logAppend: casacmd = str(processors)+' \''+casacmd+' > '+log+' 2>&1'
+#            elif log != '' and logAppend: casacmd = str(processors)+' \''+casacmd+' >> '+log+' 2>&1'
 #            else: casacmd = str(processors)+' \''+casacmd
 #
 #            # clean up casa remnants in Hamburg cluster
@@ -317,9 +317,9 @@ class Scheduler():
 #            else:
 #                self.action_list.append(casacmd+'\'')
 #        else:
-#            if (log != '' and not log_append):
+#            if (log != '' and not logAppend):
 #                self.action_list.append(casacmd + ' > ' + log + ' 2>&1')
-#            elif (log != '' and log_append):
+#            elif (log != '' and logAppend):
 #                self.action_list.append(casacmd + ' >> ' + log + ' 2>&1')
 #            else:
 #                self.action_list.append(casacmd)
@@ -328,7 +328,7 @@ class Scheduler():
 #            self.log_list.append((log, "CASA"))
 
 
-    def run(self, check = False, max_threads = None):
+    def run(self, check = False, maxThreads = None):
         """
         If 'check' is True, a check is done on every log in 'self.log_list'.
         If max_thread != None, then it overrides the global values, useful for special commands that need a lower number of threads.
@@ -349,13 +349,13 @@ class Scheduler():
                 subprocess.call(cmd, shell = True)
 
         # limit threads only when qsub doesn't do it
-        if (max_threads == None):
-            max_threads_run = self.max_threads
+        if (maxThreads == None):
+            maxThreads_run = self.maxThreads
         else:
-            max_threads_run = min(max_threads, self.max_threads)
+            maxThreads_run = min(maxThreads, self.maxThreads)
 
         q       = Queue()
-        threads = [Thread(target = worker, args=(q,)) for _ in range(max_threads_run)]
+        threads = [Thread(target = worker, args=(q,)) for _ in range(maxThreads_run)]
 
         for i, t in enumerate(threads): # start workers
             t.daemon = True

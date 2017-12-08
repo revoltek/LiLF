@@ -19,15 +19,8 @@ import lsmtool
 
 parset_dir = '/home/fdg/scripts/autocal/parset_self'
 niter = 3
-cc_predict = True
 
-########################################################
-from LiLF import lib_ms, lib_util, lib_log, make_mask
-lib_log.set_logger('pipeline-self.logger')
-logger = lib_log.logger
-lib_util.check_rm('logs')
-s = lib_util.Scheduler(dry = False)
-
+# Temporary
 if 'tooth' in os.getcwd():
     sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/toothbrush.LBA.skydb'
     apparent = True # no beam correction
@@ -54,45 +47,52 @@ else:
 
 assert os.path.exists(sourcedb)
 
+########################################################
+from LiLF import lib_ms, lib_img, lib_util, lib_log, make_mask
+lib_log.set_logger('pipeline-self.logger')
+logger = lib_log.logger
+lib_util.check_rm('logs')
+s = lib_util.Scheduler(dry = False)
+
 #############################################################################
 
-def ft_model_wsclean(mss, imagename, c, user_mask = None, keep_in_beam=True, resamp = None, model_column='MODEL_DATA'):
-    """
-    mss : vector of mss
-    imagename : root name for wsclean model images
-    resamp : must be '10asec' or another pixels size to resample models
-    keep_in_beam : if True remove everything outside primary beam, otherwise everything inside
-    """
-    logger.info('Predict with model image...')
-
-    # remove CC not in mask
-    logger.info('Predict (mask)...')
-    maskname = imagename+'-mask.fits'
-    make_mask(image_name = imagename+'-MFS-image.fits', mask_name = maskname, threshisl = 5, atrous_do=True)
-    if user_mask is not None: 
-        blank_image_reg(maskname, user_mask, inverse=False, blankval=1)
-    blank_image_reg(maskname, 'self/beam.reg', inverse=keep_in_beam)
-    for modelname in sorted(glob.glob(imagename+'*model.fits')):
-        blank_image_fits(modelname, maskname, inverse=True)
-
-    if resamp is not None:
-        logger.info('Predict (resamp)...')
-        for model in sorted(glob.glob(imagename+'*model.fits')):
-            model_out = model.replace(imagename, imagename+'-resamp')
-            s.add('/home/fdg/opt/src/nnradd/build/nnradd '+resamp+' '+model_out+' '+model, log='resamp-c'+str(c)+'.log', log_append=True, cmdType='general')
-        s.run(check=True)
-        imagename = imagename+'-resamp'
- 
-    logger.info('Predict (ft)...')
-    s.add('wsclean -predict -name ' + imagename + ' -mem 90 -j '+str(s.max_processors)+' -channelsout 10 '+' '.join(mss), \
-            log='wscleanPRE-c'+str(c)+'.log', cmdType='wsclean', processors='max')
-    s.run(check=True)
-
-    if model_column != 'MODEL_DATA':
-        logger.info('Predict (set %s = MODEL_DATA)...' % model_column)
-        for ms in mss:
-            s.add('taql "update '+ms+' set '+model_column+' = MODEL_DATA"', log=ms+'_taql0-c'+str(c)+'.log', cmdType='general')
-        s.run(check=True)
+#def ft_model_wsclean(mss, imagename, c, user_mask = None, keep_in_beam=True, resamp = None, model_column='MODEL_DATA'):
+#    """
+#    mss : vector of mss
+#    imagename : root name for wsclean model images
+#    resamp : must be '10asec' or another pixels size to resample models
+#    keep_in_beam : if True remove everything outside primary beam, otherwise everything inside
+#    """
+#    logger.info('Predict with model image...')
+#
+#    # remove CC not in mask
+#    logger.info('Predict (mask)...')
+#    maskname = imagename+'-mask.fits'
+#    make_mask(image_name = imagename+'-MFS-image.fits', mask_name = maskname, threshisl = 5, atrous_do=True)
+#    if user_mask is not None: 
+#        blank_image_reg(maskname, user_mask, inverse=False, blankval=1)
+#    blank_image_reg(maskname, 'self/beam.reg', inverse=keep_in_beam)
+#    for modelname in sorted(glob.glob(imagename+'*model.fits')):
+#        blank_image_fits(modelname, maskname, inverse=True)
+#
+#    if resamp is not None:
+#        logger.info('Predict (resamp)...')
+#        for model in sorted(glob.glob(imagename+'*model.fits')):
+#            model_out = model.replace(imagename, imagename+'-resamp')
+#            s.add('/home/fdg/opt/src/nnradd/build/nnradd '+resamp+' '+model_out+' '+model, log='resamp-c'+str(c)+'.log', log_append=True, cmdType='general')
+#        s.run(check=True)
+#        imagename = imagename+'-resamp'
+# 
+#    logger.info('Predict (ft)...')
+#    s.add('wsclean -predict -name ' + imagename + ' -mem 90 -j '+str(s.max_processors)+' -channelsout 10 '+' '.join(mss), \
+#            log='wscleanPRE-c'+str(c)+'.log', cmdType='wsclean', processors='max')
+#    s.run(check=True)
+#
+#    if model_column != 'MODEL_DATA':
+#        logger.info('Predict (set %s = MODEL_DATA)...' % model_column)
+#        for ms in mss:
+#            s.add('taql "update '+ms+' set '+model_column+' = MODEL_DATA"', log=ms+'_taql0-c'+str(c)+'.log', cmdType='general')
+#        s.run(check=True)
 
 
 def ft_model_cc(mss, imagename, c, user_mask = None, keep_in_beam=True, model_column='MODEL_DATA'):
@@ -361,34 +361,20 @@ for c in xrange(niter):
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
     #TODO: -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,9 \
-    if cc_predict:
-        #s.add('wsclean -reorder -name ' + imagename + ' -size 3000 3000 -trim 2500 2500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-        s.add('wsclean -reorder -name ' + imagename + ' -size 3500 3500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+    #s.add('wsclean -reorder -name ' + imagename + ' -size 3000 3000 -trim 2500 2500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+    s.add('wsclean -reorder -name ' + imagename + ' -size 3500 3500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 12arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -maxuv-l 5000 -mgain 0.8 \
             -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
             -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 0.1 -minuv-l 30 -save-source-list -fitsmask '+maskname+' '+' '.join(mss), \
-            log='wscleanM-c'+str(c)+'.log', cmdType='wsclean', processors='max')
-    else:
-        #s.add('wsclean -reorder -name ' + imagename + ' -size 3000 3000 -trim 2500 2500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-        s.add('wsclean -reorder -name ' + imagename + ' -size 3500 3500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-            -scale 12arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -maxuv-l 5000 -mgain 0.8 \
-            -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
-            -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 0.1 -minuv-l 30 -fitsmask '+maskname+' '+' '.join(mss), \
             log='wscleanM-c'+str(c)+'.log', cmdType='wsclean', processors='max')
     s.run(check=True)
     os.system('cat logs/wscleanM-c'+str(c)+'.log | grep "background noise"')
 
     if c > 0 and c != niter:
-        if cc_predict:
-            ft_model_cc(mss, imagename, c, user_mask=user_mask, keep_in_beam=True, model_column='MODEL_DATA')
-        else:
-            ft_model_wsclean(mss, imagename, c, user_mask=user_mask, resamp='10asec', keep_in_beam=True)
+        ft_model_cc(mss, imagename, c, user_mask=user_mask, keep_in_beam=True, model_column='MODEL_DATA')
     # do low-res first cycle and remove it from the data
     if c == 0:
-        if cc_predict:
-            ft_model_cc(mss, imagename, c, user_mask=user_mask, keep_in_beam=True, model_column='MODEL_DATA_HIGHRES')
-        else:
-            ft_model_wsclean(mss, imagename, c, user_mask=user_mask, resamp='10asec', keep_in_beam=True, model_column='MODEL_DATA_HIGHRES')
+        ft_model_cc(mss, imagename, c, user_mask=user_mask, keep_in_beam=True, model_column='MODEL_DATA_HIGHRES')
 
         # Subtract model from all TCs - concat.MS:CORRECTED_DATA - MODEL_DATA -> concat.MS:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
         logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_HIGHRES)...')
@@ -398,24 +384,14 @@ for c in xrange(niter):
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
-        if cc_predict:
-            #s.add('wsclean -reorder -name ' + imagename_lr + ' -size 4500 4500 -trim 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-            s.add('wsclean -reorder -name ' + imagename_lr + ' -size 6000 6000 -trim 5500 5500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+        #s.add('wsclean -reorder -name ' + imagename_lr + ' -size 4500 4500 -trim 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+        s.add('wsclean -reorder -name ' + imagename_lr + ' -size 6000 6000 -trim 5500 5500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
                 -scale 20arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -maxuv-l 2000 -mgain 0.8 \
                 -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 1 -minuv-l 100 -save-source-list '+' '.join(mss), \
                 log='wsclean-lr.log', cmdType='wsclean', processors='max')
-        else:
-            #s.add('wsclean -reorder -name ' + imagename_lr + ' -size 4500 4500 -trim 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-            s.add('wsclean -reorder -name ' + imagename_lr + ' -size 6000 6000 -trim 5500 5500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-                -scale 20arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -maxuv-l 2000 -mgain 0.8 \
-                -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 1 -minuv-l 100 '+' '.join(mss), \
-                log='wsclean-lr.log', cmdType='wsclean', processors='max')
         s.run(check=True)
        
-        if cc_predict:
-            ft_model_cc(mss, imagename_lr, 'lr', keep_in_beam=False, model_column='MODEL_DATA')
-        else:
-            ft_model_wsclean(mss, imagename_lr, 'lr', user_mask=None, resamp='10asec', keep_in_beam=False)
+        ft_model_cc(mss, imagename_lr, 'lr', keep_in_beam=False, model_column='MODEL_DATA')
 
         # corrupt model with TEC solutions ms:MODEL_DATA -> ms:MODEL_DATA
         if multiepoch: h5 = '$pathMS/tec.h5'
@@ -447,7 +423,7 @@ os.system('~/opt/src/makeavgpb/build/wsbeam.py img/wideBeam')
 
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in xrange(niter) ]
-if cc_predict: [ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in xrange(niter) ]
+[ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in xrange(niter) ]
 os.system('mv img/wide-lr-MFS-image.fits self/images')
 os.system('mv img/wideBeam-MFS-image.fits  img/wideBeam-MFS-image-pb.fits self/images')
 os.system('mv img/wideBeamHR-MFS-image.fits  img/wideBeamHR-MFS-image-pb.fits self/images')
