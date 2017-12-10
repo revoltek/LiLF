@@ -52,7 +52,7 @@ logger.info("Flagging...")
 MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flag1.baseline=" + bl2flag, log="$nameMS_flag.log", commandType = "DPPP")
 
 # predict to save time ms:MODEL_DATA
-logger.info('Predict...')
+logger.info('Add model to MODEL_DATA...')
 skymodel   = "/home/fdg/scripts/LiLF/models/calib-simple.skydb"
 MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log = "$nameMS_pre.log", commandType = "DPPP")
 
@@ -84,7 +84,7 @@ lib_util.run_losoto(s, 'fr', [ms+'/fr.h5' for ms in MSs.getListStr()], [parset_d
 
 # Beam correction DATA -> CORRECTED_DATA
 logger.info('Beam correction...')
-MSs.run('DPPP ' + parset_dir + '/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam.log', commandType = "DPPP")
+MSs.run('DPPP ' + parset_dir + '/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam2.log', commandType = "DPPP")
 
 # Correct FR CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Faraday rotation correction...')
@@ -181,7 +181,7 @@ if imaging:
     os.makedirs('img')
     imagename = 'img/wide'
     s.add('wsclean -reorder -name ' + imagename + ' -size 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-            -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.9 \
+            -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.9 -minuv-l 100 \
             -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 20 '+MSs.getStrWsclean(), \
             log='wscleanA.log', commandType ='wsclean', processors='max')
     s.run(check = True)
@@ -195,7 +195,7 @@ if imaging:
     s.add('wsclean -reorder -name ' + imagename + ' -size 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.8 -minuv-l 100 \
             -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 0.1 -save-source-list -apply-primary-beam -use-differential-lofar-beam \
-            -fitsmask '+maskname+' '+MSs.getStrWsclean(), \
+            -fitsmask '+im.maskname+' '+MSs.getStrWsclean(), \
             log='wscleanB.log', commandType = 'wsclean', processors = 'max')
     s.run(check = True)
 
@@ -207,7 +207,7 @@ if imaging:
     logger.info('Predict (apply mask)...')
     lsm = lsmtool.load(imagename+'-sources-pb.txt')
     lsm.select('%s == True' % (imagename+'-mask.fits'))
-    cRA, cDEC = get_phase_centre(MSs[0])
+    cRA, cDEC = MSs.getListObj[0].getPhaseCentre()
     lsm.select( lsm.getDistance(cRA, cDEC) > 0.1 ) # remove very centra part
     lsm.group('every')
     lsm.write(imagename+'-sources-pb-cut.txt', format='makesourcedb', clobber = True)

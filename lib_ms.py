@@ -256,12 +256,12 @@ class MS(object):
 
         if pb_cut is None:
             if 'OUTER' in self.getObsMode():
-                seize = 7./2. # OUTER
+                size = 7./2. # OUTER
             elif 'SPARSE' in self.getObsMode():
-                seize = 12./2. # OUTER
+                size = 12./2. # OUTER
             else:
                 logger.error('Cannot find beam size, only LBA_OUTER or LBA_SPARSE_* are implemented. Assuming beam diameter = 7 deg.')
-                seize = 7./2.
+                size = 7./2.
         else:
             size = pb_cut/2.
 
@@ -274,5 +274,5 @@ class MS(object):
         s.comment = 'color=red text="beam"'
 
         regions = pyregion.ShapeList([s])
-        check_rm(outfile)
+        lib_util.check_rm(outfile)
         regions.write(outfile)

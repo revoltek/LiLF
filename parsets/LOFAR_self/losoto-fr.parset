@@ -1,76 +1,77 @@
-# losoto parset
-LoSoTo.Steps = [plotPi, plotAi1, plotAi2, plotAi3, faraday, plotFR, residuals, plotPr]
-LoSoTo.Solset = [sol000]
-LoSoTo.Soltab = []
-LoSoTo.SolType = []
-LoSoTo.ant = []
-LoSoTo.pol = [XX, YY]
-LoSoTo.dir = []
-LoSoTo.Ncpu = 0
+Ncpu = 0
 
-# plots of G
-LoSoTo.Steps.plotPi.Operation = PLOT
-LoSoTo.Steps.plotPi.Soltab = [sol000/phase000]
-LoSoTo.Steps.plotPi.Axes = [time,freq]
-LoSoTo.Steps.plotPi.TableAxis = ant
-LoSoTo.Steps.plotPi.DiffAxis = pol
-LoSoTo.Steps.plotPi.PlotFlag = True
-LoSoTo.Steps.plotPi.Prefix = plots/ph_
-LoSoTo.Steps.plotPi.Reference = 'CS002LBA'
-LoSoTo.Steps.plotPi.MinMax = [-3.14,3.14]
+[plotA1]
+operation = PLOT
+soltab = [sol000/amplitude000]
+freq.minmaxstep = [0,100e6,30]
+axesInPlot = time
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/amp_
+minmax = [0,2]
 
-LoSoTo.Steps.plotAi1.Operation = PLOT
-LoSoTo.Steps.plotAi1.Soltab = [sol000/amplitude000]
-LoSoTo.Steps.plotAi1.freq.minmax = [0,100e6,30]
-LoSoTo.Steps.plotAi1.Axes = time
-LoSoTo.Steps.plotAi1.TableAxis = ant
-LoSoTo.Steps.plotAi1.ColorAxis = pol
-LoSoTo.Steps.plotAi1.PlotFlag = True
-LoSoTo.Steps.plotAi1.Prefix = plots/amp_
-LoSoTo.Steps.plotAi1.Columns = 2
-LoSoTo.Steps.plotAi1.FigSize = [20,20]
-LoSoTo.Steps.plotAi1.MinMax = [0,2]
+[plotA2]
+operation = PLOT
+soltab = [sol000/amplitude000]
+time.minmaxstep = [0,1e20,200]
+axesInPlot = freq
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/amp_
+minmax = [0,2]
 
-LoSoTo.Steps.plotAi2.Operation = PLOT
-LoSoTo.Steps.plotAi2.Soltab = [sol000/amplitude000]
-LoSoTo.Steps.plotAi2.time.minmax = [0,1e20,200]
-LoSoTo.Steps.plotAi2.Axes = freq
-LoSoTo.Steps.plotAi2.TableAxis = ant
-LoSoTo.Steps.plotAi2.ColorAxis = pol
-LoSoTo.Steps.plotAi2.PlotFlag = True
-LoSoTo.Steps.plotAi2.Prefix = plots/amp_
-LoSoTo.Steps.plotAi2.MinMax = [0,2]
+[plotA3]
+operation = PLOT
+soltab = [sol000/amplitude000]
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/amp_
+minmax = [0,2]
 
-LoSoTo.Steps.plotAi3.Operation = PLOT
-LoSoTo.Steps.plotAi3.Soltab = [sol000/amplitude000]
-LoSoTo.Steps.plotAi3.Axes = [time,freq]
-LoSoTo.Steps.plotAi3.TableAxis = ant
-LoSoTo.Steps.plotAi3.PlotFlag = True
-LoSoTo.Steps.plotAi3.Prefix = plots/amp_
-LoSoTo.Steps.plotAi3.MinMax = [0,2]
+[duplicate]
+operation = DUPLICATE
+soltab = sol000/phase000
+soltabOut = phaseOrig000
 
-# faraday rotation extraction
-LoSoTo.Steps.faraday.Operation = FARADAY
-LoSoTo.Steps.faraday.Soltab = [sol000/phase000]
-LoSoTo.Steps.faraday.MaxResidual = 2.
+[plotP1]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlotInPlot = [time,freq]
+AxisInTable = ant
+AxisDiff = pol
+plotFlag = True
+prefix = plots/ph-rot
+refAnt = CS002LBA
+minmax = [-3.14,3.14]
 
-LoSoTo.Steps.plotFR.Operation = PLOT
-LoSoTo.Steps.plotFR.Soltab = [sol000/rotationmeasure000]
-LoSoTo.Steps.plotFR.Axes = [time]
-LoSoTo.Steps.plotFR.TableAxis = ant
-LoSoTo.Steps.plotFR.Prefix = plots/fr
+[faraday]
+operation = FARADAY
+soltab = sol000/phase000
+refAnt = CS002LBA
+maxResidual = 2.
 
-# calculate residuals
-LoSoTo.Steps.residuals.Operation = RESIDUALS
-LoSoTo.Steps.residuals.Soltab = [sol000/phase000]
-LoSoTo.Steps.residuals.Sub = [sol000/rotationmeasure000]
+[plotFR]
+operation = PLOT
+soltab = sol000/rotationmeasure000
+axesInPlotInPlot = [time]
+axisInTable = ant
+prefix = plots/fr
 
-LoSoTo.Steps.plotPr.Operation = PLOT
-LoSoTo.Steps.plotPr.Soltab = [sol000/phase000]
-LoSoTo.Steps.plotPr.Axes = [time,freq]
-LoSoTo.Steps.plotPr.TableAxis = ant
-LoSoTo.Steps.plotPr.DiffAxis = pol
-LoSoTo.Steps.plotPr.PlotFlag = True
-LoSoTo.Steps.plotPr.Prefix = plots/phRes_
-LoSoTo.Steps.plotPr.Reference = 'CS002LBA'
-LoSoTo.Steps.plotPr.MinMax = [-3.14,3.14]
+[residuals]
+operation = RESIDUALS
+soltab = sol000/phase000
+soltabsToSub = rotationmeasure000
+
+[plotPr]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlotInPlot = [time,freq]
+AxisInTable = ant
+AxisDiff = pol
+plotFlag = True
+prefix = plots/phRes-rot
+refAnt = CS002LBA
+minmax = [-3.14,3.14]

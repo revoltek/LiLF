@@ -165,4 +165,7 @@ else:
         os.system('mv mss_t*-%02i/*MS %s' % (group, groupname))
     lib_util.check_rm('mss_t*')
 
+logger.info('Cleaning up...')
+os.system('rm -r *MS')
+
 logger.info("Done.")
