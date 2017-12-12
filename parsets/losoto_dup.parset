@@ -1,7 +1,0 @@
-# losoto parset
-LoSoTo.Steps = [duplicate]
-LoSoTo.Ncpu = 0
-
-LoSoTo.Steps.duplicate.Operation = DUPLICATE
-LoSoTo.Steps.duplicate.InTable = solcd/amplitudeSmooth000
-LoSoTo.Steps.duplicate.OutTable = sol000/amplitudeSmooth000
