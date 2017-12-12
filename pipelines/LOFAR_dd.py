@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# Pipeline for direction dependent calibration
+
 parset_dir = '/home/fdg/scripts/autocal/parset_dd'
 maxniter = 10 # max iteration if not converged
 
