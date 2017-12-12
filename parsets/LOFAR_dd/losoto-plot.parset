@@ -1,38 +1,31 @@
 # losoto parset
-LoSoTo.Steps = [plotCSPTEC,plotCSP,plotTEC]
-LoSoTo.Solset = [sol000]
-LoSoTo.Soltab = []
-LoSoTo.SolType = []
-LoSoTo.ant = []
-LoSoTo.pol = [XX, YY]
-LoSoTo.dir = []
-LoSoTo.Ncpu = 10
+Ncpu = 0
 
-#plot CSP+TEC
-LoSoTo.Steps.plotCSPTEC.Operation = PLOT
-LoSoTo.Steps.plotCSPTEC.Soltab = [sol000/scalarphase000]
-LoSoTo.Steps.plotCSPTEC.Axes = time
-LoSoTo.Steps.plotCSPTEC.TableAxis = ant
-LoSoTo.Steps.plotCSPTEC.PlotFlag = True
-LoSoTo.Steps.plotCSPTEC.Prefix = plots/csptec_
-LoSoTo.Steps.plotCSPTEC.Reference = 'CS002LBA'
-LoSoTo.Steps.plotCSPTEC.Add = [sol000/tec000]
+[plotCSPTEC]
+operation = PLOT
+soltab = sol000/scalarphase000
+axesInPlot = time
+axesInTable = ant
+plotFlag = True
+prefix = plots/csptec_
+refAnt = 'CS002LBA'
+soltabToAdd = tec000
 
-# plot CSP
-LoSoTo.Steps.plotCSP.Operation = PLOT
-LoSoTo.Steps.plotCSP.Soltab = [sol000/scalarphase000]
-LoSoTo.Steps.plotCSP.Axes = time
-LoSoTo.Steps.plotCSP.TableAxis = ant
-LoSoTo.Steps.plotCSP.PlotFlag = True
-LoSoTo.Steps.plotCSP.Prefix = plots/csp_
-LoSoTo.Steps.plotCSP.Reference = 'CS002LBA'
+[plotCSP]
+operation = PLOT
+soltab = sol000/scalarphase000
+axesInPlot = time
+axesInTable = ant
+plotFlag = True
+prefix = plots/csp_
+refAnt = 'CS002LBA'
 
-# plot TEC
-LoSoTo.Steps.plotTEC.Operation = PLOT
-LoSoTo.Steps.plotTEC.Soltab = [sol000/tec000]
-LoSoTo.Steps.plotTEC.Axes = time
-LoSoTo.Steps.plotTEC.TableAxis = ant
-LoSoTo.Steps.plotTEC.PlotFlag = True
-LoSoTo.Steps.plotTEC.MinMax = [-0.5,0.5]
-LoSoTo.Steps.plotTEC.Prefix = plots/tec_
-LoSoTo.Steps.plotTEC.Reference = 'CS002LBA'
+[plotTEC]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = time
+axesInTable = ant
+plotFlag = True
+minmax = [-0.5,0.5]
+prefix = plots/tec_
+refAnt = 'CS002LBA'
