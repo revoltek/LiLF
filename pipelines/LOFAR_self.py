@@ -24,19 +24,19 @@ niter = 3
 if 'tooth' in os.getcwd():
     sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/toothbrush.LBA.skydb'
     apparent = True # no beam correction
-    user_mask = '/home/fdg/scripts/autocal/regions/tooth.reg'
+    userReg = '/home/fdg/scripts/autocal/regions/tooth.reg'
     multiepoch = False
 elif 'bootes' in os.getcwd():
     sourcedb = '/home/fdg/scripts/model/Bootes_HBA.corr.skydb'
     apparent = False
-    user_mask = None
+    userReg = None
     multiepoch = False
 else:
     # Survey
     obs = os.getcwd().split('/')[-1]
     sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/skymodels/%s.skydb' % obs
     apparent = False
-    user_mask = None
+    userReg = None
     multiepoch = True
     if not os.path.exists('mss'):
         os.makedirs('mss')
@@ -55,91 +55,11 @@ lib_util.check_rm('logs')
 s = lib_util.Scheduler(dry = False)
 
 #############################################################################
-
-#def ft_model_wsclean(mss, imagename, c, user_mask = None, keep_in_beam=True, resamp = None, model_column='MODEL_DATA'):
-#    """
-#    mss : vector of mss
-#    imagename : root name for wsclean model images
-#    resamp : must be '10asec' or another pixels size to resample models
-#    keep_in_beam : if True remove everything outside primary beam, otherwise everything inside
-#    """
-#    logger.info('Predict with model image...')
-#
-#    # remove CC not in mask
-#    logger.info('Predict (mask)...')
-#    maskname = imagename+'-mask.fits'
-#    make_mask(image_name = imagename+'-MFS-image.fits', mask_name = maskname, threshisl = 5, atrous_do=True)
-#    if user_mask is not None: 
-#        blank_image_reg(maskname, user_mask, inverse=False, blankval=1)
-#    blank_image_reg(maskname, 'self/beam.reg', inverse=keep_in_beam)
-#    for modelname in sorted(glob.glob(imagename+'*model.fits')):
-#        blank_image_fits(modelname, maskname, inverse=True)
-#
-#    if resamp is not None:
-#        logger.info('Predict (resamp)...')
-#        for model in sorted(glob.glob(imagename+'*model.fits')):
-#            model_out = model.replace(imagename, imagename+'-resamp')
-#            s.add('/home/fdg/opt/src/nnradd/build/nnradd '+resamp+' '+model_out+' '+model, log='resamp-c'+str(c)+'.log', log_append=True, commandType='general')
-#        s.run(check=True)
-#        imagename = imagename+'-resamp'
-# 
-#    logger.info('Predict (ft)...')
-#    s.add('wsclean -predict -name ' + imagename + ' -mem 90 -j '+str(s.max_processors)+' -channelsout 10 '+' '.join(mss), \
-#            log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-#    s.run(check=True)
-#
-#    if model_column != 'MODEL_DATA':
-#        logger.info('Predict (set %s = MODEL_DATA)...' % model_column)
-#        for ms in mss:
-#            s.add('taql "update '+ms+' set '+model_column+' = MODEL_DATA"', log=ms+'_taql0-c'+str(c)+'.log', commandType='general')
-#        s.run(check=True)
-
-
-def ft_model_cc(MSs, imagename, c, user_mask = None, keep_in_beam=True, model_column='MODEL_DATA'):
-    """
-    skymodel : cc-list made by wsclean
-    keep_in_beam : if True remove everything outside primary beam, otherwise everything inside
-    """
-    logger.info('Predict with CC...')
-    maskname = imagename+'-mask.fits'
-    skymodel = imagename+'-sources.txt'
-    skymodel_cut = imagename+'-sources-cut.txt'
-    skydb = imagename+'-sources.skydb'
-
-    # prepare mask
-    if not os.path.exists(maskname):
-        logger.info('Predict (make mask)...')
-        make_mask(image_name = imagename+'-MFS-image.fits', mask_name = maskname, threshisl = 5, atrous_do=True)
-    if user_mask is not None:
-        blank_image_reg(maskname, user_mask, inverse=False, blankval=1) # set to 1 pixels into user_mask
-    blank_image_reg(maskname, 'self/beam.reg', inverse=keep_in_beam, blankval=0) # if keep_in_beam set to 0 everything outside beam.reg
-
-    # apply mask
-    logger.info('Predict (apply mask)...')
-    lsm = lsmtool.load(skymodel)
-    lsm.select('%s == True' % maskname)
-    fluxes = lsm.getColValues('I')
-    #lsm.remove(np.abs(fluxes) < 5e-4) # TEST
-    lsm.write(skymodel_cut, format='makesourcedb', clobber=True)
-    del lsm
-
-    # convert to skydb
-    logger.info('Predict (makesourcedb)...')
-    lib_util.check_rm(skydb)
-    s.add('makesourcedb outtype="blob" format="<" in="'+skymodel_cut+'" out="'+skydb+'"', log='makesourcedb-c'+str(c)+'.log', commandType='general')
-    s.run(check=True)
-
-    # predict
-    logger.info('Predict (ft)...')
-    MSs.add('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn='+model_column+' pre.usebeammodel=false pre.sourcedb='+skydb, \
-                log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-
-#############################################################################
 # Clear
 logger.info('Cleaning...')
 
-lib_util.check_rm('img')
-os.makedirs('img')
+#lib_util.check_rm('img')
+#os.makedirs('img')
 
 # here images, models, solutions for each group will be saved
 lib_util.check_rm('self')
@@ -152,11 +72,7 @@ concat_ms = 'mss/concat.MS'
 # make beam
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
 MSs.getListObj()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
-
-###############################################################################################
-# Create columns (non compressed)
-logger.info('Creating MODEL_DATA_HIGHRES and SUBTRACTED_DATA...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
+beamReg = 'self/beam.reg'
 
 ##################################################################################################
 # Add model to MODEL_DATA
@@ -166,6 +82,10 @@ for MS in MSs.getListStr():
     lib_util.check_rm(MS+'/'+sourcedb_basename)
     logger.debug('Copy: '+sourcedb+' -> '+MS)
     os.system('cp -r '+sourcedb+' '+MS)
+
+# Create columns (non compressed)
+logger.info('Creating MODEL_DATA_HIGHRES and SUBTRACTED_DATA...')
+MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 
 logger.info('Add model to MODEL_DATA...')
 if apparent:
@@ -354,11 +274,11 @@ for c in xrange(niter):
     s.run(check=True)
 
     # make mask
-    im = lib_img.Image(imagename+'-MFS-image.fits', user_mask=user_mask)
+    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
     im.makeMask(threshisl = 3)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
-    imagename = 'img/wideM-'+str(c)
+   imagename = 'img/wideM-'+str(c)
     #TODO: -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,9 \
     s.add('wsclean -reorder -name ' + imagename + ' -size 3000 3000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 10arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -maxuv-l 5000 -mgain 0.8 \
@@ -368,11 +288,17 @@ for c in xrange(niter):
     s.run(check=True)
     os.system('cat logs/wscleanM-c'+str(c)+'.log | grep "background noise"')
 
+    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
+    im.selectCC(keepInBeam=True)
+
+    # predict
+    logger.info('Predict (ft)...')
     if c > 0 and c != niter:
-        ft_model_cc(MSs, imagename, c, user_mask=user_mask, keep_in_beam=True, model_column='MODEL_DATA')
-    # do low-res first cycle and remove it from the data
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb+'.skydb', \
+                log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
     if c == 0:
-        ft_model_cc(MSs, imagename, c, user_mask=user_mask, keep_in_beam=True, model_column='MODEL_DATA_HIGHRES')
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_HIGHRES pre.usebeammodel=false pre.sourcedb='+im.skydb+'.skydb', \
+                log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
 
         # Subtract model from all TCs - concat.MS:CORRECTED_DATA - MODEL_DATA -> concat.MS:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
         logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_HIGHRES)...')
@@ -388,8 +314,14 @@ for c in xrange(niter):
                 -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 1 -minuv-l 100 -save-source-list '+MSs.getStrWsclean(), \
                 log='wsclean-lr.log', commandType='wsclean', processors='max')
         s.run(check=True)
-       
-        ft_model_cc(mss, imagename_lr, 'lr', keep_in_beam=False, model_column='MODEL_DATA')
+        
+        im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
+        im.selectCC(keepInBeam=False)
+
+        # predict
+        logger.info('Predict (ft)...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb+'.skydb', \
+                log='$nameMS_pre-lr.log', commandType='DPPP')
 
         # corrupt model with TEC solutions ms:MODEL_DATA -> ms:MODEL_DATA
         if multiepoch: h5 = '$pathMS/tec.h5'
@@ -411,9 +343,7 @@ for c in xrange(niter):
     ###############################################################################################################
     # Flag on residuals (CORRECTED_DATA)
     #logger.info('Flagging residuals...')
-    #for ms in mss:
-    #    s.add('DPPP '+parset_dir+'/DPPP-flag.parset msin='+ms, log=ms+'_flag-c'+str(c)+'.log', commandType='DPPP')
-    #s.run(check=True
+    #MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', log='$nameMS_flag-c'+str(c)+'.log', commandType='DPPP')
     
 # make beam
 # TODO: remove when wsclean will produce a proper primary beam
