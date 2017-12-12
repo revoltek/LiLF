@@ -15,7 +15,6 @@
 import sys, os, glob, re
 import numpy as np
 import pyrap.tables as pt
-import lsmtool
 
 parset_dir = '/home/fdg/scripts/LiLF/parsets/LOFAR_self'
 niter = 3
@@ -48,23 +47,11 @@ else:
 assert os.path.exists(sourcedb)
 
 ########################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log, make_mask
+from LiLF import lib_ms, lib_img, lib_util, lib_log
 lib_log.set_logger('pipeline-self.logger')
 logger = lib_log.logger
 lib_util.check_rm('logs')
 s = lib_util.Scheduler(dry = False)
-
-#############################################################################
-# Clear
-logger.info('Cleaning...')
-
-#lib_util.check_rm('img')
-#os.makedirs('img')
-
-# here images, models, solutions for each group will be saved
-lib_util.check_rm('self')
-if not os.path.exists('self/images'): os.makedirs('self/images')
-if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 concat_ms = 'mss/concat.MS'
@@ -73,6 +60,18 @@ concat_ms = 'mss/concat.MS'
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
 MSs.getListObj()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
 beamReg = 'self/beam.reg'
+
+#############################################################################
+# Clear
+logger.info('Cleaning...')
+
+lib_util.check_rm('img')
+os.makedirs('img')
+
+# here images, models, solutions for each group will be saved
+lib_util.check_rm('self')
+if not os.path.exists('self/images'): os.makedirs('self/images')
+if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
 
 ##################################################################################################
 # Add model to MODEL_DATA
