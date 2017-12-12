@@ -81,12 +81,12 @@ if not os.path.exists('cal-iono.h5'):
 # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (calibrator corrected+reweight, beam corrected, circular)
 logger.info('Apply solutions...')
 MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.steps=[amp,ph] \
-        cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth000 cor.amp.updateweights = True\
+        cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth000 cor.amp.updateweights=True\
         cor.ph.parmdb=cal-iono.h5 cor.ph.correction=phaseOrig000', log='$nameMS_cor.log', commandType='DPPP')
 
 # Beam correction CORRECTED_DATA -> CORRECTED_DATA (beam corrected+reweight)
 logger.info('Beam correction...')
-MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam.log', commandType='DPPP')
+MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DPPP')
 
 # Re-set weights of flagged data to 0 - this is necessary if we want to use dysco
 # due to DPPP leaving flagged weight at super-high values compared to unflagged ones
@@ -164,5 +164,8 @@ else:
         os.makedirs(groupname)
         os.system('mv mss_t*-%02i/*MS %s' % (group, groupname))
     lib_util.check_rm('mss_t*')
+
+logger.info('Cleaning up...')
+os.system('rm -r *MS')
 
 logger.info("Done.")

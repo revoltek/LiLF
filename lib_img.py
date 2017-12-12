@@ -2,17 +2,23 @@ import os, sys
 import numpy as np
 import astropy.io.fits as pyfits
 import lsmtool
-from LiLF import make_mask
+from LiLF import make_mask, lib_util
 from lib_log import logger
 
 class Image(object):
-    def __init__(self, imagename, region_facet = None, user_mask = None):
+    def __init__(self, imagename, facetReg = None, userReg = None, beamReg= None ):
+        """
+        userMask: keep this region when making masks
+        BeamReg: ds9 region file of the beam
+        """
         self.imagename    = imagename
         self.maskname     = imagename.replace('MFS-image.fits', 'mask.fits')
         self.skymodel     = imagename.replace('MFS-image.fits', 'sources.txt')
         self.skymodel_cut = imagename.replace('MFS-image.fits', 'sources-cut.txt')
-        self.region_facet = region_facet
-        self.user_mask    = user_mask
+        self.skydb        = imagename.replace('MFS-image.fits', 'sources-cut.skydb')
+        self.userReg      = userReg
+        self.beamReg      = beamReg
+        self.facetReg     = facetReg
 
     def makeMask(self, threshisl=5):
         """
@@ -21,19 +27,25 @@ class Image(object):
         logger.info('%s: Making mask...' % self.imagename)
         if not os.path.exists(self.maskname):
             make_mask.make_mask(image_name=self.imagename, mask_name=self.maskname, threshisl=threshisl, atrous_do=True)
-        if self.user_mask is not None:
-            logger.info('%s: Adding user mask (%s)...' % (self.imagename, self.user_mask))
-            blank_image_reg(self.maskname, self.user_mask, inverse=False, blankval=1)
+        if self.userReg is not None:
+            logger.info('%s: Adding user mask (%s)...' % (self.imagename, self.userReg))
+            blank_image_reg(self.maskname, self.userReg, inverse=False, blankval=1)
 
-    def selectCC(self):
+    def selectCC(self, keepInBeam=True):
         """
         remove cc from a skymodel according to masks
+        keepInBeam: if beamReg is present and is True: remove sources outside beam
+                    if beamReg is present and is False: remove source inside beam
         """
         self.makeMask()
 
-        if self.region_facet is not None:
-            logger.info('Predict (apply facet mask %s)...' % self.region_facet)
-            blank_image_reg(self.maskname, self.region_facet, inverse=True, blankval=0) # set to 0 pixels outside facet mask
+        if self.facetReg is not None:
+            logger.info('Predict (apply facet reg %s)...' % self.facetReg)
+            blank_image_reg(self.maskname, self.facetReg, inverse=True, blankval=0) # set to 0 pixels outside facet mask
+
+        if self.beamReg is not None:
+            logger.info('Predict (apply beam reg %s)...' % self.beamReg)
+            blank_image_reg(self.maskname, self.beamReg, inverse=keepInBeam, blankval=0) # if keep_in_beam set to 0 everything outside beam.reg
 
         # apply mask
         logger.info('%s: Apply mask on skymodel...' % self.imagename)
@@ -41,6 +53,12 @@ class Image(object):
         lsm.select('%s == True' % self.maskname)
         lsm.write(self.skymodel_cut, format = 'makesourcedb', clobber=True)
         del lsm
+
+        # convert from txt to blob
+        logger.info('%s: Make skydb...' % self.imagename)
+        lib_util.check_rm(self.skydb)
+        os.system('makesourcedb outtype="blob" format="<" in="'+self.skymodel_cut+'" out="'+self.skydb+'.skydb"')
+
 
     def getNoise(self, boxsize=None, niter=20, eps=1e-5):
         """
