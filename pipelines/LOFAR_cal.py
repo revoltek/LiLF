@@ -7,7 +7,6 @@
 
 import sys, os, glob, re
 import numpy as np
-import lsmtool
 
 parset_dir = "/home/fdg/scripts/LiLF/parsets/LOFAR_cal"
 imaging    = True
@@ -209,6 +208,7 @@ if imaging:
     im.makeMask(threshisl = 3)
 
     # apply mask
+    import lsmtool
     logger.info('Predict (apply mask)...')
     lsm = lsmtool.load(imagename+'-sources-pb.txt')
     lsm.select('%s == True' % (imagename+'-mask.fits'))
