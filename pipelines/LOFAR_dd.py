@@ -10,6 +10,7 @@ import lsmtool
 
 parset_dir = '/home/fdg/scripts/autocal/parset_dd'
 maxniter = 10 # max iteration if not converged
+multiepoch = False
 
 ##########################################################################################
 
@@ -168,8 +169,11 @@ for c in xrange(maxniter):
     # Plot solutions
     # TODO: concat h5parm into a single file
     logger.info('Running losoto...')
-    for i, MS in enumerate(MSs.getListStr()):
-        lib_util.run_losoto(s, 'c'+str(c)+'-ms'+str(i), [MS+'/cal-c'+str(c)+'.h5'], [parset_dir+'/losoto-plot.parset'])
+    if multiepoch:
+        for i, MS in enumerate(MSs.getListStr()):
+            lib_util.run_losoto(s, 'c'+str(c)+'-ms'+str(i), [MS+'/cal-c'+str(c)+'.h5'], [parset_dir+'/losoto-plot.parset'])
+    else:
+        lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'], concat='time')
     os.system('mv plots-c'+str(c)+'* ddcal/plots')
 
     ############################################################
@@ -194,8 +198,6 @@ for c in xrange(maxniter):
         logger.info('Patch '+p+': subtract...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql2-c'+str(c)+'-p'+str(p)+'.log', commandType='general')
 
-    ############## TODO: done until here!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
     ##############################################################
     # Imaging
     logger.info('Imaging...')
@@ -212,22 +214,16 @@ for c in xrange(maxniter):
         # predict - ms:MODEL_DATA
         logger.info('Patch '+p+': predict...')
         #pre.applycal.h5parm='+ms+'/cal-c'+str(c)+'.h5 pre.applycal.direction='+p, \
-        for ms in mss:
-            s.add('run_env.sh DPPP '+parset_dir+'/DPPP-predict.parset msin='+ms+' pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+p, \
-                   log=ms+'_pre2-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
-        s.run(check=True)
+        MSs.run('run_env.sh DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+p, \
+                   log='$nameMS_pre2-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
         # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
         logger.info('Patch '+p+': corrupt...')
-        for ms in mss:
-            s.add('run_env.sh DPPP '+parset_dir+'/DPPP-corrupt.parset msin='+ms+' cor1.parmdb='+ms+'/cal-c'+str(c)+'.h5 cor1.direction=['+p+'] cor2.parmdb='+ms+'/cal-c'+str(c)+'.h5 cor2.direction=['+p+']', \
-                 log=ms+'_corrupt2-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
-        s.run(check=True)
+        MSs.run('run_env.sh DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+p+'] cor2.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor2.direction=['+p+']', \
+                 log='$nameMS_corrupt2-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
         logger.info('Patch '+p+': add...')
-        for ms in mss:
-            s.add('taql "update '+ms+' set CORRECTED_DATA = SUBTRACTED_DATA + MODEL_DATA"', log=ms+'_taql2-c'+str(c)+'-p'+str(p)+'.log', commandType='general')
-        s.run(check=True)
+        MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA + MODEL_DATA"', log='$nameMS_taql2-c'+str(c)+'-p'+str(p)+'.log', commandType='general')
 
         ### TEST
         #logger.info('Patch '+p+': phase shift and avg...')
@@ -245,23 +241,22 @@ for c in xrange(maxniter):
 
         # DD-correct - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
         logger.info('Patch '+p+': correct...')
-        for ms in mss:
-            s.add('run_env.sh DPPP '+parset_dir+'/DPPP-cor.parset msin='+ms+' cor1.parmdb='+ms+'/cal-c'+str(c)+'.h5 cor1.direction=['+p+'] cor2.parmdb='+ms+'/cal-c'+str(c)+'.h5 cor2.direction=['+p+']', \
-               log=ms+'_cor-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
-        s.run(check=True)
+        MSs.run('run_env.sh DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+p+'] \
+                                                                             cor2.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor2.direction=['+p+']', \
+               log='$nameMS_cor-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
         logger.info('Patch '+p+': phase shift and avg...')
         lib_util.check_rm('mss_dd')
         os.makedirs('mss_dd')
-        for ms in mss:
-            msout = 'mss_dd/'+os.path.basename(ms)
+        for MS in MSs:
+            MSout = 'mss_dd/'+MS.nameMS
             phasecentre = directions_shifts[p]
-            s.add('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin='+ms+' msout='+msout+' shift.phasecenter=['+str(phasecentre[0].degree)+'deg,'+str(phasecentre[1].degree)+'deg\]', \
+            s.add('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin='+MS.pathMS+' msout='+MSout+' shift.phasecenter=['+str(phasecentre[0].degree)+'deg,'+str(phasecentre[1].degree)+'deg\]', \
                 log=ms+'_shift-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
         s.run(check=True)
 
         logger.info('Patch '+p+': imaging...')
-        clean(p, glob.glob('mss_dd/*MS'), size=sizes[i])
+        clean(p, lib_ms.AllMSs('mss_dd/*MS'), size=sizes[i])
 
     ##############################################################
     # Mosaiching
@@ -269,18 +264,18 @@ for c in xrange(maxniter):
     os.makedirs('ddcal/images/c'+str(c))
     directions = []
     for image, region in zip( sorted(glob.glob('img/ddcalM-Dir*MFS-image.fits')), sorted(glob.glob('ddcal/regions/Dir*')) ):
-        directions.append( Image(image, region_facet = region, user_mask = user_mask) )
+        directions.append( Image(image, regionFacet = region, user_mask = user_mask) )
 
     logger.info('Mosaic: image...')
     images = ' '.join([image.imagename for image in directions])
-    masks = ' '.join([image.region_facet for image in directions])
+    masks = ' '.join([image.regionFacet for image in directions])
     mosaic_imagename = 'img/mos-MFS-image.fits'
     s.add('mosaic.py --image '+images+' --masks '+masks+' --output '+mosaic_imagename, log='mosaic-img-c'+str(c)+'.log', commandType='python')
     s.run(check=True)
 
     logger.info('Mosaic: residuals...')
     images = ' '.join([image.imagename.replace('image', 'residual') for image in directions])
-    masks = ' '.join([image.region_facet for image in directions])
+    masks = ' '.join([image.regionFacet for image in directions])
     mosaic_residual = 'img/mos-MFS-residual.fits'
     s.add('mosaic.py --image '+images+' --masks '+masks+' --output '+mosaic_residual, log='mosaic-res-c'+str(c)+'.log', commandType='python')
     s.run(check=True)

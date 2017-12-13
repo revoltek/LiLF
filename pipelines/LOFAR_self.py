@@ -249,7 +249,7 @@ for c in xrange(niter):
         s.add('wsclean -reorder -name ' + imagename + ' -size 3000 3000 -mem 90 -j '+str(s.max_processors)+' \
                 -scale 8arcsec -weight briggs 0.0 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
                 -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
-                -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -apply-primary-beam -use-differential-lofar-beam -minuv-l 30 '+MSs.getStrWsclean(), \
+                -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -apply-primary-beam -use-differential-lofar-beam -minuv-l 30 '+MSs.getStrWsclean(), \
                 log='wscleanBeam-c'+str(c)+'.log', commandType='wsclean', processors='max')
         s.run(check=True)
 
@@ -258,7 +258,7 @@ for c in xrange(niter):
         s.add('wsclean -reorder -name ' + imagename + ' -size 5500 5500 -mem 90 -j '+str(s.max_processors)+' \
                 -scale 4arcsec -weight briggs -1.5 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
                 -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
-                -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -apply-primary-beam -use-differential-lofar-beam -minuv-l 30 '+MSs.getStrWsclean(), \
+                -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -apply-primary-beam -use-differential-lofar-beam -minuv-l 30 '+MSs.getStrWsclean(), \
                 log='wscleanBeamHR-c'+str(c)+'.log', commandType='wsclean', processors='max')
         s.run(check=True)
 
@@ -268,7 +268,7 @@ for c in xrange(niter):
     imagename = 'img/wide-'+str(c)
     s.add('wsclean -reorder -name ' + imagename + ' -size 3000 3000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 10arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -maxuv-l 5000 -mgain 0.9 \
-            -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 20 -minuv-l 30 '+MSs.getStrWsclean(), \
+            -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 20 -minuv-l 30 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
@@ -282,7 +282,7 @@ for c in xrange(niter):
     s.add('wsclean -reorder -name ' + imagename + ' -size 3000 3000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 10arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -maxuv-l 5000 -mgain 0.8 \
             -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
-            -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 0.1 -minuv-l 30 -save-source-list -fitsmask '+im.maskname+' '+MSs.getStrWsclean(), \
+            -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 0.1 -minuv-l 30 -save-source-list -fitsmask '+im.maskname+' '+MSs.getStrWsclean(), \
             log='wscleanM-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
     os.system('cat logs/wscleanM-c'+str(c)+'.log | grep "background noise"')
@@ -310,7 +310,7 @@ for c in xrange(niter):
         #s.add('wsclean -reorder -name ' + imagename_lr + ' -size 4500 4500 -trim 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
         s.add('wsclean -reorder -name ' + imagename_lr + ' -size 6000 6000 -trim 5500 5500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
                 -scale 20arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -maxuv-l 2000 -mgain 0.8 \
-                -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 1 -minuv-l 100 -save-source-list '+MSs.getStrWsclean(), \
+                -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 1 -minuv-l 100 -save-source-list '+MSs.getStrWsclean(), \
                 log='wsclean-lr.log', commandType='wsclean', processors='max')
         s.run(check=True)
         

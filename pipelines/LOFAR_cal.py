@@ -54,6 +54,7 @@ MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flag1.baseline=" 
 logger.info('Add model to MODEL_DATA...')
 skymodel = "/home/fdg/scripts/LiLF/models/calib-simple.skydb"
 MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DPPP")
+#MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=/home/fdg/scripts/model/3C196-allfield.skydb", log="$nameMS_pre.log", commandType="DPPP")
 
 ##################################################
 # 1: find the FR and remove it
@@ -104,7 +105,7 @@ lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()], [parset
 ##################################################
 # 3: find iono
 
-# Correct cd+amp DATA -> CORRECTED_DATA
+# Correct amp DATA -> CORRECTED_DATA
 logger.info('AmpBP correction...')
 MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-amp.h5 \
         cor.correction=amplitudeSmooth000 cor.updateweights=True', log='$nameMS_corAMP.log', commandType="DPPP")
@@ -186,7 +187,7 @@ if imaging:
     imagename = 'img/wide'
     s.add('wsclean -reorder -name ' + imagename + ' -size 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.9 -minuv-l 100 \
-            -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 20 '+MSs.getStrWsclean(), \
+            -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 20 '+MSs.getStrWsclean(), \
             log='wscleanA.log', commandType ='wsclean', processors='max')
     s.run(check = True)
 
@@ -198,7 +199,7 @@ if imaging:
     imagename = 'img/wideM'
     s.add('wsclean -reorder -name ' + imagename + ' -size 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.8 -minuv-l 100 \
-            -pol I -joinchannels -fit-spectral-pol 2 -channelsout 10 -auto-threshold 0.1 -save-source-list -apply-primary-beam -use-differential-lofar-beam \
+            -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 0.1 -save-source-list -apply-primary-beam -use-differential-lofar-beam \
             -fitsmask '+im.maskname+' '+MSs.getStrWsclean(), \
             log='wscleanB.log', commandType='wsclean', processors = 'max')
     s.run(check = True)
