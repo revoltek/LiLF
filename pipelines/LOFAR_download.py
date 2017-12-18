@@ -4,7 +4,7 @@
 fix_tables = True
 rename = True
 flag_elev = False
-parset_dir = '/home/fdg/scripts/LiLF/parsets/LFOAR_download'
+parset_dir = '/home/fdg/scripts/LiLF/parsets/LOFAR_download'
 
 ###################################################
 
@@ -141,6 +141,7 @@ if rename:
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
                         log=MS+'_avg.log', commandType='DPPP')
                 s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
+                lib_util.check_rm(MS)
         else:
             logger.info('Move data - no averaging...')
             for MS in MSs.getListObj():
