@@ -212,12 +212,12 @@ if imaging:
     # apply mask
     import lsmtool
     logger.info('Predict (apply mask)...')
-    lsm = lsmtool.load(imagename+'-sources-pb.txt')
+    lsm = lsmtool.load(imagename+'-sources.txt')
     lsm.select('%s == True' % (imagename+'-mask.fits'))
     cRA, cDEC = MSs.getListObj[0].getPhaseCentre()
     lsm.select( lsm.getDistance(cRA, cDEC) > 0.1 ) # remove very centra part
     lsm.group('every')
-    lsm.write(imagename+'-sources-pb-cut.txt', format='makesourcedb', clobber = True)
+    lsm.write(imagename+'-sources-cut.txt', format='makesourcedb', clobber = True)
     del lsm
 
 logger.info("Done.")

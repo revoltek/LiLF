@@ -9,16 +9,6 @@ mpl.use("Agg")
 
 from lib_log import logger
 
-#def printLineBold(line):
-#    """
-#    Print a line of text 'line' using boldface.
-#    """
-#
-#    boldStart = "\033[1m"
-#    boldEnd   = "\033[0;0m"
-#    print (boldStart + line + boldEnd)
-
-
 def columnExists(tableObject, columnName):
     '''
     Check whether a column with name 'columnName' exists in  table 'tableObject'.
@@ -401,7 +391,7 @@ class Scheduler():
             out = subprocess.check_output('grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "**** uncaught exception ****" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "misspelled" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            #out += subprocess.check_output('grep -l "misspelled" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logger.error('DPPP run problem on:\n'+out.split("\n")[0])
                 return 1

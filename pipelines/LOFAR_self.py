@@ -24,7 +24,7 @@ if 'tooth' in os.getcwd():
     sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/toothbrush.LBA.skydb'
     apparent = True # no beam correction
     userReg = '/home/fdg/scripts/autocal/regions/tooth.reg'
-    multiepoch = False
+    multiepoch = True
 elif 'bootes' in os.getcwd():
     sourcedb = '/home/fdg/scripts/model/Bootes_HBA.corr.skydb'
     apparent = False
@@ -301,8 +301,8 @@ for c in xrange(niter):
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
-        #s.add('wsclean -reorder -name ' + imagename_lr + ' -size 4500 4500 -trim 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-        s.add('wsclean -reorder -name ' + imagename_lr + ' -size 6000 6000 -trim 5500 5500 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+        #s.add('wsclean -reorder -name ' + imagename_lr + ' -size 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+        s.add('wsclean -reorder -name ' + imagename_lr + ' -size 5000 5000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
                 -scale 20arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -maxuv-l 2000 -mgain 0.8 \
                 -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 1 -minuv-l 100 -save-source-list '+MSs.getStrWsclean(), \
                 log='wsclean-lr.log', commandType='wsclean', processors='max')
@@ -317,10 +317,8 @@ for c in xrange(niter):
                 log='$nameMS_pre-lr.log', commandType='DPPP')
 
         # corrupt model with TEC solutions ms:MODEL_DATA -> ms:MODEL_DATA
-        if multiepoch: h5 = '$pathMS/tec.h5'
-        else: h5 = 'cal-tec'+str(c)+'b.h5'
         MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                cor1.parmdb='+h5+' cor1.invert=false cor2.parmdb='+h5+' cor2.invert=false', \
+                cor1.parmdb=$pathMS/tec.h5 cor1.invert=false cor2.parmdb='+h5+' cor2.invert=false', \
                 log='$nameMS_corrupt.log', commandType='DPPP')
     
         # Subtract low-res model - concat.MS:CORRECTED_DATA - MODEL_DATA -> concat.MS:CORRECTED_DATA (empty)
