@@ -35,10 +35,10 @@ lib_log.set_logger('pipeline-cal.logger')
 logger = lib_log.logger
 lib_util.check_rm('logs')
 s = lib_util.Scheduler(dry = False)
+MSs = lib_ms.AllMSs( glob.glob(datadir+'/*MS'), s )
 
 # copy data
 logger.info('Copy data...')
-MSs = lib_ms.AllMSs([MS for MS in glob.glob(datadir+'/*MS') if not os.path.exists(os.path.basename(MS))], s)
 for MS in MSs.getListObj():
     MS.move(MS.nameMS+'.MS', keepOrig=True)
 #MSs.run('DPPP ' + parset_dir + '/DPPP-avg.parset msin=$pathMS msout=$nameMS.MS msin.datacolumn=DATA avg.timestep=1 avg.freqstep=1', \
@@ -197,10 +197,11 @@ if imaging:
 
     logger.info('Cleaning w/ mask...')
     imagename = 'img/wideM'
+    # -apply-primary-beam -use-differential-lofar-beam
     s.add('wsclean -reorder -name ' + imagename + ' -size 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.8 -minuv-l 100 \
-            -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 0.1 -save-source-list -apply-primary-beam -use-differential-lofar-beam \
-            -fitsmask '+im.maskname+' '+MSs.getStrWsclean(), \
+            -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 0.1 -save-source-list \
+            -fits-mask '+im.maskname+' '+MSs.getStrWsclean(), \
             log='wscleanB.log', commandType='wsclean', processors = 'max')
     s.run(check = True)
 

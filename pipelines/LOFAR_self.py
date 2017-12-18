@@ -54,12 +54,6 @@ lib_util.check_rm('logs')
 s = lib_util.Scheduler(dry = False)
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
-concat_ms = 'mss/concat.MS'
-
-# make beam
-phasecentre = MSs.getListObj()[0].getPhaseCentre()
-MSs.getListObj()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
-beamReg = 'self/beam.reg'
 
 #############################################################################
 # Clear
@@ -72,6 +66,11 @@ os.makedirs('img')
 lib_util.check_rm('self')
 if not os.path.exists('self/images'): os.makedirs('self/images')
 if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
+
+# make beam
+phasecentre = MSs.getListObj()[0].getPhaseCentre()
+MSs.getListObj()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
+beamReg = 'self/beam.reg'
 
 ##################################################################################################
 # Add model to MODEL_DATA
@@ -107,10 +106,6 @@ for c in xrange(niter):
 
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python', maxThreads=6)
-
-    logger.info('Concatenating TCs...')
-    lib_util.check_rm(concat_ms+'*')
-    pt.msutil.msconcat(MSs.getListStr(), concat_ms, concatTime=False)
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving TEC...')
@@ -277,12 +272,12 @@ for c in xrange(niter):
     im.makeMask(threshisl = 3)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
-   imagename = 'img/wideM-'+str(c)
+    imagename = 'img/wideM-'+str(c)
     #TODO: -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,9 \
     s.add('wsclean -reorder -name ' + imagename + ' -size 3000 3000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 10arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -maxuv-l 5000 -mgain 0.8 \
             -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
-            -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 0.1 -minuv-l 30 -save-source-list -fitsmask '+im.maskname+' '+MSs.getStrWsclean(), \
+            -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 0.1 -minuv-l 30 -save-source-list -fits-mask '+im.maskname+' '+MSs.getStrWsclean(), \
             log='wscleanM-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
     os.system('cat logs/wscleanM-c'+str(c)+'.log | grep "background noise"')
@@ -301,8 +296,7 @@ for c in xrange(niter):
 
         # Subtract model from all TCs - concat.MS:CORRECTED_DATA - MODEL_DATA -> concat.MS:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
         logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_HIGHRES)...')
-        s.add('taql "update '+concat_ms+' set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_HIGHRES"', log='taql1-c'+str(c)+'.log', commandType='general')
-        s.run(check=True)
+        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_HIGHRES"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
     
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
@@ -331,12 +325,11 @@ for c in xrange(niter):
     
         # Subtract low-res model - concat.MS:CORRECTED_DATA - MODEL_DATA -> concat.MS:CORRECTED_DATA (empty)
         logger.info('Subtracting low-res model (SUBTRACTED_DATA = DATA - MODEL_DATA)...')
-        s.add('taql "update '+concat_ms+' set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='taql2-c'+str(c)+'.log', commandType='general')
-        s.run(check=True)
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql2-c'+str(c)+'.log', commandType='general')
 
         # Restore best model
         logger.info('Restoring high-res model (MODEL_DATA = MODEL_DATA_HIGHRES)...')
-        s.add('taql "update '+concat_ms+' set MODEL_DATA = MODEL_DATA_HIGHRES"', log='taql3-c'+str(c)+'.log', commandType='general')
+        MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA_HIGHRES"', log='$nameMS_taql3-c'+str(c)+'.log', commandType='general')
         s.run(check=True)
 
     ###############################################################################################################
