@@ -256,7 +256,7 @@ class MS(object):
 
         if pb_cut is None:
             if 'OUTER' in self.getObsMode():
-                size = 7./2. # OUTER
+                size = 8./2. # OUTER
             elif 'SPARSE' in self.getObsMode():
                 size = 12./2. # OUTER
             else:

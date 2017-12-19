@@ -39,9 +39,9 @@ soltabOut = phaseOrig000
 [plotP1]
 operation = PLOT
 soltab = sol000/phase000
-axesInPlotInPlot = [time,freq]
-AxisInTable = ant
-AxisDiff = pol
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
 plotFlag = True
 prefix = plots/ph-rot
 refAnt = CS002LBA
@@ -56,7 +56,7 @@ maxResidual = 2.
 [plotFR]
 operation = PLOT
 soltab = sol000/rotationmeasure000
-axesInPlotInPlot = [time]
+axesInPlot = [time]
 axisInTable = ant
 prefix = plots/fr
 
@@ -68,9 +68,9 @@ soltabsToSub = rotationmeasure000
 [plotPr]
 operation = PLOT
 soltab = sol000/phase000
-axesInPlotInPlot = [time,freq]
-AxisInTable = ant
-AxisDiff = pol
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
 plotFlag = True
 prefix = plots/phRes-rot
 refAnt = CS002LBA
