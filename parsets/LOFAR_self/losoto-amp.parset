@@ -48,13 +48,13 @@ preFlagZeros = False
 mode = smooth
 
 [smooth]
-pperation = SMOOTH
+operation = SMOOTH
 soltab = sol000/amplitude000
 axesToSmooth = [ant]
 mode = median
 
 [plotAsmooth]
-pperation = PLOT
+operation = PLOT
 soltab = sol000/amplitude000
 axesInPlot = [time,freq]
 axisInTable = ant
