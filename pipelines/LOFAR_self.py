@@ -119,7 +119,7 @@ for c in xrange(1, niter):
         for i, MS in enumerate(MSs.getListStr()):
             lib_util.run_losoto(s, 'tec'+str(c)+'-ms'+str(i), [MS+'/tec.h5'], [parset_dir+'/losoto-plot.parset'])
     else:
-        lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'], concat='time')
+        lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
     os.system('mv plots-tec'+str(c)+'* self/solutions/')
     os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
 
