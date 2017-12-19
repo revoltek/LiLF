@@ -173,7 +173,7 @@ for c in xrange(maxniter):
         for i, MS in enumerate(MSs.getListStr()):
             lib_util.run_losoto(s, 'c'+str(c)+'-ms'+str(i), [MS+'/cal-c'+str(c)+'.h5'], [parset_dir+'/losoto-plot.parset'])
     else:
-        lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'], concat='time')
+        lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
     os.system('mv plots-c'+str(c)+'* ddcal/plots')
 
     ############################################################

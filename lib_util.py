@@ -116,7 +116,7 @@ def check_rm(regexp):
             os.system("rm -r " + f)
 
 
-def run_losoto(s, c, h5s, parsets, concat='freq'):
+def run_losoto(s, c, h5s, parsets):
     """
     s : scheduler
     c : cycle name, e.g. "final"
@@ -130,7 +130,7 @@ def run_losoto(s, c, h5s, parsets, concat='freq'):
     if len(h5s) > 1:
         h5 = 'cal-'+c+'.h5'
         check_rm("cal-" + c + ".h5")
-        s.add('H5parm_collector.py -V -c '+concat+' -s sol000 -o '+h5+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
+        s.add('H5parm_collector.py -V -s sol000 -o '+h5+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
         s.run(check = True)
     else:
         h5 = h5s[0]
