@@ -48,9 +48,9 @@ refAnt = 'CS002LBA'
 minmax = [-1,+1]
 
 [residuals]
-pperation = RESIDUALS
+operation = RESIDUALS
 soltab = sol000/phase000
-soltabToSub = polalign
+soltabsToSub = polalign
 
 [plotPr1]
 operation = PLOT
