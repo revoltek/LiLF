@@ -1,0 +1,16 @@
+msin = 
+msin.datacolumn = DATA
+msin.baseline = [CR]S*&
+msout = .
+msout.datacolumn = MODEL_DATA
+
+numthreads = 1
+
+steps = [pre]
+
+pre.type = predict
+pre.sourcedb = 
+pre.sources = 
+pre.usebeammodel = True
+pre.usechannelfreq = False
+pre.beammode = array_factor

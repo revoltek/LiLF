@@ -1,0 +1,19 @@
+msin =
+msin.datacolumn = SMOOTHED_DATA
+msin.baseline = [CR]S*&
+msout = .
+msout.datacolumn = CORRECTED_DATA
+
+numthreads = 1 # bug fix
+
+steps = [filter, sol]
+
+filter.blrange = [0, 1e30]
+
+sol.type = gaincal
+sol.caltype = diagonal
+sol.maxiter = 500
+sol.nchan = 1
+sol.solint = 1
+sol.propagatesolutions = False
+sol.usemodelcolumn = True

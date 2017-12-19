@@ -1,0 +1,81 @@
+Ncpu = 0
+
+[bkp]
+operation = DUPLICATE
+soltab = sol000/phase000
+soltabOut = phaseOrig000
+
+[plotPi]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
+plotFlag = True
+prefix = plots/ph-init
+refAnt = 'CS002LBA'
+minmax = [-1,+1]
+
+[plotPi2]
+operation = PLOT
+soltab = sol000/phase000
+time.minmaxstep = [0,1e20,500]
+axesInPlot = freq
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ph-init_
+refAnt = 'CS002LBA'
+minmax = [-3.14,3.14]
+
+[align]
+soltab = sol000/phase000
+operation = POLALIGN
+soltabOut = polalign
+smooth = 201
+refAnt = 'CS002LBA'
+
+[plotAlign]
+operation = PLOT
+soltab = sol000/polalign
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
+plotFlag = True
+prefix = plots/ph-align
+refAnt = 'CS002LBA'
+minmax = [-1,+1]
+
+[residual]
+operation = RESIDUALS
+soltab = sol000/phase000
+soltabsToSub = polalign
+
+[plotPr]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
+plotFlag = True
+prefix = plots/ph-res
+refAnt = 'CS002LBA'
+minmax = [-1,+1]
+
+[plotPr2]
+operation = PLOT
+soltab = sol000/phase000
+time.minmaxstep = [0,1e20,500]
+axesInPlot = freq
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ph-res_
+refAnt = 'CS002LBA'
+minmax = [-3.14,3.14]
+
+# reset remotes as FR can still corrput
+#[resetRemote]
+#operation = RESET
+#soltab = sol000/polalign
+#ant = ['RS310LBA','RS210LBA','RS509LBA','RS508LBA','RS407LBA']

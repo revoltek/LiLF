@@ -1,0 +1,46 @@
+Ncpu = 0
+
+[duplicate]
+operation = DUPLICATE
+soltab = sol000/phase000
+soltabOut = phaseOrig000
+
+[plot1]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+AxisInTable = ant
+AxisDiff = pol
+plotFlag = True
+prefix = plots/ph-rot
+refAnt = CS002LBA
+minmax = [-3.14,3.14]
+
+[faraday]
+operation = FARADAY
+soltab = sol000/phase000
+refAnt = CS002LBA
+maxResidual = 1.
+
+[plot2]
+operation = PLOT
+soltab = sol000/rotationmeasure000
+axesInPlot = [time]
+axisInTable = ant
+prefix = plots/fr
+
+[residuals]
+operation = RESIDUALS
+soltab = sol000/phase000
+soltabsToSub = rotationmeasure000
+
+[plot3]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+AxisInTable = ant
+AxisDiff = pol
+plotFlag = True
+prefix = plots/phRes-rot
+refAnt = CS002LBA
+minmax = [-3.14,3.14]
