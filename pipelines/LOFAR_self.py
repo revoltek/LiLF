@@ -104,80 +104,80 @@ for c in xrange(1, niter):
     else:
         incol = 'SUBTRACTED_DATA'
 
-#    logger.info('BL-based smoothing...')
-#    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python', maxThreads=6)
-#
-#    # solve TEC - group*_TC.MS:SMOOTHED_DATA
-#    logger.info('Solving TEC...')
-#    for MS in MSs.getListStr():
-#        lib_util.check_rm(MS+'/tec.h5')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
-#                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
-#
-#    # LoSoTo plot
-#    if multiepoch:
-#        for i, MS in enumerate(MSs.getListStr()):
-#            lib_util.run_losoto(s, 'tec'+str(c)+'-ms'+str(i), [MS+'/tec.h5'], [parset_dir+'/losoto-plot.parset'])
-#    else:
-#        lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
-#    os.system('mv plots-tec'+str(c)+'* self/solutions/')
-#    os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
-#
-#    # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
-#    logger.info('Correcting TEC...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn='+incol+' cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
-#                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
+    logger.info('BL-based smoothing...')
+    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python', maxThreads=6)
+
+    # solve TEC - group*_TC.MS:SMOOTHED_DATA
+    logger.info('Solving TEC...')
+    for MS in MSs.getListStr():
+        lib_util.check_rm(MS+'/tec.h5')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
+                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
+
+    # LoSoTo plot
+    if multiepoch:
+        for i, MS in enumerate(MSs.getListStr()):
+            lib_util.run_losoto(s, 'tec'+str(c)+'-ms'+str(i), [MS+'/tec.h5'], [parset_dir+'/losoto-plot.parset'])
+    else:
+        lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
+    os.system('mv plots-tec'+str(c)+'* self/solutions/')
+    os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
+
+    # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
+    logger.info('Correcting TEC...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn='+incol+' cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
+                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
     #####################################################################################################
     # Pol Align + Faraday rotation correction
     if c >= 1:
 
-#        # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
-#        logger.info('Convert to circular...')
-#        MSs.run('/home/fdg/scripts/mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
-# 
-#        # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-#        logger.info('BL-based smoothing...')
-#        MSs.run('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2-c'+str(c)+'.log', commandType='python', maxThreads=6)
-#
-#        # Solve G SB.MS:SMOOTHED_DATA (only solve)
-#        logger.info('Solving G...')
-#        for MS in MSs.getListStr():
-#            lib_util.check_rm(MS+'/fr.h5')
-#        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5 sol.solint=30 sol.nchan=8', \
-#                    log='$nameMS_sol-g1-c'+str(c)+'.log', commandType='DPPP')
-#
-#        if multiepoch:
-#            for i, MS in enumerate(MSs.getListStr()):
-#                lib_util.run_losoto(s, 'fr'+str(c)+'-ms'+str(i), [MS+'/fr.h5'], [parset_dir+'/losoto-fr.parset'])
-#        else:
-#            lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-fr.parset'])
-#        os.system('mv plots-fr'+str(c)+'* self/solutions/')
-#        os.system('mv cal-fr'+str(c)+'*.h5 self/solutions/')
-#       
-#        # To linear - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (linear)
-#        logger.info('Convert to linear...')
-#        MSs.run('/home/fdg/scripts/mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', \
-#                log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
-#        
-#        # Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
-#        logger.info('Faraday rotation correction...')
-#        if multiepoch: h5 = '$pathMS/fr.h5'
-#        else: h5 = 'cal-fr'+str(c)+'.h5'
-#        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
-#                    log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
-#
-#        #################################
-#        # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-#        logger.info('BL-based smoothing...')
-#        MSs.run('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', commandType='python', maxThreads=6)
-#
-#        # Solve G SB.MS:SMOOTHED_DATA (only solve)
-#        logger.info('Solving G...')
-#        for MS in MSs.getListStr():
-#            lib_util.check_rm(MS+'/amp.h5')
-#        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5 sol.solint=30 sol.nchan=8', \
-#                    log='$nameMS_sol-g2-c'+str(c)+'.log', commandType='DPPP')
+        # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
+        logger.info('Convert to circular...')
+        MSs.run('/home/fdg/scripts/mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
+ 
+        # Smooth CORRECTED_DATA -> SMOOTHED_DATA
+        logger.info('BL-based smoothing...')
+        MSs.run('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2-c'+str(c)+'.log', commandType='python', maxThreads=6)
+
+        # Solve G SB.MS:SMOOTHED_DATA (only solve)
+        logger.info('Solving G...')
+        for MS in MSs.getListStr():
+            lib_util.check_rm(MS+'/fr.h5')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5 sol.solint=30 sol.nchan=8', \
+                    log='$nameMS_sol-g1-c'+str(c)+'.log', commandType='DPPP')
+
+        if multiepoch:
+            for i, MS in enumerate(MSs.getListStr()):
+                lib_util.run_losoto(s, 'fr'+str(c)+'-ms'+str(i), [MS+'/fr.h5'], [parset_dir+'/losoto-fr.parset'])
+        else:
+            lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-fr.parset'])
+        os.system('mv plots-fr'+str(c)+'* self/solutions/')
+        os.system('mv cal-fr'+str(c)+'*.h5 self/solutions/')
+       
+        # To linear - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (linear)
+        logger.info('Convert to linear...')
+        MSs.run('/home/fdg/scripts/mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', \
+                log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
+        
+        # Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
+        logger.info('Faraday rotation correction...')
+        if multiepoch: h5 = '$pathMS/fr.h5'
+        else: h5 = 'cal-fr'+str(c)+'.h5'
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
+                    log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
+
+        #################################
+        # Smooth CORRECTED_DATA -> SMOOTHED_DATA
+        logger.info('BL-based smoothing...')
+        MSs.run('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', commandType='python', maxThreads=6)
+
+        # Solve G SB.MS:SMOOTHED_DATA (only solve)
+        logger.info('Solving G...')
+        for MS in MSs.getListStr():
+            lib_util.check_rm(MS+'/amp.h5')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5 sol.solint=30 sol.nchan=8', \
+                    log='$nameMS_sol-g2-c'+str(c)+'.log', commandType='DPPP')
 
         if multiepoch:
             for i, MS in enumerate(MSs.getListStr()):
@@ -197,7 +197,7 @@ for c in xrange(1, niter):
         logger.info('Beam amp correction...')
         if multiepoch: h5 = '$pathMS/amp.h5'
         else: h5 = 'cal-amp'+str(c)+'.h5'
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmd='+h5+' cor.correction=amplitude000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb='+h5+' cor.correction=amplitude000', \
                 log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
         # Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
         logger.info('Faraday rotation correction...')
@@ -213,9 +213,9 @@ for c in xrange(1, niter):
         # solve TEC - group*_TC.MS:SMOOTHED_DATA
         logger.info('Solving TEC...')
         for MS in MSs.getListStr():
-            lib_util.check_rm(ms+'/tec.h5')
+            lib_util.check_rm(MS+'/tec.h5')
         MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
-                    log='$name_solTEC-c'+str(c)+'.log', commandType='DPPP')
+                    log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
         # LoSoTo plot
         if multiepoch:
