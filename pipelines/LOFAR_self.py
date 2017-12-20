@@ -85,11 +85,11 @@ for MS in MSs.getListStr():
 logger.info('Creating MODEL_DATA_HIGHRES and SUBTRACTED_DATA...')
 MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 
-logger.info('Add model to MODEL_DATA...')
-if apparent:
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
-else:
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+#logger.info('Add model to MODEL_DATA...')
+#if apparent:
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+#else:
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 
 #####################################################################################################
 # Self-cal cycle
@@ -175,7 +175,7 @@ for c in xrange(1, niter):
         # Solve G SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Solving G...')
         for MS in MSs.getListStr():
-            lib_util.check_rm(ms+'/amp.h5')
+            lib_util.check_rm(MS+'/amp.h5')
         MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5 sol.solint=30 sol.nchan=8', \
                     log='$nameMS_sol-g2-c'+str(c)+'.log', commandType='DPPP')
 
@@ -197,7 +197,7 @@ for c in xrange(1, niter):
         logger.info('Beam amp correction...')
         if multiepoch: h5 = '$pathMS/amp.h5'
         else: h5 = 'cal-amp'+str(c)+'.h5'
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmd='+h5+' cor.correction=amplitude000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb='+h5+' cor.correction=amplitude000', \
                 log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
         # Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
         logger.info('Faraday rotation correction...')
@@ -213,9 +213,9 @@ for c in xrange(1, niter):
         # solve TEC - group*_TC.MS:SMOOTHED_DATA
         logger.info('Solving TEC...')
         for MS in MSs.getListStr():
-            lib_util.check_rm(ms+'/tec.h5')
+            lib_util.check_rm(MS+'/tec.h5')
         MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
-                    log='$name_solTEC-c'+str(c)+'.log', commandType='DPPP')
+                    log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
         # LoSoTo plot
         if multiepoch:

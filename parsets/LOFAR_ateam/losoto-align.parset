@@ -5,20 +5,20 @@ operation = DUPLICATE
 soltab = sol000/phase000
 soltabOut = phaseOrig000
 
-[plotPi1]
+[plotPi]
 operation = PLOT
-soltab = [sol000/phase000]
+soltab = sol000/phase000
 axesInPlot = [time,freq]
 axisInTable = ant
-DiffAxis = pol
+axisDiff = pol
 plotFlag = True
-prefix = plots/ph-init_
+prefix = plots/ph-init
 refAnt = 'CS002LBA'
 minmax = [-1,+1]
 
 [plotPi2]
 operation = PLOT
-soltab = [sol000/phase000]
+soltab = sol000/phase000
 time.minmaxstep = [0,1e20,500]
 axesInPlot = freq
 axisInTable = ant
@@ -26,46 +26,45 @@ axisInCol = pol
 plotFlag = True
 prefix = plots/ph-init_
 refAnt = 'CS002LBA'
-#minmax = [-3.14,3.14]
+minmax = [-3.14,3.14]
 
 [align]
-operation = POLALIGN
 soltab = sol000/phase000
+operation = POLALIGN
 soltabOut = polalign
-maxResidual = 2.
-smooth = 51
-refAnt = CS002LBA
+smooth = 201
+refAnt = 'CS002LBA'
 
-[plotPA]
+[plotAlign]
 operation = PLOT
-soltab = [sol000/crossdelay]
+soltab = sol000/polalign
 axesInPlot = [time,freq]
 axisInTable = ant
-DiffAxis = pol
+axisDiff = pol
 plotFlag = True
-prefix = plots/ph-CD_
+prefix = plots/ph-align
 refAnt = 'CS002LBA'
 minmax = [-1,+1]
 
-[residuals]
+[residual]
 operation = RESIDUALS
 soltab = sol000/phase000
 soltabsToSub = polalign
 
-[plotPr1]
+[plotPr]
 operation = PLOT
-soltab = [sol000/phase000]
+soltab = sol000/phase000
 axesInPlot = [time,freq]
 axisInTable = ant
-DiffAxis = pol
+axisDiff = pol
 plotFlag = True
-prefix = plots/ph-res_
+prefix = plots/ph-res
 refAnt = 'CS002LBA'
 minmax = [-1,+1]
 
 [plotPr2]
 operation = PLOT
-soltab = [sol000/phase000]
+soltab = sol000/phase000
 time.minmaxstep = [0,1e20,500]
 axesInPlot = freq
 axisInTable = ant
@@ -73,8 +72,10 @@ axisInCol = pol
 plotFlag = True
 prefix = plots/ph-res_
 refAnt = 'CS002LBA'
-#minmax = [-3.14,3.14]
+minmax = [-3.14,3.14]
 
-[reset]
-operation = RESET
-soltab = sol000/amplitude000
+# reset remotes as FR can still corrput
+#[resetRemote]
+#operation = RESET
+#soltab = sol000/polalign
+#ant = ['RS310LBA','RS210LBA','RS509LBA','RS508LBA','RS407LBA']

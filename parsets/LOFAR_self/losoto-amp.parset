@@ -48,13 +48,13 @@ preFlagZeros = False
 mode = smooth
 
 [smooth]
-pperation = SMOOTH
+operation = SMOOTH
 soltab = sol000/amplitude000
 axesToSmooth = [ant]
 mode = median
 
 [plotAsmooth]
-pperation = PLOT
+operation = PLOT
 soltab = sol000/amplitude000
 axesInPlot = [time,freq]
 axisInTable = ant
@@ -65,7 +65,7 @@ minmax = [0.8,1.2]
 [residual]
 operation = RESIDUALS
 soltab = sol000/amplitudeOrig000
-soltabToSub = amplitude000
+soltabsToSub = amplitude000
 ratio = True
 
 [plotAr]

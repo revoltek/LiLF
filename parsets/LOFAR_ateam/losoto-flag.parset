@@ -1,0 +1,51 @@
+Ncpu = 20
+
+#[reweight]
+#soltab = sol000/amplitude000
+#operation = REWEIGHT
+#weightVal = 0.
+#flagBad = False
+#ant = [CS031LBA, RS409LBA]
+
+[plotA1]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ampBF_
+#minmax = [100,300]
+
+[flag]
+operation = FLAG
+soltab = sol000/amplitude000
+axesToFlag = [time]
+order = [100] 
+maxCycles = 1
+maxRms = 5
+replce = False
+preFlagZeros = False
+mode = smooth
+
+[flagextend]
+operation = FLAGEXTEND
+soltab = sol000/amplitude000
+axesToExt = [freq,time]
+size = [50,100]
+percent = 50
+maxCycles = 3
+
+[plotA2]
+Operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ampAF_
+#minmax = [100,300]
+
+# copy flags on phases
+[merge]
+operation = REWEIGHT
+soltab = sol000/phase000
+soltabImport = amplitude000
