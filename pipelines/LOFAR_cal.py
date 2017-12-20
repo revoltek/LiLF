@@ -25,6 +25,7 @@ elif 'survey' in os.getcwd():
     bl2flag = 'CS031LBA\;RS310LBA\;RS210LBA\;RS409LBA'
     if 'c07-o00' in os.getcwd() or 'c07-o01' in os.getcwd() or 'c07-o02' in os.getcwd() or 'c07-o03' in os.getcwd() or 'c07-o04' in os.getcwd() or 'c07-o05' in os.getcwd() or 'c07-o06' in os.getcwd():
         bl2flag = 'CS031LBA\;RS310LBA\;RS210LBA\;RS409LBA\;RS407LBA'
+    if 'c09' in os.getcwd(): bl2flag = 'CS013LBA'
 else:
     datadir = '../cals-bkp/'
     bl2flag = ''
