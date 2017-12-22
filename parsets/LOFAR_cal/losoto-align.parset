@@ -14,7 +14,7 @@ axisDiff = pol
 plotFlag = True
 prefix = plots/ph-init
 refAnt = 'CS002LBA'
-minmax = [-1,+1]
+minmax = [-3.14,+3.14]
 
 [plotPi2]
 operation = PLOT
@@ -30,6 +30,7 @@ minmax = [-3.14,3.14]
 
 [align]
 soltab = sol000/phase000
+pol = XX,YY
 operation = POLALIGN
 soltabOut = polalign
 smooth = 201
@@ -44,7 +45,7 @@ axisDiff = pol
 plotFlag = True
 prefix = plots/ph-align
 refAnt = 'CS002LBA'
-minmax = [-1,+1]
+minmax = [-3.14,+3.14]
 
 [residual]
 operation = RESIDUALS
@@ -72,7 +73,7 @@ axisInCol = pol
 plotFlag = True
 prefix = plots/ph-res_
 refAnt = 'CS002LBA'
-minmax = [-3.14,3.14]
+minmax = [-3.14,+3.14]
 
 # reset remotes as FR can still corrput
 #[resetRemote]
