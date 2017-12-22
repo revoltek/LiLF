@@ -25,7 +25,7 @@ elif 'survey' in os.getcwd():
     bl2flag = 'CS031LBA\;RS310LBA\;RS210LBA\;RS409LBA'
     if 'c07-o00' in os.getcwd() or 'c07-o01' in os.getcwd() or 'c07-o02' in os.getcwd() or 'c07-o03' in os.getcwd() or 'c07-o04' in os.getcwd() or 'c07-o05' in os.getcwd() or 'c07-o06' in os.getcwd():
         bl2flag = 'CS031LBA\;RS310LBA\;RS210LBA\;RS409LBA\;RS407LBA'
-    if 'c09' in os.getcwd(): bl2flag = 'CS031LBA'
+    if 'c09' in os.getcwd(): bl2flag = 'CS031LBA\;CS013LBA'
 else:
     datadir = '../cals-bkp/'
     bl2flag = ''
@@ -54,7 +54,7 @@ calname = MSs.getListObj()[0].getNameField()
 #skymodel = "/home/fdg/scripts/LiLF/models/calib-simple.skydb"
 #MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DPPP")
 ##MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=/home/fdg/scripts/model/3C196-allfield.skydb", log="$nameMS_pre.log", commandType="DPPP")
-#
+
 ##################################################
 # 1: find the FR and remove it
 
@@ -66,13 +66,16 @@ MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.
 logger.info('Calibrating...')
 for MS in MSs.getListStr():
     lib_util.check_rm(MS+'/fr-lin.h5')
-MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.caltype=fulljones sol.parmdb=$pathMS/fr-lin.h5', log='$nameMS_sol0a.log', commandType="DPPP")
+MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.caltype=diagonal sol.parmdb=$pathMS/fr-lin.h5', log='$nameMS_sol0a.log', commandType="DPPP")
 
-lib_util.run_losoto(s, 'fr-lin', [ms+'/fr-lin.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-amp.parset'])
+lib_util.run_losoto(s, 'fr-lin', [ms+'/fr-lin.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-align.parset'])
 
-# Beam correction DATA -> CORRECTED_DATA
+logger.info('Polalign correction...')
+MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-fr-lin.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DPPP")
+
+# Beam correction CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Beam correction...')
-MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam1.log', commandType="DPPP")
+MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA corrbeam.updateweights=True', log='$nameMS_beam1.log', commandType="DPPP")
 
 # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
 logger.info('BL-smooth...')
@@ -84,7 +87,8 @@ for MS in MSs.getListStr():
     lib_util.check_rm(MS+'/fr-lin2.h5')
 MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.caltype=fulljones sol.parmdb=$pathMS/fr-lin2.h5', log='$nameMS_sol0b.log', commandType="DPPP")
 
-lib_util.run_losoto(s, 'fr-lin2', [ms+'/fr-lin2.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-amp.parset'])
+lib_util.run_losoto(s, 'fr-lin2', [MS+'/fr-lin2.h5' for MS in MSs.getListStr()], [parset_dir + '/losoto-amp.parset', parset_dir+'/losoto-align.parset'])
+sys.exit()
 
 # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Converting to circular...')
