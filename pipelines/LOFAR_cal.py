@@ -58,17 +58,17 @@ calname = MSs.getListObj()[0].getNameField()
 ##################################################
 # 1: find the FR and remove it
 
-# Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-logger.info('BL-smooth...')
-MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=20)
-
-# Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-logger.info('Calibrating...')
-for MS in MSs.getListStr():
-    lib_util.check_rm(MS+'/fr-lin.h5')
-MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.caltype=fulljones sol.parmdb=$pathMS/fr-lin.h5', log='$nameMS_sol0a.log', commandType="DPPP")
-
-lib_util.run_losoto(s, 'fr-lin', [ms+'/fr-lin.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-amp.parset'])
+## Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+#logger.info('BL-smooth...')
+#MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=20)
+#
+## Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#logger.info('Calibrating...')
+#for MS in MSs.getListStr():
+#    lib_util.check_rm(MS+'/fr-lin.h5')
+#MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.caltype=fulljones sol.parmdb=$pathMS/fr-lin.h5', log='$nameMS_sol0a.log', commandType="DPPP")
+#
+#lib_util.run_losoto(s, 'fr-lin', [ms+'/fr-lin.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-amp.parset'])
 
 # Beam correction DATA -> CORRECTED_DATA
 logger.info('Beam correction...')
@@ -85,6 +85,7 @@ for MS in MSs.getListStr():
 MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.caltype=fulljones sol.parmdb=$pathMS/fr-lin2.h5', log='$nameMS_sol0b.log', commandType="DPPP")
 
 lib_util.run_losoto(s, 'fr-lin2', [ms+'/fr-lin2.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-amp.parset'])
+sys.exit()
 
 # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Converting to circular...')
