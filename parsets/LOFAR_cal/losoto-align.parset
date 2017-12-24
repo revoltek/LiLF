@@ -30,7 +30,6 @@ minmax = [-3.14,3.14]
 
 [align]
 soltab = sol000/phase000
-pol = XX,YY
 operation = POLALIGN
 soltabOut = polalign
 smooth = 0
@@ -92,9 +91,3 @@ plotFlag = True
 prefix = plots/ph-res_
 refAnt = 'CS002LBA'
 minmax = [-3.14,+3.14]
-
-# reset remotes as FR can still corrput
-#[resetRemote]
-#operation = RESET
-#soltab = sol000/polalign
-#ant = ['RS310LBA','RS210LBA','RS509LBA','RS508LBA','RS407LBA']
