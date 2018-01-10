@@ -141,7 +141,7 @@ if rename:
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
                         log=MS+'_avg.log', commandType='DPPP')
                 s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
-                lib_util.check_rm(MS)
+                #lib_util.check_rm(MS)
         else:
             logger.info('Move data - no averaging...')
             for MS in MSs.getListObj():
