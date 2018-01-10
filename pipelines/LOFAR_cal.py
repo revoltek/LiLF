@@ -104,7 +104,7 @@ for MS in MSs.getListStr():
     lib_util.check_rm(MS+'/fr.h5')
 MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5', log='$nameMS_sol1.log', commandType="DPPP")
 
-lib_util.run_losoto(s, 'fr', [ms+'/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset', parset_dir + '/losoto-amp.parset'])
+lib_util.run_losoto(s, 'fr', [ms+'/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
 
 # Convert to linear CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Converting to linear...')
@@ -191,7 +191,7 @@ if imaging:
 
     # Correct all CORRECTED_DATA (beam, CD, FR, BP corrected) -> CORRECTED_DATA
     logger.info('Amp/ph correction...')
-    MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 cor.steps=[ph,amp] \
+    MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono.h5 cor.amp.parmdb=cal-iono.h5 \
         cor.ph.correction=phaseOrig000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corG.log', commandType="DPPP")
 
     logger.info('Subtract model...')
