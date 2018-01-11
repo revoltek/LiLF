@@ -64,19 +64,18 @@ MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb="
 ## Beam corruption CORRECTED_DATA -> CORRECTED_DATA
 #logger.info('Beam correction...')
 #MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA corrbeam.invert=False', log='$nameMS_beam2.log', commandType="DPPP")
-#
-## Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-#logger.info('BL-smooth...')
-#MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=20)
+
+# Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
+logger.info('BL-smooth...')
+MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=20)
 
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
 logger.info('Calibrating...')
 for MS in MSs.getListStr():
     lib_util.check_rm(MS+'/pa.h5')
-    lib_util.check_rm(MS+'/instrument-rot')
-#MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/pa.h5', log='$nameMS_solPA.log', commandType="DPPP")
-MSs.run('calibrate-stand-alone -f --parmdb-name instrument-rot $nameMS.MS ' + parset_dir + '/bbs-circ.parset /home/fdg/scripts/LiLF/models/calib-simple.skymodel', log='$nameMS_solPA.log', commandType="BBS", maxThreads=20)
-sys.exit(1)
+#    lib_util.check_rm(MS+'/instrument-rot')
+MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/pa.h5', log='$nameMS_solPA.log', commandType="DPPP")
+#MSs.run('calibrate-stand-alone -f --parmdb-name instrument-rot $nameMS.MS ' + parset_dir + '/bbs-circ.parset /home/fdg/scripts/LiLF/models/calib-simple.skymodel', log='$nameMS_solPA.log', commandType="BBS", maxThreads=20)
 
 lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-pa.parset'])
 
