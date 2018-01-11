@@ -32,7 +32,9 @@ minmax = [-3.14,3.14]
 soltab = sol000/phase000
 operation = POLALIGN
 soltabOut = polalign
-smooth = 0
+average = True
+replace = True
+fitOffset = True
 refAnt = 'CS002LBA'
 
 [plotAlign]
@@ -43,24 +45,6 @@ axisInTable = ant
 axisDiff = pol
 plotFlag = True
 prefix = plots/ph-align
-refAnt = 'CS002LBA'
-minmax = [-1,+1]
-
-[smooth]
-operation = SMOOTH
-soltab = sol000/polalign
-axesToSmooth = time
-mode = median
-replace = True
-
-[plot2]
-operation = PLOT
-soltab = sol000/polalign
-axesInPlot = [time,freq]
-axisInTable = ant
-axisDiff = pol
-plotFlag = True
-prefix = plots/ph-alignS
 refAnt = 'CS002LBA'
 minmax = [-1,+1]
 

@@ -76,7 +76,6 @@ for MS in MSs.getListStr():
     lib_util.check_rm(MS+'/instrument-rot')
 #MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/pa.h5', log='$nameMS_solPA.log', commandType="DPPP")
 MSs.run('calibrate-stand-alone -f --parmdb-name instrument-rot $nameMS.MS ' + parset_dir + '/bbs-circ.parset /home/fdg/scripts/LiLF/models/calib-simple.skymodel', log='$nameMS_solPA.log', commandType="BBS", maxThreads=20)
-sys.exit(1)
 
 lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-pa.parset'])
 
