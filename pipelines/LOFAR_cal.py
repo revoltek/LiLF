@@ -43,14 +43,14 @@ for MS in MSs.getListObj():
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 calname = MSs.getListObj()[0].getNameField()
 
-## flag bad stations, flags will propagate
-#logger.info("Flagging...")
-#MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flag1.baseline=" + bl2flag, log="$nameMS_flag.log", commandType="DPPP")
-#
-## predict to save time ms:MODEL_DATA
-#logger.info('Add model to MODEL_DATA...')
-#skymodel = "/home/fdg/scripts/LiLF/models/calib-simple.skydb"
-#MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DPPP")
+# flag bad stations, flags will propagate
+logger.info("Flagging...")
+MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flag1.baseline=" + bl2flag, log="$nameMS_flag.log", commandType="DPPP")
+
+# predict to save time ms:MODEL_DATA
+logger.info('Add model to MODEL_DATA...')
+skymodel = "/home/fdg/scripts/LiLF/models/calib-simple.skydb"
+MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DPPP")
 
 ##################################################
 # 1: find PA
@@ -63,9 +63,7 @@ MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.
 logger.info('Calibrating...')
 for MS in MSs.getListStr():
     lib_util.check_rm(MS+'/pa.h5')
-#    lib_util.check_rm(MS+'/instrument-rot')
 MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/pa.h5', log='$nameMS_solPA.log', commandType="DPPP")
-#MSs.run('calibrate-stand-alone -f --parmdb-name instrument-rot $nameMS.MS ' + parset_dir + '/bbs-circ.parset /home/fdg/scripts/LiLF/models/calib-simple.skymodel', log='$nameMS_solPA.log', commandType="BBS", maxThreads=20)
 
 lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-pa.parset'])
 
@@ -165,7 +163,7 @@ lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], [pars
 # TODO: bisogna tenere conto che possono essrci piu' calibratori in una run!
 if 'survey' in os.getcwd():
     logger.info('Copy survey caltable...')
-    cal = 'cal_'+os.getcwd().split('/')[-2]
+    cal = 'cal_'+os.getcwd().split('/')[-2]+'_'+calname
     logger.info('Copy: cal*h5 -> dsk:/disks/paradata/fdg/LBAsurvey/%s' % cal)
     os.system('ssh dsk "rm -rf /disks/paradata/fdg/LBAsurvey/%s"' % cal)
     os.system('ssh dsk "mkdir /disks/paradata/fdg/LBAsurvey/%s"' % cal)
@@ -173,18 +171,21 @@ if 'survey' in os.getcwd():
 
 # a debug image
 if imaging:
-    logger.info("Imaging seciotn:")
+    logger.info("Imaging section:")
 
     if not 'survey' in os.getcwd():
         MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[int(len(glob.glob('./*MS'))/2.):], s ) # keep only upper band
 
-    # Correct all CORRECTED_DATA (beam, CD, FR, BP corrected) -> CORRECTED_DATA
+    # Correct all CORRECTED_DATA (PA, beam, FR, BP corrected) -> CORRECTED_DATA
     logger.info('Amp/ph correction...')
     MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono.h5 cor.amp.parmdb=cal-iono.h5 \
         cor.ph.correction=phaseOrig000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corG.log', commandType="DPPP")
 
     logger.info('Subtract model...')
     MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType ='general')
+
+    logger.info('Flag...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-flag2.parset msin=$pathMS', log='$nameMS_flag2.log', commandType='DPPP')
 
     logger.info('Cleaning...')
     lib_util.check_rm('img')

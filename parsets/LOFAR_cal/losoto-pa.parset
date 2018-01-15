@@ -34,7 +34,7 @@ operation = POLALIGN
 soltabOut = polalign
 average = True
 replace = True
-fitOffset = True
+fitOffset = False
 refAnt = 'CS002LBA'
 
 [plotAlign]

@@ -1,0 +1,10 @@
+msin=
+msin.datacolumn = CORRECTED_DATA
+msout=.
+
+numthreads = 6
+
+steps=[aoflagger, count]
+
+aoflagger.strategy=/home/fdg/scripts/LiLF/parsets/LOFAR_cal/LBAdefault.rfis
+aoflagger.memoryperc=6
