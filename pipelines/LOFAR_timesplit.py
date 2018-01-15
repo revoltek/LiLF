@@ -73,6 +73,8 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 # Copy instrument tables
 # TODO: this can now be made AFTER grouping
 logger.info('Copy solutions...')
+if not os.path.exists('cal-pa.h5'):
+    os.system('scp -q '+soldir+'/cal-pa.h5 .')
 if not os.path.exists('cal-amp.h5'):
     os.system('scp -q '+soldir+'/cal-amp.h5 .')
 if not os.path.exists('cal-iono.h5'):
@@ -80,13 +82,18 @@ if not os.path.exists('cal-iono.h5'):
 
 # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (calibrator corrected+reweight, beam corrected, circular)
 logger.info('Apply solutions...')
-MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.steps=[amp,ph] \
-        cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth000 cor.amp.updateweights=True\
-        cor.ph.parmdb=cal-iono.h5 cor.ph.correction=phaseOrig000', log='$nameMS_cor.log', commandType='DPPP')
+MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.steps=[pa] \
+        cor.pa.parmdb=cal-pa.h5 cor.pa.correction=polalign', log='$nameMS_cor.log', commandType='DPPP')
 
 # Beam correction CORRECTED_DATA -> CORRECTED_DATA (beam corrected+reweight)
 logger.info('Beam correction...')
 MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DPPP')
+
+# Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (calibrator corrected+reweight, beam corrected, circular)
+logger.info('Apply solutions...')
+MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
+        cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth000 cor.amp.updateweights=True\
+        cor.ph.parmdb=cal-iono.h5 cor.ph.correction=phaseOrig000', log='$nameMS_cor.log', commandType='DPPP')
 
 # Re-set weights of flagged data to 0 - this is necessary if we want to use dysco
 # due to DPPP leaving flagged weight at super-high values compared to unflagged ones
