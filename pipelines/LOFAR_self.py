@@ -85,11 +85,11 @@ for MS in MSs.getListStr():
 logger.info('Creating MODEL_DATA_HIGHRES and SUBTRACTED_DATA...')
 MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 
-#logger.info('Add model to MODEL_DATA...')
-#if apparent:
-#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
-#else:
-#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+logger.info('Add model to MODEL_DATA...')
+if apparent:
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+else:
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 
 #####################################################################################################
 # Self-cal cycle
@@ -129,7 +129,7 @@ for c in xrange(1, niter):
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
     #####################################################################################################
-    # Pol Align + Faraday rotation correction
+    # Faraday rotation correction
     if c >= 1:
 
         # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
@@ -183,21 +183,15 @@ for c in xrange(1, niter):
             for i, MS in enumerate(MSs.getListStr()):
                 lib_util.run_losoto(s, 'amp'+str(c)+'-ms'+str(i), [MS+'/amp.h5'], [parset_dir+'/losoto-align.parset',parset_dir+'/losoto-amp.parset'])
         else:
-            lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-align.parset',parset_dir+'/losoto-amp.parset'])
+            lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-pa.parset',parset_dir+'/losoto-amp.parset'])
         os.system('mv plots-amp'+str(c)+'* self/solutions/')
         os.system('mv cal-amp'+(str(c))+'*.h5 self/solutions/')
 
-        # Correct ALIGN SB.MS:SUBTRACTED_DATA->CORRECTED_DATA
-        logger.info('Pol-align correction...')
-        if multiepoch: h5 = '$pathMS/amp.h5'
-        else: h5 = 'cal-amp'+str(c)+'.h5'
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb='+h5+' cor.correction=polalign', \
-                log='$nameMS_corPA-c'+str(c)+'.log', commandType='DPPP')
-        # Correct beam amp SB.MS:CORRECTED_DATA->CORRECTED_DATA
+        # Correct beam amp SB.MS:SUBTRACTED_DATA->CORRECTED_DATA
         logger.info('Beam amp correction...')
         if multiepoch: h5 = '$pathMS/amp.h5'
         else: h5 = 'cal-amp'+str(c)+'.h5'
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb='+h5+' cor.correction=amplitude000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb='+h5+' cor.correction=amplitude000', \
                 log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
         # Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
         logger.info('Faraday rotation correction...')
