@@ -15,7 +15,10 @@ imaging    = True
 if 'tooth' in os.getcwd(): # tooth 2013
     datadir = '../cals-bkp/'
     bl2flag = 'CS031LBA'
-elif 'bootes' in os.getcwd(): # bootes 2013
+elif 'bootes' in os.getcwd() and not 'bootes2' in os.getcwd(): # bootes 2013
+    datadir = '../cals-bkp/'
+    bl2flag = 'CS013LBA\;CS031LBA\;RS310LBA'
+elif 'bootes2' in os.getcwd(): # bootes 2017
     datadir = '../cals-bkp/'
     bl2flag = 'CS013LBA\;CS031LBA'
 elif 'survey' in os.getcwd():
@@ -68,11 +71,43 @@ MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS
 
 lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-pa.parset'])
 
+# TEST
+#MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', log='$nameMS_field_taql1.log', commandType ='general')
+#for MS in MSs.getListStr():
+#    lib_util.check_rm(MS+'/instrument-rot')
+#MSs.run('calibrate-stand-alone -f --parmdb-name instrument-rot $nameMS.MS ' + parset_dir + '/bbs-circ.parset /home/fdg/scripts/LiLF/models/calib-simple.skymodel', log='$nameMS_solPA.log', commandType="BBS")
+#lib_util.check_rm('globaldb')
+#os.makedirs('globaldb')
+#for MS in MSs.getListStr():
+#    os.system('cp -r %s/instrument-rot globaldb/instrument_%s' % (MS,MS))
+#os.system('cp -r %s/ANTENNA %s/FIELD %s/sky globaldb' % (MS,MS,MS))
+#lib_util.check_rm('cal-pa.h5')
+#os.system('H5parm_importer.py -V cal-pa.h5 globaldb')
+#lib_util.run_losoto(s, 'pa', ['cal-pa.h5'], [parset_dir+'/losoto-pa.parset'])
+
 # Pol align correction DATA -> CORRECTED_DATA
 logger.info('Polalign correction...')
 MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DPPP")
 
-###################################################
+## Beam correction CORRECTED_DATA -> CORRECTED_DATA
+#logger.info('Beam correction...')
+#MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA corrbeam.updateweights=True', log='$nameMS_beam.log', commandType="DPPP")
+#
+## TEST
+#for MS in MSs.getListStr():
+#    lib_util.check_rm(MS+'/instrument-rot2')
+#MSs.run('calibrate-stand-alone -f --parmdb-name instrument-rot $nameMS.MS ' + parset_dir + '/bbs-circ.parset /home/fdg/scripts/LiLF/models/calib-simple.skymodel', log='$nameMS_solPA.log', commandType="BBS")
+#lib_util.check_rm('globaldb2')
+#os.makedirs('globaldb2')
+#for MS in MSs.getListStr():
+#    os.system('cp -r %s/instrument-rot2 globaldb2/instrument_%s' % (MS,MS))
+#os.system('cp -r %s/ANTENNA %s/FIELD %s/sky globaldb' % (MS,MS,MS))
+#lib_util.check_rm('cal-amp.h5')
+#os.system('H5parm_importer.py -V cal-amp.h5 globaldb')
+#lib_util.run_losoto(s, 'amp', ['cal-amp.h5'], [parset_dir+'/losoto-amp.parset'])
+#sys.exit()
+
+####################################################
 # 2: find FR
 
 # Beam correction CORRECTED_DATA -> CORRECTED_DATA
@@ -174,7 +209,6 @@ if os.path.exists(field_model):
 
 lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-flag.parset', parset_dir + '/losoto-iono.parset'])
 
-# TODO: bisogna tenere conto che possono essrci piu' calibratori in una run!
 if 'survey' in os.getcwd():
     logger.info('Copy survey caltable...')
     cal = 'cal_'+os.getcwd().split('/')[-2]+'_'+calname

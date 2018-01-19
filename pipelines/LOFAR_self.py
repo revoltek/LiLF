@@ -93,7 +93,7 @@ else:
 
 #####################################################################################################
 # Self-cal cycle
-for c in xrange(1, niter):
+for c in xrange(0, niter):
 
     logger.info('Start selfcal cycle: '+str(c))
 
@@ -181,7 +181,7 @@ for c in xrange(1, niter):
 
         if multiepoch:
             for i, MS in enumerate(MSs.getListStr()):
-                lib_util.run_losoto(s, 'amp'+str(c)+'-ms'+str(i), [MS+'/amp.h5'], [parset_dir+'/losoto-align.parset',parset_dir+'/losoto-amp.parset'])
+                lib_util.run_losoto(s, 'amp'+str(c)+'-ms'+str(i), [MS+'/amp.h5'], [parset_dir+'/losoto-pa.parset',parset_dir+'/losoto-amp.parset'])
         else:
             lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-pa.parset',parset_dir+'/losoto-amp.parset'])
         os.system('mv plots-amp'+str(c)+'* self/solutions/')

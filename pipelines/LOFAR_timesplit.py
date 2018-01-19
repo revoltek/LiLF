@@ -17,11 +17,16 @@ if 'LBAsurvey' in os.getcwd():
     ngroups = 1 # number of groups (totalSB/SBperFREQgroup)
     datadir = '../../download/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
     soldir = 'dsk:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]
+elif 'bootes2' in os.getcwd():
+    ngroups = 3
+    datadir = '../tgts-bkp/' 
+    soldir = '../cals/'
 else:
     ngroups = 2
     datadir = '../tgts-bkp/' 
     soldir = '../cals/'
-    assert os.path.isdir(soldir)
+
+assert os.path.isdir(soldir)
 
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log
@@ -80,20 +85,23 @@ if not os.path.exists('cal-amp.h5'):
 if not os.path.exists('cal-iono.h5'):
     os.system('scp -q '+soldir+'/cal-iono.h5 .')
 
-# Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (calibrator corrected+reweight, beam corrected, circular)
+# Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign corrected)
 logger.info('Apply solutions...')
 MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.steps=[pa] \
-        cor.pa.parmdb=cal-pa.h5 cor.pa.correction=polalign', log='$nameMS_cor.log', commandType='DPPP')
+        cor.pa.parmdb=cal-pa.h5 cor.pa.correction=polalign', log='$nameMS_cor1.log', commandType='DPPP')
 
-# Beam correction CORRECTED_DATA -> CORRECTED_DATA (beam corrected+reweight)
+# Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
 logger.info('Beam correction...')
 MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DPPP')
 
-# Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (calibrator corrected+reweight, beam corrected, circular)
+# Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, calibrator corrected+reweight, beam corrected+reweight)
 logger.info('Apply solutions...')
 MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
         cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth000 cor.amp.updateweights=True\
-        cor.ph.parmdb=cal-iono.h5 cor.ph.correction=phaseOrig000', log='$nameMS_cor.log', commandType='DPPP')
+        cor.ph.parmdb=cal-iono.h5 cor.ph.correction=clock000', log='$nameMS_cor2.log', commandType='DPPP') # TODO: clock?
+#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
+#        cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth000 cor.amp.updateweights=True\
+#        cor.ph.parmdb=cal-iono.h5 cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DPPP')
 
 # Re-set weights of flagged data to 0 - this is necessary if we want to use dysco
 # due to DPPP leaving flagged weight at super-high values compared to unflagged ones
