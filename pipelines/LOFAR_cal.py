@@ -9,27 +9,32 @@ import sys, os, glob, re
 import numpy as np
 
 parset_dir = "/home/fdg/scripts/LiLF/parsets/LOFAR_cal"
-imaging    = True
+imaging    = False
 
 # Temporary!
 if 'tooth' in os.getcwd(): # tooth 2013
     datadir = '../cals-bkp/'
     bl2flag = 'CS031LBA'
+    iono3rd = True
 elif 'bootes' in os.getcwd() and not 'bootes2' in os.getcwd(): # bootes 2013
     datadir = '../cals-bkp/'
     bl2flag = 'CS013LBA\;CS031LBA\;RS310LBA'
+    iono3rd = True
 elif 'bootes2' in os.getcwd(): # bootes 2017
     datadir = '../cals-bkp/'
     bl2flag = 'CS013LBA\;CS031LBA'
+    iono3rd = True
 elif 'survey' in os.getcwd():
     obs     = os.getcwd().split('/')[-2] # assumes .../c??-o??/3c196
     calname = os.getcwd().split('/')[-1] # assumes .../c??-o??/3c196
     datadir = '../../download/%s/%s' % (obs, calname)
     bl2flag = 'CS031LBA'
     if 'c09' in os.getcwd(): bl2flag = 'CS031LBA\;CS013LBA'
+    iono3rd = False
 else:
     datadir = '../cals-bkp/'
     bl2flag = ''
+    iono3rd = True
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
@@ -207,7 +212,10 @@ if os.path.exists(field_model):
         lib_util.check_rm(ms+'/iono.h5')
     MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/iono.h5', log='$nameMS_field_sol.log', commandType="DPPP")
 
-lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-flag.parset', parset_dir + '/losoto-iono.parset'])
+if iono3rd:
+    lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-flag.parset', parset_dir + '/losoto-iono3rd.parset'])
+else:
+    lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-flag.parset', parset_dir + '/losoto-iono.parset'])
 
 if 'survey' in os.getcwd():
     logger.info('Copy survey caltable...')
