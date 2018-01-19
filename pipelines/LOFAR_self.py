@@ -24,19 +24,16 @@ if 'tooth' in os.getcwd():
     sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/toothbrush.LBA.skydb'
     apparent = True # no beam correction
     userReg = '/home/fdg/scripts/autocal/regions/tooth.reg'
-    multiepoch = True
 elif 'bootes' in os.getcwd():
     sourcedb = '/home/fdg/scripts/model/Bootes_HBA.corr.skydb'
     apparent = False
     userReg = None
-    multiepoch = False
 else:
     # Survey
     obs = os.getcwd().split('/')[-1]
     sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/skymodels/%s.skydb' % obs
     apparent = False
     userReg = None
-    multiepoch = True
     if not os.path.exists('mss'):
         os.makedirs('mss')
         for i, tc in enumerate(glob.glob('../../c*-o*/%s/mss/*' % obs)):
@@ -115,11 +112,7 @@ for c in xrange(1, niter):
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
     # LoSoTo plot
-    if multiepoch:
-        for i, MS in enumerate(MSs.getListStr()):
-            lib_util.run_losoto(s, 'tec'+str(c)+'-ms'+str(i), [MS+'/tec.h5'], [parset_dir+'/losoto-plot.parset'])
-    else:
-        lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
+    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
     os.system('mv plots-tec'+str(c)+'* self/solutions/')
     os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
 
@@ -147,11 +140,7 @@ for c in xrange(1, niter):
         MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5 sol.solint=30 sol.nchan=8', \
                     log='$nameMS_sol-g1-c'+str(c)+'.log', commandType='DPPP')
 
-        if multiepoch:
-            for i, MS in enumerate(MSs.getListStr()):
-                lib_util.run_losoto(s, 'fr'+str(c)+'-ms'+str(i), [MS+'/fr.h5'], [parset_dir+'/losoto-fr.parset'])
-        else:
-            lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-fr.parset'])
+        lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-fr.parset'])
         os.system('mv plots-fr'+str(c)+'* self/solutions/')
         os.system('mv cal-fr'+str(c)+'*.h5 self/solutions/')
        
@@ -162,8 +151,7 @@ for c in xrange(1, niter):
         
         # Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
         logger.info('Faraday rotation correction...')
-        if multiepoch: h5 = '$pathMS/fr.h5'
-        else: h5 = 'cal-fr'+str(c)+'.h5'
+        h5 = 'cal-fr'+str(c)+'.h5'
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
                     log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
@@ -179,24 +167,18 @@ for c in xrange(1, niter):
         MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5 sol.solint=30 sol.nchan=8', \
                     log='$nameMS_sol-g2-c'+str(c)+'.log', commandType='DPPP')
 
-        if multiepoch:
-            for i, MS in enumerate(MSs.getListStr()):
-                lib_util.run_losoto(s, 'amp'+str(c)+'-ms'+str(i), [MS+'/amp.h5'], [parset_dir+'/losoto-align.parset',parset_dir+'/losoto-amp.parset'])
-        else:
-            lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-pa.parset',parset_dir+'/losoto-amp.parset'])
+        lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-pa.parset',parset_dir+'/losoto-amp.parset'])
         os.system('mv plots-amp'+str(c)+'* self/solutions/')
         os.system('mv cal-amp'+(str(c))+'*.h5 self/solutions/')
 
         # Correct beam amp SB.MS:SUBTRACTED_DATA->CORRECTED_DATA
         logger.info('Beam amp correction...')
-        if multiepoch: h5 = '$pathMS/amp.h5'
-        else: h5 = 'cal-amp'+str(c)+'.h5'
+        h5 = 'cal-amp'+str(c)+'.h5'
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb='+h5+' cor.correction=amplitude000', \
                 log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
         # Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
         logger.info('Faraday rotation correction...')
-        if multiepoch: h5 = '$pathMS/fr.h5'
-        else: h5 = 'cal-fr'+str(c)+'.h5'
+        h5 = 'cal-fr'+str(c)+'.h5'
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
                     log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
@@ -212,18 +194,13 @@ for c in xrange(1, niter):
                     log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
         # LoSoTo plot
-        if multiepoch:
-            for i, MS in enumerate(MSs.getListStr()):
-                lib_util.run_losoto(s, 'tec'+str(c)+'b-ms'+str(i), [MS+'/tec.h5'], [parset_dir+'/losoto-plot.parset'])
-        else:
-            lib_util.run_losoto(s, 'tec'+str(c)+'b', [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
+        lib_util.run_losoto(s, 'tec'+str(c)+'b', [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
         os.system('mv plots-tec'+str(c)+'b* self/solutions')
         os.system('mv cal-tec'+str(c)+'b*.h5 self/solutions')
 
         # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting TEC...')
-        if multiepoch: h5 = '$pathMS/tec.h5'
-        else: h5 = 'cal-tec'+str(c)+'b.h5'
+        h5 = 'cal-tec'+str(c)+'b.h5'
         MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor1.parmdb='+h5+' cor2.parmdb='+h5, \
                     log='$nameMS_corTECb-c'+str(c)+'.log', commandType='DPPP')
 

@@ -43,4 +43,4 @@ AxisDiff = pol
 plotFlag = True
 prefix = plots/phRes-rot
 refAnt = CS002LBA
-minmax = [-3.14,3.14]
+minmax = [-1,1]
