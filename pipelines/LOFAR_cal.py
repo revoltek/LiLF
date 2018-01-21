@@ -246,7 +246,7 @@ if imaging:
     logger.info('Cleaning...')
     lib_util.check_rm('img')
     os.makedirs('img')
-    imagename = 'img/wide'
+    imagename = 'img/cal'
     s.add('wsclean -reorder -name ' + imagename + ' -size 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.9 -minuv-l 100 \
             -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 20 '+MSs.getStrWsclean(), \
@@ -258,7 +258,7 @@ if imaging:
     im.makeMask(threshisl = 5)
 
     logger.info('Cleaning w/ mask...')
-    imagename = 'img/wideM'
+    imagename = 'img/calM'
     # -apply-primary-beam -use-differential-lofar-beam
     s.add('wsclean -reorder -name ' + imagename + ' -size 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.8 -minuv-l 100 \
