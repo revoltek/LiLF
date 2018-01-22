@@ -151,7 +151,7 @@ for c in xrange(0, niter):
         
         # Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
         logger.info('Faraday rotation correction...')
-        h5 = 'cal-fr'+str(c)+'.h5'
+        h5 = 'self/solutions/cal-fr'+str(c)+'.h5'
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
                     log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
@@ -173,12 +173,12 @@ for c in xrange(0, niter):
 
         # Correct beam amp SB.MS:SUBTRACTED_DATA->CORRECTED_DATA
         logger.info('Beam amp correction...')
-        h5 = 'cal-amp'+str(c)+'.h5'
+        h5 = 'self/solutions/cal-amp'+str(c)+'.h5'
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb='+h5+' cor.correction=amplitude000', \
                 log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
         # Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
         logger.info('Faraday rotation correction...')
-        h5 = 'cal-fr'+str(c)+'.h5'
+        h5 = 'self/solutions/cal-fr'+str(c)+'.h5'
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
                     log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
@@ -200,7 +200,7 @@ for c in xrange(0, niter):
 
         # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting TEC...')
-        h5 = 'cal-tec'+str(c)+'b.h5'
+        h5 = 'self/solutions/cal-tec'+str(c)+'b.h5'
         MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor1.parmdb='+h5+' cor2.parmdb='+h5, \
                     log='$nameMS_corTECb-c'+str(c)+'.log', commandType='DPPP')
 
