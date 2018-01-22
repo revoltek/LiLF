@@ -51,166 +51,134 @@ for MS in MSs.getListObj():
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 calname = MSs.getListObj()[0].getNameField()
 
-######################################################
-# flag bad stations, flags will propagate
-logger.info("Flagging...")
-MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flag1.baseline=" + bl2flag, log="$nameMS_flag.log", commandType="DPPP")
-
-# predict to save time ms:MODEL_DATA
-logger.info('Add model to MODEL_DATA...')
-skymodel = "/home/fdg/scripts/LiLF/models/calib-simple.skydb"
-MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DPPP")
-
-##################################################
-# 1: find PA
-
-# Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
-logger.info('BL-smooth...')
-MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=20)
-
-# Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-logger.info('Calibrating...')
-for MS in MSs.getListStr():
-    lib_util.check_rm(MS+'/pa.h5')
-MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/pa.h5', log='$nameMS_solPA.log', commandType="DPPP")
-
-lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-pa.parset'])
-
-# TEST
-#MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', log='$nameMS_field_taql1.log', commandType ='general')
+#######################################################
+## flag bad stations, flags will propagate
+#logger.info("Flagging...")
+#MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flag1.baseline=" + bl2flag, log="$nameMS_flag.log", commandType="DPPP")
+#
+## predict to save time ms:MODEL_DATA
+#logger.info('Add model to MODEL_DATA...')
+#skymodel = "/home/fdg/scripts/LiLF/models/calib-simple.skydb"
+#MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DPPP")
+#
+###################################################
+## 1: find PA
+#
+## Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
+#logger.info('BL-smooth...')
+#MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=20)
+#
+## Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#logger.info('Calibrating...')
 #for MS in MSs.getListStr():
-#    lib_util.check_rm(MS+'/instrument-rot')
-#MSs.run('calibrate-stand-alone -f --parmdb-name instrument-rot $nameMS.MS ' + parset_dir + '/bbs-circ.parset /home/fdg/scripts/LiLF/models/calib-simple.skymodel', log='$nameMS_solPA.log', commandType="BBS")
-#lib_util.check_rm('globaldb')
-#os.makedirs('globaldb')
-#for MS in MSs.getListStr():
-#    os.system('cp -r %s/instrument-rot globaldb/instrument_%s' % (MS,MS))
-#os.system('cp -r %s/ANTENNA %s/FIELD %s/sky globaldb' % (MS,MS,MS))
-#lib_util.check_rm('cal-pa.h5')
-#os.system('H5parm_importer.py -V cal-pa.h5 globaldb')
-#lib_util.run_losoto(s, 'pa', ['cal-pa.h5'], [parset_dir+'/losoto-pa.parset'])
-
-# Pol align correction DATA -> CORRECTED_DATA
-logger.info('Polalign correction...')
-MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DPPP")
-
+#    lib_util.check_rm(MS+'/pa.h5')
+#MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/pa.h5', log='$nameMS_solPA.log', commandType="DPPP")
+#
+#lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-pa.parset'])
+#
+## Pol align correction DATA -> CORRECTED_DATA
+#logger.info('Polalign correction...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DPPP")
+#
+#####################################################
+## 2: find FR
+#
 ## Beam correction CORRECTED_DATA -> CORRECTED_DATA
 #logger.info('Beam correction...')
 #MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA corrbeam.updateweights=True', log='$nameMS_beam.log', commandType="DPPP")
 #
-## TEST
+## Convert to circular CORRECTED_DATA -> CORRECTED_DATA
+#logger.info('Converting to circular...')
+#MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType ='python')
+#
+## Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+#logger.info('BL-smooth...')
+#MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=20)
+#
+## Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#logger.info('Calibrating...')
 #for MS in MSs.getListStr():
-#    lib_util.check_rm(MS+'/instrument-rot2')
-#MSs.run('calibrate-stand-alone -f --parmdb-name instrument-rot $nameMS.MS ' + parset_dir + '/bbs-circ.parset /home/fdg/scripts/LiLF/models/calib-simple.skymodel', log='$nameMS_solPA.log', commandType="BBS")
-#lib_util.check_rm('globaldb2')
-#os.makedirs('globaldb2')
+#    lib_util.check_rm(MS+'/fr.h5')
+#MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5', log='$nameMS_sol1.log', commandType="DPPP")
+#
+#lib_util.run_losoto(s, 'fr', [ms+'/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
+#
+## Convert to linear CORRECTED_DATA -> CORRECTED_DATA
+#logger.info('Converting to linear...')
+#MSs.run('mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType ='python')
+#
+## Correct FR CORRECTED_DATA -> CORRECTED_DATA
+#logger.info('Faraday rotation correction...')
+#MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DPPP")
+#
+######################################################
+## 3: find amplitude
+#
+## Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+#logger.info('BL-smooth...')
+#MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2.log', commandType ='python', maxThreads=20)
+#
+## Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#logger.info('Calibrating...')
 #for MS in MSs.getListStr():
-#    os.system('cp -r %s/instrument-rot2 globaldb2/instrument_%s' % (MS,MS))
-#os.system('cp -r %s/ANTENNA %s/FIELD %s/sky globaldb' % (MS,MS,MS))
-#lib_util.check_rm('cal-amp.h5')
-#os.system('H5parm_importer.py -V cal-amp.h5 globaldb')
-#lib_util.run_losoto(s, 'amp', ['cal-amp.h5'], [parset_dir+'/losoto-amp.parset'])
-#sys.exit()
-
+#    lib_util.check_rm(MS+'/amp.h5')
+#MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5', log='$nameMS_sol2.log', commandType="DPPP")
+#
+## TODO: remove pa
+#lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-amp.parset',parset_dir+'/losoto-pa.parset'])
+#
 ####################################################
-# 2: find FR
-
-# Beam correction CORRECTED_DATA -> CORRECTED_DATA
-logger.info('Beam correction...')
-MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA corrbeam.updateweights=True', log='$nameMS_beam.log', commandType="DPPP")
-
-# Convert to circular CORRECTED_DATA -> CORRECTED_DATA
-logger.info('Converting to circular...')
-MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType ='python')
-
-# Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-logger.info('BL-smooth...')
-MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=20)
-
-# Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-logger.info('Calibrating...')
-for MS in MSs.getListStr():
-    lib_util.check_rm(MS+'/fr.h5')
-MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5', log='$nameMS_sol1.log', commandType="DPPP")
-
-lib_util.run_losoto(s, 'fr', [ms+'/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
-
-# Convert to linear CORRECTED_DATA -> CORRECTED_DATA
-logger.info('Converting to linear...')
-MSs.run('mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType ='python')
-
-# Correct FR CORRECTED_DATA -> CORRECTED_DATA
-logger.info('Faraday rotation correction...')
-MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DPPP")
-
-#####################################################
-# 3: find amplitude
-
-# Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-logger.info('BL-smooth...')
-MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2.log', commandType ='python', maxThreads=20)
-
-# Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-logger.info('Calibrating...')
-for MS in MSs.getListStr():
-    lib_util.check_rm(MS+'/amp.h5')
-MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5', log='$nameMS_sol2.log', commandType="DPPP")
-
-# TODO: remove pa
-lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-amp.parset',parset_dir+'/losoto-pa.parset'])
-
+## redo correcitons in right order
+#
+## Pol align correction DATA -> CORRECTED_DATA
+#logger.info('Polalign correction...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DPPP")
+## Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
+#logger.info('AmpBP correction...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-amp.h5 \
+#        cor.correction=amplitudeSmooth000 cor.updateweights=True', log='$nameMS_corAMP.log', commandType="DPPP")
+## Beam correction CORRECTED_DATA -> CORRECTED_DATA
+#logger.info('Beam correction...')
+#MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA corrbeam.updateweights=True', log='$nameMS_beam.log', commandType="DPPP")
+## Correct FR CORRECTED_DATA -> CORRECTED_DATA
+#logger.info('Faraday rotation correction...')
+#MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DPPP")
+#
 ###################################################
-# redo correcitons in right order
-
-# Pol align correction DATA -> CORRECTED_DATA
-logger.info('Polalign correction...')
-MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DPPP")
-# Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
-logger.info('AmpBP correction...')
-MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-amp.h5 \
-        cor.correction=amplitudeSmooth000 cor.updateweights=True', log='$nameMS_corAMP.log', commandType="DPPP")
-# Beam correction CORRECTED_DATA -> CORRECTED_DATA
-logger.info('Beam correction...')
-MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA corrbeam.updateweights=True', log='$nameMS_beam.log', commandType="DPPP")
-# Correct FR CORRECTED_DATA -> CORRECTED_DATA
-logger.info('Faraday rotation correction...')
-MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DPPP")
-
-##################################################
-# 4: find iono
-
-# Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-logger.info('BL-smooth...')
-MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python', maxThreads=20)
-
-# Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-logger.info('Calibrating...')
-for MS in MSs.getListStr():
-    lib_util.check_rm(MS+'/iono.h5')
-MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/iono.h5', log='$nameMS_sol3.log', commandType="DPPP")
-
-# if field model available, subtract it
-field_model = '/home/fdg/scripts/LiLF/models/calfields/'+calname+'-field.skydb'
-if os.path.exists(field_model):
-    logger.info('Removing field sources...')
-
-    logger.info('Ft+corrupt model...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+field_model+' \
-                pre.applycal.parmdb=$pathMS/iono.h5 pre.applycal.correction=phase000', log='$nameMS_field_pre.log', commandType="DPPP")
-
-    # Remove the field sources CORRECTED_DATA -> CORRECTED_DATA - MODEL_DATA
-    logger.info('Subtract model...')
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_field_taql1.log', commandType ='general')
-
-    # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-    logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_field_smooth.log', commandType ='python', maxThreads=20)
-
-    # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-    logger.info('Calibrating...')
-    for MS in MSs.getListStr():
-        lib_util.check_rm(ms+'/iono.h5')
-    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/iono.h5', log='$nameMS_field_sol.log', commandType="DPPP")
+## 4: find iono
+#
+## Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+#logger.info('BL-smooth...')
+#MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python', maxThreads=20)
+#
+## Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#logger.info('Calibrating...')
+#for MS in MSs.getListStr():
+#    lib_util.check_rm(MS+'/iono.h5')
+#MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/iono.h5', log='$nameMS_sol3.log', commandType="DPPP")
+#
+## if field model available, subtract it
+#field_model = '/home/fdg/scripts/LiLF/models/calfields/'+calname+'-field.skydb'
+#if os.path.exists(field_model):
+#    logger.info('Removing field sources...')
+#
+#    logger.info('Ft+corrupt model...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+field_model+' \
+#                pre.applycal.parmdb=$pathMS/iono.h5 pre.applycal.correction=phase000', log='$nameMS_field_pre.log', commandType="DPPP")
+#
+#    # Remove the field sources CORRECTED_DATA -> CORRECTED_DATA - MODEL_DATA
+#    logger.info('Subtract model...')
+#    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_field_taql1.log', commandType ='general')
+#
+#    # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+#    logger.info('BL-smooth...')
+#    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_field_smooth.log', commandType ='python', maxThreads=20)
+#
+#    # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#    logger.info('Calibrating...')
+#    for MS in MSs.getListStr():
+#        lib_util.check_rm(ms+'/iono.h5')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/iono.h5', log='$nameMS_field_sol.log', commandType="DPPP")
 
 if iono3rd:
     lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-flag.parset', parset_dir + '/losoto-iono3rd.parset'])
