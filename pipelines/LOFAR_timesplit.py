@@ -17,7 +17,7 @@ if 'LBAsurvey' in os.getcwd():
     ngroups = 1 # number of groups (totalSB/SBperFREQgroup)
     datadir = '../../download/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
     soldir = 'dsk:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]
-elif 'bootes2' in os.getcwd():
+elif 'bootes2' in os.getcwd() or 'maria' in os.getcwd():
     ngroups = 3
     datadir = '../tgts-bkp/' 
     soldir = '../cals/'
@@ -41,32 +41,6 @@ logger.info('Cleaning...')
 lib_util.check_rm('mss*')
 MSs = lib_ms.AllMSs( glob.glob(datadir+'/*MS'), s )
 
-##############################################
-# Avg to 4 chan and 4 sec
-# Remove internationals
-# TODO: move to download pipeline
-#nchan = find_nchan(mss[0])
-#timeint = find_timeint(mss[0])
-#if nchan % 4 != 0 and nchan != 1:
-#    logger.error('Channels should be a multiple of 4.')
-#    sys.exit(1)
-#
-#avg_factor_f = nchan / 4 # to 4 ch/SB
-#if avg_factor_f < 1: avg_factor_f = 1
-#avg_factor_t = int(np.round(4/timeint)) # to 4 sec
-#if avg_factor_t < 1: avg_factor_t = 1
-#
-#if avg_factor_f != 1 or avg_factor_t != 1:
-#    logger.info('Average in freq (factor of %i) and time (factor of %i)...' % (avg_factor_f, avg_factor_t))
-#    for ms in mss:
-#        msout = ms.replace('.MS','-avg.MS').split('/')[-1]
-#        if os.path.exists(msout): lib_util.check_rm(ms)
-#        s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+ms+' msout='+msout+' msin.datacolumn=DATA avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
-#                log=msout+'_avg.log', commandType='DPPP')
-#    s.run(check=True)
-#    nchan = nchan / avg_factor_f
-#    timeint = timeint * avg_factor_t
-#else:
 logger.info('Copy data...')
 for MS in MSs.getListObj():
     MS.move(MS.nameMS+'.MS', keepOrig=True)
@@ -95,18 +69,13 @@ logger.info('Beam correction...')
 MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DPPP')
 
 # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, calibrator corrected+reweight, beam corrected+reweight)
-logger.info('Apply solutions...')
-MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
-        cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth000 cor.amp.updateweights=True\
-        cor.ph.parmdb=cal-iono.h5 cor.ph.correction=clock000', log='$nameMS_cor2.log', commandType='DPPP') # TODO: clock?
+#logger.info('Apply solutions...')
 #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
 #        cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth000 cor.amp.updateweights=True\
-#        cor.ph.parmdb=cal-iono.h5 cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DPPP')
-
-# Re-set weights of flagged data to 0 - this is necessary if we want to use dysco
-# due to DPPP leaving flagged weight at super-high values compared to unflagged ones
-#logger.info('Set weight of flagged data to 0...')
-#MSs.run('flag_weight_to_zero.py $pathMS', log='$nameMS_resetweight.log', commandType='python')
+#        cor.ph.parmdb=cal-iono.h5 cor.ph.correction=clock000', log='$nameMS_cor2.log', commandType='DPPP') # TODO: clock?
+MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
+        cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth000 cor.amp.updateweights=True\
+        cor.ph.parmdb=cal-iono.h5 cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DPPP')
 
 ###################################################################################################
 # Create groups
