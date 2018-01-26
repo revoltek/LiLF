@@ -79,8 +79,8 @@ for MS in MSs.getListStr():
     os.system('cp -r '+sourcedb+' '+MS)
 
 # Create columns (non compressed)
-logger.info('Creating MODEL_DATA_HIGHRES and SUBTRACTED_DATA...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
+logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
+MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 
 logger.info('Add model to MODEL_DATA...')
 if apparent:
@@ -139,7 +139,6 @@ for c in xrange(0, niter):
             lib_util.check_rm(MS+'/fr.h5')
         MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5 sol.solint=30 sol.nchan=8', \
                     log='$nameMS_sol-g1-c'+str(c)+'.log', commandType='DPPP')
-        sys.exit()
 
         lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-fr.parset'])
         os.system('mv plots-fr'+str(c)+'* self/solutions/')
@@ -247,7 +246,6 @@ for c in xrange(0, niter):
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
-    #TODO: -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,9 \
     s.add('wsclean -reorder -name ' + imagename + ' -size 3000 3000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 10arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -maxuv-l 5000 -mgain 0.8 \
             -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
@@ -261,21 +259,17 @@ for c in xrange(0, niter):
 
     # predict
     logger.info('Predict (ft)...')
-    if c > 1 and c != niter:
+    if c != niter:
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb+'.skydb', \
                 log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
     if c == 1:
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_HIGHRES pre.usebeammodel=false pre.sourcedb='+im.skydb+'.skydb', \
-                log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-
-        # Subtract model from all TCs - concat.MS:CORRECTED_DATA - MODEL_DATA -> concat.MS:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
-        logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_HIGHRES)...')
-        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_HIGHRES"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
+        # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
+        logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
+        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
     
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
-        #s.add('wsclean -reorder -name ' + imagename_lr + ' -size 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
         s.add('wsclean -reorder -name ' + imagename_lr + ' -size 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
                 -scale 20arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -maxuv-l 2000 -mgain 0.8 \
                 -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 1 -minuv-l 100 -save-source-list '+MSs.getStrWsclean(), \
@@ -285,27 +279,23 @@ for c in xrange(0, niter):
         im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=False)
 
-        # predict
+        # predict - ms: MODEL_DATA_LOWRES
         logger.info('Predict low-res model...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb+'.skydb', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_LOWRES pre.usebeammodel=false pre.sourcedb='+im.skydb+'.skydb', \
                 log='$nameMS_pre-lr.log', commandType='DPPP')
 
-        # corrupt model with TEC solutions ms:MODEL_DATA -> ms:MODEL_DATA
+        # corrupt model with TEC solutions - ms:MODEL_DATA_LOWRES -> ms:MODEL_DATA_LOWRES
         logger.info('Corrupt low-res model...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+        MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=MODEL_DATA_LOWRES msout.datacolumn=MODEL_DATA_LOWRES  \
                 cor1.parmdb=$pathMS/tec.h5 cor1.invert=false cor2.parmdb=$pathMS/tec.h5 cor2.invert=false', \
                 log='$nameMS_corrupt.log', commandType='DPPP')
     
-        # Subtract low-res model - concat.MS:CORRECTED_DATA - MODEL_DATA -> concat.MS:CORRECTED_DATA (empty)
-        logger.info('Subtracting low-res model (SUBTRACTED_DATA = DATA - MODEL_DATA)...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql2-c'+str(c)+'.log', commandType='general')
-
-        # Restore best model
-        logger.info('Restoring high-res model (MODEL_DATA = MODEL_DATA_HIGHRES)...')
-        MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA_HIGHRES"', log='$nameMS_taql3-c'+str(c)+'.log', commandType='general')
-        s.run(check=True)
+        # Subtract low-res model - concat.MS:CORRECTED_DATA - MODEL_DATA_LOWRES -> concat.MS:CORRECTED_DATA (empty)
+        logger.info('Subtracting low-res model (SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES)...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES"', log='$nameMS_taql2-c'+str(c)+'.log', commandType='general')
 
     ###############################################################################################################
+    # TODO
     # Flag on residuals (CORRECTED_DATA)
     #logger.info('Flagging residuals...')
     #MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', log='$nameMS_flag-c'+str(c)+'.log', commandType='DPPP')

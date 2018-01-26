@@ -51,7 +51,7 @@ for MS in MSs.getListObj():
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 calname = MSs.getListObj()[0].getNameField()
 
-######################################################
+##################################################
 # flag bad stations, flags will propagate
 logger.info("Flagging...")
 MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flag1.baseline=" + bl2flag, log="$nameMS_flag.log", commandType="DPPP")
@@ -197,7 +197,10 @@ if 'survey' in os.getcwd():
 if imaging:
     logger.info("Imaging section:")
 
-    if not 'survey' in os.getcwd():
+    if 'bootes2' in os.getcwd():
+        fourth = int(len(glob.glob('./*MS'))/4.)
+        MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[1*fourth:3*fourth], s ) # keep only upper band
+    elif not 'survey' in os.getcwd():
         MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[int(len(glob.glob('./*MS'))/2.):], s ) # keep only upper band
 
     # Correct all CORRECTED_DATA (PA, beam, FR, BP corrected) -> CORRECTED_DATA
