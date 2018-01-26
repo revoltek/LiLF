@@ -18,7 +18,7 @@ if 'LBAsurvey' in os.getcwd():
     datadir = '../../download/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
     soldir = 'dsk:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]
 elif 'bootes2' in os.getcwd():
-    ngroups = 3
+    ngroups = 1
     datadir = '../tgts-bkp/' 
     soldir = '../cals/'
 else:

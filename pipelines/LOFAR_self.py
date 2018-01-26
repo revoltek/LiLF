@@ -96,10 +96,10 @@ for c in xrange(0, niter):
 
     # Smooth DATA -> SMOOTHED_DATA
     # Re-done in case of new flags
-    if c == 0:
-        incol = 'DATA'
-    else:
+    if c >= 2:
         incol = 'SUBTRACTED_DATA'
+    else:
+        incol = 'DATA'
 
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python', maxThreads=6)
@@ -139,6 +139,7 @@ for c in xrange(0, niter):
             lib_util.check_rm(MS+'/fr.h5')
         MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5 sol.solint=30 sol.nchan=8', \
                     log='$nameMS_sol-g1-c'+str(c)+'.log', commandType='DPPP')
+        sys.exit()
 
         lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-fr.parset'])
         os.system('mv plots-fr'+str(c)+'* self/solutions/')
@@ -200,8 +201,10 @@ for c in xrange(0, niter):
 
         # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting TEC...')
-        h5 = 'self/solutions/cal-tec'+str(c)+'b.h5'
-        MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor1.parmdb='+h5+' cor2.parmdb='+h5, \
+        #h5 = 'self/solutions/cal-tec'+str(c)+'b.h5'
+        #MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor1.parmdb='+h5+' cor2.parmdb='+h5, \
+        #            log='$nameMS_corTECb-c'+str(c)+'.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
                     log='$nameMS_corTECb-c'+str(c)+'.log', commandType='DPPP')
 
     ###################################################################################################################
@@ -258,10 +261,10 @@ for c in xrange(0, niter):
 
     # predict
     logger.info('Predict (ft)...')
-    if c > 0 and c != niter:
+    if c > 1 and c != niter:
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb+'.skydb', \
                 log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-    if c == 0:
+    if c == 1:
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_HIGHRES pre.usebeammodel=false pre.sourcedb='+im.skydb+'.skydb', \
                 log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
 
