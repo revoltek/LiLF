@@ -28,6 +28,10 @@ elif 'bootes' in os.getcwd():
     sourcedb = '/home/fdg/scripts/model/Bootes_HBA.corr.skydb'
     apparent = False
     userReg = None
+elif 'maria' in os.getcwd():
+    sourcedb = '/home/fdg/gal.skydb'
+    apparent = False
+    userReg = None
 else:
     # Survey
     obs = os.getcwd().split('/')[-1]

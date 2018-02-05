@@ -6,8 +6,8 @@ msout.datacolumn = CORRECTED_DATA
 
 numthreads = 1 # bug fix
 
-steps = [cor1, count]
-#steps = [cor1, cor2, count]
+#steps = [cor1, count]
+steps = [cor1, cor2, count]
 
 cor1.type = applycal
 cor1.parmdb =
