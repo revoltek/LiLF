@@ -1,0 +1,26 @@
+msin =
+msin.datacolumn = SMOOTHED_DATA
+msin.baseline = [CR]S*&
+msout = .
+msout.datacolumn = CORRECTED_DATA
+
+#numthreads = 1 # this is multithread, keep max
+
+#steps = [ddecal]
+steps = [filter, ddecal]
+
+filter.blrange = [1000,1e30]
+
+ddecal.type = ddecal
+ddecal.sourcedb = 
+ddecal.maxiter = 150 # Should be high, the default is probably too low
+ddecal.tolerance = 1e-10 # to force the solve to hit maxiter
+ddecal.solint = 1
+ddecal.nchan = 1
+ddecal.stepsize = 0.2
+ddecal.h5parm = 
+ddecal.mode=tec # phaseonly, complexgain, tec, tecandphase
+#ddecal.coreconstraint = 0
+ddecal.propagatesolutions = True
+ddecal.approximatetec = True
+ddecal.maxapproxiter = 75 
