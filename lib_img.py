@@ -57,7 +57,7 @@ class Image(object):
         # convert from txt to blob
         logger.info('%s: Make skydb...' % self.imagename)
         lib_util.check_rm(self.skydb)
-        os.system('makesourcedb outtype="blob" format="<" in="'+self.skymodel_cut+'" out="'+self.skydb+'.skydb"')
+        os.system('makesourcedb outtype="blob" format="<" in="'+self.skymodel_cut+'" out="'+self.skydb+'"')
 
 
     def getNoise(self, boxsize=None, niter=20, eps=1e-5):

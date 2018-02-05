@@ -98,13 +98,12 @@ for c in xrange(0, niter):
 
     logger.info('Start selfcal cycle: '+str(c))
 
-    # Smooth DATA -> SMOOTHED_DATA
-    # Re-done in case of new flags
     if c >= 2:
         incol = 'SUBTRACTED_DATA'
     else:
         incol = 'DATA'
 
+    # Smooth DATA -> SMOOTHED_DATA
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python', maxThreads=6)
 
@@ -112,7 +111,9 @@ for c in xrange(0, niter):
     logger.info('Solving TEC...')
     for MS in MSs.getListStr():
         lib_util.check_rm(MS+'/tec.h5')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
+    #MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5 ddecal.sourcedb=$pathMS/'+sourcedb_basename, \
+    #MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/g.h5 sol.solint=2 sol.nchan=4', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
     # LoSoTo plot
@@ -194,7 +195,8 @@ for c in xrange(0, niter):
         logger.info('Solving TEC...')
         for MS in MSs.getListStr():
             lib_util.check_rm(MS+'/tec.h5')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
+        #MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5 ddecal.sourcedb=$pathMS/'+sourcedb_basename, \
                     log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
         # LoSoTo plot
@@ -264,8 +266,11 @@ for c in xrange(0, niter):
     # predict
     logger.info('Predict (ft)...')
     if c != niter:
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb+'.skydb', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
                 log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+        # TEST
+        for MS in MSs.getListStr():
+            os.system( 'cp '+im.skydb+' '+MS+'/'+sourcedb_basename )
     if c == 1:
         # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
         logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
