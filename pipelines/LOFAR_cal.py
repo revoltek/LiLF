@@ -9,7 +9,7 @@ import sys, os, glob, re
 import numpy as np
 
 parset_dir = "/home/fdg/scripts/LiLF/parsets/LOFAR_cal"
-imaging    = True
+imaging    = False
 
 # Temporary!
 if 'tooth' in os.getcwd(): # tooth 2013
