@@ -45,6 +45,22 @@ class AllMSs(object):
         return ' '.join(self.mssListStr)
 
 
+    def getFreqs(self):
+        """
+        Return a list of freqs per chan per SB
+        """
+        freqs = [ list(ms.getFreqs()) for ms in self.mssListObj ]
+        return [item for sublist in freqs for item in sublist] # flatten
+
+
+    def getBandwidth(self):
+        """
+        Return the total span of frequency covered by this MS set
+        """
+        freqs = self.getFreqs()
+        return max(freqs) - min(freqs)
+
+
     def run(self, command, log, commandType='', maxThreads=None):
         """
         Run command 'command' of type 'commandType', and use 'log' for logger,
@@ -182,15 +198,14 @@ class MS(object):
         return stringCurrent
 
 
-    def getFreq(self):
+    def getFreqs(self):
         """
-        Find central frequency
+        Get chan frequency
         """
         with tables.table(self.pathMS + "/SPECTRAL_WINDOW", ack = False) as t:
-            freq = t.getcol("REF_FREQUENCY")
+            freqs = t.getcol("CHAN_FREQ")
 
-        logger.debug("%s: central frequnecy (MHz): %i", self.pathMS, freq[0] / 1.e6)
-        return freq[0]
+        return freqs[0]
 
 
     def getNchan(self):
