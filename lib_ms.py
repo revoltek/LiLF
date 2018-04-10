@@ -182,6 +182,17 @@ class MS(object):
         return stringCurrent
 
 
+    def getFreq(self):
+        """
+        Find central frequency
+        """
+        with tables.table(self.pathMS + "/SPECTRAL_WINDOW", ack = False) as t:
+            freq = t.getcol("REF_FREQUENCY")
+
+        logger.debug("%s: central frequnecy (MHz): %i", self.pathMS, freq[0] / 1.e6)
+        return freq[0]
+
+
     def getNchan(self):
         """
         Find number of channels
@@ -190,7 +201,7 @@ class MS(object):
             nchan = t.getcol("NUM_CHAN")
         assert (nchan[0] == nchan).all() # all SpWs have same channels?
 
-        logger.debug("%s: channel number (1): %i", self.pathMS, nchan[0])
+        logger.debug("%s: channel number: %i", self.pathMS, nchan[0])
         return nchan[0]
 
 
