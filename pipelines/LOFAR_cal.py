@@ -9,21 +9,18 @@ import sys, os, glob, re
 import numpy as np
 
 parset_dir = "/home/fdg/scripts/LiLF/parsets/LOFAR_cal"
-imaging    = True
+imaging    = False
 
 # Temporary!
 if 'tooth' in os.getcwd(): # tooth 2013
     datadir = '../cals-bkp/'
     bl2flag = 'CS031LBA'
-    iono3rd = True
 elif 'bootes' in os.getcwd() and not 'bootes2' in os.getcwd(): # bootes 2013
     datadir = '../cals-bkp/'
     bl2flag = 'CS013LBA\;CS031LBA\;RS310LBA'
-    iono3rd = True
 elif 'bootes2' in os.getcwd(): # bootes 2017
     datadir = '../cals-bkp/'
     bl2flag = 'CS013LBA\;CS031LBA'
-    iono3rd = True
 elif 'LBAsurvey' in os.getcwd():
     obs     = os.getcwd().split('/')[-2] # assumes .../c??-o??/3c196
     calname = os.getcwd().split('/')[-1] # assumes .../c??-o??/3c196
@@ -31,15 +28,12 @@ elif 'LBAsurvey' in os.getcwd():
     bl2flag = 'CS031LBA'
     if 'c05' in os.getcwd(): bl2flag = 'RS409LBA'
     if 'c09' in os.getcwd(): bl2flag = 'CS031LBA\;CS013LBA'
-    iono3rd = False
 elif '3Csurvey' in os.getcwd():
     datadir = '../cals-bkp/'
     bl2flag = 'CS031LBA\;CS013LBA'
-    iono3rd = False
 else:
     datadir = '../cals-bkp/'
     bl2flag = ''
-    iono3rd = True
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
@@ -55,6 +49,9 @@ for MS in MSs.getListObj():
     MS.move(MS.nameMS+'.MS', keepOrig=True)
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 calname = MSs.getListObj()[0].getNameField()
+# find min freq
+if min(MSs.getFreqs()) < 40.e6: iono3rd = True
+else: iono3rd = False
 
 ###################################################
 # flag bad stations, flags will propagate

@@ -45,6 +45,22 @@ class AllMSs(object):
         return ' '.join(self.mssListStr)
 
 
+    def getFreqs(self):
+        """
+        Return a list of freqs per chan per SB
+        """
+        freqs = [ list(ms.getFreqs()) for ms in self.mssListObj ]
+        return [item for sublist in freqs for item in sublist] # flatten
+
+
+    def getBandwidth(self):
+        """
+        Return the total span of frequency covered by this MS set
+        """
+        freqs = self.getFreqs()
+        return max(freqs) - min(freqs)
+
+
     def run(self, command, log, commandType='', maxThreads=None):
         """
         Run command 'command' of type 'commandType', and use 'log' for logger,
@@ -182,6 +198,16 @@ class MS(object):
         return stringCurrent
 
 
+    def getFreqs(self):
+        """
+        Get chan frequency
+        """
+        with tables.table(self.pathMS + "/SPECTRAL_WINDOW", ack = False) as t:
+            freqs = t.getcol("CHAN_FREQ")
+
+        return freqs[0]
+
+
     def getNchan(self):
         """
         Find number of channels
@@ -190,7 +216,7 @@ class MS(object):
             nchan = t.getcol("NUM_CHAN")
         assert (nchan[0] == nchan).all() # all SpWs have same channels?
 
-        logger.debug("%s: channel number (1): %i", self.pathMS, nchan[0])
+        logger.debug("%s: channel number: %i", self.pathMS, nchan[0])
         return nchan[0]
 
 
