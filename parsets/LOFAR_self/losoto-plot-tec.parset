@@ -1,0 +1,33 @@
+Ncpu = 0
+
+# plot CSP+TEC
+[plotCSPTEC]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = time
+axisInTable = ant
+plotFlag = True
+prefix = plots/csptec
+refAnt = 'CS002LBA'
+soltabToAdd = tec000
+
+# plot CSP
+[plotCSP]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = time
+axisInTable = ant
+plotFlag = True
+prefix = plots/csp
+refAnt = 'CS002LBA'
+
+# plot TEC
+[plotTEC]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = time
+axisInTable = ant
+plotFlag = True
+minmax = [-0.5,0.5]
+prefix = plots/tec
+refAnt = 'CS002LBA'
