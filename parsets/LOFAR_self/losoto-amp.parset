@@ -50,10 +50,20 @@ mode = smooth
 [smooth]
 operation = SMOOTH
 soltab = sol000/amplitude000
-axesToSmooth = [ant]
+axesToSmooth = [freq]
 mode = median
 
-[plotAsmooth]
+[plotAsmooth1]
+operation = PLOT
+soltab = sol000/amplitude000
+freq.minmaxstep = [0,100e6,300]
+axesInPlot = time
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ampSmooth_
+
+[plotAsmooth3]
 operation = PLOT
 soltab = sol000/amplitude000
 axesInPlot = [time,freq]

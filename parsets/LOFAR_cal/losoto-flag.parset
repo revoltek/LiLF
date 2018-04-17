@@ -1,12 +1,5 @@
 Ncpu = 20
 
-#[reweight]
-#soltab = sol000/amplitude000
-#operation = REWEIGHT
-#weightVal = 0.
-#flagBad = False
-#ant = [CS031LBA, RS409LBA]
-
 [plotA1]
 operation = PLOT
 soltab = sol000/amplitude000
@@ -47,5 +40,6 @@ prefix = plots/ampAF_
 # copy flags on phases
 [merge]
 operation = REWEIGHT
+mode = copy
 soltab = sol000/phase000
 soltabImport = amplitude000

@@ -120,10 +120,13 @@ if rename:
     nchan = MSs.getListObj()[0].getNchan()
     timeint = MSs.getListObj()[0].getTimeInt()
     if nchan % 4 != 0 and nchan != 1:
-        logger.error('Channels should be a multiple of 4.')
+        avg_factor_f = nchan / 4 # to 4 ch/SB
+    elif nchan % 5 != 0 and nchan != 1:
+        avg_factor_f = nchan / 5 # to 5 ch/SB
+    else:
+        logger.error('Channels should be a multiple of 4 or 5.')
         sys.exit(1)
 
-    avg_factor_f = nchan / 4 # to 4 ch/SB
     if avg_factor_f < 1: avg_factor_f = 1
     avg_factor_t = int(np.round(4/timeint)) # to 4 sec
     if avg_factor_t < 1: avg_factor_t = 1

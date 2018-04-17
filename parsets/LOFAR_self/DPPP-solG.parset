@@ -6,11 +6,10 @@ msout.datacolumn = CORRECTED_DATA
 
 numthreads = 1 # bug fix
 
-steps = [filter, sol]
-
-filter.blrange = [1500,1e30]
+steps = [sol]
 
 sol.type = gaincal
+sol.uvlambdamin=200
 sol.parmdb = 
 sol.caltype = diagonal
 sol.maxiter = 100
@@ -18,4 +17,3 @@ sol.usemodelcolumn = True
 sol.solint = 10
 sol.nchan = 8
 sol.propagatesolutions = True
-#sol.blrange = [1500,1e9]

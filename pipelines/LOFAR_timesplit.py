@@ -21,6 +21,10 @@ elif 'bootes2' in os.getcwd() or 'maria' in os.getcwd():
     ngroups = 3
     datadir = '../tgts-bkp/' 
     soldir = '../cals/'
+elif '3Csurvey' in os.getcwd():
+    ngroups = 1
+    datadir = '../tgts-bkp/' 
+    soldir = '../cals/'
 else:
     ngroups = 2
     datadir = '../tgts-bkp/' 
@@ -113,6 +117,7 @@ MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
 
 # Create time-chunks
 logger.info('Splitting in time...')
+tc = initc
 for groupname in groupnames:
     ms = groupname+'/'+groupname+'.MS'
     if not os.path.exists(ms): continue
@@ -122,7 +127,6 @@ for groupname in groupnames:
     hours = (endtime-starttime)/3600.
     logger.debug(ms+' has length of '+str(hours)+' h.')
 
-    tc = initc
     for timerange in np.array_split(t.getcol('TIME'), round(hours)):
         logger.info('%02i - Splitting timerange %f %f' % (tc, timerange[0], timerange[-1]))
         t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[-1]), sortlist='TIME,ANTENNA1,ANTENNA2')

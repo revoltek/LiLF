@@ -38,53 +38,6 @@ operation = DUPLICATE
 soltab = sol000/phase000
 soltabOut = phaseOrig000
 
-[plotPi1]
-operation = PLOT
-soltab = sol000/phase000
-freq.minmaxstep = [0,300e6,100]
-axesInPlot = time
-axisInTable = ant
-axisInCol = pol
-plotFlag = True
-prefix = plots/ph_
-refAnt = 'CS002LBA'
-minmax = [-3.14,3.14]
-NColFig = 4
-figSize = [20,20]
-
-[plotPi2]
-operation = PLOT
-soltab = sol000/phase000
-time.minmaxstep = [0,1e20,500]
-axesInPlot = freq
-axisInTable = ant
-axisInCol = pol
-plotFlag = True
-prefix = plots/ph_
-refAnt = 'CS002LBA'
-minmax = [-3.14,3.14]
-
-[plotPi3]
-operation = PLOT
-soltab = sol000/phase000
-axesInPlot = [time,freq]
-axisInTable = ant
-plotFlag = True
-prefix = plots/ph_
-refAnt = 'CS002LBA'
-minmax = [-3.14,3.14]
-
-[plotPd]
-operation = PLOT
-soltab = sol000/phase000
-axesInPlot = [time,freq]
-axisInTable = ant
-axisDiff = pol
-plotFlag = True
-prefix = plots/ph-dif
-refAnt = 'CS002LBA'
-minmax = [-1,+1]
-
 [ct]
 operation = CLOCKTEC
 soltab = sol000/phase000

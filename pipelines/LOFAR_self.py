@@ -28,6 +28,10 @@ elif 'bootes' in os.getcwd():
     sourcedb = '/home/fdg/scripts/model/Bootes_HBA.corr.skydb'
     apparent = False
     userReg = None
+elif '3Csurvey' in os.getcwd():
+    sourcedb = '/home/fdg/scripts/model/3c31_LBA.skydb'
+    apparent = False
+    userReg = None
 else:
     # Survey
     obs = os.getcwd().split('/')[-1]
@@ -107,13 +111,14 @@ for c in xrange(0, niter):
     logger.info('Solving TEC...')
     for MS in MSs.getListStr():
         lib_util.check_rm(MS+'/tec.h5')
+        #lib_util.check_rm(MS+'/g.h5')
     #MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
     MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5 ddecal.sourcedb=$pathMS/'+sourcedb_basename, \
-    #MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/g.h5 sol.solint=2 sol.nchan=4', \
+    #MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/g.h5 sol.solint=3 sol.nchan=16', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
     # LoSoTo plot
-    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
+    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
     os.system('mv plots-tec'+str(c)+'* self/solutions/')
     os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
 
@@ -126,9 +131,9 @@ for c in xrange(0, niter):
     # Faraday rotation correction
     if c >= 1:
 
-        # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
-        logger.info('Convert to circular...')
-        MSs.run('/home/fdg/scripts/mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
+#        # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
+#        logger.info('Convert to circular...')
+#        MSs.run('/home/fdg/scripts/mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
  
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
@@ -138,22 +143,25 @@ for c in xrange(0, niter):
         logger.info('Solving G...')
         for MS in MSs.getListStr():
             lib_util.check_rm(MS+'/fr.h5')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5 sol.solint=30 sol.nchan=8', \
-                    log='$nameMS_sol-g1-c'+str(c)+'.log', commandType='DPPP')
+ #       MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5 sol.solint=30 sol.nchan=8', \
+ #                   log='$nameMS_sol-g1-c'+str(c)+'.log', commandType='DPPP')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal \
+                     sol.sourcedb=$pathMS/'+sourcedb_basename+' sol.solint=30 sol.nchan=8', log='$nameMS_solFR.log', commandType="DPPP")
 
-        lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-fr.parset'])
+
+        lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-fr.parset'])
         os.system('mv plots-fr'+str(c)+'* self/solutions/')
         os.system('mv cal-fr'+str(c)+'*.h5 self/solutions/')
        
-        # To linear - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (linear)
-        logger.info('Convert to linear...')
-        MSs.run('/home/fdg/scripts/mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', \
-                log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
+#        # To linear - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (linear)
+#        logger.info('Convert to linear...')
+#        MSs.run('/home/fdg/scripts/mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', \
+#                log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
         
-        # Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
+        # Correct FR SB.MS:(SUBTRACTED_)DATA->CORRECTED_DATA
         logger.info('Faraday rotation correction...')
         h5 = 'self/solutions/cal-fr'+str(c)+'.h5'
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
                     log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
         #################################
@@ -168,24 +176,24 @@ for c in xrange(0, niter):
         MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5 sol.solint=30 sol.nchan=8', \
                     log='$nameMS_sol-g2-c'+str(c)+'.log', commandType='DPPP')
 
-        lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-pa.parset',parset_dir+'/losoto-amp.parset'])
+        lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-amp.parset'])
         os.system('mv plots-amp'+str(c)+'* self/solutions/')
         os.system('mv cal-amp'+(str(c))+'*.h5 self/solutions/')
 
         # Correct beam amp SB.MS:SUBTRACTED_DATA->CORRECTED_DATA
-        logger.info('Beam amp correction...')
-        h5 = 'self/solutions/cal-amp'+str(c)+'.h5'
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb='+h5+' cor.correction=amplitude000', \
-                log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
-        # Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
-        logger.info('Faraday rotation correction...')
-        h5 = 'self/solutions/cal-fr'+str(c)+'.h5'
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
-                    log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
-
-        # Finally re-calculate TEC
-        logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -r -f 0.2 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', commandType='python', maxThreads=6)
+        #logger.info('Beam amp correction...')
+        #h5 = 'self/solutions/cal-amp'+str(c)+'.h5'
+        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb='+h5+' cor.correction=amplitude000', \
+        #        log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
+        ## Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
+        #logger.info('Faraday rotation correction...')
+        #h5 = 'self/solutions/cal-fr'+str(c)+'.h5'
+        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
+        #            log='$nameMS_corFR2-c'+str(c)+'.log', commandType='DPPP')
+        #
+        ## Finally re-calculate TEC
+        #logger.info('BL-based smoothing...')
+        #MSs.run('BLsmooth.py -r -f 0.2 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', commandType='python', maxThreads=6)
 
         # solve TEC - group*_TC.MS:SMOOTHED_DATA
         logger.info('Solving TEC...')
@@ -196,7 +204,7 @@ for c in xrange(0, niter):
                     log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
         # LoSoTo plot
-        lib_util.run_losoto(s, 'tec'+str(c)+'b', [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
+        lib_util.run_losoto(s, 'tec'+str(c)+'b', [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
         os.system('mv plots-tec'+str(c)+'b* self/solutions')
         os.system('mv cal-tec'+str(c)+'b*.h5 self/solutions')
 
@@ -216,18 +224,18 @@ for c in xrange(0, niter):
         # beam corrected: -use-differential-lofar-beam' - no baseline avg!
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
-        s.add('wsclean -reorder -name ' + imagename + ' -size 3000 3000 -mem 90 -j '+str(s.max_processors)+' \
-                -scale 8arcsec -weight briggs 0.0 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
+        s.add('wsclean -reorder -name ' + imagename + ' -size 5000 5000 -mem 90 -j '+str(s.max_processors)+' \
+                -scale 5arcsec -weight briggs 0.0 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
                 -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
                 -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -apply-primary-beam -use-differential-lofar-beam -minuv-l 30 '+MSs.getStrWsclean(), \
                 log='wscleanBeam-c'+str(c)+'.log', commandType='wsclean', processors='max')
         s.run(check=True)
+        os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
 
         logger.info('Cleaning beam high-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamHR'
-        s.add('wsclean -reorder -name ' + imagename + ' -size 5500 5500 -mem 90 -j '+str(s.max_processors)+' \
-                -scale 4arcsec -weight briggs -1.5 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
-                -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
+        s.add('wsclean -reorder -name ' + imagename + ' -size 8000 8000 -mem 90 -j '+str(s.max_processors)+' \
+                -scale 2.5arcsec -weight briggs -1.5 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
                 -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -apply-primary-beam -use-differential-lofar-beam -minuv-l 30 '+MSs.getStrWsclean(), \
                 log='wscleanBeamHR-c'+str(c)+'.log', commandType='wsclean', processors='max')
         s.run(check=True)
@@ -286,7 +294,7 @@ for c in xrange(0, niter):
 
         # predict - ms: MODEL_DATA_LOWRES
         logger.info('Predict low-res model...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_LOWRES pre.usebeammodel=false pre.sourcedb='+im.skydb+'.skydb', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_LOWRES pre.usebeammodel=false pre.sourcedb='+im.skydb, \
                 log='$nameMS_pre-lr.log', commandType='DPPP')
 
         # corrupt model with TEC solutions - ms:MODEL_DATA_LOWRES -> ms:MODEL_DATA_LOWRES

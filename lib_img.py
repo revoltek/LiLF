@@ -51,6 +51,7 @@ class Image(object):
         logger.info('%s: Apply mask on skymodel...' % self.imagename)
         lsm = lsmtool.load(self.skymodel)
         lsm.select('%s == True' % self.maskname)
+        lsm.group('single') # group to 1 patch
         lsm.write(self.skymodel_cut, format = 'makesourcedb', clobber=True)
         del lsm
 

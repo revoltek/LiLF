@@ -6,12 +6,10 @@ msout.datacolumn = CORRECTED_DATA
 
 #numthreads = 1 # this is multithread, keep max
 
-#steps = [ddecal]
-steps = [filter, ddecal]
-
-filter.blrange = [1000,1e30]
+steps = [ddecal]
 
 ddecal.type = ddecal
+ddecal.uvlambdamin=200
 ddecal.sourcedb = 
 ddecal.maxiter = 150 # Should be high, the default is probably too low
 ddecal.tolerance = 1e-10 # to force the solve to hit maxiter

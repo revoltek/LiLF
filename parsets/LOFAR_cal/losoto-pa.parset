@@ -5,29 +5,6 @@ operation = DUPLICATE
 soltab = sol000/phase000
 soltabOut = phaseOrig000
 
-[plotPi]
-operation = PLOT
-soltab = sol000/phase000
-axesInPlot = [time,freq]
-axisInTable = ant
-axisDiff = pol
-plotFlag = True
-prefix = plots/ph-init
-refAnt = 'CS002LBA'
-minmax = [-1,+1]
-
-[plotPi2]
-operation = PLOT
-soltab = sol000/phase000
-time.minmaxstep = [0,1e20,500]
-axesInPlot = freq
-axisInTable = ant
-axisInCol = pol
-plotFlag = True
-prefix = plots/ph-init_
-refAnt = 'CS002LBA'
-minmax = [-3.14,3.14]
-
 [align]
 soltab = sol000/phase000
 operation = POLALIGN
