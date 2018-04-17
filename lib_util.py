@@ -3,11 +3,34 @@ import os, sys, re, pickle, random, shutil, glob
 from casacore import tables
 import numpy as np
 
+if (sys.version_info > (3, 0)):
+    from configparser import ConfigParser
+else:
+    from ConfigParser import ConfigParser
+
 # load here to be sure to have "Agg" at the beginning
 import matplotlib as mpl
 mpl.use("Agg")
 
 from lib_log import logger
+
+def getParset(parsetFile='../lilf.config'):
+    """
+    Get parset file and return dict of values
+    """
+    config = ConfigParser()
+    config.read(parsetFile)
+    
+    # populate defaults sections
+    if not config.has_section('flag'): config.add_section('flag')
+    if not config.has_section('timesplit'): config.add_section('timesplit')
+
+    # flag
+    if not config.has_option('flag', 'stations'): config.set('flag', 'stations', 'DE*;FR*;SE*;UK*')
+    if not config.has_option('timesplit', 'ngroups'): config.set('timesplit', 'ngroups', 2)
+
+    return config
+
 
 def columnExists(tableObject, columnName):
     '''

@@ -12,32 +12,23 @@ import casacore.tables as pt
 parset_dir = '/home/fdg/scripts/LiLF/parsets/LOFAR_timesplit'
 initc = 0 # initial tc num (useful for multiple observation of same target)
 
-# temporary
+datadir = '../tgts-bkp/' 
+soldir = '../cals/'
 if 'LBAsurvey' in os.getcwd():
-    ngroups = 1 # number of groups (totalSB/SBperFREQgroup)
     datadir = '../../download/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
     soldir = 'dsk:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]
-elif 'bootes2' in os.getcwd() or 'maria' in os.getcwd():
-    ngroups = 3
-    datadir = '../tgts-bkp/' 
-    soldir = '../cals/'
-elif '3Csurvey' in os.getcwd():
-    ngroups = 1
-    datadir = '../tgts-bkp/' 
-    soldir = '../cals/'
-else:
-    ngroups = 2
-    datadir = '../tgts-bkp/' 
-    soldir = '../cals/'
 
 assert os.path.isdir(soldir)
 
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log
+parset = lib_util.getParset()
 lib_log.set_logger('pipeline-timesplit.logger')
 logger = lib_log.logger
 lib_util.check_rm('logs')
 s = lib_util.Scheduler(dry = False)
+
+ngroups = parset.get('timesplit','ngroups')
 
 #################################################
 # Clear

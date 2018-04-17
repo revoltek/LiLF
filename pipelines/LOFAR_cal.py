@@ -11,32 +11,18 @@ import numpy as np
 parset_dir = "/home/fdg/scripts/LiLF/parsets/LOFAR_cal"
 imaging    = False
 
-# Temporary!
-if 'tooth' in os.getcwd(): # tooth 2013
-    datadir = '../cals-bkp/'
-    bl2flag = 'CS031LBA'
-elif 'bootes' in os.getcwd() and not 'bootes2' in os.getcwd(): # bootes 2013
-    datadir = '../cals-bkp/'
-    bl2flag = 'CS013LBA\;CS031LBA\;RS310LBA'
-elif 'bootes2' in os.getcwd(): # bootes 2017
-    datadir = '../cals-bkp/'
-    bl2flag = 'CS013LBA\;CS031LBA'
-elif 'LBAsurvey' in os.getcwd():
+datadir = '../cals-bkp/'
+if 'LBAsurvey' in os.getcwd():
     obs     = os.getcwd().split('/')[-2] # assumes .../c??-o??/3c196
     calname = os.getcwd().split('/')[-1] # assumes .../c??-o??/3c196
     datadir = '../../download/%s/%s' % (obs, calname)
-    bl2flag = 'CS031LBA'
-    if 'c05' in os.getcwd(): bl2flag = 'RS409LBA'
-    if 'c09' in os.getcwd(): bl2flag = 'CS031LBA\;CS013LBA'
-elif '3Csurvey' in os.getcwd():
-    datadir = '../cals-bkp/'
-    bl2flag = 'CS031LBA\;CS013LBA'
-else:
-    datadir = '../cals-bkp/'
-    bl2flag = ''
+#    bl2flag = 'CS031LBA'
+#    if 'c05' in os.getcwd(): bl2flag = 'RS409LBA'
+#    if 'c09' in os.getcwd(): bl2flag = 'CS031LBA\;CS013LBA'
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
+parset = lib_util.getParset()
 lib_log.set_logger('pipeline-cal.logger')
 logger = lib_log.logger
 lib_util.check_rm('logs')
@@ -52,11 +38,14 @@ calname = MSs.getListObj()[0].getNameField()
 # find min freq
 if min(MSs.getFreqs()) < 40.e6: iono3rd = True
 else: iono3rd = False
+logger.debug('Iono 3rd order: %r' % iono3rd)
+
+bl2flag = parset.get('flag','stations')
 
 ###################################################
 # flag bad stations, flags will propagate
 logger.info("Flagging...")
-MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flag1.baseline=" + bl2flag, log="$nameMS_flag.log", commandType="DPPP")
+MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flag1.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
 
 # predict to save time ms:MODEL_DATA
 logger.info('Add model to MODEL_DATA...')
