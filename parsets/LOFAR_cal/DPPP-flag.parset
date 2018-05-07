@@ -1,6 +1,5 @@
 msin = 
 msin.datacolumn = DATA
-msin.baseline = [CR]S*&
 msout = .
 
 numthreads = 1 # bug fix

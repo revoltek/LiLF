@@ -9,7 +9,8 @@ import sys, os, glob, re
 import numpy as np
 
 parset_dir = "/home/fdg/scripts/LiLF/parsets/LOFAR_cal"
-imaging    = False
+skymodel = "/home/fdg/scripts/LiLF/models/calib-simple.skydb"
+imaging    = True
 
 datadir = '../cals-bkp/'
 if 'LBAsurvey' in os.getcwd():
@@ -30,9 +31,14 @@ s = lib_util.Scheduler(dry = False)
 MSs = lib_ms.AllMSs( glob.glob(datadir+'/*MS'), s )
 
 # copy data
-logger.info('Copy data...')
-for MS in MSs.getListObj():
-    MS.move(MS.nameMS+'.MS', keepOrig=True)
+#logger.info('Copy data...')
+#for MS in MSs.getListObj():
+#    MS.move(MS.nameMS+'.MS', keepOrig=True)
+
+## TEST HBA
+logger.warning('Copy data HBA...')
+MSs.run("DPPP DPPP-avg.parset msin=$pathMS msout=$nameMS.MS avg.freqstep=5", log="$nameMS_avg.log", commandType="DPPP")
+
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 calname = MSs.getListObj()[0].getNameField()
 # find min freq
@@ -49,7 +55,6 @@ MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flag1.baseline=\"
 
 # predict to save time ms:MODEL_DATA
 logger.info('Add model to MODEL_DATA...')
-skymodel = "/home/fdg/scripts/LiLF/models/calib-simple.skydb"
 MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DPPP")
 
 ###################################################
@@ -66,17 +71,6 @@ for MS in MSs.getListStr():
 MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
             sol.sourcedb='+skymodel+' sol.directions=['+calname+']', log='$nameMS_solPA.log', commandType="DPPP")
 #MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/pa.h5', log='$nameMS_solPA.log', commandType="DPPP")
-
-# BBS test
-#MSs.run('calibrate-stand-alone -f --parmdb-name instrument-rot $nameMS.MS ' + parset_dir + '/bbs-circ.parset /home/fdg/scripts/LiLF/models/calib-simple.skymodel', log='$nameMS_solPA.log', commandType="BBS")
-#lib_util.check_rm('globaldb')
-#os.makedirs('globaldb')
-#for MS in MSs.getListStr():
-#    os.system('cp -r %s/instrument-rot globaldb/instrument_%s' % (MS,MS))
-#os.system('cp -r %s/ANTENNA %s/FIELD %s/sky globaldb' % (MS,MS,MS))
-#lib_util.check_rm('cal-pa.h5')
-#os.system('H5parm_importer.py -V cal-pa.h5 globaldb')
-#sys.exit()
 
 lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], \
         [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
@@ -153,7 +147,7 @@ MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS msin.datacolumn=C
 logger.info('Faraday rotation correction...')
 MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DPPP")
 
-##################################################
+#################################################
 # 4: find iono
 
 # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
