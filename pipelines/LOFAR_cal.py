@@ -31,13 +31,13 @@ s = lib_util.Scheduler(dry = False)
 MSs = lib_ms.AllMSs( glob.glob(datadir+'/*MS'), s )
 
 # copy data
-#logger.info('Copy data...')
-#for MS in MSs.getListObj():
-#    MS.move(MS.nameMS+'.MS', keepOrig=True)
+logger.info('Copy data...')
+for MS in MSs.getListObj():
+    MS.move(MS.nameMS+'.MS', keepOrig=True)
 
 ## TEST HBA
-logger.warning('Copy data HBA...')
-MSs.run("DPPP DPPP-avg.parset msin=$pathMS msout=$nameMS.MS avg.freqstep=5", log="$nameMS_avg.log", commandType="DPPP")
+#logger.warning('Copy data HBA...')
+#MSs.run("DPPP DPPP-avg.parset msin=$pathMS msout=$nameMS.MS avg.freqstep=5", log="$nameMS_avg.log", commandType="DPPP")
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 calname = MSs.getListObj()[0].getNameField()

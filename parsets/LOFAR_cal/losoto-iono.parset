@@ -42,7 +42,7 @@ soltabOut = phaseOrig000
 operation = CLOCKTEC
 soltab = sol000/phase000
 CombinePol = True
-FlagBadChannels = False
+FlagBadChannels = True
 Fit3rdOrder = False
 Circular = False
 
