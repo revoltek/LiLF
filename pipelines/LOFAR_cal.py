@@ -30,17 +30,18 @@ lib_util.check_rm('logs')
 s = lib_util.Scheduler(dry = False)
 MSs = lib_ms.AllMSs( glob.glob(datadir+'/*MS'), s )
 
-# copy data
+## copy data
 logger.info('Copy data...')
 for MS in MSs.getListObj():
     MS.move(MS.nameMS+'.MS', keepOrig=True)
 
-## TEST HBA
+# TEST HBA
 #logger.warning('Copy data HBA...')
 #MSs.run("DPPP DPPP-avg.parset msin=$pathMS msout=$nameMS.MS avg.freqstep=5", log="$nameMS_avg.log", commandType="DPPP")
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 calname = MSs.getListObj()[0].getNameField()
+obsmode = MSs.getListObj()[0].getObsMode()
 # find min freq
 if min(MSs.getFreqs()) < 40.e6: iono3rd = True
 else: iono3rd = False
@@ -54,7 +55,7 @@ logger.info("Flagging...")
 MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flag1.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
 
 # predict to save time ms:MODEL_DATA
-logger.info('Add model to MODEL_DATA...')
+logger.info('Add model to MODEL_DATA (%s)...' % calname)
 MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DPPP")
 
 ###################################################
@@ -130,8 +131,8 @@ MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS
 lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()], \
         [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-bp.parset'])
 
-###################################################
-# redo correcitons in right order
+####################################################
+# Re-do correcitons in right order
 
 # Pol align correction DATA -> CORRECTED_DATA
 logger.info('Polalign correction...')
@@ -204,8 +205,8 @@ if imaging:
 
     if 'bootes2' in os.getcwd():
         fourth = int(len(glob.glob('./*MS'))/4.)
-        MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[1*fourth:3*fourth], s ) # keep only upper band
-    elif not 'survey' in os.getcwd():
+        MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[1*fourth:3*fourth], s ) # keep only mid band
+    elif iono3rd:
         MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[int(len(glob.glob('./*MS'))/2.):], s ) # keep only upper band
 
     # Correct all CORRECTED_DATA (PA, beam, FR, BP corrected) -> CORRECTED_DATA
@@ -222,9 +223,13 @@ if imaging:
     logger.info('Cleaning...')
     lib_util.check_rm('img')
     os.makedirs('img')
+
+    if 'SPARSE' in obsmode: size = 6000
+    else: size = 4000
+
     imagename = 'img/cal'
-    s.add('wsclean -reorder -name ' + imagename + ' -size 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-            -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.9 -minuv-l 100 \
+    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+            -scale 4arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.9 -minuv-l 100 \
             -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 20 '+MSs.getStrWsclean(), \
             log='wscleanA.log', commandType ='wsclean', processors='max')
     s.run(check = True)
@@ -235,9 +240,9 @@ if imaging:
 
     logger.info('Cleaning w/ mask...')
     imagename = 'img/calM'
-    # -apply-primary-beam -use-differential-lofar-beam
-    s.add('wsclean -reorder -name ' + imagename + ' -size 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-            -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.8 -minuv-l 100 \
+    # -apply-primary-beam -use-differential-lofar-beam \
+    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+            -scale 4arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.8 -minuv-l 100 \
             -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 0.1 -save-source-list \
             -fits-mask '+im.maskname+' '+MSs.getStrWsclean(), \
             log='wscleanB.log', commandType='wsclean', processors = 'max')

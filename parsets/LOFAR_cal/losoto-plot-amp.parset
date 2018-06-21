@@ -11,7 +11,7 @@ plotFlag = True
 prefix = plots/amp_
 NColFig = 4
 figSize = [20,20]
-minmax = [0,300]
+#minmax = [0,300]
 
 [plotA2]
 operation = PLOT
@@ -22,7 +22,7 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/amp_
-minmax = [0,300]
+#minmax = [0,300]
 
 [plotA3]
 operation = PLOT
@@ -31,4 +31,4 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/amp_
-minmax = [0,300]
+#minmax = [0,300]

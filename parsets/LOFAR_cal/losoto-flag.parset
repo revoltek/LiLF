@@ -7,7 +7,7 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/ampBF_
-minmax = [0,300]
+#minmax = [0,300]
 
 [flag]
 operation = FLAG
@@ -35,7 +35,7 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/ampAF_
-minmax = [0,300]
+#minmax = [0,300]
 
 # copy flags on phases
 [merge]
