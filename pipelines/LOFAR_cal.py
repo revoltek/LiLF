@@ -229,7 +229,7 @@ if imaging:
 
     imagename = 'img/cal'
     s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-            -scale 4arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.9 -minuv-l 100 \
+            -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.9 -minuv-l 100 \
             -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 20 '+MSs.getStrWsclean(), \
             log='wscleanA.log', commandType ='wsclean', processors='max')
     s.run(check = True)
@@ -242,7 +242,7 @@ if imaging:
     imagename = 'img/calM'
     # -apply-primary-beam -use-differential-lofar-beam \
     s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-            -scale 4arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.8 -minuv-l 100 \
+            -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.8 -minuv-l 100 \
             -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 0.1 -save-source-list \
             -fits-mask '+im.maskname+' '+MSs.getStrWsclean(), \
             log='wscleanB.log', commandType='wsclean', processors = 'max')
