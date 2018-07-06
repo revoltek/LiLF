@@ -224,8 +224,13 @@ if imaging:
     lib_util.check_rm('img')
     os.makedirs('img')
 
-    if 'SPARSE' in obsmode: size = 6000
-    else: size = 4000
+    if 'INNER' in obsmode: size = 8000
+    elif 'SPARSE' in obsmode: size = 6000
+    elif 'OUTER' in obsmode: size = 4000
+    else: 
+        logging.error('Observing mode not recognised.')
+        sys.exit(1)
+
 
     imagename = 'img/cal'
     s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \

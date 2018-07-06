@@ -20,20 +20,19 @@ parset_dir = '/home/fdg/scripts/LiLF/parsets/LOFAR_self'
 niter = 3
 
 # Temporary
-if 'tooth' in os.getcwd():
-    sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/toothbrush.LBA.skydb'
-    apparent = True # no beam correction
-    userReg = '/home/fdg/scripts/autocal/regions/tooth.reg'
-elif 'bootes' in os.getcwd():
-    sourcedb = '/home/fdg/scripts/model/Bootes_HBA.corr.skydb'
-    apparent = False
-    userReg = None
-elif '3Csurvey' in os.getcwd():
-    sourcedb = '/home/fdg/scripts/model/3c31_LBA.skydb'
-    apparent = False
-    userReg = None
-else:
-    # Survey
+#if 'tooth' in os.getcwd():
+#    sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/toothbrush.LBA.skydb'
+#    apparent = True # no beam correction
+#    userReg = '/home/fdg/scripts/autocal/regions/tooth.reg'
+#elif 'bootes' in os.getcwd():
+#    sourcedb = '/home/fdg/scripts/model/Bootes_HBA.corr.skydb'
+#    apparent = False
+#    userReg = None
+#elif '3Csurvey' in os.getcwd():
+#    sourcedb = '/home/fdg/scripts/model/3c31_LBA.skydb'
+#    apparent = False
+#    userReg = None
+if 'LBAsurvey' in os.getcwd():
     obs = os.getcwd().split('/')[-1]
     sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/skymodels/%s.skydb' % obs
     apparent = False
@@ -45,8 +44,6 @@ else:
             print 'cp -r %s mss/%s' % (tc,tc_ren)
             os.system('cp -r %s mss/%s' % (tc,tc_ren))
 
-assert os.path.exists(sourcedb)
-
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 lib_log.set_logger('pipeline-self.logger')
@@ -54,7 +51,10 @@ logger = lib_log.logger
 lib_util.check_rm('logs')
 s = lib_util.Scheduler(dry = False)
 
-MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+sourcedb = parset.get('model','sourcedb')
+apparent = parset.getbool('model','apparent')
+useReg = parset.get('model','useReg')
+assert os.path.exists(sourcedb)
 
 #############################################################################
 # Clear
@@ -68,10 +68,20 @@ lib_util.check_rm('self')
 if not os.path.exists('self/images'): os.makedirs('self/images')
 if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
 
+MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+
 # make beam
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
 MSs.getListObj()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
 beamReg = 'self/beam.reg'
+
+# se timage size
+if 'INNER' in obsmode: size = 8000
+elif 'SPARSE' in obsmode: size = 6000
+elif 'OUTER' in obsmode: size = 4000
+else: 
+    logging.error('Observing mode not recognised.')
+    sys.exit(1)
 
 ##################################################################################################
 # Add model to MODEL_DATA
@@ -224,7 +234,7 @@ for c in xrange(0, niter):
         # beam corrected: -use-differential-lofar-beam' - no baseline avg!
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
-        s.add('wsclean -reorder -name ' + imagename + ' -size 5000 5000 -mem 90 -j '+str(s.max_processors)+' \
+        s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(int(size*1.5)) + ' ' + str(int(size*1.5)) + ' -mem 90 -j '+str(s.max_processors)+' \
                 -scale 5arcsec -weight briggs 0.0 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
                 -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
                 -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -apply-primary-beam -use-differential-lofar-beam -minuv-l 30 '+MSs.getStrWsclean(), \
@@ -234,7 +244,7 @@ for c in xrange(0, niter):
 
         logger.info('Cleaning beam high-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamHR'
-        s.add('wsclean -reorder -name ' + imagename + ' -size 8000 8000 -mem 90 -j '+str(s.max_processors)+' \
+        s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size*2) + ' ' + str(size*2) + ' -mem 90 -j '+str(s.max_processors)+' \
                 -scale 2.5arcsec -weight briggs -1.5 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
                 -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -apply-primary-beam -use-differential-lofar-beam -minuv-l 30 '+MSs.getStrWsclean(), \
                 log='wscleanBeamHR-c'+str(c)+'.log', commandType='wsclean', processors='max')
@@ -244,7 +254,7 @@ for c in xrange(0, niter):
     # no MODEL_DATA update with -baseline-averaging
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wide-'+str(c)
-    s.add('wsclean -reorder -name ' + imagename + ' -size 3000 3000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 10arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -maxuv-l 5000 -mgain 0.9 \
             -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 20 -minuv-l 30 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors='max')
@@ -256,7 +266,7 @@ for c in xrange(0, niter):
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
-    s.add('wsclean -reorder -name ' + imagename + ' -size 3000 3000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 10arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -maxuv-l 5000 -mgain 0.8 \
             -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
             -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 0.1 -minuv-l 30 -save-source-list -fits-mask '+im.maskname+' '+MSs.getStrWsclean(), \
@@ -283,7 +293,7 @@ for c in xrange(0, niter):
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
-        s.add('wsclean -reorder -name ' + imagename_lr + ' -size 4000 4000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+        s.add('wsclean -reorder -name ' + imagename_lr + ' -size ' + str(size) + ' ' + str(size) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
                 -scale 20arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -maxuv-l 2000 -mgain 0.8 \
                 -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 1 -minuv-l 100 -save-source-list '+MSs.getStrWsclean(), \
                 log='wsclean-lr.log', commandType='wsclean', processors='max')
