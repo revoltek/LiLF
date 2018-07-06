@@ -46,14 +46,15 @@ if 'LBAsurvey' in os.getcwd():
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
+parset = lib_util.getParset()
 lib_log.set_logger('pipeline-self.logger')
 logger = lib_log.logger
 lib_util.check_rm('logs')
 s = lib_util.Scheduler(dry = False)
 
 sourcedb = parset.get('model','sourcedb')
-apparent = parset.getbool('model','apparent')
-useReg = parset.get('model','useReg')
+apparent = parset.getboolean('model','apparent')
+userReg = parset.get('model','userReg')
 assert os.path.exists(sourcedb)
 
 #############################################################################
@@ -76,6 +77,7 @@ MSs.getListObj()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first n
 beamReg = 'self/beam.reg'
 
 # se timage size
+obsmode = MSs.getListObj()[0].getObsMode()
 if 'INNER' in obsmode: size = 8000
 elif 'SPARSE' in obsmode: size = 6000
 elif 'OUTER' in obsmode: size = 4000

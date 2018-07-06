@@ -33,7 +33,7 @@ def getParset(parsetFile='../lilf.config'):
     # model
     if not config.has_option('model', 'sourcedb'): config.set('model', 'sourcedb', '')
     if not config.has_option('model', 'apparent'): config.set('model', 'apparent', False)
-    if not config.has_option('model', 'useReg'): config.set('model', 'useReg', None)
+    if not config.has_option('model', 'userReg'): config.set('model', 'userReg', None)
 
     return config
 
