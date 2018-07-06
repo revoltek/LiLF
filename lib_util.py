@@ -24,10 +24,16 @@ def getParset(parsetFile='../lilf.config'):
     # populate defaults sections
     if not config.has_section('flag'): config.add_section('flag')
     if not config.has_section('timesplit'): config.add_section('timesplit')
+    if not config.has_section('model'): config.add_section('model')
 
     # flag
     if not config.has_option('flag', 'stations'): config.set('flag', 'stations', 'DE*;FR*;SE*;UK*')
+    # timesplit
     if not config.has_option('timesplit', 'ngroups'): config.set('timesplit', 'ngroups', 2)
+    # model
+    if not config.has_option('model', 'sourcedb'): config.set('model', 'sourcedb', '')
+    if not config.has_option('model', 'apparent'): config.set('model', 'apparent', False)
+    if not config.has_option('model', 'useReg'): config.set('model', 'useReg', None)
 
     return config
 

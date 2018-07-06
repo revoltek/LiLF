@@ -282,12 +282,14 @@ class MS(object):
 
         if pb_cut is None:
             if 'OUTER' in self.getObsMode():
-                size = 8./2. # OUTER
+                size = 8./2.
             elif 'SPARSE' in self.getObsMode():
-                size = 12./2. # OUTER
+                size = 12./2.
+            elif 'INNER' in self.getObsMode():
+                size = 16./2.
             else:
-                logger.error('Cannot find beam size, only LBA_OUTER or LBA_SPARSE_* are implemented. Assuming beam diameter = 7 deg.')
-                size = 7./2.
+                logger.error('Cannot find beam size, only LBA_OUTER or LBA_SPARSE_* are implemented. Assuming beam diameter = 8 deg.')
+                size = 8./2.
         else:
             size = pb_cut/2.
 
