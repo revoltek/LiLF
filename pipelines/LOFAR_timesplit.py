@@ -28,7 +28,7 @@ logger = lib_log.logger
 lib_util.check_rm('logs')
 s = lib_util.Scheduler(dry = False)
 
-ngroups = parset.get('timesplit','ngroups')
+ngroups = parset.getint('timesplit','ngroups')
 
 #################################################
 # Clean
