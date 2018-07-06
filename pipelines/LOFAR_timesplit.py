@@ -16,7 +16,7 @@ datadir = '../tgts-bkp/'
 soldir = '../cals/'
 if 'LBAsurvey' in os.getcwd():
     datadir = '../../download/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
-    soldir = 'dsk:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]
+    soldir = 'portal_lei:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]
 
 assert os.path.isdir(soldir)
 
@@ -31,7 +31,7 @@ s = lib_util.Scheduler(dry = False)
 ngroups = parset.get('timesplit','ngroups')
 
 #################################################
-# Clear
+# Clean
 logger.info('Cleaning...')
 lib_util.check_rm('mss*')
 MSs = lib_ms.AllMSs( glob.glob(datadir+'/*MS'), s )
