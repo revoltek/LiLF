@@ -124,9 +124,8 @@ for c in xrange(0, niter):
     for MS in MSs.getListStr():
         lib_util.check_rm(MS+'/tec.h5')
         #lib_util.check_rm(MS+'/g.h5')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5 ddecal.sourcedb=$pathMS/'+sourcedb_basename, \
-    #MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/g.h5 sol.solint=3 sol.nchan=16', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
+    #MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5 ddecal.sourcedb=$pathMS/'+sourcedb_basename, \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
     # LoSoTo plot
@@ -211,8 +210,8 @@ for c in xrange(0, niter):
         logger.info('Solving TEC...')
         for MS in MSs.getListStr():
             lib_util.check_rm(MS+'/tec.h5')
-        #MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
-        MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5 ddecal.sourcedb=$pathMS/'+sourcedb_basename, \
+        MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
+        #MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5 ddecal.sourcedb=$pathMS/'+sourcedb_basename, \
                     log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
         # LoSoTo plot
