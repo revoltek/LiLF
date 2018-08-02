@@ -1,10 +1,5 @@
 Ncpu = 0
 
-[flag]
-operation = REWEIGHT
-flagBad = True
-soltab = sol000/rotation000
-
 [plotRot1]
 operation = PLOT
 soltab = sol000/rotation000
