@@ -6,13 +6,12 @@ msout.datacolumn = CORRECTED_DATA
 
 #numthreads = 1 # this is multithread, keep max
 
-steps = [filter, sol]
-
-filter.blrange = [1000,1e30]
+steps = [sol]
 
 sol.type = gaincal
+sol.uvlambdamin=300
 sol.parmdb = 
-sol.caltype = tecandphase #tecandphase #tecandphase/tec
+sol.caltype = tec #tecandphase/tec
 sol.maxiter = 500
 sol.usemodelcolumn = True
 sol.solint = 1

@@ -78,9 +78,9 @@ beamReg = 'self/beam.reg'
 
 # se timage size
 obsmode = MSs.getListObj()[0].getObsMode()
-if 'INNER' in obsmode: size = 8000
-elif 'SPARSE' in obsmode: size = 6000
-elif 'OUTER' in obsmode: size = 4000
+if 'INNER' in obsmode: size = 6000
+elif 'SPARSE' in obsmode: size = 4500
+elif 'OUTER' in obsmode: size = 3000
 else: 
     logging.error('Observing mode not recognised.')
     sys.exit(1)
@@ -98,11 +98,11 @@ for MS in MSs.getListStr():
 logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
 MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 
-logger.info('Add model to MODEL_DATA...')
-if apparent:
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
-else:
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+#logger.info('Add model to MODEL_DATA...')
+#if apparent:
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+#else:
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 
 #####################################################################################################
 # Self-cal cycle
@@ -124,8 +124,8 @@ for c in xrange(0, niter):
     for MS in MSs.getListStr():
         lib_util.check_rm(MS+'/tec.h5')
         #lib_util.check_rm(MS+'/g.h5')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
-    #MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5 ddecal.sourcedb=$pathMS/'+sourcedb_basename, \
+    #MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5 ddecal.sourcedb=$pathMS/'+sourcedb_basename, \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
     # LoSoTo plot
@@ -210,8 +210,8 @@ for c in xrange(0, niter):
         logger.info('Solving TEC...')
         for MS in MSs.getListStr():
             lib_util.check_rm(MS+'/tec.h5')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
-        #MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5 ddecal.sourcedb=$pathMS/'+sourcedb_basename, \
+        #MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5 ddecal.sourcedb=$pathMS/'+sourcedb_basename, \
                     log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
         # LoSoTo plot
