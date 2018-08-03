@@ -52,7 +52,7 @@ def getParset(parsetFile='../lilf.config'):
     add_default('dd', 'maxniter', 10)
 
     # flag
-    add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IR*;PL*')
+    add_default('flag', 'stations', 'DE*\;FR*\;SE*\;UK*\;IR*\;PL*')
     # model
     add_default('model', 'sourcedb', '')
     add_default('model', 'apparent', 'False')

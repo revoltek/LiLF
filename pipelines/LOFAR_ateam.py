@@ -8,9 +8,9 @@ import numpy as np
 import pyrap.tables as pt
 
 # Temporary!
-if 'VirA2013' in os.getcwd():
+if 'VirA' in os.getcwd():
     patch = 'VirA'
-    datadir = '/home/fdg/lofar2/LOFAR/Ateam_LBA/VirA/tgts2013-bkp'
+    #datadir = '/home/fdg/lofar2/LOFAR/Ateam_LBA/VirA/tgts2013-bkp'
     bl2flag = 'CS013LBA\;CS031LBA'
     blrange = '[0,1e30]'
 elif 'VirA2015' in os.getcwd():
@@ -145,7 +145,7 @@ for c in xrange(10):
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS filter.blrange='+blrange+' sol.parmdb=$pathMS/amp.h5', log='$nameMS_amp.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5', log='$nameMS_amp.log', commandType="DPPP")
     
     lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()], \
             [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-amp.parset',parset_dir+'/losoto-bp.parset'])
