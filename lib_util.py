@@ -1,4 +1,4 @@
-import os, sys, re, pickle, random, shutil, glob
+import os, sys, re, time, pickle, random, shutil, glob
 
 from casacore import tables
 import numpy as np
@@ -256,7 +256,7 @@ class Scheduler():
 
         # bkp old log dir
         if os.path.isdir(log_dir):
-            os.system('mv %s logs_bkp%s' % ( log_dir, time.ctime(os.path.getmtime(log_dir)).replace(' ','_') )
+            os.system('mv %s logs_bkp%s' % ( log_dir, time.ctime(os.path.getmtime(log_dir)).replace(' ','_') ))
 
         logger.info("Creating log dir '" + log_dir + "'.")
         os.makedirs(log_dir)

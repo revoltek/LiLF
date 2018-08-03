@@ -1,0 +1,18 @@
+msin =
+msin.datacolumn = DATA
+msout = .
+msout.datacolumn = CORRECTED_DATA
+
+numthreads = 1 # bug fix
+
+steps = [sol]
+
+sol.type = ddecal
+sol.uvlambdamin = 300
+sol.mode = rotation+diagonal
+sol.maxiter = 500
+sol.tolerance = 1e-3
+sol.nchan = 1
+sol.solint = 1
+sol.propagatesolutions = True
+#sol.usemodelcolumn = True
