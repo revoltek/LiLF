@@ -133,6 +133,8 @@ for c in xrange(0, niter):
     os.system('mv plots-tec'+str(c)+'* self/solutions/')
     os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
 
+    sys.exit() # TEST
+
     # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC...')
     MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn='+incol+' cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
