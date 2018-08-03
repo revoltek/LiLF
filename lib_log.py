@@ -1,4 +1,4 @@
-import logging
+import os, logging
 import lib_util
 
 def add_coloring_to_emit_ansi(fn):
@@ -23,6 +23,7 @@ def add_coloring_to_emit_ansi(fn):
 
 
 def set_logger(filename = "pipeline.logging"):
+
     # hopefully kill other loggers
     logger = logging.getLogger()
     logger.propagate = False

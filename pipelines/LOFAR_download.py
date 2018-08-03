@@ -1,13 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-fix_tables = True
-rename = True
-flag_elev = False
-parset_dir = '/home/fdg/scripts/LiLF/parsets/LOFAR_download'
-
-###################################################
-
 import sys, os, re, glob, time
 import numpy as np
 import pyrap.tables as pt
@@ -17,9 +10,15 @@ from astropy.time import Time
 from LiLF import lib_ms, lib_util, lib_log
 lib_log.set_logger('pipeline-download.logger')
 logger = lib_log.logger
-lib_util.check_rm('logs')
 s = lib_util.Scheduler(dry = False)
 
+# parse parset
+parset = lib_util.getParset()
+parset_dir = parset.get('download','parset_dir')
+fix_table = parset.getboolean('download','fix_table')
+renameavg = parset.getboolean('download','renameavg')
+
+###########################################
 if os.path.exists('html.txt'):
     download_file = 'html.txt'
 else:
@@ -107,15 +106,10 @@ if fix_tables:
         logger.info('Fix beam table...')
         MSs.run('/home/fdg/scripts/fixinfo/fixbeaminfo $pathMS', log='$nameMS_fixbeam.log', commandType='python')
 
-########################################
-if flag_elev:
-    logger.info('Flagging elevation...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-flag-elev.parset msin=$pathMS', log='$nameMS_flag-elev.log', commandType='DPPP')
-
 ######################################
 # Avg to 4 chan and 4 sec
 # Remove internationals
-if rename:
+if renameavg:
     logger.info('Renaming/averaging...')
     nchan = MSs.getListObj()[0].getNchan()
     timeint = MSs.getListObj()[0].getTimeInt()

@@ -18,22 +18,45 @@ def getParset(parsetFile='../lilf.config'):
     """
     Get parset file and return dict of values
     """
+    def add_default(section, option, val):
+        if not config.has_option(section, option): config.set(section, option, val)
+
     config = ConfigParser()
     config.read(parsetFile)
     
-    # populate defaults sections
+    # add pipeline sections and defaul parset dir:
+    for pipeline in ['download','demix','cal','timesplit','self','dd', 'ateam']:
+        if not config.has_section(pipeline): config.add_section(pipeline)
+        if not config.has_option(pipeline, 'parset_dir'): config.set(pipeline, 'parset_dir', '/home/fdg/scripts/LiLF/parsets/LOFAR_'+pipeline)
+    # add other sections
     if not config.has_section('flag'): config.add_section('flag')
-    if not config.has_section('timesplit'): config.add_section('timesplit')
     if not config.has_section('model'): config.add_section('model')
 
-    # flag
-    if not config.has_option('flag', 'stations'): config.set('flag', 'stations', 'DE*;FR*;SE*;UK*')
+    # download
+    add_default('download', 'fix_tables', 'True') # fix bug in some old observations
+    add_default('download', 'renameavg', 'True')
+    add_default('download', 'flag_elev', 'True')
+    # demix
+    add_default('demix', 'data_dir', '../tgts-full/')
+    # cal
+    add_default('cal', 'imaging', 'False')
+    add_default('cal', 'skymodel', '/home/fdg/scripts/LiLF/models/calib-simple.skydb')
+    add_default('cal', 'data_dir', '../cals-bkp/')
     # timesplit
-    if not config.has_option('timesplit', 'ngroups'): config.set('timesplit', 'ngroups', 2)
+    add_default('timesplit', 'data_dir', '../tgts-bkp/')
+    add_default('timesplit', 'cal_dir', '../cals/')
+    add_default('timesplit', 'ngroups', 2)
+    add_default('timesplit', 'initc', 0)
+    # self
+    # dd
+    add_default('dd', 'maxniter', 10)
+
+    # flag
+    add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IR*;PL*')
     # model
-    if not config.has_option('model', 'sourcedb'): config.set('model', 'sourcedb', '')
-    if not config.has_option('model', 'apparent'): config.set('model', 'apparent', False)
-    if not config.has_option('model', 'userReg'): config.set('model', 'userReg', None)
+    add_default('model', 'sourcedb', '')
+    add_default('model', 'apparent', 'False')
+    add_default('model', 'userReg', 'None')
 
     return config
 
@@ -231,9 +254,12 @@ class Scheduler():
         self.action_list = []
         self.log_list    = [] # list of 2-tuples of the type: (log filename, type of action)
 
-        if (not os.path.isdir(log_dir)):
-            logger.info("Creating log dir '" + log_dir + "'.")
-            os.makedirs(log_dir)
+        # bkp old log dir
+        if os.path.isdir(log_dir):
+            os.system('mv %s logs_bkp-%i' % (log_dir, os.path.getntune('logs') ))
+
+        logger.info("Creating log dir '" + log_dir + "'.")
+        os.makedirs(log_dir)
         self.log_dir = log_dir
 
 

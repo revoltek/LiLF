@@ -8,8 +8,7 @@ import numpy as np
 import pyrap.tables as pt
 import lsmtool
 
-parset_dir = '/home/fdg/scripts/autocal/parset_dd'
-maxniter = 10 # max iteration if not converged
+
 
 ##########################################################################################
 
@@ -24,12 +23,17 @@ if 'tooth' in os.getcwd():
 else:
     userMask = None
 
+#######################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 lib_log.set_logger('pipeline-dd.logger')
 logger = lib_log.logger
-lib_util.lib_util.check_rm('logs')
 s = lib_util.Scheduler(dry = False)
 
+parset = lib_util.getParset()
+parset_dir = parset.get('dd','parset_dir')
+maxniter = parset.getint('dd','maxniter')
+
+####################################################
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
 # make beam

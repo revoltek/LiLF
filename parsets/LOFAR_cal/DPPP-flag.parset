@@ -4,13 +4,13 @@ msout = .
 
 numthreads = 1 # bug fix
 
-steps = [flag1, elev, freq, count]
+steps = [ant, elev, freq, count]
 
-flag1.type = preflagger
-flag1.baseline = 
+ant.type = preflagger
+ant.baseline = 
 
 elev.type = preflagger
-elev.elevation = 0deg..20deg
+elev.elevation = 0 .. 20 deg
 
 freq.type = preflagger
 freq.freqrange = 10 .. 30 MHz

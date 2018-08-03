@@ -1,8 +1,7 @@
 msin =
-msin.datacolumn = DATA
+msin.datacolumn = CORRECTED_DATA
 msout = .
 msout.datacolumn = CORRECTED_DATA
-#msout.storagemanager = dysco
 
 numthreads = 1 # bug fix
 

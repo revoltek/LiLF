@@ -1,12 +1,5 @@
 Ncpu = 20
 
-#[reweight]
-#soltab = sol000/amplitude000
-#operation = REWEIGHT
-#weightVal = 0.
-#flagBad = False
-#ant = [CS031LBA, RS409LBA]
-
 [plotA1]
 operation = PLOT
 soltab = sol000/amplitude000
@@ -14,7 +7,7 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/ampBF_
-#minmax = [100,300]
+#minmax = [0,300]
 
 [flag]
 operation = FLAG
@@ -42,7 +35,7 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/ampAF_
-#minmax = [100,300]
+#minmax = [0,300]
 
 # copy flags on phases
 [merge]

@@ -9,32 +9,32 @@ import numpy as np
 from astropy.time import Time
 import casacore.tables as pt
 
-parset_dir = '/home/fdg/scripts/LiLF/parsets/LOFAR_timesplit'
-initc = 0 # initial tc num (useful for multiple observation of same target)
 
-datadir = '../tgts-bkp/' 
-soldir = '../cals/'
 if 'LBAsurvey' in os.getcwd():
     datadir = '../../download/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
-    soldir = 'portal_lei:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]
-
-assert os.path.isdir(soldir)
+    cal_dir = 'portal_lei:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]
 
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log
-parset = lib_util.getParset()
 lib_log.set_logger('pipeline-timesplit.logger')
 logger = lib_log.logger
-lib_util.check_rm('logs')
 s = lib_util.Scheduler(dry = False)
 
+# parse parset
+parset = lib_util.getParset()
+parset_dir = parset.get('timesplit','parset_dir')
+data_dir = parset.get('timesplit','data_dir')
+cal_dir = parset.get('timesplit','cal_dir')
 ngroups = parset.getint('timesplit','ngroups')
+initc = parset.getint('timesplit','initc') # initial tc num (useful for multiple observation of same target)
+
+assert os.path.isdir(cal_dir)
 
 #################################################
 # Clean
 logger.info('Cleaning...')
 lib_util.check_rm('mss*')
-MSs = lib_ms.AllMSs( glob.glob(datadir+'/*MS'), s )
+MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
 
 logger.info('Copy data...')
 for MS in MSs.getListObj():
@@ -48,11 +48,11 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 # TODO: this can now be made AFTER grouping
 logger.info('Copy solutions...')
 if not os.path.exists('cal-pa.h5'):
-    os.system('scp -q '+soldir+'/cal-pa.h5 .')
+    os.system('scp -q '+cal_dir+'/cal-pa.h5 .')
 if not os.path.exists('cal-amp.h5'):
-    os.system('scp -q '+soldir+'/cal-amp.h5 .')
+    os.system('scp -q '+cal_dir+'/cal-amp.h5 .')
 if not os.path.exists('cal-iono.h5'):
-    os.system('scp -q '+soldir+'/cal-iono.h5 .')
+    os.system('scp -q '+cal_dir+'/cal-iono.h5 .')
 
 # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign corrected)
 logger.info('Apply solutions...')

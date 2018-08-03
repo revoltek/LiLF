@@ -8,29 +8,31 @@
 import sys, os, glob, re
 import numpy as np
 
-parset_dir = "/home/fdg/scripts/LiLF/parsets/LOFAR_cal"
-skymodel = "/home/fdg/scripts/LiLF/models/calib-simple.skydb"
-imaging    = True
-
-datadir = '../cals-bkp/'
 if 'LBAsurvey' in os.getcwd():
     obs     = os.getcwd().split('/')[-2] # assumes .../c??-o??/3c196
     calname = os.getcwd().split('/')[-1] # assumes .../c??-o??/3c196
-    datadir = '../../download/%s/%s' % (obs, calname)
+    data_dir = '../../download/%s/%s' % (obs, calname)
 #    bl2flag = 'CS031LBA'
 #    if 'c05' in os.getcwd(): bl2flag = 'RS409LBA'
 #    if 'c09' in os.getcwd(): bl2flag = 'CS031LBA\;CS013LBA'
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
-parset = lib_util.getParset()
 lib_log.set_logger('pipeline-cal.logger')
 logger = lib_log.logger
-lib_util.check_rm('logs')
 s = lib_util.Scheduler(dry = False)
-MSs = lib_ms.AllMSs( glob.glob(datadir+'/*MS'), s )
 
-## copy data
+# parse parset
+parset = lib_util.getParset()
+parset_dir = parset.get('cal','parset_dir')
+data_dir = parset.get('cal','data_dir')
+skymodel = parset.get('cal','skymodel')
+imaging = parset.getboolean('cal','imaging')
+bl2flag = parset.get('flag','stations')
+
+#############################################################
+MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
+# copy data
 logger.info('Copy data...')
 for MS in MSs.getListObj():
     MS.move(MS.nameMS+'.MS', keepOrig=True)
@@ -43,16 +45,15 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 calname = MSs.getListObj()[0].getNameField()
 obsmode = MSs.getListObj()[0].getObsMode()
 # find min freq
-if min(MSs.getFreqs()) < 40.e6: iono3rd = True
+if min(MSs.getFreqs()) < 40.e6:
+    iono3rd = True
+    logger.debug('Include iono 3rd order.')
 else: iono3rd = False
-logger.debug('Iono 3rd order: %r' % iono3rd)
-
-bl2flag = parset.get('flag','stations')
 
 ###################################################
 # flag bad stations, flags will propagate
 logger.info("Flagging...")
-MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flag1.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
+MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
 
 # predict to save time ms:MODEL_DATA
 logger.info('Add model to MODEL_DATA (%s)...' % calname)
@@ -85,7 +86,7 @@ MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA c
 
 # Beam correction CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Beam correction...')
-MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA corrbeam.updateweights=True', log='$nameMS_beam.log', commandType="DPPP")
+MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType="DPPP")
 
 # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
 #logger.info('Converting to circular...')
@@ -143,7 +144,7 @@ MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORREC
         cor.correction=amplitudeSmooth000 cor.updateweights=True', log='$nameMS_corAMP.log', commandType="DPPP")
 # Beam correction CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Beam correction...')
-MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA corrbeam.updateweights=True', log='$nameMS_beam2.log', commandType="DPPP")
+MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam2.log', commandType="DPPP")
 # Correct FR CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Faraday rotation correction...')
 MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DPPP")
@@ -252,6 +253,7 @@ if imaging:
             -fits-mask '+im.maskname+' '+MSs.getStrWsclean(), \
             log='wscleanB.log', commandType='wsclean', processors = 'max')
     s.run(check = True)
+    os.system('cat logs/wscleanB.log | grep "background noise"')
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits')

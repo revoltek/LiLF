@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 # perform self-calibration on a group of SBs concatenated in TCs. Script must be run in dir with MS.
 # number/chan in MS are flexible but the must be concatenable (same chans/freq!)
 # Input:
@@ -15,9 +16,6 @@
 import sys, os, glob, re
 import numpy as np
 import pyrap.tables as pt
-
-parset_dir = '/home/fdg/scripts/LiLF/parsets/LOFAR_self'
-niter = 3
 
 # Temporary
 #if 'tooth' in os.getcwd():
@@ -46,16 +44,18 @@ if 'LBAsurvey' in os.getcwd():
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
-parset = lib_util.getParset()
 lib_log.set_logger('pipeline-self.logger')
 logger = lib_log.logger
-lib_util.check_rm('logs')
 s = lib_util.Scheduler(dry = False)
 
+parset = lib_util.getParset()
+parset_dir = parset.get('self','parset_dir')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
 assert os.path.exists(sourcedb)
+
+niter = 3
 
 #############################################################################
 # Clear

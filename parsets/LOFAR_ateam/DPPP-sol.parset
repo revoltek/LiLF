@@ -1,19 +1,17 @@
 msin =
 msin.datacolumn = SMOOTHED_DATA
-msin.baseline = [CR]S*&
 msout = .
 msout.datacolumn = CORRECTED_DATA
 
 numthreads = 1 # bug fix
 
-steps = [filter, sol]
-
-filter.blrange = [0, 1e30]
+steps = [sol]
 
 sol.type = gaincal
+sol.uvlambdamin=300
 sol.caltype = diagonal
 sol.maxiter = 500
 sol.nchan = 1
 sol.solint = 1
-sol.propagatesolutions = False
+sol.propagatesolutions = True
 sol.usemodelcolumn = True

@@ -5,10 +5,10 @@ msout = .
 
 numthreads = 1 # bug fix
 
-steps = [flag1, elev, count]
+steps = [ant, elev, count]
 
-flag1.type = preflagger
-flag1.baseline = 
+ant.type = preflagger
+ant.baseline = 
 
 elev.type = preflagger
 elev.elevation = 0deg..30deg
