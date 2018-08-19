@@ -13,6 +13,7 @@ average = True
 replace = True
 fitOffset = False
 refAnt = 'CS002LBA'
+maxResidual = 1.5
 
 [plotAlign]
 operation = PLOT

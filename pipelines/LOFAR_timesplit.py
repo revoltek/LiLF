@@ -108,8 +108,8 @@ MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
 
 # Create time-chunks
 logger.info('Splitting in time...')
-tc = initc
 for groupname in groupnames:
+    tc = initc
     ms = groupname+'/'+groupname+'.MS'
     if not os.path.exists(ms): continue
     t = pt.table(ms, ack=False)

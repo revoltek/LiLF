@@ -8,10 +8,8 @@ import numpy as np
 import pyrap.tables as pt
 
 # Temporary!
-if 'VirA' in os.getcwd():
+if 'Vir' in os.getcwd():
     patch = 'VirA'
-    #datadir = '/home/fdg/lofar2/LOFAR/Ateam_LBA/VirA/tgts2013-bkp'
-    bl2flag = 'CS013LBA\;CS031LBA'
     blrange = '[0,1e30]'
 elif 'VirA2015' in os.getcwd():
     patch = 'VirA'
@@ -103,7 +101,8 @@ for c in xrange(10):
     
     # Beam correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA2.log', commandType="DPPP")
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
+            log='$nameMS_corPA2.log', commandType="DPPP")
 
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
@@ -129,7 +128,8 @@ for c in xrange(10):
 
     # Beam correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA3.log', commandType="DPPP")
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
+            log='$nameMS_corPA3.log', commandType="DPPP")
 
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
@@ -137,7 +137,8 @@ for c in xrange(10):
     
     # Correct FR CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR3.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+            log='$nameMS_corFR3.log', commandType="DPPP")
     
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
@@ -155,15 +156,16 @@ for c in xrange(10):
 
     # Beam correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA4.log', commandType="DPPP")
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
+            log='$nameMS_corPA4.log', commandType="DPPP")
 
     # Correct BP CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Cross bp correction...')
     if c == 0:
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin='+ms+' cor.updateweights=True cor.parmdb=$pathMS/amp.h5 cor.correction=amplitudeSmooth000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin='+ms+' cor.updateweights=True cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitudeSmooth000', \
                 log=ms+'$nameMS_corAMP4.log', commandType='DPPP')
     else:
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin='+ms+' cor.updateweights=False cor.parmdb=$pathMS/amp.h5 cor.correction=amplitudeSmooth000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin='+ms+' cor.updateweights=False cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitudeSmooth000', \
                 log=ms+'$nameMS_corAMP4.log', commandType='DPPP')
  
     # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
@@ -186,11 +188,12 @@ for c in xrange(10):
     logger.info('Calibrating...')
     MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/iono.h5', log='$nameMS_iono.log', commandType='DPPP')
     
-    run_losoto(s, 'final-c'+str(c), mss, [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-amp.parset',parset_dir+'/losoto-ph.parset'])
+    run_losoto(s, 'iono-c'+str(c), mss, [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-amp.parset',parset_dir+'/losoto-ph.parset'])
     
     # Correct all CORRECTED_DATA (PA, beam, BP, FR corrected) -> CORRECTED_DATA
     logger.info('Amp/ph correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/iono.h5 cor.correction=gain', log=ms+'_corG4.log', commandType='DPPP')
+    MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono-c'+str(c)+'.h5 cor.amp.parmdb=cal-iono.h5 \
+                    cor.ph.correction=phaseOrig000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corG4.log', commandType="DPPP")
     
     # briggs: -1.2 for virgo
     logger.info('Cleaning (cycle %i)...' % c)
