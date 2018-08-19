@@ -18,11 +18,7 @@ import numpy as np
 import pyrap.tables as pt
 
 # Temporary
-#if 'tooth' in os.getcwd():
-#    sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/toothbrush.LBA.skydb'
-#    apparent = True # no beam correction
-#    userReg = '/home/fdg/scripts/autocal/regions/tooth.reg'
-#elif 'bootes' in os.getcwd():
+#if 'bootes' in os.getcwd():
 #    sourcedb = '/home/fdg/scripts/model/Bootes_HBA.corr.skydb'
 #    apparent = False
 #    userReg = None
@@ -133,8 +129,6 @@ for c in xrange(0, niter):
     os.system('mv plots-tec'+str(c)+'* self/solutions/')
     os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
 
-    sys.exit() # TEST
-
     # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC...')
     MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn='+incol+' cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
@@ -161,7 +155,6 @@ for c in xrange(0, niter):
         MSs.run('DPPP ' + parset_dir + '/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal \
                      sol.sourcedb=$pathMS/'+sourcedb_basename+' sol.solint=30 sol.nchan=8', log='$nameMS_solFR.log', commandType="DPPP")
 
-
         lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-fr.parset'])
         os.system('mv plots-fr'+str(c)+'* self/solutions/')
         os.system('mv cal-fr'+str(c)+'*.h5 self/solutions/')
@@ -171,7 +164,7 @@ for c in xrange(0, niter):
 #        MSs.run('/home/fdg/scripts/mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', \
 #                log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
         
-        # Correct FR SB.MS:(SUBTRACTED_)DATA->CORRECTED_DATA
+        # Correct FR SB.MS:(SUBTRACTED_)DATA -> CORRECTED_DATA
         logger.info('Faraday rotation correction...')
         h5 = 'self/solutions/cal-fr'+str(c)+'.h5'
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
@@ -285,9 +278,10 @@ for c in xrange(0, niter):
     if c != niter:
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
                 log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-        # TEST
+        # TODO: remove when MODEL_COLUMN can be used again
         for MS in MSs.getListStr():
             os.system( 'cp '+im.skydb+' '+MS+'/'+sourcedb_basename )
+
     if c == 1:
         # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
         logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
