@@ -108,16 +108,16 @@ MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$na
 # Self-cal cycle
 for c in xrange(0, niter):
 
-    logger.info('Start selfcal cycle: '+str(c))
-
-    if c >= 2:
-        incol = 'SUBTRACTED_DATA'
-    else:
-        incol = 'DATA'
-
-    # Smooth DATA -> SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python', maxThreads=6)
+#    logger.info('Start selfcal cycle: '+str(c))
+#
+#    if c >= 2:
+#        incol = 'SUBTRACTED_DATA'
+#    else:
+#        incol = 'DATA'
+#
+#    # Smooth DATA -> SMOOTHED_DATA
+#    logger.info('BL-based smoothing...')
+#    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python', maxThreads=6)
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving TEC...')
@@ -132,8 +132,6 @@ for c in xrange(0, niter):
     lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
     os.system('mv plots-tec'+str(c)+'* self/solutions/')
     os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
-
-    sys.exit() # TEST
 
     # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC...')
