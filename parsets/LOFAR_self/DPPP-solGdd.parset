@@ -4,7 +4,7 @@ msin.baseline = [CR]S*&
 msout = .
 msout.datacolumn = CORRECTED_DATA
 
-numthreads = 1 # bug fix
+#numthreads = 1 # bug fix
 
 steps = [sol]
 
@@ -16,4 +16,4 @@ sol.maxiter = 500
 sol.nchan = 1
 sol.solint = 1
 sol.propagatesolutions = True
-#sol.usemodelcolumn = True
+sol.usemodelcolumn = True

@@ -5,8 +5,8 @@ msout.datacolumn = MODEL_DATA
 
 numthreads = 1 # bug fix
 
-steps = [cor1, cor2]
-#steps = [cor1]
+#steps = [cor1, cor2]
+steps = [cor1]
 
 cor1.type = applycal
 cor1.parmdb =

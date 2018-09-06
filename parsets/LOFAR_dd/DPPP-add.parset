@@ -1,0 +1,16 @@
+msin = 
+msin.datacolumn = SUBTRACTED_DATA
+msout = .
+msout.datacolumn = CORRECTED_DATA
+
+#numthreads = 1
+
+steps = [add]
+
+add.type = H5ParmPredict
+add.sourcedb = 
+add.sources = 
+add.directions = 
+add.usebeammodel = False
+add.operation = add
+add.applycal.correction = sol000/tec000

@@ -23,3 +23,4 @@ ddecal.propagatesolutions = True
 ddecal.approximatetec = True
 ddecal.maxapproxiter = 100 
 ddecal.approxtolerance = 1e-2
+ddecal.usemodelcolumn = True

@@ -269,13 +269,15 @@ class MS(object):
         with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
             return t.getcol("LOFAR_ANTENNA_SET")[0]
 
-    def makeBeamReg(self, outfile, pb_cut=None):
+    def makeBeamReg(self, outfile, pb_cut=None, to_null=False):
         """
         Create a ds9 region of the beam
         outfile : str
             output file
         pb_cut : float, optional
             diameter of the beam
+        to_null : bool, optional
+            arrive to the first null, not the FWHM
         """
         logger.debug('Making PB region: '+outfile)
         ra, dec = self.getPhaseCentre()
@@ -292,6 +294,8 @@ class MS(object):
                 size = 8./2.
         else:
             size = pb_cut/2.
+
+        if to_null: size *= 1.7 # rough estimation
 
         s = Shape('circle', None)
         s.coord_format = 'fk5'
