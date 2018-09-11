@@ -39,6 +39,8 @@ elif 'CygA' in os.getcwd():
     bl2flag = 'CS031LBA'
     blrange = '[0,30000]'
 
+skymodel = '/home/fdg/scripts/model/A-team_4_CC.skydb'
+
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 lib_log.set_logger('pipeline-ateam.logger')
@@ -64,12 +66,12 @@ for MS in MSs.getListObj():
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
-#############################################################   
+############################################################   
 # flag bad stations, and low-elev
 logger.info('Flagging...')
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline='+bl2flag, \
             log='$nameMS_flag.log', commandType='DPPP')
- 
+
 # predict to save time MODEL_DATA
 #if os.path.exists('/home/fdg/scripts/model/AteamLBA/'+patch+'/wideM-MFS-model.fits'):
 #    logger.info('Predict (wsclean)...')
@@ -78,20 +80,19 @@ MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=
 #    s.run(check=True)
 #else:
 logger.info('Predict (DPPP)...')
-MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=/home/fdg/scripts/model/A-team_4_CC.skydb pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
+MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
 
 for c in xrange(10):
 
     ####################################################
     # 1: find PA and remove it
 
-    # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+    # Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
+    MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python', maxThreads=6)
 
     logger.info('Calibrating...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
-                        sol.sourcedb='+skymodel+' sol.directions=['+patch+']', log='$nameMS_solPA.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal', log='$nameMS_solPA.log', commandType="DPPP")
 
     lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
@@ -110,11 +111,11 @@ for c in xrange(10):
     
     # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Converting to circular...')
-    MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python')
+    MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
     
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2.log', commandType='python')
+    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2.log', commandType='python', maxThreads=6)
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating...')
@@ -142,7 +143,7 @@ for c in xrange(10):
     
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python', maxThreads=20)
+    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python', maxThreads=6)
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating...')
@@ -182,7 +183,7 @@ for c in xrange(10):
     
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log', commandType='python')
+    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log', commandType='python', maxThreads=6)
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating...')

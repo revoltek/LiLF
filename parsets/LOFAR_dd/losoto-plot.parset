@@ -3,29 +3,29 @@ Ncpu = 0
 
 [plotCSPTEC]
 operation = PLOT
-soltab = sol000/scalarphase000
+soltab = sol000/phase000
 axesInPlot = time
-axesInTable = ant
+axisInTable = ant
 plotFlag = True
-prefix = plots/csptec_
+prefix = plots/csptec
 refAnt = 'CS002LBA'
 soltabToAdd = tec000
 
 [plotCSP]
 operation = PLOT
-soltab = sol000/scalarphase000
+soltab = sol000/phase000
 axesInPlot = time
-axesInTable = ant
+axisInTable = ant
 plotFlag = True
-prefix = plots/csp_
+prefix = plots/csp
 refAnt = 'CS002LBA'
 
 [plotTEC]
 operation = PLOT
 soltab = sol000/tec000
 axesInPlot = time
-axesInTable = ant
+axisInTable = ant
 plotFlag = True
 minmax = [-0.5,0.5]
-prefix = plots/tec_
+prefix = plots/tec
 refAnt = 'CS002LBA'

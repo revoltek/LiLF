@@ -94,11 +94,11 @@ for MS in MSs.getListStr():
 logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
 MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 
-#logger.info('Add model to MODEL_DATA...')
-#if apparent:
-#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
-#else:
-#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+logger.info('Add model to MODEL_DATA...')
+if apparent:
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+else:
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 
 #####################################################################################################
 # Self-cal cycle
@@ -119,9 +119,7 @@ for c in xrange(0, niter):
     logger.info('Solving TEC...')
     for MS in MSs.getListStr():
         lib_util.check_rm(MS+'/tec.h5')
-        #lib_util.check_rm(MS+'/g.h5')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5 ddecal.sourcedb=$pathMS/'+sourcedb_basename, \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
     # LoSoTo plot
@@ -152,10 +150,8 @@ for c in xrange(0, niter):
         logger.info('Solving G...')
         for MS in MSs.getListStr():
             lib_util.check_rm(MS+'/fr.h5')
- #       MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5 sol.solint=30 sol.nchan=8', \
- #                   log='$nameMS_sol-g1-c'+str(c)+'.log', commandType='DPPP')
         MSs.run('DPPP ' + parset_dir + '/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal \
-                     sol.sourcedb=$pathMS/'+sourcedb_basename+' sol.solint=30 sol.nchan=8', log='$nameMS_solFR.log', commandType="DPPP")
+                     sol.solint=30 sol.nchan=8', log='$nameMS_solFR.log', commandType="DPPP")
 
         lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-fr.parset'])
         os.system('mv plots-fr'+str(c)+'* self/solutions/')
@@ -207,8 +203,7 @@ for c in xrange(0, niter):
         logger.info('Solving TEC...')
         for MS in MSs.getListStr():
             lib_util.check_rm(MS+'/tec.h5')
-        #MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.parmdb=$pathMS/tec.h5', \
-        MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5 ddecal.sourcedb=$pathMS/'+sourcedb_basename, \
+        MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
                     log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
         # LoSoTo plot
@@ -218,9 +213,6 @@ for c in xrange(0, niter):
 
         # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting TEC...')
-        #h5 = 'self/solutions/cal-tec'+str(c)+'b.h5'
-        #MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor1.parmdb='+h5+' cor2.parmdb='+h5, \
-        #            log='$nameMS_corTECb-c'+str(c)+'.log', commandType='DPPP')
         MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
                     log='$nameMS_corTECb-c'+str(c)+'.log', commandType='DPPP')
 
@@ -280,9 +272,6 @@ for c in xrange(0, niter):
     if c != niter:
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
                 log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-        # TODO: remove when MODEL_COLUMN can be used again
-        for MS in MSs.getListStr():
-            os.system( 'cp '+im.skydb+' '+MS+'/'+sourcedb_basename )
 
     if c == 1:
         # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
@@ -322,10 +311,6 @@ for c in xrange(0, niter):
     #logger.info('Flagging residuals...')
     #MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', log='$nameMS_flag-c'+str(c)+'.log', commandType='DPPP')
     
-# make beam
-# TODO: remove when wsclean will produce a proper primary beam
-os.system('~/opt/src/makeavgpb/build/wsbeam.py img/wideBeam')
-
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in xrange(niter) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in xrange(niter) ]
