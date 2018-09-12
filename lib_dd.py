@@ -298,9 +298,10 @@ def make_voronoi_reg(directions, fitsfile, outdir='regions/', beam_reg='', png=N
     beam_reg : a ds9 region showing the the primary beam, exclude directions outside it
     """
 
+    import lib_img
     logger.debug("Image used for tasselation reference: "+fitsfile)
     fits = pyfits.open(fitsfile)
-    hdr, data = flatten(fits)
+    hdr, data = lib_img.flatten(fits)
     w = pywcs.WCS(hdr)
     pixsize = np.abs(hdr['CDELT1'])
 

@@ -9,7 +9,7 @@ import pyrap.tables as pt
 import lsmtool
 
 #######################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log
+from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd
 lib_log.set_logger('pipeline-dd.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(dry = False)
@@ -98,7 +98,7 @@ MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameM
 
 ###############################################################
 logger.info('BL-based smoothing...')
-MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
+MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python', maxThreads=6)
 
 # setup initial model
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
@@ -112,7 +112,7 @@ for c in xrange(maxniter):
     os.makedirs('img')
 
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
-    lsm.group('tessellate', targetFlux='10Jy', root='Dir', applyBeam=False, method = 'wmean', pad_index=True)
+    lsm.group('tessellate', targetFlux='15Jy', root='Dir', applyBeam=False, method = 'wmean', pad_index=True)
     directions_clusters = lsm.getPatchPositions()
     patches = lsm.getPatchNames()
     logger.info("Created %i directions." % len(patches))
@@ -122,29 +122,32 @@ for c in xrange(maxniter):
     skymodel_cl_plot = 'ddcal/skymodels/skymodel%02i_cluster.png' % c
     lsm.plot(fileName=skymodel_cl_plot, labelBy='patch')
 
-#    # voronoi tessellation of skymodel for imaging
-#    lsm.group('voronoi', root='Dir', applyBeam=False, method='mid')
+    # voronoi tessellation of skymodel for imaging
+    logger.info("Preparing Voronoi tassellation.")
+    lsm.group('voronoi', root='Dir', applyBeam=False, method='mid')
     directions_shifts = lsm.getPatchPositions()
     sizes = lsm.getPatchSizes(units='degree')
-#
-#    skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
-#    lsm.write(skymodel_voro, format='makesourcedb', clobber=True)
-#    skymodel_voro_plot = 'ddcal/skymodels/skymodel%02i_voro.png' % c
-#    lsm.plot(fileName=skymodel_voro_plot, labelBy='patch')
-#    del lsm
-#
-#    # create regions (using cluster directions)
-#    make_voronoi_reg(directions_clusters, mosaic_image.imagename, outdir='ddcal/regions/', beam_reg='', png='ddcal/skymodels/voronoi%02i.png' % c)
 
+    skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
+    lsm.write(skymodel_voro, format='makesourcedb', clobber=True)
+    skymodel_voro_plot = 'ddcal/skymodels/skymodel%02i_voro.png' % c
+    lsm.plot(fileName=skymodel_voro_plot, labelBy='patch')
+    del lsm
+
+    # create regions (using cluster directions)
+    logger.info("Create regions.")
+    lib_dd.make_voronoi_reg(directions_clusters, mosaic_image.imagename, outdir='ddcal/regions/', beam_reg='', png='ddcal/skymodels/voronoi%02i.png' % c)
+
+    logger.info("Save sky models.")
     skymodel_cl_skydb = skymodel_cl.replace('.txt','.skydb')
     lib_util.check_rm(skymodel_cl_skydb)
     s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_cl, skymodel_cl_skydb), log='makesourcedb_cl.log', commandType='general' )
     s.run(check=True)
 
-#    skymodel_voro_skydb = skymodel_voro.replace('.txt','.skydb')
-#    lib_util.check_rm(skymodel_voro_skydb)
-#    s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_voro, skymodel_voro_skydb), log='makesourcedb_voro.log', commandType='general')
-#    s.run(check=True)
+    skymodel_voro_skydb = skymodel_voro.replace('.txt','.skydb')
+    lib_util.check_rm(skymodel_voro_skydb)
+    s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_voro, skymodel_voro_skydb), log='makesourcedb_voro.log', commandType='general')
+    s.run(check=True)
 
     ################################################################
     # Calibration
@@ -198,7 +201,7 @@ for c in xrange(maxniter):
 
         # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
         logger.info('Patch '+p+': add back...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-add.parset msin=$pathMS add.parmdb=$pathMS/cal-c'+str(c)+'.h5 add.sourcedb='+skymodel_cl_skydb+' add.directions=['+p+']', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-add.parset msin=$pathMS add.parmdb=$pathMS/cal-c'+str(c)+'.h5 add.sourcedb='+skymodel_voro_skydb+' add.directions=['+p+']', \
                    log='$nameMS_add-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
 #        #pre.applycal.h5parm='+ms+'/cal-c'+str(c)+'.h5 pre.applycal.direction='+p, \

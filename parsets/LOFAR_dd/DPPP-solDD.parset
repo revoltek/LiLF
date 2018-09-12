@@ -21,7 +21,6 @@ ddecal.propagatesolutions = True
 ddecal.approximatetec = True
 ddecal.maxapproxiter = 100
 ddecal.approxtolerance = 1e-2
-ddecal.usemodelcolumn = True
 
 #ddecal.coreconstraint = 1500 # in meters
 

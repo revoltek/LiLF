@@ -1,5 +1,5 @@
 msin =
-msin.datacolumn = DATA
+msin.datacolumn = SMOOTHED_DATA
 msout = .
 msout.datacolumn = CORRECTED_DATA
 

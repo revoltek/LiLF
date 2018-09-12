@@ -238,6 +238,15 @@ for c in xrange(0, niter):
                 log='wscleanBeamHR-c'+str(c)+'.log', commandType='wsclean', processors='max')
         s.run(check=True)
 
+        logger.info('Cleaning beam low-res (cycle: '+str(c)+')...')
+        imagename = 'img/wideBeamLR'
+        s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size/5) + ' ' + str(size/5) + ' -mem 90 -j '+str(s.max_processors)+' \
+                -scale 60arcsec -weight briggs 1.5 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
+                -pol IUQV -join-channels -fit-spectral-pol 2 -channels-out 10 -apply-primary-beam -use-differential-lofar-beam -maxuv-l 1000 '+MSs.getStrWsclean(), \
+                log='wscleanBeamLR-c'+str(c)+'.log', commandType='wsclean', processors='max')
+        s.run(check=True)
+
+
     # clean mask clean (cut at 5k lambda)
     # no MODEL_DATA update with -baseline-averaging
     logger.info('Cleaning (cycle: '+str(c)+')...')
