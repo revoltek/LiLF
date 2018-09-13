@@ -132,7 +132,7 @@ for c in xrange(0, niter):
     MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn='+incol+' cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
-#    sys.exit()
+    sys.exit()
 
     #####################################################################################################
     # Faraday rotation correction
