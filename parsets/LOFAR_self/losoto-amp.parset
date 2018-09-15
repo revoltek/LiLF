@@ -95,4 +95,4 @@ soltab = sol000/phase000
 operation = NORM
 soltab = sol000/amplitude000
 normVal = 1.
-axesToNorm = [time,freq,ant]
+axesToNorm = [time,freq,ant,pol]

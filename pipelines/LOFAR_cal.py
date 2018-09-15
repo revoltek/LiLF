@@ -217,7 +217,7 @@ if imaging:
     logger.info('Flag...')
     MSs.run('DPPP '+parset_dir+'/DPPP-flag2.parset msin=$pathMS', log='$nameMS_flag2.log', commandType='DPPP')
 
-    logger.info('Cleaning...')
+
     lib_util.check_rm('img')
     os.makedirs('img')
 
@@ -228,7 +228,15 @@ if imaging:
         logging.error('Observing mode not recognised.')
         sys.exit(1)
 
+    logger.info('Cleaning low-res...')
+    imagename = 'img/calLR'
+    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size/5) + ' ' + str(size/5) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+            -scale 60arcsec -weight briggs 1.5 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
+            -pol IUQV -join-channels -fit-spectral-pol 2 -channels-out 10 -apply-primary-beam -maxuv-l 1000 '+MSs.getStrWsclean(), \
+            log='wscleanLR.log', commandType='wsclean', processors='max')
+    s.run(check=True)
 
+    logger.info('Cleaning normal...')
     imagename = 'img/cal'
     s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.9 -minuv-l 100 \
