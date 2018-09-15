@@ -7,7 +7,7 @@ numthreads = 6
 steps=[elev, aoflagger, count]
 
 elev.type = preflagger
-elev.elevation = 0 .. 3 0deg
+elev.elevation = 0 .. 30 deg
 
 aoflagger.strategy = /home/fdg/scripts/LiLF/parsets/LOFAR_timesplit/LBAdefault.rfis
 aoflagger.memoryperc = 6
