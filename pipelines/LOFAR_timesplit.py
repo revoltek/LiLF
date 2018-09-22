@@ -106,6 +106,8 @@ MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
 
+#sys.exit()
+
 # Create time-chunks
 logger.info('Splitting in time...')
 for groupname in groupnames:
@@ -129,6 +131,7 @@ for groupname in groupnames:
     t.close()
 
     lib_util.check_rm(ms) # remove not-timesplitted file
+
 
 # put everything together
 if ngroups == 1:

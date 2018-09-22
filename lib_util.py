@@ -256,7 +256,9 @@ class Scheduler():
 
         # bkp old log dir
         if os.path.isdir(log_dir):
-            os.system('mv %s logs_bkp%s' % ( log_dir, time.ctime(os.path.getmtime(log_dir)).replace(' ','_') ))
+            current_time = time.localtime()
+            log_dir_old = time.strftime('logs_bkp_%Y_%b_%d_%H:%M:%S', current_time)
+            os.system('mv %s %s' % ( log_dir, log_dir_old ))
 
         logger.info("Creating log dir '" + log_dir + "'.")
         os.makedirs(log_dir)
