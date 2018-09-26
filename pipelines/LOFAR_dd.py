@@ -31,7 +31,7 @@ beamReg = 'self/beam.reg'
 ##########################
 logger.info('Cleaning...')
 lib_util.check_rm('ddcal')
-os.makedirs('ddcal/regions')
+os.makedirs('ddcal/masks')
 os.makedirs('ddcal/plots')
 os.makedirs('ddcal/images')
 os.makedirs('ddcal/skymodels')
@@ -43,7 +43,7 @@ def clean(c, MSs, size=2.):
     size = in deg of the image
     """
     # set pixscale and imsize
-    pixscale = lib_img.scale_from_ms(MSs[0])
+    pixscale = MSs[0].getResolution()/3.
     imsize = int(size/(pixscale/3600.))
 
     if imsize < 512:
@@ -94,15 +94,15 @@ if not os.path.exists('mss-dd'):
 MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9].MS'), s )
        
 logger.info('Add columns...')
-MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
+#MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 
 ###############################################################
 logger.info('BL-based smoothing...')
-MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python', maxThreads=6)
+#MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python', maxThreads=6)
 
 # setup initial model
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
-mosaic_image.selectCC()
+#mosaic_image.selectCC()
 rms_noise_pre = np.inf
 
 for c in xrange(maxniter):
@@ -110,10 +110,12 @@ for c in xrange(maxniter):
 
     lib_util.check_rm('img')
     os.makedirs('img')
+    os.makedirs('ddcal/images/c%02i/regions' % c)
 
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
     lsm.group('tessellate', targetFlux='15Jy', root='Dir', applyBeam=False, method = 'wmean', pad_index=True)
-    directions_clusters = lsm.getPatchPositions()
+    lsm.setPatchPositions(method='wmean')
+    directions = lsm.getPatchPositions()
     patches = lsm.getPatchNames()
     logger.info("Created %i directions." % len(patches))
 
@@ -122,22 +124,13 @@ for c in xrange(maxniter):
     skymodel_cl_plot = 'ddcal/skymodels/skymodel%02i_cluster.png' % c
     lsm.plot(fileName=skymodel_cl_plot, labelBy='patch')
 
-    # voronoi tessellation of skymodel for imaging
-    logger.info("Preparing Voronoi tassellation.")
-    lsm.group('voronoi', root='Dir', applyBeam=False, method='mid')
-    directions_shifts = lsm.getPatchPositions()
-    sizes = lsm.getPatchSizes(units='degree')
-
-    skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
-    lsm.write(skymodel_voro, format='makesourcedb', clobber=True)
-    skymodel_voro_plot = 'ddcal/skymodels/skymodel%02i_voro.png' % c
-    lsm.plot(fileName=skymodel_voro_plot, labelBy='patch')
-    del lsm
-
     # create regions (using cluster directions)
     logger.info("Create regions.")
-    lib_dd.make_voronoi_reg(directions_clusters, mosaic_image.imagename, outdir='ddcal/regions/', beam_reg='', png='ddcal/skymodels/voronoi%02i.png' % c)
+    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/images/c%02i/regions' % c, out_mask='ddcal/masks/facets%02i.fits' % c, beam_reg='', png='ddcal/skymodels/voronoi%02i.png' % c)
+    lsm.group('facet', facet='ddcal/masks/facets%02i.fits' % c)
+    sizes = lsm.getPatchSizes(units='degree')
 
+    # convert in skydb
     logger.info("Save sky models.")
     skymodel_cl_skydb = skymodel_cl.replace('.txt','.skydb')
     lib_util.check_rm(skymodel_cl_skydb)
@@ -148,6 +141,8 @@ for c in xrange(maxniter):
     lib_util.check_rm(skymodel_voro_skydb)
     s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_voro, skymodel_voro_skydb), log='makesourcedb_voro.log', commandType='general')
     s.run(check=True)
+
+    del lsm
 
     ################################################################
     # Calibration
@@ -166,7 +161,7 @@ for c in xrange(maxniter):
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
 
     logger.info('Subtraction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_cl_skydb, \
+    MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_voro_skydb, \
                    log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP')
 
 #    for i, p in enumerate(patches):
@@ -238,7 +233,7 @@ for c in xrange(maxniter):
         logger.info('Patch '+p+': phase shift and avg...')
         lib_util.check_rm('mss-dir')
         os.makedirs('mss-dir')
-        phasecentre = directions_shifts[p]
+        phasecentre = directions[p]
         MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=CORRECTED_DATA \
                 shift.phasecenter=['+str(phasecentre[0].degree)+'deg,'+str(phasecentre[1].degree)+'deg\]', \
                 log='$nameMS_shift-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
@@ -249,7 +244,6 @@ for c in xrange(maxniter):
     ##############################################################
     # Mosaiching
 
-    os.makedirs('ddcal/images/c'+str(c))
     directions = []
     for image, region in zip( sorted(glob.glob('img/ddcalM-Dir*MFS-image.fits')), sorted(glob.glob('ddcal/regions/Dir*')) ):
         directions.append( Image(image, regionFacet = region, user_mask = user_mask) )
@@ -277,10 +271,10 @@ for c in xrange(maxniter):
     for skymodel in skymodels[1:]:
         lsm2 = lsmtool.load(skymodel)
         lsm.concatenate(lsm2)
-    lsm.write('ddcal/images/c'+str(c)+'/mos-sources-cut.txt', format='makesourcedb', clobber=True)
+    lsm.write('ddcal/images/c%02i/mos-sources-cut.txt' % c, format='makesourcedb', clobber=True)
 
-    os.system('cp img/*M*MFS-image.fits img/mos-MFS-image.fits img/mos-MFS-residual.fits ddcal/images/c'+str(c))
-    mosaic_image = Image('ddcal/images/c'+str(c)+'/mos-MFS-image.fits', user_mask = user_mask)
+    os.system('cp img/*M*MFS-image.fits img/mos-MFS-image.fits img/mos-MFS-residual.fits ddcal/images/c%02i' % c )
+    mosaic_image = Image('ddcal/images/c%02i/mos-MFS-image.fits' % c, user_mask = user_mask)
 
     # get noise, if larger than 95% of prev cycle: break
     rms_noise = lib_img.Image(mosaic_residual).getNoise()

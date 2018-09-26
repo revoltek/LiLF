@@ -19,6 +19,7 @@ class AllMSs(object):
         """
         self.scheduler    = scheduler
 
+        # sort them, useful for some concatenating steps
         self.mssListStr = sorted(pathsMS)
 
         self.mssListObj = []
@@ -308,3 +309,21 @@ class MS(object):
         regions = pyregion.ShapeList([s])
         lib_util.check_rm(outfile)
         regions.write(outfile)
+
+    def getResolution(self):
+        """
+        Return the expected resolution (in arcsec) of the MS
+        Completely flagged lines are removed
+        """
+        c = 299792458. # in metres per second
+
+        with tables.table(self.pathMS, ack = False).query('not all(FLAG)') as t:
+            col = t.getcol('UVW')
+
+        with tables.table(self.pathMS+'/SPECTRAL_WINDOW', ack = False) as t:
+            wavelength = c / t.getcol('REF_FREQUENCY')[0]             # in metres
+        #print 'Wavelength:', wavelength,'m (Freq: '+str(t.getcol('REF_FREQUENCY')[0]/1.e6)+' MHz)'
+
+        maxdist = np.nanmax( np.sqrt(col[:,0] ** 2 + col[:,1] ** 2) )
+
+        return int(round(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcseconds

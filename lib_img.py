@@ -134,63 +134,63 @@ def flatten(f, channel = 0, freqaxis = 0):
     return header, f[0].data[slice]
 
 
-def size_from_reg(filename, regions, coord):
-    """
-    find number of pixels necessary to cover the intersection of the regions with a square centered on coord
-    filename : a fits file
-    regions : ds9 regions
-    coord : coordinate of the image center
-    """
-    import astropy.io.fits as pyfits
-    import astropy.wcs as pywcs
-    import pyregion
-
-    fits         = pyfits.open(filename)
-    header, data = flatten(fits)
-    w            = pywcs.WCS(header)
-
-    # find max dist in pixel on reference image
-    x_c, y_c     = w.all_world2pix(coord[0], coord[1], 0, ra_dec_order=True)
-    #print x_c, y_c
-    
-    # ditance would overestimate, get max of x-x_c and y-y_c
-    mask = np.ones(shape=data.shape, dtype=bool)
-    for region in regions:
-        r    = pyregion.open(region)
-        mask = (mask & r.get_mask(header=header, shape=data.shape))
-    y, x = mask.nonzero()
-
-    if (len(x) == 0):
-        return 0
-
-    max_size = 2 * np.max([np.abs(np.array(y) - y_c), np.abs(np.array(x) - x_c)])
-
-    return int(max_size)
+#def size_from_reg(filename, regions, coord):
+#    """
+#    find number of pixels necessary to cover the intersection of the regions with a square centered on coord
+#    filename : a fits file
+#    regions : ds9 regions
+#    coord : coordinate of the image center
+#    """
+#    import astropy.io.fits as pyfits
+#    import astropy.wcs as pywcs
+#    import pyregion
+#
+#    fits         = pyfits.open(filename)
+#    header, data = flatten(fits)
+#    w            = pywcs.WCS(header)
+#
+#    # find max dist in pixel on reference image
+#    x_c, y_c     = w.all_world2pix(coord[0], coord[1], 0, ra_dec_order=True)
+#    #print x_c, y_c
+#    
+#    # ditance would overestimate, get max of x-x_c and y-y_c
+#    mask = np.ones(shape=data.shape, dtype=bool)
+#    for region in regions:
+#        r    = pyregion.open(region)
+#        mask = (mask & r.get_mask(header=header, shape=data.shape))
+#    y, x = mask.nonzero()
+#
+#    if (len(x) == 0):
+#        return 0
+#
+#    max_size = 2 * np.max([np.abs(np.array(y) - y_c), np.abs(np.array(x) - x_c)])
+#
+#    return int(max_size)
 
  
-def scale_from_ms(ms):
-    """
-    Get the pixel scale in arcsec for a full-res image.
-    It is 1/3 of the max resolution assuming zenit observation.
-    Completely flagged lines are removed
-    """
-    from pyrap.tables import table
-    import numpy as np
-
-    c          = 299792458.                                   # in metres per second
-
-    t          = table(ms, ack = False).query('not all(FLAG)')
-    col        = t.getcol('UVW')
-    t.close()
-
-    t          = table(ms+'/SPECTRAL_WINDOW', ack=False)
-    wavelength = c / t.getcol('REF_FREQUENCY')[0]             # in metres
-    t.close()
-    #print 'Wavelength:', wavelength,'m (Freq: '+str(t.getcol('REF_FREQUENCY')[0]/1.e6)+' MHz)'
-
-    maxdist    = np.max( np.sqrt(col[:,0] ** 2 + col[:,1] ** 2) )
-
-    return int(round(wavelength / maxdist * (180 / np.pi) * 3600 / 3.)) # in arcseconds
+#def scale_from_ms(ms):
+#    """
+#    Get the pixel scale in arcsec for a full-res image.
+#    It is 1/3 of the max resolution assuming zenit observation.
+#    Completely flagged lines are removed
+#    """
+#    from pyrap.tables import table
+#    import numpy as np
+#
+#    c          = 299792458.                                   # in metres per second
+#
+#    t          = table(ms, ack = False).query('not all(FLAG)')
+#    col        = t.getcol('UVW')
+#    t.close()
+#
+#    t          = table(ms+'/SPECTRAL_WINDOW', ack=False)
+#    wavelength = c / t.getcol('REF_FREQUENCY')[0]             # in metres
+#    t.close()
+#    #print 'Wavelength:', wavelength,'m (Freq: '+str(t.getcol('REF_FREQUENCY')[0]/1.e6)+' MHz)'
+#
+#    maxdist    = np.max( np.sqrt(col[:,0] ** 2 + col[:,1] ** 2) )
+#
+#    return int(round(wavelength / maxdist * (180 / np.pi) * 3600 / 3.)) # in arcseconds
 
 
 def blank_image_fits(filename, maskname, outfile = None, inverse = False, blankval = 0.):

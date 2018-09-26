@@ -66,7 +66,7 @@ for MS in MSs.getListObj():
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
-############################################################   
+###########################################################   
 # flag bad stations, and low-elev
 logger.info('Flagging...')
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline='+bl2flag, \
@@ -79,6 +79,7 @@ MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=
 #          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
 #    s.run(check=True)
 #else:
+
 logger.info('Predict (DPPP)...')
 MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
 
@@ -119,7 +120,7 @@ for c in xrange(10):
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5', log='$nameMS_fr.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-soldd.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5 sol.mode=diagonal', log='$nameMS_fr.log', commandType='DPPP')
     
     lib_util.run_losoto(s, 'fr-c'+str(c), [ms+'/fr.h5' for ms in MSs.getListStr()], \
             [parset_dir + '/losoto-fr.parset'])
@@ -147,7 +148,7 @@ for c in xrange(10):
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5', log='$nameMS_amp.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5 sol.mode=diagonal', log='$nameMS_amp.log', commandType="DPPP")
     
     lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()], \
             [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-amp.parset',parset_dir+'/losoto-bp.parset'])
@@ -187,7 +188,7 @@ for c in xrange(10):
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/iono.h5', log='$nameMS_iono.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-soldd.parset msin=$pathMS sol.parmdb=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_iono.log', commandType='DPPP')
     
     run_losoto(s, 'iono-c'+str(c), mss, [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-amp.parset',parset_dir+'/losoto-ph.parset'])
     
