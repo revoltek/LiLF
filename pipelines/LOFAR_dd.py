@@ -94,15 +94,15 @@ if not os.path.exists('mss-dd'):
 MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9].MS'), s )
        
 logger.info('Add columns...')
-#MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
+MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 
 ###############################################################
 logger.info('BL-based smoothing...')
-#MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python', maxThreads=6)
+MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
 
 # setup initial model
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
-#mosaic_image.selectCC()
+mosaic_image.selectCC()
 rms_noise_pre = np.inf
 
 for c in xrange(maxniter):
@@ -113,7 +113,7 @@ for c in xrange(maxniter):
     os.makedirs('ddcal/images/c%02i/regions' % c)
 
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
-    lsm.group('tessellate', targetFlux='15Jy', root='Dir', applyBeam=False, method = 'wmean', pad_index=True)
+    lsm.group('tessellate', targetFlux='20Jy', root='Dir', applyBeam=False, method = 'wmean', pad_index=True)
     lsm.setPatchPositions(method='wmean')
     directions = lsm.getPatchPositions()
     patches = lsm.getPatchNames()
