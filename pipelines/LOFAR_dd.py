@@ -98,7 +98,7 @@ MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameM
 
 ###############################################################
 logger.info('BL-based smoothing...')
-MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
+#MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
 
 # setup initial model
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
@@ -112,6 +112,7 @@ for c in xrange(maxniter):
     os.makedirs('img')
     os.makedirs('ddcal/images/c%02i/regions' % c)
 
+    ### group into patches of similar flux
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
     lsm.group('tessellate', targetFlux='20Jy', root='Dir', applyBeam=False, method = 'wmean', pad_index=True)
     lsm.setPatchPositions(method='wmean')
@@ -119,24 +120,31 @@ for c in xrange(maxniter):
     patches = lsm.getPatchNames()
     logger.info("Created %i directions." % len(patches))
 
+    # write file
     skymodel_cl = 'ddcal/skymodels/skymodel%02i_cluster.txt' % c
     lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
     skymodel_cl_plot = 'ddcal/skymodels/skymodel%02i_cluster.png' % c
     lsm.plot(fileName=skymodel_cl_plot, labelBy='patch')
 
-    # create regions (using cluster directions)
-    logger.info("Create regions.")
-    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/images/c%02i/regions' % c, out_mask='ddcal/masks/facets%02i.fits' % c, beam_reg='', png='ddcal/skymodels/voronoi%02i.png' % c)
-    lsm.group('facet', facet='ddcal/masks/facets%02i.fits' % c)
-    sizes = lsm.getPatchSizes(units='degree')
-
-    # convert in skydb
-    logger.info("Save sky models.")
+    # convert to blob
     skymodel_cl_skydb = skymodel_cl.replace('.txt','.skydb')
     lib_util.check_rm(skymodel_cl_skydb)
     s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_cl, skymodel_cl_skydb), log='makesourcedb_cl.log', commandType='general' )
     s.run(check=True)
 
+    ### create regions (using cluster directions)
+    logger.info("Create regions.")
+    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/images/c%02i/regions' % c, out_mask='ddcal/masks/facets%02i.fits' % c, beam_reg='', png='ddcal/skymodels/voronoi%02i.png' % c)
+    lsm.group('facet', facet='ddcal/masks/facets%02i.fits' % c)
+    sizes = lsm.getPatchSizes(units='degree')
+
+    # write file
+    skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
+    lsm.write(skymodel_voro, format='makesourcedb', clobber=True)
+    skymodel_voro_plot = 'ddcal/skymodels/skymodel%02i_voro.png' % c
+    lsm.plot(fileName=skymodel_voro_plot, labelBy='patch')
+
+    # convert to blob
     skymodel_voro_skydb = skymodel_voro.replace('.txt','.skydb')
     lib_util.check_rm(skymodel_voro_skydb)
     s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_voro, skymodel_voro_skydb), log='makesourcedb_voro.log', commandType='general')

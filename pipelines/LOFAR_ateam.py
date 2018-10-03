@@ -89,34 +89,34 @@ for c in xrange(1):
     # 1: find PA and remove it
 
     # Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
-#    logger.info('BL-smooth...')
-#    MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python', maxThreads=6)
-#
-#    logger.info('Calibrating...')
-#    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal', log='$nameMS_solPA.log', commandType="DPPP")
-#
-#    lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
-#                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
-#
-#    #################################################
-#    # 1: find the FR and remve it
-#    
-#    # Beam correction DATA -> CORRECTED_DATA
-#    logger.info('Polalign correction...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
-#            log='$nameMS_corPA2.log', commandType="DPPP")
-#
-#    # Beam correction CORRECTED_DATA -> CORRECTED_DATA
-#    logger.info('Beam correction...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam2.log', commandType='DPPP')
-#    
-#    # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
-#    logger.info('Converting to circular...')
-#    MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
-#    
-#    # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-#    logger.info('BL-smooth...')
-#    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2.log', commandType='python', maxThreads=6)
+    logger.info('BL-smooth...')
+    MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
+
+    logger.info('Calibrating...')
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal', log='$nameMS_solPA.log', commandType="DPPP")
+
+    lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
+                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
+
+    #################################################
+    # 1: find the FR and remve it
+    
+    # Beam correction DATA -> CORRECTED_DATA
+    logger.info('Polalign correction...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
+            log='$nameMS_corPA2.log', commandType="DPPP")
+
+    # Beam correction CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('Beam correction...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam2.log', commandType='DPPP')
+    
+    # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('Converting to circular...')
+    MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+    
+    # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+    logger.info('BL-smooth...')
+    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2.log', commandType='python')
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating...')
@@ -144,7 +144,7 @@ for c in xrange(1):
     
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python', maxThreads=6)
+    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python')
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating...')
@@ -184,7 +184,7 @@ for c in xrange(1):
     
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log', commandType='python', maxThreads=6)
+    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log', commandType='python')
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating...')

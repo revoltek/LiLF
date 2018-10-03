@@ -147,8 +147,8 @@ MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updatewe
 logger.info('Faraday rotation correction...')
 MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DPPP")
 # Correct abs FR CORRECTED_DATA -> CORRECTED_DATA
-MSs.run('createRMParmdb -o $pathMS/rme.parmdb $pathMS', log='$nameMS_RME.log', commandType="general", maxThreads=1)
-MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/rme.parmdb cor.correction=rotationmeasure', log='$nameMS_corRME.log', commandType="DPPP")
+MSs.run('createRMh5parm.py $pathMS $pathMS/amp.h5', log='$nameMS_RME.log', commandType="general")
+MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.h5parm=$pathMS/amp.h5 cor.correction=rotationmeasure', log='$nameMS_corRME.log', commandType="DPPP")
 
 #################################################
 # 4: find iono
