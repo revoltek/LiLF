@@ -9,7 +9,7 @@ steps = [sub]
 
 sub.type = H5ParmPredict
 sub.sourcedb = 
-sub.sources = 
 sub.usebeammodel = False
 sub.operation = subtract
-sub.applycal.correction = sol000/tec000
+sub.applycal.correction = tec000
+sub.applycal.parmdb = 
