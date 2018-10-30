@@ -19,12 +19,12 @@ except:
 from lib_log import logger
 
 
-def make_voronoi_reg(directions, fitsfile, outdir_reg='regions/', out_mask='facet.fits', beam_reg='', png=None):
+def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet.fits', beam_reg=None, png=None):
     """
     Take a list of coordinates and an image and voronoi tesselate the sky.
     It saves ds9 regions + fits mask of the facets
 
-    directions : dict with {'dir0':[ra,dec], 'dir1':[ra,dec]...}
+    directions : dict with {'Dir_0':[ra,dec], 'Dir_1':[ra,dec]...} - note that the "Dir_##" naming is important
     firsfile : mask fits file to tassellate (used for coordinates and to avoid splitting islands)
     outdir* : dir where to save regions/masks
     beam_reg : a ds9 region showing the the primary beam, exclude directions outside it
@@ -45,16 +45,18 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions/', out_mask='face
     w = pywcs.WCS(hdr)
     pixsize = np.abs(hdr['CDELT1'])
 
-    # Add facet size column
+    # Get facets central pixels
     ras = np.array([directions[d][0].degree for d in directions])
     decs = np.array([directions[d][1].degree for d in directions])
     x_fs, y_fs = w.all_world2pix(ras, decs, 0, ra_dec_order=True)
-    coord_fs = np.array([x_fs,y_fs]).T
+    # keep trak of numbers in the direction names to name correctly patches in the fits files
+    # in this way Dir_12 will have "12" into the fits for that patch.
+    nums = [int(d.split('_')[1]) for d in directions.keys()]
 
     x_c = data.shape[0]/2.
     y_c = data.shape[1]/2.
 
-    if beam_reg == '':
+    if beam_reg is None:
         # no beam, use all directions for facets
         idx_for_facet = range(len(directions))
     else:
@@ -82,10 +84,16 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions/', out_mask='face
     x, y = x.flatten(), y.flatten()
     pixels = np.vstack((x,y)).T 
     data_facet = np.zeros(shape=data.shape)
-    for i, poly in enumerate(impoly):
+    for num, poly in zip(nums,impoly):
         p = Path(poly)
         pixels_region = p.contains_points(pixels)
-        data_facet[ pixels_region.reshape(x2,y2) ] = i
+        # iterate through direction centres and find which one belongs to this region, then use the dir name to set the number
+        # this is important as the vornoi tassellation has to have the same names of the original tassellation
+        #for x,y,d in zip(x_fs, y_fs, directions.keys()):
+        #    if pixels_region.reshape(x2,y2)[int(np.rint(x)),int(np.rint(y))] == True:
+        #        num = int(d.split('_')[1])
+        #        print num,x,y,d
+        data_facet[ pixels_region.reshape(x2,y2) ] = num
 
     # put all values in each island equal to the closest region
     struct = generate_binary_structure(2, 2)
@@ -96,7 +104,7 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions/', out_mask='face
         # get closer facet
         facet_num = closest_node(center_of_masses[blob], np.array([y_fs,x_fs]).T)
         # put all pixel of that mask to that facet value
-        data_facet[ blobs == blob ] = facet_num
+        data_facet[ blobs == blob ] = nums[facet_num]
 
     # save fits mask
     pyfits.writeto(out_mask, data_facet, hdr, overwrite=True)
@@ -117,7 +125,7 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions/', out_mask='face
         all_s.append(s)
 
         regions = pyregion.ShapeList([s])
-        regionfile = outdir_reg+directions.keys()[idx_for_facet[i]]+'.reg'
+        regionfile = outdir_reg+'/'+directions.keys()[idx_for_facet[i]]+'.reg'
         regions.write(regionfile)
 
     # add names for all.reg
@@ -132,7 +140,7 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions/', out_mask='face
         all_s.append(s)
 
     regions = pyregion.ShapeList(all_s)
-    regionfile = outdir_reg+'all.reg'
+    regionfile = outdir_reg+'/all.reg'
     regions.write(regionfile)
     logger.debug('There are %i regions within the PB and %i outside (no facet).' % (len(idx_for_facet), len(directions) - len(idx_for_facet)))
 
@@ -142,17 +150,15 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions/', out_mask='face
         pl.figure(figsize=(8,8))
         ax1 = pl.gca()
         voronoi_plot_2d(vor, ax1, show_vertices=True, line_colors='black', line_width=2, point_size=4)
-        #ax1.plot(x,y,'*',color='red')
-        #for i, d in enumerate(directions): ax1.text(x[i], y[i], d, fontsize=15)
-        if beam_reg != '':
+        for i, d in enumerate(directions): ax1.text(x_fs[i], y_fs[i], d, fontsize=15)
+        if not beam_reg is None:
             c1 = pl.Circle((x_c, y_c), beamradius_pix, color='g', fill=False)
             ax1.add_artist(c1)
         ax1.plot([x1,x1,x2,x2,x1],[y1,y2,y2,y1,y1])
-        #for p in impoly:
-        #    pp = p.transpose()
-        #    ax1.plot(pp[0],pp[1])
         ax1.set_xlabel('RA (pixel)')
         ax1.set_ylabel('Dec (pixel)')
+        ax1.set_xlim(x1,x2)
+        ax1.set_ylim(y1,y2)
         logger.debug('Save plot: %s' % png)
         pl.savefig(png)
 

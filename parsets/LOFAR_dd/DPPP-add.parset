@@ -9,8 +9,8 @@ steps = [add]
 
 add.type = H5ParmPredict
 add.sourcedb = 
-add.sources = 
-add.directions = 
+add.directions =
 add.usebeammodel = False
 add.operation = add
-add.applycal.correction = sol000/tec000
+add.applycal.correction = tec000
+add.applycal.parmdb = 

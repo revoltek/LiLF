@@ -94,7 +94,7 @@ if len(MSs.getListStr()) == 0:
     sys.exit(0)
 
 #######################################
-if fix_tables:
+if fix_table:
     logger.info('Fix MS table...')
     MSs.run('fixMS_TabRef.py $pathMS', log='$nameMS_fixms.log', commandType='python')
 
@@ -113,9 +113,9 @@ if renameavg:
     logger.info('Renaming/averaging...')
     nchan = MSs.getListObj()[0].getNchan()
     timeint = MSs.getListObj()[0].getTimeInt()
-    if nchan % 4 != 0 and nchan != 1:
+    if nchan % 4 == 0 and nchan != 1:
         avg_factor_f = nchan / 4 # to 4 ch/SB
-    elif nchan % 5 != 0 and nchan != 1:
+    elif nchan % 5 == 0 and nchan != 1:
         avg_factor_f = nchan / 5 # to 5 ch/SB
     else:
         logger.error('Channels should be a multiple of 4 or 5.')
