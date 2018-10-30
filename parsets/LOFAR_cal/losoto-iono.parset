@@ -72,7 +72,6 @@ soltab = sol000/phase000
 soltabsToSub = [tec000,clock000]
 
 [PlotPr1]
-operation = RESIDUALS
 operation = PLOT
 soltab = sol000/phase000
 freq.minmaxstep = [0,300e6,100]

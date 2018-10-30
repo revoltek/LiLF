@@ -50,7 +50,7 @@ if min(MSs.getFreqs()) < 40.e6:
     logger.debug('Include iono 3rd order.')
 else: iono3rd = False
 
-###################################################
+####################################################
 # flag bad stations, flags will propagate
 logger.info("Flagging...")
 MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
@@ -67,52 +67,71 @@ MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb="
 #MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python')
 #
 ## Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-#logger.info('Calibrating...')
+#logger.info('Calibrating PA...')
 #for MS in MSs.getListStr():
 #    lib_util.check_rm(MS+'/pa.h5')
 #MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal', log='$nameMS_solPA.log', commandType="DPPP")
 #
 #lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], \
 #        [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
-
-# Pol align correction DATA -> CORRECTED_DATA
-logger.info('Polalign correction...')
-MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DPPP")
-
-#######################################################
-## 2: find FR
-
-# Beam correction CORRECTED_DATA -> CORRECTED_DATA
-logger.info('Beam correction...')
-MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType="DPPP")
-
+#
+## Pol align correction DATA -> CORRECTED_DATA
+#logger.info('Polalign correction...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DPPP")
+#
+########################################################
+### 2: find FR
+#
+## Beam correction CORRECTED_DATA -> CORRECTED_DATA
+#logger.info('Beam correction...')
+#MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType="DPPP")
+#
 ## Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
 #logger.info('BL-smooth...')
 #MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2.log', commandType ='python')
 #
 ## Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-#logger.info('Calibrating...')
+#logger.info('Calibrating FR...')
 #for MS in MSs.getListStr():
 #    lib_util.check_rm(MS+'/fr.h5')
 #MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal', log='$nameMS_solFR.log', commandType="DPPP")
 #
 #lib_util.run_losoto(s, 'fr', [ms+'/fr.h5' for ms in MSs.getListStr()], \
-#        #[parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-fr.parset'])
 #        [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
-
-# Correct FR CORRECTED_DATA -> CORRECTED_DATA
-logger.info('Faraday rotation correction...')
-MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DPPP")
-
-######################################################
-## 3: find leak
-
+#
+## Correct FR CORRECTED_DATA -> CORRECTED_DATA
+#logger.info('Faraday rotation correction...')
+#MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DPPP")
+#
+#######################################################
+### 4: find BP
+#
 ## Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
 #logger.info('BL-smooth...')
 #MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python')
 #
 ## Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-#logger.info('Calibrating...')
+#logger.info('Calibrating BP...')
+#for MS in MSs.getListStr():
+#    lib_util.check_rm(MS+'/bp.h5')
+#MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/bp.h5 sol.caltype=diagonal', log='$nameMS_solBP.log', commandType="DPPP")
+#
+#lib_util.run_losoto(s, 'bp', [ms+'/bp.h5' for ms in MSs.getListStr()], \
+#        [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-bp.parset'])
+#
+## Correct BP CORRECTED_DATA -> CORRECTED_DATA
+#logger.info('BP correction...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-bp.h5 cor.correction=amplitudeSmooth', log='$nameMS_corBP.log', commandType="DPPP")
+#
+#######################################################
+### 3: find leak
+#
+## Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+#logger.info('BL-smooth...')
+#MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python')
+#
+## Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#logger.info('Calibrating LEAK...')
 #for MS in MSs.getListStr():
 #    lib_util.check_rm(MS+'/leak.h5')
 #MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/leak.h5 sol.caltype=fulljones', log='$nameMS_solLEAK.log', commandType="DPPP")
@@ -120,33 +139,9 @@ MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.
 #lib_util.run_losoto(s, 'leak', [ms+'/leak.h5' for ms in MSs.getListStr()], \
 #        [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-leak.parset'])
 
-# TODO: fix for DPPP
-os.system('losoto -d sol000/amplitude000 cal-leak.h5')
-os.system('losoto -V cal-leak.h5 ~/scripts/LiLF/parsets/LOFAR_cal/losoto-leakfix.parset')
-
-# Correct amp LEAK CORRECTED_DATA -> CORRECTED_DATA
-logger.info('Amp/ph Leak correction...')
-MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-leak.h5 cor.correction=fulljones', log='$nameMS_corLEAK.log', commandType="DPPP")
-
-######################################################
-## 4: find BP
-
-# Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-logger.info('BL-smooth...')
-MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python')
-
-# Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-logger.info('Calibrating...')
-for MS in MSs.getListStr():
-    lib_util.check_rm(MS+'/amp.h5')
-MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5 sol.caltype=diagonal', log='$nameMS_solAMP.log', commandType="DPPP")
-
-lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()], \
-        [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-bp.parset'])
-
-# TODO: provare ordine inverso, prima AMP e poi LEAK
-
-sys.exit()
+# TODO: fix for DPPP to apply fulljones
+#os.system('losoto -d sol000/amplitude000 cal-leak.h5')
+#os.system('losoto -V cal-leak.h5 ~/scripts/LiLF/parsets/LOFAR_cal/losoto-leakfix.parset')
 
 ####################################################
 # Re-do correcitons in right order
@@ -154,24 +149,49 @@ sys.exit()
 # Pol align correction DATA -> CORRECTED_DATA
 logger.info('Polalign correction...')
 MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA2.log', commandType="DPPP")
-# Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
-logger.info('AmpBP correction...')
-MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-amp.h5 \
-        cor.correction=amplitudeSmooth cor.updateweights=True', log='$nameMS_corAMP.log', commandType="DPPP")
-# Correct amp LEAK CORRECTED_DATA -> CORRECTED_DATA
-logger.info('AmpLEAK correction...')
-MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-leak.h5 \
-        cor.correction=amplitudeD cor.updateweights=True', log='$nameMS_corLEAK2.log', commandType="DPPP")
+
 # Beam correction CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Beam correction...')
 MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam2.log', commandType="DPPP")
+
+# Correct LEAK CORRECTED_DATA -> CORRECTED_DATA
+logger.info('LEAK correction...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  cor.parmdb=cal-leak.h5 \
+#        cor.correction=fulljones cor.soltab=[amplitude000,phase000]', log='$nameMS_corLEAK.log', commandType="DPPP")
+MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  cor.parmdb=cal-leakD.h5 \
+        cor.correction=fulljones cor.soltab=[amplitudeD,phaseD]', log='$nameMS_corLEAK.log', commandType="DPPP")
+#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  cor.parmdb=cal-leakG.h5 \
+#        cor.correction=fulljones cor.soltab=[amplitudeG,phaseG]', log='$nameMS_corLEAK1.log', commandType="DPPP")
+# Correct BP CORRECTED_DATA -> CORRECTED_DATA
+#logger.info('BP correction...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-bp.h5 \
+#        cor.correction=amplitudeSmooth cor.updateweights=True', log='$nameMS_corBP2.log', commandType="DPPP")
+
 # Correct FR CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Faraday rotation correction...')
-MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DPPP")
+MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr2.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DPPP")
 # Correct abs FR CORRECTED_DATA -> CORRECTED_DATA
-logger.info('Absolute Faraday rotation correction...')
-MSs.run('createRMh5parm.py $pathMS $pathMS/rme.h5', log='$nameMS_RME.log', commandType="general", maxThreads=1)
-MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/rme.h5 cor.correction=RMextract', log='$nameMS_corRME.log', commandType="DPPP")
+#logger.info('Absolute Faraday rotation correction...')
+#MSs.run('createRMh5parm.py $pathMS $pathMS/rme.h5', log='$nameMS_RME.log', commandType="general", maxThreads=1)
+#MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/rme.h5 cor.correction=RMextract', log='$nameMS_corRME.log', commandType="DPPP")
+
+
+# TEST:
+# Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+logger.info('BL-smooth...')
+MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python')
+
+# Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+logger.info('Calibrating LEAK2...')
+for MS in MSs.getListStr():
+    lib_util.check_rm(MS+'/leak2.h5')
+MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/leak2.h5 sol.caltype=fulljones', log='$nameMS_solLEAK.log', commandType="DPPP")
+
+lib_util.run_losoto(s, 'leak2', [ms+'/leak2.h5' for ms in MSs.getListStr()], \
+        [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-leak.parset'])
+
+sys.exit()
+
 
 #################################################
 # 4: find iono
@@ -181,33 +201,33 @@ logger.info('BL-smooth...')
 MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log', commandType ='python')
 
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-logger.info('Calibrating...')
+logger.info('Calibrating IONO...')
 for MS in MSs.getListStr():
     lib_util.check_rm(MS+'/iono.h5')
 MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/iono.h5', log='$nameMS_solG2.log', commandType="DPPP")
 
-# if field model available, subtract it
-field_model = '/home/fdg/scripts/LiLF/models/calfields/'+calname+'-field.skydb'
-if os.path.exists(field_model):
-    logger.info('Removing field sources...')
-
-    logger.info('Ft+corrupt model...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+field_model+' \
-                pre.applycal.parmdb=$pathMS/iono.h5 pre.applycal.correction=phase000', log='$nameMS_field_pre.log', commandType="DPPP")
-
-    # Remove the field sources CORRECTED_DATA -> CORRECTED_DATA - MODEL_DATA
-    logger.info('Subtract model...')
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_field_taql1.log', commandType ='general')
-
-    # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-    logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_field_smooth.log', commandType ='python')
-
-    # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-    logger.info('Calibrating...')
-    for MS in MSs.getListStr():
-        lib_util.check_rm(ms+'/iono.h5')
-    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/iono.h5', log='$nameMS_field_sol.log', commandType="DPPP")
+## if field model available, subtract it
+#field_model = '/home/fdg/scripts/LiLF/models/calfields/'+calname+'-field.skydb'
+#if os.path.exists(field_model):
+#    logger.info('Removing field sources...')
+#
+#    logger.info('Ft+corrupt model...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+field_model+' \
+#                pre.applycal.parmdb=$pathMS/iono.h5 pre.applycal.correction=phase000', log='$nameMS_field_pre.log', commandType="DPPP")
+#
+#    # Remove the field sources CORRECTED_DATA -> CORRECTED_DATA - MODEL_DATA
+#    logger.info('Subtract model...')
+#    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_field_taql1.log', commandType ='general')
+#
+#    # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+#    logger.info('BL-smooth...')
+#    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_field_smooth.log', commandType ='python')
+#
+#    # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#    logger.info('Calibrating...')
+#    for MS in MSs.getListStr():
+#        lib_util.check_rm(ms+'/iono.h5')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/iono.h5', log='$nameMS_field_sol.log', commandType="DPPP")
 
 if iono3rd:
     lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
@@ -215,6 +235,8 @@ if iono3rd:
 else:
     lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
             [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono.parset'])
+
+sys.exit()
 
 if 'survey' in os.getcwd():
     logger.info('Copy survey caltable...')
@@ -259,15 +281,16 @@ if imaging:
     logger.info('Cleaning low-res...')
     imagename = 'img/calLR'
     s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size/5) + ' ' + str(size/5) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-            -scale 60arcsec -weight briggs 1.5 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
-            -pol IUQV -join-channels -fit-spectral-pol 2 -channels-out 10 -apply-primary-beam -maxuv-l 1000 '+MSs.getStrWsclean(), \
+            -scale 60arcsec -weight briggs 1.5 -clean-border 1 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
+            -pol IUQV -join-channels -join-polarization -squared-channel-joining -channels-out 20 \
+            -apply-primary-beam -use-differential-lofar-beam -maxuv-l 1000 '+MSs.getStrWsclean(), \
             log='wscleanLR.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
     logger.info('Cleaning normal...')
     imagename = 'img/cal'
     s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-            -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.9 -minuv-l 100 \
+            -scale 5arcsec -weight briggs 0.0 -clean-border 1 -niter 100000 -no-update-model-required -mgain 0.9 -minuv-l 100 \
             -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 20 '+MSs.getStrWsclean(), \
             log='wscleanA.log', commandType ='wsclean', processors='max')
     s.run(check = True)
@@ -280,7 +303,7 @@ if imaging:
     imagename = 'img/calM'
     # -apply-primary-beam -use-differential-lofar-beam \
     s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-            -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.8 -minuv-l 100 \
+            -scale 5arcsec -weight briggs 0.0 -clean-border 1 -niter 100000 -no-update-model-required -mgain 0.8 -minuv-l 100 \
             -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 0.1 -save-source-list \
             -fits-mask '+im.maskname+' '+MSs.getStrWsclean(), \
             log='wscleanB.log', commandType='wsclean', processors = 'max')

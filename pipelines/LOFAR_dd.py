@@ -134,7 +134,7 @@ for c in xrange(maxniter):
 
     ### create regions (using cluster directions)
     logger.info("Create regions.")
-    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/images/c%02i/regions' % c, out_mask='ddcal/masks/facets%02i.fits' % c, beam_reg='', png='ddcal/skymodels/voronoi%02i.png' % c)
+    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/images/c%02i/regions/' % c, out_mask='ddcal/masks/facets%02i.fits' % c, beam_reg='', png='ddcal/skymodels/voronoi%02i.png' % c)
     lsm.group('facet', facet='ddcal/masks/facets%02i.fits' % c)
     sizes = lsm.getPatchSizes(units='degree')
 
@@ -253,7 +253,7 @@ for c in xrange(maxniter):
     # Mosaiching
 
     directions = []
-    for image, region in zip( sorted(glob.glob('img/ddcalM-Dir*MFS-image.fits')), sorted(glob.glob('ddcal/regions/Dir*')) ):
+    for image, region in zip( sorted(glob.glob('img/ddcalM-Dir*MFS-image.fits')), sorted(glob.glob('ddcal/images/c%02i/regions/Dir*' % c)) ):
         directions.append( Image(image, regionFacet = region, user_mask = user_mask) )
 
     logger.info('Mosaic: image...')
