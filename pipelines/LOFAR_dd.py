@@ -56,18 +56,10 @@ def clean(p, MSs, size=2.):
     # clean 1
     logger.info('Cleaning ('+str(p)+')...')
     imagename = 'img/ddcal-'+str(p)
-#    s.add('wsclean -reorder -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' \
-#            -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-#            -scale '+str(pixscale)+'arcsec -weight briggs 0. -niter 100000 -no-update-model-required -mgain 0.9 -pol I \
-#            -join-channels -fit-spectral-pol 2 -channels-out 10 \
-#            -auto-threshold 20 -minuv-l 30 '+MSs.getStrWsclean(), \
-#            log='wsclean-'+str(p)+'.log', commandType='wsclean', processors='max')
-    s.add('wsclean -reorder -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' \
-            -mem 90 -j '+str(s.max_processors)+' \
-            -scale '+str(pixscale)+'arcsec -weight briggs 0. -niter 100000 -no-update-model-required -mgain 0.9 -pol IQUV -link-polarizations I \
-            -join-channels -channels-out 10 \
-            -use-idg -grid-with-beam -use-differential-lofar-beam -idg-mode cpu -beam-aterm-update 600 -clean-border 1 -padding 1.2 \
-            -auto-threshold 20 -minuv-l 30 '+MSs.getStrWsclean(), \
+    s.add('wsclean -reorder -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+            -scale '+str(pixscale)+'arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -auto-threshold 20 \
+            -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
             log='wsclean-'+str(p)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
@@ -80,19 +72,11 @@ def clean(p, MSs, size=2.):
     #-auto-mask 3 -rms-background-window 40 -rms-background-method rms-with-min \
     logger.info('Cleaning w/ mask ('+str(p)+')...')
     imagename = 'img/ddcalM-'+str(p)
-#    s.add('wsclean -reorder -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' \
-#            -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-#            -scale '+str(pixscale)+'arcsec -weight briggs 0. -niter 1000000 -no-update-model-required -mgain 0.8 -pol I \
-#            -join-channels -fit-spectral-pol 2 -channels-out 10 \
-#            -auto-threshold 0.1 -save-source-list -minuv-l 30 -fits-mask '+im.maskname+' '+MSs.getStrWsclean(), \
-#            log='wscleanM-'+str(p)+'.log', commandType='wsclean', processors='max')
-    s.add('wsclean -reorder -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' \
-            -mem 90 -j '+str(s.max_processors)+' \
-            -scale '+str(pixscale)+'arcsec -weight briggs 0. -niter 100000 -no-update-model-required -mgain 0.9 -pol IQUV -link-polarizations I \
-            -join-channels -channels-out 10 \
-            -use-idg -grid-with-beam -use-differential-lofar-beam -idg-mode cpu -beam-aterm-update 600 -clean-border 1 -padding 1.2 \
-            -auto-threshold 0.1 -minuv-l 30 '+MSs.getStrWsclean(), \
-            log='wsclean-'+str(p)+'.log', commandType='wsclean', processors='max')
+    s.add('wsclean -reorder -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+            -scale '+str(pixscale)+'arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -auto-threshold 0.1 -fits-mask '+im.maskname+' 
+            -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
+            log='wscleanM-'+str(p)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
     os.system('cat logs/wscleanM-'+str(p)+'.log | grep "background noise"')
 
@@ -130,7 +114,7 @@ for c in xrange(maxniter):
     ### group into patches of similar flux
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
     lsm.group('tessellate', targetFlux='20Jy', root='Dir', applyBeam=False, method = 'wmean', pad_index=True)
-    lsm.setPatchPositions(method='wmean')
+    lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
     directions = lsm.getPatchPositions()
     patches = lsm.getPatchNames()
     logger.info("Created %i directions." % len(patches))
@@ -151,6 +135,8 @@ for c in xrange(maxniter):
     logger.info("Create regions.")
     lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/images/c%02i/regions/' % c, out_mask=mask, png='ddcal/skymodels/voronoi%02i.png' % c)
     lsm.group('facet', facet=mask, root='Dir')
+    lsm.setPatchPositions(method='mid') # recalculate the patch centre as mid point for imaging
+    directions = lsm.getPatchPositions()
     sizes = lsm.getPatchSizes(units='degree')
 
     # write file
@@ -174,7 +160,6 @@ for c in xrange(maxniter):
             log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions
-    logger.info('Running losoto...')
     lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
     os.system('mv plots-c'+str(c)+'* ddcal/plots')
 
