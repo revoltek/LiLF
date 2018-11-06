@@ -207,7 +207,7 @@ for c in xrange(maxniter):
     # Mosaiching
 
     directions = []
-    for image, region in zip( sorted(glob.glob('img/ddcalM-Dir*MFS-image.fits')), sorted(glob.glob('ddcal/regions/Dir*')) ):
+    for image, region in zip( sorted(glob.glob('img/ddcalM-Dir*MFS-image.fits')), sorted(glob.glob('ddcal/images/c%02i/regions/Dir*' % c)) ):
         directions.append( Image(image, regionFacet = region, user_mask = user_mask) )
 
     logger.info('Mosaic: image...')
