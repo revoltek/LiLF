@@ -27,7 +27,7 @@ class Image(object):
         logger.info('%s: Making mask...' % self.imagename)
         if not os.path.exists(self.maskname):
             make_mask.make_mask(image_name=self.imagename, mask_name=self.maskname, threshisl=threshisl, atrous_do=True)
-        if self.userReg is not None:
+        if not self.userReg is None:
             logger.info('%s: Adding user mask (%s)...' % (self.imagename, self.userReg))
             blank_image_reg(self.maskname, self.userReg, inverse=False, blankval=1)
 
@@ -222,7 +222,7 @@ def blank_image_fits(filename, maskname, outfile = None, inverse = False, blankv
         sum_before = np.sum(data)
         data[mask] = blankval
         logger.debug("%s: Blanking (%s): sum of values: %f -> %f" % (filename, maskname, sum_before, np.sum(data)))
-        fits.writeto(outfile, clobber=True)
+        fits.writeto(outfile, overwrite=True)
 
  
 def blank_image_reg(filename, region, outfile = None, inverse = False, blankval = 0., op = "AND"):
@@ -266,7 +266,7 @@ def blank_image_reg(filename, region, outfile = None, inverse = False, blankval 
         data[total_mask] = blankval
         # save fits
         fits[0].data = data.reshape(origshape)
-        fits.writeto(outfile, clobber=True)
+        fits.writeto(outfile, overwrite=True)
 
     logger.debug("%s: Blanking (%s): sum of values: %f -> %f" % (filename, region, sum_before, np.sum(data)))
 
@@ -278,7 +278,7 @@ def blank_image_reg(filename, region, outfile = None, inverse = False, blankval 
 #    import astropy.io.fits as pyfits
 #    with pyfits.open(filename) as fits:
 #        fits[0].data = np.nan_to_num(fits[0].data)
-#        fits.writeto(filename, clobber=True)
+#        fits.writeto(filename, overwrite=True)
 #
 #
 #def get_coord_centroid(filename, region):

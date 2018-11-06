@@ -35,7 +35,7 @@ def make_mask(image_name, mask_name=None, threshisl=5, atrous_do=False, rmsbox=(
             assert data.shape() == data_comb.shape()
             data[(data_comb == 1.)] = 1.
             fits[0].data = data
-            fits.writeto(mask_name, clobber=True)
+            fits.writeto(mask_name, overwrite=True)
 
     return mask_name
 
