@@ -254,17 +254,19 @@ if imaging:
 
     logger.info('Cleaning low-res...')
     imagename = 'img/calLR'
-    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size/5) + ' ' + str(size/5) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-            -scale 60arcsec -weight briggs 1.5 -auto-mask 10 -auto-threshold 1 -niter 100000 -no-update-model-required -mgain 0.8 \
-            -pol IUQV -join-channels -fit-spectral-pol 2 -channels-out 10 -apply-primary-beam -maxuv-l 1000 '+MSs.getStrWsclean(), \
+    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size/5) + ' ' + str(size/5) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
+            -scale 60arcsec -weight briggs 1.5 -niter 100000 -no-update-model-required -maxuv-l 1000 -mgain 0.85 -clean-border 1 \
+            -auto-mask 10 -auto-threshold 1 \
+            -pol IUQV -join-polarizations -join-channels -fit-spectral-pol 2 -channels-out 10 -apply-primary-beam '+MSs.getStrWsclean(), \
             log='wscleanLR.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
     logger.info('Cleaning normal...')
     imagename = 'img/cal'
-    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-            -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.9 -minuv-l 100 \
-            -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 20 '+MSs.getStrWsclean(), \
+    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
+            -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -auto-threshold 20 \
+            -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
             log='wscleanA.log', commandType ='wsclean', processors='max')
     s.run(check = True)
 
@@ -275,10 +277,10 @@ if imaging:
     logger.info('Cleaning w/ mask...')
     imagename = 'img/calM'
     # -apply-primary-beam -use-differential-lofar-beam \
-    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-            -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -mgain 0.8 -minuv-l 100 \
-            -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 0.1 -save-source-list \
-            -fits-mask '+im.maskname+' '+MSs.getStrWsclean(), \
+    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
+            -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -auto-threshold 0.1 -fits-mask '+im.maskname+' \
+            -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
             log='wscleanB.log', commandType='wsclean', processors = 'max')
     s.run(check = True)
     os.system('cat logs/wscleanB.log | grep "background noise"')

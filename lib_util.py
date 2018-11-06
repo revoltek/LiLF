@@ -33,7 +33,7 @@ def getParset(parsetFile='../lilf.config'):
     if not config.has_section('model'): config.add_section('model')
 
     # download
-    add_default('download', 'fix_tables', 'True') # fix bug in some old observations
+    add_default('download', 'fix_table', 'True') # fix bug in some old observations
     add_default('download', 'renameavg', 'True')
     add_default('download', 'flag_elev', 'True')
     # demix
