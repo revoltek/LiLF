@@ -11,4 +11,4 @@ ant.type = preflagger
 ant.baseline = 
 
 elev.type = preflagger
-elev.elevation = 0deg..30deg
+elev.elevation = 0deg..20deg
