@@ -69,7 +69,7 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 ##########################################################   
 # flag bad stations, and low-elev
 logger.info('Flagging...')
-MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline='+bl2flag, \
+MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
             log='$nameMS_flag.log', commandType='DPPP')
 
 # predict to save time MODEL_DATA
