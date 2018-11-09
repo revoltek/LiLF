@@ -51,14 +51,14 @@ if min(MSs.getFreqs()) < 40.e6:
 else: iono3rd = False
 
 #####################################################
-## flag bad stations, flags will propagate
-#logger.info("Flagging...")
-#MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
-#
-## predict to save time ms:MODEL_DATA
-#logger.info('Add model to MODEL_DATA (%s)...' % calname)
-#MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DPPP")
-#
+# flag bad stations, flags will propagate
+logger.info("Flagging...")
+MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
+
+# predict to save time ms:MODEL_DATA
+logger.info('Add model to MODEL_DATA (%s)...' % calname)
+MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DPPP")
+
 ####################################################
 ## 1: find PA
 #
@@ -77,14 +77,19 @@ lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], \
         [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
 
 # TEST (check with/without updateweights)
-
-# Beam correction CORRECTED_DATA -> CORRECTED_DATA
+logger.info('Beam correction...')
+MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=False msin.datacolumn=DATA', log='$nameMS_beam.log', commandType="DPPP")
+for MS in MSs.getListStr():
+    lib_util.check_rm(MS+'/pa.h5')
+MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal msin.datacolumn=CORRECTED_DATA', log='$nameMS_solPA.log', commandType="DPPP")
+lib_util.run_losoto(s, 'pa2', [ms+'/pa.h5' for ms in MSs.getListStr()], \
+        [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
 logger.info('Beam correction...')
 MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True msin.datacolumn=DATA', log='$nameMS_beam.log', commandType="DPPP")
 for MS in MSs.getListStr():
     lib_util.check_rm(MS+'/pa.h5')
 MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal msin.datacolumn=CORRECTED_DATA', log='$nameMS_solPA.log', commandType="DPPP")
-lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], \
+lib_util.run_losoto(s, 'pa3', [ms+'/pa.h5' for ms in MSs.getListStr()], \
         [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
 sys.exit()
 # END TEST
