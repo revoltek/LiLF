@@ -111,37 +111,39 @@ if fix_table:
 # Remove internationals
 if renameavg:
     logger.info('Renaming/averaging...')
-    nchan = MSs.getListObj()[0].getNchan()
-    timeint = MSs.getListObj()[0].getTimeInt()
-    if nchan % 4 == 0 and nchan != 1:
-        avg_factor_f = nchan / 4 # to 4 ch/SB
-    elif nchan % 5 == 0 and nchan != 1:
-        avg_factor_f = nchan / 5 # to 5 ch/SB
-    else:
-        logger.error('Channels should be a multiple of 4 or 5.')
-        sys.exit(1)
-
-    if avg_factor_f < 1: avg_factor_f = 1
-    avg_factor_t = int(np.round(4/timeint)) # to 4 sec
-    if avg_factor_t < 1: avg_factor_t = 1
-
-    if avg_factor_f != 1 or avg_factor_t != 1:
-        logger.info('Average in freq (factor of %i) and time (factor of %i)...' % (avg_factor_f, avg_factor_t))
 
     with open('renamed.txt','a') as flog:
         MSs = lib_ms.AllMSs([MS for MS in glob.glob('*MS') if not os.path.exists(getName(MS))], s)
-        if avg_factor_f != 1 or avg_factor_t != 1:
-            for MS in MSs.getListStr():
-                flog.write(MS+'\n')
-                MSout = getName(MS)
-                s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS+' msout='+MSout+' msin.datacolumn=DATA \
+
+        for MS in MSs.getListObj():
+
+            # get avg time/freq values
+            nchan = MS.getNchan()
+            timeint = MS.getTimeInt()
+
+            if nchan % 4 == 0 and nchan != 1:
+                avg_factor_f = nchan / 4 # to 4 ch/SB
+            elif nchan % 5 == 0 and nchan != 1:
+                avg_factor_f = nchan / 5 # to 5 ch/SB
+            else:
+                logger.error('Channels should be a multiple of 4 or 5.')
+                sys.exit(1)
+            if avg_factor_f < 1: avg_factor_f = 1
+
+            avg_factor_t = int(np.round(4/timeint)) # to 4 sec
+            if avg_factor_t < 1: avg_factor_t = 1
+        
+            if avg_factor_f != 1 or avg_factor_t != 1:
+                logger.info('%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, avg_factor_f, avg_factor_t))
+                flog.write(MS.nameMS+'\n')
+                MSout = getName(MS.pathMS)
+                s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
-                        log=MS+'_avg.log', commandType='DPPP')
+                        log=MS.nameMS+'_avg.log', commandType='DPPP')
                 s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
-                #lib_util.check_rm(MS)
-        else:
-            logger.info('Move data - no averaging...')
-            for MS in MSs.getListObj():
+                #lib_util.check_rm(MS.nameMS)
+            else:
+                logger.info('%s: Move data - no averaging...' % MS.nameMS)
                 MSout = getName(MS.pathMS)
                 MS.move(MSout)
 
