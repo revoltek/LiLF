@@ -50,28 +50,27 @@ if min(MSs.getFreqs()) < 40.e6:
     logger.debug('Include iono 3rd order.')
 else: iono3rd = False
 
-#####################################################
-## flag bad stations, flags will propagate
-#logger.info("Flagging...")
-#MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
-#
-## predict to save time ms:MODEL_DATA
-#logger.info('Add model to MODEL_DATA (%s)...' % calname)
-#MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DPPP")
-#
 ####################################################
-## 1: find PA
-#
-## Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
-#logger.info('BL-smooth...')
-#MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python')
+# flag bad stations, flags will propagate
+logger.info("Flagging...")
+MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
+
+# predict to save time ms:MODEL_DATA
+logger.info('Add model to MODEL_DATA (%s)...' % calname)
+MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DPPP")
+
+###################################################
+# 1: find PA
+
+# Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
+logger.info('BL-smooth...')
+MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python')
 
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-# TODO: remove msin.datacolumn=DATA
 logger.info('Calibrating...')
 for MS in MSs.getListStr():
     lib_util.check_rm(MS+'/pa.h5')
-MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal msin.datacolumn=DATA', log='$nameMS_solPA.log', commandType="DPPP")
+MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal', log='$nameMS_solPA.log', commandType="DPPP")
 
 lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], \
         [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
