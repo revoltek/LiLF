@@ -197,6 +197,8 @@ for c in xrange(10):
     logger.info('IONO correction...')
     MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono-c'+str(c)+'.h5 cor.amp.parmdb=cal-iono-c'+str(c)+'.h5 \
                     cor.ph.correction=phase000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corG4.log', commandType="DPPP")
+
+    sys.exit()
     
     # briggs: -1.2 for virgo; -1.0 for subtraction to get good minihalo?
     logger.info('Cleaning (cycle %i)...' % c)

@@ -75,6 +75,7 @@ def clean(p, MSs, size=2.):
     s.add('wsclean -reorder -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
             -scale '+str(pixscale)+'arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -auto-threshold 0.1 -fits-mask '+im.maskname+' \
+            -use-idg -grid-with-beam -use-differential-lofar-beam -idg-mode cpu -beam-aterm-update 400 \
             -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
             log='wscleanM-'+str(p)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
@@ -180,28 +181,28 @@ for c in xrange(maxniter):
 #    #        log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors='max')
 #    #s.run(check=True)
 #
-#    for i, p in enumerate(patches):
-#
-#        # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
-#        logger.info('Patch '+p+': add back...')
-#        MSs.run('DPPP '+parset_dir+'/DPPP-add.parset msin=$pathMS add.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 add.sourcedb='+skymodel_voro_skydb+' add.directions=[['+p+']]', \
-#                   log='$nameMS_add-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
-#
-#        # DD-correct - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
-#        logger.info('Patch '+p+': correct...')
-#        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+p+']', \
-#               log='$nameMS_cor-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
-#
-#        logger.info('Patch '+p+': phase shift and avg...')
-#        lib_util.check_rm('mss-dir')
-#        os.makedirs('mss-dir')
-#        phasecentre = directions[p]
-#        MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=CORRECTED_DATA \
-#                shift.phasecenter=['+str(phasecentre[0].degree)+'deg,'+str(phasecentre[1].degree)+'deg\]', \
-#                log='$nameMS_shift-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
-#        
-#        logger.info('Patch '+p+': imaging...')
-#        clean(p, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[i])
+    for i, p in enumerate(patches):
+
+        # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
+        logger.info('Patch '+p+': add back...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-add.parset msin=$pathMS add.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 add.sourcedb='+skymodel_voro_skydb+' add.directions=[['+p+']]', \
+                   log='$nameMS_add-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
+
+        # DD-correct - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
+        logger.info('Patch '+p+': correct...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+p+']', \
+               log='$nameMS_cor-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
+
+        logger.info('Patch '+p+': phase shift and avg...')
+        lib_util.check_rm('mss-dir')
+        os.makedirs('mss-dir')
+        phasecentre = directions[p]
+        MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=CORRECTED_DATA \
+                shift.phasecenter=['+str(phasecentre[0].degree)+'deg,'+str(phasecentre[1].degree)+'deg\]', \
+                log='$nameMS_shift-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
+        
+        logger.info('Patch '+p+': imaging...')
+        clean(p, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[i])
 
     ##############################################################
     # Mosaiching
