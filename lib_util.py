@@ -2,6 +2,7 @@ import os, sys, re, time, pickle, random, shutil, glob
 
 from casacore import tables
 import numpy as np
+import multiprocessing
 
 if (sys.version_info > (3, 0)):
     from configparser import ConfigParser
@@ -231,7 +232,7 @@ class Scheduler():
             elif (self.cluster == "CEP3"):
                 self.maxThreads = 40
             else:
-                self.maxThreads = 12
+                self.maxThreads = multiprocessing.cpu_count()
         else:
             self.maxThreads = maxThreads
 
@@ -243,7 +244,7 @@ class Scheduler():
             elif (self.cluster == "CEP3"):
                 self.max_processors = 40
             else:
-                self.max_processors = 12
+                self.max_processors = multiprocessing.cpu_count()
         else:
             self.max_processors = max_processors
 
@@ -278,7 +279,7 @@ class Scheduler():
         elif (hostname[0 : 3] == 'lof'):
             return "CEP3"
         else:
-            logger.error('Hostname %s unknown.' % hostname)
+            logger.warning('Hostname %s unknown.' % hostname)
             return "Unknown"
 
 
