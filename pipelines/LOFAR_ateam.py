@@ -201,10 +201,10 @@ for c in xrange(10):
     # briggs: -1.2 for virgo; -1.0 for subtraction to get good minihalo?
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
-    s.add('wsclean -reorder -name ' + imagename + ' -size 1700 1700 -j '+str(s.max_processors)+' \
+    s.add('wsclean -reorder -name ' + imagename + ' -size 1500 1500 -j '+str(s.max_processors)+' \
             -scale 2arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
-            -auto-mask 5 -auto-threshold 0.005\
+            -auto-threshold 0.005\
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
     s.run(check = True)

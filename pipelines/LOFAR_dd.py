@@ -30,11 +30,11 @@ beamReg = 'self/beam.reg'
 
 ##########################
 logger.info('Cleaning...')
-#lib_util.check_rm('ddcal')
-#os.makedirs('ddcal/masks')
-#os.makedirs('ddcal/plots')
-#os.makedirs('ddcal/images')
-#os.makedirs('ddcal/skymodels')
+lib_util.check_rm('ddcal')
+os.makedirs('ddcal/masks')
+os.makedirs('ddcal/plots')
+os.makedirs('ddcal/images')
+os.makedirs('ddcal/skymodels')
 
 def clean(p, MSs, size=2.):
     """
@@ -84,103 +84,103 @@ def clean(p, MSs, size=2.):
     return imagename
 
 
-#############################################################
-#logger.info('Copy data...')
-#if not os.path.exists('mss-dd'):
-#    os.makedirs('mss-dd')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=CORRECTED_DATA avg.freqstep=1 avg.timestep=1', \
-#                log='$nameMS_avg.log', commandType='DPPP')
-#MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9].MS'), s )
-#       
-#logger.info('Add columns...')
-#MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
-#
-###############################################################
-#logger.info('BL-based smoothing...')
-#MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
-#
-## setup initial model
-#mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
-#mosaic_image.selectCC()
-#rms_noise_pre = np.inf
+############################################################
+logger.info('Copy data...')
+if not os.path.exists('mss-dd'):
+    os.makedirs('mss-dd')
+    MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=CORRECTED_DATA avg.freqstep=1 avg.timestep=1', \
+                log='$nameMS_avg.log', commandType='DPPP')
+Ss = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9].MS'), s )
+       
+logger.info('Add columns...')
+MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
+
+##############################################################
+logger.info('BL-based smoothing...')
+MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
+
+# setup initial model
+mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
+mosaic_image.selectCC()
+rms_noise_pre = np.inf
 
 for c in xrange(maxniter):
-#    logger.info('Starting cycle: %i' % c)
-#
-#    lib_util.check_rm('img')
-#    os.makedirs('img')
-#    os.makedirs('ddcal/images/c%02i/regions' % c)
-#    mask = 'ddcal/masks/facets%02i.fits' % c
-#
-#    ### group into patches of similar flux
-#    lsm = lsmtool.load(mosaic_image.skymodel_cut)
-#    lsm.group('tessellate', targetFlux='20Jy', root='Dir', applyBeam=False, method = 'wmean', pad_index=True)
-#    lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
-#    directions = lsm.getPatchPositions()
-#    patches = lsm.getPatchNames()
-#    logger.info("Created %i directions." % len(patches))
-#
-#    # write file
-#    skymodel_cl = 'ddcal/skymodels/skymodel%02i_cluster.txt' % c
-#    lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
-#    skymodel_cl_plot = 'ddcal/skymodels/skymodel%02i_cluster.png' % c
-#    lsm.plot(fileName=skymodel_cl_plot, labelBy='patch')
-#
-#    # convert to blob
-#    skymodel_cl_skydb = skymodel_cl.replace('.txt','.skydb')
-#    lib_util.check_rm(skymodel_cl_skydb)
-#    s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_cl, skymodel_cl_skydb), log='makesourcedb_cl.log', commandType='general' )
-#    s.run(check=True)
-#
-#    ### create regions (using cluster directions)
-#    logger.info("Create regions.")
-#    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/images/c%02i/regions/' % c, out_mask=mask, png='ddcal/skymodels/voronoi%02i.png' % c)
-#    lsm.group('facet', facet=mask, root='Dir')
-#    lsm.setPatchPositions(method='mid') # recalculate the patch centre as mid point for imaging
-#    directions = lsm.getPatchPositions()
-#    sizes = lsm.getPatchSizes(units='degree')
-#
-#    # write file
-#    skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
-#    lsm.write(skymodel_voro, format='makesourcedb', clobber=True)
-#    skymodel_voro_plot = 'ddcal/skymodels/skymodel%02i_voro.png' % c
-#    lsm.plot(fileName=skymodel_voro_plot, labelBy='patch')
-#
-#    # convert to blob
-#    skymodel_voro_skydb = skymodel_voro.replace('.txt','.skydb')
-#    lib_util.check_rm(skymodel_voro_skydb)
-#    s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_voro, skymodel_voro_skydb), log='makesourcedb_voro.log', commandType='general')
-#    s.run(check=True)
-#
-#    del lsm
-#
-#    ################################################################
-#    # Calibration
-#    logger.info('Calibrating...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS ddecal.h5parm=$pathMS/cal-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
-#            log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
-#
-#    # Plot solutions
-#    lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
-#    os.system('mv plots-c'+str(c)+'* ddcal/plots')
-#
-#   ###########################################################
-#   # Empty the dataset
-#    logger.info('Set SUBTRACTED_DATA = DATA...')
-#    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
-#
-#    logger.info('Subtraction...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_voro_skydb, \
-#                   log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP')
-#
-#    ## TODO: test
-#    #logger.info('Empty imaging')
-#    #s.add('wsclean -reorder -name img/testSUB -size 5000 5000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-#    #        -scale 10arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -maxuv-l 5000 -mgain 0.9 \
-#    #        -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 20 -minuv-l 30 -data-column SUBTRACTED_DATA '+MSs.getStrWsclean(), \
-#    #        log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors='max')
-#    #s.run(check=True)
-#
+    logger.info('Starting cycle: %i' % c)
+
+    lib_util.check_rm('img')
+    os.makedirs('img')
+    os.makedirs('ddcal/images/c%02i/regions' % c)
+    mask = 'ddcal/masks/facets%02i.fits' % c
+
+    ### group into patches of similar flux
+    lsm = lsmtool.load(mosaic_image.skymodel_cut)
+    lsm.group('tessellate', targetFlux='20Jy', root='Dir', applyBeam=False, method = 'wmean', pad_index=True)
+    lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
+    directions = lsm.getPatchPositions()
+    patches = lsm.getPatchNames()
+    logger.info("Created %i directions." % len(patches))
+
+    # write file
+    skymodel_cl = 'ddcal/skymodels/skymodel%02i_cluster.txt' % c
+    lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
+    skymodel_cl_plot = 'ddcal/skymodels/skymodel%02i_cluster.png' % c
+    lsm.plot(fileName=skymodel_cl_plot, labelBy='patch')
+
+    # convert to blob
+    skymodel_cl_skydb = skymodel_cl.replace('.txt','.skydb')
+    lib_util.check_rm(skymodel_cl_skydb)
+    s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_cl, skymodel_cl_skydb), log='makesourcedb_cl.log', commandType='general' )
+    s.run(check=True)
+
+    ### create regions (using cluster directions)
+    logger.info("Create regions.")
+    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/images/c%02i/regions/' % c, out_mask=mask, png='ddcal/skymodels/voronoi%02i.png' % c)
+    lsm.group('facet', facet=mask, root='Dir')
+    lsm.setPatchPositions(method='mid') # recalculate the patch centre as mid point for imaging
+    directions = lsm.getPatchPositions()
+    sizes = lsm.getPatchSizes(units='degree')
+
+    # write file
+    skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
+    lsm.write(skymodel_voro, format='makesourcedb', clobber=True)
+    skymodel_voro_plot = 'ddcal/skymodels/skymodel%02i_voro.png' % c
+    lsm.plot(fileName=skymodel_voro_plot, labelBy='patch')
+
+    # convert to blob
+    skymodel_voro_skydb = skymodel_voro.replace('.txt','.skydb')
+    lib_util.check_rm(skymodel_voro_skydb)
+    s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_voro, skymodel_voro_skydb), log='makesourcedb_voro.log', commandType='general')
+    s.run(check=True)
+
+    del lsm
+
+    ################################################################
+    # Calibration
+    logger.info('Calibrating...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS ddecal.h5parm=$pathMS/cal-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
+            log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
+
+    # Plot solutions
+    lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
+    os.system('mv plots-c'+str(c)+'* ddcal/plots')
+
+   ###########################################################
+   # Empty the dataset
+    logger.info('Set SUBTRACTED_DATA = DATA...')
+    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
+
+    logger.info('Subtraction...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_voro_skydb, \
+                   log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP')
+
+    ## TODO: test
+    #logger.info('Empty imaging')
+    #s.add('wsclean -reorder -name img/testSUB -size 5000 5000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
+    #        -scale 10arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -maxuv-l 5000 -mgain 0.9 \
+    #        -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 20 -minuv-l 30 -data-column SUBTRACTED_DATA '+MSs.getStrWsclean(), \
+    #        log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors='max')
+    #s.run(check=True)
+
     for i, p in enumerate(patches):
 
         # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA

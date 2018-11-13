@@ -46,11 +46,11 @@ def getParset(parsetFile='../lilf.config'):
     # timesplit
     add_default('timesplit', 'data_dir', '../tgts-bkp/')
     add_default('timesplit', 'cal_dir', '../cals/')
-    add_default('timesplit', 'ngroups', 2)
-    add_default('timesplit', 'initc', 0)
+    add_default('timesplit', 'ngroups', '2')
+    add_default('timesplit', 'initc', '0')
     # self
     # dd
-    add_default('dd', 'maxniter', 10)
+    add_default('dd', 'maxniter', '10')
 
     # flag
     add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IR*;PL*')
@@ -63,6 +63,7 @@ def getParset(parsetFile='../lilf.config'):
 
 
 def columnExists(tableObject, columnName):
+    # more to lib_ms
     '''
     Check whether a column with name 'columnName' exists in  table 'tableObject'.
     '''
@@ -71,6 +72,7 @@ def columnExists(tableObject, columnName):
 
 
 def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithOnes = True, comment = "", verbose = False):
+    # more to lib_ms
     """
     Add a column to a MS that is similar to a pre-existing column (in shape, but not in values).
     pathMS:                 path of the MS
