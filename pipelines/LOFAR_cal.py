@@ -67,13 +67,31 @@ logger.info('BL-smooth...')
 MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=10)
 
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-logger.info('Calibrating...')
+logger.info('Calibrating PA...')
 for MS in MSs.getListStr():
     lib_util.check_rm(MS+'/pa.h5')
 MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal', log='$nameMS_solPA.log', commandType="DPPP")
 
 lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], \
         [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
+
+## TEST (check with/without updateweights)
+#logger.info('Beam correction...')
+#MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=False msin.datacolumn=DATA', log='$nameMS_beam.log', commandType="DPPP")
+#for MS in MSs.getListStr():
+#    lib_util.check_rm(MS+'/pa.h5')
+#MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal msin.datacolumn=CORRECTED_DATA', log='$nameMS_solPA.log', commandType="DPPP")
+#lib_util.run_losoto(s, 'pa2', [ms+'/pa.h5' for ms in MSs.getListStr()], \
+#        [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
+#logger.info('Beam correction...')
+#MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True msin.datacolumn=DATA', log='$nameMS_beam.log', commandType="DPPP")
+#for MS in MSs.getListStr():
+#    lib_util.check_rm(MS+'/pa.h5')
+#MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal msin.datacolumn=CORRECTED_DATA', log='$nameMS_solPA.log', commandType="DPPP")
+#lib_util.run_losoto(s, 'pa3', [ms+'/pa.h5' for ms in MSs.getListStr()], \
+#        [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
+#sys.exit()
+## END TEST
 
 # Pol align correction DATA -> CORRECTED_DATA
 logger.info('Polalign correction...')
@@ -91,7 +109,7 @@ logger.info('BL-smooth...')
 MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2.log', commandType ='python', maxThreads=10)
 
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-logger.info('Calibrating...')
+logger.info('Calibrating FR...')
 for MS in MSs.getListStr():
     lib_util.check_rm(MS+'/fr.h5')
 MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal', log='$nameMS_solFR.log', commandType="DPPP")
@@ -169,7 +187,7 @@ logger.info('Absolute Faraday rotation correction...')
 MSs.run('createRMh5parm.py $pathMS $pathMS/rme.h5', log='$nameMS_RME.log', commandType="general", maxThreads=1)
 MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/rme.h5 cor.correction=RMextract', log='$nameMS_corRME.log', commandType="DPPP")
 
-# TEST:
+# TEST
 # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
 logger.info('BL-smooth...')
 MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python', maxThreads=10)
@@ -182,6 +200,7 @@ MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS
 
 lib_util.run_losoto(s, 'leak2', [ms+'/leak2.h5' for ms in MSs.getListStr()], \
         [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-leak.parset'])
+# END TEST
 
 #################################################
 # 4: find iono
