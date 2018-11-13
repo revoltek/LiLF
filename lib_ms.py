@@ -260,7 +260,7 @@ class MS(object):
         if (RA < 0):
             RA += 2 * np.pi
 
-        logger.debug("%s: phase centre (degrees): (%f, %f)", self.pathMS, np.degrees(RA), np.degrees(Dec))
+        #logger.debug("%s: phase centre (degrees): (%f, %f)", self.pathMS, np.degrees(RA), np.degrees(Dec))
         return (np.degrees(RA), np.degrees(Dec))
 
     def getObsMode(self):
