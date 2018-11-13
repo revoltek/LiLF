@@ -9,7 +9,18 @@ plotFlag = True
 prefix = plots/ampBF_
 #minmax = [0,300]
 
-[flag]
+[flagF]
+operation = FLAG
+soltab = sol000/amplitude000
+axesToFlag = [freq]
+order = [50] 
+maxCycles = 1
+maxRms = 10
+replce = False
+preFlagZeros = False
+mode = smooth
+
+[flagT]
 operation = FLAG
 soltab = sol000/amplitude000
 axesToFlag = [time]

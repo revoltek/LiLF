@@ -67,7 +67,7 @@ logger.info('BL-smooth...')
 MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python')
 
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-logger.info('Calibrating...')
+logger.info('Calibrating PA...')
 for MS in MSs.getListStr():
     lib_util.check_rm(MS+'/pa.h5')
 MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal', log='$nameMS_solPA.log', commandType="DPPP")
@@ -91,7 +91,7 @@ logger.info('BL-smooth...')
 MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2.log', commandType ='python')
 
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-logger.info('Calibrating...')
+logger.info('Calibrating FR...')
 for MS in MSs.getListStr():
     lib_util.check_rm(MS+'/fr.h5')
 MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal', log='$nameMS_solFR.log', commandType="DPPP")

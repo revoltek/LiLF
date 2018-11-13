@@ -198,8 +198,6 @@ for c in xrange(10):
     MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono-c'+str(c)+'.h5 cor.amp.parmdb=cal-iono-c'+str(c)+'.h5 \
                     cor.ph.correction=phase000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corG4.log', commandType="DPPP")
 
-    sys.exit()
-    
     # briggs: -1.2 for virgo; -1.0 for subtraction to get good minihalo?
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
@@ -217,7 +215,7 @@ for c in xrange(10):
     logger.info('Cleaning sub (cycle %i)...' % c)
     imagename = 'img/imgsub-c'+str(c)
     s.add('wsclean -reorder -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' -baseline-averaging 5 \
-            -scale 15arcsec -weight briggs 0.5 -taper-gaussian 45arcsec -niter 10000 -no-update-model-required -mgain 0.85 -clean-border 1 \
+            -scale 15arcsec -weight briggs 0.5 -taper-gaussian 120arcsec -niter 10000 -no-update-model-required -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16 \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wscleanB-c'+str(c)+'.log', commandType='wsclean', processors='max')
