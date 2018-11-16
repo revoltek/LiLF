@@ -27,7 +27,7 @@ class Image(object):
         logger.info('%s: Making mask...' % self.imagename)
         if not os.path.exists(self.maskname):
             make_mask.make_mask(image_name=self.imagename, mask_name=self.maskname, threshisl=threshisl, atrous_do=True)
-        if not self.userReg is None:
+        if self.userReg is not None:
             logger.info('%s: Adding user mask (%s)...' % (self.imagename, self.userReg))
             blank_image_reg(self.maskname, self.userReg, inverse=False, blankval=1)
 

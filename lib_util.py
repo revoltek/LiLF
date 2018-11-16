@@ -57,7 +57,7 @@ def getParset(parsetFile='../lilf.config'):
     # model
     add_default('model', 'sourcedb', '')
     add_default('model', 'apparent', 'False')
-    add_default('model', 'userReg', 'None')
+    add_default('model', 'userreg', None)
 
     return config
 
