@@ -8,14 +8,6 @@
 import sys, os, glob, re
 import numpy as np
 
-if 'LBAsurvey' in os.getcwd():
-    obs     = os.getcwd().split('/')[-2] # assumes .../c??-o??/3c196
-    calname = os.getcwd().split('/')[-1] # assumes .../c??-o??/3c196
-    data_dir = '../../download/%s/%s' % (obs, calname)
-#    bl2flag = 'CS031LBA'
-#    if 'c05' in os.getcwd(): bl2flag = 'RS409LBA'
-#    if 'c09' in os.getcwd(): bl2flag = 'CS031LBA\;CS013LBA'
-
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 lib_log.set_logger('pipeline-cal.logger')
@@ -29,6 +21,11 @@ data_dir = parset.get('cal','data_dir')
 skymodel = parset.get('cal','skymodel')
 imaging = parset.getboolean('cal','imaging')
 bl2flag = parset.get('flag','stations')
+
+if 'LBAsurvey' in os.getcwd():
+    obs     = os.getcwd().split('/')[-2] # assumes .../c??-o??/3c196
+    calname = os.getcwd().split('/')[-1] # assumes .../c??-o??/3c196
+    data_dir = '../../download/%s/%s' % (obs, calname)
 
 #############################################################
 MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
@@ -183,9 +180,9 @@ MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updatewe
 logger.info('Faraday rotation correction...')
 MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DPPP")
 # Correct abs FR CORRECTED_DATA -> CORRECTED_DATA
-logger.info('Absolute Faraday rotation correction...')
-MSs.run('createRMh5parm.py $pathMS $pathMS/rme.h5', log='$nameMS_RME.log', commandType="general", maxThreads=1)
-MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/rme.h5 cor.correction=RMextract', log='$nameMS_corRME.log', commandType="DPPP")
+#logger.info('Absolute Faraday rotation correction...')
+#MSs.run('createRMh5parm.py $pathMS $pathMS/rme.h5', log='$nameMS_RME.log', commandType="general", maxThreads=1)
+#MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/rme.h5 cor.correction=RMextract', log='$nameMS_corRME.log', commandType="DPPP")
 
 ## TEST
 ## Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)

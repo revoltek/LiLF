@@ -117,8 +117,6 @@ for c in xrange(0, niter):
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving TEC...')
-    for MS in MSs.getListStr():
-        lib_util.check_rm(MS+'/tec.h5')
     MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
@@ -146,8 +144,6 @@ for c in xrange(0, niter):
 
         # Solve G SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Solving G...')
-        for MS in MSs.getListStr():
-            lib_util.check_rm(MS+'/fr.h5')
         MSs.run('DPPP ' + parset_dir + '/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal \
                      sol.solint=30 sol.nchan=8', log='$nameMS_solFR.log', commandType="DPPP")
 
@@ -173,8 +169,6 @@ for c in xrange(0, niter):
 
         # Solve G SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Solving G...')
-        for MS in MSs.getListStr():
-            lib_util.check_rm(MS+'/amp.h5')
         MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5 sol.solint=30 sol.nchan=8', \
                     log='$nameMS_sol-g2-c'+str(c)+'.log', commandType='DPPP')
 
@@ -199,8 +193,6 @@ for c in xrange(0, niter):
 
         # solve TEC - group*_TC.MS:SMOOTHED_DATA
         logger.info('Solving TEC...')
-        for MS in MSs.getListStr():
-            lib_util.check_rm(MS+'/tec.h5')
         MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
                     log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
