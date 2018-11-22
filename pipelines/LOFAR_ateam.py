@@ -20,16 +20,16 @@ elif 'VirA2017' in os.getcwd():
     datadir = '/home/fdg/lofar2/LOFAR/Ateam_LBA/VirA/tgts2017-bkp'
     bl2flag = ''
     blrange = '[0,1e30]'
-elif 'TauA' in os.getcwd():
+elif 'Tau' in os.getcwd():
     patch = 'TauA'
     datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/TauA/tgts-bkp'
     blrange = '[0,1000,5000,1e30]'
-elif 'CasA' in os.getcwd():
+elif 'Cas' in os.getcwd():
     patch = 'CasA'
     datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/CasA/tgts1-bkp'
     #datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/CasA/tgts2-bkp'
     blrange = '[0,30000]'
-elif 'CygA' in os.getcwd():
+elif 'Cyg' in os.getcwd():
     patch = 'CygA'
     datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/CygA/tgts1-bkp'
     #datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/CygA/tgts2-bkp'
@@ -199,10 +199,11 @@ for c in xrange(10):
                     cor.ph.correction=phase000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corG4.log', commandType="DPPP")
 
     # briggs: -1.2 for virgo; -1.0 for subtraction to get good minihalo?
+    # briggs: -2 for cyg
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
     s.add('wsclean -reorder -name ' + imagename + ' -size 1500 1500 -j '+str(s.max_processors)+' \
-            -scale 2arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -scale 2arcsec -weight briggs -2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
             -auto-threshold 0.005\
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
@@ -215,7 +216,7 @@ for c in xrange(10):
     logger.info('Cleaning sub (cycle %i)...' % c)
     imagename = 'img/imgsub-c'+str(c)
     s.add('wsclean -reorder -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' -baseline-averaging 5 \
-            -scale 15arcsec -weight briggs 0.5 -taper-gaussian 120arcsec -niter 10000 -no-update-model-required -mgain 0.85 -clean-border 1 \
+            -scale 15arcsec -weight briggs 0.5 -taper-gaussian 100arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16 \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wscleanB-c'+str(c)+'.log', commandType='wsclean', processors='max')
