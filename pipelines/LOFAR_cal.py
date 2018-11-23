@@ -34,21 +34,21 @@ logger.info('Copy data...')
 for MS in MSs.getListObj():
     MS.move(MS.nameMS+'.MS', keepOrig=True)
 
-# TEST HBA
-#logger.warning('Copy data HBA...')
-#MSs.run("DPPP DPPP-avg.parset msin=$pathMS msout=$nameMS.MS avg.freqstep=5", log="$nameMS_avg.log", commandType="DPPP")
+## TEST HBA
+##logger.warning('Copy data HBA...')
+##MSs.run("DPPP DPPP-avg.parset msin=$pathMS msout=$nameMS.MS avg.freqstep=5", log="$nameMS_avg.log", commandType="DPPP")
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 calname = MSs.getListObj()[0].getNameField()
 obsmode = MSs.getListObj()[0].getObsMode()
-# find min freq
+
 if min(MSs.getFreqs()) < 40.e6:
     iono3rd = True
     logger.debug('Include iono 3rd order.')
 else: iono3rd = False
 
-####################################################
-# flag bad stations, flags will propagate
+#####################################################
+## flag bad stations, flags will propagate
 logger.info("Flagging...")
 MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
 
@@ -231,10 +231,10 @@ if 'survey' in os.getcwd():
 if imaging:
     logger.info("Imaging section:")
 
-    if 'bootes2' in os.getcwd():
-        fourth = int(len(glob.glob('./*MS'))/4.)
-        MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[1*fourth:3*fourth], s ) # keep only mid band
-    elif iono3rd:
+    #if 'bootes2' in os.getcwd():
+    #    fourth = int(len(glob.glob('./*MS'))/4.)
+    #    MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[1*fourth:3*fourth], s ) # keep only mid band
+    if iono3rd:
         MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[int(len(glob.glob('./*MS'))/2.):], s ) # keep only upper band
 
     # Correct all CORRECTED_DATA (PA, beam, FR, BP corrected) -> CORRECTED_DATA
