@@ -18,12 +18,12 @@ pol = XX, YY
 axesToSmooth = [time]
 mode = median
 
-[smooth2]
-operation = SMOOTH
-soltab = sol000/amplitudeSmooth
-pol = XY, YX
-axesToSmooth = [ant]
-mode = median
+#[smooth2]
+#operation = SMOOTH
+#soltab = sol000/amplitudeSmooth
+#pol = XY, YX
+#axesToSmooth = [ant]
+#mode = median
 
 [plotAs]
 operation = PLOT
