@@ -223,9 +223,9 @@ if 'survey' in os.getcwd():
     logger.info('Copy survey caltable...')
     cal = 'cal_'+os.getcwd().split('/')[-2]+'_'+calname
     logger.info('Copy: cal*h5 -> dsk:/disks/paradata/fdg/LBAsurvey/%s' % cal)
-    os.system('ssh dsk "rm -rf /disks/paradata/fdg/LBAsurvey/%s"' % cal)
-    os.system('ssh dsk "mkdir /disks/paradata/fdg/LBAsurvey/%s"' % cal)
-    os.system('scp -q cal*h5 dsk:/disks/paradata/fdg/LBAsurvey/%s' % cal)
+    os.system('ssh portal_lei "rm -rf /disks/paradata/fdg/LBAsurvey/%s"' % cal)
+    os.system('ssh portal_lei "mkdir /disks/paradata/fdg/LBAsurvey/%s"' % cal)
+    os.system('scp -q cal*h5 portal_lei:/disks/paradata/fdg/LBAsurvey/%s' % cal)
 
 # a debug image
 if imaging:
