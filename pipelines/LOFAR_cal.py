@@ -264,7 +264,7 @@ if imaging:
     s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size/5) + ' ' + str(size/5) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
             -scale 60arcsec -weight briggs 1.5 -niter 100000 -no-update-model-required -maxuv-l 1000 -mgain 0.85 -clean-border 1 \
             -auto-mask 10 -auto-threshold 1 \
-            -pol IUQV -join-polarizations -join-channels -fit-spectral-pol 2 -channels-out 10 -apply-primary-beam '+MSs.getStrWsclean(), \
+            -pol IUQV -join-channels -fit-spectral-pol 2 -channels-out 10 -apply-primary-beam '+MSs.getStrWsclean(), \
             log='wscleanLR.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
