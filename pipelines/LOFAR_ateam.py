@@ -201,7 +201,7 @@ for c in xrange(10):
     # briggs: -1.2 for virgo; -1.0 for subtraction to get good minihalo?
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
-    if patch = 'CygA':
+    if patch == 'CygA':
         s.add('wsclean -reorder -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
             -scale 1arcsec -weight uniform -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
