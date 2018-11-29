@@ -201,6 +201,7 @@ for c in xrange(10):
             -scale 1arcsec -weight uniform -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
             -auto-threshold 0.005\
+            -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
     else:
@@ -208,6 +209,7 @@ for c in xrange(10):
             -scale 2arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
             -auto-threshold 0.005\
+            -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
     s.run(check = True)
