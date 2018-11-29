@@ -206,7 +206,7 @@ for c in xrange(0, niter):
     if c == niter-1:
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
-        s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(int(size*1.5)) + ' ' + str(int(size*1.5)) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
+        s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(int(size*1.5)) + ' ' + str(int(size*1.5)) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
                 -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
                 -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
                 -auto-mask 10 -auto-threshold 1 \
@@ -218,7 +218,7 @@ for c in xrange(0, niter):
 
         logger.info('Cleaning beam high-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamHR'
-        s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size*2) + ' ' + str(size*2) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
+        s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(size*2) + ' ' + str(size*2) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
                 -scale 2.5arcsec -weight briggs -1.5 -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
                 -auto-mask 10 -auto-threshold 1 \
                 -apply-primary-beam -use-differential-lofar-beam \
@@ -228,7 +228,7 @@ for c in xrange(0, niter):
 
         logger.info('Cleaning beam low-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamLR'
-        s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size/5) + ' ' + str(size/5) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
+        s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(size/5) + ' ' + str(size/5) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
                 -scale 60arcsec -weight briggs 1.5 -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 1000 -mgain 0.85 -clean-border 1 \
                 -auto-mask 10 -auto-threshold 1 \
                 -apply-primary-beam -use-differential-lofar-beam \
@@ -241,7 +241,7 @@ for c in xrange(0, niter):
     # clean mask clean (cut at 5k lambda)
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wide-'+str(c)
-    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
+    s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
             -scale 10arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
             -auto-threshold 20 \
             -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
@@ -254,7 +254,7 @@ for c in xrange(0, niter):
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
-    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
+    s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
             -scale 10arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
             -auto-threshold 0.1 -fits-mask '+im.maskname+' \
@@ -280,7 +280,7 @@ for c in xrange(0, niter):
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
-        s.add('wsclean -reorder -name ' + imagename_lr + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
+        s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename_lr + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
                 -scale 20arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 2000 -mgain 0.85 -clean-border 1 \
                 -auto-threshold 1 \
                 -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
