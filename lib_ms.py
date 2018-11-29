@@ -38,6 +38,15 @@ class AllMSs(object):
         """
         return self.mssListStr
 
+    def getNThreads(self):
+        """
+        Return the max number of threads in one machine assuming all MSs run at the same time
+        """
+        if self.scheduler.max_processors < len(self.mssListStr): Nthreads = 1
+        else:
+            NThreads = int(np.rint( self.scheduler.max_processors/len(self.mssListStr) ))
+
+        return NThreads
 
     def getStrWsclean(self):
         """
@@ -73,6 +82,9 @@ class AllMSs(object):
             commandCurrent = MSObject.concretiseString(command)
             logCurrent     = MSObject.concretiseString(log)
 
+            # add max num of threads given the total jobs to run
+            # e.g. in a 64 processors machine running on 16 MSs, would result in numthreads=4
+            if commandType='DPPP': command+' numthreads='+str(self.getNThreads())
             self.scheduler.add(cmd = commandCurrent, log = logCurrent, commandType = commandType)
 
             # Provide debug output.

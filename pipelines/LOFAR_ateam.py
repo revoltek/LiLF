@@ -10,30 +10,29 @@ import pyrap.tables as pt
 # Temporary!
 if 'Vir' in os.getcwd():
     patch = 'VirA'
-    blrange = '[0,1e30]'
+    nouseblrange = '[0..30]'
 elif 'VirA2015' in os.getcwd():
     patch = 'VirA'
     datadir = '/home/fdg/lofar2/LOFAR/Ateam_LBA/VirA/tgts2015-bkp'
-    blrange = '[0,1e30]'
+    nouseblrange = '[0..30]'
 elif 'VirA2017' in os.getcwd():
     patch = 'VirA'
     datadir = '/home/fdg/lofar2/LOFAR/Ateam_LBA/VirA/tgts2017-bkp'
-    bl2flag = ''
-    blrange = '[0,1e30]'
+    nouseblrange = '[0..30]'
 elif 'Tau' in os.getcwd():
     patch = 'TauA'
     datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/TauA/tgts-bkp'
-    blrange = '[0,1000,5000,1e30]'
+    nouseblrange = '[500..5000]'
 elif 'Cas' in os.getcwd():
     patch = 'CasA'
     datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/CasA/tgts1-bkp'
     #datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/CasA/tgts2-bkp'
-    blrange = '[0,30000]'
+    nouseblrange = '[15000..1e30]'
 elif 'Cyg' in os.getcwd():
     patch = 'CygA'
     datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/CygA/tgts1-bkp'
     #datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/CygA/tgts2-bkp'
-    blrange = '[0,30000]'
+    nouseblrange = '[15000..1e30]'
 
 skymodel = '/home/fdg/scripts/model/A-team_4_CC.skydb'
 
@@ -60,9 +59,9 @@ nchan = MSs.getListObj()[0].getNchan()
 timeint = MSs.getListObj()[0].getTimeInt()
 avg_time = int(np.rint(10./timeint))
 
-logger.info('Copy data...')
-MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=$nameMS.MS msin.datacolumn=DATA avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time), \
-                            log='$nameMS_avg.log', commandType='DPPP')
+#logger.info('Copy data...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=$nameMS.MS msin.datacolumn=DATA avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time), \
+#                            log='$nameMS_avg.log', commandType='DPPP')
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
@@ -72,19 +71,19 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 #########################################################   
 # flag bad stations, and low-elev
-logger.info('Flagging...')
-MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
-            log='$nameMS_flag.log', commandType='DPPP')
-
+#logger.info('Flagging...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
+#            log='$nameMS_flag.log', commandType='DPPP')
+#
 # predict to save time MODEL_DATA
-if os.path.exists('/home/fdg/scripts/model/AteamLBA/'+patch+'/img-MFS-model.fits'):
-    logger.info('Predict (wsclean)...')
-    s.add('wsclean -predict -name /home/fdg/scripts/model/AteamLBA/'+patch+'/img -mem 90 -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
-          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
-    s.run(check=True)
-else:
-    logger.info('Predict (DPPP)...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
+#if os.path.exists('/home/fdg/scripts/model/AteamLBA/'+patch+'/img-MFS-model.fits'):
+#    logger.info('Predict (wsclean)...')
+#    s.add('wsclean -predict -name /home/fdg/scripts/model/AteamLBA/'+patch+'/img -mem 90 -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
+#          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
+#    s.run(check=True)
+#else:
+#    logger.info('Predict (DPPP)...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
 
 # backup
 os.mkdirs('bkp-after-model')
@@ -101,10 +100,13 @@ for c in xrange(10):
 
     # Solve cal_SB.MS:DATA (only solve)
     logger.info('Calibrating PA...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal', log='$nameMS_solPA.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
+            sol.uvlambdarange=[0..5000]', log='$nameMS_solPA.log', commandType="DPPP")
 
     lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
+
+    sys.exit()
 
     #################################################
     # 1: find the FR and remve it

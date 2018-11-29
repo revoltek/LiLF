@@ -222,17 +222,13 @@ class Scheduler():
                 self.qsub = False
         else:
             if ((self.qsub == False and self.cluster == "Hamburg") or \
-               (self.qsub == True and (self.cluster == "Leiden" or self.cluster == "CEP3"))):
+               (self.qsub == True and (self.cluster == "Leiden" or self.cluster == "CEP3" or self.cluster == "Hamburg_fat"))):
                 logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
                 sys.exit(1)
 
         if (maxThreads == None):
             if   (self.cluster == "Hamburg"):
                 self.maxThreads = 32
-            elif (self.cluster == "Leiden"):
-                self.maxThreads = 64
-            elif (self.cluster == "CEP3"):
-                self.maxThreads = 40
             else:
                 self.maxThreads = multiprocessing.cpu_count()
         else:
@@ -241,10 +237,6 @@ class Scheduler():
         if (max_processors == None):
             if   (self.cluster == "Hamburg"):
                 self.max_processors = 6
-            elif (self.cluster == "Leiden"):
-                self.max_processors = 64
-            elif (self.cluster == "CEP3"):
-                self.max_processors = 40
             else:
                 self.max_processors = multiprocessing.cpu_count()
         else:
@@ -276,6 +268,8 @@ class Scheduler():
         hostname = socket.gethostname()
         if (hostname == 'lgc1' or hostname == 'lgc2'):
             return "Hamburg"
+        elif ('node3' in hostname):
+            return "Hamburg_fat"
         elif ('leidenuniv' in hostname):
             return "Leiden"
         elif (hostname[0 : 3] == 'lof'):
@@ -330,55 +324,6 @@ class Scheduler():
 
         if (log != ""):
             self.log_list.append((log, commandType))
-
-#    def add_casa(self, cmd = '', params = {}, wkd = None, log = '', logAppend = False, processors = None):
-#        """
-#        Run a casa command pickling the parameters passed in params
-#        NOTE: running casa commands in parallel is a problem for the log file, better avoid
-#        alternatively all used MS and CASA must be in a separate working dir
-#
-#        wkd = working dir (logs and pickle are in the pipeline dir)
-#        """
-#
-#        if processors != None and processors == 'max': processors = self.max_processors
-#        if processors == None: processors=self.max_processors # default use entire node
-#
-#        # since CASA can run in another dir, be sure log and pickle are in the pipeline working dir
-#        if log != '': log = os.getcwd()+'/'+self.log_dir+'/'+log
-#        pfile = os.getcwd()+'/casaparams_'+str(random.randint(0, 1e9))+'.pickle'
-#        pickle.dump( params, open( pfile, "wb" ) )
-#
-#        # exec in the script dir?
-#        if wkd == None: casacmd = 'casa --nogui --log2term --nologger -c '+cmd+' '+pfile
-#        elif os.path.isdir(wkd):
-#            casacmd = 'cd '+wkd+'; casa --nogui --log2term --nologger -c '+cmd+' '+pfile
-#        else:
-#            logger.error('Cannot find CASA working dir: '+wkd)
-#            sys.exit(1)
-#
-#        if self.qsub:
-#            if log != '' and not logAppend: casacmd = str(processors)+' \''+casacmd+' > '+log+' 2>&1'
-#            elif log != '' and logAppend: casacmd = str(processors)+' \''+casacmd+' >> '+log+' 2>&1'
-#            else: casacmd = str(processors)+' \''+casacmd
-#
-#            # clean up casa remnants in Hamburg cluster
-#            if self.cluster == "Hamburg":
-#                self.action_list.append(casacmd+'; killall -9 -r dbus-daemon Xvfb python casa\*\'')
-#                if processors != self.max_processors:
-#                    logger.error('To clean annoying CASA remnants no more than 1 CASA per node is allowed.')
-#                    sys.exit(1)
-#            else:
-#                self.action_list.append(casacmd+'\'')
-#        else:
-#            if (log != '' and not logAppend):
-#                self.action_list.append(casacmd + ' > ' + log + ' 2>&1')
-#            elif (log != '' and logAppend):
-#                self.action_list.append(casacmd + ' >> ' + log + ' 2>&1')
-#            else:
-#                self.action_list.append(casacmd)
-#
-#        if log != '':
-#            self.log_list.append((log, "CASA"))
 
 
     def run(self, check = False, maxThreads = None):

@@ -3,12 +3,9 @@ msin.datacolumn = DATA
 msin.baseline = [CR]S*&
 msout =
 
-steps = [demixer] 
-#steps = [avg] 
+numthreads = 0 # the pipeline should set this number
 
-avg.type = squash
-avg.freqstep = 16
-avg.timestep = 1
+steps = [demixer] 
 
 demixer.type = demixer 
 #demixer.baseline = [CR]S*&

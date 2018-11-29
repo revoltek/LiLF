@@ -5,7 +5,7 @@ msout =
 msout.writefullresflag = False
 #msout.storagemanager = dysco
 
-numthreads = 1 # bug fix
+numthreads = 0 # the pipeline should set this number
 
 steps = [avg, filter]
 
