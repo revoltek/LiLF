@@ -78,13 +78,14 @@ class AllMSs(object):
         The command and log file path can be customised for each MS using keywords (see: 'MS.concretiseString()').
         Beware: depending on the value of 'Scheduler.max_threads' (see: lib_util.py), the commands are run in parallel.
         """
+        # add max num of threads given the total jobs to run
+        # e.g. in a 64 processors machine running on 16 MSs, would result in numthreads=4
+        if commandType == 'DPPP': command += ' numthreads='+str(self.getNThreads())
+
         for MSObject in self.mssListObj:
             commandCurrent = MSObject.concretiseString(command)
             logCurrent     = MSObject.concretiseString(log)
 
-            # add max num of threads given the total jobs to run
-            # e.g. in a 64 processors machine running on 16 MSs, would result in numthreads=4
-            if commandType == 'DPPP': command+' numthreads='+str(self.getNThreads())
             self.scheduler.add(cmd = commandCurrent, log = logCurrent, commandType = commandType)
 
             # Provide debug output.
