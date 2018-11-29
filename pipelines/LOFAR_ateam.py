@@ -60,8 +60,11 @@ timeint = MSs.getListObj()[0].getTimeInt()
 avg_time = int(np.rint(10./timeint))
 
 logger.info('Copy data...')
-MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=$nameMS.MS msin.datacolumn=DATA avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time), \
+for MS in MSs.getListObj():
+    if os.path.exists(MS.nameMS+'.MS'): continue
+    s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MS.nameMS+'.MS msin.datacolumn=DATA avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time), \
                             log='$nameMS_avg.log', commandType='DPPP')
+s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
@@ -69,25 +72,25 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 #logger.info("Put data to Jy...")
 #MSs.run('taql "update $pathMS set DATA = 1e2*DATA"', log='$nameMS_taql.log', commandType='general')
 
-########################################################   
-# flag bad stations, and low-elev
-logger.info('Flagging...')
-MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
-            log='$nameMS_flag.log', commandType='DPPP')
-
-# predict to save time MODEL_DATA
-if os.path.exists('/home/fdg/scripts/model/AteamLBA/'+patch+'/img-MFS-model.fits'):
-    logger.info('Predict (wsclean)...')
-    s.add('wsclean -predict -name /home/fdg/scripts/model/AteamLBA/'+patch+'/img -mem 90 -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
-          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
-    s.run(check=True)
-else:
-    logger.info('Predict (DPPP)...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
-
-# backup
-os.path.mkdirs('bkp-after-model')
-os.system('cp -r *MS bkp-after-model')
+#########################################################   
+## flag bad stations, and low-elev
+#logger.info('Flagging...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
+#            log='$nameMS_flag.log', commandType='DPPP')
+#
+## predict to save time MODEL_DATA
+#if os.path.exists('/home/fdg/scripts/model/AteamLBA/'+patch+'/img-MFS-model.fits'):
+#    logger.info('Predict (wsclean)...')
+#    s.add('wsclean -predict -name /home/fdg/scripts/model/AteamLBA/'+patch+'/img -mem 90 -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
+#          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
+#    s.run(check=True)
+#else:
+#    logger.info('Predict (DPPP)...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
+#
+## backup
+#os.path.mkdirs('bkp-after-model')
+#os.system('cp -r *MS bkp-after-model')
 
 for c in xrange(10):
 
@@ -101,12 +104,10 @@ for c in xrange(10):
     # Solve cal_SB.MS:DATA (only solve)
     logger.info('Calibrating PA...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
-            sol.uvlambdarange=[0..15000]', log='$nameMS_solPA.log', commandType="DPPP")
+            sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solPA.log', commandType="DPPP")
 
     lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
-
-    sys.exit()
 
     #################################################
     # 1: find the FR and remve it
@@ -162,6 +163,9 @@ for c in xrange(10):
     
     lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
             [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-bp.parset'])
+
+    # test setting RS == avg core
+    sys.exit()
 
     #################################################
     # 3: apply all
