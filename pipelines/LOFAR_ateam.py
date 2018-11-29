@@ -59,27 +59,35 @@ nchan = MSs.getListObj()[0].getNchan()
 timeint = MSs.getListObj()[0].getTimeInt()
 avg_time = int(np.rint(10./timeint))
 
-#logger.info('Copy data...')
-#MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=$nameMS.MS msin.datacolumn=DATA avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time), \
-#                            log='$nameMS_avg.log', commandType='DPPP')
+logger.info('Copy data...')
+MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=$nameMS.MS msin.datacolumn=DATA avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time), \
+                            log='$nameMS_avg.log', commandType='DPPP')
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
-##########################################################   
+# TEST
+#logger.info("Put data to Jy...")
+#MSs.run('taql "update $pathMS set DATA = 1e2*DATA"', log='$nameMS_taql.log', commandType='general')
+
+########################################################   
 # flag bad stations, and low-elev
-#logger.info('Flagging...')
-#MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
-#            log='$nameMS_flag.log', commandType='DPPP')
-#
+logger.info('Flagging...')
+MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
+            log='$nameMS_flag.log', commandType='DPPP')
+
 # predict to save time MODEL_DATA
-#if os.path.exists('/home/fdg/scripts/model/AteamLBA/'+patch+'/img-MFS-model.fits'):
-#    logger.info('Predict (wsclean)...')
-#    s.add('wsclean -predict -name /home/fdg/scripts/model/AteamLBA/'+patch+'/img -mem 90 -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
-#          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
-#    s.run(check=True)
-#else:
-#    logger.info('Predict (DPPP)...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
+if os.path.exists('/home/fdg/scripts/model/AteamLBA/'+patch+'/img-MFS-model.fits'):
+    logger.info('Predict (wsclean)...')
+    s.add('wsclean -predict -name /home/fdg/scripts/model/AteamLBA/'+patch+'/img -mem 90 -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
+          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
+    s.run(check=True)
+else:
+    logger.info('Predict (DPPP)...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
+
+# backup
+os.path.mkdirs('bkp-after-model')
+os.system('cp -r *MS bkp-after-model')
 
 for c in xrange(10):
 
@@ -228,7 +236,7 @@ for c in xrange(10):
             -scale 15arcsec -weight briggs 0.5 -taper-gaussian 80arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16 \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
-            log='wscleanB-c'+str(c)+'.log', commandType='wsclean', processors='max')
+            log='wscleanSUB-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
 logger.info("Done.")

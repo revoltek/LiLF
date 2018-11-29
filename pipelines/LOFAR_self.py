@@ -18,14 +18,6 @@ import numpy as np
 import pyrap.tables as pt
 
 # Temporary
-#if 'bootes' in os.getcwd():
-#    sourcedb = '/home/fdg/scripts/model/Bootes_HBA.corr.skydb'
-#    apparent = False
-#    userReg = None
-#elif '3Csurvey' in os.getcwd():
-#    sourcedb = '/home/fdg/scripts/model/3c31_LBA.skydb'
-#    apparent = False
-#    userReg = None
 if 'LBAsurvey' in os.getcwd():
     obs = os.getcwd().split('/')[-1]
     sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/skymodels/%s.skydb' % obs
@@ -116,6 +108,7 @@ for c in xrange(0, niter):
     MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
+    # TODO: add maxproc dividing N_cpu by number of mss
     logger.info('Solving TEC...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
