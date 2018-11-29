@@ -93,7 +93,7 @@ for c in xrange(10):
     # Solve cal_SB.MS:DATA (only solve)
     logger.info('Calibrating PA...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
-            sol.uvlambdarange=[0..5000]', log='$nameMS_solPA.log', commandType="DPPP")
+            sol.uvlambdarange=[0..15000]', log='$nameMS_solPA.log', commandType="DPPP")
 
     lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
