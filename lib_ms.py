@@ -40,11 +40,11 @@ class AllMSs(object):
 
     def getNThreads(self):
         """
-        Return the max number of threads assuming all MSs are run at the same time
+        Return the max number of threads in one machine assuming all MSs run at the same time
         """
-        if self.scheduler.maxThreads < len(self.mssListStr): Nthreads = 1
+        if self.scheduler.max_processors < len(self.mssListStr): Nthreads = 1
         else:
-            NThreads = int(np.rint( self.scheduler.maxThreads/len(self.mssListStr) ))
+            NThreads = int(np.rint( self.scheduler.max_processors/len(self.mssListStr) ))
 
         return NThreads
 
