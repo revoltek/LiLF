@@ -8,5 +8,3 @@ numthreads = 1 # bug fix
 steps = [cor, count]
 
 cor.type = correct
-cor.parmdb = 
-cor.correction = 
