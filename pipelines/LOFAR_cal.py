@@ -75,7 +75,6 @@ MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$path
 
 lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], \
         [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
-sys.exit()
 
 # Pol align correction DATA -> CORRECTED_DATA
 logger.info('Polalign correction...')
@@ -106,31 +105,31 @@ MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.
 ######################################################
 # 3: find leak
 
-# Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-logger.info('BL-smooth...')
-MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python', maxThreads=10)
-
-# Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-logger.info('Calibrating LEAK...')
-# TEST leak
-MSs.run('/home/baq1889/opt/src/DP3-leak/build/DPPP/DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/leak-new.h5 sol.mode=fulljones sol.sourcedb=calib-simple.skydb sol.leakageconstraint=true', log='$nameMS_solLEAK.log', commandType="DPPP")
-MSs.run('/home/baq1889/opt/src/DP3-leak/build/DPPP/DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/leak-old.h5 sol.mode=fulljones sol.sourcedb=calib-simple.skydb sol.leakageconstraint=false', log='$nameMS_solLEAK.log', commandType="DPPP")
-
-lib_util.run_losoto(s, 'leak-new', [ms+'/leak-new.h5' for ms in MSs.getListStr()], \
-        [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-leak.parset'])
-lib_util.run_losoto(s, 'leak-old', [ms+'/leak-old.h5' for ms in MSs.getListStr()], \
-        [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-leak.parset'])
-
-sys.exit()
-
-## TODO: fix for DPPP to apply fulljones
-#os.system('losoto -d sol000/amplitude000 cal-leak.h5')
-#os.system('losoto -V cal-leak.h5 ~/scripts/LiLF/parsets/LOFAR_cal/losoto-leakfix.parset')
-
-# Correct amp LEAK CORRECTED_DATA -> CORRECTED_DATA
-logger.info('Amp/ph Leak correction...')
-MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  cor.parmdb=cal-leak.h5 \
-        cor.correction=fulljones cor.soltab=[amplitudeD,phaseD]', log='$nameMS_corLEAK.log', commandType="DPPP")
+## Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+#logger.info('BL-smooth...')
+#MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python', maxThreads=10)
+#
+## Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#logger.info('Calibrating LEAK...')
+## TEST leak
+#MSs.run('/home/baq1889/opt/src/DP3-leak/build/DPPP/DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/leak-new.h5 sol.mode=fulljones sol.sourcedb=calib-simple.skydb sol.leakageconstraint=true', log='$nameMS_solLEAK.log', commandType="DPPP")
+#MSs.run('/home/baq1889/opt/src/DP3-leak/build/DPPP/DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/leak-old.h5 sol.mode=fulljones sol.sourcedb=calib-simple.skydb sol.leakageconstraint=false', log='$nameMS_solLEAK.log', commandType="DPPP")
+#
+#lib_util.run_losoto(s, 'leak-new', [ms+'/leak-new.h5' for ms in MSs.getListStr()], \
+#        [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-leak.parset'])
+#lib_util.run_losoto(s, 'leak-old', [ms+'/leak-old.h5' for ms in MSs.getListStr()], \
+#        [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-leak.parset'])
+#
+#sys.exit()
+#
+### TODO: fix for DPPP to apply fulljones
+##os.system('losoto -d sol000/amplitude000 cal-leak.h5')
+##os.system('losoto -V cal-leak.h5 ~/scripts/LiLF/parsets/LOFAR_cal/losoto-leakfix.parset')
+#
+## Correct amp LEAK CORRECTED_DATA -> CORRECTED_DATA
+#logger.info('Amp/ph Leak correction...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  cor.parmdb=cal-leak.h5 \
+#        cor.correction=fulljones cor.soltab=[amplitudeD,phaseD]', log='$nameMS_corLEAK.log', commandType="DPPP")
 
 ######################################################
 # 4: find BP
