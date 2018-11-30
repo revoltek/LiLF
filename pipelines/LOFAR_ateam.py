@@ -226,6 +226,4 @@ for c in xrange(10):
             log='wscleanSUB-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
-    sys.exit()
-
 logger.info("Done.")
