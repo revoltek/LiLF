@@ -63,7 +63,7 @@ logger.info('Copy data...')
 for MS in MSs.getListObj():
     if os.path.exists(MS.nameMS+'.MS'): continue
     s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MS.nameMS+'.MS msin.datacolumn=DATA avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time), \
-                            log=MS.nameMS+'_avg.log', commandType='DPPP')
+            log=MS.nameMS+'_avg.log', commandType='DPPP')
 s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
@@ -78,16 +78,16 @@ logger.info('Flagging...')
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
             log='$nameMS_flag.log', commandType='DPPP')
 
-## predict to save time MODEL_DATA
-#if os.path.exists('/home/fdg/scripts/model/AteamLBA/'+patch+'/img-MFS-model.fits'):
-#    logger.info('Predict (wsclean)...')
-#    s.add('wsclean -predict -name /home/fdg/scripts/model/AteamLBA/'+patch+'/img -mem 90 -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
-#          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
-#    s.run(check=True)
-#else:
-#    logger.info('Predict (DPPP)...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
-#
+# predict to save time MODEL_DATA
+if os.path.exists('/home/fdg/scripts/model/AteamLBA/'+patch+'/img-MFS-model.fits'):
+    logger.info('Predict (wsclean)...')
+    s.add('wsclean -predict -name /home/fdg/scripts/model/AteamLBA/'+patch+'/img -mem 90 -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
+          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
+    s.run(check=True)
+else:
+    logger.info('Predict (DPPP)...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
+
 ## backup
 #os.path.mkdirs('bkp-after-model')
 #os.system('cp -r *MS bkp-after-model')
