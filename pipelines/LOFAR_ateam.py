@@ -69,12 +69,6 @@ logger.info('Flagging...')
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
             log='$nameMS_flag.log', commandType='DPPP')
 
-<<<<<<< HEAD
-# predict to save time MODEL_DATA
-if os.path.exists('/home/fdg/scripts/model/AteamLBA/'+patch+'/img-MFS-model.fits'):
-    logger.info('Predict (wsclean)...')
-    s.add('wsclean -predict -name /home/fdg/scripts/model/AteamLBA/'+patch+'/img -mem 90 -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
-=======
 ## predict to save time MODEL_DATA
 if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
@@ -82,7 +76,6 @@ else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 if not hba and os.path.exists(model_dir+'/img-MFS-model.fits'):
     logger.info('Predict (wsclean)...')
     s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
->>>>>>> 53e613a5237a14f2c0a0a7ba1e0576a0b85d956a
           log='wscleanPRE-init.log', commandType='wsclean', processors='max')
     s.run(check=True)
 else:
