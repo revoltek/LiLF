@@ -11,27 +11,14 @@ import pyrap.tables as pt
 if 'Vir' in os.getcwd():
     patch = 'VirA'
     nouseblrange = '[0..30]'
-elif 'VirA2015' in os.getcwd():
-    patch = 'VirA'
-    datadir = '/home/fdg/lofar2/LOFAR/Ateam_LBA/VirA/tgts2015-bkp'
-    nouseblrange = '[0..30]'
-elif 'VirA2017' in os.getcwd():
-    patch = 'VirA'
-    datadir = '/home/fdg/lofar2/LOFAR/Ateam_LBA/VirA/tgts2017-bkp'
-    nouseblrange = '[0..30]'
 elif 'Tau' in os.getcwd():
     patch = 'TauA'
-    datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/TauA/tgts-bkp'
     nouseblrange = '[500..5000]'
 elif 'Cas' in os.getcwd():
     patch = 'CasA'
-    datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/CasA/tgts1-bkp'
-    #datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/CasA/tgts2-bkp'
     nouseblrange = '[15000..1e30]'
 elif 'Cyg' in os.getcwd():
     patch = 'CygA'
-    datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/CygA/tgts1-bkp'
-    #datadir='/home/fdg/lofar2/LOFAR/Ateam_LBA/CygA/tgts2-bkp'
     nouseblrange = '[15000..1e30]'
 
 skymodel = '/home/fdg/scripts/model/A-team_4_CC.skydb'
@@ -53,6 +40,10 @@ lib_util.check_rm('img')
 os.makedirs('img')
 mss = sorted(glob.glob(data_dir+'/*MS'))
 MSs = lib_ms.AllMSs( mss, s )
+
+# HBA/LBA
+if min(MSs.getFreqs()) < 80.e6: hba = True
+else: hba = False
 
 # copy data (avg to 1ch/sb and 10 sec)
 nchan = MSs.getListObj()[0].getNchan()
@@ -79,15 +70,18 @@ MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=
             log='$nameMS_flag.log', commandType='DPPP')
 
 ## predict to save time MODEL_DATA
-#if os.path.exists('/home/fdg/scripts/model/AteamLBA/'+patch+'/img-MFS-model.fits'):
-#    logger.info('Predict (wsclean)...')
-#    s.add('wsclean -predict -name /home/fdg/scripts/model/AteamLBA/'+patch+'/img -mem 90 -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
-#          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
-#    s.run(check=True)
-#else:
-#    logger.info('Predict (DPPP)...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
-#
+if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
+else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
+
+if not hba and os.path.exists(model_dir+'/img-MFS-model.fits'):
+    logger.info('Predict (wsclean)...')
+    s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
+          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
+    s.run(check=True)
+else:
+    logger.info('Predict (DPPP)...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
+
 ## backup
 #os.path.mkdirs('bkp-after-model')
 #os.system('cp -r *MS bkp-after-model')
@@ -162,7 +156,7 @@ for c in xrange(10):
 
     # Correct BP CORRECTED_DATA -> CORRECTED_DATA
     logger.info('BP correction...')
-    if c == 0:
+    if c == 0 and not hba:
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitudeSmooth000', \
                 log='$nameMS_corAMP4.log', commandType='DPPP')
     else:
@@ -171,7 +165,7 @@ for c in xrange(10):
  
     # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
-    if c == 0:
+    if c == 0 and not hba:
         MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam4.log', commandType='DPPP')
     else:
         MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=False', log='$nameMS_beam4.log', commandType='DPPP')
@@ -225,7 +219,5 @@ for c in xrange(10):
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wscleanSUB-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
-
-    sys.exit()
 
 logger.info("Done.")
