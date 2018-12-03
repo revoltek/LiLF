@@ -106,7 +106,7 @@ MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
 
-#sys.exit()
+#sys.exit() # for DDFacet
 
 # Create time-chunks
 logger.info('Splitting in time...')
