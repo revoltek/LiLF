@@ -16,6 +16,12 @@ soltab = sol000/amplitudeSmooth000
 axesToSmooth = [time]
 mode = median
 
+[smooth2]
+operation = SMOOTH
+soltab = sol000/amplitudeSmooth000
+axesToSmooth = [ant]
+mode = median
+
 [plotAs]
 operation = PLOT
 soltab = sol000/amplitudeSmooth000

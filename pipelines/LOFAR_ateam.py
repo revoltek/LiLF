@@ -53,7 +53,7 @@ logger.info('Copy data...')
 for MS in MSs.getListObj():
     if os.path.exists(MS.nameMS+'.MS'): continue
     s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MS.nameMS+'.MS msin.datacolumn=DATA avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time), \
-                            log=MS.nameMS+'_avg.log', commandType='DPPP')
+            log=MS.nameMS+'_avg.log', commandType='DPPP')
 s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )

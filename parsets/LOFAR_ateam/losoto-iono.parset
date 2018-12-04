@@ -29,9 +29,24 @@ operation = PLOT
 soltab = sol000/amplitude000
 axesInPlot = [time,freq]
 axisInTable = ant
-plotFlag = True
 prefix = plots/amp_
 minmax = [0.5,2]
+
+# TEST
+[smooth]
+operation = SMOOTH
+soltab = sol000/amplitude000
+axesToSmooth = [ant]
+mode = median
+
+[plotAiS]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/amp_
+minmax = [0.5,2]
+# END TEST
 
 [duplicatePbkp]
 operation = DUPLICATE
