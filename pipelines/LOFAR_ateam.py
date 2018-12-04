@@ -7,7 +7,6 @@ import sys, os, glob, re
 import numpy as np
 import pyrap.tables as pt
 
-# Temporary!
 if 'Vir' in os.getcwd():
     patch = 'VirA'
     nouseblrange = '[0..30]'
@@ -63,17 +62,21 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 #logger.info("Put data to Jy...")
 #MSs.run('taql "update $pathMS set DATA = 1e2*DATA"', log='$nameMS_taql.log', commandType='general')
 
+# Create columns (non compressed)
+logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
+MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES', log='$nameMS_addcol.log', commandType='python')
+
 ########################################################   
 # flag bad stations, and low-elev
 logger.info('Flagging...')
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
             log='$nameMS_flag.log', commandType='DPPP')
 
-## predict to save time MODEL_DATA
+# predict to save time MODEL_DATA
 if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 
-if not hba and os.path.exists(model_dir+'/img-MFS-model.fits'):
+if os.path.exists(model_dir):
     logger.info('Predict (wsclean)...')
     s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
           log='wscleanPRE-init.log', commandType='wsclean', processors='max')
@@ -81,10 +84,6 @@ if not hba and os.path.exists(model_dir+'/img-MFS-model.fits'):
 else:
     logger.info('Predict (DPPP)...')
     MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
-
-## backup
-#os.path.mkdirs('bkp-after-model')
-#os.system('cp -r *MS bkp-after-model')
 
 for c in xrange(10):
 
@@ -198,6 +197,16 @@ for c in xrange(10):
             -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
+
+    elif patch == 'VirA' and hba:
+        s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
+            -scale 1arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -multiscale -multiscale-scales 0,4,8,16,32,64 \
+            -auto-threshold 0.001\
+            -use-idg \
+            -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
+            log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
+
     else:
         s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 1500 1500 -j '+str(s.max_processors)+' \
             -scale 2arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
@@ -206,18 +215,26 @@ for c in xrange(10):
             -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
+ 
     s.run(check = True)
 
     logger.info('Sub model...')
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql.log', commandType='general')
+    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
+    logger.info('Copy MODEL_DATA...')
+    MSs.run('taql "update $pathMS set MODEL_DATA_HIGHRES = MODEL_DATA"', log='$nameMS_taql2.log', commandType='general')
 
     logger.info('Cleaning sub (cycle %i)...' % c)
     imagename = 'img/imgsub-c'+str(c)
     s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' -baseline-averaging 5 \
-            -scale 15arcsec -weight briggs 0.5 -taper-gaussian 80arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -scale 15arcsec -weight briggs -1.0 -taper-gaussian 80arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16 \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wscleanSUB-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
+
+    logger.info('Combining MODEL_DATA_HIGHRES and MODEL_DATA...')
+    MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA_HIGHRES + MODEL_DATA"', log='$nameMS_taql3.log', commandType='general')
+
+    # TODO: add rescale model
 
 logger.info("Done.")

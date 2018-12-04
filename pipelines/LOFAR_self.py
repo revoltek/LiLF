@@ -243,7 +243,7 @@ for c in xrange(0, niter):
     imagename = 'img/wide-'+str(c)
     s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
             -scale 10arcsec -weight briggs 0.0 -niter 100000 -update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
-            -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
+            -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,4,16 \
             -auto-threshold 20 \
             -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors='max')
@@ -257,7 +257,7 @@ for c in xrange(0, niter):
     #imagename = 'img/wideM-'+str(c)
     s.add('wsclean -continue -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
             -scale 10arcsec -weight briggs 0.0 -niter 1000000 -update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
-            -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
+            -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,4,16 \
             -auto-threshold 0.1 -fits-mask '+im.maskname+' \
             -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
             log='wscleanM-c'+str(c)+'.log', commandType='wsclean', processors='max')
