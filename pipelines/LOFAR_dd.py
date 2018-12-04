@@ -36,7 +36,7 @@ os.makedirs('ddcal/plots')
 os.makedirs('ddcal/images')
 os.makedirs('ddcal/skymodels')
 
-def clean(p, MSs, size=2.):
+def clean(p, MSs, size=2., apply_beam=False):
     """
     p = patch name
     mss = list of mss to clean
@@ -53,19 +53,22 @@ def clean(p, MSs, size=2.):
 
     logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
 
+    if apply_beam: idg_parms = '-use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400'
+    else: idg_params = '-use-idg'
+
     # clean 1
     logger.info('Cleaning ('+str(p)+')...')
     imagename = 'img/ddcal-'+str(p)
     s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' -j '+str(s.max_processors)+' \
-            -scale '+str(pixscale)+'arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -auto-threshold 20 \
-            -use-idg \
-            -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
+            -scale '+str(pixscale)+'arcsec -weight briggs -0.5 -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -auto-threshold 20 '+idg_parms+' \
+            -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
             log='wsclean-'+str(p)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
+    os.system('mv %s %s' % (im.skymodel, im.skymodel+'-first') ) # copy the source list
     im.makeMask(threshisl = 3)
 
     # clean 2
@@ -73,14 +76,16 @@ def clean(p, MSs, size=2.):
     #-auto-mask 3 -rms-background-window 40 -rms-background-method rms-with-min \
     logger.info('Cleaning w/ mask ('+str(p)+')...')
     imagename = 'img/ddcalM-'+str(p)
-    s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' -j '+str(s.max_processors)+' \
-            -scale '+str(pixscale)+'arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -auto-threshold 0.1 -fits-mask '+im.maskname+' \
-            -use-idg -grid-with-beam -use-differential-lofar-beam -idg-mode cpu -beam-aterm-update 400 \
+    s.add('wsclean -continue -reorder -temp-dir /dev/shm -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' -j '+str(s.max_processors)+' \
+            -scale '+str(pixscale)+'arcsec -weight briggs -0.5 -niter 1000000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -auto-threshold 0.1 -fits-mask '+im.maskname+' '+idg_parms+' \
             -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
             log='wscleanM-'+str(p)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
     os.system('cat logs/wscleanM-'+str(p)+'.log | grep "background noise"')
+
+    os.system('grep -v \'^Format\' %s >> %s' % (im.skymodel+'-first', im.skymodel) ) # merge the source lists
+    lib_util.check_rm(im.skymodel+'-first')
 
     return imagename
 
@@ -101,7 +106,7 @@ logger.info('BL-based smoothing...')
 MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
 
 # setup initial model
-mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
+mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wide-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
 mosaic_image.selectCC()
 rms_noise_pre = np.inf
 
@@ -203,7 +208,7 @@ for c in xrange(maxniter):
                 log='$nameMS_shift-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
         
         logger.info('Patch '+p+': imaging...')
-        clean(p, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[i])
+        clean(p, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[i], apply_beam = c==maxniter )
 
     ##############################################################
     # Mosaiching
@@ -229,7 +234,7 @@ for c in xrange(maxniter):
     # prepare new skymodel
     skymodels = []
     for image in images:
-        image.select_cc()
+        image.select_cc() # restrict to facet
         skymodels.append(image.skymodel_cut)
     lsm = lsmtool.load(skymodels[0])
     for skymodel in skymodels[1:]:

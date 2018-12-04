@@ -239,6 +239,7 @@ for c in xrange(0, niter):
 
 
     # clean mask clean (cut at 5k lambda)
+    # TODO: how to use IDG? Maybe in SSD?
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wide-'+str(c)
     s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
