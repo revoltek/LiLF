@@ -8,7 +8,7 @@ axesInPlot = time
 axisInTable = ant
 plotFlag = True
 prefix = plots/rot_
-refAnt = 'CS002LBA'
+#refAnt = 'CS002LBA'
 minmax = [-1.6,1.6]
 NColFig = 4
 figSize = [20,20]
@@ -21,7 +21,7 @@ axesInPlot = freq
 axisInTable = ant
 plotFlag = True
 prefix = plots/rot_
-refAnt = 'CS002LBA'
+#refAnt = 'CS002LBA'
 minmax = [-1.6,1.6]
 
 [plotRot3]
@@ -31,5 +31,5 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/rot
-refAnt = 'CS002LBA'
+#refAnt = 'CS002LBA'
 minmax = [-1.6,1.6]
