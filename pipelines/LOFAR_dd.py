@@ -75,7 +75,6 @@ def clean(p, MSs, size=2., apply_beam=False):
     #-multiscale -multiscale-scale-bias 0.5 \
     #-auto-mask 3 -rms-background-window 40 -rms-background-method rms-with-min \
     logger.info('Cleaning w/ mask ('+str(p)+')...')
-    imagename = 'img/ddcalM-'+str(p)
     s.add('wsclean -continue -reorder -temp-dir /dev/shm -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' -j '+str(s.max_processors)+' \
             -scale '+str(pixscale)+'arcsec -weight briggs -0.5 -niter 1000000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -auto-threshold 0.1 -fits-mask '+im.maskname+' '+idg_parms+' \
