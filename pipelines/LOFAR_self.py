@@ -242,7 +242,8 @@ for c in xrange(0, niter):
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wide-'+str(c)
     s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
-            -scale 10arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
+            -scale 10arcsec -weight briggs 0.0 -niter 100000 -update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
+            -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,4,16 \
             -auto-threshold 20 \
             -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors='max')
@@ -253,10 +254,10 @@ for c in xrange(0, niter):
     im.makeMask(threshisl = 3)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
-    imagename = 'img/wideM-'+str(c)
-    s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
-            -scale 10arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
-            -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
+    #imagename = 'img/wideM-'+str(c)
+    s.add('wsclean -continue -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
+            -scale 10arcsec -weight briggs 0.0 -niter 1000000 -update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
+            -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,4,16 \
             -auto-threshold 0.1 -fits-mask '+im.maskname+' \
             -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
             log='wscleanM-c'+str(c)+'.log', commandType='wsclean', processors='max')
@@ -264,13 +265,13 @@ for c in xrange(0, niter):
     os.system('cat logs/wscleanM-c'+str(c)+'.log | grep "background noise"')
 
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
-    im.selectCC(keepInBeam=True)
+    #im.selectCC(keepInBeam=True)
 
     # predict
-    logger.info('Predict (ft)...')
-    if c != niter:
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
-                log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+    #logger.info('Predict (ft)...')
+    #if c != niter:
+    #    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
+    #            log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
 
     if c == 1:
         # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
@@ -312,8 +313,8 @@ for c in xrange(0, niter):
     #MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', log='$nameMS_flag-c'+str(c)+'.log', commandType='DPPP')
     
 # Copy images
-[ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in xrange(niter) ]
-[ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in xrange(niter) ]
+[ os.system('mv img/wide-'+str(c)+'-MFS-image.fits self/images') for c in xrange(niter) ]
+[ os.system('mv img/wide-'+str(c)+'-sources.txt self/images') for c in xrange(niter) ]
 os.system('mv img/wide-lr-MFS-image.fits self/images')
 os.system('mv img/wideBeam-MFS-image.fits  img/wideBeam-MFS-image-pb.fits self/images')
 os.system('mv img/wideBeamHR-MFS-image.fits  img/wideBeamHR-MFS-image-pb.fits self/images')
