@@ -41,8 +41,8 @@ mss = sorted(glob.glob(data_dir+'/*MS'))
 MSs = lib_ms.AllMSs( mss, s )
 
 # HBA/LBA
-if min(MSs.getFreqs()) < 80.e6: hba = True
-else: hba = False
+if min(MSs.getFreqs()) < 80.e6: hba = False
+else: hba = True
 
 # copy data (avg to 1ch/sb and 10 sec)
 nchan = MSs.getListObj()[0].getNchan()
@@ -62,6 +62,7 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 #logger.info("Put data to Jy...")
 #MSs.run('taql "update $pathMS set DATA = 1e2*DATA"', log='$nameMS_taql.log', commandType='general')
 
+#######################################################   
 # Create columns (non compressed)
 logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
 MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES', log='$nameMS_addcol.log', commandType='python')
@@ -76,7 +77,7 @@ MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=
 if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 
-if os.path.exists(model_dir):
+if os.path.exists(model_dir+'/img-MFS-model.fits'):
     logger.info('Predict (wsclean)...')
     s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
           log='wscleanPRE-init.log', commandType='wsclean', processors='max')
@@ -194,7 +195,6 @@ for c in xrange(10):
             -scale 1arcsec -weight uniform -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
             -auto-threshold 0.005\
-            -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
 
@@ -212,7 +212,6 @@ for c in xrange(10):
             -scale 2arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
             -auto-threshold 0.005\
-            -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
  
