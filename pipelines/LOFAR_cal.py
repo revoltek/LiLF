@@ -226,7 +226,6 @@ if imaging:
     logger.info('Flag...')
     MSs.run('DPPP '+parset_dir+'/DPPP-flag2.parset msin=$pathMS', log='$nameMS_flag2.log', commandType='DPPP')
 
-
     lib_util.check_rm('img')
     os.makedirs('img')
 

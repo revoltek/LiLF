@@ -25,6 +25,11 @@ mode = median
 #axesToSmooth = [ant]
 #mode = median
 
+[BPflag]
+operation = FLAGSTATION
+soltab = sol000/amplitudeSmooth
+mode = bandpass
+
 [plotAs]
 operation = PLOT
 soltab = sol000/amplitudeSmooth

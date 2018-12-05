@@ -86,7 +86,7 @@ else:
     logger.info('Predict (DPPP)...')
     MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
 
-for c in xrange(10):
+for c in xrange(100):
 
     ####################################################
     # 1: find PA and remove it
@@ -195,12 +195,19 @@ for c in xrange(10):
             -scale 1arcsec -weight uniform -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
             -auto-threshold 0.005\
+            -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
 
     elif patch == 'VirA' and hba:
         s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
-            -scale 1arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -scale 1arcsec -weight briggs -1. -niter 1000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -auto-threshold 0.001\
+            -use-idg \
+            -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
+            log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
+        s.add('wsclean -continue -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
+            -scale 1arcsec -weight briggs -1. -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32,64 \
             -auto-threshold 0.001\
             -use-idg \
@@ -212,10 +219,13 @@ for c in xrange(10):
             -scale 2arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
             -auto-threshold 0.005\
+            -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
  
     s.run(check = True)
+
+    # TODO: add rescale model - find the rescaling value from M87 and then apply it to the entire model
 
     logger.info('Sub model...')
     MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
@@ -224,16 +234,15 @@ for c in xrange(10):
 
     logger.info('Cleaning sub (cycle %i)...' % c)
     imagename = 'img/imgsub-c'+str(c)
-    s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' -baseline-averaging 5 \
-            -scale 15arcsec -weight briggs -1.0 -taper-gaussian 80arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+    s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
+            -scale 15arcsec -weight briggs -1.0 -taper-gaussian 80arcsec -niter 10000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16 \
-            -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
+            -use-idg \
+            -join-channels -fit-spectral-pol 2 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wscleanSUB-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
     logger.info('Combining MODEL_DATA_HIGHRES and MODEL_DATA...')
     MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA_HIGHRES + MODEL_DATA"', log='$nameMS_taql3.log', commandType='general')
-
-    # TODO: add rescale model
 
 logger.info("Done.")
