@@ -42,8 +42,8 @@ mss = sorted(glob.glob(data_dir+'/*MS'))
 MSs = lib_ms.AllMSs( mss, s )
 
 # HBA/LBA
-if min(MSs.getFreqs()) < 80.e6: hba = True
-else: hba = False
+if min(MSs.getFreqs()) < 80.e6: hba = False
+else: hba = True
 
 # copy data (avg to 1ch/sb and 10 sec)
 nchan = MSs.getListObj()[0].getNchan()
@@ -63,17 +63,18 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 #logger.info("Put data to Jy...")
 #MSs.run('taql "update $pathMS set DATA = 1e2*DATA"', log='$nameMS_taql.log', commandType='general')
 
-########################################################   
+#######################################################   
 # flag bad stations, and low-elev
 logger.info('Flagging...')
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
             log='$nameMS_flag.log', commandType='DPPP')
 
-## predict to save time MODEL_DATA
+# predict to save time MODEL_DATA
 if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 
-if not hba and os.path.exists(model_dir+'/img-MFS-model.fits'):
+print model_dir+'/img-MFS-model.fits'
+if os.path.exists(model_dir+'/img-MFS-model.fits'):
     logger.info('Predict (wsclean)...')
     s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
           log='wscleanPRE-init.log', commandType='wsclean', processors='max')
@@ -191,19 +192,17 @@ for c in xrange(10):
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
-        s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
+        s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' -baseline-averaging 5 \
             -scale 1arcsec -weight uniform -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
             -auto-threshold 0.005\
-            -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
     else:
-        s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 1500 1500 -j '+str(s.max_processors)+' \
+        s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 1500 1500 -j '+str(s.max_processors)+' -baseline-averaging 5 \
             -scale 2arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
             -auto-threshold 0.005\
-            -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
     s.run(check = True)
