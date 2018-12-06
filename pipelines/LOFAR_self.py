@@ -112,7 +112,6 @@ for c in xrange(0, niter):
     MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
-    # TODO: add maxproc dividing N_cpu by number of mss
     logger.info('Solving TEC...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
@@ -131,9 +130,10 @@ for c in xrange(0, niter):
     # Faraday rotation correction
     if c >= 1:
 
-#        # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
-#        logger.info('Convert to circular...')
-#        MSs.run('/home/fdg/scripts/mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
+        # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
+        logger.info('Convert to circular...')
+        MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', \
+                log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
  
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
@@ -141,17 +141,19 @@ for c in xrange(0, niter):
 
         # Solve G SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Solving G...')
-        MSs.run('DPPP ' + parset_dir + '/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal \
-                     sol.solint=30 sol.nchan=8', log='$nameMS_solFR.log', commandType="DPPP")
+        #MSs.run('DPPP ' + parset_dir + '/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal sol.solint=30 sol.nchan=8 \
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5 sol.solint=30 sol.nchan=8', \
+                     log='$nameMS_solFR.log', commandType="DPPP")
 
-        lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-fr.parset'])
+        #lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-fr.parset'])
+        lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-fr.parset'])
         os.system('mv plots-fr'+str(c)+'* self/solutions/')
         os.system('mv cal-fr'+str(c)+'*.h5 self/solutions/')
        
-#        # To linear - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (linear)
-#        logger.info('Convert to linear...')
-#        MSs.run('/home/fdg/scripts/mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', \
-#                log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
+        # To linear - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (linear)
+        logger.info('Convert to linear...')
+        MSs.run('/home/fdg/scripts/mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', \
+                log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
         
         # Correct FR SB.MS:(SUBTRACTED_)DATA -> CORRECTED_DATA
         logger.info('Faraday rotation correction...')

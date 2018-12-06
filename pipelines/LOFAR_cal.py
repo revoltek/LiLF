@@ -34,10 +34,6 @@ logger.info('Copy data...')
 for MS in MSs.getListObj():
     MS.move(MS.nameMS+'.MS', keepOrig=True)
 
-## TEST HBA
-##logger.warning('Copy data HBA...')
-##MSs.run("DPPP DPPP-avg.parset msin=$pathMS msout=$nameMS.MS avg.freqstep=5", log="$nameMS_avg.log", commandType="DPPP")
-
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 calname = MSs.getListObj()[0].getNameField()
 obsmode = MSs.getListObj()[0].getObsMode()
@@ -209,9 +205,6 @@ if 'survey' in os.getcwd():
 if imaging:
     logger.info("Imaging section:")
 
-    #if 'bootes2' in os.getcwd():
-    #    fourth = int(len(glob.glob('./*MS'))/4.)
-    #    MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[1*fourth:3*fourth], s ) # keep only mid band
     if iono3rd:
         MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[int(len(glob.glob('./*MS'))/2.):], s ) # keep only upper band
 

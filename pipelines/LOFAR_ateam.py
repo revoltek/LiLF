@@ -194,38 +194,35 @@ for c in xrange(100):
         s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
             -scale 1arcsec -weight uniform -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
-            -auto-threshold 0.005\
             -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
-
+        s.run(check = True)
     elif patch == 'VirA' and hba:
         s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
             -scale 1arcsec -weight briggs -1. -niter 1000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -auto-threshold 0.001\
             -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
+        s.run(check = True)
         s.add('wsclean -continue -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
             -scale 1arcsec -weight briggs -1. -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32,64 \
-            -auto-threshold 0.001\
             -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
-            log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
-
+            log='wscleanB-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
+        s.run(check = True)
     else:
         s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 1500 1500 -j '+str(s.max_processors)+' \
             -scale 2arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
-            -auto-threshold 0.005\
             -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
- 
-    s.run(check = True)
+        s.run(check = True)
 
     # TODO: add rescale model - find the rescaling value from M87 and then apply it to the entire model
+    # at that point we can add -auto-threshold 0.00x to the cleaning
 
     logger.info('Sub model...')
     MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
