@@ -38,8 +38,10 @@ class Image(object):
                 flux = funct_flux(nu)
                 current_flux = np.sum(data)
                 # rescale data
-                data *= flux/current_flux
+                scaling_facotr = flux/current_flux
+                data *= scaling_factor
                 fits[0].data = data
+                logging.debug('Rescaling model %s by: %f' % (model_img, scaling_factor))
 
     def makeMask(self, threshisl=5):
         """
