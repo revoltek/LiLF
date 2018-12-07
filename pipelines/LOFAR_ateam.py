@@ -224,22 +224,22 @@ for c in xrange(100):
     # TODO: add rescale model - find the rescaling value from M87 and then apply it to the entire model
     # at that point we can add -auto-threshold 0.00x to the cleaning
 
-    logger.info('Sub model...')
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
-    logger.info('Copy MODEL_DATA...')
-    MSs.run('taql "update $pathMS set MODEL_DATA_HIGHRES = MODEL_DATA"', log='$nameMS_taql2.log', commandType='general')
+    #logger.info('Sub model...')
+    #MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
+    #logger.info('Copy MODEL_DATA...')
+    #MSs.run('taql "update $pathMS set MODEL_DATA_HIGHRES = MODEL_DATA"', log='$nameMS_taql2.log', commandType='general')
 
     logger.info('Cleaning sub (cycle %i)...' % c)
     imagename = 'img/imgsub-c'+str(c)
     s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
-            -scale 15arcsec -weight briggs -1.0 -taper-gaussian 80arcsec -niter 10000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -scale 15arcsec -weight briggs -1.0 -taper-gaussian 80arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16 \
             -use-idg \
             -join-channels -fit-spectral-pol 2 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wscleanSUB-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
-    logger.info('Combining MODEL_DATA_HIGHRES and MODEL_DATA...')
-    MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA_HIGHRES + MODEL_DATA"', log='$nameMS_taql3.log', commandType='general')
+    #logger.info('Combining MODEL_DATA_HIGHRES and MODEL_DATA...')
+    #MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA_HIGHRES + MODEL_DATA"', log='$nameMS_taql3.log', commandType='general')
 
 logger.info("Done.")
