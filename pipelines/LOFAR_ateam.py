@@ -10,15 +10,19 @@ import pyrap.tables as pt
 if 'Vir' in os.getcwd():
     patch = 'VirA'
     nouseblrange = '[0..30]'
+    f = lambda nu: 1226. * 10**(-0.79 * (np.log10(nu/150.e6))**1)
 elif 'Tau' in os.getcwd():
     patch = 'TauA'
     nouseblrange = '[500..5000]'
+    f = lambda nu: 1838. * 10**(-0.299 * (np.log10(nu/150.e6))**1)
 elif 'Cas' in os.getcwd():
     patch = 'CasA'
     nouseblrange = '[15000..1e30]'
+    f = lambda nu: 11733. * 10**(-0.77 * (np.log10(nu/150.e6))**1)
 elif 'Cyg' in os.getcwd():
     patch = 'CygA'
     nouseblrange = '[15000..1e30]'
+    f = lambda nu: 10690. * 10**(-0.67 * (np.log10(nu/150.e6))**1) * 10**(-0.204 * (np.log10(nu/150.e6))**2) * 10**(-0.021 * (np.log10(nu/150.e6))**3)
 
 skymodel = '/home/fdg/scripts/model/A-team_4_CC.skydb'
 
@@ -221,11 +225,8 @@ for c in xrange(100):
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
         s.run(check = True)
 
-    # TODO: add rescale model - find the rescaling value from M87 and then apply it to the entire model
-    # at that point we can add -auto-threshold 0.00x to the cleaning
-
-    #logger.info('Sub model...')
-    #MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
+    logger.info('Sub model...')
+    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
     #logger.info('Copy MODEL_DATA...')
     #MSs.run('taql "update $pathMS set MODEL_DATA_HIGHRES = MODEL_DATA"', log='$nameMS_taql2.log', commandType='general')
 
@@ -241,5 +242,14 @@ for c in xrange(100):
 
     #logger.info('Combining MODEL_DATA_HIGHRES and MODEL_DATA...')
     #MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA_HIGHRES + MODEL_DATA"', log='$nameMS_taql3.log', commandType='general')
+
+    # TODO add -auto-threshold 0.00x to the cleaning when rescaling is working
+    imagename = 'img/img-c'+str(c)
+    im = lib_img.Image(imagename)
+    im.rescaleModel(f)
+    logger.info('Predict (wsclean)...')
+    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
+          log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+    s.run(check = True)
 
 logger.info("Done.")
