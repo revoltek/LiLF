@@ -28,7 +28,7 @@ class Image(object):
 
         funct_flux: is a function of frequency (Hz) which returns the total expected flux at that frequency.
         """
-        for model_img in glob.glob(self.imagename+'*model*.fits')
+        for model_img in glob.glob(self.imagename+'*model*.fits'):
             with pyfits.open(model_img) as fits:
                 # get frequency
                 assert fits[0].headers['CTYPE3'] == 'FREQ    '

@@ -195,7 +195,7 @@ for c in xrange(100):
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
-        s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
+        s.add('wsclean -reorder -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
             -scale 1arcsec -weight uniform -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
             -use-idg \
@@ -203,13 +203,13 @@ for c in xrange(100):
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
         s.run(check = True)
     elif patch == 'VirA' and hba:
-        s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
+        s.add('wsclean -reorder -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
             -scale 1arcsec -weight briggs -1. -niter 1000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -use-idg \
             -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
         s.run(check = True)
-        s.add('wsclean -continue -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
+        s.add('wsclean -continue -reorder -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
             -scale 1arcsec -weight briggs -1. -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32,64 \
             -use-idg \
@@ -217,7 +217,7 @@ for c in xrange(100):
             log='wscleanB-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
         s.run(check = True)
     else:
-        s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 1500 1500 -j '+str(s.max_processors)+' \
+        s.add('wsclean -reorder -name ' + imagename + ' -size 1500 1500 -j '+str(s.max_processors)+' \
             -scale 2arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
             -use-idg \
@@ -232,7 +232,7 @@ for c in xrange(100):
 
     logger.info('Cleaning sub (cycle %i)...' % c)
     imagename = 'img/imgsub-c'+str(c)
-    s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
+    s.add('wsclean -reorder -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
             -scale 15arcsec -weight briggs -1.0 -taper-gaussian 80arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16 \
             -use-idg \
