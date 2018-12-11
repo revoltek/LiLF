@@ -66,6 +66,7 @@ class Logger():
     def set_logger(self, logfile, log_dir):
       
         logger = logging.getLogger("PiLL")
+        logger.setLevel(logging.DEBUG)
 
         # create file handler which logs even debug messages
         handlerFile = logging.FileHandler(logfile)

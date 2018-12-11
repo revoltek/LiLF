@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, glob
 import numpy as np
 import astropy.io.fits as pyfits
 import lsmtool
@@ -29,19 +29,22 @@ class Image(object):
         funct_flux: is a function of frequency (Hz) which returns the total expected flux at that frequency.
         """
         for model_img in glob.glob(self.imagename+'*model*.fits'):
-            with pyfits.open(model_img) as fits:
-                # get frequency
-                assert fits[0].headers['CTYPE3'] == 'FREQ    '
-                nu = fits[0].headers['CRVAL3']
-                data = fits[0].data
-                # find expected flux
-                flux = funct_flux(nu)
-                current_flux = np.sum(data)
-                # rescale data
-                scaling_facotr = flux/current_flux
-                data *= scaling_factor
-                fits[0].data = data
-                logging.debug('Rescaling model %s by: %f' % (model_img, scaling_factor))
+            fits = pyfits.open(model_img)
+            # get frequency
+            assert fits[0].header['CTYPE3'] == 'FREQ'
+            nu = fits[0].header['CRVAL3']
+            data = fits[0].data
+            # find expected flux
+            flux = funct_flux(nu)
+            current_flux = np.sum(data)
+            # rescale data
+            scaling_factor = flux/current_flux
+            logger.warning('Rescaling model %s by: %f' % (model_img, scaling_factor))
+            data *= scaling_factor
+            fits[0].data = data
+            fits.writeto(model_img, overwrite=True)
+            fits.close()
+
 
     def makeMask(self, threshisl=5):
         """
