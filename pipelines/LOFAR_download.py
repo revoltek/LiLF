@@ -8,7 +8,7 @@ from astropy.time import Time
 
 ##########################################
 from LiLF import lib_ms, lib_util, lib_log
-lib_log.set_logger('pipeline-download.logger')
+lib_log.Logger('pipeline-download.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(dry = False)
 

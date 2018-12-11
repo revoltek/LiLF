@@ -10,7 +10,7 @@ import numpy as np
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
-lib_log.set_logger('pipeline-cal.logger')
+lib_log.Logger('pipeline-cal.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(dry = False)
 
@@ -226,7 +226,7 @@ if imaging:
     elif 'SPARSE' in obsmode: size = 6000
     elif 'OUTER' in obsmode: size = 4000
     else: 
-        logging.error('Observing mode not recognised.')
+        logger.error('Observing mode not recognised.')
         sys.exit(1)
 
     logger.info('Cleaning low-res...')

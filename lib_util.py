@@ -212,6 +212,7 @@ class Scheduler():
         max_processors: max number of processors in a node (ignored if qsub=False)
         """
         self.cluster = self.get_cluster()
+        self.log_dir = log_dir
         self.qsub    = qsub
         # if qsub/max_thread/max_processors not set, guess from the cluster
         # if they are set, double check number are reasonable
@@ -248,16 +249,6 @@ class Scheduler():
 
         self.action_list = []
         self.log_list    = [] # list of 2-tuples of the type: (log filename, type of action)
-
-        # bkp old log dir
-        if os.path.isdir(log_dir):
-            current_time = time.localtime()
-            log_dir_old = time.strftime('logs_bkp_%Y_%b_%d_%H:%M:%S', current_time)
-            os.system('mv %s %s' % ( log_dir, log_dir_old ))
-
-        logger.info("Creating log dir '" + log_dir + "'.")
-        os.makedirs(log_dir)
-        self.log_dir = log_dir
 
 
     def get_cluster(self):

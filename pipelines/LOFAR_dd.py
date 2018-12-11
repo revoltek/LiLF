@@ -10,7 +10,7 @@ import lsmtool
 
 #######################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd
-lib_log.set_logger('pipeline-dd.logger')
+lib_log.Logger('pipeline-dd.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(dry = False)
 
@@ -169,8 +169,12 @@ for c in xrange(maxniter):
     lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
     os.system('mv plots-c'+str(c)+'* ddcal/plots')
 
-   ###########################################################
-   # Empty the dataset
+    ##############################################################
+    # low S/N DIE corrections
+    # TODO: add amp and FR sol + correction here after ft() a DDE-corrupted model
+
+    ###########################################################
+    # Empty the dataset
     logger.info('Set SUBTRACTED_DATA = DATA...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
 

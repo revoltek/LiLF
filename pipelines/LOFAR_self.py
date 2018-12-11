@@ -32,7 +32,7 @@ if 'LBAsurvey' in os.getcwd():
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
-lib_log.set_logger('pipeline-self.logger')
+lib_log.Logger('pipeline-self.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(dry = False)
 
@@ -70,7 +70,7 @@ if 'INNER' in obsmode: size = 6000
 elif 'SPARSE' in obsmode: size = 4500
 elif 'OUTER' in obsmode: size = 3000
 else: 
-    logging.error('Observing mode not recognised.')
+    logger.error('Observing mode not recognised.')
     sys.exit(1)
 
 # wsclean temp-dir

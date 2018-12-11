@@ -7,7 +7,7 @@ from autocal.lib_pipeline import *
 
 ###############################################
 from LiLF import lib_ms, lib_util, lib_log
-logger = lib_log.set_logger('pipeline-demix.logger')
+logger = lib_log.Logger('pipeline-demix.logger')
 s = lib_util.Scheduler(dry=False, max_threads = 4) # set here max number of threads here
 
 # parse parset
