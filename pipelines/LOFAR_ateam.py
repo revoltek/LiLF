@@ -240,7 +240,7 @@ for c in xrange(100):
     logger.info('Cleaning sub (cycle %i)...' % c)
     imagename = 'img/imgsub-c'+str(c)
     s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
-            -scale 15arcsec -weight briggs -1.0 -taper-gaussian 80arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -scale 15arcsec -weight briggs -0.5 -taper-gaussian 100arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16 \
             -use-idg \
             -join-channels -fit-spectral-pol 2 -channels-out 15 '+MSs.getStrWsclean(), \
