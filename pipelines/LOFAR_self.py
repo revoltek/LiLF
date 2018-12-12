@@ -80,8 +80,7 @@ if sourcedb is None:
         radeg = phasecentre[0]
         decdeg = phasecentre[1]
         # get model ~twice the size of the image (radius=fwhm)
-        os.system('wget -O tgts.skymodel http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f' % (radeg, decdeg, fwhm))
-        print 'wget -O tgts.skymodel http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f' % (radeg, decdeg, fwhm)
+        os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm))
 
     sourcedb = 'tgts.skymodel'
 
