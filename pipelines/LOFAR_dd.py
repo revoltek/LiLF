@@ -122,8 +122,7 @@ for c in xrange(maxniter):
     lsm.group('tessellate', targetFlux='20Jy', root='Dir', applyBeam=False, method = 'wmean', pad_index=True)
     lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
     directions = lsm.getPatchPositions()
-    patches = lsm.getPatchNames()
-    logger.info("Created %i directions." % len(patches))
+    logger.info("Created %i directions." % len(directions))
 
     # write file
     skymodel_cl = 'ddcal/skymodels/skymodel%02i_cluster.txt' % c
@@ -143,7 +142,7 @@ for c in xrange(maxniter):
     lsm.group('facet', facet=mask, root='Dir')
     lsm.setPatchPositions(method='mid') # recalculate the patch centre as mid point for imaging
     directions = lsm.getPatchPositions()
-    sizes = lsm.getPatchSizes(units='degree')
+    sizes = dict(zip(lsm.getPatchNames(), lsm.getPatchSizes(units='degree')))
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
@@ -190,7 +189,7 @@ for c in xrange(maxniter):
     #        log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors='max')
     #s.run(check=True)
 
-    for i, p in enumerate(patches):
+    for patch, phasecentre in directions.iteritems():
 
         # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
         logger.info('Patch '+p+': add back...')
@@ -202,16 +201,16 @@ for c in xrange(maxniter):
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+p+']', \
                log='$nameMS_cor-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
-        logger.info('Patch '+p+': phase shift and avg...')
+        logger.info('Patch '+patch+': phase shift and avg...')
         lib_util.check_rm('mss-dir')
         os.makedirs('mss-dir')
-        phasecentre = directions[p]
         MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=CORRECTED_DATA \
                 shift.phasecenter=['+str(phasecentre[0].degree)+'deg,'+str(phasecentre[1].degree)+'deg\]', \
-                log='$nameMS_shift-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
+                log='$nameMS_shift-c'+str(c)+'-p'+str(patch)+'.log', commandType='DPPP')
         
-        logger.info('Patch '+p+': imaging...')
-        clean(p, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[i], apply_beam = c==maxniter )
+        logger.info('Patch '+patch+': imaging...')
+        clean(p, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[patch], apply_beam = c==maxniter )
+        sys.exit()
 
     ##############################################################
     # Mosaiching
@@ -253,3 +252,4 @@ for c in xrange(maxniter):
     logger.info('RMS noise: %f' % rms_noise)
     if rms_noise > 0.95 * rms_noise_pre: break
     rms_noise_pre = rms_noise
+
