@@ -28,9 +28,9 @@ skymodel = '/home/fdg/scripts/model/A-team_4_CC.skydb'
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
-lib_log.Logger('pipeline-ateam.logger')
+logger_obj = lib_log.Logger('pipeline-ateam.logger')
 logger = lib_log.logger
-s = lib_util.Scheduler(dry = False)
+s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()

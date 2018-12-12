@@ -16,9 +16,9 @@ if 'LBAsurvey' in os.getcwd():
 
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log
-lib_log.Logger('pipeline-timesplit.logger')
+logger_obj = lib_log.Logger('pipeline-timesplit.logger')
 logger = lib_log.logger
-s = lib_util.Scheduler(dry = False)
+s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()

@@ -32,9 +32,9 @@ if 'LBAsurvey' in os.getcwd():
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
-lib_log.Logger('pipeline-self.logger')
+logger_obj = lib_log.Logger('pipeline-self.logger')
 logger = lib_log.logger
-s = lib_util.Scheduler(dry = False)
+s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 parset = lib_util.getParset()
 parset_dir = parset.get('self','parset_dir')
