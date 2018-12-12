@@ -211,7 +211,7 @@ for c in xrange(0, niter):
                 -scale 5arcsec -weight briggs 0. -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
                 -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
                 -auto-mask 10 -auto-threshold 1 \
-                -use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 \
+                -use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 -baseline-averaging 3 \
                 -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
                 log='wscleanBeam-c'+str(c)+'.log', commandType='wsclean', processors='max')
         s.run(check=True)
@@ -222,7 +222,7 @@ for c in xrange(0, niter):
         s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(size*2) + ' ' + str(size*2) + ' -j '+str(s.max_processors)+' \
                 -scale 2.5arcsec -weight uniform -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
                 -auto-mask 10 -auto-threshold 1 \
-                -use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 \
+                -use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 -baseline-averaging 3 \
                 -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
                 log='wscleanBeamHR-c'+str(c)+'.log', commandType='wsclean', processors='max')
         s.run(check=True)
@@ -232,7 +232,7 @@ for c in xrange(0, niter):
         s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(size/5) + ' ' + str(size/5) + ' -j '+str(s.max_processors)+' \
                 -scale 60arcsec -weight briggs 0. -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 1000 -mgain 0.85 -clean-border 1 \
                 -auto-mask 10 -auto-threshold 1 \
-                -use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 \
+                -use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 -baseline-averaging 3 \
                 -pol IUQV \
                 -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
                 log='wscleanBeamLR-c'+str(c)+'.log', commandType='wsclean', processors='max')
@@ -259,7 +259,7 @@ for c in xrange(0, niter):
             -scale 10arcsec -weight briggs 0. -niter 200000 -update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,4,16 \
             -auto-threshold 1 -fits-mask '+im.maskname+' \
-            -use-idg \
+            -use-idg -baseline-averaging 3 \
             -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
             log='wscleanM-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
@@ -278,7 +278,7 @@ for c in xrange(0, niter):
         s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename_lr + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' \
                 -scale 20arcsec -weight briggs 0. -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 2000 -mgain 0.85 -clean-border 1 \
                 -auto-threshold 1 \
-                -use-idg \
+                -use-idg -baseline-averaging 3 \
                 -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
                 log='wsclean-lr.log', commandType='wsclean', processors='max')
         s.run(check=True)

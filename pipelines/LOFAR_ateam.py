@@ -44,14 +44,6 @@ os.makedirs('img')
 mss = sorted(glob.glob(data_dir+'/*MS'))
 MSs = lib_ms.AllMSs( mss, s )
 
-# HBA/LBA
-if min(MSs.getFreqs()) < 80.e6: hba = False
-else: hba = True
-
-# wsclean temp-dir
-temp_dir = '.'
-if s.get_cluster() == 'Hamburg_fat': temp_dir = '/localwork.ssd'
-
 # copy data (avg to 1ch/sb and 10 sec)
 nchan = MSs.getListObj()[0].getNchan()
 timeint = MSs.getListObj()[0].getTimeInt()
@@ -64,7 +56,16 @@ for MS in MSs.getListObj():
             log=MS.nameMS+'_avg.log', commandType='DPPP')
 s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
 
+################################################################
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
+
+# HBA/LBA
+if min(MSs.getFreqs()) < 80.e6: hba = False
+else: hba = True
+
+# wsclean temp-dir
+temp_dir = '.'
+if s.get_cluster() == 'Hamburg_fat': temp_dir = '/localwork.ssd'
 
 # TEST
 #logger.info("Put data to Jy...")
@@ -87,6 +88,8 @@ else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 
 if os.path.exists(model_dir+'/img-MFS-model.fits'):
     logger.info('Predict (wsclean)...')
+    im = lib_img.Image(model_dir+'/img')
+    im.rescaleModel(f)
     s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
           log='wscleanPRE-init.log', commandType='wsclean', processors='max')
     s.run(check=True)
@@ -200,7 +203,7 @@ for c in xrange(100):
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
         s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
-            -scale 1arcsec -weight uniform -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -scale 0.75arcsec -weight uniform -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16,32 \
             -auto-threshold 1 \
             -use-idg \
@@ -234,28 +237,25 @@ for c in xrange(100):
 
     logger.info('Sub model...')
     MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
-    #logger.info('Copy MODEL_DATA...')
-    #MSs.run('taql "update $pathMS set MODEL_DATA_HIGHRES = MODEL_DATA"', log='$nameMS_taql2.log', commandType='general')
 
     logger.info('Cleaning sub (cycle %i)...' % c)
     imagename = 'img/imgsub-c'+str(c)
     s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
             -scale 15arcsec -weight briggs -1.0 -taper-gaussian 80arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scales 0,4,8,16 \
-            -use-idg \
+            -use-idg -baseline-averaging 5 \
             -join-channels -fit-spectral-pol 2 -channels-out 15 '+MSs.getStrWsclean(), \
             log='wscleanSUB-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
-    #logger.info('Combining MODEL_DATA_HIGHRES and MODEL_DATA...')
-    #MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA_HIGHRES + MODEL_DATA"', log='$nameMS_taql3.log', commandType='general')
-
-    imagename = 'img/img-c'+str(c)
-    im = lib_img.Image(imagename)
-    im.rescaleModel(f)
-    logger.info('Predict (wsclean)...')
-    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
-          log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-    s.run(check = True)
+    # every 10 cycles: rescale model
+    if c%10 == 0:
+        imagename = 'img/img-c'+str(c)
+        im = lib_img.Image(imagename)
+        im.rescaleModel(f)
+        logger.info('Predict (wsclean)...')
+        s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
+              log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+        s.run(check = True)
 
 logger.info("Done.")
