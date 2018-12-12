@@ -10,9 +10,9 @@ import lsmtool
 
 #######################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd
-lib_log.Logger('pipeline-dd.logger')
+logger_obj = lib_log.Logger('pipeline-dd.logger')
 logger = lib_log.logger
-s = lib_util.Scheduler(dry = False)
+s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()
@@ -54,14 +54,14 @@ def clean(p, MSs, size=2., apply_beam=False):
     logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
 
     if apply_beam: idg_parms = '-use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400'
-    else: idg_params = '-use-idg'
+    else: idg_parms = '-use-idg'
 
     # clean 1
     logger.info('Cleaning ('+str(p)+')...')
     imagename = 'img/ddcal-'+str(p)
     s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' -j '+str(s.max_processors)+' \
             -scale '+str(pixscale)+'arcsec -weight briggs -0.5 -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -auto-threshold 20 '+idg_parms+' \
+            -auto-threshold 20 '+idg_parms+' -baseline-averaging 5 \
             -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
             log='wsclean-'+str(p)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
@@ -77,7 +77,7 @@ def clean(p, MSs, size=2., apply_beam=False):
     logger.info('Cleaning w/ mask ('+str(p)+')...')
     s.add('wsclean -continue -reorder -temp-dir /dev/shm -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' -j '+str(s.max_processors)+' \
             -scale '+str(pixscale)+'arcsec -weight briggs -0.5 -niter 1000000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -auto-threshold 0.1 -fits-mask '+im.maskname+' '+idg_parms+' \
+            -auto-threshold 0.1 -fits-mask '+im.maskname+' '+idg_parms+' -baseline-averaging 5 \
             -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
             log='wscleanM-'+str(p)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
@@ -101,8 +101,8 @@ logger.info('Add columns...')
 MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 
 ##############################################################
-logger.info('BL-based smoothing...')
-MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
+#logger.info('BL-based smoothing...')
+#MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
 
 # setup initial model
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wide-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
@@ -122,8 +122,7 @@ for c in xrange(maxniter):
     lsm.group('tessellate', targetFlux='20Jy', root='Dir', applyBeam=False, method = 'wmean', pad_index=True)
     lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
     directions = lsm.getPatchPositions()
-    patches = lsm.getPatchNames()
-    logger.info("Created %i directions." % len(patches))
+    logger.info("Created %i directions." % len(directions))
 
     # write file
     skymodel_cl = 'ddcal/skymodels/skymodel%02i_cluster.txt' % c
@@ -143,7 +142,7 @@ for c in xrange(maxniter):
     lsm.group('facet', facet=mask, root='Dir')
     lsm.setPatchPositions(method='mid') # recalculate the patch centre as mid point for imaging
     directions = lsm.getPatchPositions()
-    sizes = lsm.getPatchSizes(units='degree')
+    sizes = dict(zip(lsm.getPatchNames(), lsm.getPatchSizes(units='degree')))
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
@@ -182,15 +181,7 @@ for c in xrange(maxniter):
     MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_voro_skydb, \
                    log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP')
 
-    ## TODO: test
-    #logger.info('Empty imaging')
-    #s.add('wsclean -reorder -name img/testSUB -size 5000 5000 -mem 90 -j '+str(s.max_processors)+' -baseline-averaging 2.0 \
-    #        -scale 10arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -maxuv-l 5000 -mgain 0.9 \
-    #        -pol I -join-channels -fit-spectral-pol 2 -channels-out 10 -auto-threshold 20 -minuv-l 30 -data-column SUBTRACTED_DATA '+MSs.getStrWsclean(), \
-    #        log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors='max')
-    #s.run(check=True)
-
-    for i, p in enumerate(patches):
+    for patch, phasecentre in directions.iteritems():
 
         # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
         logger.info('Patch '+p+': add back...')
@@ -202,16 +193,15 @@ for c in xrange(maxniter):
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+p+']', \
                log='$nameMS_cor-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
-        logger.info('Patch '+p+': phase shift and avg...')
+        logger.info('Patch '+patch+': phase shift and avg...')
         lib_util.check_rm('mss-dir')
         os.makedirs('mss-dir')
-        phasecentre = directions[p]
         MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=CORRECTED_DATA \
                 shift.phasecenter=['+str(phasecentre[0].degree)+'deg,'+str(phasecentre[1].degree)+'deg\]', \
-                log='$nameMS_shift-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
+                log='$nameMS_shift-c'+str(c)+'-p'+str(patch)+'.log', commandType='DPPP')
         
-        logger.info('Patch '+p+': imaging...')
-        clean(p, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[i], apply_beam = c==maxniter )
+        logger.info('Patch '+patch+': imaging...')
+        clean(patch, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[patch], apply_beam = c==maxniter )
 
     ##############################################################
     # Mosaiching
@@ -253,3 +243,4 @@ for c in xrange(maxniter):
     logger.info('RMS noise: %f' % rms_noise)
     if rms_noise > 0.95 * rms_noise_pre: break
     rms_noise_pre = rms_noise
+

@@ -16,9 +16,9 @@ if 'LBAsurvey' in os.getcwd():
 
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log
-lib_log.Logger('pipeline-timesplit.logger')
+logger_obj = lib_log.Logger('pipeline-timesplit.logger')
 logger = lib_log.logger
-s = lib_util.Scheduler(dry = False)
+s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()
@@ -120,7 +120,7 @@ for groupname in groupnames:
     hours = (endtime-starttime)/3600.
     logger.debug(ms+' has length of '+str(hours)+' h.')
 
-    for timerange in np.array_split(t.getcol('TIME'), round(hours)):
+    for timerange in np.array_split(sorted(set(t.getcol('TIME'))), round(hours)):
         logger.info('%02i - Splitting timerange %f %f' % (tc, timerange[0], timerange[-1]))
         t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[-1]), sortlist='TIME,ANTENNA1,ANTENNA2')
         splitms = groupname+'/TC%02i.MS' % tc

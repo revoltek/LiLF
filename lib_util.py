@@ -28,7 +28,7 @@ def getParset(parsetFile='../lilf.config'):
     # add pipeline sections and defaul parset dir:
     for pipeline in ['download','demix','cal','timesplit','self','dd', 'ateam']:
         if not config.has_section(pipeline): config.add_section(pipeline)
-        if not config.has_option(pipeline, 'parset_dir'): config.set(pipeline, 'parset_dir', '/home/fdg/scripts/LiLF/parsets/LOFAR_'+pipeline)
+        if not config.has_option(pipeline, 'parset_dir'): config.set(pipeline, 'parset_dir', os.path.dirname(__file__)+'/parsets/LOFAR_'+pipeline)
     # add other sections
     if not config.has_section('flag'): config.add_section('flag')
     if not config.has_section('model'): config.add_section('model')
@@ -41,7 +41,7 @@ def getParset(parsetFile='../lilf.config'):
     add_default('demix', 'data_dir', '../tgts-full/')
     # cal
     add_default('cal', 'imaging', 'False')
-    add_default('cal', 'skymodel', '/home/fdg/scripts/LiLF/models/calib-simple.skydb')
+    add_default('cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
     add_default('cal', 'data_dir', '../cals-bkp/')
     # timesplit
     add_default('timesplit', 'data_dir', '../tgts-bkp/')
@@ -55,7 +55,7 @@ def getParset(parsetFile='../lilf.config'):
     # flag
     add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IR*;PL*')
     # model
-    add_default('model', 'sourcedb', '')
+    add_default('model', 'sourcedb', None)
     add_default('model', 'apparent', 'False')
     add_default('model', 'userreg', None)
 

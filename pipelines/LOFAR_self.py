@@ -32,16 +32,15 @@ if 'LBAsurvey' in os.getcwd():
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
-lib_log.Logger('pipeline-self.logger')
+logger_obj = lib_log.Logger('pipeline-self.logger')
 logger = lib_log.logger
-s = lib_util.Scheduler(dry = False)
+s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 parset = lib_util.getParset()
 parset_dir = parset.get('self','parset_dir')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
-assert os.path.exists(sourcedb)
 
 niter = 3
 
@@ -66,16 +65,24 @@ beamReg = 'self/beam.reg'
 
 # set image size
 obsmode = MSs.getListObj()[0].getObsMode()
-if 'INNER' in obsmode: size = 6000
-elif 'SPARSE' in obsmode: size = 4500
-elif 'OUTER' in obsmode: size = 3000
-else: 
-    logger.error('Observing mode not recognised.')
-    sys.exit(1)
+imgsizepix =  MSs.getListObj()[0].getFWHM()*3600/10
 
 # wsclean temp-dir
 temp_dir = '.'
 if s.get_cluster() == 'Hamburg_fat': temp_dir = '/localwork.ssd'
+
+#################################################################
+# Get online model
+print sourcedb
+if sourcedb is None:
+    if not os.path.exists('tgts.skymodel'):
+        fwhm = MSs.getListObj()[0].getFWHM()
+        radeg = phasecentre[0]
+        decdeg = phasecentre[1]
+        # get model ~twice the size of the image (radius=fwhm)
+        os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm))
+
+    sourcedb = 'tgts.skymodel'
 
 ##################################################################################################
 # Add model to MODEL_DATA
@@ -207,7 +214,7 @@ for c in xrange(0, niter):
     if c == niter-1:
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
-        s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(int(size*1.5)) + ' ' + str(int(size*1.5)) + ' -j '+str(s.max_processors)+' \
+        s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(int(imgsizepix*1.5)) + ' ' + str(int(imgsizepix*1.5)) + ' -j '+str(s.max_processors)+' \
                 -scale 5arcsec -weight briggs 0. -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
                 -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
                 -auto-mask 10 -auto-threshold 1 \
@@ -219,7 +226,7 @@ for c in xrange(0, niter):
 
         logger.info('Cleaning beam high-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamHR'
-        s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(size*2) + ' ' + str(size*2) + ' -j '+str(s.max_processors)+' \
+        s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(imgsizepix*2) + ' ' + str(imgsizepix*2) + ' -j '+str(s.max_processors)+' \
                 -scale 2.5arcsec -weight uniform -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
                 -auto-mask 10 -auto-threshold 1 \
                 -use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 -baseline-averaging 3 \
@@ -229,7 +236,7 @@ for c in xrange(0, niter):
 
         logger.info('Cleaning beam low-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamLR'
-        s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(size/5) + ' ' + str(size/5) + ' -j '+str(s.max_processors)+' \
+        s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(imgsizepix/5) + ' ' + str(imgsizepix/5) + ' -j '+str(s.max_processors)+' \
                 -scale 60arcsec -weight briggs 0. -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 1000 -mgain 0.85 -clean-border 1 \
                 -auto-mask 10 -auto-threshold 1 \
                 -use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 -baseline-averaging 3 \
@@ -241,7 +248,7 @@ for c in xrange(0, niter):
     # clean mask clean (cut at 5k lambda)
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wide-'+str(c)
-    s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' \
+    s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(imgsizepix) + ' ' + str(imgsizepix) + ' -j '+str(s.max_processors)+' \
             -scale 10arcsec -weight briggs 0. -niter 100000 -update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,4,16 \
             -auto-threshold 20 \
@@ -255,7 +262,7 @@ for c in xrange(0, niter):
     im.makeMask(threshisl = 3)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
-    s.add('wsclean -continue -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' \
+    s.add('wsclean -continue -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(imgsizepix) + ' ' + str(imgsizepix) + ' -j '+str(s.max_processors)+' \
             -scale 10arcsec -weight briggs 0. -niter 200000 -update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
             -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,4,16 \
             -auto-threshold 1 -fits-mask '+im.maskname+' \
@@ -275,7 +282,7 @@ for c in xrange(0, niter):
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
-        s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename_lr + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' \
+        s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename_lr + ' -size ' + str(imgsizepix) + ' ' + str(imgsizepix) + ' -j '+str(s.max_processors)+' \
                 -scale 20arcsec -weight briggs 0. -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 2000 -mgain 0.85 -clean-border 1 \
                 -auto-threshold 1 \
                 -use-idg -baseline-averaging 3 \
