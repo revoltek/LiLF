@@ -52,14 +52,14 @@ class Logger():
         # bkp old log dir
         if os.path.isdir(log_dir):
             current_time = time.localtime()
-            log_dir_old = time.strftime(log_dir+'_bkp_%Y_%b_%d_%H:%M', current_time)
+            log_dir_old = time.strftime(log_dir+'_bkp_%Y-%m-%d_%H:%M', current_time)
             os.system('mv %s %s' % ( log_dir, log_dir_old ))
         os.makedirs(log_dir)
 
         # bkp old log file
         if os.path.exists(logfile):
             current_time = time.localtime()
-            logfile_old = time.strftime(logfile+'_bkp_%Y_%b_%d_%H:%M', current_time)
+            logfile_old = time.strftime(logfile+'_bkp_%Y-%m-%d_%H:%M', current_time)
             os.system('mv %s %s' % ( logfile, logfile_old ))
             
 
