@@ -120,7 +120,7 @@ for groupname in groupnames:
     hours = (endtime-starttime)/3600.
     logger.debug(ms+' has length of '+str(hours)+' h.')
 
-    for timerange in np.array_split(t.getcol('TIME'), round(hours)):
+    for timerange in np.array_split(sorted(set(t.getcol('TIME'))), round(hours)):
         logger.info('%02i - Splitting timerange %f %f' % (tc, timerange[0], timerange[-1]))
         t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[-1]), sortlist='TIME,ANTENNA1,ANTENNA2')
         splitms = groupname+'/TC%02i.MS' % tc
