@@ -55,7 +55,7 @@ def getParset(parsetFile='../lilf.config'):
     # flag
     add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IR*;PL*')
     # model
-    add_default('model', 'sourcedb', '')
+    add_default('model', 'sourcedb', None)
     add_default('model', 'apparent', 'False')
     add_default('model', 'userreg', None)
 

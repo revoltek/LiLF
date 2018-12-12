@@ -283,6 +283,20 @@ class MS(object):
         with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
             return t.getcol("LOFAR_ANTENNA_SET")[0]
 
+    def getFWHM(self):
+        """
+        Return the expected FWHM in degree
+        """
+        if 'OUTER' in self.getObsMode():
+            return 8.
+        elif 'SPARSE' in self.getObsMode():
+            return 12.
+        elif 'INNER' in self.getObsMode():
+            return 16.
+        else:
+            logger.error('Cannot find beam FWHM, only LBA_OUTER, LBA_INNER, or LBA_SPARSE_* are implemented. Assuming beam diameter = 8 deg.')
+            return 8.
+
     def makeBeamReg(self, outfile, pb_cut=None, to_null=False):
         """
         Create a ds9 region of the beam
@@ -297,23 +311,15 @@ class MS(object):
         ra, dec = self.getPhaseCentre()
 
         if pb_cut is None:
-            if 'OUTER' in self.getObsMode():
-                size = 8./2.
-            elif 'SPARSE' in self.getObsMode():
-                size = 12./2.
-            elif 'INNER' in self.getObsMode():
-                size = 16./2.
-            else:
-                logger.error('Cannot find beam size, only LBA_OUTER or LBA_SPARSE_* are implemented. Assuming beam diameter = 8 deg.')
-                size = 8./2.
+            radius = self.getFWHM()/2.
         else:
-            size = pb_cut/2.
+            radius = pb_cut/2.
 
-        if to_null: size *= 1.7 # rough estimation
+        if to_null: radius *= 1.7 # rough estimation
 
         s = Shape('circle', None)
         s.coord_format = 'fk5'
-        s.coord_list = [ ra, dec, size ] # ra, dec, radius
+        s.coord_list = [ ra, dec, radius ] # ra, dec, radius
         s.coord_format = 'fk5'
         s.attr = ([], {'width': '2', 'point': 'cross',
                        'font': '"helvetica 16 normal roman"'})
