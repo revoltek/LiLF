@@ -202,6 +202,39 @@ def run_losoto(s, c, h5s, parsets):
     os.system('mv plots plots-' + c)
 
 
+def run_wsclean(s, logfile, MSs_files, **kwargs):
+    """
+    s : scheduler
+    args : parameters for wsclean
+    """
+    
+    wsc_params = []
+
+    # basic params
+    wsc_parms = '-reorder -j '+str(s.max_processors)
+    # other stanrdard params
+    wcs_parms.append( '-clean-border 1' )
+    # temp dir
+    if s.get_cluster() == 'Hamburg_fat': wcs_parms.append( '-temp-dir /localwork.ssd' )
+    # user defined params
+    for parm, value in kwargs.items():
+        if parm == 'size': value = '%i %i' % (value, value)
+        wsc_params.append( '-%s %s' % (parm, str(value)) )
+
+    # files
+    wsc_params.append( MSs_files )
+
+    # create command string
+    command_string = 'wsclean '.join(wsc_params)
+
+    imagename = 'img/wide-'+str(c)
+    s.add(command_string, log=logfile, commandType='wsclean', processors='max')
+
+    logging.debug('Running wsclean: %s' %s command_string)
+
+    s.run(check=True)
+
+
 class Scheduler():
     def __init__(self, qsub = None, maxThreads = None, max_processors = None, log_dir = 'logs', dry = False):
         """

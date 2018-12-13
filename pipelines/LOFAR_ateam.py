@@ -202,51 +202,66 @@ for c in xrange(100):
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
-        s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
-            -scale 0.75arcsec -weight uniform -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -multiscale -multiscale-scales 0,4,8,16,32 \
-            -auto-threshold 1 \
-            -use-idg \
-            -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
-            log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
-        s.run(check = True)
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='0.75arcsec', \
+                weight='uniform', niter=50000, update-model-required='', minuv-l=30, mgain=0.85, \
+                multiscale='', multiscale-scales='0,4,8,16,32', \
+                auto-threshold=1, join-channels='', fit-spectral-pol=3, channels-out=15)
+        #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
+        #    -scale 0.75arcsec -weight uniform -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+        #    -multiscale -multiscale-scales 0,4,8,16,32 \
+        #    -auto-threshold 1 \
+        #    -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
+        #    log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
+        #s.run(check = True)
     elif patch == 'VirA' and hba:
-        s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
-            -scale 1arcsec -weight briggs -1. -niter 1000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -use-idg \
-            -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
-            log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
-        s.run(check = True)
-        s.add('wsclean -continue -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
-            -scale 1arcsec -weight briggs -1. -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -multiscale -multiscale-scales 0,4,8,16,32,64 \
-            -auto-threshold 1 \
-            -use-idg \
-            -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
-            log='wscleanB-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
-        s.run(check = True)
+        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
+                weight='briggs -1', niter=1000, update-model-required='', minuv-l=30, mgain=0.85, \
+                join-channels='', fit-spectral-pol=3, channels-out=15)
+        #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
+        #    -scale 1arcsec -weight briggs -1. -niter 1000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+        #    -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
+        #    log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
+        #s.run(check = True)
+        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), continue='', name=imagename, size=2500, scale='1arcsec', \
+                weight='briggs -1', niter=50000, update-model-required='', minuv-l=30, mgain=0.85, \
+                multiscale='', multiscale-scales='0,4,8,16,32,64', \
+                auto-threshold=1, join-channels='', fit-spectral-pol=3, channels-out=15)
+        #s.add('wsclean -continue -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
+        #    -scale 1arcsec -weight briggs -1. -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+        #    -multiscale -multiscale-scales 0,4,8,16,32,64 \
+        #    -auto-threshold 1 \
+        #    -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
+        #    log='wscleanB-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
+        #s.run(check = True)
     else:
-        s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1500 1500 -j '+str(s.max_processors)+' \
-            -scale 2arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -multiscale -multiscale-scales 0,4,8,16,32 \
-            -auto-threshold 1 \
-            -use-idg \
-            -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
-            log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
-        s.run(check = True)
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
+                weight='briggs -1', niter=50000, update-model-required='', minuv-l=30, mgain=0.85, \
+                multiscale='', multiscale-scales='0,4,8,16,32', \
+                auto-threshold=1, join-channels='', fit-spectral-pol=3, channels-out=15)
+        #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1500 1500 -j '+str(s.max_processors)+' \
+        #    -scale 2arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+        #    -multiscale -multiscale-scales 0,4,8,16,32 \
+        #    -auto-threshold 1 \
+        #    -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
+        #    log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
+        #s.run(check = True)
 
     logger.info('Sub model...')
     MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
 
     logger.info('Cleaning sub (cycle %i)...' % c)
     imagename = 'img/imgsub-c'+str(c)
-    s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
-            -scale 15arcsec -weight briggs -0.5 -taper-gaussian 100arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -multiscale -multiscale-scales 0,4,8,16 \
-            -use-idg -baseline-averaging 5 \
-            -join-channels -fit-spectral-pol 2 -channels-out 15 '+MSs.getStrWsclean(), \
-            log='wscleanSUB-c'+str(c)+'.log', commandType='wsclean', processors='max')
-    s.run(check=True)
+    lib_util.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
+            weight='briggs 0.', taper-gaussian='100arcsec', niter=10000, no-update-model-required='', baseline-averaging=5, minuv-l=30, mgain=0.85, \
+            multiscale='', multiscale-scales='0,4,8,16', \
+            auto-threshold=1, join-channels='', fit-spectral-pol=2, channels-out=10)
+    #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
+    #        -scale 15arcsec -weight briggs -0.5 -taper-gaussian 100arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+    #        -multiscale -multiscale-scales 0,4,8,16 \
+    #        -baseline-averaging 5 \
+    #        -join-channels -fit-spectral-pol 2 -channels-out 15 '+MSs.getStrWsclean(), \
+    #        log='wscleanSUB-c'+str(c)+'.log', commandType='wsclean', processors='max')
+    #s.run(check=True)
 
     # every 10 cycles: rescale model
     if c%10 == 0:
