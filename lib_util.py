@@ -218,8 +218,11 @@ def run_wsclean(s, logfile, MSs_files, **kwargs):
     if s.get_cluster() == 'Hamburg_fat': wcs_parms.append( '-temp-dir /localwork.ssd' )
     # user defined params
     for parm, value in kwargs.items():
+        if parm == 'cont': 
+            parm = 'continue'
+            value = ''
         if parm == 'size': value = '%i %i' % (value, value)
-        wsc_params.append( '-%s %s' % (parm, str(value)) )
+        wsc_params.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
 
     # files
     wsc_params.append( MSs_files )
@@ -230,7 +233,7 @@ def run_wsclean(s, logfile, MSs_files, **kwargs):
     imagename = 'img/wide-'+str(c)
     s.add(command_string, log=logfile, commandType='wsclean', processors='max')
 
-    logging.debug('Running wsclean: %s' %s command_string)
+    logging.debug('Running wsclean: %s' % command_string)
 
     s.run(check=True)
 

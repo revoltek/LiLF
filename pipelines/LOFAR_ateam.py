@@ -203,9 +203,9 @@ for c in xrange(100):
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='0.75arcsec', \
-                weight='uniform', niter=50000, update-model-required='', minuv-l=30, mgain=0.85, \
-                multiscale='', multiscale-scales='0,4,8,16,32', \
-                auto-threshold=1, join-channels='', fit-spectral-pol=3, channels-out=15)
+                weight='uniform', niter=50000, update_model_required='', minuv_l=30, mgain=0.85, \
+                multiscale='', multiscale_scales='0,4,8,16,32', \
+                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=15)
         #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
         #    -scale 0.75arcsec -weight uniform -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
         #    -multiscale -multiscale-scales 0,4,8,16,32 \
@@ -215,17 +215,17 @@ for c in xrange(100):
         #s.run(check = True)
     elif patch == 'VirA' and hba:
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -1', niter=1000, update-model-required='', minuv-l=30, mgain=0.85, \
-                join-channels='', fit-spectral-pol=3, channels-out=15)
+                weight='briggs -1', niter=1000, update_model_required='', minuv_l=30, mgain=0.85, \
+                join_channels='', fit_spectral_pol=3, channels_out=15)
         #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
         #    -scale 1arcsec -weight briggs -1. -niter 1000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
         #    -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
         #    log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
         #s.run(check = True)
-        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), continue='', name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -1', niter=50000, update-model-required='', minuv-l=30, mgain=0.85, \
-                multiscale='', multiscale-scales='0,4,8,16,32,64', \
-                auto-threshold=1, join-channels='', fit-spectral-pol=3, channels-out=15)
+        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
+                weight='briggs -1', niter=50000, update_model_required='', minuv_l=30, mgain=0.85, \
+                multiscale='', multiscale_scales='0,4,8,16,32,64', \
+                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=15)
         #s.add('wsclean -continue -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
         #    -scale 1arcsec -weight briggs -1. -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
         #    -multiscale -multiscale-scales 0,4,8,16,32,64 \
@@ -235,9 +235,9 @@ for c in xrange(100):
         #s.run(check = True)
     else:
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
-                weight='briggs -1', niter=50000, update-model-required='', minuv-l=30, mgain=0.85, \
-                multiscale='', multiscale-scales='0,4,8,16,32', \
-                auto-threshold=1, join-channels='', fit-spectral-pol=3, channels-out=15)
+                weight='briggs -1', niter=50000, update_model_required='', minuv_l=30, mgain=0.85, \
+                multiscale='', multiscale_scales='0,4,8,16,32', \
+                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=15)
         #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1500 1500 -j '+str(s.max_processors)+' \
         #    -scale 2arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
         #    -multiscale -multiscale-scales 0,4,8,16,32 \
@@ -252,9 +252,9 @@ for c in xrange(100):
     logger.info('Cleaning sub (cycle %i)...' % c)
     imagename = 'img/imgsub-c'+str(c)
     lib_util.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
-            weight='briggs 0.', taper-gaussian='100arcsec', niter=10000, no-update-model-required='', baseline-averaging=5, minuv-l=30, mgain=0.85, \
-            multiscale='', multiscale-scales='0,4,8,16', \
-            auto-threshold=1, join-channels='', fit-spectral-pol=2, channels-out=10)
+            weight='briggs 0.', taper_gaussian='100arcsec', niter=10000, no_update_model_required='', baseline_averaging=5, minuv_l=30, mgain=0.85, \
+            multiscale='', multiscale_scales='0,4,8,16', \
+            auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=10)
     #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
     #        -scale 15arcsec -weight briggs -0.5 -taper-gaussian 100arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
     #        -multiscale -multiscale-scales 0,4,8,16 \

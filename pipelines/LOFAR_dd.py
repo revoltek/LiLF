@@ -57,8 +57,8 @@ def clean(p, MSs, size=2., apply_beam=False):
     logger.info('Cleaning ('+str(p)+')...')
     imagename = 'img/ddcal-'+str(p)
     lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
-            weight='briggs -0.5', niter=10000, update-model-required='', minuv-l=30, mgain=0.85, \
-            auto-threshold=20, join-channels='', fit-spectral-pol=2, channels-out=10, save-source-list='')
+            weight='briggs -0.5', niter=10000, update_model_required='', minuv_l=30, mgain=0.85, \
+            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
     #s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' -j '+str(s.max_processors)+' \
     #        -scale '+str(pixscale)+'arcsec -weight briggs -0.5 -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
     #        -auto-threshold 20 '+idg_parms+' -baseline-averaging 5 \
@@ -74,14 +74,14 @@ def clean(p, MSs, size=2., apply_beam=False):
     # clean 2
     logger.info('Cleaning w/ mask ('+str(p)+')...')
     if apply_beam:
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), continue='', name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
-            weight='briggs -0.5', niter=100000, no-update-model-required='', baseline-averaging=5, minuv-l=30, mgain=0.85, \
-            use-idg='', grid-with-beam='', use-differential-lofar-beam='', beam-aterm-update=400, \
-            auto-threshold=0.1, fits-mask=im.maskname, join-channels='', fit-spectral-pol=2, channels-out=10, save-source-list='')
+        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
+            weight='briggs -0.5', niter=100000, no_update_model_required='', baseline_averaging=5, minuv_l=30, mgain=0.85, \
+            use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
+            auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
     else:
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), continue='', name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
-            weight='briggs -0.5', niter=100000, no-update-model-required='', baseline-averaging=5, minuv-l=30, mgain=0.85, \
-            auto-threshold=0.1, fits-mask=im.maskname, join-channels='', fit-spectral-pol=2, channels-out=10, save-source-list='')
+        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
+            weight='briggs -0.5', niter=100000, no_update_model_required='', baseline_averaging=5, minuv_l=30, mgain=0.85, \
+            auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
     #s.add('wsclean -continue -reorder -temp-dir /dev/shm -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' -j '+str(s.max_processors)+' \
     #        -scale '+str(pixscale)+'arcsec -weight briggs -0.5 -niter 1000000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
     #        -auto-threshold 0.1 -fits-mask '+im.maskname+' '+idg_parms+' -baseline-averaging 5 \
