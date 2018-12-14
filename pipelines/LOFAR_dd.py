@@ -108,8 +108,8 @@ logger.info('Add columns...')
 MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 
 ##############################################################
-#logger.info('BL-based smoothing...')
-#MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
+logger.info('BL-based smoothing...')
+MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
 
 # setup initial model
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wide-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
@@ -191,14 +191,14 @@ for c in xrange(maxniter):
     for patch, phasecentre in directions.iteritems():
 
         # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
-        logger.info('Patch '+p+': add back...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-add.parset msin=$pathMS add.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 add.sourcedb='+skymodel_voro_skydb+' add.directions=[['+p+']]', \
-                   log='$nameMS_add-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
+        logger.info('Patch '+patch+': add back...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-add.parset msin=$pathMS add.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 add.sourcedb='+skymodel_voro_skydb+' add.directions=[['+patch+']]', \
+                   log='$nameMS_add-c'+str(c)+'-p'+str(patch)+'.log', commandType='DPPP')
 
         # DD-correct - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
-        logger.info('Patch '+p+': correct...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+p+']', \
-               log='$nameMS_cor-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
+        logger.info('Patch '+patch+': correct...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+patch+']', \
+               log='$nameMS_cor-c'+str(c)+'-p'+str(patch)+'.log', commandType='DPPP')
 
         logger.info('Patch '+patch+': phase shift and avg...')
         lib_util.check_rm('mss-dir')
@@ -209,6 +209,7 @@ for c in xrange(maxniter):
         
         logger.info('Patch '+patch+': imaging...')
         clean(patch, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[patch], apply_beam = c==maxniter )
+        sys.exit()
 
     ##############################################################
     # Mosaiching
