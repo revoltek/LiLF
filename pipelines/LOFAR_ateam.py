@@ -63,190 +63,201 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 if min(MSs.getFreqs()) < 80.e6: hba = False
 else: hba = True
 
-# wsclean temp-dir
-temp_dir = '.'
-if s.get_cluster() == 'Hamburg_fat': temp_dir = '/localwork.ssd'
-
 # TEST
 #logger.info("Put data to Jy...")
 #MSs.run('taql "update $pathMS set DATA = 1e2*DATA"', log='$nameMS_taql.log', commandType='general')
 
-#######################################################   
-# Create columns (non compressed)
-logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES', log='$nameMS_addcol.log', commandType='python')
-
 ########################################################   
-# flag bad stations, and low-elev
-logger.info('Flagging...')
-MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
-            log='$nameMS_flag.log', commandType='DPPP')
-
-# predict to save time MODEL_DATA
-if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
-else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
-
-if os.path.exists(model_dir+'/img-MFS-model.fits'):
-    logger.info('Predict (wsclean)...')
-    im = lib_img.Image(model_dir+'/img')
-    im.rescaleModel(f)
-    s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
-          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
-    s.run(check=True)
-else:
-    logger.info('Predict (DPPP)...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
+## Create columns (non compressed)
+#logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
+#MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES', log='$nameMS_addcol.log', commandType='python')
+#
+#########################################################   
+## flag bad stations, and low-elev
+#logger.info('Flagging...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
+#            log='$nameMS_flag.log', commandType='DPPP')
+#
+## predict to save time MODEL_DATA
+#if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
+#else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
+#
+#if os.path.exists(model_dir+'/img-MFS-model.fits'):
+#    logger.info('Predict (wsclean)...')
+#    im = lib_img.Image(model_dir+'/img')
+#    im.rescaleModel(f)
+#    s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
+#          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
+#    s.run(check=True)
+#else:
+#    logger.info('Predict (DPPP)...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
 
 for c in xrange(100):
 
-    ####################################################
-    # 1: find PA and remove it
-
-    # Solve cal_SB.MS:DATA (only solve)
-    logger.info('Calibrating PA...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
-            sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solPA.log', commandType="DPPP")
-
-    lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
-                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
-
-    #################################################
-    # 1: find the FR and remve it
-    
-    # Beam correction DATA -> CORRECTED_DATA
-    logger.info('PA correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
-            log='$nameMS_corPA2.log', commandType="DPPP")
-
-    # Beam correction CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Beam correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam2.log', commandType='DPPP')
-    
-    # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Converting to circular...')
-    MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
-    
-    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
-    logger.info('Calibrating FR...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/fr.h5 sol.caltype=diagonal', log='$nameMS_fr.log', commandType='DPPP')
-    
-    lib_util.run_losoto(s, 'fr-c'+str(c), [ms+'/fr.h5' for ms in MSs.getListStr()], \
-            [parset_dir + '/losoto-fr.parset'])
-    
-    #####################################################
-    # 2: find BANDPASS
-
-    # Beam correction DATA -> CORRECTED_DATA
-    logger.info('Polalign correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
-            log='$nameMS_corPA3.log', commandType="DPPP")
-
-    # Beam correction CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Beam correction...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam3.log', commandType="DPPP")
-    
-    # Correct FR CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Faraday rotation correction...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
-            log='$nameMS_corFR3.log', commandType="DPPP")
-    
-    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
-    logger.info('Calibrating BP...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/amp.h5 sol.caltype=diagonal', log='$nameMS_amp.log', commandType="DPPP")
-    
-    lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
-            [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-bp.parset'])
-
-    #################################################
-    # 3: apply all
-
-    # Beam correction DATA -> CORRECTED_DATA
-    logger.info('Polalign correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
-            log='$nameMS_corPA4.log', commandType="DPPP")
-
-    # Correct BP CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('BP correction...')
-    if c == 0 and not hba:
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitudeSmooth000', \
-                log='$nameMS_corAMP4.log', commandType='DPPP')
-    else:
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitudeSmooth000', \
-                log='$nameMS_corAMP4.log', commandType='DPPP')
- 
-    # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Beam correction...')
-    if c == 0 and not hba:
-        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam4.log', commandType='DPPP')
-    else:
-        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=False', log='$nameMS_beam4.log', commandType='DPPP')
-       
-    # Correct FR CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Faraday rotation correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
-            log='$nameMS_corFR4.log', commandType='DPPP')
-    
-    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
-    logger.info('Calibrating IONO...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_iono.log', commandType='DPPP')
-    
-    lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
-        [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
-    
-    # Correct all CORRECTED_DATA (PA, beam, BP, FR corrected) -> CORRECTED_DATA
-    logger.info('IONO correction...')
-    MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono-c'+str(c)+'.h5 cor.amp.parmdb=cal-iono-c'+str(c)+'.h5 \
-                    cor.ph.correction=phase000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corG4.log', commandType="DPPP")
+#    ####################################################
+#    # 1: find PA and remove it
+#
+#    # Solve cal_SB.MS:DATA (only solve)
+#    logger.info('Calibrating PA...')
+#    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
+#            sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solPA.log', commandType="DPPP")
+#
+#    lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
+#                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
+#
+#    #################################################
+#    # 1: find the FR and remve it
+#    
+#    # Beam correction DATA -> CORRECTED_DATA
+#    logger.info('PA correction...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
+#            log='$nameMS_corPA2.log', commandType="DPPP")
+#
+#    # Beam correction CORRECTED_DATA -> CORRECTED_DATA
+#    logger.info('Beam correction...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam2.log', commandType='DPPP')
+#    
+#    # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
+#    logger.info('Converting to circular...')
+#    MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+#    
+#    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
+#    logger.info('Calibrating FR...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/fr.h5 sol.caltype=diagonal', log='$nameMS_fr.log', commandType='DPPP')
+#    
+#    lib_util.run_losoto(s, 'fr-c'+str(c), [ms+'/fr.h5' for ms in MSs.getListStr()], \
+#            [parset_dir + '/losoto-fr.parset'])
+#    
+#    #####################################################
+#    # 2: find BANDPASS
+#
+#    # Beam correction DATA -> CORRECTED_DATA
+#    logger.info('Polalign correction...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
+#            log='$nameMS_corPA3.log', commandType="DPPP")
+#
+#    # Beam correction CORRECTED_DATA -> CORRECTED_DATA
+#    logger.info('Beam correction...')
+#    MSs.run('DPPP ' + parset_dir + '/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam3.log', commandType="DPPP")
+#    
+#    # Correct FR CORRECTED_DATA -> CORRECTED_DATA
+#    logger.info('Faraday rotation correction...')
+#    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+#            log='$nameMS_corFR3.log', commandType="DPPP")
+#    
+#    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
+#    logger.info('Calibrating BP...')
+#    MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/amp.h5 sol.caltype=diagonal', log='$nameMS_amp.log', commandType="DPPP")
+#    
+#    lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
+#            [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-bp.parset'])
+#
+#    #################################################
+#    # 3: apply all
+#
+#    # Beam correction DATA -> CORRECTED_DATA
+#    logger.info('Polalign correction...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
+#            log='$nameMS_corPA4.log', commandType="DPPP")
+#
+#    # Correct BP CORRECTED_DATA -> CORRECTED_DATA
+#    logger.info('BP correction...')
+#    if c == 0 and not hba:
+#        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitudeSmooth000', \
+#                log='$nameMS_corAMP4.log', commandType='DPPP')
+#    else:
+#        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitudeSmooth000', \
+#                log='$nameMS_corAMP4.log', commandType='DPPP')
+# 
+#    # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
+#    logger.info('Beam correction...')
+#    if c == 0 and not hba:
+#        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam4.log', commandType='DPPP')
+#    else:
+#        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=False', log='$nameMS_beam4.log', commandType='DPPP')
+#       
+#    # Correct FR CORRECTED_DATA -> CORRECTED_DATA
+#    logger.info('Faraday rotation correction...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+#            log='$nameMS_corFR4.log', commandType='DPPP')
+#    
+#    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
+#    logger.info('Calibrating IONO...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_iono.log', commandType='DPPP')
+#    
+#    lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
+#        [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
+#    
+#    # Correct all CORRECTED_DATA (PA, beam, BP, FR corrected) -> CORRECTED_DATA
+#    logger.info('IONO correction...')
+#    MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono-c'+str(c)+'.h5 cor.amp.parmdb=cal-iono-c'+str(c)+'.h5 \
+#                    cor.ph.correction=phase000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corG4.log', commandType="DPPP")
 
     # briggs: -1.2 for virgo; -1.0 for subtraction to get good minihalo?
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
-        s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
-            -scale 0.75arcsec -weight uniform -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -multiscale -multiscale-scales 0,4,8,16,32 \
-            -auto-threshold 1 \
-            -use-idg \
-            -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
-            log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
-        s.run(check = True)
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='0.75arcsec', \
+                weight='uniform', niter=50000, update_model_required='', minuv_l=30, mgain=0.85, \
+                multiscale='', multiscale_scales='0,4,8,16,32', \
+                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=15)
+        #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
+        #    -scale 0.75arcsec -weight uniform -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+        #    -multiscale -multiscale-scales 0,4,8,16,32 \
+        #    -auto-threshold 1 \
+        #    -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
+        #    log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
+        #s.run(check = True)
     elif patch == 'VirA' and hba:
-        s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
-            -scale 1arcsec -weight briggs -1. -niter 1000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -use-idg \
-            -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
-            log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
-        s.run(check = True)
-        s.add('wsclean -continue -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
-            -scale 1arcsec -weight briggs -1. -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -multiscale -multiscale-scales 0,4,8,16,32,64 \
-            -auto-threshold 1 \
-            -use-idg \
-            -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
-            log='wscleanB-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
-        s.run(check = True)
+        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
+                weight='briggs -1', niter=1000, update_model_required='', minuv_l=30, mgain=0.85, \
+                join_channels='', fit_spectral_pol=3, channels_out=15)
+        #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
+        #    -scale 1arcsec -weight briggs -1. -niter 1000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+        #    -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
+        #    log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
+        #s.run(check = True)
+        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
+                weight='briggs -1', niter=50000, update_model_required='', minuv_l=30, mgain=0.85, \
+                multiscale='', multiscale_scales='0,4,8,16,32,64', \
+                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=15)
+        #s.add('wsclean -continue -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 2500 2500 -j '+str(s.max_processors)+' \
+        #    -scale 1arcsec -weight briggs -1. -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+        #    -multiscale -multiscale-scales 0,4,8,16,32,64 \
+        #    -auto-threshold 1 \
+        #    -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
+        #    log='wscleanB-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
+        #s.run(check = True)
     else:
-        s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1500 1500 -j '+str(s.max_processors)+' \
-            -scale 2arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -multiscale -multiscale-scales 0,4,8,16,32 \
-            -auto-threshold 1 \
-            -use-idg \
-            -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
-            log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
-        s.run(check = True)
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
+                weight='briggs -1', niter=50000, update_model_required='', minuv_l=30, mgain=0.85, \
+                multiscale='', multiscale_scales='0,4,8,16,32', \
+                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=15)
+        #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1500 1500 -j '+str(s.max_processors)+' \
+        #    -scale 2arcsec -weight briggs -1.2 -niter 50000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+        #    -multiscale -multiscale-scales 0,4,8,16,32 \
+        #    -auto-threshold 1 \
+        #    -join-channels -fit-spectral-pol 3 -channels-out 15 '+MSs.getStrWsclean(), \
+        #    log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors = 'max')
+        #s.run(check = True)
 
     logger.info('Sub model...')
     MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
 
     logger.info('Cleaning sub (cycle %i)...' % c)
     imagename = 'img/imgsub-c'+str(c)
-    s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
-            -scale 15arcsec -weight briggs -0.5 -taper-gaussian 100arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -multiscale -multiscale-scales 0,4,8,16 \
-            -use-idg -baseline-averaging 5 \
-            -join-channels -fit-spectral-pol 2 -channels-out 15 '+MSs.getStrWsclean(), \
-            log='wscleanSUB-c'+str(c)+'.log', commandType='wsclean', processors='max')
-    s.run(check=True)
+    lib_util.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
+            weight='briggs 0.', taper_gaussian='100arcsec', niter=10000, no_update_model_required='', baseline_averaging=5, minuv_l=30, mgain=0.85, \
+            multiscale='', multiscale_scales='0,4,8,16', \
+            auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=10)
+    #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size 1000 1000 -j '+str(s.max_processors)+' \
+    #        -scale 15arcsec -weight briggs -0.5 -taper-gaussian 100arcsec -niter 10000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+    #        -multiscale -multiscale-scales 0,4,8,16 \
+    #        -baseline-averaging 5 \
+    #        -join-channels -fit-spectral-pol 2 -channels-out 15 '+MSs.getStrWsclean(), \
+    #        log='wscleanSUB-c'+str(c)+'.log', commandType='wsclean', processors='max')
+    #s.run(check=True)
 
     # every 10 cycles: rescale model
     if c%10 == 0:
@@ -257,5 +268,7 @@ for c in xrange(100):
         s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
               log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
         s.run(check = True)
+
+    sys.exit()
 
 logger.info("Done.")
