@@ -71,7 +71,7 @@ imgsizepix =  MSs.getListObj()[0].getFWHM()*3600/10
 # Get online model
 print sourcedb
 if sourcedb is None:
-    if not os.path.exists('tgts.skymodel'):
+    if not os.path.exists('tgts.skydb'):
         fwhm = MSs.getListObj()[0].getFWHM()
         radeg = phasecentre[0]
         decdeg = phasecentre[1]
