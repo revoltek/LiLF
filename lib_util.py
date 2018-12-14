@@ -208,33 +208,29 @@ def run_wsclean(s, logfile, MSs_files, **kwargs):
     args : parameters for wsclean
     """
     
-    wsc_params = []
+    wsc_parms = []
 
-    # basic params
-    wsc_parms = '-reorder -j '+str(s.max_processors)
-    # other stanrdard params
-    wcs_parms.append( '-clean-border 1' )
+    # basic parms
+    wsc_parms.append( '-reorder -j '+str(s.max_processors) )
+    # other stanrdard parms
+    wsc_parms.append( '-clean-border 1' )
     # temp dir
-    if s.get_cluster() == 'Hamburg_fat': wcs_parms.append( '-temp-dir /localwork.ssd' )
-    # user defined params
+    if s.get_cluster() == 'Hamburg_fat': wsc_parms.append( '-temp-dir /localwork.ssd' )
+    # user defined parms
     for parm, value in kwargs.items():
         if parm == 'cont': 
             parm = 'continue'
             value = ''
         if parm == 'size': value = '%i %i' % (value, value)
-        wsc_params.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
+        wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
 
     # files
-    wsc_params.append( MSs_files )
+    wsc_parms.append( MSs_files )
 
     # create command string
-    command_string = 'wsclean '.join(wsc_params)
-
-    imagename = 'img/wide-'+str(c)
+    command_string = 'wsclean '+' '.join(wsc_parms)
     s.add(command_string, log=logfile, commandType='wsclean', processors='max')
-
-    logging.debug('Running wsclean: %s' % command_string)
-
+    logger.debug('Running wsclean: %s' % command_string)
     s.run(check=True)
 
 

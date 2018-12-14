@@ -67,10 +67,6 @@ beamReg = 'self/beam.reg'
 obsmode = MSs.getListObj()[0].getObsMode()
 imgsizepix =  MSs.getListObj()[0].getFWHM()*3600/10
 
-# wsclean temp-dir
-temp_dir = '.'
-if s.get_cluster() == 'Hamburg_fat': temp_dir = '/localwork.ssd'
-
 #################################################################
 # Get online model
 print sourcedb
