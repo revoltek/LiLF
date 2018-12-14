@@ -60,8 +60,8 @@ def clean(p, MSs, size=2., apply_beam=False):
     logger.info('Cleaning ('+str(p)+')...')
     imagename = 'img/ddcal-'+str(p)
     s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' -j '+str(s.max_processors)+' \
-            -scale '+str(pixscale)+'arcsec -weight briggs -0.5 -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-            -auto-threshold 20 '+idg_parms+' -baseline-averaging 5 \
+            -scale '+str(pixscale)+'arcsec -weight briggs -0.5 -niter 100000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+            -auto-threshold 20 '+idg_parms+' \
             -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
             log='wsclean-'+str(p)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
@@ -160,38 +160,38 @@ for c in xrange(maxniter):
 
     ################################################################
     # Calibration
-    logger.info('Calibrating...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS ddecal.h5parm=$pathMS/cal-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
-            log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
-
-    # Plot solutions
-    lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
-    os.system('mv plots-c'+str(c)+'* ddcal/plots')
-
-    ##############################################################
-    # low S/N DIE corrections
-    # TODO: add amp and FR sol + correction here after ft() a DDE-corrupted model
-
-    ###########################################################
-    # Empty the dataset
-    logger.info('Set SUBTRACTED_DATA = DATA...')
-    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
-
-    logger.info('Subtraction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_voro_skydb, \
-                   log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP')
+#    logger.info('Calibrating...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS ddecal.h5parm=$pathMS/cal-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
+#            log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
+#
+#    # Plot solutions
+#    lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
+#    os.system('mv plots-c'+str(c)+'* ddcal/plots')
+#
+#    ##############################################################
+#    # low S/N DIE corrections
+#    # TODO: add amp and FR sol + correction here after ft() a DDE-corrupted model
+#
+#    ###########################################################
+#    # Empty the dataset
+#    logger.info('Set SUBTRACTED_DATA = DATA...')
+#    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
+#
+#    logger.info('Subtraction...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_voro_skydb, \
+#                   log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP')
 
     for patch, phasecentre in directions.iteritems():
 
-        # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
-        logger.info('Patch '+p+': add back...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-add.parset msin=$pathMS add.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 add.sourcedb='+skymodel_voro_skydb+' add.directions=[['+p+']]', \
-                   log='$nameMS_add-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
+#        # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
+#        logger.info('Patch '+patch+': add back...')
+#        MSs.run('DPPP '+parset_dir+'/DPPP-add.parset msin=$pathMS add.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 add.sourcedb='+skymodel_voro_skydb+' add.directions=[['+patch+']]', \
+#                   log='$nameMS_add-c'+str(c)+'-p'+str(patch)+'.log', commandType='DPPP')
 
         # DD-correct - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
-        logger.info('Patch '+p+': correct...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+p+']', \
-               log='$nameMS_cor-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
+        logger.info('Patch '+patch+': correct...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+patch+']', \
+               log='$nameMS_cor-c'+str(c)+'-p'+str(patch)+'.log', commandType='DPPP')
 
         logger.info('Patch '+patch+': phase shift and avg...')
         lib_util.check_rm('mss-dir')
@@ -202,6 +202,7 @@ for c in xrange(maxniter):
         
         logger.info('Patch '+patch+': imaging...')
         clean(patch, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[patch], apply_beam = c==maxniter )
+        sys.exit()
 
     ##############################################################
     # Mosaiching
