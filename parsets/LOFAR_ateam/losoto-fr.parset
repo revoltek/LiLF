@@ -13,13 +13,13 @@ AxisInTable = ant
 AxisDiff = pol
 plotFlag = True
 prefix = plots/ph-rot
-#refAnt = CS002LBA
+refAnt = CS002LBA
 minmax = [-1.,1.]
 
 [faraday]
 operation = FARADAY
 soltab = sol000/phase000
-#refAnt = CS002LBA
+refAnt = CS002LBA
 maxResidual = 1.
 
 [plotFR]
@@ -42,5 +42,5 @@ AxisInTable = ant
 AxisDiff = pol
 plotFlag = True
 prefix = plots/phRes-rot
-#refAnt = CS002LBA
+refAnt = CS002LBA
 minmax = [-1.,1.]
