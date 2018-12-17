@@ -260,7 +260,7 @@ for c in xrange(100):
     #s.run(check=True)
 
     # every 10 cycles: rescale model
-    if c%10 == 0:
+    if c%10 == 0 and c != 0:
         imagename = 'img/img-c'+str(c)
         im = lib_img.Image(imagename)
         im.rescaleModel(f)
@@ -268,7 +268,5 @@ for c in xrange(100):
         s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
               log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
         s.run(check = True)
-
-    sys.exit()
 
 logger.info("Done.")
