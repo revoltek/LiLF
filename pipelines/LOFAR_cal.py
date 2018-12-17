@@ -227,7 +227,7 @@ if imaging:
     logger.info('Cleaning low-res...')
     imagename = 'img/calLR'
     lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix/5, scale='60arcsec', \
-            weight='briggs 0.', taper_gaussian='240arcsec', niter=10000, no_update_model_required='', baseline_averaging=3, minuv_l=30, maxuv_l=2000, mgain=0.85, \
+            weight='briggs 0.', taper_gaussian='240arcsec', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
             auto_mask=10, auto_threshold=1, pol='IQUV', join_channels'', fit_spectral_pol=2, channels_out=10)
     #s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(size/5) + ' ' + str(size/5) + ' -j '+str(s.max_processors)+' \

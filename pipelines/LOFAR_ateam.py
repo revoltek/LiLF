@@ -95,104 +95,104 @@ else: hba = True
 
 for c in xrange(100):
 
-#    ####################################################
-#    # 1: find PA and remove it
-#
-#    # Solve cal_SB.MS:DATA (only solve)
-#    logger.info('Calibrating PA...')
-#    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
-#            sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solPA.log', commandType="DPPP")
-#
-#    lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
-#                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
-#
-#    #################################################
-#    # 1: find the FR and remve it
-#    
-#    # Beam correction DATA -> CORRECTED_DATA
-#    logger.info('PA correction...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
-#            log='$nameMS_corPA2.log', commandType="DPPP")
-#
-#    # Beam correction CORRECTED_DATA -> CORRECTED_DATA
-#    logger.info('Beam correction...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam2.log', commandType='DPPP')
-#    
-#    # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
-#    logger.info('Converting to circular...')
-#    MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
-#    
-#    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
-#    logger.info('Calibrating FR...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/fr.h5 sol.caltype=diagonal', log='$nameMS_fr.log', commandType='DPPP')
-#    
-#    lib_util.run_losoto(s, 'fr-c'+str(c), [ms+'/fr.h5' for ms in MSs.getListStr()], \
-#            [parset_dir + '/losoto-fr.parset'])
-#    
-#    #####################################################
-#    # 2: find BANDPASS
-#
-#    # Beam correction DATA -> CORRECTED_DATA
-#    logger.info('Polalign correction...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
-#            log='$nameMS_corPA3.log', commandType="DPPP")
-#
-#    # Beam correction CORRECTED_DATA -> CORRECTED_DATA
-#    logger.info('Beam correction...')
-#    MSs.run('DPPP ' + parset_dir + '/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam3.log', commandType="DPPP")
-#    
-#    # Correct FR CORRECTED_DATA -> CORRECTED_DATA
-#    logger.info('Faraday rotation correction...')
-#    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
-#            log='$nameMS_corFR3.log', commandType="DPPP")
-#    
-#    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
-#    logger.info('Calibrating BP...')
-#    MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/amp.h5 sol.caltype=diagonal', log='$nameMS_amp.log', commandType="DPPP")
-#    
-#    lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
-#            [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-bp.parset'])
-#
-#    #################################################
-#    # 3: apply all
-#
-#    # Beam correction DATA -> CORRECTED_DATA
-#    logger.info('Polalign correction...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
-#            log='$nameMS_corPA4.log', commandType="DPPP")
-#
-#    # Correct BP CORRECTED_DATA -> CORRECTED_DATA
-#    logger.info('BP correction...')
-#    if c == 0 and not hba:
-#        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitudeSmooth000', \
-#                log='$nameMS_corAMP4.log', commandType='DPPP')
-#    else:
-#        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitudeSmooth000', \
-#                log='$nameMS_corAMP4.log', commandType='DPPP')
-# 
-#    # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
-#    logger.info('Beam correction...')
-#    if c == 0 and not hba:
-#        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam4.log', commandType='DPPP')
-#    else:
-#        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=False', log='$nameMS_beam4.log', commandType='DPPP')
-#       
-#    # Correct FR CORRECTED_DATA -> CORRECTED_DATA
-#    logger.info('Faraday rotation correction...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
-#            log='$nameMS_corFR4.log', commandType='DPPP')
-#    
-#    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
-#    logger.info('Calibrating IONO...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_iono.log', commandType='DPPP')
-#    
-#    lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
-#        [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
-#    
-#    # Correct all CORRECTED_DATA (PA, beam, BP, FR corrected) -> CORRECTED_DATA
-#    logger.info('IONO correction...')
-#    MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono-c'+str(c)+'.h5 cor.amp.parmdb=cal-iono-c'+str(c)+'.h5 \
-#                    cor.ph.correction=phase000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corG4.log', commandType="DPPP")
+    ####################################################
+    # 1: find PA and remove it
+
+    # Solve cal_SB.MS:DATA (only solve)
+    logger.info('Calibrating PA...')
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
+            sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solPA.log', commandType="DPPP")
+
+    lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
+                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
+
+    #################################################
+    # 1: find the FR and remve it
+    
+    # Beam correction DATA -> CORRECTED_DATA
+    logger.info('PA correction...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
+            log='$nameMS_corPA2.log', commandType="DPPP")
+
+    # Beam correction CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('Beam correction...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam2.log', commandType='DPPP')
+    
+    # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('Converting to circular...')
+    MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+    
+    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
+    logger.info('Calibrating FR...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/fr.h5 sol.caltype=diagonal', log='$nameMS_fr.log', commandType='DPPP')
+    
+    lib_util.run_losoto(s, 'fr-c'+str(c), [ms+'/fr.h5' for ms in MSs.getListStr()], \
+            [parset_dir + '/losoto-fr.parset'])
+    
+    #####################################################
+    # 2: find BANDPASS
+
+    # Beam correction DATA -> CORRECTED_DATA
+    logger.info('Polalign correction...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
+            log='$nameMS_corPA3.log', commandType="DPPP")
+
+    # Beam correction CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('Beam correction...')
+    MSs.run('DPPP ' + parset_dir + '/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam3.log', commandType="DPPP")
+    
+    # Correct FR CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('Faraday rotation correction...')
+    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+            log='$nameMS_corFR3.log', commandType="DPPP")
+    
+    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
+    logger.info('Calibrating BP...')
+    MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/amp.h5 sol.caltype=diagonal', log='$nameMS_amp.log', commandType="DPPP")
+    
+    lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
+            [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-bp.parset'])
+
+    #################################################
+    # 3: apply all
+
+    # Beam correction DATA -> CORRECTED_DATA
+    logger.info('Polalign correction...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
+            log='$nameMS_corPA4.log', commandType="DPPP")
+
+    # Correct BP CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('BP correction...')
+    if c == 0 and not hba:
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitudeSmooth000', \
+                log='$nameMS_corAMP4.log', commandType='DPPP')
+    else:
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitudeSmooth000', \
+                log='$nameMS_corAMP4.log', commandType='DPPP')
+ 
+    # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('Beam correction...')
+    if c == 0 and not hba:
+        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam4.log', commandType='DPPP')
+    else:
+        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=False', log='$nameMS_beam4.log', commandType='DPPP')
+       
+    # Correct FR CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('Faraday rotation correction...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+            log='$nameMS_corFR4.log', commandType='DPPP')
+    
+    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
+    logger.info('Calibrating IONO...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_iono.log', commandType='DPPP')
+    
+    lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
+        [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-fixamp.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
+    
+    # Correct all CORRECTED_DATA (PA, beam, BP, FR corrected) -> CORRECTED_DATA
+    logger.info('IONO correction...')
+    MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono-c'+str(c)+'.h5 cor.amp.parmdb=cal-iono-c'+str(c)+'.h5 \
+                    cor.ph.correction=phase000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corG4.log', commandType="DPPP")
 
     # briggs: -1.2 for virgo; -1.0 for subtraction to get good minihalo?
     logger.info('Cleaning (cycle %i)...' % c)
@@ -260,7 +260,7 @@ for c in xrange(100):
     #s.run(check=True)
 
     # every 10 cycles: rescale model
-    if c%10 == 0:
+    if c%10 == 0 and c != 0:
         imagename = 'img/img-c'+str(c)
         im = lib_img.Image(imagename)
         im.rescaleModel(f)
@@ -268,7 +268,5 @@ for c in xrange(100):
         s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
               log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
         s.run(check = True)
-
-    sys.exit()
 
 logger.info("Done.")
