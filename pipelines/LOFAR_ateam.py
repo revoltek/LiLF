@@ -63,35 +63,31 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 if min(MSs.getFreqs()) < 80.e6: hba = False
 else: hba = True
 
-# TEST
-#logger.info("Put data to Jy...")
-#MSs.run('taql "update $pathMS set DATA = 1e2*DATA"', log='$nameMS_taql.log', commandType='general')
+#######################################################   
+# Create columns (non compressed)
+logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
+MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES', log='$nameMS_addcol.log', commandType='python')
 
 ########################################################   
-## Create columns (non compressed)
-#logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
-#MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES', log='$nameMS_addcol.log', commandType='python')
-#
-#########################################################   
-## flag bad stations, and low-elev
-#logger.info('Flagging...')
-#MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
-#            log='$nameMS_flag.log', commandType='DPPP')
-#
-## predict to save time MODEL_DATA
-#if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
-#else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
-#
-#if os.path.exists(model_dir+'/img-MFS-model.fits'):
-#    logger.info('Predict (wsclean)...')
-#    im = lib_img.Image(model_dir+'/img')
-#    im.rescaleModel(f)
-#    s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
-#          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
-#    s.run(check=True)
-#else:
-#    logger.info('Predict (DPPP)...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
+# flag bad stations, and low-elev
+logger.info('Flagging...')
+MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
+            log='$nameMS_flag.log', commandType='DPPP')
+
+# predict to save time MODEL_DATA
+if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
+else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
+
+if os.path.exists(model_dir+'/img-MFS-model.fits'):
+    logger.info('Predict (wsclean)...')
+    im = lib_img.Image(model_dir+'/img')
+    im.rescaleModel(f)
+    s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
+          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
+    s.run(check=True)
+else:
+    logger.info('Predict (DPPP)...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
 
 for c in xrange(100):
 
