@@ -8,7 +8,7 @@ numthreads = 1 # bug fix
 steps = [sol]
 
 sol.type = gaincal
-sol.uvlambdamin=300
+sol.uvlambdamin = 30
 sol.caltype = diagonal
 sol.maxiter = 500
 sol.nchan = 1

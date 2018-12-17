@@ -93,7 +93,7 @@ for c in xrange(10):
 
     # Solve cal_SB.MS:DATA (only solve)
     logger.info('Calibrating PA...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal', log='$nameMS_solPA.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal uvlambdarange='+str(blrange), log='$nameMS_solPA.log', commandType="DPPP")
 
     lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
@@ -120,7 +120,7 @@ for c in xrange(10):
     
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Calibrating FR...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/fr.h5 sol.caltype=diagonal', log='$nameMS_fr.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/fr.h5 sol.caltype=diagonal uvlambdarange='+str(blrange), log='$nameMS_fr.log', commandType='DPPP')
     
     lib_util.run_losoto(s, 'fr-c'+str(c), [ms+'/fr.h5' for ms in MSs.getListStr()], \
             [parset_dir + '/losoto-fr.parset'])
@@ -148,7 +148,7 @@ for c in xrange(10):
     
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Calibrating BP...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/amp.h5 sol.caltype=diagonal', log='$nameMS_amp.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/amp.h5 sol.caltype=diagonal uvlambdarange='+str(blrange), log='$nameMS_amp.log', commandType="DPPP")
     
     lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
             [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-bp.parset'])
@@ -188,7 +188,7 @@ for c in xrange(10):
     
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Calibrating IONO...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_iono.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal uvlambdarange='+str(blrange), log='$nameMS_iono.log', commandType='DPPP')
     
     lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
         [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
