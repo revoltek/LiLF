@@ -18,12 +18,17 @@ pol = XX, YY
 axesToSmooth = [time]
 mode = median
 
-[smooth2]
-operation = SMOOTH
-soltab = sol000/amplitudeSmooth
-pol = XY, YX
-axesToSmooth = [ant]
-mode = median
+#[smooth2]
+#operation = SMOOTH
+#soltab = sol000/amplitudeSmooth
+#pol = XY, YX
+#axesToSmooth = [ant]
+#mode = median
+
+#[BPflag]
+#operation = FLAGSTATION
+#soltab = sol000/amplitudeSmooth
+#mode = bandpass
 
 [plotAs]
 operation = PLOT
@@ -38,7 +43,7 @@ prefix = plots/ampSmooth_
 operation = PLOT
 soltab = sol000/amplitudeSmooth
 axesInPlot = freq
-time.minmaxstep = [0,1e20,20000]
+time.minmaxstep = [0,1e30,1e30]
 axisInTable = ant
 axisInCol = pol
 plotFlag = True

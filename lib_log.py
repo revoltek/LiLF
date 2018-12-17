@@ -1,55 +1,90 @@
-import os, logging
+import os, sys, logging, time
 import lib_util
 
-def add_coloring_to_emit_ansi(fn):
-    # add methods we need to the class
-    def new(*args):
-        levelno = args[1].levelno
-        if (levelno >= 50):
-            color = "\x1b[31m" # red
-        elif (levelno >= 40):
-            color = "\x1b[31m" # red
-        elif (levelno >= 30):
-            color = "\x1b[33m" # yellow
-        elif (levelno >= 20):
-            color = "\x1b[32m" # green 
-        elif (levelno >= 10):
-            color = "\x1b[35m" # pink
-        else:
-            color = "\x1b[0m" # normal
-        args[1].msg = color + args[1].msg + "\x1b[0m"  # normal
-        return fn(*args)
-    return new
+class _ColorStreamHandler(logging.StreamHandler):
 
+    DEFAULT = '\x1b[0m'
+    RED     = '\x1b[31m'
+    GREEN   = '\x1b[32m'
+    YELLOW  = '\x1b[33m'
+    CYAN    = '\x1b[36m'
 
-def set_logger(filename = "pipeline.logging"):
+    CRITICAL = RED
+    ERROR    = RED
+    WARNING  = YELLOW
+    INFO     = GREEN
+    DEBUG    = CYAN
 
-    # hopefully kill other loggers
-    logger = logging.getLogger()
-    logger.propagate = False
-    for l in logger.handlers: l.setLevel("CRITICAL")
+    @classmethod
+    def _get_color(cls, level):
+        if level >= logging.CRITICAL:  return cls.CRITICAL
+        elif level >= logging.ERROR:   return cls.ERROR
+        elif level >= logging.WARNING: return cls.WARNING
+        elif level >= logging.INFO:    return cls.INFO
+        elif level >= logging.DEBUG:   return cls.DEBUG
+        else:                          return cls.DEFAULT
 
-    logger = logging.getLogger("PiLL")
-    logger.setLevel(logging.DEBUG)
-    logging.StreamHandler.emit = add_coloring_to_emit_ansi(logging.StreamHandler.emit)
+    def __init__(self, stream=None):
+        logging.StreamHandler.__init__(self, stream)
+
+    def format(self, record):
+        color = self._get_color(record.levelno)
+        record.msg = color + record.msg + self.DEFAULT
+        return logging.StreamHandler.format(self, record)
+
+class Logger():
+
+    def __init__(self, logfile = "pipeline.logging", log_dir = "logs"):
+
+        # hopefully kill other loggers
+        logger = logging.getLogger()
+        logger.propagate = False
+        for l in logger.handlers: l.setLevel("CRITICAL")
+ 
+        self.logfile = logfile
+        self.log_dir = log_dir
+        self.backup(logfile, log_dir)
+        self.set_logger(logfile, log_dir)
+        
+
+    def backup(self, logfile, log_dir):
+
+        # bkp old log dir
+        if os.path.isdir(log_dir):
+            current_time = time.localtime()
+            log_dir_old = time.strftime(log_dir+'_bkp_%Y-%m-%d_%H:%M', current_time)
+            os.system('mv %s %s' % ( log_dir, log_dir_old ))
+        os.makedirs(log_dir)
+
+        # bkp old log file
+        if os.path.exists(logfile):
+            current_time = time.localtime()
+            logfile_old = time.strftime(logfile+'_bkp_%Y-%m-%d_%H:%M', current_time)
+            os.system('mv %s %s' % ( logfile, logfile_old ))
+            
+
+    def set_logger(self, logfile, log_dir):
+      
+        logger = logging.getLogger("PiLL")
+        logger.setLevel(logging.DEBUG)
+
+        # create file handler which logs even debug messages
+        handlerFile = logging.FileHandler(logfile)
+        handlerFile.setLevel(logging.DEBUG)
+        
+        # create console handler with a higher log level
+        handlerConsole = _ColorStreamHandler(stream=sys.stdout)
+        handlerConsole.setLevel(logging.INFO)
+        
+        # create formatter and add it to the handlers
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", "%Y-%m-%d %H:%M:%S")
+        handlerFile.setFormatter(formatter)
+        handlerConsole.setFormatter(formatter)
+        
+        # add the handlers to the logger
+        logger.addHandler(handlerFile)
+        logger.addHandler(handlerConsole)
+
     
-    # create file handler which logs even debug messages
-    lib_util.check_rm(filename)
-    handlerFile = logging.FileHandler(filename)
-    handlerFile.setLevel(logging.DEBUG)
-    
-    # create console handler with a higher log level
-    handlerConsole = logging.StreamHandler()
-    handlerConsole.setLevel(logging.INFO)
-    
-    # create formatter and add it to the handlers
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    handlerFile.setFormatter(formatter)
-    handlerConsole.setFormatter(formatter)
-    
-    # add the handlers to the logger
-    logger.addHandler(handlerFile)
-    logger.addHandler(handlerConsole)
-
 # this is used by all libraries for logging
 logger = logging.getLogger("PiLL")

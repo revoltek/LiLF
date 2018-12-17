@@ -4,7 +4,7 @@ msin.baseline = [CR]S*&
 msout = .
 msout.datacolumn = CORRECTED_DATA
 
-#numthreads = 1 # this is multithread, keep max
+numthreads = 0 # the pipeline should set this number
 
 steps = [sol]
 
@@ -14,6 +14,6 @@ sol.parmdb =
 sol.caltype = tec #tecandphase/tec
 sol.maxiter = 500
 sol.usemodelcolumn = True
-sol.solint = 1
+sol.solint = 3
 sol.nchan = 1
 sol.propagatesolutions = True

@@ -38,6 +38,15 @@ class AllMSs(object):
         """
         return self.mssListStr
 
+    def getNThreads(self):
+        """
+        Return the max number of threads in one machine assuming all MSs run at the same time
+        """
+        if self.scheduler.max_processors < len(self.mssListStr): NThreads = 1
+        else:
+            NThreads = int(np.rint( self.scheduler.max_processors/len(self.mssListStr) ))
+
+        return NThreads
 
     def getStrWsclean(self):
         """
@@ -69,6 +78,10 @@ class AllMSs(object):
         The command and log file path can be customised for each MS using keywords (see: 'MS.concretiseString()').
         Beware: depending on the value of 'Scheduler.max_threads' (see: lib_util.py), the commands are run in parallel.
         """
+        # add max num of threads given the total jobs to run
+        # e.g. in a 64 processors machine running on 16 MSs, would result in numthreads=4
+        if commandType == 'DPPP': command += ' numthreads='+str(self.getNThreads())
+
         for MSObject in self.mssListObj:
             commandCurrent = MSObject.concretiseString(command)
             logCurrent     = MSObject.concretiseString(log)
@@ -260,7 +273,7 @@ class MS(object):
         if (RA < 0):
             RA += 2 * np.pi
 
-        logger.debug("%s: phase centre (degrees): (%f, %f)", self.pathMS, np.degrees(RA), np.degrees(Dec))
+        #logger.debug("%s: phase centre (degrees): (%f, %f)", self.pathMS, np.degrees(RA), np.degrees(Dec))
         return (np.degrees(RA), np.degrees(Dec))
 
     def getObsMode(self):
@@ -269,6 +282,20 @@ class MS(object):
         """
         with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
             return t.getcol("LOFAR_ANTENNA_SET")[0]
+
+    def getFWHM(self):
+        """
+        Return the expected FWHM in degree
+        """
+        if 'OUTER' in self.getObsMode():
+            return 8.
+        elif 'SPARSE' in self.getObsMode():
+            return 12.
+        elif 'INNER' in self.getObsMode():
+            return 16.
+        else:
+            logger.error('Cannot find beam FWHM, only LBA_OUTER, LBA_INNER, or LBA_SPARSE_* are implemented. Assuming beam diameter = 8 deg.')
+            return 8.
 
     def makeBeamReg(self, outfile, pb_cut=None, to_null=False):
         """
@@ -284,23 +311,15 @@ class MS(object):
         ra, dec = self.getPhaseCentre()
 
         if pb_cut is None:
-            if 'OUTER' in self.getObsMode():
-                size = 8./2.
-            elif 'SPARSE' in self.getObsMode():
-                size = 12./2.
-            elif 'INNER' in self.getObsMode():
-                size = 16./2.
-            else:
-                logger.error('Cannot find beam size, only LBA_OUTER or LBA_SPARSE_* are implemented. Assuming beam diameter = 8 deg.')
-                size = 8./2.
+            radius = self.getFWHM()/2.
         else:
-            size = pb_cut/2.
+            radius = pb_cut/2.
 
-        if to_null: size *= 1.7 # rough estimation
+        if to_null: radius *= 1.7 # rough estimation
 
         s = Shape('circle', None)
         s.coord_format = 'fk5'
-        s.coord_list = [ ra, dec, size ] # ra, dec, radius
+        s.coord_list = [ ra, dec, radius ] # ra, dec, radius
         s.coord_format = 'fk5'
         s.attr = ([], {'width': '2', 'point': 'cross',
                        'font': '"helvetica 16 normal roman"'})

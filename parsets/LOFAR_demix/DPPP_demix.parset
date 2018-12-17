@@ -1,0 +1,22 @@
+msin = 
+msin.datacolumn = DATA
+msin.baseline = [CR]S*&
+msout =
+
+numthreads = 0 # the pipeline should set this number
+
+steps = [demixer] 
+
+demixer.type = demixer 
+#demixer.baseline = [CR]S*&
+demixer.demixfreqstep = 16
+demixer.demixtimestep = 10
+#demixer.elevationcutoff = 0.0deg # not-working
+demixer.ignoretarget = F
+demixer.targetsource = TauA
+demixer.subtractsources = [CasA,CygA] 
+demixer.ntimechunk = 0
+demixer.skymodel =/home/fdg/scripts/model/demix_all.skydb
+demixer.freqstep = 16
+demixer.timestep = 1
+demixer.instrumentmodel =

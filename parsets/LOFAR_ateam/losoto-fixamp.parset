@@ -1,0 +1,39 @@
+Ncpu = 0
+
+[plotAi1]
+operation = PLOT
+soltab = sol000/amplitude000
+freq.minmaxstep = [0,300e6,100]
+axesInPlot = time
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ampNoSmooth_
+NColFig = 4
+figSize = [20,20]
+minmax = [0.5,2]
+
+[plotAi2]
+operation = PLOT
+soltab = sol000/amplitude000
+time.minmaxstep = [0,1e20,500]
+axesInPlot = freq
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ampNoSmooth_
+minmax = [0.5,2]
+
+[plotAi3]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/ampNoSmooth_
+minmax = [0.5,2]
+
+[smooth]
+operation = SMOOTH
+soltab = sol000/amplitude000
+axesToSmooth = [ant]
+mode = median

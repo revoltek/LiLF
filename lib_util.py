@@ -2,6 +2,7 @@ import os, sys, re, time, pickle, random, shutil, glob
 
 from casacore import tables
 import numpy as np
+import multiprocessing
 
 if (sys.version_info > (3, 0)):
     from configparser import ConfigParser
@@ -27,7 +28,7 @@ def getParset(parsetFile='../lilf.config'):
     # add pipeline sections and defaul parset dir:
     for pipeline in ['download','demix','cal','timesplit','self','dd', 'ateam']:
         if not config.has_section(pipeline): config.add_section(pipeline)
-        if not config.has_option(pipeline, 'parset_dir'): config.set(pipeline, 'parset_dir', '/home/fdg/scripts/LiLF/parsets/LOFAR_'+pipeline)
+        if not config.has_option(pipeline, 'parset_dir'): config.set(pipeline, 'parset_dir', os.path.dirname(__file__)+'/parsets/LOFAR_'+pipeline)
     # add other sections
     if not config.has_section('flag'): config.add_section('flag')
     if not config.has_section('model'): config.add_section('model')
@@ -40,28 +41,29 @@ def getParset(parsetFile='../lilf.config'):
     add_default('demix', 'data_dir', '../tgts-full/')
     # cal
     add_default('cal', 'imaging', 'False')
-    add_default('cal', 'skymodel', '/home/fdg/scripts/LiLF/models/calib-simple.skydb')
+    add_default('cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
     add_default('cal', 'data_dir', '../cals-bkp/')
     # timesplit
     add_default('timesplit', 'data_dir', '../tgts-bkp/')
     add_default('timesplit', 'cal_dir', '../cals/')
-    add_default('timesplit', 'ngroups', 2)
-    add_default('timesplit', 'initc', 0)
+    add_default('timesplit', 'ngroups', '2')
+    add_default('timesplit', 'initc', '0')
     # self
     # dd
-    add_default('dd', 'maxniter', 10)
+    add_default('dd', 'maxniter', '10')
 
     # flag
     add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IR*;PL*')
     # model
-    add_default('model', 'sourcedb', '')
+    add_default('model', 'sourcedb', None)
     add_default('model', 'apparent', 'False')
-    add_default('model', 'userReg', 'None')
+    add_default('model', 'userreg', None)
 
     return config
 
 
 def columnExists(tableObject, columnName):
+    # more to lib_ms
     '''
     Check whether a column with name 'columnName' exists in  table 'tableObject'.
     '''
@@ -70,6 +72,7 @@ def columnExists(tableObject, columnName):
 
 
 def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithOnes = True, comment = "", verbose = False):
+    # more to lib_ms
     """
     Add a column to a MS that is similar to a pre-existing column (in shape, but not in values).
     pathMS:                 path of the MS
@@ -199,6 +202,38 @@ def run_losoto(s, c, h5s, parsets):
     os.system('mv plots plots-' + c)
 
 
+def run_wsclean(s, logfile, MSs_files, **kwargs):
+    """
+    s : scheduler
+    args : parameters for wsclean
+    """
+    
+    wsc_parms = []
+
+    # basic parms
+    wsc_parms.append( '-reorder -j '+str(s.max_processors) )
+    # other stanrdard parms
+    wsc_parms.append( '-clean-border 1' )
+    # temp dir
+    if s.get_cluster() == 'Hamburg_fat': wsc_parms.append( '-temp-dir /localwork.ssd' )
+    # user defined parms
+    for parm, value in kwargs.items():
+        if parm == 'cont': 
+            parm = 'continue'
+            value = ''
+        if parm == 'size': value = '%i %i' % (value, value)
+        wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
+
+    # files
+    wsc_parms.append( MSs_files )
+
+    # create command string
+    command_string = 'wsclean '+' '.join(wsc_parms)
+    s.add(command_string, log=logfile, commandType='wsclean', processors='max')
+    logger.debug('Running wsclean: %s' % command_string)
+    s.run(check=True)
+
+
 class Scheduler():
     def __init__(self, qsub = None, maxThreads = None, max_processors = None, log_dir = 'logs', dry = False):
         """
@@ -209,6 +244,7 @@ class Scheduler():
         max_processors: max number of processors in a node (ignored if qsub=False)
         """
         self.cluster = self.get_cluster()
+        self.log_dir = log_dir
         self.qsub    = qsub
         # if qsub/max_thread/max_processors not set, guess from the cluster
         # if they are set, double check number are reasonable
@@ -219,31 +255,23 @@ class Scheduler():
                 self.qsub = False
         else:
             if ((self.qsub == False and self.cluster == "Hamburg") or \
-               (self.qsub == True and (self.cluster == "Leiden" or self.cluster == "CEP3"))):
+               (self.qsub == True and (self.cluster == "Leiden" or self.cluster == "CEP3" or self.cluster == "Hamburg_fat"))):
                 logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
                 sys.exit(1)
 
         if (maxThreads == None):
             if   (self.cluster == "Hamburg"):
                 self.maxThreads = 32
-            elif (self.cluster == "Leiden"):
-                self.maxThreads = 64
-            elif (self.cluster == "CEP3"):
-                self.maxThreads = 40
             else:
-                self.maxThreads = 12
+                self.maxThreads = multiprocessing.cpu_count()
         else:
             self.maxThreads = maxThreads
 
         if (max_processors == None):
             if   (self.cluster == "Hamburg"):
                 self.max_processors = 6
-            elif (self.cluster == "Leiden"):
-                self.max_processors = 64
-            elif (self.cluster == "CEP3"):
-                self.max_processors = 40
             else:
-                self.max_processors = 12
+                self.max_processors = multiprocessing.cpu_count()
         else:
             self.max_processors = max_processors
 
@@ -254,16 +282,6 @@ class Scheduler():
         self.action_list = []
         self.log_list    = [] # list of 2-tuples of the type: (log filename, type of action)
 
-        # bkp old log dir
-        if os.path.isdir(log_dir):
-            current_time = time.localtime()
-            log_dir_old = time.strftime('logs_bkp_%Y_%b_%d_%H:%M:%S', current_time)
-            os.system('mv %s %s' % ( log_dir, log_dir_old ))
-
-        logger.info("Creating log dir '" + log_dir + "'.")
-        os.makedirs(log_dir)
-        self.log_dir = log_dir
-
 
     def get_cluster(self):
         """
@@ -273,12 +291,14 @@ class Scheduler():
         hostname = socket.gethostname()
         if (hostname == 'lgc1' or hostname == 'lgc2'):
             return "Hamburg"
+        elif ('node3' in hostname):
+            return "Hamburg_fat"
         elif ('leidenuniv' in hostname):
             return "Leiden"
         elif (hostname[0 : 3] == 'lof'):
             return "CEP3"
         else:
-            logger.error('Hostname %s unknown.' % hostname)
+            logger.warning('Hostname %s unknown.' % hostname)
             return "Unknown"
 
 
@@ -328,55 +348,6 @@ class Scheduler():
         if (log != ""):
             self.log_list.append((log, commandType))
 
-#    def add_casa(self, cmd = '', params = {}, wkd = None, log = '', logAppend = False, processors = None):
-#        """
-#        Run a casa command pickling the parameters passed in params
-#        NOTE: running casa commands in parallel is a problem for the log file, better avoid
-#        alternatively all used MS and CASA must be in a separate working dir
-#
-#        wkd = working dir (logs and pickle are in the pipeline dir)
-#        """
-#
-#        if processors != None and processors == 'max': processors = self.max_processors
-#        if processors == None: processors=self.max_processors # default use entire node
-#
-#        # since CASA can run in another dir, be sure log and pickle are in the pipeline working dir
-#        if log != '': log = os.getcwd()+'/'+self.log_dir+'/'+log
-#        pfile = os.getcwd()+'/casaparams_'+str(random.randint(0, 1e9))+'.pickle'
-#        pickle.dump( params, open( pfile, "wb" ) )
-#
-#        # exec in the script dir?
-#        if wkd == None: casacmd = 'casa --nogui --log2term --nologger -c '+cmd+' '+pfile
-#        elif os.path.isdir(wkd):
-#            casacmd = 'cd '+wkd+'; casa --nogui --log2term --nologger -c '+cmd+' '+pfile
-#        else:
-#            logger.error('Cannot find CASA working dir: '+wkd)
-#            sys.exit(1)
-#
-#        if self.qsub:
-#            if log != '' and not logAppend: casacmd = str(processors)+' \''+casacmd+' > '+log+' 2>&1'
-#            elif log != '' and logAppend: casacmd = str(processors)+' \''+casacmd+' >> '+log+' 2>&1'
-#            else: casacmd = str(processors)+' \''+casacmd
-#
-#            # clean up casa remnants in Hamburg cluster
-#            if self.cluster == "Hamburg":
-#                self.action_list.append(casacmd+'; killall -9 -r dbus-daemon Xvfb python casa\*\'')
-#                if processors != self.max_processors:
-#                    logger.error('To clean annoying CASA remnants no more than 1 CASA per node is allowed.')
-#                    sys.exit(1)
-#            else:
-#                self.action_list.append(casacmd+'\'')
-#        else:
-#            if (log != '' and not logAppend):
-#                self.action_list.append(casacmd + ' > ' + log + ' 2>&1')
-#            elif (log != '' and logAppend):
-#                self.action_list.append(casacmd + ' >> ' + log + ' 2>&1')
-#            else:
-#                self.action_list.append(casacmd)
-#
-#        if log != '':
-#            self.log_list.append((log, "CASA"))
-
 
     def run(self, check = False, maxThreads = None):
         """
@@ -390,10 +361,6 @@ class Scheduler():
         def worker(queue):
             for cmd in iter(queue.get, None):
                 if self.qsub and self.cluster == "Hamburg":
-                    # run in priority nodes
-                    #cmd = 'salloc --job-name LBApipe --reservation=important_science --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
-                    #        ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
-                    # run on all cluster
                     cmd = 'salloc --job-name LBApipe --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
                             ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
                 subprocess.call(cmd, shell = True)

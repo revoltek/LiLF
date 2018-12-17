@@ -3,7 +3,7 @@ msin.datacolumn = SMOOTHED_DATA
 msout = .
 msout.datacolumn = CORRECTED_DATA
 
-#numthreads = 1 # this is multithread, keep max
+numthreads = 0 # the pipeline should set this number
 
 steps = [ddecal]
 
@@ -11,7 +11,7 @@ ddecal.type = ddecal
 ddecal.uvlambdamin = 250
 ddecal.maxiter = 500
 ddecal.tolerance = 5e-4
-ddecal.solint = 1
+ddecal.solint = 3
 ddecal.nchan = 1
 ddecal.stepsize = 0.2
 ddecal.h5parm = 

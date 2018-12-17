@@ -16,9 +16,9 @@ if 'LBAsurvey' in os.getcwd():
 
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log
-lib_log.set_logger('pipeline-timesplit.logger')
+logger_obj = lib_log.Logger('pipeline-timesplit.logger')
 logger = lib_log.logger
-s = lib_util.Scheduler(dry = False)
+s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()
@@ -62,10 +62,10 @@ MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.steps=[pa] \
 # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, calibrator corrected+reweight, beam corrected+reweight)
 #logger.info('Apply solutions...')
 #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
-#        cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth000 cor.amp.updateweights=True\
+#        cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth cor.amp.updateweights=True\
 #        cor.ph.parmdb=cal-iono.h5 cor.ph.correction=clock000', log='$nameMS_cor2.log', commandType='DPPP') # TODO: clock?
 MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
-        cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth000 cor.amp.updateweights=True\
+        cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth cor.amp.updateweights=True\
         cor.ph.parmdb=cal-iono.h5 cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DPPP')
 
 # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
@@ -106,7 +106,7 @@ MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
 
-#sys.exit()
+#sys.exit() # for DDFacet
 
 # Create time-chunks
 logger.info('Splitting in time...')
@@ -120,7 +120,7 @@ for groupname in groupnames:
     hours = (endtime-starttime)/3600.
     logger.debug(ms+' has length of '+str(hours)+' h.')
 
-    for timerange in np.array_split(t.getcol('TIME'), round(hours)):
+    for timerange in np.array_split(sorted(set(t.getcol('TIME'))), round(hours)):
         logger.info('%02i - Splitting timerange %f %f' % (tc, timerange[0], timerange[-1]))
         t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[-1]), sortlist='TIME,ANTENNA1,ANTENNA2')
         splitms = groupname+'/TC%02i.MS' % tc

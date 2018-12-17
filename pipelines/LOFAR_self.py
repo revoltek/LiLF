@@ -18,14 +18,6 @@ import numpy as np
 import pyrap.tables as pt
 
 # Temporary
-#if 'bootes' in os.getcwd():
-#    sourcedb = '/home/fdg/scripts/model/Bootes_HBA.corr.skydb'
-#    apparent = False
-#    userReg = None
-#elif '3Csurvey' in os.getcwd():
-#    sourcedb = '/home/fdg/scripts/model/3c31_LBA.skydb'
-#    apparent = False
-#    userReg = None
 if 'LBAsurvey' in os.getcwd():
     obs = os.getcwd().split('/')[-1]
     sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/skymodels/%s.skydb' % obs
@@ -40,16 +32,15 @@ if 'LBAsurvey' in os.getcwd():
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
-lib_log.set_logger('pipeline-self.logger')
+logger_obj = lib_log.Logger('pipeline-self.logger')
 logger = lib_log.logger
-s = lib_util.Scheduler(dry = False)
+s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 parset = lib_util.getParset()
 parset_dir = parset.get('self','parset_dir')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
-assert os.path.exists(sourcedb)
 
 niter = 3
 
@@ -72,14 +63,23 @@ phasecentre = MSs.getListObj()[0].getPhaseCentre()
 MSs.getListObj()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
 beamReg = 'self/beam.reg'
 
-# se timage size
+# set image size
 obsmode = MSs.getListObj()[0].getObsMode()
-if 'INNER' in obsmode: size = 6000
-elif 'SPARSE' in obsmode: size = 4500
-elif 'OUTER' in obsmode: size = 3000
-else: 
-    logging.error('Observing mode not recognised.')
-    sys.exit(1)
+imgsizepix =  MSs.getListObj()[0].getFWHM()*3600/10
+
+#################################################################
+# Get online model
+print sourcedb
+if sourcedb is None:
+    if not os.path.exists('tgts.skydb'):
+        fwhm = MSs.getListObj()[0].getFWHM()
+        radeg = phasecentre[0]
+        decdeg = phasecentre[1]
+        # get model ~twice the size of the image (radius=fwhm)
+        os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm))
+        os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
+
+    sourcedb = 'tgts.skydb'
 
 ##################################################################################################
 # Add model to MODEL_DATA
@@ -117,8 +117,6 @@ for c in xrange(0, niter):
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving TEC...')
-    for MS in MSs.getListStr():
-        lib_util.check_rm(MS+'/tec.h5')
     MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
@@ -134,85 +132,77 @@ for c in xrange(0, niter):
 
     #####################################################################################################
     # Faraday rotation correction
-    if c >= 1:
-
-#        # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
-#        logger.info('Convert to circular...')
-#        MSs.run('/home/fdg/scripts/mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
+    #if c >= 1:
+    # 
+    #    # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
+    #    logger.info('Convert to circular...')
+    #    MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', \
+    #            log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
  
-        # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-        logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2-c'+str(c)+'.log', commandType='python')
+    #    # Smooth CORRECTED_DATA -> SMOOTHED_DATA
+    #    logger.info('BL-based smoothing...')
+    #    MSs.run('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2-c'+str(c)+'.log', commandType='python')
 
-        # Solve G SB.MS:SMOOTHED_DATA (only solve)
-        logger.info('Solving G...')
-        for MS in MSs.getListStr():
-            lib_util.check_rm(MS+'/fr.h5')
-        MSs.run('DPPP ' + parset_dir + '/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal \
-                     sol.solint=30 sol.nchan=8', log='$nameMS_solFR.log', commandType="DPPP")
+    #    # Solve G SB.MS:SMOOTHED_DATA (only solve)
+    #    logger.info('Solving G...')
+    #    #MSs.run('DPPP ' + parset_dir + '/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal sol.solint=30 sol.nchan=8 \
+    #    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/fr.h5 sol.solint=30 sol.nchan=8', \
+    #                 log='$nameMS_solFR.log', commandType="DPPP")
 
-        lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-fr.parset'])
-        os.system('mv plots-fr'+str(c)+'* self/solutions/')
-        os.system('mv cal-fr'+str(c)+'*.h5 self/solutions/')
-       
-#        # To linear - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (linear)
-#        logger.info('Convert to linear...')
-#        MSs.run('/home/fdg/scripts/mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', \
-#                log='$nameMS_circ2lin-c'+str(c)+'.log', commandType='python', maxThreads=4)
-        
-        # Correct FR SB.MS:(SUBTRACTED_)DATA -> CORRECTED_DATA
-        logger.info('Faraday rotation correction...')
-        h5 = 'self/solutions/cal-fr'+str(c)+'.h5'
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
-                    log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
+    #    #lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-fr.parset'])
+    #    lib_util.run_losoto(s, 'fr'+str(c), [MS+'/fr.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-fr.parset'])
+    #    os.system('mv plots-fr'+str(c)+'* self/solutions/')
+    #    os.system('mv cal-fr'+str(c)+'*.h5 self/solutions/')
+    #   
+    #    # Correct FR SB.MS:(SUBTRACTED_)DATA -> CORRECTED_DATA
+    #    logger.info('Faraday rotation correction...')
+    #    h5 = 'self/solutions/cal-fr'+str(c)+'.h5'
+    #    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
+    #                log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
-        #################################
-        # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-        logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', commandType='python')
+    #    #################################
+    #    # Smooth CORRECTED_DATA -> SMOOTHED_DATA
+    #    logger.info('BL-based smoothing...')
+    #    MSs.run('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', commandType='python')
 
-        # Solve G SB.MS:SMOOTHED_DATA (only solve)
-        logger.info('Solving G...')
-        for MS in MSs.getListStr():
-            lib_util.check_rm(MS+'/amp.h5')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5 sol.solint=30 sol.nchan=8', \
-                    log='$nameMS_sol-g2-c'+str(c)+'.log', commandType='DPPP')
+    #    # Solve G SB.MS:SMOOTHED_DATA (only solve)
+    #    logger.info('Solving G...')
+    #    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5 sol.solint=30 sol.nchan=8', \
+    #                log='$nameMS_sol-g2-c'+str(c)+'.log', commandType='DPPP')
 
-        lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-amp.parset'])
-        os.system('mv plots-amp'+str(c)+'* self/solutions/')
-        os.system('mv cal-amp'+(str(c))+'*.h5 self/solutions/')
+    #    lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-amp.parset'])
+    #    os.system('mv plots-amp'+str(c)+'* self/solutions/')
+    #    os.system('mv cal-amp'+(str(c))+'*.h5 self/solutions/')
 
-        # Correct beam amp SB.MS:SUBTRACTED_DATA->CORRECTED_DATA
-        #logger.info('Beam amp correction...')
-        #h5 = 'self/solutions/cal-amp'+str(c)+'.h5'
-        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb='+h5+' cor.correction=amplitude000', \
-        #        log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
-        ## Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
-        #logger.info('Faraday rotation correction...')
-        #h5 = 'self/solutions/cal-fr'+str(c)+'.h5'
-        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
-        #            log='$nameMS_corFR2-c'+str(c)+'.log', commandType='DPPP')
-        #
-        ## Finally re-calculate TEC
-        #logger.info('BL-based smoothing...')
-        #MSs.run('BLsmooth.py -r -f 0.2 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', commandType='python')
+    #    # Correct beam amp SB.MS:SUBTRACTED_DATA->CORRECTED_DATA
+    #    #logger.info('Beam amp correction...')
+    #    #h5 = 'self/solutions/cal-amp'+str(c)+'.h5'
+    #    #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb='+h5+' cor.correction=amplitude000', \
+    #    #        log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
+    #    ## Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
+    #    #logger.info('Faraday rotation correction...')
+    #    #h5 = 'self/solutions/cal-fr'+str(c)+'.h5'
+    #    #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
+    #    #            log='$nameMS_corFR2-c'+str(c)+'.log', commandType='DPPP')
+    #    #
+    #    ## Finally re-calculate TEC
+    #    #logger.info('BL-based smoothing...')
+    #    #MSs.run('BLsmooth.py -r -f 0.2 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', commandType='python')
 
-        # solve TEC - group*_TC.MS:SMOOTHED_DATA
-        logger.info('Solving TEC...')
-        for MS in MSs.getListStr():
-            lib_util.check_rm(MS+'/tec.h5')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
-                    log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
+    #    # solve TEC - group*_TC.MS:SMOOTHED_DATA
+    #    logger.info('Solving TEC...')
+    #    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
+    #                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
-        # LoSoTo plot
-        lib_util.run_losoto(s, 'tec'+str(c)+'b', [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
-        os.system('mv plots-tec'+str(c)+'b* self/solutions')
-        os.system('mv cal-tec'+str(c)+'b*.h5 self/solutions')
+    #    # LoSoTo plot
+    #    lib_util.run_losoto(s, 'tec'+str(c)+'b', [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
+    #    os.system('mv plots-tec'+str(c)+'b* self/solutions')
+    #    os.system('mv cal-tec'+str(c)+'b*.h5 self/solutions')
 
-        # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-        logger.info('Correcting TEC...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
-                    log='$nameMS_corTECb-c'+str(c)+'.log', commandType='DPPP')
+    #    # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
+    #    logger.info('Correcting TEC...')
+    #    MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
+    #                log='$nameMS_corTECb-c'+str(c)+'.log', commandType='DPPP')
 
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA (FR/TEC corrected, beam corrected)
@@ -221,71 +211,91 @@ for c in xrange(0, niter):
     if c == niter-1:
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
-        s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(int(size*1.5)) + ' ' + str(int(size*1.5)) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
-                -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-                -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
-                -auto-mask 10 -auto-threshold 1 \
-                -apply-primary-beam -use-differential-lofar-beam \
-                -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
-                log='wscleanBeam-c'+str(c)+'.log', commandType='wsclean', processors='max')
-        s.run(check=True)
+
+        lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=int(imgsizepix*1.5), scale='5arcsec', \
+                weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+                multiscale='', multiscale_scale_bias=0.5, multiscale_scales='0,3,9', \
+                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
+                auto_maks=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=10)
+        #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(int(imgsizepix*1.5)) + ' ' + str(int(imgsizepix*1.5)) + ' -j '+str(s.max_processors)+' \
+        #        -scale 5arcsec -weight briggs 0. -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+        #        -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
+        #        -auto-mask 10 -auto-threshold 1 \
+        #        -use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 -baseline-averaging 3 \
+        #        -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
+        #        log='wscleanBeam-c'+str(c)+'.log', commandType='wsclean', processors='max')
+        #s.run(check=True)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
 
         logger.info('Cleaning beam high-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamHR'
-        s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size*2) + ' ' + str(size*2) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
-                -scale 2.5arcsec -weight briggs -1.5 -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-                -auto-mask 10 -auto-threshold 1 \
-                -apply-primary-beam -use-differential-lofar-beam \
-                -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
-                log='wscleanBeamHR-c'+str(c)+'.log', commandType='wsclean', processors='max')
-        s.run(check=True)
+        lib_util.run_wsclean(s, 'wscleanBeamHR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=int(imgsizepix*2), scale='2.5arcsec', \
+                weight='uniform', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
+                auto_maks=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=10)
+        #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(imgsizepix*2) + ' ' + str(imgsizepix*2) + ' -j '+str(s.max_processors)+' \
+        #        -scale 2.5arcsec -weight uniform -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
+        #        -auto-mask 10 -auto-threshold 1 \
+        #        -use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 -baseline-averaging 3 \
+        #        -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
+        #        log='wscleanBeamHR-c'+str(c)+'.log', commandType='wsclean', processors='max')
+        #s.run(check=True)
 
         logger.info('Cleaning beam low-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamLR'
-        s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size/5) + ' ' + str(size/5) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
-                -scale 60arcsec -weight briggs 1.5 -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 1000 -mgain 0.85 -clean-border 1 \
-                -auto-mask 10 -auto-threshold 1 \
-                -apply-primary-beam -use-differential-lofar-beam \
-                -pol IUQV -join-polarizations \
-                -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
-                log='wscleanBeamLR-c'+str(c)+'.log', commandType='wsclean', processors='max')
-        s.run(check=True)
-
+        lib_util.run_wsclean(s, 'wscleanBeamLR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix/5, scale='60arcsec', \
+                weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=1000, mgain=0.85, \
+                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
+                auto_maks=10, auto_threshold=1, pol='IQUV', join_channels='', fit_spectral_pol=2, channels_out=10)
+        #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(imgsizepix/5) + ' ' + str(imgsizepix/5) + ' -j '+str(s.max_processors)+' \
+        #        -scale 60arcsec -weight briggs 0. -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 1000 -mgain 0.85 -clean-border 1 \
+        #        -auto-mask 10 -auto-threshold 1 \
+        #        -use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 -baseline-averaging 3 \
+        #        -pol IUQV \
+        #        -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
+        #        log='wscleanBeamLR-c'+str(c)+'.log', commandType='wsclean', processors='max')
+        #s.run(check=True)
 
     # clean mask clean (cut at 5k lambda)
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wide-'+str(c)
-    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
-            -scale 10arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
-            -auto-threshold 20 \
-            -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
-            log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors='max')
-    s.run(check=True)
+    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
+            weight='briggs 0.', niter=10000, update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
+            multiscale='', multiscale_scales='0,4,16', \
+            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=10)
+    #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(imgsizepix) + ' ' + str(imgsizepix) + ' -j '+str(s.max_processors)+' \
+    #        -scale 10arcsec -weight briggs 0. -niter 100000 -update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
+    #        -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,4,16 \
+    #        -auto-threshold 20 \
+    #        -use-idg \
+    #        -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
+    #        log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors='max')
+    #s.run(check=True)
+
+    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
+    os.system('mv %s %s' % (im.skymodel, im.skymodel+'-first') ) # copy the source list
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
     im.makeMask(threshisl = 3)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
-    imagename = 'img/wideM-'+str(c)
-    s.add('wsclean -reorder -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
-            -scale 10arcsec -weight briggs 0.0 -niter 1000000 -no-update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
-            -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
-            -auto-threshold 0.1 -fits-mask '+im.maskname+' \
-            -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
-            log='wscleanM-c'+str(c)+'.log', commandType='wsclean', processors='max')
-    s.run(check=True)
-    os.system('cat logs/wscleanM-c'+str(c)+'.log | grep "background noise"')
+    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=imgsizepix, scale='10arcsec', \
+            weight='briggs 0.', niter=300000, update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
+            multiscale='', multiscale_scales='0,4,16', \
+            auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
+    #s.add('wsclean -continue -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(imgsizepix) + ' ' + str(imgsizepix) + ' -j '+str(s.max_processors)+' \
+    #        -scale 10arcsec -weight briggs 0. -niter 200000 -update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
+    #        -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,4,16 \
+    #        -auto-threshold 1 -fits-mask '+im.maskname+' \
+    #        -use-idg -baseline-averaging 3 \
+    #        -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
+    #        log='wscleanM-c'+str(c)+'.log', commandType='wsclean', processors='max')
+    #s.run(check=True)
+    os.system('cat logs/wscleanA-c'+str(c)+'.log logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
-    im.selectCC(keepInBeam=True)
-
-    # predict
-    logger.info('Predict (ft)...')
-    if c != niter:
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
-                log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+    os.system('grep -v \'^Format\' %s >> %s' % (im.skymodel+'-first', im.skymodel) ) # merge the source lists
 
     if c == 1:
         # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
@@ -295,12 +305,16 @@ for c in xrange(0, niter):
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
-        s.add('wsclean -reorder -name ' + imagename_lr + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' -baseline-averaging 3 \
-                -scale 20arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 2000 -mgain 0.85 -clean-border 1 \
-                -auto-threshold 1 \
-                -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
-                log='wsclean-lr.log', commandType='wsclean', processors='max')
-        s.run(check=True)
+        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='20arcsec', \
+                weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
+                auto_threshold=1, use_idg='', join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
+        #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename_lr + ' -size ' + str(imgsizepix) + ' ' + str(imgsizepix) + ' -j '+str(s.max_processors)+' \
+        #        -scale 20arcsec -weight briggs 0. -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 2000 -mgain 0.85 -clean-border 1 \
+        #        -auto-threshold 1 \
+        #        -use-idg -baseline-averaging 3 \
+        #        -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
+        #        log='wsclean-lr.log', commandType='wsclean', processors='max')
+        #s.run(check=True)
         
         im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=False)
@@ -327,8 +341,8 @@ for c in xrange(0, niter):
     #MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', log='$nameMS_flag-c'+str(c)+'.log', commandType='DPPP')
     
 # Copy images
-[ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in xrange(niter) ]
-[ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in xrange(niter) ]
+[ os.system('mv img/wide-'+str(c)+'-MFS-image.fits self/images') for c in xrange(niter) ]
+[ os.system('mv img/wide-'+str(c)+'-sources.txt self/images') for c in xrange(niter) ]
 os.system('mv img/wide-lr-MFS-image.fits self/images')
 os.system('mv img/wideBeam-MFS-image.fits  img/wideBeam-MFS-image-pb.fits self/images')
 os.system('mv img/wideBeamHR-MFS-image.fits  img/wideBeamHR-MFS-image-pb.fits self/images')
