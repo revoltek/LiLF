@@ -57,8 +57,8 @@ def clean(p, MSs, size=2., apply_beam=False):
     logger.info('Cleaning ('+str(p)+')...')
     imagename = 'img/ddcal-'+str(p)
     lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
-            weight='briggs -0.5', niter=10000, update_model_required='', minuv_l=30, mgain=0.85, \
-            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
+            weight='briggs -0.5', niter=10000, no_update_model_required='', baseline_averaging=5, minuv_l=30, mgain=0.85, \
+            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=10)
     #s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' -j '+str(s.max_processors)+' \
     #        -scale '+str(pixscale)+'arcsec -weight briggs -0.5 -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
     #        -auto-threshold 20 '+idg_parms+' -baseline-averaging 5 \
@@ -68,19 +68,19 @@ def clean(p, MSs, size=2., apply_beam=False):
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    os.system('mv %s %s' % (im.skymodel, im.skymodel+'-first') ) # copy the source list
     im.makeMask(threshisl = 3)
 
     # clean 2
-    # TODO: can I do -continue with beam?
+    # To be save don't do -continue with beam
     logger.info('Cleaning w/ mask ('+str(p)+')...')
+    imagename = 'img/ddcalM-'+str(p)
     if apply_beam:
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
+        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
             weight='briggs -0.5', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
             auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
     else:
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
+        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
             weight='briggs -0.5', niter=100000, no_update_model_required='', baseline_averaging=5, minuv_l=30, mgain=0.85, \
             auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
     #s.add('wsclean -continue -reorder -temp-dir /dev/shm -name ' + imagename + ' -size '+str(imsize)+' '+str(imsize)+' -j '+str(s.max_processors)+' \
@@ -90,11 +90,6 @@ def clean(p, MSs, size=2., apply_beam=False):
     #        log='wscleanM-'+str(p)+'.log', commandType='wsclean', processors='max')
     #s.run(check=True)
     os.system('cat logs/wscleanA-'+str(p)+'.log logs/wscleanB-'+str(p)+'.log | grep "background noise"')
-
-    os.system('grep -v \'^Format\' %s >> %s' % (im.skymodel+'-first', im.skymodel) ) # merge the source lists
-    lib_util.check_rm(im.skymodel+'-first')
-
-    return imagename
 
 
 ############################################################

@@ -63,35 +63,31 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 if min(MSs.getFreqs()) < 80.e6: hba = False
 else: hba = True
 
-# TEST
-#logger.info("Put data to Jy...")
-#MSs.run('taql "update $pathMS set DATA = 1e2*DATA"', log='$nameMS_taql.log', commandType='general')
+#######################################################   
+# Create columns (non compressed)
+logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
+MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES', log='$nameMS_addcol.log', commandType='python')
 
 ########################################################   
-## Create columns (non compressed)
-#logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
-#MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES', log='$nameMS_addcol.log', commandType='python')
-#
-#########################################################   
-## flag bad stations, and low-elev
-#logger.info('Flagging...')
-#MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
-#            log='$nameMS_flag.log', commandType='DPPP')
-#
-## predict to save time MODEL_DATA
-#if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
-#else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
-#
-#if os.path.exists(model_dir+'/img-MFS-model.fits'):
-#    logger.info('Predict (wsclean)...')
-#    im = lib_img.Image(model_dir+'/img')
-#    im.rescaleModel(f)
-#    s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
-#          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
-#    s.run(check=True)
-#else:
-#    logger.info('Predict (DPPP)...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
+# flag bad stations, and low-elev
+logger.info('Flagging...')
+MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
+            log='$nameMS_flag.log', commandType='DPPP')
+
+# predict to save time MODEL_DATA
+if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
+else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
+
+if os.path.exists(model_dir+'/img-MFS-model.fits'):
+    logger.info('Predict (wsclean)...')
+    im = lib_img.Image(model_dir+'/img')
+    im.rescaleModel(f)
+    s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
+          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
+    s.run(check=True)
+else:
+    logger.info('Predict (DPPP)...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
 
 for c in xrange(100):
 
@@ -124,7 +120,7 @@ for c in xrange(100):
     
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Calibrating FR...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/fr.h5 sol.caltype=diagonal', log='$nameMS_fr.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/fr.h5 sol.caltype=diagonal uvlambdarange='+str(blrange), log='$nameMS_fr.log', commandType='DPPP')
     
     lib_util.run_losoto(s, 'fr-c'+str(c), [ms+'/fr.h5' for ms in MSs.getListStr()], \
             [parset_dir + '/losoto-fr.parset'])
@@ -148,7 +144,7 @@ for c in xrange(100):
     
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Calibrating BP...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/amp.h5 sol.caltype=diagonal', log='$nameMS_amp.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/amp.h5 sol.caltype=diagonal uvlambdarange='+str(blrange), log='$nameMS_amp.log', commandType="DPPP")
     
     lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
             [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-bp.parset'])
@@ -184,7 +180,7 @@ for c in xrange(100):
     
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Calibrating IONO...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_iono.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal uvlambdarange='+str(blrange), log='$nameMS_iono.log', commandType='DPPP')
     
     lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
         [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-fixamp.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
