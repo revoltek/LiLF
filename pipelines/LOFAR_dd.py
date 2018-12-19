@@ -205,7 +205,6 @@ for c in xrange(maxniter):
         
         logger.info('Patch '+patch+': imaging...')
         clean(patch, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[patch], apply_beam = c==maxniter )
-        sys.exit()
 
     ##############################################################
     # Mosaiching
