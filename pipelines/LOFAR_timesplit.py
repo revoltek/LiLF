@@ -45,7 +45,6 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 ####################################################
 # Correct fist for BP(diag)+TEC+Clock and then for beam
 # Copy instrument tables
-# TODO: this can now be made AFTER grouping
 logger.info('Copy solutions...')
 if not os.path.exists('cal-pa.h5'):
     os.system('scp -q '+cal_dir+'/cal-pa.h5 .')
@@ -74,6 +73,11 @@ MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweight
 
 ###################################################################################################
 # Create groups
+# TODO: the creation of groups should always be:
+# - 1 group with the most sensitive region
+# - 1 group below that region
+# - 1 group above that region
+# to be understood if calibration/imaging gain anything from using only the central group or all of them
 groupnames = []
 logger.info('Concatenating in frequency...')
 timechunks = set([re.findall(r'_t\d+', ms)[0][2:] for ms in MSs.getListStr() ])
