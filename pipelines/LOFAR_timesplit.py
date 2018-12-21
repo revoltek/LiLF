@@ -110,8 +110,8 @@ MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
 
-logging.info('Plotting weights...')
-MSs.run('reweight.py $pathMS -v -p' log='$nameMS_weights.log', commandType='python')
+logging.info('Recalculate and plotting weights...')
+MSs.run('reweight.py $pathMS -v -p -m subtime', log='$nameMS_weights.log', commandType='python')
 os.system('mkdir plots-weights; mv *png plots-weights')
 
 #sys.exit() # for DDFacet
