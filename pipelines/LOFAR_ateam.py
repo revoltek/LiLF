@@ -120,7 +120,7 @@ for c in xrange(100):
     
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Calibrating FR...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/fr.h5 sol.caltype=diagonal uvlambdarange='+str(blrange), log='$nameMS_fr.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/fr.h5 sol.caltype=diagonal uvlambdarange='+str(nouseblrange), log='$nameMS_fr.log', commandType='DPPP')
     
     lib_util.run_losoto(s, 'fr-c'+str(c), [ms+'/fr.h5' for ms in MSs.getListStr()], \
             [parset_dir + '/losoto-fr.parset'])
@@ -144,10 +144,10 @@ for c in xrange(100):
     
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Calibrating BP...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/amp.h5 sol.caltype=diagonal uvlambdarange='+str(blrange), log='$nameMS_amp.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/amp.h5 sol.caltype=diagonal uvlambdarange='+str(nouseblrange), log='$nameMS_amp.log', commandType="DPPP")
     
     lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
-            [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-bp.parset'])
+            [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-bp.parset'])
 
     #################################################
     # 3: apply all
@@ -180,7 +180,7 @@ for c in xrange(100):
     
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Calibrating IONO...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal uvlambdarange='+str(blrange), log='$nameMS_iono.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal uvlambdarange='+str(nouseblrange), log='$nameMS_iono.log', commandType='DPPP')
     
     lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
         [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-fixamp.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])

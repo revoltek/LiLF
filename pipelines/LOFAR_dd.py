@@ -43,7 +43,7 @@ def clean(p, MSs, size=2., apply_beam=False):
     size = in deg of the image
     """
     # set pixscale and imsize
-    pixscale = MSs.getListObj()[0].getResolution()/3.
+    pixscale = MSs.getListObj()[0].getResolution()/2. # TODO: weighting will lower the resolutions a bit, therefore a /2 should be enough
     imsize = int(size/(pixscale/3600.))
 
     if imsize < 512:
