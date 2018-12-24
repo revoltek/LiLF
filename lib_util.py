@@ -46,7 +46,7 @@ def getParset(parsetFile='../lilf.config'):
     # timesplit
     add_default('timesplit', 'data_dir', '../tgts-bkp/')
     add_default('timesplit', 'cal_dir', '../cals/')
-    add_default('timesplit', 'ngroups', '2')
+    add_default('timesplit', 'ngroups', '1')
     add_default('timesplit', 'initc', '0')
     # self
     # dd

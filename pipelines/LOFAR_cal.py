@@ -230,26 +230,12 @@ if imaging:
             weight='briggs 0.', taper_gaussian='240arcsec', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
             auto_mask=10, auto_threshold=1, pol='IQUV', join_channels'', fit_spectral_pol=2, channels_out=10)
-    #s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(size/5) + ' ' + str(size/5) + ' -j '+str(s.max_processors)+' \
-    #        -scale 60arcsec -weight briggs 1.5 -niter 100000 -no-update-model-required -maxuv-l 1000 -mgain 0.85 -clean-border 1 \
-    #        -auto-mask 10 -auto-threshold 1 \
-    #        -use-idg -baseline-averaging 3 \
-    #        -pol IUQV -join-channels -fit-spectral-pol 2 -channels-out 10 -apply-primary-beam '+MSs.getStrWsclean(), \
-    #        log='wscleanLR.log', commandType='wsclean', processors='max')
-    #s.run(check=True)
 
     logger.info('Cleaning normal...')
     imagename = 'img/cal'
     lib_util.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
             weight='briggs 0.', niter=10000, update_model_required='', minuv_l=30, mgain=0.85, \
             auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=10)
-    #s.add('wsclean -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' \
-    #        -scale 5arcsec -weight briggs 0.0 -niter 100000 -update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-    #        -auto-threshold 20 \
-    #        -use-idg \
-    #        -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
-    #        log='wscleanA.log', commandType ='wsclean', processors='max')
-    #s.run(check = True)
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits')
@@ -259,13 +245,6 @@ if imaging:
     lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), cont=True, name=imagename, size=imgsizepix, scale='5arcsec', \
             weight='briggs 0.', niter=100000, no_update_model_required='', baseline_averaging=3, minuv_l=30, mgain=0.85, \
             auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=10)
-    #s.add('wsclean -continue -reorder -temp-dir /dev/shm -name ' + imagename + ' -size ' + str(size) + ' ' + str(size) + ' -j '+str(s.max_processors)+' \
-    #        -scale 5arcsec -weight briggs 0.0 -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-    #        -auto-threshold 0.1 -fits-mask '+im.maskname+' \
-    #        -use-idg -baseline-averaging 3\
-    #        -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
-    #        log='wscleanB.log', commandType='wsclean', processors = 'max')
-    #s.run(check = True)
     os.system('cat logs/wscleanA.log logs/wscleanB.log | grep "background noise"')
 
     # make new mask

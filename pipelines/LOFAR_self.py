@@ -208,6 +208,7 @@ for c in xrange(0, niter):
     # clen on concat.MS:CORRECTED_DATA (FR/TEC corrected, beam corrected)
 
     # do beam-corrected+deeper image at last cycle
+    # TODO: find a way to save the beam image
     if c == niter-1:
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
@@ -217,14 +218,6 @@ for c in xrange(0, niter):
                 multiscale='', multiscale_scale_bias=0.5, multiscale_scales='0,3,9', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
                 auto_maks=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=10)
-        #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(int(imgsizepix*1.5)) + ' ' + str(int(imgsizepix*1.5)) + ' -j '+str(s.max_processors)+' \
-        #        -scale 5arcsec -weight briggs 0. -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-        #        -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,3,9 \
-        #        -auto-mask 10 -auto-threshold 1 \
-        #        -use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 -baseline-averaging 3 \
-        #        -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
-        #        log='wscleanBeam-c'+str(c)+'.log', commandType='wsclean', processors='max')
-        #s.run(check=True)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
 
         logger.info('Cleaning beam high-res (cycle: '+str(c)+')...')
@@ -233,13 +226,6 @@ for c in xrange(0, niter):
                 weight='uniform', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
                 auto_maks=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=10)
-        #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(imgsizepix*2) + ' ' + str(imgsizepix*2) + ' -j '+str(s.max_processors)+' \
-        #        -scale 2.5arcsec -weight uniform -niter 100000 -no-update-model-required -minuv-l 30 -mgain 0.85 -clean-border 1 \
-        #        -auto-mask 10 -auto-threshold 1 \
-        #        -use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 -baseline-averaging 3 \
-        #        -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
-        #        log='wscleanBeamHR-c'+str(c)+'.log', commandType='wsclean', processors='max')
-        #s.run(check=True)
 
         logger.info('Cleaning beam low-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamLR'
@@ -247,14 +233,6 @@ for c in xrange(0, niter):
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=1000, mgain=0.85, \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
                 auto_maks=10, auto_threshold=1, pol='IQUV', join_channels='', fit_spectral_pol=2, channels_out=10)
-        #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(imgsizepix/5) + ' ' + str(imgsizepix/5) + ' -j '+str(s.max_processors)+' \
-        #        -scale 60arcsec -weight briggs 0. -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 1000 -mgain 0.85 -clean-border 1 \
-        #        -auto-mask 10 -auto-threshold 1 \
-        #        -use-idg -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 -baseline-averaging 3 \
-        #        -pol IUQV \
-        #        -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
-        #        log='wscleanBeamLR-c'+str(c)+'.log', commandType='wsclean', processors='max')
-        #s.run(check=True)
 
     # clean mask clean (cut at 5k lambda)
     logger.info('Cleaning (cycle: '+str(c)+')...')
@@ -263,14 +241,6 @@ for c in xrange(0, niter):
             weight='briggs 0.', niter=10000, update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
             multiscale='', multiscale_scales='0,4,16', \
             auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=10)
-    #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(imgsizepix) + ' ' + str(imgsizepix) + ' -j '+str(s.max_processors)+' \
-    #        -scale 10arcsec -weight briggs 0. -niter 100000 -update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
-    #        -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,4,16 \
-    #        -auto-threshold 20 \
-    #        -use-idg \
-    #        -join-channels -fit-spectral-pol 2 -channels-out 10 '+MSs.getStrWsclean(), \
-    #        log='wsclean-c'+str(c)+'.log', commandType='wsclean', processors='max')
-    #s.run(check=True)
 
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
     os.system('mv %s %s' % (im.skymodel, im.skymodel+'-first') ) # copy the source list
@@ -284,14 +254,6 @@ for c in xrange(0, niter):
             weight='briggs 0.', niter=300000, update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
             multiscale='', multiscale_scales='0,4,16', \
             auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
-    #s.add('wsclean -continue -reorder -temp-dir '+ temp_dir +' -name ' + imagename + ' -size ' + str(imgsizepix) + ' ' + str(imgsizepix) + ' -j '+str(s.max_processors)+' \
-    #        -scale 10arcsec -weight briggs 0. -niter 200000 -update-model-required -minuv-l 30 -maxuv-l 5000 -mgain 0.85 -clean-border 1 \
-    #        -multiscale -multiscale-scale-bias 0.5 -multiscale-scales 0,4,16 \
-    #        -auto-threshold 1 -fits-mask '+im.maskname+' \
-    #        -use-idg -baseline-averaging 3 \
-    #        -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
-    #        log='wscleanM-c'+str(c)+'.log', commandType='wsclean', processors='max')
-    #s.run(check=True)
     os.system('cat logs/wscleanA-c'+str(c)+'.log logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
@@ -305,16 +267,9 @@ for c in xrange(0, niter):
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
-        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='20arcsec', \
+        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, size=imgsizepix, scale='20arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
                 auto_threshold=1, use_idg='', join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
-        #s.add('wsclean -reorder -temp-dir '+ temp_dir +' -name ' + imagename_lr + ' -size ' + str(imgsizepix) + ' ' + str(imgsizepix) + ' -j '+str(s.max_processors)+' \
-        #        -scale 20arcsec -weight briggs 0. -niter 100000 -no-update-model-required -minuv-l 30 -maxuv-l 2000 -mgain 0.85 -clean-border 1 \
-        #        -auto-threshold 1 \
-        #        -use-idg -baseline-averaging 3 \
-        #        -join-channels -fit-spectral-pol 2 -channels-out 10 -save-source-list '+MSs.getStrWsclean(), \
-        #        log='wsclean-lr.log', commandType='wsclean', processors='max')
-        #s.run(check=True)
         
         im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=False)
