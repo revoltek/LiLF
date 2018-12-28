@@ -100,10 +100,6 @@ mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wide-[0-9]-MFS-image.
 mosaic_image.selectCC()
 rms_noise_pre = np.inf
 
-# TEST
-mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg, beamReg=beamReg)
-mosaic_image.selectCC()
-
 for c in xrange(maxniter):
     logger.info('Starting cycle: %i' % c)
 
