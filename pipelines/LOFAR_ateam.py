@@ -221,7 +221,7 @@ for c in xrange(100):
         logger.info('Cleaning sub (cycle %i)...' % c)
         imagename = 'img/imgsub-c'+str(c)
         lib_util.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
-                weight='briggs 0.', taper_gaussian='100arcsec', niter=10000, no_update_model_required='', baseline_averaging=5, minuv_l=30, mgain=0.85, \
+                weight='briggs 0.', taper_gaussian='120arcsec', niter=10000, no_update_model_required='', baseline_averaging=5, minuv_l=30, mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=10)
  
