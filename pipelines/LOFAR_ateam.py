@@ -81,7 +81,7 @@ else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 if os.path.exists(model_dir+'/img-MFS-model.fits'):
     logger.info('Predict (wsclean)...')
     im = lib_img.Image(model_dir+'/img')
-    im.rescaleModel(f)
+    #im.rescaleModel(f)
     s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
           log='wscleanPRE-init.log', commandType='wsclean', processors='max')
     s.run(check=True)
@@ -221,16 +221,16 @@ for c in xrange(100):
         logger.info('Cleaning sub (cycle %i)...' % c)
         imagename = 'img/imgsub-c'+str(c)
         lib_util.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
-                weight='briggs 0.', taper_gaussian='100arcsec', niter=10000, no_update_model_required='', baseline_averaging=5, minuv_l=30, mgain=0.85, \
+                weight='briggs 0.', taper_gaussian='120arcsec', niter=10000, no_update_model_required='', baseline_averaging=5, minuv_l=30, mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=10)
  
-        imagename = 'img/img-c'+str(c)
-        im = lib_img.Image(imagename)
-        im.rescaleModel(f)
-        logger.info('Predict (wsclean)...')
-        s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
-              log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-        s.run(check = True)
+        #imagename = 'img/img-c'+str(c)
+        #im = lib_img.Image(imagename)
+        #im.rescaleModel(f)
+        #logger.info('Predict (wsclean)...')
+        #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
+        #      log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+        #s.run(check = True)
 
 logger.info("Done.")
