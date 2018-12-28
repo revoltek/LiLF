@@ -81,7 +81,7 @@ else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 if os.path.exists(model_dir+'/img-MFS-model.fits'):
     logger.info('Predict (wsclean)...')
     im = lib_img.Image(model_dir+'/img')
-    im.rescaleModel(f)
+    #im.rescaleModel(f)
     s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
           log='wscleanPRE-init.log', commandType='wsclean', processors='max')
     s.run(check=True)
@@ -225,12 +225,12 @@ for c in xrange(100):
                 multiscale='', multiscale_scales='0,4,8,16', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=10)
  
-        imagename = 'img/img-c'+str(c)
-        im = lib_img.Image(imagename)
-        im.rescaleModel(f)
-        logger.info('Predict (wsclean)...')
-        s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
-              log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-        s.run(check = True)
+        #imagename = 'img/img-c'+str(c)
+        #im = lib_img.Image(imagename)
+        #im.rescaleModel(f)
+        #logger.info('Predict (wsclean)...')
+        #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
+        #      log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+        #s.run(check = True)
 
 logger.info("Done.")
