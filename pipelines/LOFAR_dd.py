@@ -91,12 +91,16 @@ MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9].MS'), s )
 logger.info('Add columns...')
 MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 
+<<<<<<< HEAD
+###############################################################
+=======
 ##############################################################
+>>>>>>> 44b864928785ab4f594113a85eb6fca784d4c0a9
 #logger.info('BL-based smoothing...')
 #MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
 
 # setup initial model
-mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wide-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
+mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wide-[0-9]-MFS-image.fits'))[-1], userReg = userReg, beamReg = beamReg)
 mosaic_image.selectCC()
 rms_noise_pre = np.inf
 
@@ -203,8 +207,6 @@ for c in xrange(maxniter):
 
     logger.info('Mosaic: image...')
     image_files = ' '.join([image.imagename for image in images])
-    print image_files
-    sys.exit()
     mosaic_imagename = 'img/mos-MFS-image.fits'
     s.add('mosaic.py --image '+image_files+' --mask '+mask+' --output '+mosaic_imagename, log='mosaic-img-c'+str(c)+'.log', commandType='python')
     s.run(check=True)
@@ -218,12 +220,13 @@ for c in xrange(maxniter):
     # prepare new skymodel
     skymodels = []
     for image in images:
-        image.select_cc() # restrict to facet
+        image.selectCC() # restrict to facet
         skymodels.append(image.skymodel_cut)
     lsm = lsmtool.load(skymodels[0])
     for skymodel in skymodels[1:]:
         lsm2 = lsmtool.load(skymodel)
         lsm.concatenate(lsm2)
+    lsm.group('single')
     lsm.write('ddcal/images/c%02i/mos-sources-cut.txt' % c, format='makesourcedb', clobber=True)
 
     os.system('cp img/*M*MFS-image.fits img/mos-MFS-image.fits img/mos-MFS-residual.fits ddcal/images/c%02i' % c )
@@ -234,4 +237,3 @@ for c in xrange(maxniter):
     logger.info('RMS noise: %f' % rms_noise)
     if rms_noise > 0.95 * rms_noise_pre: break
     rms_noise_pre = rms_noise
-
