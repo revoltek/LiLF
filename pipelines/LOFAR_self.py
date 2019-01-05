@@ -238,26 +238,26 @@ for c in xrange(0, niter):
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wide-'+str(c)
     lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
-            weight='briggs 0.', niter=10000, update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
-            multiscale='', multiscale_scales='0,4,16', \
-            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
+            weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
+            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=10)
 
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
-    os.system('mv %s %s' % (im.skymodel, im.skymodel+'-first') ) # copy the source list
+    #os.system('mv %s %s' % (im.skymodel, im.skymodel+'-first') ) # copy the source list
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
     im.makeMask(threshisl = 3)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=imgsizepix, scale='10arcsec', \
+    imagename = 'img/wideM-'+str(c)
+    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
             weight='briggs 0.', niter=300000, update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
             multiscale='', multiscale_scales='0,4,16', \
             auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
-    os.system('cat logs/wscleanA-c'+str(c)+'.log logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
+    os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
-    os.system('grep -v \'^Format\' %s >> %s' % (im.skymodel+'-first', im.skymodel) ) # merge the source lists
+    #os.system('grep -v \'^Format\' %s >> %s' % (im.skymodel+'-first', im.skymodel) ) # merge the source lists
 
     if c == 1:
         # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
@@ -289,15 +289,14 @@ for c in xrange(0, niter):
         logger.info('Subtracting low-res model (SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES)...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES"', log='$nameMS_taql2-c'+str(c)+'.log', commandType='general')
 
-    ###############################################################################################################
-    # TODO
-    # Flag on residuals (CORRECTED_DATA)
-    #logger.info('Flagging residuals...')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', log='$nameMS_flag-c'+str(c)+'.log', commandType='DPPP')
+        ###############################################################################################################
+        # Flag on residuals (CORRECTED_DATA)
+        logger.info('Flagging residuals...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', log='$nameMS_flag-c'+str(c)+'.log', commandType='DPPP')
     
 # Copy images
-[ os.system('mv img/wide-'+str(c)+'-MFS-image.fits self/images') for c in xrange(niter) ]
-[ os.system('mv img/wide-'+str(c)+'-sources.txt self/images') for c in xrange(niter) ]
+[ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in xrange(niter) ]
+[ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in xrange(niter) ]
 os.system('mv img/wide-lr-MFS-image.fits self/images')
 os.system('mv img/wideBeam-MFS-image.fits  img/wideBeam-MFS-image-pb.fits self/images')
 os.system('mv img/wideBeamHR-MFS-image.fits  img/wideBeamHR-MFS-image-pb.fits self/images')
