@@ -240,7 +240,7 @@ for c in xrange(0, niter):
     lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
             weight='briggs 0.', niter=10000, update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
             multiscale='', multiscale_scales='0,4,16', \
-            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=10)
+            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
 
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
     os.system('mv %s %s' % (im.skymodel, im.skymodel+'-first') ) # copy the source list
@@ -269,7 +269,7 @@ for c in xrange(0, niter):
         imagename_lr = 'img/wide-lr'
         lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, size=imgsizepix, scale='20arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
-                auto_threshold=1, use_idg='', join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
+                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='', temp_dir='./')
         
         im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=False)
