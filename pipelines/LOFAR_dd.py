@@ -65,7 +65,7 @@ def clean(p, MSs, size=2., apply_beam=False):
     im.makeMask(threshisl = 3)
 
     # clean 2
-    # To be save don't do -continue with beam
+    # To be safe don't do -continue with beam
     logger.info('Cleaning w/ mask ('+str(p)+')...')
     imagename = 'img/ddcalM-'+str(p)
     if apply_beam:
@@ -92,8 +92,8 @@ logger.info('Add columns...')
 MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 
 ##############################################################
-logger.info('BL-based smoothing...')
-MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
+#logger.info('BL-based smoothing...')
+#MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
 
 # setup initial model
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wide-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
@@ -149,15 +149,15 @@ for c in xrange(maxniter):
 
     del lsm
 
-    ################################################################
-    # Calibration
-    logger.info('Calibrating...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS ddecal.h5parm=$pathMS/cal-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
-            log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
-
-    # Plot solutions
-    lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
-    os.system('mv plots-c'+str(c)+'* ddcal/plots')
+#    ################################################################
+#    # Calibration
+#    logger.info('Calibrating...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS ddecal.h5parm=$pathMS/cal-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
+#            log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
+#
+#    # Plot solutions
+#    lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
+#    os.system('mv plots-c'+str(c)+'* ddcal/plots')
 
     ##############################################################
     # low S/N DIE corrections
@@ -170,7 +170,7 @@ for c in xrange(maxniter):
 
     logger.info('Subtraction...')
     MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_voro_skydb, \
-                   log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP')
+                   log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP', maxThreads=1)
 
     for patch, phasecentre in directions.iteritems():
 
