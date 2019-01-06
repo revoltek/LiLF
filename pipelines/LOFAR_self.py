@@ -256,7 +256,7 @@ for c in xrange(0, niter):
             auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=10, save_source_list='')
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
-    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
+    #im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
     #os.system('grep -v \'^Format\' %s >> %s' % (im.skymodel+'-first', im.skymodel) ) # merge the source lists
 
     if c == 1:

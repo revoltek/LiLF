@@ -91,16 +91,12 @@ MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9].MS'), s )
 logger.info('Add columns...')
 MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 
-<<<<<<< HEAD
-###############################################################
-=======
 ##############################################################
->>>>>>> 44b864928785ab4f594113a85eb6fca784d4c0a9
 #logger.info('BL-based smoothing...')
 #MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
 
 # setup initial model
-mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wide-[0-9]-MFS-image.fits'))[-1], userReg = userReg, beamReg = beamReg)
+mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg, beamReg = beamReg)
 mosaic_image.selectCC()
 rms_noise_pre = np.inf
 
