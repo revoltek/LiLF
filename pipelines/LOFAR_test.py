@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import sys, os, glob, re
+import pyrap.tables as pt
+from astropy.time import Time
 import numpy as np
 
 ########################################################
@@ -11,19 +13,20 @@ logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
-parset = lib_util.getParset()
-parset_dir = '/home/baq1889/scripts/LiLF/parsets/LOFAR_cal'
+#parset = lib_util.getParset()
+#parset_dir = '/home/baq1889/scripts/LiLF/parsets/LOFAR_cal'
 
 #############################################################
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
-calname = MSs.getListObj()[0].getNameField()
-obsmode = MSs.getListObj()[0].getObsMode()
 
-# predict to save time ms:MODEL_DATA
-logger.info('Add model to MODEL_DATA...')
-MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=img/calM-sources-cut.skydb", log="$nameMS_pre.log", commandType="DPPP")
+with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
+    t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
+    time = np.int(t.iso.replace('-','')[0:8])
 
-logger.info('Subtract model...')
-MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType ='general')
+# Rescale visibilities by 1e3 if before 2014-03-19 (old correlator), and by 1e-2 otherwise
+if time < 20140500:
+    MSs.run('taql "update $pathMS set DATA = 1e10*DATA"', log='$nameMS_taql.log', commandType='general')
+else:
+    MSs.run('taql "update $pathMS set DATA = 1e-4*DATA"', log='$nameMS_taql.log', commandType='general')
 
 logger.info("Done.")

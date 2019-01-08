@@ -1,4 +1,4 @@
-Ncpu = 20
+Ncpu = 0
 
 [plotA1]
 operation = PLOT
@@ -17,7 +17,7 @@ axesToFlag = [time]
 order = [100] 
 maxCycles = 1
 maxRms = 5
-replce = False
+replace = False
 preFlagZeros = False
 mode = smooth
 

@@ -94,17 +94,24 @@ if len(MSs.getListStr()) == 0:
     sys.exit(0)
 
 #######################################
+with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
+    t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
+    time = np.int(t.iso.replace('-','')[0:8])
+
 if fix_table:
     logger.info('Fix MS table...')
     MSs.run('fixMS_TabRef.py $pathMS', log='$nameMS_fixms.log', commandType='python')
 
     # only ms created in range (2/2013->2/2014)
-    with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
-        t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
-        time = np.int(t.iso.replace('-','')[0:8])
     if time > 20130200 and time < 20140300:
         logger.info('Fix beam table...')
         MSs.run('/home/fdg/scripts/fixinfo/fixbeaminfo $pathMS', log='$nameMS_fixbeam.log', commandType='python')
+
+# Rescale visibilities by 1e3 if before 2014-03-19 (old correlator), and by 1e-2 otherwise
+if time < 20140319:
+    MSs.run('taql "update $pathMS set DATA = 1e6*DATA"', log='$nameMS_taql.log', commandType='general')
+else:
+    MSs.run('taql "update $pathMS set DATA = 1e-4*DATA"', log='$nameMS_taql.log', commandType='general')
 
 ######################################
 # Avg to 4 chan and 4 sec

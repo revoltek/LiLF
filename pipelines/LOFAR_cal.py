@@ -25,7 +25,7 @@ bl2flag = parset.get('flag','stations')
 if 'LBAsurvey' in os.getcwd():
     obs     = os.getcwd().split('/')[-2] # assumes .../c??-o??/3c196
     calname = os.getcwd().split('/')[-1] # assumes .../c??-o??/3c196
-    data_dir = '../../download/%s/%s' % (obs, calname)
+    data_dir = '/home/baq1889/lofar1/LBAsurvey/%s/%s' % (obs, calname)
 
 #############################################################
 MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
@@ -65,8 +65,6 @@ MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.
 
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
 logger.info('Calibrating PA...')
-# TEST prop sol
-#MSs.run('/home/baq1889/opt/src/DP3-sol/build/DPPP/DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal sol.propagatesolutions=True', log='$nameMS_solPA.log', commandType="DPPP")
 MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal', log='$nameMS_solPA.log', commandType="DPPP")
 
 lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], \
@@ -143,20 +141,25 @@ lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()], \
 # Pol align correction DATA -> CORRECTED_DATA
 logger.info('Polalign correction...')
 MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA2.log', commandType="DPPP")
+
 # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
 logger.info('AmpBP correction...')
 MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-amp.h5 \
         cor.correction=amplitudeSmooth cor.updateweights=True', log='$nameMS_corAMP.log', commandType="DPPP")
+
 # Beam correction CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Beam correction...')
 MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam2.log', commandType="DPPP")
+
 # Correct LEAK CORRECTED_DATA -> CORRECTED_DATA
 #logger.info('LEAK correction...')
 #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  cor.parmdb=cal-leak.h5 \
 #        cor.correction=fulljones cor.soltab=[amplitudeD,phaseD]', log='$nameMS_corLEAK2.log', commandType="DPPP")
+
 # Correct FR CORRECTED_DATA -> CORRECTED_DATA
 logger.info('Faraday rotation correction...')
 MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DPPP")
+
 # Correct abs FR CORRECTED_DATA -> CORRECTED_DATA
 #logger.info('Absolute Faraday rotation correction...')
 #MSs.run('createRMh5parm.py $pathMS $pathMS/rme.h5', log='$nameMS_RME.log', commandType="general", maxThreads=1)
@@ -229,7 +232,7 @@ if imaging:
     lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix/5, scale='60arcsec', \
             weight='briggs 0.', taper_gaussian='240arcsec', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-            auto_mask=10, auto_threshold=1, pol='IQUV', join_channels'', fit_spectral_pol=2, channels_out=10)
+            auto_mask=10, auto_threshold=1, pol='IQUV', join_channels='', fit_spectral_pol=2, channels_out=10)
 
     logger.info('Cleaning normal...')
     imagename = 'img/cal'
@@ -249,16 +252,5 @@ if imaging:
 
     # make new mask
     im.makeMask(threshisl = 5)
-
-    # apply mask
-    #import lsmtool
-    #logger.info('Predict (apply mask)...')
-    #lsm = lsmtool.load(imagename+'-sources.txt')
-    #lsm.select('%s == True' % (imagename+'-mask.fits'))
-    #cRA, cDEC = MSs.getListObj()[0].getPhaseCentre()
-    #lsm.select( lsm.getDistance(cRA, cDEC) > 0.1 ) # remove very centra part
-    #lsm.group('every')
-    #lsm.write(imagename+'-sources-cut.txt', format='makesourcedb', clobber = True)
-    #del lsm
 
 logger.info("Done.")

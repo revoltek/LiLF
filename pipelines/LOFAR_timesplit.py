@@ -11,7 +11,7 @@ import casacore.tables as pt
 
 
 if 'LBAsurvey' in os.getcwd():
-    datadir = '../../download/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
+    datadir = '/home/baq1889/lofar1/LBAsurvey/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
     cal_dir = 'portal_lei:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]
 
 ########################################################

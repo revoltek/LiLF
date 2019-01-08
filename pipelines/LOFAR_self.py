@@ -217,7 +217,7 @@ for c in xrange(0, niter):
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
                 multiscale='', multiscale_scale_bias=0.5, multiscale_scales='0,3,9', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-                auto_maks=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=10)
+                auto_mask=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=10)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
 
         logger.info('Cleaning beam high-res (cycle: '+str(c)+')...')
@@ -225,14 +225,14 @@ for c in xrange(0, niter):
         lib_util.run_wsclean(s, 'wscleanBeamHR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=int(imgsizepix*2), scale='2.5arcsec', \
                 weight='uniform', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-                auto_maks=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=10)
+                auto_mask=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=10)
 
         logger.info('Cleaning beam low-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamLR'
         lib_util.run_wsclean(s, 'wscleanBeamLR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix/5, scale='60arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=1000, mgain=0.85, \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-                auto_maks=10, auto_threshold=1, pol='IQUV', join_channels='', fit_spectral_pol=2, channels_out=10)
+                auto_mask=10, auto_threshold=1, pol='IQUV', join_channels='', fit_spectral_pol=2, channels_out=10)
 
     # clean mask clean (cut at 5k lambda)
     logger.info('Cleaning (cycle: '+str(c)+')...')

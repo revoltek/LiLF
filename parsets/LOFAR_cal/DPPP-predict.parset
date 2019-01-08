@@ -13,6 +13,3 @@ pre.sources =
 pre.usebeammodel = False # TODO: put to true for large sky
 pre.usechannelfreq = False
 pre.beammode = array_factor
-
-#pre.applycal.parmdb = 
-#pre.applycal.correction = gain
