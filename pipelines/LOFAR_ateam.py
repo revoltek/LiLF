@@ -212,11 +212,15 @@ for c in xrange(100):
                 multiscale='', multiscale_scales='0,4,8,16,32', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=15)
 
+    logger.info('Sub model...')
+    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
+
+    logger.info('Reweight...')
+    MSs.run('reweight.py $pathMS -v -p -m residual -d CORRECTED_DATA', log='$nameMS_weights.log', commandType='python')
+    os.system('mkdir plots-weights-c'+str(c)'+; mv *png plots-weights-c'+str(c))
+
     # every 10 cycles: sub model and rescale model
     if c%10 == 0 and c != 0:
-
-        logger.info('Sub model...')
-        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
     
         logger.info('Cleaning sub (cycle %i)...' % c)
         imagename = 'img/imgsub-c'+str(c)
