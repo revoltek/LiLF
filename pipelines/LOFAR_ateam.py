@@ -216,8 +216,7 @@ for c in xrange(100):
     MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
 
     logger.info('Reweight...')
-    MSs.run('reweight.py $pathMS -v -p -m residual -d CORRECTED_DATA', log='$nameMS_weights.log', commandType='python')
-    os.system('mkdir plots-weights-c'+str(c)'+; mv *png plots-weights-c'+str(c))
+    MSs.run('reweight.py $pathMS -v -m residual -d CORRECTED_DATA', log='$nameMS_weights.log', commandType='python')
 
     # every 10 cycles: sub model and rescale model
     if c%10 == 0 and c != 0:
