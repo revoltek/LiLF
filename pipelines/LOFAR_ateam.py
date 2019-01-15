@@ -63,11 +63,6 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 if min(MSs.getFreqs()) < 80.e6: hba = False
 else: hba = True
 
-#######################################################   
-# Create columns (non compressed)
-logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES', log='$nameMS_addcol.log', commandType='python')
-
 ########################################################   
 # flag bad stations, and low-elev
 logger.info('Flagging...')
