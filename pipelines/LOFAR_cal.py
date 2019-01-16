@@ -32,7 +32,8 @@ MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
 # copy data
 logger.info('Copy data...')
 for MS in MSs.getListObj():
-    MS.move(MS.nameMS+'.MS', keepOrig=True)
+    if min(MS.getFreqs()) > 30.e6:
+        MS.move(MS.nameMS+'.MS', keepOrig=True)
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 calname = MSs.getListObj()[0].getNameField()

@@ -33,7 +33,7 @@ operation = FLAGEXTEND
 soltab = sol000/amplitude000
 axesToExt = [time,freq]
 size = [1,0]
-percent = 50
+percent = 40
 maxCycles = 1
 
 [plotA2]
