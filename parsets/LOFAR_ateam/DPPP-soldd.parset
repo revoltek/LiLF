@@ -16,3 +16,4 @@ sol.nchan = 1
 sol.solint = 1
 sol.propagatesolutions = True
 sol.usemodelcolumn = True
+sol.minvisratio=0.6

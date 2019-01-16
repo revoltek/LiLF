@@ -17,3 +17,5 @@ sol.usemodelcolumn = True
 sol.solint = 3
 sol.nchan = 1
 sol.propagatesolutions = True
+sol.minblperant = 10
+

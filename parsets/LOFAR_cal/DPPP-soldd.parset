@@ -16,3 +16,4 @@ sol.nchan = 1
 sol.solint = 1
 sol.propagatesolutions = False # TEST
 sol.usemodelcolumn = True
+sol.minvisratio=0.6

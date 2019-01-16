@@ -22,3 +22,4 @@ ddecal.approximatetec = True
 ddecal.maxapproxiter = 200 
 ddecal.approxtolerance = 5e-3
 ddecal.usemodelcolumn = True
+ddecal.minvisratio=0.6
