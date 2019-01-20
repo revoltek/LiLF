@@ -8,11 +8,12 @@ numthreads = 0 # the pipeline should set this number
 steps = [sol]
 
 sol.type = gaincal
-sol.uvlambdamin=50
+sol.uvlambdamin = 30
 sol.caltype = diagonal
 sol.maxiter = 500
-sol.tolerance = 1e-2
-sol.propagatesolutions = False # TEST
+sol.tolerance = 1e-3
+sol.nchan = 1
+sol.solint = 1
+sol.propagatesolutions = True
 sol.usemodelcolumn = True
-sol.minblperant = 10
-
+sol.minblperant=10

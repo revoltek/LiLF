@@ -88,6 +88,9 @@ else:
 
 for c in xrange(100):
 
+    logger.info('Remove bad timestamps...')
+    MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+
     ####################################################
     # 1: find PA and remove it
 
