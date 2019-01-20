@@ -5,10 +5,13 @@ msout = .
 
 numthreads = 0 # the pipeline should set this number
 
-steps = [ant, elev, count]
+steps = [ant, uvmin, elev, count]
 
 ant.type = preflagger
 ant.baseline = 
 
 elev.type = preflagger
 elev.elevation = 0deg..20deg
+
+uvmin.type = uvwflag
+uvmin.uvlambdamin = 30
