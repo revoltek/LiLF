@@ -9,7 +9,7 @@ import pyrap.tables as pt
 
 if 'Vir' in os.getcwd():
     patch = 'VirA'
-    nouseblrange = '[0..30]'
+    nouseblrange = ''
     f = lambda nu: 1226. * 10**(-0.79 * (np.log10(nu/150.e6))**1)
 elif 'Tau' in os.getcwd():
     patch = 'TauA'
@@ -17,11 +17,13 @@ elif 'Tau' in os.getcwd():
     f = lambda nu: 1838. * 10**(-0.299 * (np.log10(nu/150.e6))**1)
 elif 'Cas' in os.getcwd():
     patch = 'CasA'
-    nouseblrange = '[15000..1e30]'
+    nouseblrange = ''
+    #nouseblrange = '[15000..1e30]'
     f = lambda nu: 11733. * 10**(-0.77 * (np.log10(nu/150.e6))**1)
 elif 'Cyg' in os.getcwd():
     patch = 'CygA'
-    nouseblrange = '[15000..1e30]'
+    nouseblrange = ''
+    #nouseblrange = '[15000..1e30]'
     f = lambda nu: 10690. * 10**(-0.67 * (np.log10(nu/150.e6))**1) * 10**(-0.204 * (np.log10(nu/150.e6))**2) * 10**(-0.021 * (np.log10(nu/150.e6))**3)
 
 skymodel = '/home/fdg/scripts/model/A-team_4_CC.skydb'
@@ -197,20 +199,20 @@ for c in xrange(100):
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='0.75arcsec', \
-                weight='uniform', niter=50000, update_model_required='', minuv_l=30, mgain=0.85, \
+                weight='uniform', niter=50000, update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16,32', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=15)
     elif patch == 'VirA' and hba:
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs 0', niter=1000, update_model_required='', minuv_l=30, mgain=0.85, \
+                weight='briggs 0', niter=1000, update_model_required='', mgain=0.85, \
                 join_channels='', fit_spectral_pol=3, channels_out=15)
         lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs 0', niter=50000, update_model_required='', minuv_l=30, mgain=0.85, \
+                weight='briggs 0', niter=50000, update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16,32,64', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=15)
     else:
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
-                weight='briggs -1', niter=50000, update_model_required='', minuv_l=30, mgain=0.85, \
+                weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16,32', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=15)
 
