@@ -204,6 +204,7 @@ def run_losoto(s, c, h5s, parsets):
 
 def run_wsclean(s, logfile, MSs_files, **kwargs):
     """
+    Use only for imaging - not for predict
     s : scheduler
     args : parameters for wsclean
     """
