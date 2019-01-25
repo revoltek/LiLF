@@ -9,7 +9,7 @@ axisInTable = ant
 plotFlag = True
 prefix = plots/csptec
 refAnt = 'CS002LBA'
-soltabToAdd = tec000
+soltabsToAdd = tec000
 
 # plot CSP
 [plotCSP]

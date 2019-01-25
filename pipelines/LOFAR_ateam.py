@@ -223,6 +223,13 @@ for c in xrange(100):
     logger.info('Reweight...')
     MSs.run('reweight.py $pathMS -v -m residual -d CORRECTED_DATA', log='$nameMS_weights.log', commandType='python')
 
+    # TEST
+    os.system('DPPP msin=L*MS msout=concat3.MS steps=count')
+    os.system('reweight.py concat3.MS -v -p')
+    os.system('mkdir plots-weight3; mv *png plots-weight3')
+
+    sys.exit()
+
     # every 10 cycles: sub model and rescale model
     if c%10 == 0 and c != 0:
     

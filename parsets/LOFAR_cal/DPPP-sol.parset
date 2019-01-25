@@ -11,8 +11,6 @@ sol.type = gaincal
 sol.uvlambdamin=50
 sol.caltype = diagonal
 sol.maxiter = 500
-sol.tolerance = 1e-2
-sol.propagatesolutions = False # TEST
+sol.tolerance = 1e-3
+sol.propagatesolutions = True # TEST
 sol.usemodelcolumn = True
-sol.minblperant = 10
-

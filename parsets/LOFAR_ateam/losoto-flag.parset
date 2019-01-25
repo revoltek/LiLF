@@ -11,8 +11,8 @@ prefix = plots/ampBF_
 [flagF]
 operation = FLAG
 soltab = sol000/amplitude000
-axesToFlag = [freq]
-order = [50] 
+axesToFlag = [freq,time]
+order = [50,1] 
 maxCycles = 1
 maxRms = 20
 replce = False
@@ -22,8 +22,8 @@ mode = smooth
 [flagT]
 operation = FLAG
 soltab = sol000/amplitude000
-axesToFlag = [time]
-order = [100] 
+axesToFlag = [freq,time]
+order = [1,100] 
 maxCycles = 1
 maxRms = 10
 replce = False
