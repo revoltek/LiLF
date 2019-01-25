@@ -15,7 +15,7 @@ axesToFlag = [time,freq]
 order = [100,40]
 maxCycles = 1
 maxRms = 5
-replce = False
+replace = False
 preFlagZeros = False
 mode = smooth
 
