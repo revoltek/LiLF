@@ -71,6 +71,11 @@ logger.info('Flagging...')
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
             log='$nameMS_flag.log', commandType='DPPP')
 
+# TEST
+os.system('DPPP msin=Virgo*MS msout=concat1.MS steps=count')
+os.system('reweight.py concat1.MS -v -p')
+os.system('mkdir plots-weight1; mv *png plots-weight1')
+
 # predict to save time MODEL_DATA
 if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
@@ -198,37 +203,30 @@ for c in xrange(100):
     # briggs: -1.2 for virgo; -1.0 for subtraction to get good minihalo?
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
-    if patch == 'CygA':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='0.75arcsec', \
+    if patch == 'CygA' or patch == 'CasA':
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='0.75arcsec', \
                 weight='uniform', niter=50000, update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16,32', \
-                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=15)
+                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
     elif patch == 'VirA' and hba:
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
                 weight='briggs 0', niter=1000, update_model_required='', mgain=0.85, \
-                join_channels='', fit_spectral_pol=3, channels_out=15)
+                join_channels='', fit_spectral_pol=3, channels_out=61)
         lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
                 weight='briggs 0', niter=50000, update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16,32,64', \
-                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=15)
+                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
     else:
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
                 weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16,32', \
-                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=15)
+                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
 
-    logger.info('Sub model...')
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
+    #logger.info('Sub model...')
+    #MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
 
-    logger.info('Reweight...')
-    MSs.run('reweight.py $pathMS -v -m residual -d CORRECTED_DATA', log='$nameMS_weights.log', commandType='python')
-
-    # TEST
-    os.system('DPPP msin=L*MS msout=concat3.MS steps=count')
-    os.system('reweight.py concat3.MS -v -p')
-    os.system('mkdir plots-weight3; mv *png plots-weight3')
-
-    sys.exit()
+    #logger.info('Reweight...')
+    #MSs.run('reweight.py $pathMS -v -m residual -d CORRECTED_DATA', log='$nameMS_weights.log', commandType='python')
 
     # every 10 cycles: sub model and rescale model
     if c%10 == 0 and c != 0:
