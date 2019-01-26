@@ -44,10 +44,6 @@ if min(MSs.getFreqs()) < 40.e6:
     logger.debug('Include iono 3rd order.')
 else: iono3rd = False
 
-# TEST
-#logger.info("Put data to Jy...")
-#MSs.run('taql "update $pathMS set DATA = 1e6*DATA"', log='$nameMS_taql.log', commandType='general')
-
 #####################################################
 # flag bad stations, flags will propagate
 logger.info("Flagging...")
@@ -56,10 +52,6 @@ MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS ant.baseline=\"" 
 # extend flags
 logger.info('Remove bad time/freq stamps...')
 MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
-
-# TEST
-#logger.info('Reweight...')
-#MSs.run( 'reweight.py -v -m subtime $pathMS', log='$nameMS_reweight.log', commandType='python')
 
 # predict to save time ms:MODEL_DATA
 logger.info('Add model to MODEL_DATA (%s)...' % calname)
