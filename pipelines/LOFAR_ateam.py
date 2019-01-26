@@ -71,11 +71,6 @@ logger.info('Flagging...')
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
             log='$nameMS_flag.log', commandType='DPPP')
 
-# TEST
-os.system('DPPP msin=Virgo*MS msout=concat1.MS steps=count')
-os.system('reweight.py concat1.MS -v -p')
-os.system('mkdir plots-weight1; mv *png plots-weight1')
-
 # predict to save time MODEL_DATA
 if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
