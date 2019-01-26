@@ -163,7 +163,7 @@ for c in xrange(100):
 
     # Correct BP CORRECTED_DATA -> CORRECTED_DATA
     logger.info('BP correction...')
-    if c == 0 and not hba:
+    if c == 0:
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitudeSmooth000', \
                 log='$nameMS_corAMP4.log', commandType='DPPP')
     else:
@@ -172,7 +172,7 @@ for c in xrange(100):
  
     # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
-    if c == 0 and not hba:
+    if c == 0:
         MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam4.log', commandType='DPPP')
     else:
         MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=False', log='$nameMS_beam4.log', commandType='DPPP')
@@ -222,6 +222,11 @@ for c in xrange(100):
 
     #logger.info('Reweight...')
     #MSs.run('reweight.py $pathMS -v -m residual -d CORRECTED_DATA', log='$nameMS_weights.log', commandType='python')
+
+    if c == 0:
+        os.system('DPPP msin=Virgo*MS msout=concat.MS steps=count')
+        os.system('reweight.py concat.MS -v -p')
+        os.system('mkdir plots-weight; mv *png plots-weight')
 
     # every 10 cycles: sub model and rescale model
     if c%10 == 0 and c != 0:
