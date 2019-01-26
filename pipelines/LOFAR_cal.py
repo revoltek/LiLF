@@ -54,7 +54,7 @@ logger.info("Flagging...")
 MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
 
 # extend flags
-logger.info('Remove bad timestamps...')
+logger.info('Remove bad time/freq stamps...')
 MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
 # TEST

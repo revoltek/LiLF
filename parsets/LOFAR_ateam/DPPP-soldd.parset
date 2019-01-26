@@ -15,4 +15,3 @@ sol.maxiter = 500
 sol.tolerance = 1e-3
 sol.propagatesolutions = True
 sol.usemodelcolumn = True
-sol.minvisratio=0.6
