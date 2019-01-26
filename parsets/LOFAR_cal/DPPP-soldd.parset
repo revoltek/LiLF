@@ -9,9 +9,9 @@ steps = [sol]
 
 sol.type = ddecal
 sol.uvlambdamin = 50
-sol.mode = rotation+diagonal
+sol.mode = 
 sol.maxiter = 500
-sol.tolerance = 1e-2
-sol.propagatesolutions = False # TEST
+sol.tolerance = 5e-3
+sol.propagatesolutions = True
 sol.usemodelcolumn = True
-sol.minvisratio=0.6
+sol.flagunconverged = True
