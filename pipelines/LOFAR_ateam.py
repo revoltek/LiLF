@@ -198,12 +198,12 @@ for c in xrange(100):
     # briggs: -1.2 for virgo; -1.0 for subtraction to get good minihalo?
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
-    if patch == 'CygA' or patch == 'CasA':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='0.75arcsec', \
-                weight='uniform', niter=50000, update_model_required='', mgain=0.85, \
+    if patch == 'CygA':
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
+                weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16,32', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
-    elif patch == 'VirA' and hba:
+    if patch == 'VirA' and hba:
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
                 weight='briggs 0', niter=1000, update_model_required='', mgain=0.85, \
                 join_channels='', fit_spectral_pol=3, channels_out=61)
@@ -223,10 +223,10 @@ for c in xrange(100):
     #logger.info('Reweight...')
     #MSs.run('reweight.py $pathMS -v -m residual -d CORRECTED_DATA', log='$nameMS_weights.log', commandType='python')
 
-    if c == 0:
-        os.system('DPPP msin=Virgo*MS msout=concat.MS steps=count')
-        os.system('reweight.py concat.MS -v -p')
-        os.system('mkdir plots-weight; mv *png plots-weight')
+    #if c == 0:
+    #    os.system('DPPP msin=Virgo*MS msout=concat.MS steps=count')
+    #    os.system('reweight.py concat.MS -v -p')
+    #    os.system('mkdir plots-weight; mv *png plots-weight')
 
     # every 10 cycles: sub model and rescale model
     if c%10 == 0 and c != 0:
