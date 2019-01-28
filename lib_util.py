@@ -442,7 +442,7 @@ class Scheduler():
 
         elif (commandType == "python"):
             out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -i -l "Error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\''+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logger.error('Python run problem on:\n'+out.split("\n")[0])
