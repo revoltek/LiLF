@@ -14,3 +14,4 @@ sol.maxiter = 500
 sol.tolerance = 1e-3
 sol.propagatesolutions = True # TEST
 sol.usemodelcolumn = True
+sol.nchan=1

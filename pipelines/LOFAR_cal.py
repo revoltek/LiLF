@@ -44,7 +44,7 @@ if min(MSs.getFreqs()) < 40.e6:
     logger.debug('Include iono 3rd order.')
 else: iono3rd = False
 
-#####################################################
+######################################################
 # flag bad stations, flags will propagate
 logger.info("Flagging...")
 MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
