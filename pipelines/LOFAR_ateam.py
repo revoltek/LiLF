@@ -202,20 +202,20 @@ for c in xrange(100):
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
                 weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16,32', \
-                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
+                auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
     if patch == 'VirA' and hba:
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs 0', niter=1000, update_model_required='', mgain=0.85, \
-                join_channels='', fit_spectral_pol=3, channels_out=61)
+                weight='briggs -0.5', niter=1000, update_model_required='', mgain=0.85, \
+                join_channels='', fit_spectral_pol=4, channels_out=61)
         lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs 0', niter=50000, update_model_required='', mgain=0.85, \
+                weight='briggs -0.5', niter=50000, update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16,32,64', \
-                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
+                auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
     else:
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
                 weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16,32', \
-                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
+                auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
     #logger.info('Sub model...')
     #MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
