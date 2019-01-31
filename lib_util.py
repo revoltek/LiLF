@@ -26,7 +26,7 @@ def getParset(parsetFile='../lilf.config'):
     config.read(parsetFile)
     
     # add pipeline sections and defaul parset dir:
-    for pipeline in ['download','demix','cal','timesplit','self','dd', 'ateam']:
+    for pipeline in ['uGMRT','download','demix','cal','timesplit','self','dd', 'ateam']:
         if not config.has_section(pipeline): config.add_section(pipeline)
         if not config.has_option(pipeline, 'parset_dir'): config.set(pipeline, 'parset_dir', os.path.dirname(__file__)+'/parsets/LOFAR_'+pipeline)
     # add other sections
@@ -53,8 +53,12 @@ def getParset(parsetFile='../lilf.config'):
     # dd
     add_default('dd', 'maxniter', '10')
 
+    # uGMRT
+    add_default('uGMRT', 'data_dir', './datadir')
+
     # flag
-    add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IR*;PL*')
+    add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IR*;PL*') # LOFAR
+    add_default('flag', 'antennas', '') # uGMRT
     # model
     add_default('model', 'sourcedb', None)
     add_default('model', 'apparent', 'False')

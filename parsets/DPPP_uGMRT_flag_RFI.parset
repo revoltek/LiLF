@@ -1,8 +1,0 @@
-msin             = 
-msin.datacolumn  = DATA
-msout            = .
-
-steps            = [flagRFI, count]
-
-flagRFI.type     = aoflagger
-flagRFI.strategy = ./parsets/uGMRTDummy.rfis
