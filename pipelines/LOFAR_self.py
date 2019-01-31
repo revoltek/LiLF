@@ -1,17 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# perform self-calibration on a group of SBs concatenated in TCs. Script must be run in dir with MS.
-# number/chan in MS are flexible but the must be concatenable (same chans/freq!)
-# Input:
-# TCs are blocks of SBs should have calibrator corrected (a+p) data in DATA (beam not applied).
-# file format of TCs is: group#_TC###.MS.
-# Output:
-# TCs with selfcal corrected source subtracted data in CORRECTED_DATA
-# instrument tables contain gain (slow) + fast (scalarphase+TEC) solutions
-# last high/low resolution models are copied in the "self/models" dir
-# last high/low resolution images + masks + empty images (CORRECTED_DATA) are copied in the "self/images" dir
-# h5parm solutions and plots are copied in the "self/solutions" dir
+# perform self-calibration on a group of SBs concatenated in TCs.
 
 import sys, os, glob, re
 import numpy as np

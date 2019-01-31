@@ -13,6 +13,7 @@ sol.mode = rotation+diagonal
 sol.maxiter = 500
 sol.tolerance = 1e-3
 sol.propagatesolutions = True
+sol.propagateconvergedonly = True
 sol.usemodelcolumn = True
 sol.flagunconverged = True
 sol.flagdivergedonly = False
