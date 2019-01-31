@@ -14,6 +14,13 @@ replace = True
 fitOffset = False
 refAnt = 'CS002LBA'
 
+# copy flags on polalign (this is because diag+rot is good at flagging bad points)
+[merge]
+operation = REWEIGHT
+mode = copy
+soltab = sol000/polalign
+soltabImport = phase000
+
 [plotAlign]
 operation = PLOT
 soltab = sol000/polalign
