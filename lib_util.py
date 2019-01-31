@@ -38,7 +38,8 @@ def getParset(parsetFile='../lilf.config'):
     add_default('download', 'renameavg', 'True')
     add_default('download', 'flag_elev', 'True')
     # demix
-    add_default('demix', 'data_dir', '../tgts-full/')
+    add_default('demix', 'data_dir', '../cals-bkp/')
+    add_default('demix', 'demix_model', '/home/fdg/scripts/model/demix_all.skydb')
     # cal
     add_default('cal', 'imaging', 'False')
     add_default('cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
@@ -60,15 +61,6 @@ def getParset(parsetFile='../lilf.config'):
     add_default('model', 'userreg', None)
 
     return config
-
-
-def columnExists(tableObject, columnName):
-    # more to lib_ms
-    '''
-    Check whether a column with name 'columnName' exists in  table 'tableObject'.
-    '''
-    columnNames = tableObject.colnames()
-    return (columnName in columnNames)
 
 
 def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithOnes = True, comment = "", verbose = False):
