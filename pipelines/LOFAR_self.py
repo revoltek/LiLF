@@ -10,9 +10,6 @@ import pyrap.tables as pt
 # Temporary
 if 'LBAsurvey' in os.getcwd():
     obs = os.getcwd().split('/')[-1]
-    sourcedb = '/home/fdg/scripts/autocal/LBAsurvey/skymodels/%s.skydb' % obs
-    apparent = False
-    userReg = None
     if not os.path.exists('mss'):
         os.makedirs('mss')
         for i, tc in enumerate(glob.glob('../../c*-o*/%s/mss/*' % obs)):
@@ -67,6 +64,7 @@ if sourcedb is None:
         # get model ~twice the size of the image (radius=fwhm)
         os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm))
         os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
+        apparent = False
 
     sourcedb = 'tgts.skydb'
 
