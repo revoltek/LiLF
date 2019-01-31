@@ -62,15 +62,6 @@ def getParset(parsetFile='../lilf.config'):
     return config
 
 
-def columnExists(tableObject, columnName):
-    # more to lib_ms
-    '''
-    Check whether a column with name 'columnName' exists in  table 'tableObject'.
-    '''
-    columnNames = tableObject.colnames()
-    return (columnName in columnNames)
-
-
 def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithOnes = True, comment = "", verbose = False):
     # more to lib_ms
     """
