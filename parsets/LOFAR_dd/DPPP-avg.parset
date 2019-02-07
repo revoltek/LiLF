@@ -5,8 +5,6 @@ msout.datacolumn = DATA
 msout.writefullresflag = False
 #msout.storagemanager = dysco
 
-numthreads = 0 # the pipeline should set this number
-
 steps = [avg]
 
 avg.type = averager

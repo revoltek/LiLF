@@ -4,8 +4,6 @@ msin.baseline = [CR]S*&
 msout = .
 msout.datacolumn = CORRECTED_DATA
 
-numthreads = 0 # the pipeline should set this number
-
 steps = [sol]
 
 sol.type = ddecal

@@ -3,8 +3,6 @@ msin.datacolumn = SMOOTHED_DATA
 msin.baseline = [CR]S*&
 msout = .
 
-numthreads = 0 # the pipeline should set this number
-
 steps=[ddecal]
 
 ddecal.type = ddecal

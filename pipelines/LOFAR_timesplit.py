@@ -114,11 +114,11 @@ MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
 logger.info('Remove bad timestamps...')
 MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
+#sys.exit() # for DDFacet
+
 logger.info('Plot weights...')
 MSs.run('reweight.py $pathMS -v -p', log='$nameMS_weights.log', commandType='python')
 os.system('mkdir plots-weights; mv *png plots-weights')
-
-#sys.exit() # for DDFacet
 
 # Create time-chunks
 logger.info('Splitting in time...')
