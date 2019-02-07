@@ -71,8 +71,6 @@ logger.info('Flagging...')
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
             log='$nameMS_flag.log', commandType='DPPP')
 
-sys.exit()
-
 # predict to save time MODEL_DATA
 if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
@@ -206,11 +204,11 @@ for c in xrange(100):
                 multiscale='', multiscale_scales='0,4,8,16,32', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
     if patch == 'VirA' and hba:
-        #lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-        #        weight='briggs -0.5', niter=1000, update_model_required='', mgain=0.85, \
-        #        join_channels='', fit_spectral_pol=4, channels_out=61) # add cont=True to the next
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -0.5', niter=50000, update_model_required='', mgain=0.85, \
+        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
+                weight='briggs -1.', niter=1000, update_model_required='', mgain=0.85, \
+                join_channels='', fit_spectral_pol=4, channels_out=61)
+        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
+                weight='briggs -1.', niter=50000, update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16,32,64', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
     else:
@@ -231,7 +229,7 @@ for c in xrange(100):
     #    os.system('mkdir plots-weight; mv *png plots-weight')
 
     # every 10 cycles: sub model and rescale model
-    if c%10 == 0 and c != 0:
+    if c%5 == 0 and c != 0:
     
         logger.info('Cleaning sub (cycle %i)...' % c)
         imagename = 'img/imgsub-c'+str(c)
