@@ -13,7 +13,7 @@ if 'Vir' in os.getcwd():
     f = lambda nu: 1226. * 10**(-0.79 * (np.log10(nu/150.e6))**1)
 elif 'Tau' in os.getcwd():
     patch = 'TauA'
-    nouseblrange = '[500..5000]'
+    nouseblrange = '[500..5000]' # below is a point, above 10 times is hopefully resolved out
     f = lambda nu: 1838. * 10**(-0.299 * (np.log10(nu/150.e6))**1)
 elif 'Cas' in os.getcwd():
     patch = 'CasA'
@@ -62,16 +62,18 @@ s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 # HBA/LBA
-if min(MSs.getFreqs()) < 80.e6: hba = False
-else: hba = True
+if min(MSs.getFreqs()) < 80.e6:
+    hba = False
+    flag_steps = "[ant, uvmin, elev, count]"
+else: 
+    hba = True
+    flag_steps = "[ears, ant, uvmin, elev, count]"
 
 ########################################################   
 # flag bad stations, and low-elev
 logger.info('Flagging...')
-MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
+MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. steps=\"'+flag_steps+'\" ant.baseline=\"'+bl2flag+'\"', \
             log='$nameMS_flag.log', commandType='DPPP')
-
-sys.exit()
 
 # predict to save time MODEL_DATA
 if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
