@@ -80,10 +80,11 @@ if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 
 if os.path.exists(model_dir+'/img-MFS-model.fits'):
-    logger.info('Predict (wsclean)...')
     im = lib_img.Image(model_dir+'/img')
     im.rescaleModel(f)
-    s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
+    n = len(glob.glob(model_dir+'/img-[0-9]*-model.fits'))
+    logger.info('Predict (wsclean: %s - chan: %i)...' % (model_dir, n))
+    s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channels-out '+str(n)+' '+MSs.getStrWsclean(), \
           log='wscleanPRE-init.log', commandType='wsclean', processors='max')
     s.run(check=True)
 else:

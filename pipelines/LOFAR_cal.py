@@ -34,6 +34,7 @@ logger.info('Copy data...')
 for MS in MSs.getListObj():
     if min(MS.getFreqs()) > 30.e6:
         MS.move(MS.nameMS+'.MS', keepOrig=True)
+        os.system('cp -r %s %s' % (skymodel, MS.pathMS))
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 calname = MSs.getListObj()[0].getNameField()
@@ -55,7 +56,8 @@ MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', com
 
 # predict to save time ms:MODEL_DATA
 logger.info('Add model to MODEL_DATA (%s)...' % calname)
-MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DPPP")
+MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=$pathMS/" + os.path.basename(skymodel) + " pre.sources=" + calname, \
+        log="$nameMS_pre.log", commandType="DPPP")
 
 ###################################################
 # 1: find PA
