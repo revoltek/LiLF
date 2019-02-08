@@ -205,19 +205,19 @@ for c in xrange(100):
     if patch == 'CygA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
                 weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
-                multiscale='', multiscale_scales='0,4,8,16,32', \
+                multiscale='', multiscale_scales='0,5,10,20', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'CasA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1300, scale='2arcsec', \
                 weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
-                multiscale='', multiscale_scales='0,4,8,16,32', \
+                multiscale='', multiscale_scales='0,5,10,20,40,80', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'TauA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1200, scale='2arcsec', \
                 weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
-                multiscale='', multiscale_scales='0,4,8,16,32', \
+                multiscale='', multiscale_scales='0,5,10,20,40,80', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'VirA' and lba:
