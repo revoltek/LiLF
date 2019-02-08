@@ -24,7 +24,7 @@ logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 parset = lib_util.getParset()
-parset_dir = parset.get('self','parset_dir')
+parset_dir = parset.get('LOFAR_self','parset_dir')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')

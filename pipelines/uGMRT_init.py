@@ -13,8 +13,8 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset('lilf.config')
-parset_dir = parset.get('uGMRT','parset_dir')
-data_dir = parset.get('uGMRT','data_dir')
+parset_dir = parset.get('uGMRT_init','parset_dir')
+data_dir = parset.get('uGMRT_init','data_dir')
 bl2flag = parset.get('flag','antennas')
 
 #############################
@@ -31,7 +31,7 @@ MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
 if not os.path.exists('cals'): os.mkdir('cals')
 if not os.path.exists('tgts'): os.mkdir('tgts')
 
-for j, MS in enumerate(MSs.getListObj()):
+for MS in MSs.getListObj():
     pathMS = MS.pathMS
 
     logger.info("- Split-up of original MS '" + pathMS + "' -")
@@ -54,24 +54,26 @@ MSs.run('fixuGMRTms.py -v $pathMS', log='$nameMS_fixMS.log', commandType='python
 
 ##################################
 # 5. Move the sub-MSs from a temporary place to their right locus in the file tree.
-for j, MS in enumerate(MSs.getListObj()):
+for MS in MSs.getListObj():
 
-        if (MS.isCalibrator()):
-            pathDirectoryCalibrator = 'cals/%03i_%03i_%s' % (j, i, MS.getNameField())
-            pathMSFinal             = pathDirectoryCalibrator + '/' + MS.getNameField() + ".MS"
-            if not os.path.isdir(pathDirectoryCalibrator):
-                os.mkdir(pathDirectoryCalibrator)
-        else:
-            # TODO: check in all tgts MS already created if there's a similar pointing,
-            # in that case name this accordingly and combine
-            pathDirectoryTarget = 'tgts/' + MS.getNameField()
-            pathMSFinal         = pathDirectoryTarget + "/mss/" + MS.getNameField() + ".MS"
-            if not os.path.isdir(pathDirectoryTarget):
-                os.mkdir(pathDirectoryTarget)
-                os.mkdir(pathDirectoryTarget+'/mss')
-    
-        logger.info(MS.nameMS + ": move to '" + pathMSFinal + "'...")
-        MS.move(pathMSFinal)
+    scanID = int(MS.nameMS[6:9])
+
+    if (MS.isCalibrator()):
+        pathDirectoryCalibrator = 'cals/%03i_%s' % (scanID, MS.getNameField())
+        pathMSFinal             = pathDirectoryCalibrator + '/' + MS.getNameField() + ".MS"
+        if not os.path.isdir(pathDirectoryCalibrator):
+            os.mkdir(pathDirectoryCalibrator)
+    else:
+        # TODO: check in all tgts MS already created if there's a similar pointing,
+        # in that case name this accordingly and combine
+        pathDirectoryTarget = 'tgts/' + MS.getNameField()
+        pathMSFinal         = pathDirectoryTarget + "/mss/%03i_%s.MS" % (scanID, MS.getNameField())
+        if not os.path.isdir(pathDirectoryTarget):
+            os.mkdir(pathDirectoryTarget)
+            os.mkdir(pathDirectoryTarget+'/mss')
+
+    logger.info(MS.nameMS + ": move to '" + pathMSFinal + "'...")
+    MS.move(pathMSFinal)
 
 
 ##################################
@@ -79,6 +81,7 @@ for j, MS in enumerate(MSs.getListObj()):
 MSs = lib_ms.AllMSs( glob.glob('cals/*/*MS')+glob.glob('tgts/*/mss/*MS'), s )
 
 logger.info('Flagging...')
-MSs.run("DPPP " + parset_dir + "/DPPP-flag_user.parset msin=$pathMS ant.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
+MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flagBaselines.baseline=\"" + bl2flag+"\" flagRFI.strategy=" + parset_dir + "/uGMRTDummy.rfis", \
+        log="$nameMS_flag.log", commandType="DPPP")
 
 logger.info('Done.')

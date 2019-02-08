@@ -26,9 +26,10 @@ def getParset(parsetFile='../lilf.config'):
     config.read(parsetFile)
     
     # add pipeline sections and defaul parset dir:
-    for pipeline in ['uGMRT','download','demix','cal','timesplit','self','dd', 'ateam']:
+    for pipeline in glob.glob(os.path.dirname(__file__)+'/parsets/*'):
         if not config.has_section(pipeline): config.add_section(pipeline)
-        if not config.has_option(pipeline, 'parset_dir'): config.set(pipeline, 'parset_dir', os.path.dirname(__file__)+'/parsets/LOFAR_'+pipeline)
+        if not config.has_option(pipeline, 'parset_dir'):
+                config.set(pipeline, 'parset_dir', os.path.dirname(__file__)+'/parsets/'+pipeline)
     # add other sections
     if not config.has_section('flag'): config.add_section('flag')
     if not config.has_section('model'): config.add_section('model')

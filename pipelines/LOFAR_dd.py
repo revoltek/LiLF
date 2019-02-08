@@ -16,8 +16,8 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('dd','parset_dir')
-maxniter = parset.getint('dd','maxniter')
+parset_dir = parset.get('LOFAR_dd','parset_dir')
+maxniter = parset.getint('LOFAR_dd','maxniter')
 userReg = parset.get('model','userReg')
 
 ####################################################

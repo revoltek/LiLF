@@ -36,7 +36,7 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('ateam','parset_dir')
+parset_dir = parset.get('LOFAR_ateam','parset_dir')
 bl2flag = parset.get('flag','stations')
 data_dir = '../tgts-bkp/'
 
