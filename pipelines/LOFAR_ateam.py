@@ -82,7 +82,7 @@ else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 if os.path.exists(model_dir+'/img-MFS-model.fits'):
     logger.info('Predict (wsclean)...')
     im = lib_img.Image(model_dir+'/img')
-    #im.rescaleModel(f)
+    im.rescaleModel(f)
     s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
           log='wscleanPRE-init.log', commandType='wsclean', processors='max')
     s.run(check=True)
@@ -202,12 +202,34 @@ for c in xrange(100):
     # briggs: -1.2 for virgo; -1.0 for subtraction to get good minihalo?
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
-    if patch == 'CygA' or patch == 'CasA':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
+    if patch == 'CygA':
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
                 weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16,32', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
-    if patch == 'VirA' and hba:
+
+    elif patch == 'CasA':
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1300, scale='2arcsec', \
+                weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
+                multiscale='', multiscale_scales='0,4,8,16,32', \
+                auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
+
+    elif patch == 'TauA':
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1200, scale='2arcsec', \
+                weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
+                multiscale='', multiscale_scales='0,4,8,16,32', \
+                auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
+
+    elif patch == 'VirA' and lba:
+        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
+                weight='briggs -1.', niter=1000, update_model_required='', mgain=0.85, \
+                join_channels='', fit_spectral_pol=4, channels_out=61)
+        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=1500, scale='2arcsec', \
+                weight='briggs -1.', niter=50000, update_model_required='', mgain=0.85, \
+                multiscale='', multiscale_scales='0,4,8,16,32,64', \
+                auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
+
+    elif patch == 'VirA' and hba:
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
                 weight='briggs -1.', niter=1000, update_model_required='', mgain=0.85, \
                 join_channels='', fit_spectral_pol=4, channels_out=61)
@@ -215,26 +237,16 @@ for c in xrange(100):
                 weight='briggs -1.', niter=50000, update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,4,8,16,32,64', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
-    else:
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
-                weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
-                multiscale='', multiscale_scales='0,4,8,16,32', \
-                auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
-    #logger.info('Sub model...')
-    #MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
-
-    #logger.info('Reweight...')
-    #MSs.run('reweight.py $pathMS -v -m residual -d CORRECTED_DATA', log='$nameMS_weights.log', commandType='python')
-
-    #if c == 0:
-    #    os.system('DPPP msin=Virgo*MS msout=concat.MS steps=count')
-    #    os.system('reweight.py concat.MS -v -p')
-    #    os.system('mkdir plots-weight; mv *png plots-weight')
-
-    # every 10 cycles: sub model and rescale model
+    # every 5 cycles: sub model and rescale model
     if c%5 == 0 and c != 0:
     
+        logger.info('Sub model...')
+        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
+
+        #logger.info('Reweight...')
+        #MSs.run('reweight.py $pathMS -v -m residual -d CORRECTED_DATA', log='$nameMS_weights.log', commandType='python')
+
         logger.info('Cleaning sub (cycle %i)...' % c)
         imagename = 'img/imgsub-c'+str(c)
         lib_util.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
