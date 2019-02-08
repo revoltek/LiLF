@@ -227,17 +227,23 @@ for c in xrange(100):
                 join_channels='', fit_spectral_pol=4, channels_out=61)
         lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=1500, scale='2arcsec', \
                 weight='briggs -1.', niter=50000, update_model_required='', mgain=0.85, \
-                multiscale='', multiscale_scales='0,4,8,16,32,64', \
+                multiscale='', multiscale_scales='0,5,10,20,40,80', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'VirA' and hba:
-        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -1.', niter=1000, update_model_required='', mgain=0.85, \
-                join_channels='', fit_spectral_pol=4, channels_out=61)
-        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -1.', niter=50000, update_model_required='', mgain=0.85, \
-                multiscale='', multiscale_scales='0,4,8,16,32,64', \
+        #lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
+        #        weight='briggs -1.', niter=1000, update_model_required='', mgain=0.85, \
+        #        join_channels='', fit_spectral_pol=4, channels_out=61) # use cont=True
+        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
+                weight='briggs -1.', niter=50000, no_update_model_required='', mgain=0.85, \
+                multiscale='', multiscale_scales='0,5,10,20,40,80', \
+                baseline_averaging=5, parallel_deconvolution=512, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
+
+    logger.info('Predict (wsclean: %s)...' % 'img/'+imagename)
+    s.add('wsclean -predict -name img/'+imagename+' -j '+str(s.max_processors)+' -channels-out 61 '+MSs.getStrWsclean(), \
+          log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+    s.run(check=True)
 
     # every 5 cycles: sub model and rescale model
     if c%5 == 0 and c != 0:
