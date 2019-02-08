@@ -1,0 +1,13 @@
+msin                       =
+msin.datacolumn            = DATA
+msout                      = . # unused, though required
+
+steps                      = [gaincal]
+
+gaincal.caltype            = diagonal
+gaincal.maxiter            = 1
+gaincal.nchan              = 1
+gaincal.solint             = 1
+gaincal.propagatesolutions = False
+gaincal.usemodelcolumn     = True
+gaincal.parmdb             =
