@@ -108,7 +108,7 @@ for c in xrange(100):
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
 
     #################################################
-    # 1: find the FR and remve it
+    # 2: find the FR and remve it
     
     # Beam correction DATA -> CORRECTED_DATA
     logger.info('PA correction...')
@@ -133,7 +133,7 @@ for c in xrange(100):
             [parset_dir + '/losoto-fr.parset'])
 
     #####################################################
-    # 2: find BANDPASS
+    # 3: find BANDPASS
 
     # Beam correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
@@ -159,7 +159,7 @@ for c in xrange(100):
             [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-bp.parset'])
 
     #################################################
-    # 3: apply all
+    # 4: find iono
 
     # Beam correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
@@ -205,20 +205,23 @@ for c in xrange(100):
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
-                weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
+                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,5,10,20', \
+                baseline_averaging=5, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'CasA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1300, scale='2arcsec', \
-                weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
+                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,5,10,20,40,80', \
+                baseline_averaging=5, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'TauA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1200, scale='2arcsec', \
-                weight='briggs -1', niter=50000, update_model_required='', mgain=0.85, \
+                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,5,10,20,40,80', \
+                baseline_averaging=5, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'VirA' and lba:
@@ -237,11 +240,11 @@ for c in xrange(100):
         lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
                 weight='briggs -1.', niter=50000, no_update_model_required='', mgain=0.85, \
                 multiscale='', multiscale_scales='0,5,10,20,40,80', \
-                baseline_averaging=5, parallel_deconvolution=512, \
+                baseline_averaging=5, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
-    logger.info('Predict (wsclean: %s)...' % 'img/'+imagename)
-    s.add('wsclean -predict -name img/'+imagename+' -j '+str(s.max_processors)+' -channels-out 61 '+MSs.getStrWsclean(), \
+    logger.info('Predict (wsclean: img/%s)...' % imagename)
+    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 61 '+MSs.getStrWsclean(), \
           log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
