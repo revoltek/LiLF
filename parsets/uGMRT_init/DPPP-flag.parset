@@ -2,7 +2,7 @@ msin                          =
 msin.datacolumn               = DATA
 msout                         = .
 
-steps                         = [flagBaselines, flagFrequencyRanges, flagChannels, count]
+steps                         = [flagBaselines, flagFrequencyRanges, flagChannels, flagRFI, count]
 
 flagBaselines.type            = preflagger
 flagBaselines.baseline        =    # by default, flag no baselines (besides those already flagged by uGMRT staff)
@@ -12,3 +12,6 @@ flagFrequencyRanges.freqrange = [] # by default, flag no frequency range
 
 flagChannels.type             = preflagger
 flagChannels.chan             = [] # by default, flag no channels
+
+flagRFI.type     = aoflagger
+flagRFI.strategy = /home/fdg/scripts/LiLF/parsets/uGMRTDummy.rfis
