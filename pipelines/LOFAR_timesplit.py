@@ -22,11 +22,11 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('timesplit','parset_dir')
-data_dir = parset.get('timesplit','data_dir')
-cal_dir = parset.get('timesplit','cal_dir')
-ngroups = parset.getint('timesplit','ngroups')
-initc = parset.getint('timesplit','initc') # initial tc num (useful for multiple observation of same target)
+parset_dir = parset.get('LOFAR_timesplit','parset_dir')
+data_dir = parset.get('LOFAR_timesplit','data_dir')
+cal_dir = parset.get('LOFAR_timesplit','cal_dir')
+ngroups = parset.getint('LOFAR_timesplit','ngroups')
+initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
 
 assert os.path.isdir(cal_dir)
 

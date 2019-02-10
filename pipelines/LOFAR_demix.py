@@ -12,9 +12,9 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('demix','parset_dir')
-data_dir = parset.get('demix','data_dir')
-skydb = parset.get('demix','demix_model')
+parset_dir = parset.get('LOFAR_demix','parset_dir')
+data_dir = parset.get('LOFAR_demix','data_dir')
+skydb = parset.get('LOFAR_demix','demix_model')
 
 ##############################################
 # Demix

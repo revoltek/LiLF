@@ -14,9 +14,9 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('download','parset_dir')
-fix_table = parset.getboolean('download','fix_table')
-renameavg = parset.getboolean('download','renameavg')
+parset_dir = parset.get('LOFAR_download','parset_dir')
+fix_table = parset.getboolean('LOFAR_download','fix_table')
+renameavg = parset.getboolean('LOFAR_download','renameavg')
 
 ###########################################
 if os.path.exists('html.txt'):

@@ -26,35 +26,43 @@ def getParset(parsetFile='../lilf.config'):
     config.read(parsetFile)
     
     # add pipeline sections and defaul parset dir:
-    for pipeline in ['uGMRT','download','demix','cal','timesplit','self','dd', 'ateam']:
+    for pipeline in glob.glob(os.path.dirname(__file__)+'/parsets/*'):
+        pipeline = os.path.basename(pipeline)
         if not config.has_section(pipeline): config.add_section(pipeline)
-        if not config.has_option(pipeline, 'parset_dir'): config.set(pipeline, 'parset_dir', os.path.dirname(__file__)+'/parsets/LOFAR_'+pipeline)
+        if not config.has_option(pipeline, 'parset_dir'):
+                config.set(pipeline, 'parset_dir', os.path.dirname(__file__)+'/parsets/'+pipeline)
     # add other sections
     if not config.has_section('flag'): config.add_section('flag')
     if not config.has_section('model'): config.add_section('model')
 
+    ### LOFAR ###
+
     # download
-    add_default('download', 'fix_table', 'True') # fix bug in some old observations
-    add_default('download', 'renameavg', 'True')
-    add_default('download', 'flag_elev', 'True')
+    add_default('LOFAR_download', 'fix_table', 'True') # fix bug in some old observations
+    add_default('LOFAR_download', 'renameavg', 'True')
+    add_default('LOFAR_download', 'flag_elev', 'True')
     # demix
-    add_default('demix', 'data_dir', '../cals-bkp/')
-    add_default('demix', 'demix_model', '/home/fdg/scripts/model/demix_all.skydb')
+    add_default('LOFAR_demix', 'data_dir', '../cals-bkp/')
+    add_default('LOFAR_demix', 'demix_model', '/home/fdg/scripts/model/demix_all.skydb')
     # cal
-    add_default('cal', 'imaging', 'False')
-    add_default('cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
-    add_default('cal', 'data_dir', '../cals-bkp/')
+    add_default('LOFAR_cal', 'imaging', 'False')
+    add_default('LOFAR_cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
+    add_default('LOFAR_cal', 'data_dir', '../cals-bkp/')
     # timesplit
-    add_default('timesplit', 'data_dir', '../tgts-bkp/')
-    add_default('timesplit', 'cal_dir', '../cals/')
-    add_default('timesplit', 'ngroups', '1')
-    add_default('timesplit', 'initc', '0')
+    add_default('LOFAR_timesplit', 'data_dir', '../tgts-bkp/')
+    add_default('LOFAR_timesplit', 'cal_dir', '../cals/')
+    add_default('LOFAR_timesplit', 'ngroups', '1')
+    add_default('LOFAR_timesplit', 'initc', '0')
     # self
     # dd
-    add_default('dd', 'maxniter', '10')
+    add_default('LOFAR_dd', 'maxniter', '10')
 
-    # uGMRT
-    add_default('uGMRT', 'data_dir', './datadir')
+    ### uGMRT ###
+
+    # init
+    add_default('uGMRT_init', 'data_dir', './datadir')
+
+    ### General ###
 
     # flag
     add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IR*;PL*') # LOFAR
@@ -431,7 +439,7 @@ class Scheduler():
                 return 1
 
         elif (commandType == "wsclean"):
-            out = subprocess.check_output('grep -l "exception occurred" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output('grep -l "exception occured" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logger.error('WSClean run problem on:\n'+out.split("\n")[0])

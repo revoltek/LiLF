@@ -16,10 +16,10 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('cal','parset_dir')
-data_dir = parset.get('cal','data_dir')
-skymodel = parset.get('cal','skymodel')
-imaging = parset.getboolean('cal','imaging')
+parset_dir = parset.get('LOFAR_cal','parset_dir')
+data_dir = parset.get('LOFAR_cal','data_dir')
+skymodel = parset.get('LOFAR_cal','skymodel')
+imaging = parset.getboolean('LOFAR_cal','imaging')
 bl2flag = parset.get('flag','stations')
 
 if 'LBAsurvey' in os.getcwd():
