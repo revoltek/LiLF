@@ -205,32 +205,33 @@ for c in xrange(100):
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
-                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.85, \
-                multiscale='', multiscale_scales='0,5,10,20', \
-                baseline_averaging=5, \
+                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.5, \
+                multiscale='', multiscale_scale_bias=0.7, \# multiscale_scales='0,5,10,20', \
+                baseline_averaging=5, deconvolution_channels=8 \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'CasA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1300, scale='2arcsec', \
-                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.85, \
-                multiscale='', multiscale_scales='0,5,10,20,40,80', \
-                baseline_averaging=5, \
+                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.5, \
+                multiscale='', multiscale_scale_bias=0.7, \# multiscale_scales='0,5,10,20,40,80', \
+                baseline_averaging=5, deconvolution_channels=8 \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'TauA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1200, scale='2arcsec', \
-                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.85, \
-                multiscale='', multiscale_scales='0,5,10,20,40,80', \
-                baseline_averaging=5, \
+                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.5, \
+                multiscale='', multiscale_scale_bias=0.7, \# multiscale_scales='0,5,10,20,40,80', \
+                baseline_averaging=5, deconvolution_channels=8 \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'VirA' and lba:
-        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
-                weight='briggs -1.', niter=1000, update_model_required='', mgain=0.85, \
-                join_channels='', fit_spectral_pol=4, channels_out=61)
-        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=1500, scale='2arcsec', \
-                weight='briggs -1.', niter=50000, update_model_required='', mgain=0.85, \
-                multiscale='', multiscale_scales='0,5,10,20,40,80', \
+        #lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
+        #        weight='briggs -1.', niter=1000, update_model_required='', mgain=0.85, \
+        #        join_channels='', fit_spectral_pol=4, channels_out=61) # use cont=True
+        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
+                weight='briggs -1.', niter=50000, no_update_model_required='', mgain=0.5, \
+                multiscale='', multiscale_scale_bias=0.7, \# multiscale_scales='0,5,10,20,40,80', \
+                baseline_averaging=5, deconvolution_channels=8 \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'VirA' and hba:
@@ -238,9 +239,9 @@ for c in xrange(100):
         #        weight='briggs -1.', niter=1000, update_model_required='', mgain=0.85, \
         #        join_channels='', fit_spectral_pol=4, channels_out=61) # use cont=True
         lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -1.', niter=50000, no_update_model_required='', mgain=0.85, \
-                multiscale='', multiscale_scales='0,5,10,20,40,80', \
-                baseline_averaging=5, \
+                weight='briggs -1.', niter=50000, no_update_model_required='', mgain=0.5, \
+                multiscale='', multiscale_scale_bias=0.7, \# multiscale_scales='0,5,10,20,40,80', \
+                baseline_averaging=5, deconvolution_channels=8 \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
     logger.info('Predict (wsclean: img/%s)...' % imagename)
