@@ -250,7 +250,7 @@ for c in xrange(100):
                 weight='briggs -1.', niter=50000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
-                casa_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirA.crtf', \
+                fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
                 baseline_averaging=5, deconvolution_channels=8, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
