@@ -79,7 +79,7 @@ for MS in MSs.getListStr():
 
 # Create columns (non compressed)
 logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 
 logger.info('Add model to MODEL_DATA...')
 if apparent:
