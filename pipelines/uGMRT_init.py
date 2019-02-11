@@ -24,7 +24,7 @@ bl2flag = parset.get('flag','antennas')
 # 2. Convert into MS
 
 #############################
-# 3. Set-up directory structure
+# 3. Set-up directory structure ans split
 
 MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
 numberOfMSs = len(MSs.getListObj())
@@ -48,7 +48,7 @@ for msID, MS in enumerate(MSs.getListObj()):
         tables.taql("SELECT from $pathMS where SCAN_NUMBER = $scanID giving $pathMSscan as plain")
 
 #############################
-# 4. fix MS
+# 4. Fix MS
 MSs = lib_ms.AllMSs( glob.glob('msID*_scanID*MS'), s )
 logger.info('Fixing MS...')
 MSs.run('fixuGMRTms.py -v $pathMS', log='$nameMS_fixMS.log', commandType='python')
@@ -85,5 +85,9 @@ MSs = lib_ms.AllMSs( glob.glob('cals/*/*MS')+glob.glob('tgts/*/mss/*MS'), s )
 logger.info('Flagging...')
 MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flagBaselines.baseline=\"" + bl2flag + "\" flagRFI.strategy=" + parset_dir + "/uGMRTDummy.rfis", \
         log="$nameMS_flag.log", commandType="DPPP")
+
+# extend flags
+logger.info('Remove bad time/freq stamps...')
+MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
 logger.info('Done.')

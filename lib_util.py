@@ -61,6 +61,8 @@ def getParset(parsetFile='../lilf.config'):
 
     # init
     add_default('uGMRT_init', 'data_dir', './datadir')
+    # cal
+    add_default('uGMRT_cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
 
     ### General ###
 
