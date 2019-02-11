@@ -63,10 +63,10 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 # HBA/LBA
 if min(MSs.getFreqs()) < 80.e6:
-    hba = False
+    lofar_system = 'lba'
     flag_steps = "[ant, uvmin, elev, count]"
 else: 
-    hba = True
+    lofar_system = 'hba'
     flag_steps = "[ears, ant, uvmin, elev, count]"
 
 ########################################################   
@@ -76,7 +76,7 @@ MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. steps=\"'+fla
             log='$nameMS_flag.log', commandType='DPPP')
 
 # predict to save time MODEL_DATA
-if hba: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
+if lofar_system == 'hba': model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 
 if os.path.exists(model_dir+'/img-MFS-model.fits'):
@@ -224,7 +224,7 @@ for c in xrange(100):
                 baseline_averaging=5, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
-    elif patch == 'VirA' and lba:
+    elif patch == 'VirA' and lofar_system == 'lba':
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
                 weight='briggs -1.', niter=1000, update_model_required='', mgain=0.85, \
                 join_channels='', fit_spectral_pol=4, channels_out=61)
@@ -233,7 +233,7 @@ for c in xrange(100):
                 multiscale='', multiscale_scales='0,5,10,20,40,80', \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
-    elif patch == 'VirA' and hba:
+    elif patch == 'VirA' and lofar_system == 'hba':
         #lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
         #        weight='briggs -1.', niter=1000, update_model_required='', mgain=0.85, \
         #        join_channels='', fit_spectral_pol=4, channels_out=61) # use cont=True

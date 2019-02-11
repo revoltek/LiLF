@@ -363,12 +363,14 @@ class Scheduler():
         from threading import Thread
         from Queue import Queue
         import subprocess
+        import gc
 
         def worker(queue):
             for cmd in iter(queue.get, None):
                 if self.qsub and self.cluster == "Hamburg":
                     cmd = 'salloc --job-name LBApipe --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
                             ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
+                gc.collect()
                 subprocess.call(cmd, shell = True)
 
         # limit threads only when qsub doesn't do it
@@ -415,7 +417,7 @@ class Scheduler():
             return 1
 
         if (commandType == "BBS"):
-            out = subprocess.check_output('grep -L success '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output('grep -L success '+log+' ; exit 0', shell = False, stderr = subprocess.STDOUT)
             if out != '':
                 logger.error('BBS run problem on:\n'+out.split("\n")[0])
                 return 1
