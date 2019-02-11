@@ -234,7 +234,7 @@ for c in xrange(0, niter):
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
     im.makeMask(threshisl = 3)
     
-    # TODO: try parallel-deconvolution=512
+    # TODO: try parallel-deconvolution=512, try -deconvolution-channels=4 and use -channels-out=61, lowering multiscale bias?
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
