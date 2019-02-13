@@ -52,11 +52,17 @@ timeint = MSs.getListObj()[0].getTimeInt()
 avg_time = int(np.rint(10./timeint))
 
 logger.info('Copy data...')
-for MS in MSs.getListObj():
-    if not os.path.exists(MS.nameMS+'.MS') and min(MS.getFreqs()) > 30.e6:
-        s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MS.nameMS+'.MS msin.datacolumn=DATA avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time), \
-            log=MS.nameMS+'_avg.log', commandType='DPPP')
-s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
+#for MS in MSs.getListObj():
+#    if not os.path.exists(MS.nameMS+'.MS') and min(MS.getFreqs()) > 30.e6:
+#        s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MS.nameMS+'.MS avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time), \
+#            log=MS.nameMS+'_avg.log', commandType='DPPP')
+#s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
+for obs in set([ os.path.basename(ms).split('_')[0] for ms in MSs.getListStr() ]):
+    mss_toconcat = glob.glob(data_dir+'/'+obs+'*MS')
+    if os.path.exists(obs+'_concat.MS'): continue
+    s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin=\"'+str(mss_toconcat)+'\" msout='+obs+'_concat.MS avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time),\
+            log=obs+'_avg.log', commandType='DPPP')
+s.run(check=True, maxThreads=2)
 
 ################################################################
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
