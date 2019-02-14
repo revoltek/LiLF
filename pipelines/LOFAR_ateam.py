@@ -73,8 +73,8 @@ s.run(check=True, maxThreads=2)
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 # bkp
-for MS in MSs.getListStr():
-    MS_bkp = MS+'-bkp'
+for MS in MSs.getListObj():
+    MS_bkp = MS.pathMS+'-bkp'
     if not os.path.exists(MS_bkp):
         logger.info('Making backup...')
         MS.move(MS_bkp, keepOrig=True)

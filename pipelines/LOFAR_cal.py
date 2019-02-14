@@ -33,7 +33,7 @@ MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
 logger.info('Copy data...')
 for MS in MSs.getListObj():
     if min(MS.getFreqs()) > 30.e6:
-        MS.move(MS.nameMS+'.MS', keepOrig=True)
+        MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=False)
         os.system('cp -r %s %s' % (skymodel, MS.pathMS))
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
