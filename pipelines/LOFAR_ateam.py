@@ -76,6 +76,7 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 for MS in MSs.getListStr():
     MS_bkp = MS+'-bkp'
     if not os.path.exists(MS_bkp):
+        logger.info('Making backup...')
         MS.move(MS_bkp, keepOrig=True)
 
 # HBA/LBA

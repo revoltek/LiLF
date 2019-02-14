@@ -204,7 +204,7 @@ for c in xrange(0, niter):
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
                 multiscale='', multiscale_scale_bias=0.5, multiscale_scales='0,10,20', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-                parallel_deconvolution=512, \
+                parallel_deconvolution=256, \
                 auto_mask=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=8)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
 
@@ -213,7 +213,7 @@ for c in xrange(0, niter):
         lib_util.run_wsclean(s, 'wscleanBeamHR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=int(imgsizepix*2), scale='2.5arcsec', \
                 weight='uniform', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-                parallel_deconvolution=512, \
+                parallel_deconvolution=256, \
                 auto_mask=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=8)
 
         logger.info('Cleaning beam low-res (cycle: '+str(c)+')...')
@@ -229,7 +229,7 @@ for c in xrange(0, niter):
     imagename = 'img/wide-'+str(c)
     lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
             weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=512, \
+            baseline_averaging=5, parallel_deconvolution=256, \
             auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=8)
 
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
@@ -245,7 +245,7 @@ for c in xrange(0, niter):
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
             weight='briggs 0.', niter=300000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
             multiscale='', multiscale_scales='0,10,20', \
-            baseline_averaging=5, parallel_deconvolution=512, \
+            baseline_averaging=5, parallel_deconvolution=256, \
             auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=8, save_source_list='')
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
@@ -264,7 +264,7 @@ for c in xrange(0, niter):
         imagename_lr = 'img/wide-lr'
         lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, size=imgsizepix, scale='20arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
-                baseline_averaging=5, parallel_deconvolution=512, \
+                baseline_averaging=5, parallel_deconvolution=256, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=8, save_source_list='', temp_dir='./')
         
         im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
