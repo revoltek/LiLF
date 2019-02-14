@@ -75,7 +75,7 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 # bkp
 for MS in MSs.getListStr():
     MS_bkp = MS+'-bkp'
-    if not os.path.exist(MS_bkp):
+    if not os.path.exists(MS_bkp):
         MS.move(MS_bkp, keepOrig=True)
 
 # HBA/LBA
