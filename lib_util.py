@@ -187,14 +187,15 @@ def run_losoto(s, c, h5s, parsets):
 
     logger.info("Running LoSoTo...")
 
-    # concat
+    h5 = 'cal-'+c+'.h5'
+
+    # concat/move
     if len(h5s) > 1:
-        h5 = 'cal-'+c+'.h5'
         check_rm("cal-" + c + ".h5")
         s.add('H5parm_collector.py -V -s sol000 -o '+h5+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
         s.run(check = True)
     else:
-        h5 = h5s[0]
+        os.system('cp -r %s %s' % (h5s[0], h5) )
 
     check_rm('plots')
     os.makedirs('plots')
