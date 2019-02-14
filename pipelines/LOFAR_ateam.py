@@ -43,8 +43,7 @@ data_dir = '../tgts-bkp/'
 ##########################################################
 lib_util.check_rm('img')
 os.makedirs('img')
-mss = sorted(glob.glob(data_dir+'/*MS'))
-MSs = lib_ms.AllMSs( mss, s )
+MSs = lib_ms.AllMSs( sorted(glob.glob(data_dir+'/*MS')), s )
 
 # copy data (avg to 1ch/sb and 10 sec)
 nchan = MSs.getListObj()[0].getNchan()
