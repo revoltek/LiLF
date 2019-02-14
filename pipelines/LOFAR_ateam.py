@@ -59,13 +59,24 @@ logger.info('Copy data...')
 #s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
 for obs in set([ os.path.basename(ms).split('_')[0] for ms in MSs.getListStr() ]):
     mss_toconcat = glob.glob(data_dir+'/'+obs+'*MS')
-    if os.path.exists(obs+'_concat.MS'): continue
-    s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin=\"'+str(mss_toconcat)+'\" msout='+obs+'_concat.MS avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time),\
+    MS_concat = obs+'_concat.MS'
+    MS_concat_bkp = obs+'_concat.MS-bkp'
+    if os.path.exists(MS_concat_bkp): 
+        os.system('rm -r %s' % MS_concat_bkp)
+        os.system('cp -r %s %s' % (MS_concat, MS_concat_bkp) )
+    else:
+        s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin=\"'+str(mss_toconcat)+'\" msout='+MS_concat+' avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time),\
             log=obs+'_avg.log', commandType='DPPP')
 s.run(check=True, maxThreads=2)
 
 ################################################################
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
+
+# bkp
+for MS in MSs.getListStr():
+    MS_bkp = MS+'-bkp'
+    if not os.path.exist(MS_bkp):
+        MS.move(MS_bkp, keepOrig=True)
 
 # HBA/LBA
 if min(MSs.getFreqs()) < 80.e6:
