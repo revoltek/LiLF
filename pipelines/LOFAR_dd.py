@@ -57,7 +57,8 @@ def clean(p, MSs, size=2., apply_beam=False):
     logger.info('Cleaning ('+str(p)+')...')
     imagename = 'img/ddcal-'+str(p)
     lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
-            weight='briggs 0.', niter=10000, no_update_model_required='', baseline_averaging=5, minuv_l=30, mgain=0.85, \
+            weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+            baseline_averaging=5, parallel_deconvolution=256, \
             auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=8)
 
     # make mask
@@ -71,11 +72,13 @@ def clean(p, MSs, size=2., apply_beam=False):
     if apply_beam:
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
             weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+            parallel_deconvolution=256, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
             auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=8, save_source_list='')
     else:
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
-            weight='briggs 0.', niter=100000, no_update_model_required='', baseline_averaging=5, minuv_l=30, mgain=0.85, \
+            weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+            baseline_averaging=5, parallel_deconvolution=256, \
             auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=8, save_source_list='')
     os.system('cat logs/wscleanA-'+str(p)+'.log logs/wscleanB-'+str(p)+'.log | grep "background noise"')
 
