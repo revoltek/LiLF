@@ -212,8 +212,12 @@ for c in xrange(100):
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal \
             sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solIONO.log', commandType="DPPP")
     
-    lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
-        [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-fixamp.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
+    if lofar_system == 'lba':
+        lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
+            [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-fixamp.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
+    else:
+        lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
+            [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
     
     # Correct all CORRECTED_DATA (PA, beam, BP, FR corrected) -> CORRECTED_DATA
     logger.info('IONO correction...')
