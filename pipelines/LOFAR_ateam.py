@@ -61,8 +61,8 @@ for obs in set([ os.path.basename(ms).split('_')[0] for ms in MSs.getListStr() ]
     MS_concat = obs+'_concat.MS'
     MS_concat_bkp = obs+'_concat.MS-bkp'
     if os.path.exists(MS_concat_bkp): 
-        os.system('rm -r %s' % MS_concat_bkp)
-        os.system('cp -r %s %s' % (MS_concat, MS_concat_bkp) )
+        os.system('rm -r %s' % MS_concat)
+        os.system('cp -r %s %s' % (MS_concat_bkp, MS_concat) )
     else:
         s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin=\"'+str(mss_toconcat)+'\" msout='+MS_concat+' avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time),\
             log=obs+'_avg.log', commandType='DPPP')
@@ -223,8 +223,8 @@ for c in xrange(100):
     if patch == 'CygA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='1arcsec', \
                 weight='briggs -2', niter=50000, no_update_model_required='', mgain=0.5, \
-                #multiscale='', multiscale_scale_bias=0.7, \
-                #multiscale_scales='0,5,10,20', \
+                multiscale='', multiscale_scale_bias=0.8, \
+                multiscale_scales='0,5,10,20', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
                 baseline_averaging=5, deconvolution_channels=8, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
