@@ -119,8 +119,8 @@ for c in xrange(0, niter):
 
     #####################################################################################################
     # Faraday rotation correction
-    #if c >= 1:
-    # 
+    if c >= 1:
+     
     #    # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
     #    logger.info('Convert to circular...')
     #    MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', \
@@ -147,49 +147,31 @@ for c in xrange(0, niter):
     #    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
     #                log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
-    #    #################################
-    #    # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-    #    logger.info('BL-based smoothing...')
-    #    MSs.run('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', commandType='python')
+        #################################
+        # Smooth CORRECTED_DATA -> SMOOTHED_DATA
+        logger.info('BL-based smoothing...')
+        MSs.run('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', commandType='python')
 
-    #    # Solve G SB.MS:SMOOTHED_DATA (only solve)
-    #    logger.info('Solving G...')
-    #    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5 sol.solint=30 sol.nchan=8', \
-    #                log='$nameMS_sol-g2-c'+str(c)+'.log', commandType='DPPP')
+        # Solve G SB.MS:SMOOTHED_DATA (only solve)
+        logger.info('Solving G...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solddG.parset msin=$pathMS msin.baseline=soloCORE sol.parmdb=$pathMS/amp.h5 sol.solint=60 sol.nchan=4', \
+                    log='$nameMS_sol-g2-c'+str(c)+'.log', commandType='DPPP')
 
-    #    lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-amp.parset'])
-    #    os.system('mv plots-amp'+str(c)+'* self/solutions/')
-    #    os.system('mv cal-amp'+(str(c))+'*.h5 self/solutions/')
+        lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-amp.parset'])
+        os.system('mv plots-amp'+str(c)+'* self/solutions/')
+        os.system('mv cal-amp'+(str(c))+'*.h5 self/solutions/')
 
-    #    # Correct beam amp SB.MS:SUBTRACTED_DATA->CORRECTED_DATA
-    #    #logger.info('Beam amp correction...')
-    #    #h5 = 'self/solutions/cal-amp'+str(c)+'.h5'
-    #    #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb='+h5+' cor.correction=amplitude000', \
-    #    #        log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
-    #    ## Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
-    #    #logger.info('Faraday rotation correction...')
-    #    #h5 = 'self/solutions/cal-fr'+str(c)+'.h5'
-    #    #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
-    #    #            log='$nameMS_corFR2-c'+str(c)+'.log', commandType='DPPP')
-    #    #
-    #    ## Finally re-calculate TEC
-    #    #logger.info('BL-based smoothing...')
-    #    #MSs.run('BLsmooth.py -r -f 0.2 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', commandType='python')
+        # Correct beam amp SB.MS:SUBTRACTED_DATA->CORRECTED_DATA
+        #logger.info('Beam amp correction...')
+        #h5 = 'self/solutions/cal-amp'+str(c)+'.h5'
+        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb='+h5+' cor.correction=amplitude000', \
+        #        log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
 
-    #    # solve TEC - group*_TC.MS:SMOOTHED_DATA
-    #    logger.info('Solving TEC...')
-    #    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
-    #                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
-
-    #    # LoSoTo plot
-    #    lib_util.run_losoto(s, 'tec'+str(c)+'b', [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
-    #    os.system('mv plots-tec'+str(c)+'b* self/solutions')
-    #    os.system('mv cal-tec'+str(c)+'b*.h5 self/solutions')
-
-    #    # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-    #    logger.info('Correcting TEC...')
-    #    MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
-    #                log='$nameMS_corTECb-c'+str(c)+'.log', commandType='DPPP')
+        ## Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
+        #logger.info('Faraday rotation correction...')
+        #h5 = 'self/solutions/cal-fr'+str(c)+'.h5'
+        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
+        #            log='$nameMS_corFR2-c'+str(c)+'.log', commandType='DPPP')
 
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA (FR/TEC corrected, beam corrected)
