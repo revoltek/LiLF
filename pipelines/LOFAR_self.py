@@ -250,7 +250,7 @@ for c in xrange(0, niter):
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     logger.info('Predict (wsclean: %s)...' % imagename)
-    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 8 '+MSs.getStrWsclean(), \
+    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 61 '+MSs.getStrWsclean(), \
                           log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
@@ -265,15 +265,18 @@ for c in xrange(0, niter):
         lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, size=imgsizepix, scale='20arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
                 baseline_averaging=5, parallel_deconvolution=256, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=8, save_source_list='', temp_dir='./')
+                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=8, temp_dir='./')
         
         im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=False)
 
         # predict - ms: MODEL_DATA_LOWRES
+        # TODO: ask andre if it makes sense to have 61 chan in predict
         logger.info('Predict low-res model...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_LOWRES pre.usebeammodel=false pre.sourcedb='+im.skydb, \
-                log='$nameMS_pre-lr.log', commandType='DPPP')
+        s.add('wsclean -predict -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out 61 '+MSs.getStrWsclean(), \
+                          log='wscleanPRE-lr-c'+str(c)+'.log', commandType='wsclean', processors='max')
+        #MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_LOWRES pre.usebeammodel=false pre.sourcedb='+im.skydb, \
+        #        log='$nameMS_pre-lr.log', commandType='DPPP') # NOTE: add source list to clean
 
         ##############################################
         # Flag on empty dataset
