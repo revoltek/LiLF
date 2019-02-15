@@ -41,6 +41,9 @@ bl2flag = parset.get('flag','stations')
 data_dir = '../tgts-bkp/'
 
 ##########################################################
+logger.info('Cleaning...')
+lib_util.check_rm('cal*h5')
+lib_util.check_rm('plots*')
 lib_util.check_rm('img')
 os.makedirs('img')
 MSs = lib_ms.AllMSs( sorted(glob.glob(data_dir+'/*MS')), s )
