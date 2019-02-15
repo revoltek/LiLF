@@ -72,11 +72,11 @@ s.run(check=True, maxThreads=2)
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 # bkp
-for MS in MSs.getListObj():
-    MS_bkp = MS.pathMS+'-bkp'
+for MS in MSs.getListStr():
+    MS_bkp = MS+'-bkp'
     if not os.path.exists(MS_bkp):
         logger.info('Making backup...')
-        MS.move(MS_bkp, keepOrig=True)
+        os.system('cp -r %s %s' % (MS, MS_bkp) ) # do not use MS.move here as it resets the MS path to the moved one
 
 # HBA/LBA
 if min(MSs.getFreqs()) < 80.e6:
@@ -221,10 +221,10 @@ for c in xrange(100):
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='1arcsec', \
                 weight='briggs -2', niter=50000, no_update_model_required='', mgain=0.5, \
-                multiscale='', multiscale_scale_bias=0.7, \
-                multiscale_scales='0,5,10,20', \
+                #multiscale='', multiscale_scale_bias=0.7, \
+                #multiscale_scales='0,5,10,20', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
                 baseline_averaging=5, deconvolution_channels=8, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)

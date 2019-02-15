@@ -11,7 +11,6 @@ plotFlag = True
 prefix = plots/ampNoSmooth_
 NColFig = 4
 figSize = [20,20]
-minmax = [0.5,2]
 
 [plotAi2]
 operation = PLOT
@@ -22,7 +21,6 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/ampNoSmooth_
-minmax = [0.5,2]
 
 [plotAi3]
 operation = PLOT
@@ -30,10 +28,34 @@ soltab = sol000/amplitude000
 axesInPlot = [time,freq]
 axisInTable = ant
 prefix = plots/ampNoSmooth_
-minmax = [0.5,2]
+minmax = [0.8,1.2]
 
 [smooth]
 operation = SMOOTH
 soltab = sol000/amplitude000
+ant.regexp = CS*
 axesToSmooth = [ant]
 mode = median
+log = True
+
+[plotAs3]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/ampAfterSmooth_
+minmax = [0.8,1.2]
+
+[replicate]
+operation = REPLICATEONAXIS
+soltab = sol000/amplitude000
+axisReplicate = ant
+fromCell = CS001LBA
+
+[plotAr3]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/ampAfterReplicate_
+minmax = [0.8,1.2]
