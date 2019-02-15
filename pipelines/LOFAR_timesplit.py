@@ -39,7 +39,8 @@ MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
 logger.info('Copy data...')
 for MS in MSs.getListObj():
     if min(MS.getFreqs()) > 30.e6:
-        MS.move(MS.nameMS+'.MS', keepOrig=True)
+        # overwrite=True to prevent updating the weights twice
+        MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=True)
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
@@ -108,8 +109,8 @@ MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
 
-#logger.info('Remove bad timestamps...')
-#MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+logger.info('Remove bad timestamps...')
+MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
 logger.info('Plot weights...')
 MSs.run('reweight.py $pathMS -v -p -a CS001LBA', log='$nameMS_weights.log', commandType='python')

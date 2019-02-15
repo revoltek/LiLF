@@ -41,10 +41,12 @@ bl2flag = parset.get('flag','stations')
 data_dir = '../tgts-bkp/'
 
 ##########################################################
+logger.info('Cleaning...')
+lib_util.check_rm('cal*h5')
+lib_util.check_rm('plots*')
 lib_util.check_rm('img')
 os.makedirs('img')
-mss = sorted(glob.glob(data_dir+'/*MS'))
-MSs = lib_ms.AllMSs( mss, s )
+MSs = lib_ms.AllMSs( sorted(glob.glob(data_dir+'/*MS')), s )
 
 # copy data (avg to 1ch/sb and 10 sec)
 nchan = MSs.getListObj()[0].getNchan()
@@ -62,8 +64,8 @@ for obs in set([ os.path.basename(ms).split('_')[0] for ms in MSs.getListStr() ]
     MS_concat = obs+'_concat.MS'
     MS_concat_bkp = obs+'_concat.MS-bkp'
     if os.path.exists(MS_concat_bkp): 
-        os.system('rm -r %s' % MS_concat_bkp)
-        os.system('cp -r %s %s' % (MS_concat, MS_concat_bkp) )
+        os.system('rm -r %s' % MS_concat)
+        os.system('cp -r %s %s' % (MS_concat_bkp, MS_concat) )
     else:
         s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin=\"'+str(mss_toconcat)+'\" msout='+MS_concat+' avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time),\
             log=obs+'_avg.log', commandType='DPPP')
@@ -77,7 +79,7 @@ for MS in MSs.getListStr():
     MS_bkp = MS+'-bkp'
     if not os.path.exists(MS_bkp):
         logger.info('Making backup...')
-        MS.move(MS_bkp, keepOrig=True)
+        os.system('cp -r %s %s' % (MS, MS_bkp) ) # do not use MS.move here as it resets the MS path to the moved one
 
 # HBA/LBA
 if min(MSs.getFreqs()) < 80.e6:
@@ -222,9 +224,9 @@ for c in xrange(100):
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='1arcsec', \
                 weight='briggs -2', niter=50000, no_update_model_required='', mgain=0.5, \
-                multiscale='', multiscale_scale_bias=0.7, \
+                multiscale='', multiscale_scale_bias=0.8, \
                 multiscale_scales='0,5,10,20', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
                 baseline_averaging=5, deconvolution_channels=8, \
