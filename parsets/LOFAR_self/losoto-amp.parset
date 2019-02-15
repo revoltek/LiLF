@@ -36,32 +36,11 @@ plotFlag = True
 prefix = plots/amp_
 minmax = [0,2]
 
-[flag]
-operation = FLAG
-soltab = sol000/amplitude000
-axesToFlag = [time,freq]
-maxCycles = 1
-maxRms = 5
-order = [0,0]
-replce = False
-preFlagZeros = False
-mode = smooth
-
 [smooth]
 operation = SMOOTH
 soltab = sol000/amplitude000
-axesToSmooth = [freq]
+axesToSmooth = [ant]
 mode = median
-
-[plotAsmooth1]
-operation = PLOT
-soltab = sol000/amplitude000
-freq.minmaxstep = [0,100e6,300]
-axesInPlot = time
-axisInTable = ant
-axisInCol = pol
-plotFlag = True
-prefix = plots/ampSmooth_
 
 [plotAsmooth3]
 operation = PLOT
@@ -88,8 +67,8 @@ prefix = plots/ampRes_
 #minmax = [0.8,1.2]
 
 [reset]
-operation = RESET
-soltab = sol000/phase000
+operation = REWEIGHT
+soltab = sol000/amplitude000
 
 [norm]
 operation = NORM

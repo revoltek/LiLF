@@ -110,7 +110,7 @@ MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
 
 logger.info('Remove bad timestamps...')
-MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+#MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
 logger.info('Plot weights...')
 MSs.run('reweight.py $pathMS -v -p -a CS001LBA', log='$nameMS_weights.log', commandType='python')
