@@ -184,7 +184,7 @@ for c in xrange(0, niter):
 
         lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=int(imgsizepix*1.5), scale='5arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-                multiscale='', multiscale_scale_bias=0.5, multiscale_scales='0,10,20', \
+                #multiscale='', multiscale_scale_bias=0.5, multiscale_scales='0,10,20', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
                 parallel_deconvolution=256, \
                 auto_mask=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=8)
@@ -220,19 +220,17 @@ for c in xrange(0, niter):
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
     im.makeMask(threshisl = 3)
     
-    # TODO: try -deconvolution-channels=4 and use -channels-out=61, lowering multiscale bias?
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
             weight='briggs 0.', niter=300000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
-            multiscale='', multiscale_scales='0,10,20', \
             baseline_averaging=5, parallel_deconvolution=256, \
             auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=8, save_source_list='')
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     logger.info('Predict (wsclean: %s)...' % imagename)
-    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 61 '+MSs.getStrWsclean(), \
+    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 8 '+MSs.getStrWsclean(), \
                           log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
@@ -255,7 +253,7 @@ for c in xrange(0, niter):
         # predict - ms: MODEL_DATA_LOWRES
         # TODO: ask andre if it makes sense to have 61 chan in predict
         logger.info('Predict low-res model...')
-        s.add('wsclean -predict -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out 61 '+MSs.getStrWsclean(), \
+        s.add('wsclean -predict -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out 8 '+MSs.getStrWsclean(), \
                           log='wscleanPRE-lr-c'+str(c)+'.log', commandType='wsclean', processors='max')
         #MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_LOWRES pre.usebeammodel=false pre.sourcedb='+im.skydb, \
         #        log='$nameMS_pre-lr.log', commandType='DPPP') # NOTE: add source list to clean

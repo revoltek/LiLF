@@ -103,9 +103,10 @@ for timechunk in timechunks:
                     log=groupname+'_DPPP_concat.log', commandType='DPPP')
     s.run(check=True)
 
+MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
+
 # Flagging on concatenated dataset - also flag low-elevation
 logger.info('Flagging...')
-MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
 
