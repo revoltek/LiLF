@@ -212,7 +212,7 @@ for c in xrange(100):
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal \
             sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solIONO.log', commandType="DPPP")
     
-    if lofar_system == 'lba':
+    if patch == 'CygA':
         lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
             [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-fixamp.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
     else:
@@ -229,10 +229,11 @@ for c in xrange(100):
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='1arcsec', \
-                weight='briggs -2', niter=50000, no_update_model_required='', mgain=0.5, \
-                multiscale='', multiscale_scale_bias=0.8, \
-                multiscale_scales='0,5,10,20', \
-                fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
+                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.5, \
+                multiscale='', \
+                #multiscale_scale_bias=0.6, \
+                multiscale_scales='0,10,20,40', \
+                #fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
                 baseline_averaging=5, deconvolution_channels=8, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
 
