@@ -119,7 +119,7 @@ for c in xrange(0, niter):
 
     #####################################################################################################
     # Faraday rotation correction
-    if c >= 1:
+    if c >= 0:
      
     #    # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
     #    logger.info('Convert to circular...')
@@ -154,7 +154,7 @@ for c in xrange(0, niter):
 
         # Solve G SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Solving G...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solddG.parset msin=$pathMS msin.baseline=soloCORE sol.parmdb=$pathMS/amp.h5 sol.solint=60 sol.nchan=4', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS msin.baseline=soloCORE sol.parmdb=$pathMS/amp.h5 sol.solint=60 sol.nchan=4', \
                     log='$nameMS_sol-g2-c'+str(c)+'.log', commandType='DPPP')
 
         lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-amp.parset'])
