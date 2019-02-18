@@ -70,9 +70,6 @@ MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORREC
 logger.info('Beam correction...')
 MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DPPP')
 
-#logger.info('Remove bad timestamps...')
-#MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
-
 ###################################################################################################
 # Create groups
 # TODO: the creation of groups should always be:
@@ -112,6 +109,9 @@ MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
 logger.info('Flagging...')
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
+
+logger.info('Remove bad timestamps...')
+MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
 logger.info('Plot weights...')
 MSs.run('reweight.py $pathMS -v -p -a CS001LBA', log='$nameMS_weights.log', commandType='python')

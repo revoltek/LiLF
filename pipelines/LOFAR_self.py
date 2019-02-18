@@ -29,7 +29,7 @@ sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
 
-niter = 3
+niter = 2
 
 #############################################################################
 # Clear
@@ -77,45 +77,45 @@ for MS in MSs.getListStr():
     logger.debug('Copy: '+sourcedb+' -> '+MS)
     os.system('cp -r '+sourcedb+' '+MS)
 
-# Create columns (non compressed)
-logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
-
-logger.info('Add model to MODEL_DATA...')
-if apparent:
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
-else:
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+## Create columns (non compressed)
+#logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
+#MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
+#
+#logger.info('Add model to MODEL_DATA...')
+#if apparent:
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+#else:
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 
 #####################################################################################################
 # Self-cal cycle
 for c in xrange(0, niter):
 
-    logger.info('Start selfcal cycle: '+str(c))
-
-    if c >= 2:
-        incol = 'SUBTRACTED_DATA'
-    else:
-        incol = 'DATA'
-
-    # Smooth DATA -> SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
-
-    # solve TEC - group*_TC.MS:SMOOTHED_DATA
-    logger.info('Solving TEC...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
-                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
-
-    # LoSoTo plot
-    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
-    os.system('mv plots-tec'+str(c)+'* self/solutions/')
-    os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
-
-    # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
-    logger.info('Correcting TEC...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn='+incol+' cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
-                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
+#    logger.info('Start selfcal cycle: '+str(c))
+#
+#    if c >= 1:
+#        incol = 'SUBTRACTED_DATA'
+#    else:
+#        incol = 'DATA'
+#
+#    # Smooth DATA -> SMOOTHED_DATA
+#    logger.info('BL-based smoothing...')
+#    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
+#
+#    # solve TEC - group*_TC.MS:SMOOTHED_DATA
+#    logger.info('Solving TEC...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
+#                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
+#
+#    # LoSoTo plot
+#    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
+#    os.system('mv plots-tec'+str(c)+'* self/solutions/')
+#    os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
+#
+#    # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
+#    logger.info('Correcting TEC...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn='+incol+' cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
+#                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
     #####################################################################################################
     # Faraday rotation correction
@@ -154,12 +154,13 @@ for c in xrange(0, niter):
 
         # Solve G SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Solving G...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS msin.baseline=soloCORE sol.parmdb=$pathMS/amp.h5 sol.solint=60 sol.nchan=4', \
-                    log='$nameMS_sol-g2-c'+str(c)+'.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/amp.h5 sol.solint=60 sol.nchan=8', \
+                    log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
 
         lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-amp.parset'])
         os.system('mv plots-amp'+str(c)+'* self/solutions/')
         os.system('mv cal-amp'+(str(c))+'*.h5 self/solutions/')
+        sys.exit()
 
         # Correct beam amp SB.MS:SUBTRACTED_DATA->CORRECTED_DATA
         #logger.info('Beam amp correction...')
@@ -234,7 +235,7 @@ for c in xrange(0, niter):
                           log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
-    if c == 1:
+    if c == 0:
         # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
         logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
         MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
