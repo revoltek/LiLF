@@ -113,14 +113,14 @@ else:
 
 for c in xrange(100):
 
-    logger.info('Remove bad timestamps...')
-    MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+    #logger.info('Remove bad timestamps...')
+    #MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
     ####################################################
     # 1: find PA and remove it
 
     # Solve cal_SB.MS:DATA (only solve)
-    logger.info('Calibrating PA...')
+    logger.info('Solving PA...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
             sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solPA.log', commandType="DPPP")
 
@@ -144,7 +144,7 @@ for c in xrange(100):
     MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
     
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
-    logger.info('Calibrating FR...')
+    logger.info('Solving FR...')
     #MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/fr.h5 sol.caltype=diagonal uvlambdarange='+str(nouseblrange), log='$nameMS_solFR.log', commandType='DPPP')
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=diagonal \
             sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solFR.log', commandType="DPPP")
@@ -153,88 +153,68 @@ for c in xrange(100):
             [parset_dir + '/losoto-fr.parset'])
 
     #####################################################
-    # 3: find BANDPASS
+    # 3: find BANDPASS/IONO
 
     # Beam correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
             log='$nameMS_corPA3.log', commandType="DPPP")
 
-    # Beam correction CORRECTED_DATA -> CORRECTED_DATA
+    # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam3.log', commandType="DPPP")
-    
+    if c == 0:
+        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM3.log', commandType='DPPP')
+    else:
+        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=False', log='$nameMS_corBEAM3.log', commandType='DPPP')
+ 
     # Correct FR CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
             log='$nameMS_corFR3.log', commandType="DPPP")
-    
+
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
-    logger.info('Calibrating BP...')
-    #MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/amp.h5 sol.caltype=diagonal uvlambdarange='+str(nouseblrange), log='$nameMS_solAMP.log', commandType="DPPP")
+    logger.info('Solving IONO...')
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal \
+            sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solIONO3.log', commandType="DPPP")
+    
+    lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
+            [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
+    
+    # Correct all CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('IONO correction...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=phase000', \
+                log='$nameMS_corIONO3.log', commandType='DPPP')
+
+    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
+    logger.info('Solving BP...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal \
-            sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solAMP.log', commandType="DPPP")
+            sol.uvlambdarange='+str(nouseblrange)+' sol.nchan=2 sol.solint=10', log='$nameMS_solAMP3.log', commandType="DPPP")
     
     lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
-            [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-bp.parset'])
-
-    #################################################
-    # 4: find iono
-
-    # Beam correction DATA -> CORRECTED_DATA
-    logger.info('Polalign correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
-            log='$nameMS_corPA4.log', commandType="DPPP")
+            [parset_dir+'/losoto-plot-amp.parset'])
 
     # Correct BP CORRECTED_DATA -> CORRECTED_DATA
     logger.info('BP correction...')
     if c == 0:
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitudeSmooth000', \
-                log='$nameMS_corAMP4.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitude000', \
+                log='$nameMS_corAMP3.log', commandType='DPPP')
     else:
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitudeSmooth000', \
-                log='$nameMS_corAMP4.log', commandType='DPPP')
- 
-    # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Beam correction...')
-    if c == 0:
-        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam4.log', commandType='DPPP')
-    else:
-        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=False', log='$nameMS_beam4.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitude000', \
+                log='$nameMS_corAMP3.log', commandType='DPPP')
        
-    # Correct FR CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Faraday rotation correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
-            log='$nameMS_corFR4.log', commandType='DPPP')
-    
-    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
-    logger.info('Calibrating IONO...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal \
-            sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solIONO.log', commandType="DPPP")
-    
-    if lofar_system == 'lba':
-        lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
-            [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-fixamp.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
-    else:
-        lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
-            [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
-    
-    # Correct all CORRECTED_DATA (PA, beam, BP, FR corrected) -> CORRECTED_DATA
-    logger.info('IONO correction...')
-    MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono-c'+str(c)+'.h5 cor.amp.parmdb=cal-iono-c'+str(c)+'.h5 \
-                    cor.ph.correction=phase000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corG4.log', commandType="DPPP")
-
     # briggs: -1.2 for virgo; -1.0 for subtraction to get good minihalo?
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='1arcsec', \
-                weight='briggs -2', niter=50000, no_update_model_required='', mgain=0.5, \
-                multiscale='', multiscale_scale_bias=0.8, \
-                multiscale_scales='0,5,10,20', \
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='1.5arcsec', \
+                weight='briggs -1', niter=5000, no_update_model_required='', mgain=0.5, \
+                iuwt='', gain=0.2, \
+                #multiscale='', \
+                #multiscale_scale_bias=0.6, \
+                #multiscale_scales='0,10,20,40', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
                 baseline_averaging=5, deconvolution_channels=8, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
+                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
 
     elif patch == 'CasA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1300, scale='2arcsec', \
@@ -243,7 +223,7 @@ for c in xrange(100):
                 # multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CasA.fits', \
                 baseline_averaging=5, deconvolution_channels=8, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
+                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
 
     elif patch == 'TauA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1200, scale='2arcsec', \
@@ -252,31 +232,31 @@ for c in xrange(100):
                 multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/TauA.fits', \
                 baseline_averaging=5, deconvolution_channels=8, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
+                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'lba':
         #lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
         #        weight='briggs -1.', niter=1000, update_model_required='', mgain=0.85, \
-        #        join_channels='', fit_spectral_pol=4, channels_out=61) # use cont=True
-        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
+        #        join_channels='', fit_spectral_pol=3, channels_out=61) # use cont=True
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
                 weight='briggs -1.', niter=50000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
                 #casa_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirA.crtf', \
                 baseline_averaging=5, deconvolution_channels=8, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
+                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'hba':
         #lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-        #        weight='briggs -1.', niter=1000, update_model_required='', mgain=0.85, \
+        #        weight='briggs -1.', niter=1000, update_model_required='', mgain=0.5, \
         #        join_channels='', fit_spectral_pol=4, channels_out=61) # use cont=True
-        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
                 weight='briggs -1.', niter=50000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
                 baseline_averaging=5, deconvolution_channels=8, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=4, channels_out=61)
+                auto_threshold=0.1, join_channels='', fit_spectral_pol=3, channels_out=61)
 
     logger.info('Predict (wsclean: %s)...' % imagename)
     s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 61 '+MSs.getStrWsclean(), \
@@ -284,6 +264,7 @@ for c in xrange(100):
     s.run(check=True)
 
     # every 5 cycles: sub model and rescale model
+    # TODO: add low-res model to global model
     if c%5 == 0 and c != 0:
     
         logger.info('Sub model...')
