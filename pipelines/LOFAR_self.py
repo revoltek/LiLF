@@ -119,7 +119,7 @@ for c in xrange(0, niter):
 
     #####################################################################################################
     # Faraday rotation correction
-    if c >= 1:
+    if c >= 0:
      
     #    # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
     #    logger.info('Convert to circular...')
