@@ -113,6 +113,8 @@ else:
 
 for c in xrange(100):
 
+    logger.info('== Start cycle: %s ==' % c)
+
     #logger.info('Remove bad timestamps...')
     #MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
@@ -214,7 +216,7 @@ for c in xrange(100):
                 #multiscale_scales='0,10,20,40', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
                 baseline_averaging=5, deconvolution_channels=8, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
+                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=61)
 
     elif patch == 'CasA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1300, scale='2arcsec', \
@@ -223,7 +225,7 @@ for c in xrange(100):
                 # multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CasA.fits', \
                 baseline_averaging=5, deconvolution_channels=8, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
+                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=61)
 
     elif patch == 'TauA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1200, scale='2arcsec', \
@@ -232,32 +234,32 @@ for c in xrange(100):
                 multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/TauA.fits', \
                 baseline_averaging=5, deconvolution_channels=8, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
+                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'lba':
         #lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
         #        weight='briggs -1.', niter=1000, update_model_required='', mgain=0.85, \
-        #        join_channels='', fit_spectral_pol=3, channels_out=61) # use cont=True
+        #        join_channels='', fit_spectral_pol=2, channels_out=61) # use cont=True
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
                 weight='briggs -1.', niter=50000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
                 #casa_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirA.crtf', \
                 baseline_averaging=5, deconvolution_channels=8, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=61)
+                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'hba':
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
                 weight='briggs -1.', niter=1000, update_model_required='', mgain=0.5, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
-                join_channels='', fit_spectral_pol=3, channels_out=61) # use cont=True
+                join_channels='', fit_spectral_pol=2, channels_out=61) # use cont=True
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
                 weight='briggs -1.', niter=50000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
                 baseline_averaging=5, deconvolution_channels=8, \
-                auto_threshold=0.1, join_channels='', fit_spectral_pol=3, channels_out=61)
+                auto_threshold=0.1, join_channels='', fit_spectral_pol=2, channels_out=61)
 
     logger.info('Predict (wsclean: %s)...' % imagename)
     s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 61 '+MSs.getStrWsclean(), \
