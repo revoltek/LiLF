@@ -10,5 +10,5 @@ pre.type = predict
 pre.sourcedb = 
 pre.sources = 
 pre.usebeammodel = True
-pre.usechannelfreq = False
+pre.usechannelfreq = True
 pre.beammode = array_factor

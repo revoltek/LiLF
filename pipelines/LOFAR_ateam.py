@@ -17,13 +17,12 @@ elif 'Tau' in os.getcwd():
     f = lambda nu: 1838. * 10**(-0.299 * (np.log10(nu/150.e6))**1)
 elif 'Cas' in os.getcwd():
     patch = 'CasA'
-    nouseblrange = ''
-    #nouseblrange = '[15000..1e30]'
+    nouseblrange = '' #'[15000..1e30]'
     f = lambda nu: 11733. * 10**(-0.77 * (np.log10(nu/150.e6))**1)
 elif 'Cyg' in os.getcwd():
     patch = 'CygA'
     nouseblrange = ''
-    #nouseblrange = '[15000..1e30]'
+    nouseblrange = '[15000..1e30]'
     f = lambda nu: 10690. * 10**(-0.67 * (np.log10(nu/150.e6))**1) * 10**(-0.204 * (np.log10(nu/150.e6))**2) * 10**(-0.021 * (np.log10(nu/150.e6))**3)
 
 skymodel = '/home/fdg/scripts/model/A-team_4_CC.skydb'
@@ -54,11 +53,6 @@ timeint = MSs.getListObj()[0].getTimeInt()
 avg_time = int(np.rint(10./timeint))
 
 logger.info('Copy data...')
-#for MS in MSs.getListObj():
-#    if not os.path.exists(MS.nameMS+'.MS') and min(MS.getFreqs()) > 30.e6:
-#        s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MS.nameMS+'.MS avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time), \
-#            log=MS.nameMS+'_avg.log', commandType='DPPP')
-#s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
 for obs in set([ os.path.basename(ms).split('_')[0] for ms in MSs.getListStr() ]):
     mss_toconcat = glob.glob(data_dir+'/'+obs+'*MS')
     MS_concat = obs+'_concat.MS'
@@ -147,7 +141,6 @@ for c in xrange(100):
     
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Solving FR...')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.parmdb=$pathMS/fr.h5 sol.caltype=diagonal uvlambdarange='+str(nouseblrange), log='$nameMS_solFR.log', commandType='DPPP')
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=diagonal \
             sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solFR.log', commandType="DPPP")
     
@@ -217,6 +210,7 @@ for c in xrange(100):
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
                 baseline_averaging=5, deconvolution_channels=8, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=61)
+        sys.exit()
 
     elif patch == 'CasA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1300, scale='2arcsec', \

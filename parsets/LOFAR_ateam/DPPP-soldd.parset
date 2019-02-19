@@ -15,4 +15,4 @@ sol.propagatesolutions = True
 sol.propagateconvergedonly = True
 sol.usemodelcolumn = True
 sol.flagunconverged = True
-sol.flagdivergedonly = True
+sol.flagdivergedonly = Flase
