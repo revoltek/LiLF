@@ -77,49 +77,49 @@ for MS in MSs.getListStr():
     logger.debug('Copy: '+sourcedb+' -> '+MS)
     os.system('cp -r '+sourcedb+' '+MS)
 
-## Create columns (non compressed)
-#logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
-#MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
-#
-#logger.info('Add model to MODEL_DATA...')
-#if apparent:
-#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
-#else:
-#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+# Create columns (non compressed)
+logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
+MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
+
+logger.info('Add model to MODEL_DATA...')
+if apparent:
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+else:
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 
 #####################################################################################################
 # Self-cal cycle
 for c in xrange(0, niter):
 
-#    logger.info('Start selfcal cycle: '+str(c))
-#
-#    if c >= 1:
-#        incol = 'SUBTRACTED_DATA'
-#    else:
-#        incol = 'DATA'
-#
-#    # Smooth DATA -> SMOOTHED_DATA
-#    logger.info('BL-based smoothing...')
-#    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
-#
-#    # solve TEC - group*_TC.MS:SMOOTHED_DATA
-#    logger.info('Solving TEC...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
-#                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
-#
-#    # LoSoTo plot
-#    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
-#    os.system('mv plots-tec'+str(c)+'* self/solutions/')
-#    os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
-#
-#    # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
-#    logger.info('Correcting TEC...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn='+incol+' cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
-#                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
+    logger.info('Start selfcal cycle: '+str(c))
+
+    if c >= 1:
+        incol = 'SUBTRACTED_DATA'
+    else:
+        incol = 'DATA'
+
+    # Smooth DATA -> SMOOTHED_DATA
+    logger.info('BL-based smoothing...')
+    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
+
+    # solve TEC - group*_TC.MS:SMOOTHED_DATA
+    logger.info('Solving TEC...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
+                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
+
+    # LoSoTo plot
+    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
+    os.system('mv plots-tec'+str(c)+'* self/solutions/')
+    os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
+
+    # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
+    logger.info('Correcting TEC...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn='+incol+' cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
+                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
     #####################################################################################################
     # Faraday rotation correction
-    if c >= 0:
+    #if c >= 0:
      
     #    # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
     #    logger.info('Convert to circular...')
@@ -147,32 +147,25 @@ for c in xrange(0, niter):
     #    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
     #                log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
-        #################################
-        # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-        logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', commandType='python')
+    #    #################################
+    #    # Smooth CORRECTED_DATA -> SMOOTHED_DATA
+    #    logger.info('BL-based smoothing...')
+    #    MSs.run('BLsmooth.py -r -f 0.5 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3-c'+str(c)+'.log', commandType='python')
 
-        # Solve G SB.MS:SMOOTHED_DATA (only solve)
-        logger.info('Solving G...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/amp.h5 sol.solint=60 sol.nchan=8', \
-                    log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+    #    # Solve G SB.MS:SMOOTHED_DATA (only solve)
+    #    logger.info('Solving G...')
+    #    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/amp.h5 sol.solint=60 sol.nchan=8', \
+    #                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
 
-        lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-amp.parset'])
-        os.system('mv plots-amp'+str(c)+'* self/solutions/')
-        os.system('mv cal-amp'+(str(c))+'*.h5 self/solutions/')
-        sys.exit()
+    #    lib_util.run_losoto(s, 'amp'+str(c), [MS+'/amp.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-amp.parset'])
+    #    os.system('mv plots-amp'+str(c)+'* self/solutions/')
+    #    os.system('mv cal-amp'+(str(c))+'*.h5 self/solutions/')
 
-        # Correct beam amp SB.MS:SUBTRACTED_DATA->CORRECTED_DATA
-        #logger.info('Beam amp correction...')
-        #h5 = 'self/solutions/cal-amp'+str(c)+'.h5'
-        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb='+h5+' cor.correction=amplitude000', \
-        #        log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
-
-        ## Correct FR SB.MS:CORRECTED_DATA->CORRECTED_DATA
-        #logger.info('Faraday rotation correction...')
-        #h5 = 'self/solutions/cal-fr'+str(c)+'.h5'
-        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb='+h5+' cor.correction=rotationmeasure000', \
-        #            log='$nameMS_corFR2-c'+str(c)+'.log', commandType='DPPP')
+    #    # Correct beam amp SB.MS:SUBTRACTED_DATA->CORRECTED_DATA
+    #    #logger.info('Beam amp correction...')
+    #    #h5 = 'self/solutions/cal-amp'+str(c)+'.h5'
+    #    #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb='+h5+' cor.correction=amplitude000', \
+    #    #        log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
 
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA (FR/TEC corrected, beam corrected)
@@ -286,8 +279,6 @@ for c in xrange(0, niter):
         logger.info('Subtracting low-res model (SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES)...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES"', log='$nameMS_taql3-c'+str(c)+'.log', commandType='general')
 
-
-    
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in xrange(niter) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in xrange(niter) ]
