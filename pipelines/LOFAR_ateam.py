@@ -207,7 +207,7 @@ for c in xrange(100):
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='1.5arcsec', \
-                weight='briggs -1', niter=5000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.5, \
                 iuwt='', gain=0.2, \
                 #multiscale='', \
                 #multiscale_scale_bias=0.6, \
