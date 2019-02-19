@@ -57,7 +57,7 @@ MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', com
 # predict to save time ms:MODEL_DATA
 logger.info('Add model to MODEL_DATA (%s)...' % calname)
 MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=$pathMS/" + os.path.basename(skymodel) + " pre.sources=" + calname, \
-        log="$nameMS_pre.log", commandType="DPPP")
+        log="$nameMS_pre.log", commandType="DPPP", maxThreads=30)
 
 ###################################################
 # 1: find PA
