@@ -119,7 +119,7 @@ for c in xrange(0, niter):
 
     #####################################################################################################
     # Faraday rotation correction
-    #if c >= 0:
+    if c >= 0:
      
     #    # To circular - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (circular)
     #    logger.info('Convert to circular...')
@@ -223,6 +223,7 @@ for c in xrange(0, niter):
             auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=61, deconvolution_channels=8, save_source_list='')
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
+
     #im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
     #im.selectCC()
 
@@ -231,6 +232,8 @@ for c in xrange(0, niter):
                           log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
     #MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
     #            log='$nameMS_pre-lr.log', commandType='DPPP')
+
+    sys.exit()
 
     if c == 0:
         # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
