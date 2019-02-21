@@ -175,13 +175,12 @@ for c in xrange(0, niter):
     if c == niter-1:
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
-
         lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=int(imgsizepix*1.5), scale='5arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
                 #multiscale='', multiscale_scale_bias=0.5, multiscale_scales='0,10,20', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
                 parallel_deconvolution=256, \
-                auto_mask=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=8)
+                auto_mask=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
 
         logger.info('Cleaning beam high-res (cycle: '+str(c)+')...')
@@ -190,7 +189,7 @@ for c in xrange(0, niter):
                 weight='uniform', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
                 parallel_deconvolution=256, \
-                auto_mask=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=8)
+                auto_mask=10, auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8)
 
         logger.info('Cleaning beam low-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamLR'
@@ -198,7 +197,7 @@ for c in xrange(0, niter):
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=1000, mgain=0.85, \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
                 parallel_deconvolution=256, \
-                auto_mask=10, auto_threshold=1, pol='IQUV', join_channels='', fit_spectral_pol=2, channels_out=8)
+                auto_mask=10, auto_threshold=1, pol='IQUV', join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8)
 
     # clean mask clean (cut at 5k lambda)
     logger.info('Cleaning (cycle: '+str(c)+')...')
@@ -206,13 +205,13 @@ for c in xrange(0, niter):
     lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
             weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
             baseline_averaging=5, parallel_deconvolution=256, \
-            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=61, deconvolution_channels=8)
+            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8)
 
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 3)
+    im.makeMask(threshisl = 4)
     
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
@@ -220,20 +219,12 @@ for c in xrange(0, niter):
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
             weight='briggs 0.', niter=300000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
             baseline_averaging=5, parallel_deconvolution=256, \
-            auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=61, deconvolution_channels=8, save_source_list='')
+            auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8, save_source_list='')
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
-
-    #im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    #im.selectCC()
-
     logger.info('Predict (wsclean: %s)...' % imagename)
-    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 8 '+MSs.getStrWsclean(), \
+    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 16 '+MSs.getStrWsclean(), \
                           log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
-    #            log='$nameMS_pre-lr.log', commandType='DPPP')
-
-    sys.exit()
 
     if c == 0:
         # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
@@ -246,14 +237,14 @@ for c in xrange(0, niter):
         lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, size=imgsizepix, scale='20arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
                 baseline_averaging=5, parallel_deconvolution=256, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=8, temp_dir='./', save_source_list='')
+                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8, temp_dir='./')
         
         im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=False)
 
         # predict - ms: MODEL_DATA_LOWRES
         logger.info('Predict low-res model...')
-        s.add('wsclean -predict -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out 8 '+MSs.getStrWsclean(), \
+        s.add('wsclean -predict -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out 16 '+MSs.getStrWsclean(), \
                           log='wscleanPRE-lr-c'+str(c)+'.log', commandType='wsclean', processors='max')
         #MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_LOWRES pre.usebeammodel=false pre.sourcedb='+im.skydb, \
         #        log='$nameMS_pre-lr.log', commandType='DPPP')
