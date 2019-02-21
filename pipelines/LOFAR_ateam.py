@@ -89,7 +89,10 @@ logger.info('Flagging...')
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. steps=\"'+flag_steps+'\" ant.baseline=\"'+bl2flag+'\"', \
             log='$nameMS_flag.log', commandType='DPPP')
 
-# predict to save time MODEL_DATA
+# add column for combining models afterwards
+logger.info('Creating MODEL_DATA_HIGHRES...')
+MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES', log='$nameMS_addcol.log', commandType='python')
+
 if lofar_system == 'hba': model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 
@@ -261,28 +264,30 @@ for c in xrange(100):
     s.run(check=True)
 
     # every 5 cycles: sub model and rescale model
-    # TODO: add low-res model to global model
-    if c%5 == 0 and c != 0:
+    if True: #c%5 == 0 and c != 0:
+
+        logger.info('Copy model...')
+        MSs.run('taql "update $pathMS set MODEL_DATA_HIGHRES = MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
     
         logger.info('Sub model...')
-        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
+        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType='general')
 
-        #logger.info('Reweight...')
-        #MSs.run('reweight.py $pathMS -v -m residual -d CORRECTED_DATA', log='$nameMS_weights.log', commandType='python')
-
-        logger.info('Cleaning sub (cycle %i)...' % c)
+        logger.info('Cleaning wide (cycle %i)...' % c)
         imagename = 'img/imgsub-c'+str(c)
         lib_util.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
-                weight='briggs 0.', taper_gaussian='120arcsec', niter=10000, no_update_model_required='', baseline_averaging=5, minuv_l=30, mgain=0.85, \
-                multiscale='', multiscale_scales='0,4,8,16', \
-                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=10)
+                weight='briggs 0.', taper_gaussian='120arcsec', niter=10000, no_update_model_required='', mgain=0.85, \
+                baseline_averaging=5, deconvolution_channels=8, \
+                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=32)
  
-        #imagename = 'img/img-c'+str(c)
-        #im = lib_img.Image(imagename)
-        #im.rescaleModel(f)
-        #logger.info('Predict (wsclean)...')
-        #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 15 '+MSs.getStrWsclean(), \
-        #      log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-        #s.run(check = True)
+        im = lib_img.Image(imagename)
+        im.selectCC()
+
+        logger.info('Predict wide (wsclean)...')
+        s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 30 '+MSs.getStrWsclean(), \
+              log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+        s.run(check = True)
+
+        logger.info('Combine model...')
+        MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA - MODEL_DATA_HIGHRES"', log='$nameMS_taql3.log', commandType='general')
 
 logger.info("Done.")
