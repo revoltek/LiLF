@@ -217,7 +217,7 @@ for c in xrange(100):
 
     elif patch == 'CasA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1300, scale='2arcsec', \
-                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -1', niter=75000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CasA.fits', \
@@ -226,7 +226,7 @@ for c in xrange(100):
 
     elif patch == 'TauA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1200, scale='2arcsec', \
-                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -1', niter=75000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/TauA.fits', \
