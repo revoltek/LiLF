@@ -210,7 +210,7 @@ for c in xrange(100):
                 weight='briggs -3', niter=50000, no_update_model_required='', mgain=0.5, \
                 #iuwt='', gain=0.2, \
                 multiscale='', multiscale_scale_bias=0.7, \
-                #multiscale_scales='0,10,20,40', \
+                multiscale_scales='0,10,20,40', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
                 baseline_averaging=5, deconvolution_channels=24, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=5, channels_out=61)
@@ -278,12 +278,12 @@ for c in xrange(100):
                 baseline_averaging=5, deconvolution_channels=8, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=32)
  
-        logger.info('Predict wide (wsclean)...')
-        s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 32 '+MSs.getStrWsclean(), \
-              log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-        s.run(check = True)
+        #logger.info('Predict wide (wsclean)...')
+        #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 32 '+MSs.getStrWsclean(), \
+        #      log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+        #s.run(check = True)
 
-        logger.info('Combine model...')
-        MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA + MODEL_DATA_HIGHRES"', log='$nameMS_taql3.log', commandType='general')
+        #logger.info('Combine model...')
+        #MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA + MODEL_DATA_HIGHRES"', log='$nameMS_taql3.log', commandType='general')
 
 logger.info("Done.")
