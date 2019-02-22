@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-import os, sys, time
+import os, sys, time, glob
 from datetime import datetime
 from awlofar.database.Context import context
 from awlofar.main.aweimports import CorrelatedDataProduct, \
     FileObject, \
     Observation
 from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
-import multiprocessing
+import subprocess, multiprocessing
 import stager_access as stager
 
 # Should the found files be staged ?
@@ -16,6 +16,8 @@ do_stage = False
 project = 'LC9_017'
 # The class of data to query
 cls = CorrelatedDataProduct
+
+downloaded_mss = glob.glob('*MS')
  
 query_observations = Observation.select_all().project_only(project)
 uris = set() # All URIS to stage
@@ -30,12 +32,17 @@ for observation in query_observations :
         fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
         if fileobject :
             print("URI found %s" % fileobject.URI)
-            uris.add(fileobject.URI)
+            skip = False
+            for ms in downloaded_mss:
+                if ms in fileobject.URI:
+                    print("%s: already downloaded in %s." % (fileobject.URI, ms) )
+                    skip = True
+            if not skip: uris.add(fileobject.URI)
         else :
             print("No URI found for %s with dataProductIdentifier %d" % (dataproduct.__class__.__name__, dataproduct.dataProductIdentifier))
         
-        if len(uris) == 2: break # TEST
-    break
+        #if len(uris) == 1: break # TEST
+    #break # TEST
  
 print("Total URI's found %d" % len(uris))
  
@@ -69,8 +76,8 @@ class Worker_stager(Worker):
     def run(self):
         import time
         while not self.exit.is_set():
-            # if there's space
-            if ( len(self.L_inStage) + self.Q_toDownload.qsize() + len(self.L_inDownload) ) < 5000 and self.Q_toStage.qsize() > 0:
+            # if there's space add a block of 100
+            if ( len(self.L_inStage) + self.Q_toDownload.qsize() + len(self.L_inDownload) ) < 4800 and self.Q_toStage.qsize() > 0:
                 uris = []
                 for i in range(100):
                     try:
@@ -113,11 +120,16 @@ class Worker_downloader(Worker):
     def run(self):
         import os
         while not self.exit.is_set():
-            surl = self.Q_toDownload.get(block=True)
-            print ("Downloader -- Download: "+surl)
-            self.L_inDownload.append(surl)
-            os.system('wget -nv https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl)
-            self.L_inDownload.remove(surl)
+            if not Q_toDownload.empty():
+                surl = self.Q_toDownload.get(block=False)
+                print ("Downloader -- Download: "+surl)
+                self.L_inDownload.append(surl)
+                with open("wgetout.txt","wb") as out, open("wgeterr.txt","wb") as err:
+                    p = subprocess.Popen('wget -nv https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
+                    os.waitpid(p.pid, 0)
+                self.L_inDownload.remove(surl)
+
+            time.sleep(2)
 
 # start processes
 w_stager = Worker_stager(stager, Q_toStage, L_inStage, Q_toDownload, L_inDownload)
@@ -133,8 +145,10 @@ w_downloader1.start()
 w_downloader2.start()
 
 while True:
-    print ("To stage: %i -- In staging: %i -- To download: %i -- In downloading: %i" % ( Q_toStage.qsize(), len(L_inStage), Q_toDownload.qsize(), len(L_inDownload) ) )
-    time.sleep(1)
+    #sys.stdout.write('\x1b[1A')
+    sys.stdout.write("\r%s: To stage: %i -- In staging: %i -- To download: %i -- In downloading: %i || " % ( time.ctime(), Q_toStage.qsize(), len(L_inStage), Q_toDownload.qsize(), len(L_inDownload) ) )
+    sys.stdout.flush()
+    time.sleep(2)
     
     # if all queues are empty, kill children and exit
     if Q_toStage.empty() and Q_toDownload.empty() and (len(L_inStage) + len(L_inDownload) == 0 ):
