@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys, time, glob
+import os, sys, time, glob, pickle
 from datetime import datetime
 from awlofar.database.Context import context
 from awlofar.main.aweimports import CorrelatedDataProduct, \
@@ -27,11 +27,12 @@ for observation in query_observations :
     dataproduct_query = cls.observations.contains(observation)
     # isValid = 1 means there should be an associated URI
     dataproduct_query &= cls.isValid == 1
-    for dataproduct in dataproduct_query :
+    for i, dataproduct in enumerate(dataproduct_query):
         # This DataProduct should have an associated URL
         fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
         if fileobject :
-            print("URI found %s" % fileobject.URI)
+            #print("URI found %s" % fileobject.URI)
+            if i%10 == 0: print(".")
             skip = False
             for ms in downloaded_mss:
                 if ms in fileobject.URI:
@@ -44,6 +45,7 @@ for observation in query_observations :
         #if len(uris) == 1: break # TEST
     #break # TEST
  
+pickle.dump(uris, open('uris.pickle', 'wb'))
 print("Total URI's found %d" % len(uris))
  
 # Queue of data to stage
@@ -87,8 +89,6 @@ class Worker_stager(Worker):
     
                 print ("Stager -- Staging %i uris" % len(uris))
                 sids = self.stager.stage(uris)
-                #sids = 'ID1' # TEST
-    
                 self.L_inStage.append( sids )
     
             time.sleep(5)
@@ -104,7 +104,6 @@ class Worker_checker(Worker):
                 if self.stager.get_status(sid) == 'success':
                     print ("Checker -- Sid %i ready." % sid)
                     surls = self.stager.get_surls_online(sid)
-                    #surls = sid+'URL' # TEST
                     for surl in surls:
                         self.Q_toDownload.put(surl)
                     self.L_inStage.remove(sid)
@@ -137,6 +136,7 @@ w_checker = Worker_checker(stager, Q_toStage, L_inStage, Q_toDownload, L_inDownl
 w_downloader1 = Worker_downloader(stager, Q_toStage, L_inStage, Q_toDownload, L_inDownload)
 w_downloader2 = Worker_downloader(stager, Q_toStage, L_inStage, Q_toDownload, L_inDownload)
 
+# fill the queue with uris
 [Q_toStage.put(uri) for uri in uris]
 
 w_stager.start()
@@ -145,7 +145,6 @@ w_downloader1.start()
 w_downloader2.start()
 
 while True:
-    #sys.stdout.write('\x1b[1A')
     sys.stdout.write("\r%s: To stage: %i -- In staging: %i -- To download: %i -- In downloading: %i || " % ( time.ctime(), Q_toStage.qsize(), len(L_inStage), Q_toDownload.qsize(), len(L_inDownload) ) )
     sys.stdout.flush()
     time.sleep(2)
