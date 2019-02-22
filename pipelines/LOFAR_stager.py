@@ -10,8 +10,6 @@ from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
 import subprocess, multiprocessing
 import stager_access as stager
 
-# Should the found files be staged ?
-do_stage = False
 # The project to query, LC2_035 has public data
 project = 'LC9_017'
 # The class of data to query
@@ -46,6 +44,7 @@ for observation in query_observations :
     #break # TEST
  
 pickle.dump(uris, open('uris.pickle', 'wb'))
+#uris = pickle.load(open('uris.pickle','rb'))
 print("Total URI's found %d" % len(uris))
  
 # Queue of data to stage
@@ -78,10 +77,10 @@ class Worker_stager(Worker):
     def run(self):
         import time
         while not self.exit.is_set():
-            # if there's space add a block of 100
-            if ( len(self.L_inStage) + self.Q_toDownload.qsize() + len(self.L_inDownload) ) < 4800 and self.Q_toStage.qsize() > 0:
+            # if there's space add a block of 500
+            if ( len(self.L_inStage)*500 + self.Q_toDownload.qsize() + len(self.L_inDownload) ) < 4000 and self.Q_toStage.qsize() > 0:
                 uris = []
-                for i in range(100):
+                for i in range(500):
                     try:
                         uris.append( self.Q_toStage.get(block=False) )
                     except:
@@ -145,7 +144,7 @@ w_downloader1.start()
 w_downloader2.start()
 
 while True:
-    sys.stdout.write("\r%s: To stage: %i -- In staging: %i -- To download: %i -- In downloading: %i || " % ( time.ctime(), Q_toStage.qsize(), len(L_inStage), Q_toDownload.qsize(), len(L_inDownload) ) )
+    sys.stdout.write("\r%s: To stage: %i -- In staging: %i -- To download: %i -- In downloading: %i || " % ( time.ctime(), Q_toStage.qsize(), len(L_inStage)*500, Q_toDownload.qsize(), len(L_inDownload) ) )
     sys.stdout.flush()
     time.sleep(2)
     
