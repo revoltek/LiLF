@@ -204,13 +204,15 @@ for c in xrange(100):
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
+        # TEST: alot of deconv channels
+        # TODO: try briggs -3
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='1.5arcsec', \
-                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -3', niter=50000, no_update_model_required='', mgain=0.5, \
                 #iuwt='', gain=0.2, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 #multiscale_scales='0,10,20,40', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
-                baseline_averaging=5, deconvolution_channels=12, \
+                baseline_averaging=5, deconvolution_channels=24, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=5, channels_out=61)
 
     elif patch == 'CasA':
@@ -232,15 +234,11 @@ for c in xrange(100):
                 auto_threshold=1, join_channels='', fit_spectral_pol=5, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'lba':
-        #lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
-        #        weight='briggs -1.', niter=1000, update_model_required='', mgain=0.85, \
-        #        deconvolution_channels=12, \
-        #        join_channels='', fit_spectral_pol=2, channels_out=61) # use cont=True
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
                 weight='briggs -1.', niter=50000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
-                #casa_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirA.crtf', \
+                fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAlba.fits', \
                 baseline_averaging=5, deconvolution_channels=12, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=5, channels_out=61)
 
@@ -264,7 +262,8 @@ for c in xrange(100):
     s.run(check=True)
 
     # every 5 cycles: sub model and rescale model
-    if True: #c%5 == 0 and c != 0:
+    #if True: 
+    if c%5 == 0 and c != 0:
 
         logger.info('Copy model...')
         MSs.run('taql "update $pathMS set MODEL_DATA_HIGHRES = MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
@@ -275,19 +274,16 @@ for c in xrange(100):
         logger.info('Cleaning wide (cycle %i)...' % c)
         imagename = 'img/imgsub-c'+str(c)
         lib_util.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
-                weight='briggs 0.', taper_gaussian='120arcsec', niter=10000, no_update_model_required='', mgain=0.85, \
+                weight='briggs 0.', taper_gaussian='100arcsec', niter=10000, no_update_model_required='', mgain=0.85, \
                 baseline_averaging=5, deconvolution_channels=8, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=3, channels_out=32)
+                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=32)
  
-        im = lib_img.Image(imagename)
-        im.selectCC()
-
         logger.info('Predict wide (wsclean)...')
-        s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 30 '+MSs.getStrWsclean(), \
+        s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 32 '+MSs.getStrWsclean(), \
               log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
         s.run(check = True)
 
         logger.info('Combine model...')
-        MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA - MODEL_DATA_HIGHRES"', log='$nameMS_taql3.log', commandType='general')
+        MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA + MODEL_DATA_HIGHRES"', log='$nameMS_taql3.log', commandType='general')
 
 logger.info("Done.")
