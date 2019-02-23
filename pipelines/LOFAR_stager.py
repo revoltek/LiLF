@@ -48,12 +48,12 @@ uris = pickle.load(open('uris.pickle','rb'))
 print("Total URI's found %d" % len(uris))
  
 # Queue of data to stage
-L_toStage = multiprocessing.Manager().list()
-L_inStage = multiprocessing.Manager().list()
+L_toStage = multiprocessing.Manager().list() # list of surls to download
+L_inStage = multiprocessing.Manager().list() # list of sids of active staging processes
 
 # Queue of data to download
-L_toDownload = multiprocessing.Manager().list()
-L_inDownload = multiprocessing.Manager().list()
+L_toDownload = multiprocessing.Manager().list() # list of surls ready to download
+L_inDownload = multiprocessing.Manager().list() # list of surls being downloaded
 
 class Worker(multiprocessing.Process):
 
@@ -111,7 +111,7 @@ class Worker_checker(Worker):
                     print ("Checker -- Sid %i completed." % sid)
                     self.L_inStage.remove(sid)
 
-                elif status == 'in progress':
+                elif status == 'in progress' or status == 'new' or status == 'scheduled':
                     continue
     
                 # reschedule
@@ -128,7 +128,7 @@ class Worker_downloader(Worker):
         while not self.exit.is_set():
             if len(self.L_toDownload) > 0:
                 surl = self.L_toDownload.pop()
-                print ("Downloader -- Download: "+surl)
+                print ("Downloader -- Download: "+surl.split('/')[-1])
                 self.L_inDownload.append(surl)
                 with open("wgetout.txt","wb") as out, open("wgeterr.txt","wb") as err:
                     p = subprocess.Popen('wget -nv https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
