@@ -237,7 +237,7 @@ for c in xrange(0, niter):
         lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, size=imgsizepix, scale='20arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
                 baseline_averaging=5, parallel_deconvolution=256, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8, temp_dir='./')
+                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8, temp_dir='./', save_source_list='')
         
         im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=False)

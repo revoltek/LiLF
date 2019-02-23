@@ -17,53 +17,53 @@ cls = CorrelatedDataProduct
 
 downloaded_mss = glob.glob('*MS')
  
-query_observations = Observation.select_all().project_only(project)
-uris = set() # All URIS to stage
-for observation in query_observations :
-    print("Querying ObservationID %s" % observation.observationId)
-    # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
-    dataproduct_query = cls.observations.contains(observation)
-    # isValid = 1 means there should be an associated URI
-    dataproduct_query &= cls.isValid == 1
-    for i, dataproduct in enumerate(dataproduct_query):
-        # This DataProduct should have an associated URL
-        fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
-        if fileobject :
-            #print("URI found %s" % fileobject.URI)
-            if i%10 == 0: print(".")
-            skip = False
-            for ms in downloaded_mss:
-                if ms in fileobject.URI:
-                    print("%s: already downloaded in %s." % (fileobject.URI, ms) )
-                    skip = True
-            if not skip: uris.add(fileobject.URI)
-        else :
-            print("No URI found for %s with dataProductIdentifier %d" % (dataproduct.__class__.__name__, dataproduct.dataProductIdentifier))
-        
-        #if len(uris) == 1: break # TEST
-    #break # TEST
+#query_observations = Observation.select_all().project_only(project)
+#uris = set() # All URIS to stage
+#for observation in query_observations :
+#    print("Querying ObservationID %s" % observation.observationId)
+#    # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
+#    dataproduct_query = cls.observations.contains(observation)
+#    # isValid = 1 means there should be an associated URI
+#    dataproduct_query &= cls.isValid == 1
+#    for i, dataproduct in enumerate(dataproduct_query):
+#        # This DataProduct should have an associated URL
+#        fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
+#        if fileobject :
+#            #print("URI found %s" % fileobject.URI)
+#            if i%10 == 0: print(".")
+#            skip = False
+#            for ms in downloaded_mss:
+#                if ms in fileobject.URI:
+#                    print("%s: already downloaded in %s." % (fileobject.URI, ms) )
+#                    skip = True
+#            if not skip: uris.add(fileobject.URI)
+#        else :
+#            print("No URI found for %s with dataProductIdentifier %d" % (dataproduct.__class__.__name__, dataproduct.dataProductIdentifier))
+#        
+#        #if len(uris) == 1: break # TEST
+#    #break # TEST
  
-pickle.dump(uris, open('uris.pickle', 'wb'))
-#uris = pickle.load(open('uris.pickle','rb'))
+#pickle.dump(uris, open('uris.pickle', 'wb'))
+uris = pickle.load(open('uris.pickle','rb'))
 print("Total URI's found %d" % len(uris))
  
 # Queue of data to stage
-Q_toStage = multiprocessing.Manager().Queue()
+L_toStage = multiprocessing.Manager().list()
 L_inStage = multiprocessing.Manager().list()
 
 # Queue of data to download
-Q_toDownload = multiprocessing.Manager().Queue()
+L_toDownload = multiprocessing.Manager().list()
 L_inDownload = multiprocessing.Manager().list()
 
 class Worker(multiprocessing.Process):
 
-    def __init__(self, stager, Q_toStage, L_inStage, Q_toDownload, L_inDownload):
+    def __init__(self, stager, L_toStage, L_inStage, L_toDownload, L_inDownload):
         multiprocessing.Process.__init__(self)
         self.exit = multiprocessing.Event()
         self.stager = stager
-        self.Q_toStage = Q_toStage
+        self.L_toStage = L_toStage
         self.L_inStage = L_inStage
-        self.Q_toDownload = Q_toDownload
+        self.L_toDownload = L_toDownload
         self.L_inDownload = L_inDownload
 
     def run(self):
@@ -78,17 +78,12 @@ class Worker_stager(Worker):
         import time
         while not self.exit.is_set():
             # if there's space add a block of 500
-            if ( len(self.L_inStage)*500 + self.Q_toDownload.qsize() + len(self.L_inDownload) ) < 4000 and self.Q_toStage.qsize() > 0:
-                uris = []
-                for i in range(500):
-                    try:
-                        uris.append( self.Q_toStage.get(block=False) )
-                    except:
-                        break
-    
+            if len(self.L_inStage) < 10 and len(self.L_toStage) > 0:
+                uris = self.L_toStage[:500]
                 print ("Stager -- Staging %i uris" % len(uris))
                 sids = self.stager.stage(uris)
                 self.L_inStage.append( sids )
+                self.L_toStage = self.L_toStage[500:]
     
             time.sleep(5)
     
@@ -98,28 +93,41 @@ class Worker_checker(Worker):
         import time
         while not self.exit.is_set():
             for sid in self.L_inStage:
-    
-                # pass to download
-                if self.stager.get_status(sid) == 'success':
-                    print ("Checker -- Sid %i ready." % sid)
+
+                try:
+                    status = self.stager.get_status(sid)
                     surls = self.stager.get_surls_online(sid)
-                    for surl in surls:
-                        self.Q_toDownload.put(surl)
+                except:
+                    status = ""
+                    surls = []
+                    print("Checker -- Failed to get status for sid %i. Continue." % sid)
+
+                for surl in surls:
+                    if not surl in self.L_toDownload and not surl in self.L_inDownload:
+                        self.L_toDownload.append(surl)
+
+                # pass to download
+                if status == 'success':
+                    print ("Checker -- Sid %i completed." % sid)
                     self.L_inStage.remove(sid)
+
+                elif status == 'in progress':
+                    continue
     
                 # reschedule
-                if self.stager.get_status(sid) == 'fail':
-                    pass
+                else:
+                    print ("Checker -- ERROR: Sid %i status is %s!" % (sid, status) )
+                    continue
     
-            time.sleep(2)
+            time.sleep(60)
     
     
 class Worker_downloader(Worker):
     def run(self):
         import os
         while not self.exit.is_set():
-            if not Q_toDownload.empty():
-                surl = self.Q_toDownload.get(block=False)
+            if len(self.L_toDownload) > 0:
+                surl = self.L_toDownload.pop()
                 print ("Downloader -- Download: "+surl)
                 self.L_inDownload.append(surl)
                 with open("wgetout.txt","wb") as out, open("wgeterr.txt","wb") as err:
@@ -130,13 +138,24 @@ class Worker_downloader(Worker):
             time.sleep(2)
 
 # start processes
-w_stager = Worker_stager(stager, Q_toStage, L_inStage, Q_toDownload, L_inDownload)
-w_checker = Worker_checker(stager, Q_toStage, L_inStage, Q_toDownload, L_inDownload)
-w_downloader1 = Worker_downloader(stager, Q_toStage, L_inStage, Q_toDownload, L_inDownload)
-w_downloader2 = Worker_downloader(stager, Q_toStage, L_inStage, Q_toDownload, L_inDownload)
+w_stager = Worker_stager(stager, L_toStage, L_inStage, L_toDownload, L_inDownload)
+w_checker = Worker_checker(stager, L_toStage, L_inStage, L_toDownload, L_inDownload)
+w_downloader1 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_inDownload)
+w_downloader2 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_inDownload)
 
 # fill the queue with uris
-[Q_toStage.put(uri) for uri in uris]
+[L_toStage.append(uri) for uri in uris]
+
+# add things already staged
+i=0
+for sid in stager.get_progress().keys():
+    sid = int(sid)
+    L_inStage.append(sid) # the worker will take care of starting downloads
+    for surl in stager.get_surls_online(sid):
+        if surl in L_toStage:
+            L_toStage.remove(surl)
+            i+=1
+print("Remover %i already staged surls." % i)
 
 w_stager.start()
 w_checker.start()
@@ -144,12 +163,13 @@ w_downloader1.start()
 w_downloader2.start()
 
 while True:
-    sys.stdout.write("\r%s: To stage: %i -- In staging: %i -- To download: %i -- In downloading: %i || " % ( time.ctime(), Q_toStage.qsize(), len(L_inStage)*500, Q_toDownload.qsize(), len(L_inDownload) ) )
+    sys.stdout.write("\r%s: To stage: %i -- In staging: %i -- To download: %i -- In downloading: %i || " % \
+            ( time.ctime(), len(L_toStage), len(L_inStage)*500, len(L_toDownload), len(L_inDownload) ) )
     sys.stdout.flush()
     time.sleep(2)
     
     # if all queues are empty, kill children and exit
-    if Q_toStage.empty() and Q_toDownload.empty() and (len(L_inStage) + len(L_inDownload) == 0 ):
+    if len(L_toStage) + len(L_toDownload) + len(L_inStage) + len(L_inDownload) == 0 :
         print("Done.")
         break
 
