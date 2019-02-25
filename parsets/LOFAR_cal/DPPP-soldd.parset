@@ -13,5 +13,5 @@ sol.tolerance = 1e-3
 sol.propagatesolutions = True
 sol.propagateconvergedonly = True
 sol.usemodelcolumn = True
-sol.flagunconverged = True
-sol.flagdivergedonly = True
+#sol.flagunconverged = True
+#sol.flagdivergedonly = True
