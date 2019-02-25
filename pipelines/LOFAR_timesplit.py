@@ -10,10 +10,6 @@ from astropy.time import Time
 import casacore.tables as pt
 
 
-if 'LBAsurvey' in os.getcwd():
-    datadir = '/home/baq1889/lofar1/LBAsurvey/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
-    cal_dir = 'portal_lei:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]
-
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log
 logger_obj = lib_log.Logger('pipeline-timesplit.logger')
@@ -28,7 +24,12 @@ cal_dir = parset.get('LOFAR_timesplit','cal_dir')
 ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
 
-assert os.path.isdir(cal_dir)
+if 'LBAsurvey' in os.getcwd():
+    data_dir = '/home/fdg/lofar1/LBAsurvey/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
+    cal_dir = 'portal_lei:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]+'_3C*/'
+    #TODO: how to deal with multi cal?
+else:
+    assert os.path.isdir(cal_dir)
 
 #################################################
 # Clean

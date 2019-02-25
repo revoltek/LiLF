@@ -12,7 +12,8 @@ soltabOut = polalign
 average = True
 replace = True
 fitOffset = False
-refAnt = 'CS002LBA'
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
 
 # copy flags on polalign (this is because diag+rot is good at flagging bad points)
 [merge]
@@ -29,7 +30,8 @@ axisInTable = ant
 axisDiff = pol
 plotFlag = True
 prefix = plots/ph-align
-refAnt = 'CS002LBA'
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
 minmax = [-1,+1]
 
 [residual]
@@ -45,7 +47,8 @@ axisInTable = ant
 axisDiff = pol
 plotFlag = True
 prefix = plots/ph-res
-refAnt = 'CS002LBA'
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
 minmax = [-1,+1]
 
 [plotPr2]
@@ -57,5 +60,6 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/ph-res_
-refAnt = 'CS002LBA'
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
 minmax = [-3.14,+3.14]

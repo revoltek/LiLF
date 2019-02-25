@@ -133,7 +133,6 @@ MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameM
 
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
 logger.info('Calibrating BP...')
-#MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5 sol.caltype=diagonal', log='$nameMS_solAMP.log', commandType="DPPP")
 MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal', log='$nameMS_solAMP.log', commandType="DPPP")
 
 lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()], \
@@ -178,7 +177,6 @@ MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameM
 
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
 logger.info('Calibrating IONO...')
-#MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/iono.h5', log='$nameMS_solIONO.log', commandType="DPPP")
 MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_solIONO.log', commandType="DPPP")
 
 if iono3rd:
@@ -189,12 +187,33 @@ else:
             [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono.parset'])
 
 if 'survey' in os.getcwd():
+    os.system('cp cal-pa.h5 cal-pa-full.h5')
+    os.system('mv cal-fr.h5 cal-fr-full.h5') # no need to keep orig
+    os.system('cp cal-amp.h5 cal-amp-full.h5')
+    os.system('cp cal-iono.h5 cal-iono-full.h5')
+    os.system('losoto -d sol000/amplitude000 cal-pa.h5')
+    os.system('losoto -d sol000/phase000 cal-pa.h5')
+    os.system('losoto -d sol000/phaseOrig000 cal-pa.h5')
+    os.system('h5repack cal-pa.h5 cal-pa-compressed.h5; mv cal-pa-compressed.h5 cal-pa.h5')
+
+    os.system('losoto -d sol000/amplitude000 cal-amp.h5')
+    os.system('losoto -d sol000/amplitudeRes cal-amp.h5')
+    os.system('losoto -d sol000/phase000 cal-amp.h5')
+    os.system('h5repack cal-amp.h5 cal-amp-compressed.h5; mv cal-amp-compressed.h5 cal-amp.h5')
+
+    os.system('losoto -d sol000/tec000 cal-iono.h5')
+    os.system('losoto -d sol000/clock000 cal-iono.h5')
+    os.system('losoto -d sol000/amplitude000 cal-iono.h5')
+    os.system('losoto -d sol000/phase_offset000 cal-iono.h5')
+    os.system('losoto -d sol000/phase000 cal-iono.h5')
+    os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
+
     logger.info('Copy survey caltable...')
     cal = 'cal_'+os.getcwd().split('/')[-2]+'_'+calname
     logger.info('Copy: cal*h5 -> dsk:/disks/paradata/fdg/LBAsurvey/%s' % cal)
     os.system('ssh portal_lei "rm -rf /disks/paradata/fdg/LBAsurvey/%s"' % cal)
     os.system('ssh portal_lei "mkdir /disks/paradata/fdg/LBAsurvey/%s"' % cal)
-    os.system('scp -q cal*h5 portal_lei:/disks/paradata/fdg/LBAsurvey/%s' % cal)
+    os.system('scp -q cal-*.h5 portal_lei:/disks/paradata/fdg/LBAsurvey/%s' % cal)
 
 # a debug image
 if imaging:
