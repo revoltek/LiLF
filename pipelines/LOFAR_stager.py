@@ -83,9 +83,10 @@ class Worker_stager(Worker):
                 print ("Stager -- Staging %i uris" % len(uris))
                 sids = self.stager.stage(uris)
                 self.L_inStage.append( sids )
-                self.L_toStage = self.L_toStage[500:]
+                for uri in uris:
+                    self.L_toStage.remove(uri)
     
-            time.sleep(5)
+            time.sleep(60)
     
     
 class Worker_checker(Worker):
