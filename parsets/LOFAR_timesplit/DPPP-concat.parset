@@ -8,6 +8,6 @@ msout =
 #msout.storagemanager = dysco
 msout.writefullresflag = False
 
-numthreads = 0 # the pipeline should set this number
+numthreads = 1 # leave this to 1 as it is run with s.run() and io limited
 
 steps = []

@@ -14,9 +14,9 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('download','parset_dir')
-fix_table = parset.getboolean('download','fix_table')
-renameavg = parset.getboolean('download','renameavg')
+parset_dir = parset.get('LOFAR_download','parset_dir')
+fix_table = parset.getboolean('LOFAR_download','fix_table')
+renameavg = parset.getboolean('LOFAR_download','renameavg')
 
 ###########################################
 if os.path.exists('html.txt'):
@@ -108,6 +108,7 @@ if fix_table:
         MSs.run('/home/fdg/scripts/fixinfo/fixbeaminfo $pathMS', log='$nameMS_fixbeam.log', commandType='python')
 
 # Rescale visibilities by 1e3 if before 2014-03-19 (old correlator), and by 1e-2 otherwise
+logger.info('Rescaling flux...')
 if time < 20140319:
     MSs.run('taql "update $pathMS set DATA = 1e6*DATA"', log='$nameMS_taql.log', commandType='general')
 else:

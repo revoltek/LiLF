@@ -3,15 +3,13 @@ msin.datacolumn = SMOOTHED_DATA
 msin.baseline = [CR]S*&
 msout = .
 
-numthreads = 0 # the pipeline should set this number
-
 steps=[ddecal]
 
 ddecal.type = ddecal
-ddecal.uvlambdamin = 200
+ddecal.uvlambdamin = 100
 ddecal.sourcedb =
 ddecal.h5parm = 
-ddecal.maxiter = 500
+ddecal.maxiter = 300
 ddecal.tolerance = 1e-3
 ddecal.solint = 15
 ddecal.nchan = 1
@@ -22,7 +20,7 @@ ddecal.approximatetec = True
 ddecal.maxapproxiter = 100
 ddecal.approxtolerance = 1e-2
 
-#ddecal.coreconstraint = 1500 # in meters
+#ddecal.coreconstraint = 500 # in meters
 
 #ddecal.mode = tecscreen
 #ddecal.tecscreen.order = 4

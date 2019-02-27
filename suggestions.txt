@@ -18,7 +18,4 @@ LoSoTo:
 
 
 PiLF:
-- Logged text currently looks ugly, because of color coding pre- and suffixes added to logging expressions.
-  This color coding looks great on the command line, but a system should be devised where the color coding
-  is not added for stored text files.
 - Documentation should be written to explain the code structure of PiLF for future developers.

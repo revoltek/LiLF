@@ -20,6 +20,8 @@ class AllMSs(object):
         self.scheduler    = scheduler
 
         # sort them, useful for some concatenating steps
+        if len(pathsMS) == 0:
+            logger.error('Cannot find MS files.')
         self.mssListStr = sorted(pathsMS)
 
         self.mssListObj = []

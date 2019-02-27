@@ -2,8 +2,6 @@ msin=
 msin.datacolumn = CORRECTED_DATA
 msout=.
 
-numthreads = 0 # the pipeline should set this number
-
 steps=[aoflagger, count]
 
 aoflagger.strategy=/home/fdg/scripts/LiLF/parsets/LOFAR_cal/LBAdefault.rfis

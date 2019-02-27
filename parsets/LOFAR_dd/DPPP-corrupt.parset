@@ -3,8 +3,6 @@ msin.datacolumn = MODEL_DATA
 msout = .
 msout.datacolumn = MODEL_DATA
 
-numthreads = 0 # the pipeline should set this number
-
 #steps = [cor1, cor2]
 steps = [cor1]
 

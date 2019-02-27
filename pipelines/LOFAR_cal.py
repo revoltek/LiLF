@@ -16,10 +16,10 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('cal','parset_dir')
-data_dir = parset.get('cal','data_dir')
-skymodel = parset.get('cal','skymodel')
-imaging = parset.getboolean('cal','imaging')
+parset_dir = parset.get('LOFAR_cal','parset_dir')
+data_dir = parset.get('LOFAR_cal','data_dir')
+skymodel = parset.get('LOFAR_cal','skymodel')
+imaging = parset.getboolean('LOFAR_cal','imaging')
 bl2flag = parset.get('flag','stations')
 
 if 'LBAsurvey' in os.getcwd():
@@ -32,7 +32,9 @@ MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
 # copy data
 logger.info('Copy data...')
 for MS in MSs.getListObj():
-    MS.move(MS.nameMS+'.MS', keepOrig=True)
+    if min(MS.getFreqs()) > 30.e6:
+        MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=False)
+        os.system('cp -r %s %s' % (skymodel, MS.pathMS))
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 calname = MSs.getListObj()[0].getNameField()
@@ -43,18 +45,19 @@ if min(MSs.getFreqs()) < 40.e6:
     logger.debug('Include iono 3rd order.')
 else: iono3rd = False
 
-# TEST
-#logger.info("Put data to Jy...")
-#MSs.run('taql "update $pathMS set DATA = 1e6*DATA"', log='$nameMS_taql.log', commandType='general')
-
-#####################################################
+######################################################
 # flag bad stations, flags will propagate
 logger.info("Flagging...")
 MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
 
+# extend flags
+logger.info('Remove bad time/freq stamps...')
+MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+
 # predict to save time ms:MODEL_DATA
 logger.info('Add model to MODEL_DATA (%s)...' % calname)
-MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=" + skymodel + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DPPP")
+MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=$pathMS/" + os.path.basename(skymodel) + " pre.sources=" + calname, \
+        log="$nameMS_pre.log", commandType="DPPP", maxThreads=30)
 
 ###################################################
 # 1: find PA
@@ -130,7 +133,7 @@ MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameM
 
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
 logger.info('Calibrating BP...')
-MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/amp.h5 sol.caltype=diagonal', log='$nameMS_solAMP.log', commandType="DPPP")
+MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal', log='$nameMS_solAMP.log', commandType="DPPP")
 
 lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()], \
         [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-bp.parset'])
@@ -165,19 +168,6 @@ MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.
 #MSs.run('createRMh5parm.py $pathMS $pathMS/rme.h5', log='$nameMS_RME.log', commandType="general", maxThreads=1)
 #MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/rme.h5 cor.correction=RMextract', log='$nameMS_corRME.log', commandType="DPPP")
 
-## TEST
-## Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-#logger.info('BL-smooth...')
-#MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python', maxThreads=10)
-#
-## Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-#logger.info('Calibrating LEAK2...')
-#MSs.run('DPPP ' + parset_dir + '/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/leak2.h5 sol.caltype=fulljones', log='$nameMS_solLEAK.log', commandType="DPPP")
-#
-#lib_util.run_losoto(s, 'leak2', [ms+'/leak2.h5' for ms in MSs.getListStr()], \
-#        [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-leak.parset'])
-## END TEST
-
 #################################################
 # 4: find iono
 
@@ -187,7 +177,7 @@ MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameM
 
 # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
 logger.info('Calibrating IONO...')
-MSs.run('DPPP '+parset_dir+'/DPPP-sol.parset msin=$pathMS sol.parmdb=$pathMS/iono.h5', log='$nameMS_solIONO.log', commandType="DPPP")
+MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_solIONO.log', commandType="DPPP")
 
 if iono3rd:
     lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
@@ -197,12 +187,33 @@ else:
             [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono.parset'])
 
 if 'survey' in os.getcwd():
+    os.system('cp cal-pa.h5 cal-pa-full.h5')
+    os.system('mv cal-fr.h5 cal-fr-full.h5') # no need to keep orig
+    os.system('cp cal-amp.h5 cal-amp-full.h5')
+    os.system('cp cal-iono.h5 cal-iono-full.h5')
+    os.system('losoto -d sol000/amplitude000 cal-pa.h5')
+    os.system('losoto -d sol000/phase000 cal-pa.h5')
+    os.system('losoto -d sol000/phaseOrig000 cal-pa.h5')
+    os.system('h5repack cal-pa.h5 cal-pa-compressed.h5; mv cal-pa-compressed.h5 cal-pa.h5')
+
+    os.system('losoto -d sol000/amplitude000 cal-amp.h5')
+    os.system('losoto -d sol000/amplitudeRes cal-amp.h5')
+    os.system('losoto -d sol000/phase000 cal-amp.h5')
+    os.system('h5repack cal-amp.h5 cal-amp-compressed.h5; mv cal-amp-compressed.h5 cal-amp.h5')
+
+    os.system('losoto -d sol000/tec000 cal-iono.h5')
+    os.system('losoto -d sol000/clock000 cal-iono.h5')
+    os.system('losoto -d sol000/amplitude000 cal-iono.h5')
+    os.system('losoto -d sol000/phase_offset000 cal-iono.h5')
+    os.system('losoto -d sol000/phase000 cal-iono.h5')
+    os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
+
     logger.info('Copy survey caltable...')
     cal = 'cal_'+os.getcwd().split('/')[-2]+'_'+calname
     logger.info('Copy: cal*h5 -> dsk:/disks/paradata/fdg/LBAsurvey/%s' % cal)
     os.system('ssh portal_lei "rm -rf /disks/paradata/fdg/LBAsurvey/%s"' % cal)
     os.system('ssh portal_lei "mkdir /disks/paradata/fdg/LBAsurvey/%s"' % cal)
-    os.system('scp -q cal*h5 portal_lei:/disks/paradata/fdg/LBAsurvey/%s' % cal)
+    os.system('scp -q cal-*.h5 portal_lei:/disks/paradata/fdg/LBAsurvey/%s' % cal)
 
 # a debug image
 if imaging:
@@ -232,12 +243,14 @@ if imaging:
     lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix/5, scale='60arcsec', \
             weight='briggs 0.', taper_gaussian='240arcsec', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-            auto_mask=10, auto_threshold=1, pol='IQUV', join_channels='', fit_spectral_pol=2, channels_out=10)
+            parallel_deconvolution=256, \
+            auto_mask=10, auto_threshold=1, pol='IQUV', join_polarizations='', join_channels='', fit_spectral_pol=2, channels_out=10)
 
     logger.info('Cleaning normal...')
     imagename = 'img/cal'
     lib_util.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
-            weight='briggs 0.', niter=10000, update_model_required='', minuv_l=30, mgain=0.85, \
+            weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+            baseline_averaging=5, parallel_deconvolution=256, \
             auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=10)
 
     # make mask
@@ -245,8 +258,9 @@ if imaging:
     im.makeMask(threshisl = 3)
 
     logger.info('Cleaning w/ mask...')
-    lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), cont=True, name=imagename, size=imgsizepix, scale='5arcsec', \
-            weight='briggs 0.', niter=100000, no_update_model_required='', baseline_averaging=3, minuv_l=30, mgain=0.85, \
+    lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
+            weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+            baseline_averaging=5, parallel_deconvolution=256, \
             auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=10)
     os.system('cat logs/wscleanA.log logs/wscleanB.log | grep "background noise"')
 

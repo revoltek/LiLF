@@ -1,0 +1,19 @@
+msin =
+msin.datacolumn = SMOOTHED_DATA
+msin.baseline = [CR]S*&
+msout = .
+msout.datacolumn = CORRECTED_DATA
+
+steps = [sol]
+
+sol.type = gaincal
+sol.uvlambdamin=300
+sol.parmdb = 
+sol.caltype = tec #tecandphase/tec
+sol.maxiter = 500
+sol.usemodelcolumn = True
+sol.solint = 3
+sol.nchan = 1
+sol.propagatesolutions = True
+sol.minblperant = 10
+

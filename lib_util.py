@@ -26,49 +26,55 @@ def getParset(parsetFile='../lilf.config'):
     config.read(parsetFile)
     
     # add pipeline sections and defaul parset dir:
-    for pipeline in ['download','demix','cal','timesplit','self','dd', 'ateam']:
+    for pipeline in glob.glob(os.path.dirname(__file__)+'/parsets/*'):
+        pipeline = os.path.basename(pipeline)
         if not config.has_section(pipeline): config.add_section(pipeline)
-        if not config.has_option(pipeline, 'parset_dir'): config.set(pipeline, 'parset_dir', os.path.dirname(__file__)+'/parsets/LOFAR_'+pipeline)
+        if not config.has_option(pipeline, 'parset_dir'):
+                config.set(pipeline, 'parset_dir', os.path.dirname(__file__)+'/parsets/'+pipeline)
     # add other sections
     if not config.has_section('flag'): config.add_section('flag')
     if not config.has_section('model'): config.add_section('model')
 
+    ### LOFAR ###
+
     # download
-    add_default('download', 'fix_table', 'True') # fix bug in some old observations
-    add_default('download', 'renameavg', 'True')
-    add_default('download', 'flag_elev', 'True')
+    add_default('LOFAR_download', 'fix_table', 'True') # fix bug in some old observations
+    add_default('LOFAR_download', 'renameavg', 'True')
+    add_default('LOFAR_download', 'flag_elev', 'True')
     # demix
-    add_default('demix', 'data_dir', '../tgts-full/')
+    add_default('LOFAR_demix', 'data_dir', '../cals-bkp/')
+    add_default('LOFAR_demix', 'demix_model', '/home/fdg/scripts/model/demix_all.skydb')
     # cal
-    add_default('cal', 'imaging', 'False')
-    add_default('cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
-    add_default('cal', 'data_dir', '../cals-bkp/')
+    add_default('LOFAR_cal', 'imaging', 'False')
+    add_default('LOFAR_cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
+    add_default('LOFAR_cal', 'data_dir', '../cals-bkp/')
     # timesplit
-    add_default('timesplit', 'data_dir', '../tgts-bkp/')
-    add_default('timesplit', 'cal_dir', '../cals/')
-    add_default('timesplit', 'ngroups', '1')
-    add_default('timesplit', 'initc', '0')
+    add_default('LOFAR_timesplit', 'data_dir', '../tgts-bkp/')
+    add_default('LOFAR_timesplit', 'cal_dir', '../cals/')
+    add_default('LOFAR_timesplit', 'ngroups', '1')
+    add_default('LOFAR_timesplit', 'initc', '0')
     # self
     # dd
-    add_default('dd', 'maxniter', '10')
+    add_default('LOFAR_dd', 'maxniter', '10')
+
+    ### uGMRT ###
+
+    # init
+    add_default('uGMRT_init', 'data_dir', './datadir')
+    # cal
+    add_default('uGMRT_cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
+
+    ### General ###
 
     # flag
-    add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IR*;PL*')
+    add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IR*;PL*') # LOFAR
+    add_default('flag', 'antennas', '') # uGMRT
     # model
     add_default('model', 'sourcedb', None)
     add_default('model', 'apparent', 'False')
     add_default('model', 'userreg', None)
 
     return config
-
-
-def columnExists(tableObject, columnName):
-    # more to lib_ms
-    '''
-    Check whether a column with name 'columnName' exists in  table 'tableObject'.
-    '''
-    columnNames = tableObject.colnames()
-    return (columnName in columnNames)
 
 
 def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithOnes = True, comment = "", verbose = False):
@@ -181,14 +187,15 @@ def run_losoto(s, c, h5s, parsets):
 
     logger.info("Running LoSoTo...")
 
-    # concat
+    h5 = 'cal-'+c+'.h5'
+
+    # concat/move
     if len(h5s) > 1:
-        h5 = 'cal-'+c+'.h5'
         check_rm("cal-" + c + ".h5")
         s.add('H5parm_collector.py -V -s sol000 -o '+h5+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
         s.run(check = True)
     else:
-        h5 = h5s[0]
+        os.system('cp -r %s %s' % (h5s[0], h5) )
 
     check_rm('plots')
     os.makedirs('plots')
@@ -204,6 +211,7 @@ def run_losoto(s, c, h5s, parsets):
 
 def run_wsclean(s, logfile, MSs_files, **kwargs):
     """
+    Use only for imaging - not for predict
     s : scheduler
     args : parameters for wsclean
     """
@@ -358,12 +366,14 @@ class Scheduler():
         from threading import Thread
         from Queue import Queue
         import subprocess
+        import gc
 
         def worker(queue):
             for cmd in iter(queue.get, None):
                 if self.qsub and self.cluster == "Hamburg":
                     cmd = 'salloc --job-name LBApipe --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
                             ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
+                gc.collect()
                 subprocess.call(cmd, shell = True)
 
         # limit threads only when qsub doesn't do it
@@ -410,7 +420,7 @@ class Scheduler():
             return 1
 
         if (commandType == "BBS"):
-            out = subprocess.check_output('grep -L success '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output('grep -L success '+log+' ; exit 0', shell = False, stderr = subprocess.STDOUT)
             if out != '':
                 logger.error('BBS run problem on:\n'+out.split("\n")[0])
                 return 1
@@ -419,6 +429,7 @@ class Scheduler():
             out = subprocess.check_output('grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "**** uncaught exception ****" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             #out += subprocess.check_output('grep -l "misspelled" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logger.error('DPPP run problem on:\n'+out.split("\n")[0])
@@ -433,7 +444,7 @@ class Scheduler():
                 return 1
 
         elif (commandType == "wsclean"):
-            out = subprocess.check_output('grep -l "exception occurred" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output('grep -l "exception occured" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logger.error('WSClean run problem on:\n'+out.split("\n")[0])
@@ -441,7 +452,7 @@ class Scheduler():
 
         elif (commandType == "python"):
             out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -i -l "Error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logger.error('Python run problem on:\n'+out.split("\n")[0])

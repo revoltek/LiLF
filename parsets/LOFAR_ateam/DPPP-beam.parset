@@ -3,10 +3,7 @@ msin.datacolumn = CORRECTED_DATA
 msout = .
 msout.datacolumn = CORRECTED_DATA
 
-numthreads = 0 # the pipeline should set this number
-
 steps = [corrbeam]
 
 corrbeam.type = applybeam
-corrbeam.invert = True
-corrbeam.usechannelfreq = False
+corrbeam.usechannelfreq = True

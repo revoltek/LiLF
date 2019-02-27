@@ -1,4 +1,4 @@
-Ncpu = 20
+Ncpu = 0
 
 [plotA1]
 operation = PLOT
@@ -7,37 +7,26 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/ampBF_
-#minmax = [0,300]
 
 [flagF]
 operation = FLAG
 soltab = sol000/amplitude000
-axesToFlag = [freq]
-order = [50] 
+axesToFlag = [freq,time]
+order = [50,1] 
 maxCycles = 1
 maxRms = 20
-replce = False
 preFlagZeros = False
 mode = smooth
 
 [flagT]
 operation = FLAG
 soltab = sol000/amplitude000
-axesToFlag = [time]
-order = [100] 
+axesToFlag = [freq,time]
+order = [1,100] 
 maxCycles = 1
 maxRms = 10
-replce = False
 preFlagZeros = False
 mode = smooth
-
-[flagextend]
-operation = FLAGEXTEND
-soltab = sol000/amplitude000
-axesToExt = [freq,time]
-size = [50,100]
-percent = 50
-maxCycles = 3
 
 [plotA2]
 Operation = PLOT

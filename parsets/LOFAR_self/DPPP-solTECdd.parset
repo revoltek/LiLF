@@ -3,22 +3,20 @@ msin.datacolumn = SMOOTHED_DATA
 msout = .
 msout.datacolumn = CORRECTED_DATA
 
-numthreads = 0 # the pipeline should set this number
-
 steps = [ddecal]
 
 ddecal.type = ddecal
-ddecal.uvlambdamin = 250
-ddecal.maxiter = 500
-ddecal.tolerance = 5e-4
+ddecal.uvlambdamin = 100
+ddecal.maxiter = 400
+ddecal.tolerance = 1e-3
 ddecal.solint = 3
-ddecal.nchan = 1
+ddecal.nchan = 4
 ddecal.stepsize = 0.2
 ddecal.h5parm = 
 ddecal.mode=tec # phaseonly, complexgain, tec, tecandphase
 #ddecal.coreconstraint = 0
 ddecal.propagatesolutions = True
 ddecal.approximatetec = True
-ddecal.maxapproxiter = 200 
-ddecal.approxtolerance = 5e-3
+ddecal.maxapproxiter = 400 
+ddecal.approxtolerance = 1e-3
 ddecal.usemodelcolumn = True

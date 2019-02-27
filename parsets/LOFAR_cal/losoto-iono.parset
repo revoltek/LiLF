@@ -54,7 +54,8 @@ axisInTable = ant
 prefix = plots/clock
 #minmax = [-2e-7,2e-7]
 plotFlag = False
-refAnt = 'CS002LBA'
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
 
 [plotTEC]
 operation = PLOT
@@ -64,7 +65,8 @@ axisInTable = ant
 prefix = plots/tec
 minmax = [-0.5,0.5]
 plotFlag = False
-refAnt = 'CS002LBA'
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
 
 [residuals]
 operation = RESIDUALS
@@ -80,7 +82,8 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/phRes_
-refAnt = 'CS002LBA'
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]
 NColFig = 4
 figSize = [20,20]
@@ -94,7 +97,8 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/phRes_
-refAnt = 'CS002LBA'
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]
 
 [PlotPr3]
@@ -104,5 +108,6 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/phRes
-refAnt = 'CS002LBA'
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]

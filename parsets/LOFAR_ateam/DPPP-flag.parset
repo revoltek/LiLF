@@ -3,12 +3,16 @@ msin.datacolumn = DATA
 msin.baseline = [CR]S*&&
 msout = .
 
-numthreads = 0 # the pipeline should set this number
-
-steps = [ant, elev, count]
+steps = [ears, ant, uvmin, elev, count]
 
 ant.type = preflagger
 ant.baseline = 
 
 elev.type = preflagger
-elev.elevation = 0deg..20deg
+elev.elevation = 0deg..15deg
+
+uvmin.type = uvwflag
+uvmin.uvlambdamin = 30
+
+ears.type = preflagger
+ears.baseline = /(.*)HBA0&\1HBA1/
