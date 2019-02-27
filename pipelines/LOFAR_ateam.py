@@ -90,8 +90,8 @@ MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. steps=\"'+fla
             log='$nameMS_flag.log', commandType='DPPP')
 
 # add column for combining models afterwards
-logger.info('Creating MODEL_DATA_HIGHRES...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES', log='$nameMS_addcol.log', commandType='python')
+#logger.info('Creating MODEL_DATA_HIGHRES...')
+#MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES', log='$nameMS_addcol.log', commandType='python')
 
 if lofar_system == 'hba': model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
@@ -185,7 +185,7 @@ for c in xrange(100):
 
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Solving BP...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal sol.flagunconverged=False \
             sol.uvlambdarange='+str(nouseblrange)+' sol.nchan=2 sol.solint=10', log='$nameMS_solAMP3.log', commandType="DPPP")
     
     lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
@@ -204,16 +204,14 @@ for c in xrange(100):
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
-        # TEST: alot of deconv channels
-        # TODO: try briggs -3
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='1.5arcsec', \
-                weight='briggs -3', niter=50000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.5, \
                 #iuwt='', gain=0.2, \
                 multiscale='', multiscale_scale_bias=0.7, \
-                multiscale_scales='0,10,20,40', \
-                fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
-                baseline_averaging=5, deconvolution_channels=24, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=5, channels_out=61)
+                #multiscale_scales='0,10,20,40', \
+                #fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
+                baseline_averaging=5, \
+                auto_threshold=1, join_channels='', channels_out=242)
 
     elif patch == 'CasA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1300, scale='2arcsec', \
@@ -221,17 +219,17 @@ for c in xrange(100):
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CasA.fits', \
-                baseline_averaging=5, deconvolution_channels=12, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=5, channels_out=61)
+                baseline_averaging=5, deconvolution_channels=20, \
+                auto_threshold=1, join_channels='', fit_spectral_pol=7, channels_out=61, save_source_list='')
 
     elif patch == 'TauA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1200, scale='2arcsec', \
-                weight='briggs -1', niter=75000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -1', niter=100000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/TauA.fits', \
-                baseline_averaging=5, deconvolution_channels=12, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=5, channels_out=61)
+                baseline_averaging=5, auto_threshold=1, save_source_list='',\
+                join_channels='', channels_out=244)
 
     elif patch == 'VirA' and lofar_system == 'lba':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
@@ -240,7 +238,7 @@ for c in xrange(100):
                 # multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAlba.fits', \
                 baseline_averaging=5, deconvolution_channels=12, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=5, channels_out=61)
+                auto_threshold=1, join_channels='', fit_spectral_pol=5, channels_out=61, save_source_list='')
 
     elif patch == 'VirA' and lofar_system == 'hba':
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
@@ -263,10 +261,10 @@ for c in xrange(100):
 
     # every 5 cycles: sub model and rescale model
     #if True: 
-    if c%5 == 0 and c != 0:
+    if c%5 == 0:
 
-        logger.info('Copy model...')
-        MSs.run('taql "update $pathMS set MODEL_DATA_HIGHRES = MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
+        #logger.info('Copy model...')
+        #MSs.run('taql "update $pathMS set MODEL_DATA_HIGHRES = MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
     
         logger.info('Sub model...')
         MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType='general')
