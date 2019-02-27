@@ -62,11 +62,11 @@ if sourcedb is None:
         fwhm = MSs.getListObj()[0].getFWHM()
         radeg = phasecentre[0]
         decdeg = phasecentre[1]
-        # get model ~twice the size of the image (radius=fwhm)
+        # get model the size of the image (radius=fwhm/2)
         os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm/2.))
         lsm = lsmtool.load('tgts.skymodel')#, beamMS=MSs.getListObj()[0])
         lsm.remove('I<1')
-        lsm.write('tgts.skymodel')
+        lsm.write('tgts.skymodel', clobber=True)
         os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
         apparent = False
 
