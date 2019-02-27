@@ -51,7 +51,7 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     x_fs, y_fs = w.all_world2pix(ras, decs, 0, ra_dec_order=True)
     # keep trak of numbers in the direction names to name correctly patches in the fits files
     # in this way Dir_12 will have "12" into the fits for that patch.
-    nums = [int(d.split('_')[1]) for d in directions.keys()]
+    nums = [int(d.split('_')[-1]) for d in directions.keys()]
 
     x_c = data.shape[0]/2.
     y_c = data.shape[1]/2.

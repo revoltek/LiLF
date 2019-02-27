@@ -1,0 +1,13 @@
+msin = 
+msin.datacolumn = DATA
+msin.baseline = [CR]S*&
+msout = .
+msout.datacolumn = MODEL_DATA
+
+numthreads = 0 # the pipeline should set this number
+
+steps = [pre]
+
+pre.type = predict
+pre.sourcedb =
+pre.sources =  

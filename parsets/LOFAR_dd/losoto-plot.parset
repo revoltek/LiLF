@@ -1,31 +1,23 @@
 # losoto parset
 Ncpu = 0
 
-[plotCSPTEC]
+[plotTECdir]
 operation = PLOT
-soltab = sol000/phase000
+soltab = sol000/tec000
 axesInPlot = time
-axisInTable = ant
+axisInTable = dir
 plotFlag = True
-prefix = plots/csptec
-refAnt = 'CS002LBA'
-soltabToAdd = tec000
-
-[plotCSP]
-operation = PLOT
-soltab = sol000/phase000
-axesInPlot = time
-axisInTable = ant
-plotFlag = True
-prefix = plots/csp
+minmax = [-0.1,0.1]
+prefix = plots/tec
 refAnt = 'CS002LBA'
 
-[plotTEC]
+[plotTECant]
 operation = PLOT
 soltab = sol000/tec000
 axesInPlot = time
 axisInTable = ant
 plotFlag = True
-minmax = [-0.5,0.5]
+minmax = [-0.1,0.1]
 prefix = plots/tec
 refAnt = 'CS002LBA'
+
