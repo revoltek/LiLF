@@ -93,7 +93,7 @@ else:
 
 #####################################################################################################
 # Self-cal cycle
-for c in xrange(0, niter):
+for c in range(0, niter):
 
     logger.info('Start selfcal cycle: '+str(c))
 
@@ -209,7 +209,7 @@ for c in xrange(0, niter):
     lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
             weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
             baseline_averaging=5, parallel_deconvolution=256, \
-            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8, save_source_list='')
+            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8)
 
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
 
@@ -220,25 +220,22 @@ for c in xrange(0, niter):
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
+    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
             weight='briggs 0.', niter=300000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
             baseline_averaging=5, parallel_deconvolution=256, \
-            auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8, save_source_list='')
+            multiscale='', multiscale_scales='0,5,10,20,40', \
+            auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
-    im = lib_img.Image(imagename+'-MFS-image.fits', beamReg=beamReg)
-    im.selectCC(keepInBeam=True)
+    if c != niter-1:
+        im = lib_img.Image(imagename+'-MFS-image.fits', beamReg=beamReg)
+        im.selectCC(keepInBeam=True)
 
-    # predict - ms: MODEL_DATA
-    # must be done with DPPP to remove sources outside beam
-    logger.info('Predict model...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
+        # predict - ms: MODEL_DATA
+        # must be done with DPPP to remove sources outside beam
+        logger.info('Predict model...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
                 log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-
-    #logger.info('Predict (wsclean: %s)...' % imagename)
-    #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 10 '+MSs.getStrWsclean(), \
-    #                      log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-    #s.run(check=True)
 
     if c == 0:
         # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
