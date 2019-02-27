@@ -6,6 +6,7 @@
 import sys, os, glob, re
 import numpy as np
 import pyrap.tables as pt
+import lsmtool
 
 # Temporary
 if 'LBAsurvey' in os.getcwd():
@@ -62,7 +63,10 @@ if sourcedb is None:
         radeg = phasecentre[0]
         decdeg = phasecentre[1]
         # get model ~twice the size of the image (radius=fwhm)
-        os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm))
+        os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm/2.))
+        lsm = lsmtool.load('tgts.skymodel')#, beamMS=MSs.getListObj()[0])
+        lsm.remove('I<1')
+        lsm.write('tgts.skymodel')
         os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
         apparent = False
 
@@ -175,7 +179,7 @@ for c in xrange(0, niter):
     if c == niter-1:
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
-        lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=int(imgsizepix*1.5), scale='5arcsec', \
+        lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=int(imgsizepix*1.5), scale='5arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
                 #multiscale='', multiscale_scale_bias=0.5, multiscale_scales='0,10,20', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
@@ -185,7 +189,7 @@ for c in xrange(0, niter):
 
         logger.info('Cleaning beam high-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamHR'
-        lib_util.run_wsclean(s, 'wscleanBeamHR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=int(imgsizepix*2), scale='2.5arcsec', \
+        lib_util.run_wsclean(s, 'wscleanBeamHR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=int(imgsizepix*2), scale='2.5arcsec', \
                 weight='uniform', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
                 parallel_deconvolution=256, \
@@ -193,7 +197,7 @@ for c in xrange(0, niter):
 
         logger.info('Cleaning beam low-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamLR'
-        lib_util.run_wsclean(s, 'wscleanBeamLR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix/5, scale='60arcsec', \
+        lib_util.run_wsclean(s, 'wscleanBeamLR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix/5, scale='60arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=1000, mgain=0.85, \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
                 parallel_deconvolution=256, \
@@ -245,10 +249,10 @@ for c in xrange(0, niter):
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
-        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, size=imgsizepix, scale='20arcsec', \
+        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, temp_dir='./', size=imgsizepix, scale='20arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
                 baseline_averaging=5, parallel_deconvolution=256, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8, temp_dir='./', save_source_list='')
+                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8, save_source_list='')
         
         im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=False)
