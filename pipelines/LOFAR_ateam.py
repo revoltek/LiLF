@@ -5,7 +5,6 @@
 
 import sys, os, glob, re
 import numpy as np
-import pyrap.tables as pt
 
 if 'Vir' in os.getcwd():
     patch = 'VirA'
@@ -242,12 +241,12 @@ for c in xrange(100):
 
     elif patch == 'VirA' and lofar_system == 'hba':
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs 0.', niter=1000, update_model_required='', mgain=0.5, \
+                weight='briggs -0.8', niter=1000, update_model_required='', mgain=0.5, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
-                deconvolution_channels=12, \
+                deconvolution_channels=24, \
                 join_channels='', fit_spectral_pol=5, channels_out=61) # use cont=True
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs 0.', niter=50000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -0.8', niter=50000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \

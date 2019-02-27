@@ -10,10 +10,6 @@ from astropy.time import Time
 import casacore.tables as pt
 
 
-if 'LBAsurvey' in os.getcwd():
-    datadir = '/home/baq1889/lofar1/LBAsurvey/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
-    cal_dir = 'portal_lei:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]
-
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log
 logger_obj = lib_log.Logger('pipeline-timesplit.logger')
@@ -27,8 +23,8 @@ data_dir = parset.get('LOFAR_timesplit','data_dir')
 cal_dir = parset.get('LOFAR_timesplit','cal_dir')
 ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
-
-assert os.path.isdir(cal_dir)
+if 'LBAsurvey' in os.getcwd():
+    data_dir = '/home/fdg/lofar1/LBAsurvey/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
 
 #################################################
 # Clean
@@ -44,27 +40,36 @@ for MS in MSs.getListObj():
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
+##################################################
+# Find solutions to apply
+if 'LBAsurvey' in os.getcwd():
+    #cal_dir = 'portal_lei:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]+'_3C*/'
+    for cal_dir in glob.glob('../3c*'):
+        #if time of obs is between starting and ending time of cal, use it
+        timechunks = set([re.findall(r'_t\d+', ms)[0][2:] for ms in  glob.glob(cal_dir+'/*MS') ])
+        if re.findall( r'_t\d+', MSs.getListStr()[0] )[0][2:] in timechunks:
+            break
+
+h5_pa = cal_dir+'/cal-pa.h5'
+h5_amp = cal_dir+'/cal-amp.h5'
+h5_iono = cal_dir+'/cal-iono.h5'
+assert os.path.exists(h5_pa)
+assert os.path.exists(h5_amp)
+assert os.path.exists(h5_iono)
+
 ####################################################
 # Correct fist for BP(diag)+TEC+Clock and then for beam
-# Copy instrument tables
-logger.info('Copy solutions...')
-if not os.path.exists('cal-pa.h5'):
-    os.system('scp -q '+cal_dir+'/cal-pa.h5 .')
-if not os.path.exists('cal-amp.h5'):
-    os.system('scp -q '+cal_dir+'/cal-amp.h5 .')
-if not os.path.exists('cal-iono.h5'):
-    os.system('scp -q '+cal_dir+'/cal-iono.h5 .')
 
 # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign corrected)
 logger.info('Apply solutions (pa)...')
 MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.steps=[pa] \
-        cor.pa.parmdb=cal-pa.h5 cor.pa.correction=polalign', log='$nameMS_cor1.log', commandType='DPPP')
+        cor.pa.parmdb='+h5_pa+' cor.pa.correction=polalign', log='$nameMS_cor1.log', commandType='DPPP')
 
 # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, calibrator corrected+reweight, beam corrected+reweight)
 logger.info('Apply solutions (amp/ph)...')
 MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
-        cor.amp.parmdb=cal-amp.h5 cor.amp.correction=amplitudeSmooth cor.amp.updateweights=True\
-        cor.ph.parmdb=cal-iono.h5 cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DPPP')
+        cor.amp.parmdb='+h5_amp+' cor.amp.correction=amplitudeSmooth cor.amp.updateweights=True\
+        cor.ph.parmdb='+h5_iono+' cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DPPP')
 
 # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
 logger.info('Beam correction...')
