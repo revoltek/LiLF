@@ -226,7 +226,6 @@ for c in xrange(0, niter):
             auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=16, deconvolution_channels=8, save_source_list='')
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
-
     im = lib_img.Image(imagename+'-MFS-image.fits', beamReg=beamReg)
     im.selectCC(keepInBeam=True)
 
