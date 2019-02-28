@@ -200,6 +200,12 @@ for c in xrange(maxniter):
     logger.info('Calibrating...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS ddecal.h5parm=$pathMS/cal-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
+    logger.info('Calibrating2...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calg-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
+            log='$nameMS_solDDg-c'+str(c)+'.log', commandType='DPPP')
+    logger.info('Calibrating3...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calgsmooth-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb+" ddecal.smoothnessconstraint=10e6", \
+            log='$nameMS_solDDg-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions
     lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
@@ -232,12 +238,11 @@ for c in xrange(maxniter):
         logger.info('Patch '+p+': subtract...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql3-c'+str(c)+'-p'+str(p)+'.log', commandType='general')
 
-##   for patch, phasecentre in directions.iteritems():
-
-##        # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
-##        logger.info('Patch '+patch+': add back...')
-##        MSs.run('DPPP '+parset_dir+'/DPPP-add.parset msin=$pathMS add.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 add.sourcedb='+skymodel_voro_skydb+' add.directions=[['+patch+']]', \
-##                   log='$nameMS_add-c'+str(c)+'-p'+str(patch)+'.log', commandType='DPPP')
+    ##  for patch, phasecentre in directions.iteritems():
+    ##      # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
+    ##      logger.info('Patch '+patch+': add back...')
+    ##      MSs.run('DPPP '+parset_dir+'/DPPP-add.parset msin=$pathMS add.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 add.sourcedb='+skymodel_voro_skydb+' add.directions=[['+patch+']]', \
+    ##          log='$nameMS_add-c'+str(c)+'-p'+str(patch)+'.log', commandType='DPPP')
 
     # Add back 
     for i, p in enumerate(patchNames):
