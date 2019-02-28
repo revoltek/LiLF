@@ -8,7 +8,7 @@ steps = [sol]
 
 sol.type = ddecal
 sol.uvlambdamin = 100
-sol.mode = rotation+diagonal
+sol.mode = diagonal
 sol.tolerance = 1e-3
 sol.maxiter = 500
 sol.nchan = 1
