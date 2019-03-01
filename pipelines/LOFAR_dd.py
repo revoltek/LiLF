@@ -66,19 +66,18 @@ def clean(p, MSs, size=2., apply_beam=False):
     im.makeMask(threshisl = 3)
 
     # clean 2
-    # To be safe don't do -continue with beam
+    # TODO: add -parallel-deconvolution when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
     logger.info('Cleaning w/ mask ('+str(p)+')...')
     imagename = 'img/ddcalM-'+str(p)
     if apply_beam:
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
             weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-            parallel_deconvolution=256, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
             auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=8, save_source_list='')
     else:
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
             weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=256, \
+            baseline_averaging=5, \
             auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=8, save_source_list='')
     os.system('cat logs/wscleanA-'+str(p)+'.log logs/wscleanB-'+str(p)+'.log | grep "background noise"')
 

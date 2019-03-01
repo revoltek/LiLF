@@ -203,41 +203,40 @@ for c in xrange(100):
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='1.5arcsec', \
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1000, scale='1.5arcsec', \
                 weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.5, \
                 #iuwt='', gain=0.2, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 #multiscale_scales='0,10,20,40', \
                 #fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
-                baseline_averaging=5, \
-                auto_threshold=1, join_channels='', channels_out=242)
+                baseline_averaging=5, auto_threshold=1, \
+                join_channels='', channels_out=61)
 
     elif patch == 'CasA':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1300, scale='2arcsec', \
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1300, scale='2arcsec', \
                 weight='briggs -1', niter=75000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CasA.fits', \
-                baseline_averaging=5, deconvolution_channels=20, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=7, channels_out=61, save_source_list='')
+                baseline_averaging=5, auto_threshold=1, \
+                join_channels='', deconvolution_channels=20, fit_spectral_pol=7, channels_out=61)
 
     elif patch == 'TauA':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1200, scale='2arcsec', \
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1200, scale='2arcsec', \
                 weight='briggs -1', niter=100000, no_update_model_required='', mgain=0.5, \
-                multiscale='', multiscale_scale_bias=0.7, \
-                multiscale_scales='0,5,10,20,40,80', \
+                multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/TauA.fits', \
-                baseline_averaging=5, auto_threshold=1, save_source_list='',\
-                join_channels='', channels_out=244)
+                baseline_averaging=5, auto_threshold=1, \
+                join_channels='', deconvolution_channels=20, fit_spectral_pol=7, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'lba':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1500, scale='2arcsec', \
                 weight='briggs -1.', niter=50000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAlba.fits', \
-                baseline_averaging=5, deconvolution_channels=12, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=5, channels_out=61, save_source_list='')
+                baseline_averaging=5, auto_threshold=1, \
+                join_channels='', deconvolution_channels=20, fit_spectral_pol=5, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'hba':
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
@@ -250,8 +249,8 @@ for c in xrange(100):
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
-                baseline_averaging=5, deconvolution_channels=12, \
-                auto_threshold=0.1, join_channels='', fit_spectral_pol=5, channels_out=61)
+                baseline_averaging=5, auto_threshold=0.1, \
+                join_channels='', deconvolution_channels=20, fit_spectral_pol=5, channels_out=61)
 
     logger.info('Predict (wsclean: %s)...' % imagename)
     s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 61 '+MSs.getStrWsclean(), \
