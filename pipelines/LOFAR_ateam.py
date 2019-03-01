@@ -88,10 +88,6 @@ logger.info('Flagging...')
 MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. steps=\"'+flag_steps+'\" ant.baseline=\"'+bl2flag+'\"', \
             log='$nameMS_flag.log', commandType='DPPP')
 
-# add column for combining models afterwards
-#logger.info('Creating MODEL_DATA_HIGHRES...')
-#MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_HIGHRES', log='$nameMS_addcol.log', commandType='python')
-
 if lofar_system == 'hba': model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 
@@ -209,8 +205,8 @@ for c in xrange(100):
                 multiscale='', multiscale_scale_bias=0.7, \
                 #multiscale_scales='0,10,20,40', \
                 #fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
-                baseline_averaging=5, \
-                auto_threshold=1, join_channels='', channels_out=242)
+                baseline_averaging=5, deconvolution_channels=20, \
+                auto_threshold=1, join_channels='', fit_spectral_pol=7, channels_out=61, save_source_list='')
 
     elif patch == 'CasA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1300, scale='2arcsec', \
@@ -227,8 +223,8 @@ for c in xrange(100):
                 multiscale='', multiscale_scale_bias=0.7, \
                 multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/TauA.fits', \
-                baseline_averaging=5, auto_threshold=1, save_source_list='',\
-                join_channels='', channels_out=244)
+                baseline_averaging=5, deconvolution_channels=20, \
+                auto_threshold=1, join_channels='', fit_spectral_pol=7, channels_out=61, save_source_list='')
 
     elif patch == 'VirA' and lofar_system == 'lba':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
@@ -275,12 +271,14 @@ for c in xrange(100):
                 baseline_averaging=5, deconvolution_channels=8, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=32)
  
-        #logger.info('Predict wide (wsclean)...')
-        #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 32 '+MSs.getStrWsclean(), \
-        #      log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-        #s.run(check = True)
+        logger.info('Predict wide (wsclean)...')
+        s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 32 '+MSs.getStrWsclean(), \
+              log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+        s.run(check = True)
 
-        #logger.info('Combine model...')
-        #MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA + MODEL_DATA_HIGHRES"', log='$nameMS_taql3.log', commandType='general')
+        logger.info('Sub low-res model...')
+        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql3.log', commandType='general')
+
+        sys.exit()
 
 logger.info("Done.")
