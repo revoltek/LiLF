@@ -70,15 +70,17 @@ def clean(p, MSs, size=2., apply_beam=False):
     logger.info('Cleaning w/ mask ('+str(p)+')...')
     imagename = 'img/ddcalM-'+str(p)
     if apply_beam:
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
+        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imsize, scale=str(pixscale)+'arcsec', \
             weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-            auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=8, save_source_list='')
+            auto_threshold=0.1, fits_mask=im.maskname, \
+            join_channels='', fit_spectral_pol=2, channels_out=8)
     else:
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
+        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', \
             weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-            baseline_averaging=5, \
-            auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=8, save_source_list='')
+            baseline_averaging=5, auto_threshold=0.1, fits_mask=im.maskname, \
+            join_channels='', fit_spectral_pol=2, channels_out=8)
+
     os.system('cat logs/wscleanA-'+str(p)+'.log logs/wscleanB-'+str(p)+'.log | grep "background noise"')
 
 
