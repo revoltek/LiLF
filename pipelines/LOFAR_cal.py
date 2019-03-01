@@ -251,7 +251,7 @@ if imaging:
     lib_util.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
             weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85, \
             baseline_averaging=5, parallel_deconvolution=256, \
-            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=10)
+            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=8)
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits')
@@ -261,7 +261,7 @@ if imaging:
     lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
             weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
             baseline_averaging=5, parallel_deconvolution=256, \
-            auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=10)
+            auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=2, channels_out=8)
     os.system('cat logs/wscleanA.log logs/wscleanB.log | grep "background noise"')
 
     # make new mask
