@@ -24,10 +24,12 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     Take a list of coordinates and an image and voronoi tesselate the sky.
     It saves ds9 regions + fits mask of the facets
 
-    directions : dict with {'Dir_0':[ra,dec], 'Dir_1':[ra,dec]...} - note that the "Dir_##" naming is important
-    firsfile : mask fits file to tassellate (used for coordinates and to avoid splitting islands)
-    outdir* : dir where to save regions/masks
+    directions : dict with {'Dir_0':[ra,dec], 'Dir_1':[ra,dec]...}
+    firsfile : mask fits file to tassellate (used for coordinates and as template for the out_mask)
+    outdir_reg : dir where to save regions
+    out_mask : output mask with different numbers in each facet
     beam_reg : a ds9 region showing the the primary beam, exclude directions outside it
+    png : output png file that shows the tassellation
     """
 
     def closest_node(node, nodes):
@@ -78,6 +80,7 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     vor = Voronoi(np.array((x_fs[idx_for_facet], y_fs[idx_for_facet])).transpose())
     box = np.array([[x1,y1],[x2,y2]])
     impoly = voronoi_finite_polygons_2d_box(vor, box)
+    return impoly
 
     # create fits mask (each region one number)
     x, y = np.meshgrid(np.arange(x2), np.arange(y2)) # make a canvas with coordinates
@@ -110,6 +113,8 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     pyfits.writeto(out_mask, data_facet, hdr, overwrite=True)
 
     # save regions
+    if not os.path.isdir(outdir_reg): os.makedirs(outdir_reg)
+
     all_s = []
     for i, poly in enumerate(impoly):
         ra, dec = w.all_pix2world(poly[:,0],poly[:,1], 0, ra_dec_order=True)
@@ -199,8 +204,6 @@ def voronoi_finite_polygons_2d_box(vor, box):
     new_vertices = vor.vertices.tolist()
 
     center = vor.points.mean(axis=0)
-    if radius is None:
-        radius = vor.points.ptp().max()
 
     # Construct a map containing all ridges for a given point
     all_ridges = {}
@@ -211,11 +214,6 @@ def voronoi_finite_polygons_2d_box(vor, box):
     # Reconstruct infinite regions
     for p1, region in enumerate(vor.point_region):
         vertices = vor.regions[region]
-
-        if all(v >= 0 for v in vertices):
-            # finite region
-            new_regions.append(vertices)
-            continue
 
         if all(v >= 0 for v in vertices):
             # finite region
@@ -245,6 +243,15 @@ def voronoi_finite_polygons_2d_box(vor, box):
             new_region.append(len(new_vertices))
             new_vertices.append(far_point.tolist())
 
+        print new_vertices
+
+        # add edges of the image as vertices to prevent corner from being excluded
+        for corner_vertice in [(0,0),(0,np.max(bbox[1])),(np.max(bbox[0],0),(np.max(bbox[0],np.max(bbox[1])]:
+            if dists[p1] == np.min(dists):
+                # add that corner to the region
+                new_region.append(len(new_vertices))
+                new_vertices.append(corner_vertice.tolist())
+
         # sort region counterclockwise
         vs = np.asarray([new_vertices[v] for v in new_region])
         c = vs.mean(axis=0)
@@ -265,7 +272,9 @@ def voronoi_finite_polygons_2d_box(vor, box):
     for p in poly:
         polyPath = mplPath.Path(p)
         newpolyPath = polyPath.clip_to_bbox(bbox)
+        print newpolyPath.vertices
         pp = newpolyPath.vertices.transpose()
+
         newpoly.append(pp.transpose())
 
     return np.asarray(newpoly)
