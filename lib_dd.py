@@ -80,7 +80,6 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     vor = Voronoi(np.array((x_fs[idx_for_facet], y_fs[idx_for_facet])).transpose())
     box = np.array([[x1,y1],[x2,y2]])
     impoly = voronoi_finite_polygons_2d_box(vor, box)
-    return impoly
 
     # create fits mask (each region one number)
     x, y = np.meshgrid(np.arange(x2), np.arange(y2)) # make a canvas with coordinates
@@ -180,6 +179,7 @@ def voronoi_finite_polygons_2d_box(vor, box):
     box : (2,2) float array
         corners of bounding box
         numpy.array([[x1,y1],[x2,y2]])
+        example: [[0,0],[2000,2000]]
 
     Returns
     -------
@@ -210,6 +210,13 @@ def voronoi_finite_polygons_2d_box(vor, box):
     for (p1, p2), (v1, v2) in zip(vor.ridge_points, vor.ridge_vertices):
         all_ridges.setdefault(p1, []).append((p2, v1, v2))
         all_ridges.setdefault(p2, []).append((p1, v1, v2))
+
+    # Matrix of distances from corners to points
+    corners = [(box[0,0],box[0,1]), (box[0,0], box[1,1]), (box[1,0], box[0,1]), (box[1,0], box[1,1]) ] # BL, TL, BR, TR
+    dists = []
+    for p in vor.points:
+        dists.append([ np.sqrt( (c[0]-p[0])**2 + (c[1]-p[1])**2 ) for c in corners ])
+    dists = np.array(dists)
 
     # Reconstruct infinite regions
     for p1, region in enumerate(vor.point_region):
@@ -243,14 +250,15 @@ def voronoi_finite_polygons_2d_box(vor, box):
             new_region.append(len(new_vertices))
             new_vertices.append(far_point.tolist())
 
-        print new_vertices
-
-        # add edges of the image as vertices to prevent corner from being excluded
-        for corner_vertice in [(0,0),(0,np.max(bbox[1])),(np.max(bbox[0],0),(np.max(bbox[0],np.max(bbox[1])]:
-            if dists[p1] == np.min(dists):
+        # add corners of the image as vertices to prevent corners from being excluded
+        # before expand corners so the ordering wil be right
+        corners = [(box[0,0]-radius,box[0,1]-radius), (box[0,0]-radius, box[1,1]+radius), (box[1,0]+radius, box[0,1]-radius), (box[1,0]+radius, box[1,1]+radius) ]
+        for c, dist in enumerate(dists[p1]): # cycle on corners
+            if dist == np.min(dists[:,c]):
                 # add that corner to the region
+                #print "add corner %i to region %i" % (c,p1)
                 new_region.append(len(new_vertices))
-                new_vertices.append(corner_vertice.tolist())
+                new_vertices.append(list(corners[c]))
 
         # sort region counterclockwise
         vs = np.asarray([new_vertices[v] for v in new_region])
@@ -262,7 +270,6 @@ def voronoi_finite_polygons_2d_box(vor, box):
         new_regions.append(new_region.tolist())
 
     regions, imvertices = new_regions, np.asarray(new_vertices)
-    #return new_regions, np.asarray(new_vertices)
 
     ## now force them to be in the bounding box
     poly = np.asarray([imvertices[v] for v in regions])
@@ -272,10 +279,10 @@ def voronoi_finite_polygons_2d_box(vor, box):
     for p in poly:
         polyPath = mplPath.Path(p)
         newpolyPath = polyPath.clip_to_bbox(bbox)
-        print newpolyPath.vertices
-        pp = newpolyPath.vertices.transpose()
-
-        newpoly.append(pp.transpose())
+        coords, idx = np.unique([ x+1j*y for (x,y) in newpolyPath.vertices], return_index=True) # using complex; a way for grouping
+        coords = [[x.real,x.imag] for x in coords[np.argsort(idx)]] # preserve order
+        coords += [coords[0]] # close the line
+        newpoly.append( np.array(coords) )
 
     return np.asarray(newpoly)
 
