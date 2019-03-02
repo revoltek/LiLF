@@ -280,272 +280,59 @@ def voronoi_finite_polygons_2d_box(vor, box):
     return np.asarray(newpoly)
 
 
-#def table_to_circ_region(table, outfile, racol='RA', deccol='DEC', sizecol='size', color='red', label=True):
-#    """
-#    Get a table with ra, dec, size and generate a circular ds9 region 
-#    TODO: if cat is given, add a small circle around all sources on the edge
-#    """
-#
-#    regions = []
-#    for i, r in enumerate(table):
-#        s = Shape('circle', None)
-#        s.coord_format = 'fk5'
-#        s.coord_list = [ r[racol], r[deccol], r[sizecol] ] # ra, dec, radius
-#        s.coord_format = 'fk5'
-#        s.attr = ([], {'width': '2', 'point': 'cross',
-#                       'font': '"helvetica 16 normal roman"'})
-#        if label: s.comment = 'color={} text="{}"'.format(color, str(i))
-#        else: s.comment = 'color={}'.format(color)
-#        regions.append(s)
-#
-#    regions = pyregion.ShapeList(regions)
-#    check_rm(outfile)
-#    regions.write(outfile)
-#
-#
-#def make_directions_from_skymodel(filename, outdir='regions/', flux_min_Jy=1.0, size_max_arcmin=3.0,
-#    directions_separation_max_arcmin=5.0, directions_max_num=20, flux_min_for_merging_Jy=0.2):
-#    """
-#    Selects appropriate calibrators from srl file
-#    Parameters
-#    ----------
-#    filename : srl file
-#        Skymodel made by grouping clean components of dir-independent model
-#    outdir: string
-#        Directory where to save the ds9 regions
-#    flux_min_Jy : float
-#        Minimum flux density for a calibrator in Jy
-#    size_max_arcmin : float
-#        Maximum size for a calibrator in arcmin
-#    directions_separation_max_arcmin : float
-#        Maximum separation in arcmin between two calibrators for gouping into a
-#        single direction
-#    directions_max_num : int, optional
-#        Limit total number of directions to this value
-#    flux_min_for_merging_Jy : float, optional
-#        Minimum peak flux for a source to be considered for merging
-#    Returns
-#    -------
-#    table : astropy table
-#        Table with direction information
-#    """
-#    # open astropy table
-#    t = Table.read(filename, format='fits')['RA','DEC','Maj','Peak_flux','Total_flux'] # restrict to some cols
-#    t.rename_column('Maj', 'dd_size') # use Maj as proxy for region size
-#    logger.info('# sources initial: %i' % len(t))
-#
-#    # exclude sources that are too extended
-#    t_large = t[ (t['dd_size'] >= size_max_arcmin*u.arcmin) ]
-#    t = t[ (t['dd_size'] < size_max_arcmin*u.arcmin) ]
-#    logger.info('# sources after cut on size: %i' % len(t))
-#    logger.info('# large sources: %i' % len(t_large))
-#    if len(t) == 0:
-#        logger.critical("No sources found that meet the specified max size criterion.")
-#        sys.exit(1)
-#
-#    t['dd_size'] *= 3. # now that we cut on size, enlarge all the regions to peak up artifacts and sidelobes around dd calibrators
-#    # min size, set to 3 arcmin
-#    t[ (t['dd_size'] < 3.*u.arcmin) ]['dd_size'] = 3.*u.arcmin
-#
-#    # exclude sources that are too faint
-#    t_large = t_large[ (t_large['Peak_flux'] > flux_min_for_merging_Jy) ]
-#    t = t[ (t['Peak_flux'] > flux_min_for_merging_Jy) ]
-#    logger.info('# sources after cut min flux for merging: %i' % len(t))
-#    if len(t) == 0:
-#        logger.critical("No sources found above %f Jy." % flux_min_for_merging_Jy )
-#        sys.exit(1)
-#
-#    t.sort('Peak_flux')
-#    t.reverse()
-#
-#    # combine nearby sources
-#    for s in t:
-#        # if ra/dec changes, continue finding nearby sources until no-sources are found
-#        updated = True
-#        while updated:
-#            dists = SkyCoord(ra=s['RA']*u.degree, dec=s['DEC']*u.degree).separation(SkyCoord(ra=t['RA'], dec=t['DEC']))
-#            updated = False
-#            for i, dist in enumerate(dists):
-#                if dist < directions_separation_max_arcmin*u.arcmin and dist > 0.*u.degree:
-#                    # if a source is dominant keep that at the center of the patch
-#                    if t['Peak_flux'][i] > 3*s['Peak_flux']:
-#                        s['RA'] = t['RA'][i]
-#                        s['DEC'] = t['DEC'][i]
-#                        updated = True
-#                    # other wise weighted mean
-#                    elif t['Peak_flux'][i] > s['Peak_flux']:
-#                        s['RA'] = (s['RA']*s['Peak_flux'] + t['RA'][i]*t['Peak_flux'][i])/(s['Peak_flux']+t['Peak_flux'][i])
-#                        s['DEC'] = (s['DEC']*s['Peak_flux'] + t['DEC'][i]*t['Peak_flux'][i])/(s['Peak_flux']+t['Peak_flux'][i])
-#                        updated = True
-#
-#                    s['dd_size'] = max(s['dd_size'], t['dd_size'][i]) + dist.degree
-#
-#                    s['Total_flux'] += t['Total_flux'][i]
-#                    s['Peak_flux'] = max(s['Peak_flux'], t['Peak_flux'][i])
-#
-#                    t.remove_rows(i)
-#    logger.info('# sources after combining close-by sources: %i' % len(t))
-#
-#    # Filter patches on total flux density limit
-#    t = t[ (t['Total_flux'] > flux_min_Jy) ]
-#    logger.info('# sources after cut min flux: %i' % len(t))
-#    if len(t) == 0:
-#        logger.critical("No sources or merged groups found that meet the specified "
-#            "min total flux density criterion.")
-#        sys.exit(1)
-#
-#    # Trim directions list to get directions_max_num of directions
-#    t.sort('Peak_flux')
-#    t.reverse()
-#    if directions_max_num is not None:
-#        t = t[:directions_max_num]
-#        logger.info('# sources after cut on max directions: %i' % len(t))
-#
-#    for s in t_large:
-#        dists = SkyCoord(ra=s['RA']*u.degree, dec=s['DEC']*u.degree).separation(SkyCoord(ra=t['RA'], dec=t['DEC']))
-#        for i, dist in enumerate(dists):
-#            if dist < directions_separation_max_arcmin*u.arcmin:
-#                t['Total_flux'][i] += s['Total_flux']
-#                t['dd_size'][i] = max(s['dd_size'], t['dd_size'][i]) + dist.degree
-#
-#    # sort on a weighted mix of total and peak flux
-#    t['Comb_flux'] = 0.33*t['Total_flux']+0.66*t['Peak_flux']
-#    t.sort('Comb_flux')
-#    t.reverse()
-#
-#    # Writedd global region files
-#    table_to_circ_region(t, outdir+'/all.reg')
-#
-#    # save source by source (size is converted in a radius, this is conservative)
-#    for i, s in enumerate(t):
-#        table_to_circ_region(t[i:i+1], outdir+'/ddcal%02i.reg' % i )
-#
-#    t['name'] = ['ddcal%02i' % i for i in xrange(len(t))]
-#
-#    t.remove_column('Comb_flux')
-#    return t
-#
-#
-#def make_directions_from_img(imagename, outdir='regions/', target_flux_jy=10, bright_source_jy=5., size_max_arcmin=3., trials=None):
-#    """
-#    fitsfile = selfcal model, used for coordinates
-#    outdir = Directory where to save the ds9 regions
-#    target_flux_jy = target flux per facet, Jy
-#    bright_source_jy = these sources are centered on their facet
-#    size_max_arcmin = Maximum size for a source to be considered, arcmin
-#    trials = number of sources to use as possible region center, if None, use all
-#    """
-#
-#    # Run pybdsf
-#    logger.info('Finding directions...')
-#    if not os.path.exists('regions/DIEcatalog.fits'):
-#        bdsf_img = bdsf.process_image(imagename, rms_box=(55,12), \
-#            thresh_pix=5, thresh_isl=3, atrous_do=False, atrous_jmax=3, \
-#            adaptive_rms_box=True, adaptive_thresh=150, rms_box_bright=(80,20), \
-#            quiet=True)
-#        check_rm('regions')
-#        os.makedirs('regions')
-#        bdsf_img.write_catalog(outfile='regions/DIEcatalog.fits', catalog_type='srl', format='fits')
-#
-#    t = Table.read('regions/DIEcatalog.fits', format='fits')['RA','DEC','Maj','Peak_flux','Total_flux'] # restrict to some cols
-#    t.rename_column('Maj', 'size') # use Maj as proxy for region size
-#    # exclude sources that are too extended
-#    t = t[ (t['size'] < size_max_arcmin*u.arcmin) ]
-#    t['size'] *= 3 # enlarge all sizes
-#    logger.info('# sources after cut on size: %i' % len(t))
-#    total_flux = np.sum(t['Total_flux'])
-#    logger.info('# sources initial: %i -- total flux = %.2f Jy' % (len(t),total_flux) )
-#    if trials is None: trials = len(t)
-#
-#    t.sort('Peak_flux')
-#    t.reverse()
-#
-#    # make ddcal table 
-#    ddcal                    = Table()
-#    ddcal['RA']              = np.zeros(trials)
-#    ddcal['DEC']             = np.zeros(trials)
-#    ddcal['dd_size']         = np.zeros(trials)
-#    ddcal['facet_size']      = np.zeros(trials)
-#    ddcal['Peak_flux']       = np.zeros(trials)
-#    ddcal['Total_flux']      = np.zeros(trials)
-#    ddcal['RA'].unit         = u.degree
-#    ddcal['DEC'].unit        = u.degree
-#    ddcal['dd_size'].unit    = u.degree
-#    ddcal['facet_size'].unit = u.degree
-#    ddcal['Total_flux'].unit = u.Jy
-#    ddcal['Peak_flux'].unit  = 'Jy/beam'
-#
-#    # find ddcal as regions of enough flux around bright sources
-#    idx_sources = []
-#    for idx_ddcal, dd in enumerate(ddcal):
-#        #print "### source number %i" % idx_ddcal
-#        #idx_ddcal = [i for i in xrange(len(t)) if not (i in idx_good_cals or i in idx_bad_cals)][0] # first usable source
-#        s = t[idx_ddcal] # use this source as a center for new ddcal region
-#        dd['RA'] = s['RA']
-#        dd['DEC'] = s['DEC']
-#        dd['dd_size'] = s['size']
-#        dd['Total_flux'] = 0.
-#        dd['Peak_flux'] = 0.
-#        dists = SkyCoord(ra=dd['RA']*u.degree, dec=dd['DEC']*u.degree).separation(SkyCoord(ra=t['RA'], dec=t['DEC'])).degree
-#        idx_closests = [idx for (dist,idx) in sorted(zip(dists,xrange(len(dists))))] # idx list from closest to farthest
-#        idx_sources.append([])
-#        for idx_closest in idx_closests:
-#
-#            # first cycle matches at distance=0 the calibrator
-#            s = t[idx_closest]
-#            dd['Total_flux'] += s['Total_flux']
-#            dd['Peak_flux'] = max(dd['Peak_flux'], s['Peak_flux'])
-#
-#            idx_sources[idx_ddcal].append(idx_closest) # keep track of all sources in this region
-#            if dd['Total_flux'] > target_flux_jy: break
-#
-#        if len(idx_sources[idx_ddcal]) > 1:
-#            dd['dd_size'] = max(SkyCoord(ra=dd['RA']*u.degree, dec=dd['DEC']*u.degree).separation(SkyCoord(ra=t[idx_sources[idx_ddcal]]['RA'], dec=t[idx_sources[idx_ddcal]]['DEC'])).degree)
-#
-#    # some cleaning up:
-#    # remove large regions
-#    toremove = np.where(ddcal['dd_size'] > .8)[0]
-#    ddcal.remove_rows(toremove)
-#    for r in sorted(toremove, reverse=True):
-#        del idx_sources[r]
-#    logger.info('Number of ddcal after size cut: %i' % len(ddcal))
-#
-#    # for bright sources keep only centered regions
-#    idx_brights = np.where(t['Total_flux'] > bright_source_jy)[0]
-#    toremove = []
-#    for i in xrange(len(idx_sources)):
-#        for idx_bright in idx_brights:
-#            if idx_bright in idx_sources[i][1:]:
-#                toremove.append(i)
-#    ddcal.remove_rows(toremove)
-#    for r in sorted(toremove, reverse=True):
-#        del idx_sources[r]
-#    logger.info('Number of ddcal after bright cal cut: %i' % len(ddcal))
-#
-#    # sort in size
-#    idx_sources = [idx for (size,idx) in sorted(zip(ddcal['dd_size'],idx_sources))]
-#    ddcal.sort('dd_size')
-#        
-#    # TODO: wrong, regions must be independent or calibration is messed up
-#    # finally retain only independent regions
-#    toremove = []
-#    for i, dd in enumerate(ddcal):
-#        for j, dd2 in enumerate(ddcal[:i]):
-#            if j in toremove: continue
-#            n_match = len([s for s in idx_sources[i] if s in idx_sources[j]])
-#            if n_match > 0.25*len(idx_sources[i]):
-#                toremove.append(i)
-#                break
-#    ddcal.remove_rows(toremove)
-#    for r in sorted(toremove, reverse=True):
-#        del idx_sources[r]
-#    logger.info('Number of ddcal after cut on overlaps: %i' % len(ddcal))
-#
-#    ddcal['name'] = ['ddcal%02i' % i for i in xrange(len(ddcal))]
-#
-#    # save ddcal regions
-#    for i, s in enumerate(ddcal):
-#        table_to_circ_region(t[idx_sources[i]], outdir+'/ddcal%02i.reg' % i, color='green')
-#    # save all regions in one file for inspection
-#    table_to_circ_region(ddcal, outdir+'/all.reg', sizecol='dd_size')
-#    return ddcal
+def sizes_from_mask_voro(mask_voro):
+    """
+    Compute image sizes from the mask_voro
+    mask_voro has different numbers for each patch
+
+    Returns
+    -------
+    list with facet sizes in [ra,dec] in degrees
+    """
+    sizes = []
+    # read mask
+    fits = pyfits.open(mask_voro)
+    hdr, data = lib_img.flatten(fits)
+    pixsize_ra = hdr['CDELT0']
+    pixsize_dex = hdr['CDELT1']
+
+    # calculate sizes
+    for i in np.unque(data):
+        assert i != 0 # there should not be any 0 in the mask
+        print 'Working on', i
+        coord = np.where(data == i)
+        size_ra = (np.max(coord[:,0])-np.min(coord[:,0]))*pixsize_ra
+        size_dec = (np.max(coord[:,1])-np.min(coord[:,1]))*pixsize_dec
+        sizes.append([size_ra,size_dec])
+        print sizes[-1]
+
+    # return list
+    return sizes
+
+def directions_from_mask_voro(mask_voro):
+    """
+    Compute facet direction (centre) from the mask_voro
+    mask_voro has different numbers for each patch
+
+    Returns
+    -------
+    list with facet directions in [ra,dec] in degrees
+    """
+    directions = []
+    # read mask
+    fits = pyfits.open(mask_voro)
+    hdr, data = lib_img.flatten(fits)
+    w = pywcs.WCS(hdr)
+
+    # calculate sizes
+    for i in np.unque(data):
+        assert i != 0 # there should not be any 0 in the mask
+        print 'Working on', i
+        coord = np.where(data == i)
+        dir_x = np.min(coord[:,0]) + ( np.max(coord[:,0])-np.min(coord[:,0]) )/2.
+        dir_y = np.min(coord[:,1]) + ( np.max(coord[:,1])-np.min(coord[:,1]) )/2.
+        directions.append(  w.all_pix2world(dir_x, dir_y, 0, ra_dec_order=True) )
+        print directions[-1]
+
+    # return list
+    return directions

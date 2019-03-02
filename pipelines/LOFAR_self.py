@@ -82,14 +82,14 @@ for MS in MSs.getListStr():
     os.system('cp -r '+sourcedb+' '+MS)
 
 # Create columns (non compressed)
-logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
-
-logger.info('Add model to MODEL_DATA...')
-if apparent:
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
-else:
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+#logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
+#MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
+#
+#logger.info('Add model to MODEL_DATA...')
+#if apparent:
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+#else:
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 
 #####################################################################################################
 # Self-cal cycle
@@ -108,13 +108,9 @@ for c in range(0, niter):
 
     # TEST
     logger.info('Solving G...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gsp.h5 sol.solint=1 sol.nchan=1 sol.mode=scalarphase', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspavg3x12.h5 sol.solint=3 sol.nchan=12 sol.mode=scalarphase', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspavg1.h5 sol.solint=3 sol.nchan=1 sol.mode=scalarphase', \
-                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspavg2.h5 sol.solint=3 sol.nchan=4 sol.mode=scalarphase', \
-                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspsmooth.h5 sol.solint=3 sol.nchan=4 sol.smoothnessconstraint=10e6 sol.mode=scalarphase', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspsmooth1mhz.h5 sol.solint=3 sol.nchan=1 sol.smoothnessconstraint=1e6 sol.mode=scalarphase', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
     sys.exit()
 

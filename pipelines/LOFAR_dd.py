@@ -36,14 +36,17 @@ os.makedirs('ddcal/plots')
 os.makedirs('ddcal/images')
 os.makedirs('ddcal/skymodels')
 
-def clean(p, MSs, size=2., apply_beam=False):
+def clean(p, MSs, size, apply_beam=False):
     """
     p = patch name
     mss = list of mss to clean
     size = in deg of the image
     """
     # set pixscale and imsize
-    pixscale = MSs.getListObj()[0].getResolution()/2. # TODO: weighting will lower the resolutions a bit, therefore a /2 should be enough
+    pixscale = MSs.getListObj()[0].getResolution()/2. # weighting lower the resolutions a bit, therefore a /2 should be enough
+
+    # TODO: test uneven size
+    size = np.max(size)
     imsize = int(size/(pixscale/3600.))
 
     if imsize < 512:
@@ -106,7 +109,7 @@ for c in xrange(maxniter):
 
     lib_util.check_rm('img')
     os.makedirs('img')
-    os.makedirs('ddcal/images/c%02i/regions' % c)
+    os.makedirs('ddcal/masks/regions-c%02i' % c)
     mask_voro = 'ddcal/masks/facets%02i.fits' % c
 
     ### group into patches corresponding to the mask islands
@@ -164,11 +167,12 @@ for c in xrange(maxniter):
     ### create regions (using cluster directions)
     logger.info("Create regions.")
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
-    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/images/c%02i/regions/' % c, out_mask=mask_voro, png='ddcal/skymodels/voronoi%02i.png' % c)
+    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/skymodels/voronoi%02i.png' % c)
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
-    lsm.setPatchPositions(method='mid') # recalculate the patch centre as mid point for imaging
-    directions = lsm.getPatchPositions()
-    sizes = dict(zip(patchNames, lsm.getPatchSizes(units='degree')))
+    #lsm.setPatchPositions(method='mid') # recalculate the patch centre as mid point for imaging
+    #directions = lsm.getPatchPositions()
+    sizes = dict( zip(patchNames, lib_dd.sizes_from_mask_voro(mask_voro)) )
+    sizes = dict( zip(patchNames, lib_dd.directions_from_mask_voro(mask_voro)) )
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
@@ -189,7 +193,7 @@ for c in xrange(maxniter):
     logger.info('Add rest_field to MODEL_DATA...')
     MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
 
-    # Empty dataset from faint sources (TODO: better corrupt with DDE solutions when available)
+    # Empty dataset from faint sources (TODO: better corrupt with DDE solutions when available before subtract)
     logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
 
@@ -205,7 +209,7 @@ for c in xrange(maxniter):
     MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calg-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solDDg-c'+str(c)+'.log', commandType='DPPP')
     logger.info('Calibrating3...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calgsmooth-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb+" ddecal.smoothnessconstraint=10e6", \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calgsmooth-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb+" ddecal.smoothnessconstraint=2e6", \
             log='$nameMS_solDDg-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions
@@ -279,10 +283,15 @@ for c in xrange(maxniter):
 
     ##############################################################
     # Mosaiching
-
     images = []
-    for image, region in zip( sorted(glob.glob('img/ddcalM-Dir*MFS-image.fits')), sorted(glob.glob('ddcal/images/c%02i/regions/Dir*' % c)) ):
-        images.append( lib_img.Image(image, facetReg = region, userReg = userReg) )
+    for patchName in patchNames:
+        image = lib_img.Image('img/ddcalM-%sMFS-image.fits' % patchName, userReg = userReg)
+        image.selectCC()
+        # restrict skymodel to facet
+        lsm = lsmtool.load(image.skymodel_cut)
+        lsm.select('%s == %i' % ( mask_voro, int(patchName[4:]) ))
+        lsm.write(image.skymodel_cut, format='makesourcedb', clobber=True)
+        images.append(image)
 
     logger.info('Mosaic: image...')
     image_files = ' '.join([image.imagename for image in images])
@@ -295,15 +304,10 @@ for c in xrange(maxniter):
     s.run(check=True)
 
     # prepare new skymodel
-    skymodels = []
-    for image in images:
-        image.selectCC() # restrict to facet
-        skymodels.append(image.skymodel_cut)
-    lsm = lsmtool.load(skymodels[0])
-    for skymodel in skymodels[1:]:
-        lsm2 = lsmtool.load(skymodel)
+    lsm = lsmtool.load(images[0].skymodel_cut)
+    for image in images[1:]:
+        lsm2 = lsmtool.load(image.skymodel_cut)
         lsm.concatenate(lsm2)
-    lsm.group('single')
     lsm.write('ddcal/images/c%02i/mos-sources-cut.txt' % c, format='makesourcedb', clobber=True)
 
     os.system('cp img/*M*MFS-image.fits img/mos-MFS-image.fits img/mos-MFS-residual.fits ddcal/images/c%02i' % c )
