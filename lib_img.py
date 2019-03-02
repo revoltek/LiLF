@@ -141,6 +141,8 @@ def flatten(f, channel = 0, freqaxis = 0):
 
     header = wn.to_header()
     header["NAXIS"] = 2
+    header["NAXIS1"] = f[0].header['NAXIS1']
+    header["NAXIS2"] = f[0].header['NAXIS2']
     copy=('EQUINOX','EPOCH')
     for k in copy:
         r = f[0].header.get(k)

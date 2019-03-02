@@ -17,7 +17,7 @@ except:
     sys.exit(1)
 
 from lib_log import logger
-
+import lib_img
 
 def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet.fits', beam_reg=None, png=None):
     """
@@ -40,7 +40,6 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
         dist_2 = np.sum((nodes - node)**2, axis=1)
         return np.argmin(dist_2)
 
-    import lib_img
     logger.debug("Image used for tasselation reference: "+fitsfile)
     fits = pyfits.open(fitsfile)
     hdr, data = lib_img.flatten(fits)
@@ -88,13 +87,7 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     data_facet = np.zeros(shape=data.shape)
     for num, poly in zip(nums,impoly):
         p = Path(poly)
-        pixels_region = p.contains_points(pixels)
-        # iterate through direction centres and find which one belongs to this region, then use the dir name to set the number
-        # this is important as the vornoi tassellation has to have the same names of the original tassellation
-        #for x,y,d in zip(x_fs, y_fs, directions.keys()):
-        #    if pixels_region.reshape(x2,y2)[int(np.rint(x)),int(np.rint(y))] == True:
-        #        num = int(d.split('_')[1])
-        #        print num,x,y,d
+        pixels_region = p.contains_points(pixels, radius=1e-6)
         data_facet[ pixels_region.reshape(x2,y2) ] = num
 
     # put all values in each island equal to the closest region
@@ -300,18 +293,18 @@ def sizes_from_mask_voro(mask_voro):
     # read mask
     fits = pyfits.open(mask_voro)
     hdr, data = lib_img.flatten(fits)
-    pixsize_ra = hdr['CDELT0']
-    pixsize_dex = hdr['CDELT1']
+    pixsize_ra = -1*hdr['CDELT1']
+    pixsize_dec = hdr['CDELT2']
 
     # calculate sizes
-    for i in np.unque(data):
-        assert i != 0 # there should not be any 0 in the mask
-        print 'Working on', i
-        coord = np.where(data == i)
-        size_ra = (np.max(coord[:,0])-np.min(coord[:,0]))*pixsize_ra
-        size_dec = (np.max(coord[:,1])-np.min(coord[:,1]))*pixsize_dec
+    for i in np.unique(data):
+        assert i != 0 # there should not be any 0 in the mask ptherwise something is wrong with tessellation
+        #print 'Working on', i
+        coord = np.where(data.T == i)
+        size_ra = (np.max(coord[0])-np.min(coord[0]))*pixsize_ra
+        size_dec = (np.max(coord[1])-np.min(coord[1]))*pixsize_dec
         sizes.append([size_ra,size_dec])
-        print sizes[-1]
+        #print sizes[-1]
 
     # return list
     return sizes
@@ -332,14 +325,15 @@ def directions_from_mask_voro(mask_voro):
     w = pywcs.WCS(hdr)
 
     # calculate sizes
-    for i in np.unque(data):
-        assert i != 0 # there should not be any 0 in the mask
-        print 'Working on', i
-        coord = np.where(data == i)
-        dir_x = np.min(coord[:,0]) + ( np.max(coord[:,0])-np.min(coord[:,0]) )/2.
-        dir_y = np.min(coord[:,1]) + ( np.max(coord[:,1])-np.min(coord[:,1]) )/2.
-        directions.append(  w.all_pix2world(dir_x, dir_y, 0, ra_dec_order=True) )
-        print directions[-1]
+    for i in np.unique(data):
+        assert i != 0 # there should not be any 0 in the mask ptherwise something is wrong with tessellation
+        #print 'Working on', i
+        coord = np.where(data.T == i)
+        dir_x = np.mean([ np.max(coord[0]), np.min(coord[0]) ])
+        dir_y = np.mean([ np.max(coord[1]), np.min(coord[1]) ])
+        ra, dec =  w.all_pix2world(dir_x, dir_y, 0, ra_dec_order=True)
+        directions.append(  [float(ra), float(dec)] )
+        #print directions[-1]
 
     # return list
     return directions
