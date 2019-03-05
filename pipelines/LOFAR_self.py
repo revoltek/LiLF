@@ -103,8 +103,8 @@ for c in range(0, niter):
         incol = 'DATA'
 
     # Smooth DATA -> SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
+#    logger.info('BL-based smoothing...')
+#    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
     # TEST
     logger.info('Solving G...')
