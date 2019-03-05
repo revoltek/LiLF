@@ -103,30 +103,29 @@ for c in range(0, niter):
         incol = 'DATA'
 
     # Smooth DATA -> SMOOTHED_DATA
-#    logger.info('BL-based smoothing...')
-#    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
+    #logger.info('BL-based smoothing...')
+    #MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
-    # TEST
     logger.info('Solving G...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspavg3x12.h5 sol.solint=3 sol.nchan=12 sol.mode=scalarphase', \
-                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspsmooth1mhz.h5 sol.solint=3 sol.nchan=1 sol.smoothnessconstraint=1e6 sol.mode=scalarphase', \
+    #MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5 sol.solint=3 sol.nchan=12 sol.mode=scalarphase', \
+    #            log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspsmooth5mhz.h5 sol.solint=3 sol.nchan=1 sol.smoothnessconstraint=5e6 sol.mode=scalarphase', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
     sys.exit()
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
-    logger.info('Solving TEC...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
-                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
+    #logger.info('Solving TEC...')
+    #MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
+    #            log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
     # LoSoTo plot
-    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
+    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-tec.parset'])
     os.system('mv plots-tec'+str(c)+'* self/solutions/')
     os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
 
     # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn='+incol+' cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/tec.h5', \
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
     #####################################################################################################
