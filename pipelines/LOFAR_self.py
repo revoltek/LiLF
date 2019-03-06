@@ -111,6 +111,8 @@ for c in range(0, niter):
     #            log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
     MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspsmooth5mhz.h5 sol.solint=3 sol.nchan=1 sol.smoothnessconstraint=5e6 sol.mode=scalarphase', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspavs3x12smooth5mhz.h5 sol.solint=3 sol.nchan=12 sol.smoothnessconstraint=2e6 sol.mode=scalarphase', \
+                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
     sys.exit()
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
