@@ -75,21 +75,21 @@ if sourcedb is None:
 ##################################################################################################
 # Add model to MODEL_DATA
 # copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
-sourcedb_basename = sourcedb.split('/')[-1]
-for MS in MSs.getListStr():
-    lib_util.check_rm(MS+'/'+sourcedb_basename)
-    logger.debug('Copy: '+sourcedb+' -> '+MS)
-    os.system('cp -r '+sourcedb+' '+MS)
-
-# Create columns (non compressed)
-logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
-
-logger.info('Add model to MODEL_DATA...')
-if apparent:
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
-else:
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+#sourcedb_basename = sourcedb.split('/')[-1]
+#for MS in MSs.getListStr():
+#    lib_util.check_rm(MS+'/'+sourcedb_basename)
+#    logger.debug('Copy: '+sourcedb+' -> '+MS)
+#    os.system('cp -r '+sourcedb+' '+MS)
+#
+## Create columns (non compressed)
+#logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
+#MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
+#
+#logger.info('Add model to MODEL_DATA...')
+#if apparent:
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+#else:
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 
 #####################################################################################################
 # Self-cal cycle
@@ -106,11 +106,12 @@ for c in range(0, niter):
     #logger.info('BL-based smoothing...')
     #MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
-    #logger.info('Solving G...')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5 sol.solint=3 sol.nchan=12 sol.mode=scalarphase', \
+    logger.info('Solving G...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec22smooth2mhz.h5 ddecal.solint=3 ddecal.nchan=1 ddecal.smoothnessconstraint=2e6', \
+                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+    #MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspavs3x1smooth2mhz.h5 sol.solint=3 sol.nchan=12 sol.smoothnessconstraint=2e6 sol.mode=scalarphase', \
     #            log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspavs3x12smooth5mhz.h5 sol.solint=3 sol.nchan=12 sol.smoothnessconstraint=2e6 sol.mode=scalarphase', \
-    #            log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+    sys.exit()
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving TEC...')
