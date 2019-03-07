@@ -22,30 +22,59 @@ bl2flag = parset.get('flag','stations')
 
 #############################################################
 # cicle on each msID assuming telescope properties are similar in all calibrator scans of the same msID
-msIDs = np.unique([ int(name[8:10]) for name in glob.glob('cals/*') ])
+msIDs = np.unique([ int(name[5:7]) for name in glob.glob('cals/*') ])
 for msID in msIDs:
 
     logger.info('Working on MSid %02i' % msID)
 
-    MSs = lib_ms.AllMSs( glob.glob('cals/%02i*/*MS' % msID), s )
-    calname = MSs.getListObj()[0].getNameField()
-    for MS in MSs.getListObj():
+    MSs_cals = lib_ms.AllMSs( glob.glob('cals/%02i*/*MS' % msID), s )
+    calnames = [MS.getNameField() for MS in MSs_cals.getListObj()]
+    for MS in MSs_cals.getListObj():
         os.system('cp -r %s %s' % (skymodel, MS.pathMS))
     
+    logger.info('Add columns...')
+    MSs_cals.run('addcol2ms.py -m $pathMS -c MODEL_DATA -i DATA', log="$nameMS_addcol.log", commandType="python")
+
     # predict to save time ms:MODEL_DATA
-    logger.info('Add model to MODEL_DATA (%s)...' % calname)
-    MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=$pathMS/" + os.path.basename(skymodel) + " pre.sources=" + calname, \
-            log="$nameMS_pre.log", commandType="DPPP")
+    for i, MS in enumerate(MSs_cals.getListObj()):
+        logger.info('%s: add model to MODEL_DATA (%s)...' % (MS.pathMS, calnames[i]) )
+        s.add("DPPP " + parset_dir + "/DPPP-predict.parset msin="+MS.pathMS+" pre.sourcedb="+MS.pathMS+"/" + os.path.basename(skymodel) + " pre.sources=" + calnames[i], \
+            log=MS.nameMS+"_pre.log", commandType="DPPP")
+    s.run(check=True)
     
     # Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=10)
+    MSs_cals.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=10)
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/cal.h5 sol.mode=rotation+diagonal', log='$nameMS_sol.log', commandType="DPPP")
+    MSs_cals.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/diag.h5 sol.mode=diagonal', log='$nameMS_sol.log', commandType="DPPP")
     
-    lib_util.run_losoto(s, 'cal', [ms+'/cal.h5' for ms in MSs.getListStr()], \
-            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset'])
+    lib_util.run_losoto(s, 'diag', [ms+'/diag.h5' for ms in MSs_cals.getListStr()], \
+            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset', parset_dir+'/losoto-iono.parset', parset_dir+'/losoto-bp.parset'])
+
+    # Transfer to target
+    MSs_tgts = lib_ms.AllMSs( glob.glob('tgts/*/mss/%02i*MS' % msID), s )
+
+    logger.info('Add columns...')
+    MSs_tgts.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA -i DATA', log="$nameMS_addcol.log", commandType="python")
+
+    # Trasnfer tgt_SB.MS:DATA -> tgt.MS:CORRECTED_DATA
+    logger.info('Correcting targets...')
+    MSs_tgts.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS', log='$nameMS_cor.log', commandType="DPPP")
+
+    # Combine and split
+    # TODO: find a way to concat in time
+    #for tgt_dir in glob.glob('tgts/*'):
+    #    logger.info('Splitting %s...' % tgt_dir)
+    #    mss_in = glob.glob(tgt_dir+'/mss/*MS')
+    #    ms_out = tgt_dir+'/mss/concat_'+tgt_dir+'.MS'
+    #    log = tgt_dir.split('/')[1]+'_split.log'
+    #    s.add('DPPP ' + parset_dir + '/DPPP-split.parset msin="['+','.join(mss_in)+']" msin.datacolumn=CORRECTED_DATA msout='+ms_out, log=log, commandType="DPPP")
+    #s.run(check=True)
+    
+    # for now just use the un-splitted files
+    logger.info('Set DATA = CORRECTED_DATA...')
+    MSs_tgts.run('taql "update $pathMS set DATA = CORRECTED_DATA"', log='$nameMS_taql1.log', commandType='general')
 
 logger.info("Done.")

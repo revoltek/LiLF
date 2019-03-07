@@ -1,9 +1,0 @@
-msin                 =
-msout                = .
-msout.datacolumn     = MODEL_DATA
-
-steps                = [predict]
-
-predict.sourcedb     =
-predict.sources      =
-predict.usebeammodel = False

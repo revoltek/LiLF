@@ -283,11 +283,16 @@ class MS(object):
         If LBA observation, return obs mode: INNER, OUTER, SPARSE_EVEN, SPARSE_ODD
         """
         with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
-            return t.getcol("LOFAR_ANTENNA_SET")[0]
+            if t.getcell("TELESCOPE_NAME",0) == 'GMRT':
+                return "GMRT"
+            elif t.getcell("TELESCOPE_NAME",0) == 'LOFAR':
+                return t.getcell("LOFAR_ANTENNA_SET",0)
+            else:
+                logger.error("Unknown telescope.")
 
     def getFWHM(self):
         """
-        Return the expected FWHM in degree
+        Return the expected FWHM in degree (for LOFAR assumes 30 MHz)
         """
         if 'OUTER' in self.getObsMode():
             return 8.
@@ -295,8 +300,10 @@ class MS(object):
             return 12.
         elif 'INNER' in self.getObsMode():
             return 16.
+        elif 'GMRT' in self.getObsMode():
+            return 84/60.
         else:
-            logger.error('Cannot find beam FWHM, only LBA_OUTER, LBA_INNER, or LBA_SPARSE_* are implemented. Assuming beam diameter = 8 deg.')
+            logger.error('Cannot find beam FWHM, only LBA_OUTER, LBA_INNER, or LBA_SPARSE_* are implemented.')
             return 8.
 
     def makeBeamReg(self, outfile, pb_cut=None, to_null=False):

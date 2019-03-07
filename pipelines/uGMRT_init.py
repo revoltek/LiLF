@@ -75,7 +75,7 @@ for MS in MSs.getListObj():
             os.mkdir(pathDirectoryTarget+'/mss')
 
     logger.info(MS.nameMS + ": move to '" + pathMSFinal + "'...")
-    MS.move(pathMSFinal)
+    MS.move(pathMSFinal, keepOrig=False, overwrite=True)
 
 
 ##################################
