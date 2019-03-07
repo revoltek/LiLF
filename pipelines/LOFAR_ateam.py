@@ -276,6 +276,4 @@ for c in xrange(100):
         logger.info('Sub low-res model...')
         MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql3.log', commandType='general')
 
-        sys.exit()
-
 logger.info("Done.")

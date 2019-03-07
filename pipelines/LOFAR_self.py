@@ -107,15 +107,15 @@ for c in range(0, niter):
     #MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
     logger.info('Solving G...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec22smooth2mhz.h5 ddecal.solint=3 ddecal.nchan=1 ddecal.smoothnessconstraint=2e6', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tecavg3x1smooth1mhz.h5 ddecal.solint=3 ddecal.nchan=1 ddecal.smoothnessconstraint=1e6', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspavs3x1smooth2mhz.h5 sol.solint=3 sol.nchan=12 sol.smoothnessconstraint=2e6 sol.mode=scalarphase', \
-    #            log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gscgavg3x1smooth2mhz.h5 sol.solint=3 sol.nchan=1 sol.smoothnessconstraint=2e6 sol.mode=scalarcomplexgain', \
+                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
     sys.exit()
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
     #logger.info('Solving TEC...')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
+    #MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
     #            log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
     # LoSoTo plot
