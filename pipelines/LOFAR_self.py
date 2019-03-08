@@ -107,7 +107,7 @@ for c in range(0, niter):
     #MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
     logger.info('Solving G...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tecavg3x1smooth05mhz.h5 ddecal.solint=3 ddecal.nchan=1 ddecal.smoothnessconstraint=0.5e6', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tecsmooth05mhz.h5 ddecal.solint=1 ddecal.nchan=1 ddecal.smoothnessconstraint=0.5e6', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
     MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gscgavg3x1smooth05mhz.h5 sol.solint=3 sol.nchan=1 sol.smoothnessconstraint=0.5e6 sol.mode=scalarcomplexgain', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
