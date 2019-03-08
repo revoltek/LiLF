@@ -42,8 +42,8 @@ phasecentre = MSs.getListObj()[0].getPhaseCentre()
 MSs.getListObj()[0].makeBeamReg('self/beam.reg')
 beamReg = 'self/beam.reg'
 
-# set image size
-imgsizepix =  1.2*MSs.getListObj()[0].getFWHM()*3600/2.
+# set image size at 1.5 * FWHM
+imgsizepix = 1.5*MSs.getListObj()[0].getFWHM()*3600/2.
 
 #################################################################
 # Get online model
@@ -191,11 +191,11 @@ for c in range(0, niter):
 
         # corrupt model with TEC solutions - ms:MODEL_DATA_LOWRES -> ms:MODEL_DATA_LOWRES
         logger.info('Corrupt low-res model...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-corG.parset msin=$pathMS msin.datacolumn=MODEL_DATA_LOWRES msout.datacolumn=MODEL_DATA_LOWRES  \
-                cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.invert=false', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA_LOWRES msout.datacolumn=MODEL_DATA_LOWRES  \
+                cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=phase000 cor.invert=false', \
                 log='$nameMS_corrupt.log', commandType='DPPP')
     
-        # Subtract low-res model - concat.MS:CORRECTED_DATA - MODEL_DATA_LOWRES -> concat.MS:CORRECTED_DATA (empty)
+        # Subtract low-res model - SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES
         logger.info('Subtracting low-res model (SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES)...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES"', log='$nameMS_taql3-c'+str(c)+'.log', commandType='general')
 
