@@ -1,17 +1,16 @@
 msin =
 msin.datacolumn = SMOOTHED_DATA
 msout = .
-msout.datacolumn = DATA
+msout.datacolumn = CORRECTED_DATA
 
 steps = [sol]
 
 sol.type = ddecal
-sol.uvlambdamin = 500
+sol.uvlambdamin = 100
 sol.mode = diagonal
-sol.maxiter = 500
 sol.tolerance = 1e-3
+sol.maxiter = 500
+sol.nchan = 1
+sol.solint = 1
 sol.propagatesolutions = True
-sol.propagateconvergedonly = True
 sol.usemodelcolumn = True
-sol.flagunconverged = True
-sol.flagdivergedonly = True

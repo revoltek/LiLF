@@ -38,7 +38,6 @@ for MS in MSs.getListObj():
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 calname = MSs.getListObj()[0].getNameField()
-obsmode = MSs.getListObj()[0].getObsMode()
 
 if min(MSs.getFreqs()) < 40.e6:
     iono3rd = True
