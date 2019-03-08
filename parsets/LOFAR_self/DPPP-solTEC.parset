@@ -6,7 +6,7 @@ msout.datacolumn = CORRECTED_DATA
 steps = [ddecal]
 
 ddecal.type = ddecal
-ddecal.uvlambdamin = 100
+ddecal.uvmmax = 70e3
 ddecal.maxiter = 400
 ddecal.tolerance = 1e-3
 ddecal.solint = 3

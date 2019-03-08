@@ -106,9 +106,9 @@ for c in range(0, niter):
     #MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
     logger.info('Solving G...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tecavg3x1smooth05mhz.h5 ddecal.solint=3 ddecal.nchan=1 ddecal.smoothnessconstraint=0.5e6', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS ddecal.h5parm=$pathMS/tecmax70km.h5 ddecal.solint=3 ddecal.nchan=1', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gscgavg3x1smooth05mhz.h5 sol.solint=3 sol.nchan=1 sol.smoothnessconstraint=0.5e6 sol.mode=scalarcomplexgain', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspmax70kmavg3x12 sol.solint=3 sol.nchan=12 sol.mode=scalarphase sol.uvmmax=70e3', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
     sys.exit()
 
@@ -193,13 +193,13 @@ for c in range(0, niter):
                 join_channels='', fit_spectral_pol=2, channels_out=8)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
 
-        logger.info('Cleaning beam high-res (cycle: '+str(c)+')...')
-        imagename = 'img/wideBeamHR'
-        lib_util.run_wsclean(s, 'wscleanBeamHR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=int(imgsizepix*2), scale='2.5arcsec', \
-                weight='uniform', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-                parallel_deconvolution=256, auto_mask=10, auto_threshold=1, \
-                join_channels='', fit_spectral_pol=2, channels_out=8)
+        #logger.info('Cleaning beam high-res (cycle: '+str(c)+')...')
+        #imagename = 'img/wideBeamHR'
+        #lib_util.run_wsclean(s, 'wscleanBeamHR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=int(imgsizepix*2), scale='2.5arcsec', \
+        #        weight='uniform', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+        #        use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
+        #        parallel_deconvolution=256, auto_mask=10, auto_threshold=1, \
+        #        join_channels='', fit_spectral_pol=2, channels_out=8)
 
         logger.info('Cleaning beam low-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamLR'
