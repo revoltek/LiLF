@@ -1,0 +1,44 @@
+Ncpu = 0
+
+[duplicatePbkp]
+operation = DUPLICATE
+soltab = sol000/phase000
+soltabOut = phaseOrig000
+
+[plotP]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ph_
+refAnt = 'CS001LBA'
+
+[tec]
+operation = TEC
+soltab = sol000/phase000
+refAnt = 'CS001LBA'
+
+[plotTEC]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = time
+axisInTable = ant
+plotFlag = True
+minmax = [-0.5,0.5]
+prefix = plots/tec
+refAnt = 'CS001LBA'
+
+[subTEC]
+operation = RESIDUALS
+soltab = sol000/phase000
+soltabsToSub = [tec000]
+
+[plotPr]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ph-res_
+refAnt = 'CS001LBA'
