@@ -253,15 +253,15 @@ for c in xrange(100):
           log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
+    #logger.info('Reweight...')
+    #MSs.run('reweight.py -v -p -d CORRECTED_DATA -m residual $pathMS', log='$nameMS_weight.log', commandType='general')
+    #os.system('mkdir weights-c'+str(c)+'; mv *png weights-c'+str(c))
+        
     # every 5 cycles: sub model and rescale model
-    #if True: 
     if c%5 == 0:
 
-        #logger.info('Copy model...')
-        #MSs.run('taql "update $pathMS set MODEL_DATA_HIGHRES = MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
-    
         logger.info('Sub model...')
-        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType='general')
+        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
 
         logger.info('Cleaning wide (cycle %i)...' % c)
         imagename = 'img/imgsub-c'+str(c)
@@ -276,8 +276,6 @@ for c in xrange(100):
         s.run(check = True)
 
         logger.info('Sub low-res model...')
-        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql3.log', commandType='general')
-
-        sys.exit()
+        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType='general')
 
 logger.info("Done.")

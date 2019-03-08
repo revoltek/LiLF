@@ -108,9 +108,7 @@ for c in range(0, niter):
 
     # TEST
     logger.info('Solving G...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspavg3x12.h5 sol.solint=3 sol.nchan=12 sol.mode=scalarphase', \
-                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspsmooth1mhz.h5 sol.solint=3 sol.nchan=1 sol.smoothnessconstraint=1e6 sol.mode=scalarphase', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspavg3x8smooth2mhz.h5 sol.solint=3 sol.nchan=8 sol.smoothnessconstraint=2e6 sol.mode=scalarphase', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
     sys.exit()
 
