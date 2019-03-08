@@ -251,15 +251,15 @@ for c in xrange(100):
           log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
+    #logger.info('Reweight...')
+    #MSs.run('reweight.py -v -p -d CORRECTED_DATA -m residual $pathMS', log='$nameMS_weight.log', commandType='general')
+    #os.system('mkdir weights-c'+str(c)+'; mv *png weights-c'+str(c))
+        
     # every 5 cycles: sub model and rescale model
-    #if True: 
     if c%5 == 0:
 
-        #logger.info('Copy model...')
-        #MSs.run('taql "update $pathMS set MODEL_DATA_HIGHRES = MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
-    
         logger.info('Sub model...')
-        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType='general')
+        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
 
         logger.info('Cleaning wide (cycle %i)...' % c)
         imagename = 'img/imgsub-c'+str(c)
@@ -268,12 +268,12 @@ for c in xrange(100):
                 baseline_averaging=5, deconvolution_channels=8, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=32)
  
-        logger.info('Predict wide (wsclean)...')
-        s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 32 '+MSs.getStrWsclean(), \
-              log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-        s.run(check = True)
+        #logger.info('Predict wide (wsclean)...')
+        #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 32 '+MSs.getStrWsclean(), \
+        #      log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+        #s.run(check = True)
 
-        logger.info('Sub low-res model...')
-        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql3.log', commandType='general')
+        #logger.info('Sub low-res model...')
+        #MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType='general')
 
 logger.info("Done.")
