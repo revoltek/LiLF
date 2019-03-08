@@ -278,33 +278,48 @@ class MS(object):
         #logger.debug("%s: phase centre (degrees): (%f, %f)", self.pathMS, np.degrees(RA), np.degrees(Dec))
         return (np.degrees(RA), np.degrees(Dec))
 
-    def getObsMode(self):
+    def getTelescope(self):
+        """
+        Return telescope name such as "LOFAR" or "GMRT"
+        """
+        with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
+            return t.getcell("TELESCOPE_NAME",0)
+
+    def getAntennaSet(self):
         """
         If LBA observation, return obs mode: INNER, OUTER, SPARSE_EVEN, SPARSE_ODD
         """
-        with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
-            if t.getcell("TELESCOPE_NAME",0) == 'GMRT':
-                return "GMRT"
-            elif t.getcell("TELESCOPE_NAME",0) == 'LOFAR':
-                return t.getcell("LOFAR_ANTENNA_SET",0)
-            else:
-                logger.error("Unknown telescope.")
+        if self.getTelescope() != 'LOFAR':
+            raise("Only LOFAR has Antenna Sets.")
 
+        with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
+            return t.getcell("LOFAR_ANTENNA_SET",0)
+        
     def getFWHM(self):
         """
-        Return the expected FWHM in degree (for LOFAR assumes 30 MHz)
+        Return the expected FWHM in degree
         """
-        if 'OUTER' in self.getObsMode():
-            return 8.
-        elif 'SPARSE' in self.getObsMode():
-            return 12.
-        elif 'INNER' in self.getObsMode():
-            return 16.
-        elif 'GMRT' in self.getObsMode():
-            return 84/60.
+        # get minimum freq as it has the largest FWHM
+        min_freq = np.min(self.getFreqs()) 
+
+        if self.getTelescope() == 'LOFAR':
+
+            # Following numbers are based at 60 MHz (https://www.astron.nl/radio-observatory/astronomers/lofar-imaging-capabilities-sensitivity/lofar-imaging-capabilities/lofa)
+            scale = 60e6/min_freq 
+
+            if 'OUTER' in self.getAntennaSet():
+                return 3.88*scale
+            elif 'SPARSE' in self.getAntennaSet():
+                return 4.85*scale
+            elif 'INNER' in self.getAntennaSet():
+                return 9.77*scale
+                
+        elif self.getTelescope() == 'GMRT':
+            # equation from http://gmrt.ncra.tifr.res.in/gmrt_hpage/Users/doc/manual/Manual_2013/manual_20Sep2013.pdf    
+            return (85.2/60) * (325.e9 / min_freq)
+
         else:
-            logger.error('Cannot find beam FWHM, only LBA_OUTER, LBA_INNER, or LBA_SPARSE_* are implemented.')
-            return 8.
+            raise('Only LOFAR or GMRT implemented.')
 
     def makeBeamReg(self, outfile, pb_cut=None, to_null=False):
         """

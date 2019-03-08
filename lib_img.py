@@ -26,7 +26,7 @@ class Image(object):
         Rescale the model images to a certain total flux estimated using funct_flux(nu)
         nu is taken from the fits file.
 
-        funct_flux: is a function of frequency (Hz) which returns the total expected flux at that frequency.
+        funct_flux: is a function of frequency (Hz) which returns the total expected flux (Jy) at that frequency.
         """
         for model_img in sorted(glob.glob(self.imagename+'*model*.fits')):
             fits = pyfits.open(model_img)
@@ -45,14 +45,13 @@ class Image(object):
             fits.writeto(model_img, overwrite=True)
             fits.close()
 
-
-    def makeMask(self, threshisl=5):
+    def makeMask(self, threshisl=5, atrous_do=True):
         """
         Create a mask of the image where only believable flux is
         """
         logger.info('%s: Making mask...' % self.imagename)
         if not os.path.exists(self.maskname):
-            make_mask.make_mask(image_name=self.imagename, mask_name=self.maskname, threshisl=threshisl, atrous_do=True)
+            make_mask.make_mask(image_name=self.imagename, mask_name=self.maskname, threshisl=threshisl, atrous_do=atrous_do)
         if self.userReg is not None:
             logger.info('%s: Adding user mask (%s)...' % (self.imagename, self.userReg))
             blank_image_reg(self.maskname, self.userReg, inverse=False, blankval=1)

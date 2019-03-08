@@ -72,7 +72,7 @@ for MS in MSs.getListStr():
     os.system('cp -r '+sourcedb+' '+MS)
 
 logger.info('Add columns...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA -i DATA', log="$nameMS_addcol.log", commandType="python")
+MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA, MODEL_DATA_LOWRES, SUBTRACTED_DATA -i DATA', log="$nameMS_addcol.log", commandType="python")
 
 logger.info('Add model to MODEL_DATA...')
 MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
@@ -81,11 +81,16 @@ MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=$path
 # Self-cal cycle
 for c in range(0, niter):
 
+    if c > 1:
+        incol = 'SUBTRACTED_DATA'
+    else:
+        incol = 'DATA'
+
     logger.info('Start selfcal cycle: '+str(c))
 
     # Smooth DATA -> SMOOTHED_DATA
     logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -f 0.2 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
+    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
     # solve - concat*.MS:SMOOTHED_DATA
     logger.info('Solving G...')
@@ -102,7 +107,6 @@ for c in range(0, niter):
     lib_util.run_losoto(s, 'tecs'+str(c), [MS+'/tecs.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
     os.system('mv plots-tecs'+str(c)+'* self/solutions/')
     os.system('mv cal-tecs'+str(c)+'*.h5 self/solutions/')
-
 
     # correct phases - MS:DATA -> MS:CORRECTED_DATA
     logger.info('Correcting Gp...')
@@ -124,7 +128,7 @@ for c in range(0, niter):
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 4)
+    im.makeMask(threshisl=4, atrous_do=False)
     
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     # TODO: add -parallel-deconvolution=256 when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
@@ -141,20 +145,63 @@ for c in range(0, niter):
     im.selectCC()
 
     if c != niter-1:
-
         # predict - ms: MODEL_DATA
         logger.info('Predict model...')
-        #MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.sourcedb=img/wideM-'+str(c)+'-sources.txt', \
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.sourcedb='+im.skydb, \
                 log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+
+    if c == 1:
+        # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
+        logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
+        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
+    
+        # reclean low-resolution
+        # TODO: add -parallel-deconvolution=256 when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
+        logger.info('Cleaning low resolution...')
+        imagename_lr = 'img/wide-lr'
+        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, save_source_list='', temp_dir='./', size=imgsizepix, scale='10arcsec', \
+                weight='briggs 0.', niter=100000, no_update_model_required='', maxuv_l=5000, mgain=0.85, \
+                baseline_averaging=5, auto_threshold=0.5, \
+                join_channels='', fit_spectral_pol=2, channels_out=8)
+        
+        im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
+        im.selectCC(keepInBeam=False)
+
+        # predict - ms: MODEL_DATA_LOWRES
+        # must be done with DPPP to remove sources in beam
+        logger.info('Predict low-res model...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_LOWRES pre.sourcedb='+im.skydb, \
+                log='$nameMS_pre-lr.log', commandType='DPPP')
+
+        ##############################################
+        # Flag on empty dataset
+
+        # Subtract low-res model - concat.MS:CORRECTED_DATA - MODEL_DATA_LOWRES -> concat.MS:CORRECTED_DATA (empty)
+        #logger.info('Subtracting low-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_LOWRES)...')
+        #MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_LOWRES"', log='$nameMS_taql2-c'+str(c)+'.log', commandType='general')
+
+        # Flag on residuals (CORRECTED_DATA)
+        #logger.info('Flagging residuals...')
+        #MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', log='$nameMS_flag-c'+str(c)+'.log', commandType='DPPP')
+
+        ##############################################
+        # Prepare SUBTRACTED_DATA
+
+        # corrupt model with TEC solutions - ms:MODEL_DATA_LOWRES -> ms:MODEL_DATA_LOWRES
+        logger.info('Corrupt low-res model...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-corG.parset msin=$pathMS msin.datacolumn=MODEL_DATA_LOWRES msout.datacolumn=MODEL_DATA_LOWRES  \
+                cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.invert=false', \
+                log='$nameMS_corrupt.log', commandType='DPPP')
+    
+        # Subtract low-res model - concat.MS:CORRECTED_DATA - MODEL_DATA_LOWRES -> concat.MS:CORRECTED_DATA (empty)
+        logger.info('Subtracting low-res model (SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES)...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES"', log='$nameMS_taql3-c'+str(c)+'.log', commandType='general')
 
 
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in xrange(niter) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in xrange(niter) ]
 os.system('mv img/wide-lr-MFS-image.fits self/images')
-os.system('mv img/wideBeam-MFS-image.fits  img/wideBeam-MFS-image-pb.fits self/images')
-os.system('mv img/wideBeamHR-MFS-image.fits  img/wideBeamHR-MFS-image-pb.fits self/images')
 os.system('mv logs self')
 
 logger.info("Done.")
