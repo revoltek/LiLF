@@ -1,0 +1,22 @@
+msin =
+msin.datacolumn = SMOOTHED_DATA
+msout = .
+msout.datacolumn = CORRECTED_DATA
+
+steps = [ddecal]
+
+ddecal.type = ddecal
+ddecal.uvlambdamin = 100
+ddecal.maxiter = 400
+ddecal.tolerance = 1e-3
+ddecal.solint = 3
+ddecal.nchan = 8
+ddecal.stepsize = 0.2
+ddecal.h5parm = 
+ddecal.mode=tec # phaseonly, complexgain, tec, tecandphase
+#ddecal.coreconstraint = 0
+ddecal.propagatesolutions = True
+ddecal.approximatetec = True
+ddecal.maxapproxiter = 400 
+ddecal.approxtolerance = 1e-3
+ddecal.usemodelcolumn = True
