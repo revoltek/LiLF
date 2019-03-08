@@ -316,7 +316,7 @@ class MS(object):
                 
         elif self.getTelescope() == 'GMRT':
             # equation from http://gmrt.ncra.tifr.res.in/gmrt_hpage/Users/doc/manual/Manual_2013/manual_20Sep2013.pdf    
-            return (85.2/60) * (325.e9 / min_freq)
+            return (85.2/60) * (325.e6 / min_freq)
 
         else:
             raise('Only LOFAR or GMRT implemented.')

@@ -43,7 +43,7 @@ MSs.getListObj()[0].makeBeamReg('self/beam.reg')
 beamReg = 'self/beam.reg'
 
 # set image size
-imgsizepix =  MSs.getListObj()[0].getFWHM()*3600/2.
+imgsizepix =  1.2*MSs.getListObj()[0].getFWHM()*3600/2.
 
 #################################################################
 # Get online model
@@ -72,7 +72,7 @@ for MS in MSs.getListStr():
     os.system('cp -r '+sourcedb+' '+MS)
 
 logger.info('Add columns...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA, MODEL_DATA_LOWRES, SUBTRACTED_DATA -i DATA', log="$nameMS_addcol.log", commandType="python")
+MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA,MODEL_DATA_LOWRES,SUBTRACTED_DATA -i DATA', log="$nameMS_addcol.log", commandType="python")
 
 logger.info('Add model to MODEL_DATA...')
 MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
@@ -142,6 +142,7 @@ for c in range(0, niter):
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
+    im.makeMask(threshisl=5, atrous_do=False)
     im.selectCC()
 
     if c != niter-1:
@@ -165,6 +166,7 @@ for c in range(0, niter):
                 join_channels='', fit_spectral_pol=2, channels_out=8)
         
         im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
+        im.makeMask(threshisl=5, atrous_do=False)
         im.selectCC(keepInBeam=False)
 
         # predict - ms: MODEL_DATA_LOWRES

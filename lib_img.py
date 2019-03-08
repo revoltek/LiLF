@@ -7,7 +7,7 @@ from LiLF import make_mask, lib_util
 from lib_log import logger
 
 class Image(object):
-    def __init__(self, imagename, facetReg = None, userReg = None, beamReg= None ):
+    def __init__(self, imagename, userReg = None, beamReg= None ):
         """
         userMask: keep this region when making masks
         BeamReg: ds9 region file of the beam
@@ -19,7 +19,6 @@ class Image(object):
         self.skydb        = imagename.replace('MFS-image.fits', 'sources-cut.skydb')
         self.userReg      = userReg
         self.beamReg      = beamReg
-        self.facetReg     = facetReg
 
     def rescaleModel(self, funct_flux):
         """
@@ -49,8 +48,8 @@ class Image(object):
         """
         Create a mask of the image where only believable flux is
         """
-        logger.info('%s: Making mask...' % self.imagename)
         if not os.path.exists(self.maskname):
+            logger.info('%s: Making mask...' % self.imagename)
             make_mask.make_mask(image_name=self.imagename, mask_name=self.maskname, threshisl=threshisl, atrous_do=atrous_do)
         if self.userReg is not None:
             logger.info('%s: Adding user mask (%s)...' % (self.imagename, self.userReg))
@@ -63,10 +62,6 @@ class Image(object):
                     if beamReg is present and is False: remove source inside beam
         """
         self.makeMask()
-
-        if self.facetReg is not None:
-            logger.info('Predict (apply facet reg %s)...' % self.facetReg)
-            blank_image_reg(self.maskname, self.facetReg, inverse=True, blankval=0) # set to 0 pixels outside facet mask
 
         if self.beamReg is not None:
             logger.info('Predict (apply beam reg %s)...' % self.beamReg)
