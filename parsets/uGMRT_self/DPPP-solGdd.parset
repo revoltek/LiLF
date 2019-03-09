@@ -6,11 +6,12 @@ msout.datacolumn = CORRECTED_DATA
 steps = [sol]
 
 sol.type = ddecal
-sol.uvlambdamin = 100
-sol.mode = diagonal
+sol.mode = complexscalar
+sol.sourcedb =
+sol.h5parm =
 sol.tolerance = 1e-3
 sol.maxiter = 500
 sol.nchan = 1
 sol.solint = 1
 sol.propagatesolutions = True
-sol.usemodelcolumn = True
+sol.smoothnessconstraint = 1e6
