@@ -6,9 +6,9 @@ from casacore import tables
 import numpy as np
 import pyregion
 from pyregion.parser_helper import Shape
-from . import lib_util
+from LiLF import lib_util
 
-from .lib_log import logger
+from LiLF.lib_log import logger
 
 class AllMSs(object):
 

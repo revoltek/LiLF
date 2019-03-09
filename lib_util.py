@@ -7,13 +7,13 @@ import multiprocessing
 if (sys.version_info > (3, 0)):
     from configparser import ConfigParser
 else:
-    from configparser import ConfigParser
+    from ConfigParser import ConfigParser
 
 # load here to be sure to have "Agg" at the beginning
 import matplotlib as mpl
 mpl.use("Agg")
 
-from .lib_log import logger
+from LiLF.lib_log import logger
 
 def getParset(parsetFile='../lilf.config'):
     """
@@ -364,7 +364,10 @@ class Scheduler():
         If max_thread != None, then it overrides the global values, useful for special commands that need a lower number of threads.
         """
         from threading import Thread
-        from queue import Queue
+        if (sys.version_info > (3, 0)):
+            from queue import Queue
+        else:
+            from Queue import Queue
         import subprocess
         import gc
 

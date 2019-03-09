@@ -16,8 +16,8 @@ except:
     logger.error("Load latest scipy with 'use Pythonlibs'")
     sys.exit(1)
 
-from .lib_log import logger
-from . import lib_img
+from LiLF.lib_log import logger
+from LiLF import lib_img
 
 def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet.fits', beam_reg=None, png=None):
     """

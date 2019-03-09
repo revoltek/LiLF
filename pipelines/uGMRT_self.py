@@ -329,7 +329,7 @@ for c in range(3):
         pixscale = MSs_shift.getListObj()[0].getResolution()/2. # weighting lower the resolutions a bit, therefore a /2 should be enough
     
         # TODO: test uneven size
-        size = np.max(size[p])
+        size = np.max(sizes[p])
         imsize = int(size/(pixscale/3600.))
         if imsize < 512: imsize = 512
         if imsize % 2 == 1: imsize += 1 # make even
