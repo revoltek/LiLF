@@ -52,7 +52,6 @@ MSs.getListObj()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first n
 beamReg = 'self/beam.reg'
 
 # set image size
-obsmode = MSs.getListObj()[0].getObsMode()
 imgsizepix =  1.2*MSs.getListObj()[0].getFWHM()*3600/10
 
 #################################################################
@@ -75,13 +74,13 @@ if sourcedb is None:
 ##################################################################################################
 # Add model to MODEL_DATA
 # copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
-sourcedb_basename = sourcedb.split('/')[-1]
-for MS in MSs.getListStr():
-    lib_util.check_rm(MS+'/'+sourcedb_basename)
-    logger.debug('Copy: '+sourcedb+' -> '+MS)
-    os.system('cp -r '+sourcedb+' '+MS)
-
-# Create columns (non compressed)
+#sourcedb_basename = sourcedb.split('/')[-1]
+#for MS in MSs.getListStr():
+#    lib_util.check_rm(MS+'/'+sourcedb_basename)
+#    logger.debug('Copy: '+sourcedb+' -> '+MS)
+#    os.system('cp -r '+sourcedb+' '+MS)
+#
+## Create columns (non compressed)
 #logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
 #MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
 #
@@ -103,30 +102,29 @@ for c in range(0, niter):
         incol = 'DATA'
 
     # Smooth DATA -> SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
+    #logger.info('BL-based smoothing...')
+    #MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
-    # TEST
     logger.info('Solving G...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspavg3x12.h5 sol.solint=3 sol.nchan=12 sol.mode=scalarphase', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS ddecal.h5parm=$pathMS/tecmax70km.h5 ddecal.solint=3 ddecal.nchan=1', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspsmooth1mhz.h5 sol.solint=3 sol.nchan=1 sol.smoothnessconstraint=1e6 sol.mode=scalarphase', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspmax70kmavg3x12 sol.solint=3 sol.nchan=12 sol.mode=scalarphase sol.uvmmax=70e3', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
     sys.exit()
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
-    logger.info('Solving TEC...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTECdd.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
-                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
+    #logger.info('Solving TEC...')
+    #MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
+    #            log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
     # LoSoTo plot
-    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
+    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-tec.parset'])
     os.system('mv plots-tec'+str(c)+'* self/solutions/')
     os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
 
     # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn='+incol+' cor1.parmdb=$pathMS/tec.h5 cor2.parmdb=$pathMS/tec.h5', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-corTEC.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5', \
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
     #####################################################################################################
@@ -195,13 +193,13 @@ for c in range(0, niter):
                 join_channels='', fit_spectral_pol=2, channels_out=8)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
 
-        logger.info('Cleaning beam high-res (cycle: '+str(c)+')...')
-        imagename = 'img/wideBeamHR'
-        lib_util.run_wsclean(s, 'wscleanBeamHR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=int(imgsizepix*2), scale='2.5arcsec', \
-                weight='uniform', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-                parallel_deconvolution=256, auto_mask=10, auto_threshold=1, \
-                join_channels='', fit_spectral_pol=2, channels_out=8)
+        #logger.info('Cleaning beam high-res (cycle: '+str(c)+')...')
+        #imagename = 'img/wideBeamHR'
+        #lib_util.run_wsclean(s, 'wscleanBeamHR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=int(imgsizepix*2), scale='2.5arcsec', \
+        #        weight='uniform', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+        #        use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
+        #        parallel_deconvolution=256, auto_mask=10, auto_threshold=1, \
+        #        join_channels='', fit_spectral_pol=2, channels_out=8)
 
         logger.info('Cleaning beam low-res (cycle: '+str(c)+')...')
         imagename = 'img/wideBeamLR'
@@ -226,31 +224,31 @@ for c in range(0, niter):
     im.makeMask(threshisl = 4)
     
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
-    # TODO: add -save-source-list when can be used with parallel deconv and then remove those outside beam (https://sourceforge.net/p/wsclean/tickets/141/)
+    # TODO: add -parallel-deconvolution=256 when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
+    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
             weight='briggs 0.', niter=300000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
-            multiscale='', multiscale_scales='0,5,10,20,40', \
-            baseline_averaging=5, parallel_deconvolution=256, auto_threshold=1, fits_mask=im.maskname, \
+            #multiscale='', multiscale_scales='0,5,10,20,40', \
+            baseline_averaging=5, auto_threshold=1, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=2, channels_out=8)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     if c != niter-1:
+        # TODO: shall we keep this? Less components but less precise model.
         #im = lib_img.Image(imagename+'-MFS-image.fits', beamReg=beamReg)
         #im.selectCC(keepInBeam=True)
 
         # predict - ms: MODEL_DATA
-        #logger.info('Predict model...')
-        #MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
-        #        log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+        logger.info('Predict model...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
+                log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
 
-        # TEMPORARY:
-        logger.info('Predict (wsclean: %s)...' % imagename)
-        s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 8 '+MSs.getStrWsclean(), \
-                    log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-        s.run(check=True)
-
+        # TEST:
+        #logger.info('Predict (wsclean: %s)...' % imagename)
+        #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 8 '+MSs.getStrWsclean(), \
+        #            log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+        #s.run(check=True)
 
     if c == 0:
         # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
@@ -258,7 +256,7 @@ for c in range(0, niter):
         MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
     
         # reclean low-resolution
-        # TODO: add -parallel-deconvolution when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
+        # TODO: add -parallel-deconvolution=256 when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
         lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, save_source_list='', temp_dir='./', size=imgsizepix, scale='20arcsec', \
@@ -278,7 +276,7 @@ for c in range(0, niter):
         ##############################################
         # Flag on empty dataset
 
-        # Subtract low-res model - concat.MS:CORRECTED_DATA - MODEL_DATA_LOWRES -> concat.MS:CORRECTED_DATA (empty)
+        # Subtract low-res model - CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_LOWRES
         logger.info('Subtracting low-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_LOWRES)...')
         MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_LOWRES"', log='$nameMS_taql2-c'+str(c)+'.log', commandType='general')
 
@@ -295,7 +293,7 @@ for c in range(0, niter):
                 cor1.parmdb=$pathMS/tec.h5 cor1.invert=false cor2.parmdb=$pathMS/tec.h5 cor2.invert=false', \
                 log='$nameMS_corrupt.log', commandType='DPPP')
     
-        # Subtract low-res model - concat.MS:CORRECTED_DATA - MODEL_DATA_LOWRES -> concat.MS:CORRECTED_DATA (empty)
+        # Subtract low-res model - SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES
         logger.info('Subtracting low-res model (SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES)...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES"', log='$nameMS_taql3-c'+str(c)+'.log', commandType='general')
 

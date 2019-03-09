@@ -1,0 +1,12 @@
+Ncpu = 0
+
+# plot TEC
+[plotTEC]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = time
+axisInTable = ant
+plotFlag = True
+#minmax = [-0.5,0.5]
+prefix = plots/tec
+refAnt = 'C01'

@@ -169,10 +169,8 @@ for c in xrange(maxniter):
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
     lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/skymodels/voronoi%02i.png' % c)
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
-    #lsm.setPatchPositions(method='mid') # recalculate the patch centre as mid point for imaging
-    #directions = lsm.getPatchPositions()
     sizes = dict( zip(patchNames, lib_dd.sizes_from_mask_voro(mask_voro)) )
-    sizes = dict( zip(patchNames, lib_dd.directions_from_mask_voro(mask_voro)) )
+    directions = dict( zip(patchNames, lib_dd.directions_from_mask_voro(mask_voro)) )
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
