@@ -275,7 +275,7 @@ for c in xrange(maxniter):
         lib_util.check_rm('mss-dir')
         os.makedirs('mss-dir')
         MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=CORRECTED_DATA \
-                shift.phasecenter=['+str(directions[p][0].degree)+'deg,'+str(directions[p][1].degree)+'deg\]', \
+                shift.phasecenter=['+str(directions[p][0])+'deg,'+str(directions[p][1])+'deg\]', \
                 log='$nameMS_shift-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
         
         logger.info('Patch '+p+': imaging...')
