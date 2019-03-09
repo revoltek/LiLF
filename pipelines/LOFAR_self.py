@@ -15,7 +15,7 @@ if 'LBAsurvey' in os.getcwd():
         os.makedirs('mss')
         for i, tc in enumerate(glob.glob('../../c*-o*/%s/mss/*' % obs)):
             tc_ren = 'TC%02i.MS' % i
-            print 'cp -r %s mss/%s' % (tc,tc_ren)
+            print('cp -r %s mss/%s' % (tc,tc_ren))
             os.system('cp -r %s mss/%s' % (tc,tc_ren))
 
 ########################################################
@@ -293,8 +293,8 @@ for c in range(2):
         # TODO: remove only from short baselines
 
 # Copy images
-[ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in xrange(niter) ]
-[ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in xrange(niter) ]
+[ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(niter) ]
+[ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in range(niter) ]
 os.system('mv img/wide-lr-MFS-image.fits self/images')
 os.system('mv img/wideBeam-MFS-image.fits  img/wideBeam-MFS-image-pb.fits self/images')
 os.system('mv logs self')

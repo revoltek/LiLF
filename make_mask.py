@@ -18,18 +18,18 @@ def make_mask(image_name, mask_name=None, threshisl=5, atrous_do=False, rmsbox=(
         thresh_isl=int(threshisl), atrous_do=atrous_do, atrous_jmax=3, \
         adaptive_rms_box=True, adaptive_thresh=100, rms_box_bright=(30,10), stop_at=stop_at, quiet=True, debug=False)
 
-    print "processed"
+    print("processed")
 
     # WRITE THE MASK FITS
     if mask_name == None: mask_name = image_name+'.newmask'
     if os.path.exists(mask_name): os.system('rm -r ' + mask_name)
-    print 'Making mask:', mask_name
+    print('Making mask:', mask_name)
     img.export_image(img_type='island_mask', img_format='fits', outfile=mask_name)
     del img
 
     # do an pixel-by-pixel "OR" operation with a given mask
     if not mask_combine is None:
-        print "Doing a pix-by-pix OR with %s." % mask_combine
+        print("Doing a pix-by-pix OR with %s." % mask_combine)
         with pyfits.open(mask_combine) as fits:
             data_comb = fits[0].data
         with pyfits.open(mask_name) as fits:

@@ -16,8 +16,8 @@ except:
     logger.error("Load latest scipy with 'use Pythonlibs'")
     sys.exit(1)
 
-from lib_log import logger
-import lib_img
+from .lib_log import logger
+from . import lib_img
 
 def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet.fits', beam_reg=None, png=None):
     """
@@ -52,14 +52,14 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     x_fs, y_fs = w.all_world2pix(ras, decs, 0, ra_dec_order=True)
     # keep trak of numbers in the direction names to name correctly patches in the fits files
     # in this way Dir_12 will have "12" into the fits for that patch.
-    nums = [int(d.split('_')[-1]) for d in directions.keys()]
+    nums = [int(d.split('_')[-1]) for d in list(directions.keys())]
 
     x_c = data.shape[0]/2.
     y_c = data.shape[1]/2.
 
     if beam_reg is None:
         # no beam, use all directions for facets
-        idx_for_facet = range(len(directions))
+        idx_for_facet = list(range(len(directions)))
     else:
         r = pyregion.open(beam_reg)
         beam_mask = r.get_mask(header=hdr, shape=data.shape)
@@ -94,8 +94,8 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     struct = generate_binary_structure(2, 2)
     data = binary_dilation(data, structure=struct, iterations=3).astype(data.dtype) # expand masks
     blobs, number_of_blobs = label(data.astype(int).squeeze(), structure=[[1,1,1],[1,1,1],[1,1,1]])
-    center_of_masses = center_of_mass(data, blobs, range(number_of_blobs+1))
-    for blob in xrange(1,number_of_blobs+1):
+    center_of_masses = center_of_mass(data, blobs, list(range(number_of_blobs+1)))
+    for blob in range(1,number_of_blobs+1):
         # get closer facet
         facet_num = closest_node(center_of_masses[blob], np.array([y_fs,x_fs]).T)
         # put all pixel of that mask to that facet value
@@ -122,11 +122,11 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
         all_s.append(s)
 
         regions = pyregion.ShapeList([s])
-        regionfile = outdir_reg+'/'+directions.keys()[idx_for_facet[i]]+'.reg'
+        regionfile = outdir_reg+'/'+list(directions.keys())[idx_for_facet[i]]+'.reg'
         regions.write(regionfile)
 
     # add names for all.reg
-    for d_name, d_coord in directions.iteritems():
+    for d_name, d_coord in directions.items():
         s = Shape('circle', None)
         s.coord_format = 'fk5'
         s.coord_list = [ d_coord[0].degree, d_coord[1].degree, 0.01 ] # ra, dec, radius

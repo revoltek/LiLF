@@ -45,7 +45,7 @@ downloaded_mss = glob.glob('*MS')
  
 #pickle.dump(uris, open('uris.pickle', 'wb'))
 uris = pickle.load(open('uris.pickle','rb'))
-print("Total URI's found %d" % len(uris))
+print(("Total URI's found %d" % len(uris)))
  
 # Queue of data to stage
 L_toStage = multiprocessing.Manager().list() # list of surls to download
@@ -80,7 +80,7 @@ class Worker_stager(Worker):
             # if there's space add a block of 500
             if len(self.L_inStage) < 10 and len(self.L_toStage) > 0:
                 uris = self.L_toStage[:500]
-                print ("Stager -- Staging %i uris" % len(uris))
+                print(("Stager -- Staging %i uris" % len(uris)))
                 sids = self.stager.stage(uris)
                 self.L_inStage.append( sids )
                 for uri in uris:
@@ -101,7 +101,7 @@ class Worker_checker(Worker):
                 except:
                     status = ""
                     surls = []
-                    print("Checker -- Failed to get status for sid %i. Continue." % sid)
+                    print(("Checker -- Failed to get status for sid %i. Continue." % sid))
 
                 for surl in surls:
                     if not surl in self.L_toDownload and not surl in self.L_inDownload:
@@ -109,7 +109,7 @@ class Worker_checker(Worker):
 
                 # pass to download
                 if status == 'success':
-                    print ("Checker -- Sid %i completed." % sid)
+                    print(("Checker -- Sid %i completed." % sid))
                     self.L_inStage.remove(sid)
 
                 elif status == 'in progress' or status == 'new' or status == 'scheduled':
@@ -117,7 +117,7 @@ class Worker_checker(Worker):
     
                 # reschedule
                 else:
-                    print ("Checker -- ERROR: Sid %i status is %s!" % (sid, status) )
+                    print(("Checker -- ERROR: Sid %i status is %s!" % (sid, status) ))
                     continue
     
             time.sleep(60)
@@ -129,7 +129,7 @@ class Worker_downloader(Worker):
         while not self.exit.is_set():
             if len(self.L_toDownload) > 0:
                 surl = self.L_toDownload.pop()
-                print ("Downloader -- Download: "+surl.split('/')[-1])
+                print(("Downloader -- Download: "+surl.split('/')[-1]))
                 self.L_inDownload.append(surl)
                 with open("wgetout.txt","wb") as out, open("wgeterr.txt","wb") as err:
                     p = subprocess.Popen('wget -nv https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
@@ -149,14 +149,14 @@ w_downloader2 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_
 
 # add things already staged
 i=0
-for sid in stager.get_progress().keys():
+for sid in list(stager.get_progress().keys()):
     sid = int(sid)
     L_inStage.append(sid) # the worker will take care of starting downloads
     for surl in stager.get_surls_online(sid):
         if surl in L_toStage:
             L_toStage.remove(surl)
             i+=1
-print("Remover %i already staged surls." % i)
+print(("Remover %i already staged surls." % i))
 
 w_stager.start()
 w_checker.start()
