@@ -156,7 +156,7 @@ if ngroups == 1:
     os.system('mv mss_t*/*MS mss')
     lib_util.check_rm('mss_t*')
 else:
-    for group in xrange(ngroups):
+    for group in range(ngroups):
         groupname = 'mss-%02i' % group
         lib_util.check_rm(groupname)
         os.makedirs(groupname)

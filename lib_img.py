@@ -4,7 +4,7 @@ import astropy.io.fits as pyfits
 import lsmtool
 import pyregion
 from LiLF import make_mask, lib_util
-from lib_log import logger
+from .lib_log import logger
 
 class Image(object):
     def __init__(self, imagename, userReg = None, beamReg= None ):

@@ -1,5 +1,5 @@
 import os, sys, logging, time
-import lib_util
+from . import lib_util
 
 class _ColorStreamHandler(logging.StreamHandler):
 
