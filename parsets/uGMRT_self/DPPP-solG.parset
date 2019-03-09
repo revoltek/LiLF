@@ -6,12 +6,10 @@ msout.datacolumn = CORRECTED_DATA
 steps = [sol]
 
 sol.type = ddecal
-sol.mode = scalarcomplexgain
-sol.sourcedb =
-sol.h5parm =
+sol.mode = diagonal
 sol.tolerance = 1e-3
 sol.maxiter = 500
 sol.nchan = 1
 sol.solint = 1
 sol.propagatesolutions = True
-sol.smoothnessconstraint = 1e6
+sol.usemodelcolumn = True
