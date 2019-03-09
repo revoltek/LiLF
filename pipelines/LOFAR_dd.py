@@ -219,28 +219,28 @@ for c in xrange(maxniter):
     # TODO: add amp and FR sol + correction here after ft() a DDE-corrupted model
 
     ###########################################################
-   # # Empty the dataset
-    logger.info('Set SUBTRACTED_DATA = DATA...')
-    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql2-c'+str(c)+'.log', commandType='general')
-
-    logger.info('Subtraction...')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_voro_skydb, \
-     ##               log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP')
-
-    for i, p in enumerate(patchNames):
-        # predict - ms:MODEL_DATA
-        logger.info('Patch '+p+': predict...')
-        #pre.applycal.h5parm='+ms+'/cal-c'+str(c)+'.h5 pre.applycal.direction='+p, \
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+p,log='$nameMS_pre1-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
-    
-        # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
-        logger.info('Patch '+p+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+p+']', \
-                log='$nameMS_corrupt1-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
-        
-        logger.info('Patch '+p+': subtract...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql3-c'+str(c)+'-p'+str(p)+'.log', commandType='general')
-
+#    ## Empty the dataset
+#    logger.info('Set SUBTRACTED_DATA = DATA...')
+#    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql2-c'+str(c)+'.log', commandType='general')
+#
+#    logger.info('Subtraction...')
+#    #MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_voro_skydb, \
+#     ##               log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP')
+#
+#    for i, p in enumerate(patchNames):
+#        # predict - ms:MODEL_DATA
+#        logger.info('Patch '+p+': predict...')
+#        #pre.applycal.h5parm='+ms+'/cal-c'+str(c)+'.h5 pre.applycal.direction='+p, \
+#        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+p,log='$nameMS_pre1-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
+#    
+#        # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
+#        logger.info('Patch '+p+': corrupt...')
+#        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+p+']', \
+#                log='$nameMS_corrupt1-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
+#        
+#        logger.info('Patch '+p+': subtract...')
+#        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql3-c'+str(c)+'-p'+str(p)+'.log', commandType='general')
+#
     ##  for patch, phasecentre in directions.iteritems():
     ##      # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
     ##      logger.info('Patch '+patch+': add back...')
