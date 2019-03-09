@@ -6,7 +6,7 @@ msout.datacolumn = CORRECTED_DATA
 steps = [sol]
 
 sol.type = ddecal
-sol.mode = complexscalar
+sol.mode = scalarcomplexgain
 sol.sourcedb =
 sol.h5parm =
 sol.tolerance = 1e-3
