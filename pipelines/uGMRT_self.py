@@ -229,8 +229,8 @@ for c in range(3):
     lsm = lsmtool.load(image_field.skymodel_cut)
     lib_dd.make_voronoi_reg(directions, image_field.maskname, outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/skymodels/voronoi%02i.png' % c)
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
-    sizes = dict( list(zip(patchNames, lib_dd.sizes_from_mask_voro(mask_voro))) )
-    directions = dict( list(zip(patchNames, lib_dd.directions_from_mask_voro(mask_voro))) )
+    sizes = lib_dd.sizes_from_mask_voro(mask_voro)
+    directions = lib_dd.directions_from_mask_voro(mask_voro)
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
@@ -263,7 +263,7 @@ for c in range(3):
 
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Calibrating...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/cal-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/cal-dd-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions
@@ -280,13 +280,13 @@ for c in range(3):
     for i, p in enumerate(patchNames):
         # predict - ms:MODEL_DATA
         logger.info('Patch '+p+': predict...')
-        #pre.applycal.h5parm='+ms+'/cal-c'+str(c)+'.h5 pre.applycal.direction='+p, \
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+p,log='$nameMS_pre1-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
         # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
         # TODO: corrupt also for amplitudes?
         logger.info('Patch '+p+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+p+'] cor.correction=phase000 cor.invert=False', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+p+'] cor.correction=phase000 cor.invert=False \
+                 msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA', \
                 log='$nameMS_corrupt1-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
         logger.info('Patch '+p+': subtract...')
@@ -297,14 +297,14 @@ for c in range(3):
     for i, p in enumerate(patchNames):
         # predict - ms:MODEL_DATA
         logger.info('Patch '+p+': predict...')
-        #pre.applycal.h5parm='+ms+'/cal-c'+str(c)+'.h5 pre.applycal.direction='+p, \
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+p, \
                    log='$nameMS_pre2-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
         # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
         # TODO: corrupt also for amplitudes?
         logger.info('Patch '+p+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+p+'] cor.correction=phase000 cor.invert=False', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+p+'] cor.correction=phase000 cor.invert=False \
+                 msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA', \
                  log='$nameMS_corrupt2-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
         logger.info('Patch '+p+': add...')
@@ -312,7 +312,8 @@ for c in range(3):
 
         # DD-correct - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
         logger.info('Patch '+p+': correct...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+p+'] cor.correction=phase000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+p+'] cor.correction=phase000 \
+               msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED__DATA', \
                log='$nameMS_cor-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
         logger.info('Patch '+p+': phase shift and avg...')
@@ -329,7 +330,7 @@ for c in range(3):
         pixscale = MSs_shift.getListObj()[0].getResolution()/2. # weighting lower the resolutions a bit, therefore a /2 should be enough
     
         # TODO: test uneven size
-        size = np.max(sizes[p])
+        size = np.max(sizes[p])*1.05 # add 5%
         imsize = int(size/(pixscale/3600.))
         if imsize < 512: imsize = 512
         if imsize % 2 == 1: imsize += 1 # make even
@@ -363,7 +364,7 @@ for c in range(3):
     # Mosaiching
     images = []
     for patchName in patchNames:
-        image = lib_img.Image('img/ddcalM-%sMFS-image.fits' % patchName, userReg = userReg)
+        image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % patchName, userReg = userReg)
         image.selectCC()
         # restrict skymodel to facet
         lsm = lsmtool.load(image.skymodel_cut)
