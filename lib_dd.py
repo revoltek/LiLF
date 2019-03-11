@@ -287,9 +287,9 @@ def sizes_from_mask_voro(mask_voro):
 
     Returns
     -------
-    list with facet sizes in [ra,dec] in degrees
+    Dict indexed by facet names with [size_ra and size_dec] in degrees
     """
-    sizes = []
+    sizes = {}
     # read mask
     fits = pyfits.open(mask_voro)
     hdr, data = lib_img.flatten(fits)
@@ -303,7 +303,7 @@ def sizes_from_mask_voro(mask_voro):
         coord = np.where(data.T == i)
         size_ra = (np.max(coord[0])-np.min(coord[0]))*pixsize_ra
         size_dec = (np.max(coord[1])-np.min(coord[1]))*pixsize_dec
-        sizes.append([size_ra,size_dec])
+        sizes['Isl_patch_%i' % i] = [size_ra, size_dec]
         #print sizes[-1]
 
     # return list
@@ -316,9 +316,9 @@ def directions_from_mask_voro(mask_voro):
 
     Returns
     -------
-    list with facet directions in [ra,dec] in degrees
+    Dict indexed by facet names with direction [ra dec] in degrees
     """
-    directions = []
+    directions = {}
     # read mask
     fits = pyfits.open(mask_voro)
     hdr, data = lib_img.flatten(fits)
@@ -332,7 +332,7 @@ def directions_from_mask_voro(mask_voro):
         dir_x = np.mean([ np.max(coord[0]), np.min(coord[0]) ])
         dir_y = np.mean([ np.max(coord[1]), np.min(coord[1]) ])
         ra, dec =  w.all_pix2world(dir_x, dir_y, 0, ra_dec_order=True)
-        directions.append(  [float(ra), float(dec)] )
+        directions['Isl_patch_%i' % i] = [float(ra), float(dec)]
         #print directions[-1]
 
     # return list

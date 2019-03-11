@@ -46,7 +46,7 @@ def clean(p, MSs, size, apply_beam=False):
     pixscale = MSs.getListObj()[0].getResolution()/2. # weighting lower the resolutions a bit, therefore a /2 should be enough
 
     # TODO: test uneven size
-    size = np.max(size)
+    size = np.max(size)*1.05 # add 5%
     imsize = int(size/(pixscale/3600.))
 
     if imsize < 512:
@@ -169,8 +169,8 @@ for c in range(maxniter):
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
     lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/skymodels/voronoi%02i.png' % c)
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
-    sizes = dict( list(zip(patchNames, lib_dd.sizes_from_mask_voro(mask_voro))) )
-    directions = dict( list(zip(patchNames, lib_dd.directions_from_mask_voro(mask_voro))) )
+    sizes = lib_dd.sizes_from_mask_voro(mask_voro)
+    directions = lib_dd.directions_from_mask_voro(mask_voro)
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
