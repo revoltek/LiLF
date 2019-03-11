@@ -22,7 +22,7 @@ MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
 
 for MS in MSs.getListStr():
     lib_util.check_rm(os.path.basename(MS)+'_'+os.path.basename(skydb))
-    print('cp -r '+skydb+' '+os.path.basename(MS)+'_'+os.path.basename(skydb))
+    print(('cp -r '+skydb+' '+os.path.basename(MS)+'_'+os.path.basename(skydb)))
     os.system('cp -r '+skydb+' '+os.path.basename(MS)+'_'+os.path.basename(skydb))
 
 logger.info('Demixing...')

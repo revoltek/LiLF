@@ -13,7 +13,7 @@ else:
 import matplotlib as mpl
 mpl.use("Agg")
 
-from lib_log import logger
+from LiLF.lib_log import logger
 
 def getParset(parsetFile='../lilf.config'):
     """
@@ -223,10 +223,10 @@ def run_wsclean(s, logfile, MSs_files, **kwargs):
     # other stanrdard parms
     wsc_parms.append( '-clean-border 1' )
     # temp dir
-    if s.get_cluster() == 'Hamburg_fat' and not 'temp_dir' in kwargs.keys():
+    if s.get_cluster() == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
         wsc_parms.append( '-temp-dir /localwork.ssd' )
     # user defined parms
-    for parm, value in kwargs.items():
+    for parm, value in list(kwargs.items()):
         if parm == 'cont': 
             parm = 'continue'
             value = ''
@@ -364,7 +364,10 @@ class Scheduler():
         If max_thread != None, then it overrides the global values, useful for special commands that need a lower number of threads.
         """
         from threading import Thread
-        from Queue import Queue
+        if (sys.version_info > (3, 0)):
+            from queue import Queue
+        else:
+            from Queue import Queue
         import subprocess
         import gc
 

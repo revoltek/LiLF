@@ -15,7 +15,7 @@ if 'LBAsurvey' in os.getcwd():
         os.makedirs('mss')
         for i, tc in enumerate(glob.glob('../../c*-o*/%s/mss/*' % obs)):
             tc_ren = 'TC%02i.MS' % i
-            print 'cp -r %s mss/%s' % (tc,tc_ren)
+            print('cp -r %s mss/%s' % (tc,tc_ren))
             os.system('cp -r %s mss/%s' % (tc,tc_ren))
 
 ########################################################
@@ -180,7 +180,7 @@ for c in range(2):
 
     # do beam-corrected+deeper image at last cycle
     # TODO: find a way to save the beam image
-    if c == niter-1:
+    if c == 1:
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
         lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
@@ -232,7 +232,7 @@ for c in range(2):
             join_channels='', fit_spectral_pol=2, channels_out=8)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
-    if c != niter-1:
+    if c != 1:
 
         im = lib_img.Image(imagename+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=True)
@@ -293,8 +293,8 @@ for c in range(2):
         # TODO: remove only from short baselines
 
 # Copy images
-[ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in xrange(niter) ]
-[ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in xrange(niter) ]
+[ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(2) ]
+[ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in range(2) ]
 os.system('mv img/wide-lr-MFS-image.fits self/images')
 os.system('mv img/wideBeam-MFS-image.fits  img/wideBeam-MFS-image-pb.fits self/images')
 os.system('mv logs self')

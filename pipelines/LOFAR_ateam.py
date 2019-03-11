@@ -103,7 +103,7 @@ else:
     logger.info('Predict (DPPP)...')
     MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
 
-for c in xrange(100):
+for c in range(100):
 
     logger.info('== Start cycle: %s ==' % c)
 
