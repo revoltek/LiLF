@@ -46,7 +46,7 @@ def clean(p, MSs, size, apply_beam=False):
     pixscale = MSs.getListObj()[0].getResolution()/2. # weighting lower the resolutions a bit, therefore a /2 should be enough
 
     # TODO: test uneven size
-    size = np.max(size)
+    size = np.max(size)*1.05 # add 5%
     imsize = int(size/(pixscale/3600.))
 
     if imsize < 512:

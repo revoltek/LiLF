@@ -285,7 +285,8 @@ for c in range(3):
         # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
         # TODO: corrupt also for amplitudes?
         logger.info('Patch '+p+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+p+'] cor.correction=phase000 cor.invert=False', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+p+'] cor.correction=phase000 cor.invert=False \
+                 msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA', \
                 log='$nameMS_corrupt1-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
         logger.info('Patch '+p+': subtract...')
@@ -302,7 +303,8 @@ for c in range(3):
         # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
         # TODO: corrupt also for amplitudes?
         logger.info('Patch '+p+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+p+'] cor.correction=phase000 cor.invert=False', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+p+'] cor.correction=phase000 cor.invert=False \
+                 msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA', \
                  log='$nameMS_corrupt2-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
         logger.info('Patch '+p+': add...')
@@ -310,7 +312,8 @@ for c in range(3):
 
         # DD-correct - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
         logger.info('Patch '+p+': correct...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+p+'] cor.correction=phase000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+p+'] cor.correction=phase000 \
+               msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED__DATA', \
                log='$nameMS_cor-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
         logger.info('Patch '+p+': phase shift and avg...')
@@ -327,7 +330,7 @@ for c in range(3):
         pixscale = MSs_shift.getListObj()[0].getResolution()/2. # weighting lower the resolutions a bit, therefore a /2 should be enough
     
         # TODO: test uneven size
-        size = np.max(sizes[p])
+        size = np.max(sizes[p])*1.05 # add 5%
         imsize = int(size/(pixscale/3600.))
         if imsize < 512: imsize = 512
         if imsize % 2 == 1: imsize += 1 # make even
