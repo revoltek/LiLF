@@ -230,15 +230,19 @@ for c in range(3):
     ### create regions (using cluster directions)
     logger.info("Create regions.")
     lsm = lsmtool.load(image_field.skymodel_cut)
-    # TODO: remove from directions sources that are outside mask
     # use the cycle=1 image that is as large as the beam
-    lib_dd.make_voronoi_reg(directions, 'self/images/wideM-1-MFS-image.fits', \
+    directions_in, directions_out = lib_dd.split_directions(directions,'self/images/wideM-1-MFS-image.fits')
+    lib_dd.make_voronoi_reg(directions_in, 'self/images/wideM-1-MFS-image.fits', \
         outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/skymodels/voronoi%02i.png' % c)
     # TODO: check if group ignore sources outside mask_voro
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
     sizes = lib_dd.sizes_from_mask_voro(mask_voro)
     directions = lib_dd.directions_from_mask_voro(mask_voro)
-    # TODO: add sizes and directions sour sources outside mask
+
+    # add sizes and directions for sources outside mask
+    for direction in directions_out:
+        sizes[direction] = [0.1,0.1]
+        directions[direction] = directions_out[direction]
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
