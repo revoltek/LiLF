@@ -50,7 +50,6 @@ for msID in msIDs:
     logger.info('Calibrating...')
     MSs_cals.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/diag.h5 sol.mode=diagonal', log='$nameMS_sol.log', commandType="DPPP")
     
-    sys.exit()
     lib_util.run_losoto(s, 'diag', [ms+'/diag.h5' for ms in MSs_cals.getListStr()], \
             [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', \
             parset_dir+'/losoto-pa.parset', parset_dir+'/losoto-iono.parset', parset_dir+'/losoto-bp.parset'])
