@@ -252,7 +252,7 @@ for c in range(2):
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
         lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, save_source_list='', temp_dir='./', size=imgsizepix, scale='20arcsec', \
-                weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuv_m=5000, mgain=0.85, \
+                weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.85, \
                 baseline_averaging=5, auto_threshold=1, \
                 join_channels='', fit_spectral_pol=2, channels_out=8)
         
@@ -263,7 +263,7 @@ for c in range(2):
         logger.info('Set MODEL_DATA_LOWRES to 0')
         MSs.run('taql "update $pathMS set MODEL_DATA_LOWRES = 0"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         logger.info('Predict low-res model...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msin.baselines=CS*& msout.datacolumn=MODEL_DATA_LOWRES pre.usebeammodel=false pre.sourcedb='+im.skydb, \
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msin.baselines="CS*&" msout.datacolumn=MODEL_DATA_LOWRES pre.usebeammodel=false pre.sourcedb='+im.skydb, \
                 log='$nameMS_pre-lr.log', commandType='DPPP')
 
         ##############################################
