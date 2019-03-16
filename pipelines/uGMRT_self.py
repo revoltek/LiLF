@@ -38,15 +38,16 @@ beamReg = 'self/beam.reg'
 
 #################################################################
 # Get online model
+# TODO: correct flux for primary beam
 if sourcedb is None:
     if not os.path.exists('tgts.skydb'):
         fwhm = MSs.getListObj()[0].getFWHM()
         radeg = phasecentre[0]
         decdeg = phasecentre[1]
         # get model the size of the image (radius=fwhm/2)
-        os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm/2.))
+        os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm))
         lsm = lsmtool.load('tgts.skymodel')#, beamMS=MSs.getListObj()[0])
-        lsm.remove('I<0.1')
+        #lsm.remove('I<0.1')
         lsm.write('tgts.skymodel', clobber=True)
         os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
         apparent = False
