@@ -19,6 +19,15 @@ except:
 from LiLF.lib_log import logger
 from LiLF import lib_img
 
+
+def remove_distions_outside_img(directions, fitsfile):
+    """
+    Return a direction dict which contains only the directions that are within the boundaries of the image.
+    
+    directions : dict with {'Dir_0':[ra,dec], 'Dir_1':[ra,dec]...}
+    fitsfile: image use to keep only directions within boundaries
+    """
+
 def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet.fits', beam_reg=None, png=None):
     """
     Take a list of coordinates and an image and voronoi tesselate the sky.
@@ -51,7 +60,7 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     decs = np.array([directions[d][1].degree for d in directions])
     x_fs, y_fs = w.all_world2pix(ras, decs, 0, ra_dec_order=True)
     # keep trak of numbers in the direction names to name correctly patches in the fits files
-    # in this way Dir_12 will have "12" into the fits for that patch.
+    # in this way Isl_patch_12 will have "12" into the fits for that patch.
     nums = [int(d.split('_')[-1]) for d in list(directions.keys())]
 
     x_c = data.shape[0]/2.

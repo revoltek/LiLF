@@ -1,4 +1,4 @@
-Ncpu = 10
+Ncpu = 1
 
 [flag]
 operation = FLAG

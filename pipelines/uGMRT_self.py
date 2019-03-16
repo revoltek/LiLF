@@ -142,6 +142,8 @@ for c in range(3):
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(3) ]
 os.system('mv img/wideM-2-sources.txt self/images')
 
+sys.exit()
+
 # final, large self-cal image
 image_field = lib_img.Image('self/images/wideM-2-MFS-image.fits', userReg=userReg)
 image_field.makeMask(threshisl=5, atrous_do=True)
@@ -176,6 +178,7 @@ for c in range(3):
     lsm.group(image_field.maskname, root='Isl')
 
     ### select bright sources
+    # TODO: aggregate nearby sources
     lsm.select('I >= 0.2 Jy', aggregate='sum')
     lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
     directions = lsm.getPatchPositions()
@@ -203,7 +206,6 @@ for c in range(3):
     s.run(check=True)
 
     ### select the rest of the sources to be subtracted
-    # TODO: aggregate nearby sources
     lsm = lsmtool.load(image_field.skymodel_cut)
     lsm.group(image_field.maskname, root='Isl')
     lsm.select('I < 0.2 Jy', aggregate='sum')
@@ -227,10 +229,15 @@ for c in range(3):
     ### create regions (using cluster directions)
     logger.info("Create regions.")
     lsm = lsmtool.load(image_field.skymodel_cut)
-    lib_dd.make_voronoi_reg(directions, image_field.maskname, outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/skymodels/voronoi%02i.png' % c)
+    # TODO: remove from directions sources that are outside mask
+    # use the cycle=1 image that is as large as the beam
+    lib_dd.make_voronoi_reg(directions, 'self/images/wideM-1-MFS-image.fits', \
+        outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/skymodels/voronoi%02i.png' % c)
+    # TODO: check if group ignore sources outside mask_voro
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
     sizes = lib_dd.sizes_from_mask_voro(mask_voro)
     directions = lib_dd.directions_from_mask_voro(mask_voro)
+    # TODO: add sizes and directions sour sources outside mask
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
@@ -258,12 +265,13 @@ for c in range(3):
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA_DIE - MODEL_DATA"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
 
     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+    # TODO: check if it makes sense
+    #logger.info('BL-based smoothing...')
+    #MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
 
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Calibrating...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/cal-dd-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/cal-dd-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions
