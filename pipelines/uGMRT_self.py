@@ -38,15 +38,16 @@ beamReg = 'self/beam.reg'
 
 #################################################################
 # Get online model
+# TODO: correct flux for primary beam
 if sourcedb is None:
     if not os.path.exists('tgts.skydb'):
         fwhm = MSs.getListObj()[0].getFWHM()
         radeg = phasecentre[0]
         decdeg = phasecentre[1]
         # get model the size of the image (radius=fwhm/2)
-        os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm/2.))
+        os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm))
         lsm = lsmtool.load('tgts.skymodel')#, beamMS=MSs.getListObj()[0])
-        lsm.remove('I<0.1')
+        #lsm.remove('I<0.1')
         lsm.write('tgts.skymodel', clobber=True)
         os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
         apparent = False
@@ -69,8 +70,8 @@ logger.info('Add model to MODEL_DATA...')
 MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 
 # Smooth DATA -> SMOOTHED_DATA
-logger.info('BL-based smoothing...')
-MSs.run('BLsmooth.py -r -f 0.2 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
+#logger.info('BL-based smoothing...')
+#MSs.run('BLsmooth.py -r -f 0.2 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
 
 #####################################################################################################
 # Self-cal cycle
@@ -80,7 +81,8 @@ for c in range(3):
 
     # solve - concat*.MS:SMOOTHED_DATA
     logger.info('Solving G...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/gs.h5 sol.solint=1 sol.nchan=1 sol.mode=complexgain sol.smoothnessconstraint=1e6', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/gs.h5 \
+             sol.solint=1 sol.nchan=1 sol.mode=complexgain sol.smoothnessconstraint=1e6', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
 
     # LoSoTo plot
@@ -229,15 +231,19 @@ for c in range(3):
     ### create regions (using cluster directions)
     logger.info("Create regions.")
     lsm = lsmtool.load(image_field.skymodel_cut)
-    # TODO: remove from directions sources that are outside mask
     # use the cycle=1 image that is as large as the beam
-    lib_dd.make_voronoi_reg(directions, 'self/images/wideM-1-MFS-image.fits', \
+    directions_in, directions_out = lib_dd.split_directions(directions,'self/images/wideM-1-MFS-image.fits')
+    lib_dd.make_voronoi_reg(directions_in, 'self/images/wideM-1-MFS-image.fits', \
         outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/skymodels/voronoi%02i.png' % c)
     # TODO: check if group ignore sources outside mask_voro
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
     sizes = lib_dd.sizes_from_mask_voro(mask_voro)
     directions = lib_dd.directions_from_mask_voro(mask_voro)
-    # TODO: add sizes and directions sour sources outside mask
+
+    # add sizes and directions for sources outside mask
+    for direction in directions_out:
+        sizes[direction] = [0.1,0.1]
+        directions[direction] = directions_out[direction]
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
@@ -271,7 +277,7 @@ for c in range(3):
 
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Calibrating...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/cal-dd-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA sol.h5parm=$pathMS/cal-dd-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions

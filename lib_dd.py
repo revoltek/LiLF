@@ -20,13 +20,34 @@ from LiLF.lib_log import logger
 from LiLF import lib_img
 
 
-def remove_distions_outside_img(directions, fitsfile):
+def split_directions(directions, fitsfile):
     """
-    Return a direction dict which contains only the directions that are within the boundaries of the image.
+    Return 2 direction dicts. One contains only the directions that are within the boundaries of the image.
+    The other the rest of the directions.
     
     directions : dict with {'Dir_0':[ra,dec], 'Dir_1':[ra,dec]...}
-    fitsfile: image use to keep only directions within boundaries
+    fitsfile: used to find what is in/out the image
     """
+    fits = pyfits.open(fitsfile)
+    hdr, data = lib_img.flatten(fits)
+    w = pywcs.WCS(hdr)
+
+    direction_in = {}
+    direction_out = {}
+
+    for direcion in directions:
+        # Get facets central pixels
+        ras = direction[0].degree
+        decs = direction[1].degree
+        x, y = w.all_world2pix(ras, decs, 0, ra_dec_order=True)
+        if x < 0 or x > data.shape[0] or y < 0 or y > data.shape[1]:
+            logging.info('Direction %s is outside the primary beam.' % direction)
+            direction_out[direction] = directions[direction]
+        else:
+            direction_in[direction] = directions[direction]
+
+    return directions_in, directions_out
+ 
 
 def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet.fits', beam_reg=None, png=None):
     """
