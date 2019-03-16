@@ -245,8 +245,8 @@ for c in range(maxniter):
     ##      # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
     ##      logger.info('Patch '+patch+': add back...')
     ##      MSs.run('DPPP '+parset_dir+'/DPPP-add.parset msin=$pathMS add.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 add.sourcedb='+skymodel_voro_skydb+' add.directions=[['+patch+']]', \
-    ##          log='$nameMS_add-c'+str(c)+'-p'+str(patch)+'.log', commandType='DPPP')
-    # Add back 
+   ##          log='$nameMS_add-c'+str(c)+'-p'+str(patch)+'.log', commandType='DPPP')
+   # Add back 
     for i, p in enumerate(patchNames):
         #TODO: see if we can phase shift and average before predict-corrupt=correct
         # predict - ms:MODEL_DATA
@@ -282,7 +282,7 @@ for c in range(maxniter):
     # Mosaiching
     images = []
     for patchName in patchNames:
-        image = lib_img.Image('img/ddcalM-%sMFS-image.fits' % patchName, userReg = userReg)
+        image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % patchName, userReg = userReg)
         image.selectCC()
         # restrict skymodel to facet
         lsm = lsmtool.load(image.skymodel_cut)
