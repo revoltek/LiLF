@@ -286,7 +286,8 @@ for c in range(maxniter):
         image.selectCC()
         # restrict skymodel to facet
         lsm = lsmtool.load(image.skymodel_cut)
-        lsm.select('%s == %i' % ( mask_voro, int(patchName[10:]) ))
+        lsm.group('facet', facet=mask_voro )
+        lsm.select('PatchName == %i' % int(patchName[10:]) )
         lsm.write(image.skymodel_cut, format='makesourcedb', clobber=True)
         images.append(image)
 
