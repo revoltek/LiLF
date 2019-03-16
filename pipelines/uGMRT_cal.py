@@ -50,6 +50,7 @@ for msID in msIDs:
     logger.info('Calibrating...')
     MSs_cals.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/diag.h5 sol.mode=diagonal', log='$nameMS_sol.log', commandType="DPPP")
     
+    sys.exit()
     lib_util.run_losoto(s, 'diag', [ms+'/diag.h5' for ms in MSs_cals.getListStr()], \
             [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', \
             parset_dir+'/losoto-pa.parset', parset_dir+'/losoto-iono.parset', parset_dir+'/losoto-bp.parset'])
@@ -74,7 +75,7 @@ for msID in msIDs:
     #    s.add('DPPP ' + parset_dir + '/DPPP-split.parset msin="['+','.join(mss_in)+']" msin.datacolumn=CORRECTED_DATA msout='+ms_out, log=log, commandType="DPPP")
     #s.run(check=True)
     
-    # for now just use the un-splitted files
+    # TODO: for now just use the un-splitted files
     logger.info('Set DATA = CORRECTED_DATA...')
     MSs_tgts.run('taql "update $pathMS set DATA = CORRECTED_DATA"', log='$nameMS_taql1.log', commandType='general')
 
