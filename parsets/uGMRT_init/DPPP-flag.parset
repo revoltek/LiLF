@@ -11,4 +11,4 @@ flagFrequencyRanges.type      = preflagger
 flagFrequencyRanges.freqrange = [360 .. 379.6 MHz, 486 .. 493.55 MHz] # from Ruta
 
 flagRFI.type     = aoflagger
-flagRFI.strategy = /home/fdg/scripts/LiLF/parsets/uGMRTDummy.rfis
+flagRFI.strategy = /home/fdg/scripts/LiLF/parsets/uGMRT.rfis
