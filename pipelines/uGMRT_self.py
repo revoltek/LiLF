@@ -7,6 +7,8 @@ import sys, os, glob, re
 import numpy as np
 import pyrap.tables as pt
 import lsmtool
+from astropy.coordinates import SkyCoord
+import astropy.units as u
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd
@@ -38,7 +40,6 @@ beamReg = 'self/beam.reg'
 
 #################################################################
 # Get online model
-# TODO: correct flux for primary beam
 if sourcedb is None:
     if not os.path.exists('tgts.skydb'):
         fwhm = MSs.getListObj()[0].getFWHM()
@@ -47,12 +48,23 @@ if sourcedb is None:
         # get model the size of the image (radius=fwhm/2)
         os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm))
         lsm = lsmtool.load('tgts.skymodel')#, beamMS=MSs.getListObj()[0])
-        #lsm.remove('I<0.1')
+        #Reduces the flux of clean component according to a primary beam function
+        #NOTE: monochromatic approximation!
+        center = SkyCoord(phasecentre[0]*u.deg, phasecentre[1]*u.deg)
+        sources = SkyCoord( lsm.getColValues('RA')*u.deg, lsm.getColValues('Dec')*u.deg )
+        d = center.separation(sources)
+        # from http://www.aips.nrao.edu/cgi-bin/ZXHLP2.PL?PBCOR (converto to arcmin and multiply by freq in GHz)
+        d = d.deg * 60 * np.mean(MSs.getListObj()[0].getFreqs())/1.e9
+        I = lsm.getColValues('I')
+        parm = [-3.397,47.192,-30.931,7.803] # 325 MHz GMRT
+        I_corr = I * (1 + (parm[0]/10**3)*d**2 + (parm[1]/10**7)*d**4 + \
+             (parm[2]/10**10)*d**6 + (parm[3]/10**13)*d**8)
+        lsm.setColValues('I', I_corr)
         lsm.write('tgts.skymodel', clobber=True)
         os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
-        apparent = False
 
     sourcedb = 'tgts.skydb'
+
 
 ##################################################################################################
 # Add model to MODEL_DATA
@@ -86,9 +98,10 @@ for c in range(3):
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
 
     # LoSoTo plot
-    # TODO: add some smoothing on Ga? Like normalization!
+    # TODO: add some smoothing on Ga?
+    # TODO: add normalization!
     lib_util.run_losoto(s, 'gs'+str(c), [MS+'/gs.h5' for MS in MSs.getListStr()], \
-            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset'])
+            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-norm.parset'])
     os.system('mv plots-gs'+str(c)+'* self/solutions/')
     os.system('mv cal-gs'+str(c)+'*.h5 self/solutions/')
 
