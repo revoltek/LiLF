@@ -21,17 +21,16 @@ parset_dir = parset.get('uGMRT_self','parset_dir')
 sourcedb = parset.get('model','sourcedb') # relative to tgts dir "./tgts/xxx/model.txt
 userReg = parset.get('model','userReg') # relative to tgts dir "./tgts/xxx/region.ref"
 
-tgts = glob.glob('tgts/*')
 MSs = lib_ms.AllMSs( glob.glob('mss/*.MS'), s )
 
-############################################################################
-# Clear
-logger.info('Cleaning...')
-lib_util.check_rm('img')
-os.makedirs('img')
-lib_util.check_rm('self')
-os.makedirs('self/images')
-os.makedirs('self/solutions')
+#############################################################################
+## Clear
+#logger.info('Cleaning...')
+#lib_util.check_rm('img')
+#os.makedirs('img')
+#lib_util.check_rm('self')
+#os.makedirs('self/images')
+#os.makedirs('self/solutions')
 
 # make beam
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
@@ -66,98 +65,97 @@ if sourcedb is None:
     sourcedb = 'tgts.skydb'
 
 
-##################################################################################################
-# Add model to MODEL_DATA
-# copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
-sourcedb_basename = sourcedb.split('/')[-1]
-for MS in MSs.getListStr():
-    lib_util.check_rm(MS+'/'+sourcedb_basename)
-    logger.debug('Copy: '+sourcedb+' -> '+MS)
-    os.system('cp -r '+sourcedb+' '+MS)
-
-logger.info('Add columns...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA,SUBTRACTED_DATA,CORRECTED_DATA_DIE -i DATA', log="$nameMS_addcol.log", commandType="python")
-
-logger.info('Add model to MODEL_DATA...')
-MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
-
-# Smooth DATA -> SMOOTHED_DATA
-#logger.info('BL-based smoothing...')
-#MSs.run('BLsmooth.py -r -f 0.2 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
-
-#####################################################################################################
-# Self-cal cycle
-for c in range(3):
-
-    logger.info('Start selfcal cycle: '+str(c))
-
-    # solve - concat*.MS:SMOOTHED_DATA
-    logger.info('Solving G...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/gs.h5 \
-             sol.solint=1 sol.nchan=1 sol.mode=complexgain sol.smoothnessconstraint=1e6', \
-                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-
-    # LoSoTo plot
-    # TODO: add some smoothing on Ga?
-    # TODO: add normalization!
-    lib_util.run_losoto(s, 'gs'+str(c), [MS+'/gs.h5' for MS in MSs.getListStr()], \
-            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-norm.parset'])
-    os.system('mv plots-gs'+str(c)+'* self/solutions/')
-    os.system('mv cal-gs'+str(c)+'*.h5 self/solutions/')
-
-    # correct phases - MS:DATA -> MS:CORRECTED_DATA
-    logger.info('Correcting Gp...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=phase000', \
-                log='$nameMS_corGp-c'+str(c)+'.log', commandType='DPPP')
-    if c >= 2:
-        # correct amplitudes - MS:DATA -> MS:CORRECTED_DATA
-        logger.info('Correcting Ga...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=amplitude000', \
-                log='$nameMS_corGa-c'+str(c)+'.log', commandType='DPPP')
-
-    # set image size at 1.5 * FWHM
-    imgsizepix = 1.5*MSs.getListObj()[0].getFWHM()*3600/2.
-    if c>=2: imgsizepix *= 2 # last cycle make a very large image to catch source in the sidelobes
-
-    # clean mask clean
-    logger.info('Cleaning (cycle: '+str(c)+')...')
-    imagename = 'img/wide-'+str(c)
-    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='2arcsec', \
-            weight='briggs 0.', niter=10000, no_update_model_required='', mgain=0.9, \
-            baseline_averaging=5, parallel_deconvolution=256, auto_threshold=20, \
-            join_channels='', fit_spectral_pol=2, channels_out=8)
-
-    # make mask
-    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl=4, atrous_do=False)
-    
-    # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
-    # TODO: add -parallel-deconvolution=256 when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
-    logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
-    imagename = 'img/wideM-'+str(c)
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='2arcsec', \
-            weight='briggs 0.', niter=100000, no_update_model_required='', mgain=0.9, \
-            #multiscale='', multiscale_scales='0,5,10,20,40', \
-            baseline_averaging=5, auto_threshold=1, fits_mask=im.maskname, \
-            join_channels='', fit_spectral_pol=2, channels_out=8)
-    os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
-
-    if c != 2:
-
-        im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-        im.makeMask(threshisl=5, atrous_do=False)
-        im.selectCC()
-
-        # predict - ms: MODEL_DATA
-        logger.info('Predict model...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.sourcedb='+im.skydb, \
-                log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-
-# Copy images
-[ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(3) ]
-os.system('mv img/wideM-2-sources.txt self/images')
-
-sys.exit()
+###################################################################################################
+## Add model to MODEL_DATA
+## copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
+#sourcedb_basename = sourcedb.split('/')[-1]
+#for MS in MSs.getListStr():
+#    lib_util.check_rm(MS+'/'+sourcedb_basename)
+#    logger.debug('Copy: '+sourcedb+' -> '+MS)
+#    os.system('cp -r '+sourcedb+' '+MS)
+#
+#logger.info('Add columns...')
+#MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA,SUBTRACTED_DATA,CORRECTED_DATA_DIE -i DATA', log="$nameMS_addcol.log", commandType="python")
+#
+#logger.info('Add model to MODEL_DATA...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+#
+## Smooth DATA -> SMOOTHED_DATA
+##logger.info('BL-based smoothing...')
+##MSs.run('BLsmooth.py -r -f 0.2 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
+#
+######################################################################################################
+## Self-cal cycle
+#for c in range(3):
+#
+#    logger.info('Start selfcal cycle: '+str(c))
+#
+#    # solve - concat*.MS:SMOOTHED_DATA
+#    logger.info('Solving G...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/gs.h5 \
+#             sol.solint=1 sol.nchan=1 sol.mode=complexgain sol.smoothnessconstraint=1e6', \
+#                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+#
+#    # LoSoTo plot
+#    # TODO: add some smoothing on Ga?
+#    # TODO: add normalization!
+#    lib_util.run_losoto(s, 'gs'+str(c), [MS+'/gs.h5' for MS in MSs.getListStr()], \
+#            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-norm.parset'])
+#    os.system('mv plots-gs'+str(c)+'* self/solutions/')
+#    os.system('mv cal-gs'+str(c)+'*.h5 self/solutions/')
+#
+#    # correct phases - MS:DATA -> MS:CORRECTED_DATA
+#    logger.info('Correcting Gp...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=phase000', \
+#                log='$nameMS_corGp-c'+str(c)+'.log', commandType='DPPP')
+#    if c >= 2:
+#        # correct amplitudes - MS:DATA -> MS:CORRECTED_DATA
+#        logger.info('Correcting Ga...')
+#        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=amplitude000', \
+#                log='$nameMS_corGa-c'+str(c)+'.log', commandType='DPPP')
+#
+#    # set image size at 1.5 * FWHM
+#    imgsizepix = 1.5*MSs.getListObj()[0].getFWHM()*3600/2.
+#    if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
+#    if c>=2: imgsizepix *= 2 # last cycle make a very large image to catch source in the sidelobes
+#
+#    # clean mask clean
+#    logger.info('Cleaning (cycle: '+str(c)+')...')
+#    imagename = 'img/wide-'+str(c)
+#    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='2arcsec', \
+#            weight='briggs 0.', niter=10000, no_update_model_required='', mgain=0.9, \
+#            baseline_averaging=5, parallel_deconvolution=256, auto_threshold=20, \
+#            join_channels='', fit_spectral_pol=2, channels_out=8)
+#
+#    # make mask
+#    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
+#    im.makeMask(threshisl=4, atrous_do=False)
+#    
+#    # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
+#    # TODO: add -parallel-deconvolution=256 when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
+#    logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
+#    imagename = 'img/wideM-'+str(c)
+#    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='2arcsec', \
+#            weight='briggs 0.', niter=100000, no_update_model_required='', mgain=0.9, \
+#            #multiscale='', multiscale_scales='0,5,10,20,40', \
+#            baseline_averaging=5, auto_threshold=1, fits_mask=im.maskname, \
+#            join_channels='', fit_spectral_pol=2, channels_out=8)
+#    os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
+#
+#    if c != 2:
+#
+#        im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
+#        im.makeMask(threshisl=5, atrous_do=False)
+#        im.selectCC()
+#
+#        # predict - ms: MODEL_DATA
+#        logger.info('Predict model...')
+#        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.sourcedb='+im.skydb, \
+#                log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+#
+## Copy images
+#[ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(3) ]
+#os.system('mv img/wideM-2-sources.txt self/images')
 
 # final, large self-cal image
 image_field = lib_img.Image('self/images/wideM-2-MFS-image.fits', userReg=userReg)
@@ -176,7 +174,7 @@ os.makedirs('ddcal/plots')
 os.makedirs('ddcal/images')
 os.makedirs('ddcal/skymodels')
 
-# TODO: make sources outside primary beam withougt a "patch" and reduce the size of the facet mask
+# TODO: make sources outside primary beam without a "patch" and reduce the size of the facet mask
 
 #####################################################################################################
 # DDE-cal cycle
@@ -247,7 +245,7 @@ for c in range(3):
     # use the cycle=1 image that is as large as the beam
     directions_in, directions_out = lib_dd.split_directions(directions,'self/images/wideM-1-MFS-image.fits')
     lib_dd.make_voronoi_reg(directions_in, 'self/images/wideM-1-MFS-image.fits', \
-        outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/skymodels/voronoi%02i.png' % c)
+        outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
     # TODO: check if group ignore sources outside mask_voro
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
     sizes = lib_dd.sizes_from_mask_voro(mask_voro)
@@ -257,6 +255,8 @@ for c in range(3):
     for direction in directions_out:
         sizes[direction] = [0.1,0.1]
         directions[direction] = directions_out[direction]
+
+    print sizes, directions
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
@@ -271,6 +271,7 @@ for c in range(3):
     s.run(check=True)
 
     del lsm
+    sys.exit()
 
     ###############################################################
     # Calibration

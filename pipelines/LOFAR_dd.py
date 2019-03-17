@@ -134,7 +134,7 @@ for c in range(maxniter):
     # write file
     skymodel_cl = 'ddcal/skymodels/skymodel%02i_cluster.txt' % c
     lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
-    skymodel_cl_plot = 'ddcal/skymodels/skymodel%02i_cluster.png' % c
+    skymodel_cl_plot = 'ddcal/masks/skymodel%02i_cluster.png' % c
     lsm.plot(fileName=skymodel_cl_plot, labelBy='patch')
 
     # convert to blob
@@ -153,9 +153,9 @@ for c in range(maxniter):
     logger.info("Total flux in rest field %i Jy" % rest_field)
 
     # write file
-    skymodel_rest = 'ddcal/skymodels/skymodel%02i_rest.txt' % c
+    skymodel_rest = 'ddcal/masks/skymodel%02i_rest.txt' % c
     lsm.write(skymodel_rest, format='makesourcedb', clobber=True)
-    skymodel_rest_plot = 'ddcal/skymodels/skymodel%02i_rest.png' % c
+    skymodel_rest_plot = 'ddcal/masks/skymodel%02i_rest.png' % c
     lsm.plot(fileName=skymodel_rest_plot, labelBy='patch')
        
     # convert to blob
@@ -167,7 +167,7 @@ for c in range(maxniter):
     ### create regions (using cluster directions)
     logger.info("Create regions.")
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
-    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/skymodels/voronoi%02i.png' % c)
+    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
     sizes = lib_dd.sizes_from_mask_voro(mask_voro)
     directions = lib_dd.directions_from_mask_voro(mask_voro)
@@ -175,7 +175,7 @@ for c in range(maxniter):
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
     lsm.write(skymodel_voro, format='makesourcedb', clobber=True)
-    skymodel_voro_plot = 'ddcal/skymodels/skymodel%02i_voro.png' % c
+    skymodel_voro_plot = 'ddcal/masks/skymodel%02i_voro.png' % c
     lsm.plot(fileName=skymodel_voro_plot, labelBy='patch')
 
     # convert to blob
