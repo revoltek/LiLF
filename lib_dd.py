@@ -19,6 +19,36 @@ except:
 from LiLF.lib_log import logger
 from LiLF import lib_img
 
+
+def split_directions(directions, fitsfile):
+    """
+    Return 2 direction dicts. One contains only the directions that are within the boundaries of the image.
+    The other the rest of the directions.
+    
+    directions : dict with {'Dir_0':[ra,dec], 'Dir_1':[ra,dec]...}
+    fitsfile: used to find what is in/out the image
+    """
+    fits = pyfits.open(fitsfile)
+    hdr, data = lib_img.flatten(fits)
+    w = pywcs.WCS(hdr)
+
+    direction_in = {}
+    direction_out = {}
+
+    for direcion in directions:
+        # Get facets central pixels
+        ras = direction[0].degree
+        decs = direction[1].degree
+        x, y = w.all_world2pix(ras, decs, 0, ra_dec_order=True)
+        if x < 0 or x > data.shape[0] or y < 0 or y > data.shape[1]:
+            logging.info('Direction %s is outside the primary beam.' % direction)
+            direction_out[direction] = directions[direction]
+        else:
+            direction_in[direction] = directions[direction]
+
+    return directions_in, directions_out
+ 
+
 def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet.fits', beam_reg=None, png=None):
     """
     Take a list of coordinates and an image and voronoi tesselate the sky.
@@ -51,7 +81,7 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     decs = np.array([directions[d][1].degree for d in directions])
     x_fs, y_fs = w.all_world2pix(ras, decs, 0, ra_dec_order=True)
     # keep trak of numbers in the direction names to name correctly patches in the fits files
-    # in this way Dir_12 will have "12" into the fits for that patch.
+    # in this way Isl_patch_12 will have "12" into the fits for that patch.
     nums = [int(d.split('_')[-1]) for d in list(directions.keys())]
 
     x_c = data.shape[0]/2.

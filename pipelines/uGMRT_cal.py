@@ -43,12 +43,13 @@ for msID in msIDs:
     s.run(check=True)
     
     # Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
-    logger.info('BL-smooth...')
-    MSs_cals.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=10)
+    # TODO: gmrt amplitude are unstable, the smooth seems not to work fine
+    #logger.info('BL-smooth...')
+    #MSs_cals.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=10)
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating...')
-    MSs_cals.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/diag.h5 sol.mode=diagonal', log='$nameMS_sol.log', commandType="DPPP")
+    MSs_cals.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/diag.h5 sol.mode=diagonal', log='$nameMS_sol.log', commandType="DPPP")
     
     lib_util.run_losoto(s, 'diag', [ms+'/diag.h5' for ms in MSs_cals.getListStr()], \
             [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', \
@@ -74,7 +75,7 @@ for msID in msIDs:
     #    s.add('DPPP ' + parset_dir + '/DPPP-split.parset msin="['+','.join(mss_in)+']" msin.datacolumn=CORRECTED_DATA msout='+ms_out, log=log, commandType="DPPP")
     #s.run(check=True)
     
-    # for now just use the un-splitted files
+    # TODO: for now just use the un-splitted files
     logger.info('Set DATA = CORRECTED_DATA...')
     MSs_tgts.run('taql "update $pathMS set DATA = CORRECTED_DATA"', log='$nameMS_taql1.log', commandType='general')
 
