@@ -43,7 +43,7 @@ for msID in msIDs:
     s.run(check=True)
     
     # Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
-    # TODO: gmrt amplitude as unstable, the smooth seems not to work fine
+    # TODO: gmrt amplitude are unstable, the smooth seems not to work fine
     #logger.info('BL-smooth...')
     #MSs_cals.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=10)
     
