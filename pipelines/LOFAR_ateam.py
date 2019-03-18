@@ -236,11 +236,11 @@ for c in range(100):
 
     elif patch == 'VirA' and lofar_system == 'hba':
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -0.85', niter=1000, update_model_required='', mgain=0.5, \
+                weight='briggs -0.9', niter=1000, update_model_required='', mgain=0.5, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
                 join_channels='', deconvolution_channels=20, fit_spectral_pol=7, channels_out=61) # use cont=True
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -0.65', niter=50000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -0.6', niter=50000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
                 baseline_averaging=5, auto_threshold=0.1, \

@@ -8,7 +8,7 @@ flagBaselines.type            = preflagger
 flagBaselines.baseline        =    # by default, flag no baselines (besides those already flagged by uGMRT staff)
 
 flagFrequencyRanges.type      = preflagger
-flagFrequencyRanges.freqrange = [480 .. 510 MHz] #top of the BP, RFI
+flagFrequencyRanges.freqrange = [360 .. 379.6 MHz, 486 .. 500 MHz] # from Ruta: 360 .. 379.6 MHz, 486 .. 493.55 MHz
 
 flagRFI.type     = aoflagger
-flagRFI.strategy = /home/fdg/scripts/LiLF/parsets/uGMRTDummy.rfis
+flagRFI.strategy = /home/fdg/scripts/LiLF/parsets/uGMRT.rfis

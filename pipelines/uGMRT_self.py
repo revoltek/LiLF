@@ -7,6 +7,8 @@ import sys, os, glob, re
 import numpy as np
 import pyrap.tables as pt
 import lsmtool
+from astropy.coordinates import SkyCoord
+import astropy.units as u
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd
@@ -19,40 +21,50 @@ parset_dir = parset.get('uGMRT_self','parset_dir')
 sourcedb = parset.get('model','sourcedb') # relative to tgts dir "./tgts/xxx/model.txt
 userReg = parset.get('model','userReg') # relative to tgts dir "./tgts/xxx/region.ref"
 
-tgts = glob.glob('tgts/*')
 MSs = lib_ms.AllMSs( glob.glob('mss/*.MS'), s )
 
 #############################################################################
-# Clear
+## Clear
 #logger.info('Cleaning...')
 #lib_util.check_rm('img')
 #os.makedirs('img')
 #lib_util.check_rm('self')
 #os.makedirs('self/images')
 #os.makedirs('self/solutions')
-#
-## make beam
-#phasecentre = MSs.getListObj()[0].getPhaseCentre()
-#MSs.getListObj()[0].makeBeamReg('self/beam.reg')
-#beamReg = 'self/beam.reg'
-#
-##################################################################
-## Get online model
-#if sourcedb is None:
-#    if not os.path.exists('tgts.skydb'):
-#        fwhm = 3 # deg
-#        radeg = phasecentre[0]
-#        decdeg = phasecentre[1]
-#        # get model the size of the image (radius=fwhm/2)
-#        os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm/2.))
-#        lsm = lsmtool.load('tgts.skymodel')#, beamMS=MSs.getListObj()[0])
-#        lsm.remove('I<0.1')
-#        lsm.write('tgts.skymodel', clobber=True)
-#        os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
-#        apparent = False
-#
-#    sourcedb = 'tgts.skydb'
-#
+
+# make beam
+phasecentre = MSs.getListObj()[0].getPhaseCentre()
+MSs.getListObj()[0].makeBeamReg('self/beam.reg')
+beamReg = 'self/beam.reg'
+
+#################################################################
+# Get online model
+if sourcedb is None:
+    if not os.path.exists('tgts.skydb'):
+        fwhm = MSs.getListObj()[0].getFWHM()
+        radeg = phasecentre[0]
+        decdeg = phasecentre[1]
+        # get model the size of the image (radius=fwhm/2)
+        os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm))
+        lsm = lsmtool.load('tgts.skymodel')#, beamMS=MSs.getListObj()[0])
+        #Reduces the flux of clean component according to a primary beam function
+        #NOTE: monochromatic approximation!
+        center = SkyCoord(phasecentre[0]*u.deg, phasecentre[1]*u.deg)
+        sources = SkyCoord( lsm.getColValues('RA')*u.deg, lsm.getColValues('Dec')*u.deg )
+        d = center.separation(sources)
+        # from http://www.aips.nrao.edu/cgi-bin/ZXHLP2.PL?PBCOR (converto to arcmin and multiply by freq in GHz)
+        d = d.deg * 60 * np.mean(MSs.getListObj()[0].getFreqs())/1.e9
+        I = lsm.getColValues('I')
+        parm = [-3.397,47.192,-30.931,7.803] # 325 MHz GMRT
+        I_corr = I * (1 + (parm[0]/10**3)*d**2 + (parm[1]/10**7)*d**4 + \
+             (parm[2]/10**10)*d**6 + (parm[3]/10**13)*d**8)
+        lsm.setColValues('I', I_corr)
+        lsm.write('tgts.skymodel', clobber=True)
+        os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
+
+    sourcedb = 'tgts.skydb'
+
+
 ###################################################################################################
 ## Add model to MODEL_DATA
 ## copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
@@ -62,15 +74,15 @@ MSs = lib_ms.AllMSs( glob.glob('mss/*.MS'), s )
 #    logger.debug('Copy: '+sourcedb+' -> '+MS)
 #    os.system('cp -r '+sourcedb+' '+MS)
 #
-logger.info('Add columns...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA,SUBTRACTED_DATA,CORRECTED_DATA_DIE -i DATA', log="$nameMS_addcol.log", commandType="python")
+#logger.info('Add columns...')
+#MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA,SUBTRACTED_DATA,CORRECTED_DATA_DIE -i DATA', log="$nameMS_addcol.log", commandType="python")
 #
 #logger.info('Add model to MODEL_DATA...')
 #MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 #
 ## Smooth DATA -> SMOOTHED_DATA
-#logger.info('BL-based smoothing...')
-#MSs.run('BLsmooth.py -r -f 0.2 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
+##logger.info('BL-based smoothing...')
+##MSs.run('BLsmooth.py -r -f 0.2 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
 #
 ######################################################################################################
 ## Self-cal cycle
@@ -80,13 +92,15 @@ MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA,SUBTRACTED_DATA,CORRECTED_DATA_DI
 #
 #    # solve - concat*.MS:SMOOTHED_DATA
 #    logger.info('Solving G...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/gs.h5 sol.solint=1 sol.nchan=1 sol.mode=complexgain sol.smoothnessconstraint=1e6', \
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/gs.h5 \
+#             sol.solint=1 sol.nchan=1 sol.mode=complexgain sol.smoothnessconstraint=1e6', \
 #                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
 #
 #    # LoSoTo plot
-#    # TODO: add some smoothing on Ga? Like normalization!
+#    # TODO: add some smoothing on Ga?
+#    # TODO: add normalization!
 #    lib_util.run_losoto(s, 'gs'+str(c), [MS+'/gs.h5' for MS in MSs.getListStr()], \
-#            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset'])
+#            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-norm.parset'])
 #    os.system('mv plots-gs'+str(c)+'* self/solutions/')
 #    os.system('mv cal-gs'+str(c)+'*.h5 self/solutions/')
 #
@@ -102,6 +116,7 @@ MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA,SUBTRACTED_DATA,CORRECTED_DATA_DI
 #
 #    # set image size at 1.5 * FWHM
 #    imgsizepix = 1.5*MSs.getListObj()[0].getFWHM()*3600/2.
+#    if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 #    if c>=2: imgsizepix *= 2 # last cycle make a very large image to catch source in the sidelobes
 #
 #    # clean mask clean
@@ -147,7 +162,7 @@ image_field = lib_img.Image('self/images/wideM-2-MFS-image.fits', userReg=userRe
 image_field.makeMask(threshisl=5, atrous_do=True)
 image_field.selectCC()
 
-# Vode DIE-corrected data into CORRECTED_DATA_DIE
+# Move DIE-corrected data into CORRECTED_DATA_DIE
 logger.info('Set CORRECTED_DATA_DIE = CORRECTED_DATA...')
 MSs.run('taql "update $pathMS set CORRECTED_DATA_DIE = CORRECTED_DATA"', log='$nameMS_taql2.log', commandType='general')
 
@@ -159,7 +174,7 @@ os.makedirs('ddcal/plots')
 os.makedirs('ddcal/images')
 os.makedirs('ddcal/skymodels')
 
-# TODO: make sources outside primary beam withougt a "patch" and reduce the size of the facet mask
+# TODO: make sources outside primary beam without a "patch" and reduce the size of the facet mask
 
 #####################################################################################################
 # DDE-cal cycle
@@ -176,6 +191,7 @@ for c in range(3):
     lsm.group(image_field.maskname, root='Isl')
 
     ### select bright sources
+    # TODO: aggregate nearby sources
     lsm.select('I >= 0.2 Jy', aggregate='sum')
     lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
     directions = lsm.getPatchPositions()
@@ -203,7 +219,6 @@ for c in range(3):
     s.run(check=True)
 
     ### select the rest of the sources to be subtracted
-    # TODO: aggregate nearby sources
     lsm = lsmtool.load(image_field.skymodel_cut)
     lsm.group(image_field.maskname, root='Isl')
     lsm.select('I < 0.2 Jy', aggregate='sum')
@@ -227,10 +242,21 @@ for c in range(3):
     ### create regions (using cluster directions)
     logger.info("Create regions.")
     lsm = lsmtool.load(image_field.skymodel_cut)
-    lib_dd.make_voronoi_reg(directions, image_field.maskname, outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/skymodels/voronoi%02i.png' % c)
+    # use the cycle=1 image that is as large as the beam
+    directions_in, directions_out = lib_dd.split_directions(directions,'self/images/wideM-1-MFS-image.fits')
+    lib_dd.make_voronoi_reg(directions_in, 'self/images/wideM-1-MFS-image.fits', \
+        outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
+    # TODO: check if group ignore sources outside mask_voro
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
     sizes = lib_dd.sizes_from_mask_voro(mask_voro)
     directions = lib_dd.directions_from_mask_voro(mask_voro)
+
+    # add sizes and directions for sources outside mask
+    for direction in directions_out:
+        sizes[direction] = [0.1,0.1]
+        directions[direction] = directions_out[direction]
+
+    print sizes, directions
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
@@ -245,6 +271,7 @@ for c in range(3):
     s.run(check=True)
 
     del lsm
+    sys.exit()
 
     ###############################################################
     # Calibration
@@ -258,12 +285,13 @@ for c in range(3):
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA_DIE - MODEL_DATA"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
 
     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+    # TODO: check if it makes sense
+    #logger.info('BL-based smoothing...')
+    #MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
 
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Calibrating...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/cal-dd-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA sol.h5parm=$pathMS/cal-dd-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions
@@ -332,8 +360,8 @@ for c in range(3):
         # TODO: test uneven size
         size = np.max(sizes[p])*1.05 # add 5%
         imsize = int(size/(pixscale/3600.))
-        if imsize < 512: imsize = 512
         if imsize % 2 == 1: imsize += 1 # make even
+        if imsize < 256: imsize = 256 # prevent supersmall images
     
         logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
     

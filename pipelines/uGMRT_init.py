@@ -83,7 +83,7 @@ for MS in MSs.getListObj():
 MSs = lib_ms.AllMSs( glob.glob('cals/*/*MS')+glob.glob('tgts/*/mss/*MS'), s )
 
 logger.info('Flagging...')
-MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flagBaselines.baseline=\"" + bl2flag + "\" flagRFI.strategy=" + parset_dir + "/uGMRTDummy.rfis", \
+MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS flagBaselines.baseline=\"" + bl2flag + "\" flagRFI.strategy=" + parset_dir + "/uGMRT.rfis", \
         log="$nameMS_flag.log", commandType="DPPP")
 
 # extend flags

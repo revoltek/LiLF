@@ -50,7 +50,8 @@ MSs.getListObj()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first n
 beamReg = 'self/beam.reg'
 
 # set image size
-imgsizepix =  1.2*MSs.getListObj()[0].getFWHM()*3600/10
+imgsizepix = int(1.2*MSs.getListObj()[0].getFWHM()*3600/10.)
+if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 
 #################################################################
 # Get online model
@@ -161,7 +162,7 @@ for c in range(2):
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 4)
+    im.makeMask(threshisl = 3)
     
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     # TODO: add -parallel-deconvolution=256 when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
@@ -205,7 +206,7 @@ for c in range(2):
         logger.info('Set MODEL_DATA_LOWRES to 0')
         MSs.run('taql "update $pathMS set MODEL_DATA_LOWRES = 0"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         logger.info('Predict low-res model...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msin.baselines="CS*&" msout.datacolumn=MODEL_DATA_LOWRES pre.usebeammodel=false pre.sourcedb='+im.skydb, \
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msin.baseline="CS*&" msout.datacolumn=MODEL_DATA_LOWRES pre.usebeammodel=false pre.sourcedb='+im.skydb, \
                 log='$nameMS_pre-lr.log', commandType='DPPP')
 
         ##############################################
