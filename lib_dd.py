@@ -41,7 +41,7 @@ def split_directions(directions, fitsfile):
         decs = directions[direction][1].degree
         x, y = w.all_world2pix(ras, decs, 0, ra_dec_order=True)
         if x < 0 or x > data.shape[0] or y < 0 or y > data.shape[1]:
-            logger.info('Direction %s is outside the primary beam.' % direction)
+            logger.info('Direction %s is outside the primary beam and will not have a facet (it will still be a calibrator).' % direction)
             directions_out[direction] = directions[direction]
         else:
             directions_in[direction] = directions[direction]
@@ -302,6 +302,13 @@ def voronoi_finite_polygons_2d_box(vor, box):
     for p in poly:
         polyPath = mplPath.Path(p)
         newpolyPath = polyPath.clip_to_bbox(bbox)
+        # makes vertices on the edge of the image 1 pixel outside the image
+        # this is to be sure to include the pixels on the edge
+        for i, vertice in enumerate(newpolyPath.vertices):
+            if vertice[0] == box[0,0]: newpolyPath.vertices[i][0] = box[0,0]-1
+            if vertice[1] == box[0,1]: newpolyPath.vertices[i][1] = box[0,1]-1
+            if vertice[0] == box[1,0]: newpolyPath.vertices[i][0] = box[1,0]+1
+            if vertice[1] == box[1,1]: newpolyPath.vertices[i][1] = box[1,1]+1
         coords, idx = np.unique([ x+1j*y for (x,y) in newpolyPath.vertices], return_index=True) # using complex; a way for grouping
         coords = [[x.real,x.imag] for x in coords[np.argsort(idx)]] # preserve order
         coords += [coords[0]] # close the line
@@ -327,8 +334,11 @@ def sizes_from_mask_voro(mask_voro):
     pixsize_dec = hdr['CDELT2']
 
     # calculate sizes
+
     for i in np.unique(data):
-        assert i != 0 # there should not be any 0 in the mask ptherwise something is wrong with tessellation
+        if i == 0:
+            print np.where(data == 0)
+            raise 'Pixels with 0 in the facet mask! Something wrong in tassellation.'
         #print 'Working on', i
         coord = np.where(data.T == i)
         size_ra = (np.max(coord[0])-np.min(coord[0]))*pixsize_ra
@@ -356,7 +366,9 @@ def directions_from_mask_voro(mask_voro):
 
     # calculate sizes
     for i in np.unique(data):
-        assert i != 0 # there should not be any 0 in the mask ptherwise something is wrong with tessellation
+        if i == 0:
+            print np.where(data == 0)
+            raise 'Pixels with 0 in the facet mask! Something wrong in tassellation.'
         #print 'Working on', i
         coord = np.where(data.T == i)
         dir_x = np.mean([ np.max(coord[0]), np.min(coord[0]) ])

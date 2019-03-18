@@ -157,10 +157,13 @@ if sourcedb is None:
 #[ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(3) ]
 #os.system('mv img/wideM-2-sources.txt self/images')
 
-# final, large self-cal image
+# final, large self-cal image (used to get the skymodel)
 image_field = lib_img.Image('self/images/wideM-2-MFS-image.fits', userReg=userReg)
 image_field.makeMask(threshisl=5, atrous_do=True)
 image_field.selectCC()
+# small self-cal image (used only to define the size of the final mosaic)
+image_small = lib_img.Image('self/images/wideM-1-MFS-image.fits', userReg=userReg)
+image_small.makeMask(threshisl=5, atrous_do=True)
 
 # Move DIE-corrected data into CORRECTED_DATA_DIE
 logger.info('Set CORRECTED_DATA_DIE = CORRECTED_DATA...')
@@ -243,8 +246,8 @@ for c in range(3):
     logger.info("Create regions.")
     lsm = lsmtool.load(image_field.skymodel_cut)
     # use the cycle=1 image that is as large as the beam
-    directions_in, directions_out = lib_dd.split_directions(directions,'self/images/wideM-1-MFS-image.fits')
-    lib_dd.make_voronoi_reg(directions_in, 'self/images/wideM-1-MFS-image.fits', \
+    directions_in, directions_out = lib_dd.split_directions(directions, image_small.imagename)
+    lib_dd.make_voronoi_reg(directions_in, image_small.maskname, \
         outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
     # TODO: check if group ignore sources outside mask_voro
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
@@ -254,9 +257,7 @@ for c in range(3):
     # add sizes and directions for sources outside mask
     for direction in directions_out:
         sizes[direction] = [0.1,0.1]
-        directions[direction] = directions_out[direction]
-
-    print sizes, directions
+        directions[direction] = [directions_out[direction][0].deg, directions_out[direction][1].deg]
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
@@ -271,7 +272,6 @@ for c in range(3):
     s.run(check=True)
 
     del lsm
-    sys.exit()
 
     ###############################################################
     # Calibration
@@ -341,7 +341,7 @@ for c in range(3):
         # DD-correct - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
         logger.info('Patch '+p+': correct...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+p+'] cor.correction=phase000 \
-               msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED__DATA', \
+               msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA', \
                log='$nameMS_cor-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
         logger.info('Patch '+p+': phase shift and avg...')
@@ -355,20 +355,24 @@ for c in range(3):
 
         # set pixscale and imsize
         MSs_shift = lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s )
-        pixscale = MSs_shift.getListObj()[0].getResolution()/2. # weighting lower the resolutions a bit, therefore a /2 should be enough
     
         # TODO: test uneven size
-        size = np.max(sizes[p])*1.05 # add 5%
-        imsize = int(size/(pixscale/3600.))
-        if imsize < 512: imsize = 512
-        if imsize % 2 == 1: imsize += 1 # make even
+        #size = np.max(sizes[p])*1.05 # add 5%
+        #imsize = int(size/(2/3600.))
+        #if imsize < 512: imsize = 512
+        #if imsize % 2 == 1: imsize += 1 # make even
+        imsize = [0,0]
+        imsize[0] = int(sizes[p][0]*1.05/(2/3600.)) # add 5%
+        imsize[1] = int(sizes[p][1]*1.05/(2/3600.)) # add 5%
+        imsize[0] += imsize[0]%1
+        imsize[1] += imsize[1]%1
     
-        logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
+        logger.debug('Image size: '+str(imsize))
     
         # clean 1
         logger.info('Cleaning ('+str(p)+')...')
         imagename = 'img/ddcal-'+str(p)
-        lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs_shift.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
+        lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs_shift.getStrWsclean(), name=imagename, size=imsize, scale='2arcsec', \
                 weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85, \
                 baseline_averaging=5, parallel_deconvolution=256, \
                 auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=8)
@@ -381,7 +385,7 @@ for c in range(3):
         # TODO: add -parallel-deconvolution when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
         logger.info('Cleaning w/ mask ('+str(p)+')...')
         imagename = 'img/ddcalM-'+str(p)
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs_shift.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', \
+        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs_shift.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale='2arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
                 baseline_averaging=5, auto_threshold=0.1, fits_mask=im.maskname, \
                 join_channels='', fit_spectral_pol=2, channels_out=8)
