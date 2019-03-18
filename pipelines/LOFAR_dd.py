@@ -36,7 +36,7 @@ os.makedirs('ddcal/plots')
 os.makedirs('ddcal/images')
 os.makedirs('ddcal/skymodels')
 
-def clean(p, MSs, size, apply_beam=False):
+def clean(p, MSs, size, res='normal', apply_beam=False):
     """
     p = patch name
     mss = list of mss to clean
@@ -48,19 +48,26 @@ def clean(p, MSs, size, apply_beam=False):
     # TODO: test uneven size
     size = np.max(size)*1.05 # add 5%
     imsize = int(size/(pixscale/3600.))
-
-    if imsize < 512:
-        imsize = 512
-
-    if imsize % 2 == 1: imsize += 1 # make even
+    if imsize % 2 != 0: imsize += 1 # make even
+    if imsize < 512: imsize = 512 # prevent supersmall images
 
     logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
+
+    if res == 'normal':
+        weight = 'briggs 0'
+        maxuv_l = 1e30
+    elif res == 'high':
+        weight = 'uniform'
+        maxuv_l = 1e30
+    elif res == 'low':
+        weight = 'briggs 0'
+        maxuv_l = 4000
 
     # clean 1
     logger.info('Cleaning ('+str(p)+')...')
     imagename = 'img/ddcal-'+str(p)
     lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
-            weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+            weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             baseline_averaging=5, parallel_deconvolution=256, \
             auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=8)
 
@@ -74,7 +81,7 @@ def clean(p, MSs, size, apply_beam=False):
     imagename = 'img/ddcalM-'+str(p)
     if apply_beam:
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imsize, scale=str(pixscale)+'arcsec', \
-            weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+            weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
             auto_threshold=0.1, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=2, channels_out=8)
@@ -134,7 +141,7 @@ for c in range(maxniter):
     # write file
     skymodel_cl = 'ddcal/skymodels/skymodel%02i_cluster.txt' % c
     lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
-    skymodel_cl_plot = 'ddcal/skymodels/skymodel%02i_cluster.png' % c
+    skymodel_cl_plot = 'ddcal/masks/skymodel%02i_cluster.png' % c
     lsm.plot(fileName=skymodel_cl_plot, labelBy='patch')
 
     # convert to blob
@@ -153,9 +160,9 @@ for c in range(maxniter):
     logger.info("Total flux in rest field %i Jy" % rest_field)
 
     # write file
-    skymodel_rest = 'ddcal/skymodels/skymodel%02i_rest.txt' % c
+    skymodel_rest = 'ddcal/masks/skymodel%02i_rest.txt' % c
     lsm.write(skymodel_rest, format='makesourcedb', clobber=True)
-    skymodel_rest_plot = 'ddcal/skymodels/skymodel%02i_rest.png' % c
+    skymodel_rest_plot = 'ddcal/masks/skymodel%02i_rest.png' % c
     lsm.plot(fileName=skymodel_rest_plot, labelBy='patch')
        
     # convert to blob
@@ -167,7 +174,7 @@ for c in range(maxniter):
     ### create regions (using cluster directions)
     logger.info("Create regions.")
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
-    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/skymodels/voronoi%02i.png' % c)
+    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
     sizes = lib_dd.sizes_from_mask_voro(mask_voro)
     directions = lib_dd.directions_from_mask_voro(mask_voro)
@@ -175,7 +182,7 @@ for c in range(maxniter):
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
     lsm.write(skymodel_voro, format='makesourcedb', clobber=True)
-    skymodel_voro_plot = 'ddcal/skymodels/skymodel%02i_voro.png' % c
+    skymodel_voro_plot = 'ddcal/masks/skymodel%02i_voro.png' % c
     lsm.plot(fileName=skymodel_voro_plot, labelBy='patch')
 
     # convert to blob
@@ -277,6 +284,17 @@ for c in range(maxniter):
         
         logger.info('Patch '+p+': imaging...')
         clean(p, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[p], apply_beam = c==maxniter )
+
+        # if one wants to make a low-res pathc
+        if p == 'Isl_patch_663': 
+            clean(p+'high', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[p], res='high')
+            logger.info('Patch '+p+': imaging high-res...')
+            logger.info('Patch '+p+': predict high-res...')
+            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=img/ddcalM-'+str(p)+'high-MFS-image.fits pre.sources='+p,log='$nameMS_pre1-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
+            logger.info('Patch '+p+': subtract high-res...')
+            MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql4-c'+str(c)+'-p'+str(p)+'.log', commandType='general')
+            logger.info('Patch '+p+': imaging low-res...')
+            clean(p+'low', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[p], res='low', apply_beam = c==maxniter )
 
     ##############################################################
     # Mosaiching

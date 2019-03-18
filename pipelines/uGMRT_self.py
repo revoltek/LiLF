@@ -21,17 +21,16 @@ parset_dir = parset.get('uGMRT_self','parset_dir')
 sourcedb = parset.get('model','sourcedb') # relative to tgts dir "./tgts/xxx/model.txt
 userReg = parset.get('model','userReg') # relative to tgts dir "./tgts/xxx/region.ref"
 
-tgts = glob.glob('tgts/*')
 MSs = lib_ms.AllMSs( glob.glob('mss/*.MS'), s )
 
-############################################################################
-# Clear
-logger.info('Cleaning...')
-lib_util.check_rm('img')
-os.makedirs('img')
-lib_util.check_rm('self')
-os.makedirs('self/images')
-os.makedirs('self/solutions')
+#############################################################################
+## Clear
+#logger.info('Cleaning...')
+#lib_util.check_rm('img')
+#os.makedirs('img')
+#lib_util.check_rm('self')
+#os.makedirs('self/images')
+#os.makedirs('self/solutions')
 
 # make beam
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
@@ -64,7 +63,6 @@ if sourcedb is None:
         os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
 
     sourcedb = 'tgts.skydb'
-
 
 ##################################################################################################
 # Add model to MODEL_DATA
@@ -185,8 +183,6 @@ for c in range(3):
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(3) ]
 os.system('mv img/wideM-2-sources.txt self/images')
 
-sys.exit()
-
 # final, large self-cal image
 image_field = lib_img.Image('self/images/wideM-2-MFS-image.fits', userReg=userReg)
 image_field.makeMask(threshisl=5, atrous_do=True)
@@ -204,7 +200,7 @@ os.makedirs('ddcal/plots')
 os.makedirs('ddcal/images')
 os.makedirs('ddcal/skymodels')
 
-# TODO: make sources outside primary beam withougt a "patch" and reduce the size of the facet mask
+# TODO: make sources outside primary beam without a "patch" and reduce the size of the facet mask
 
 #####################################################################################################
 # DDE-cal cycle
@@ -275,7 +271,7 @@ for c in range(3):
     # use the cycle=1 image that is as large as the beam
     directions_in, directions_out = lib_dd.split_directions(directions,'self/images/wideM-1-MFS-image.fits')
     lib_dd.make_voronoi_reg(directions_in, 'self/images/wideM-1-MFS-image.fits', \
-        outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/skymodels/voronoi%02i.png' % c)
+        outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
     # TODO: check if group ignore sources outside mask_voro
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
     sizes = lib_dd.sizes_from_mask_voro(mask_voro)
@@ -285,6 +281,8 @@ for c in range(3):
     for direction in directions_out:
         sizes[direction] = [0.1,0.1]
         directions[direction] = directions_out[direction]
+
+    print sizes, directions
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
@@ -299,6 +297,7 @@ for c in range(3):
     s.run(check=True)
 
     del lsm
+    sys.exit()
 
     ###############################################################
     # Calibration
@@ -387,8 +386,8 @@ for c in range(3):
         # TODO: test uneven size
         size = np.max(sizes[p])*1.05 # add 5%
         imsize = int(size/(pixscale/3600.))
-        if imsize < 512: imsize = 512
         if imsize % 2 == 1: imsize += 1 # make even
+        if imsize < 256: imsize = 256 # prevent supersmall images
     
         logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
     

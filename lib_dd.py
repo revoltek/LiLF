@@ -32,19 +32,19 @@ def split_directions(directions, fitsfile):
     hdr, data = lib_img.flatten(fits)
     w = pywcs.WCS(hdr)
 
-    direction_in = {}
-    direction_out = {}
+    directions_in = {}
+    directions_out = {}
 
-    for direcion in directions:
+    for direction in directions:
         # Get facets central pixels
-        ras = direction[0].degree
-        decs = direction[1].degree
+        ras = directions[direction][0].degree
+        decs = directions[direction][1].degree
         x, y = w.all_world2pix(ras, decs, 0, ra_dec_order=True)
         if x < 0 or x > data.shape[0] or y < 0 or y > data.shape[1]:
-            logging.info('Direction %s is outside the primary beam.' % direction)
-            direction_out[direction] = directions[direction]
+            logger.info('Direction %s is outside the primary beam.' % direction)
+            directions_out[direction] = directions[direction]
         else:
-            direction_in[direction] = directions[direction]
+            directions_in[direction] = directions[direction]
 
     return directions_in, directions_out
  
