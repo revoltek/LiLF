@@ -50,7 +50,7 @@ MSs.getListObj()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first n
 beamReg = 'self/beam.reg'
 
 # set image size
-imgsizepix = 1.2*MSs.getListObj()[0].getFWHM()*3600/10
+imgsizepix = int(1.2*MSs.getListObj()[0].getFWHM()*3600/10.)
 if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 
 #################################################################

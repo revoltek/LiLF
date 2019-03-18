@@ -360,8 +360,8 @@ for c in range(3):
         # TODO: test uneven size
         size = np.max(sizes[p])*1.05 # add 5%
         imsize = int(size/(pixscale/3600.))
-        if imsize < 512: imsize = 512
         if imsize % 2 == 1: imsize += 1 # make even
+        if imsize < 256: imsize = 256 # prevent supersmall images
     
         logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
     
