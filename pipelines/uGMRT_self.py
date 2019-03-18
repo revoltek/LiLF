@@ -92,22 +92,50 @@ for c in range(3):
     logger.info('Start selfcal cycle: '+str(c))
 
     # solve - concat*.MS:SMOOTHED_DATA
-    logger.info('Solving G...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/gs.h5 \
-             sol.solint=1 sol.nchan=1 sol.mode=complexgain sol.smoothnessconstraint=1e6', \
+    logger.info('Solving tec...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/gsscal.h5 \
+#             sol.solint=1 sol.nchan=1 sol.mode=scalarcomplexgain sol.smoothnessconstraint=1e6', \
+#                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+#    lib_util.run_losoto(s, 'gsscal'+str(c), [MS+'/gsscal.h5' for MS in MSs.getListStr()], \
+#            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-norm.parset'])
+    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/tec.h5 \
+             sol.solint=1 sol.nchan=1 sol.mode=tec', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-
+    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], \
+            [parset_dir+'/losoto-plot-tec.parset'])
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/tecs.h5 \
+#             sol.solint=1 sol.nchan=1 sol.mode=tec sol.smoothnessconstraint=1e6', \
+#                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+#    lib_util.run_losoto(s, 'tecs'+str(c), [MS+'/tecs.h5' for MS in MSs.getListStr()], \
+#            [parset_dir+'/losoto-plot-tec.parset'])
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/g.h5 \
+#             sol.solint=1 sol.nchan=1 sol.mode=scalarcomplexgain', \
+#                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+#    lib_util.run_losoto(s, 'g'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()], \
+#            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-norm.parset'])
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pscal.h5 \
+#             sol.solint=1 sol.nchan=1 sol.mode=scalarphase', \
+#                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+#    lib_util.run_losoto(s, 'pscal'+str(c), [MS+'/pscal.h5' for MS in MSs.getListStr()], \
+#            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-norm.parset'])
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/p.h5 \
+#             sol.solint=1 sol.nchan=1 sol.mode=phaseonly', \
+#                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+#    lib_util.run_losoto(s, 'p'+str(c), [MS+'/p.h5' for MS in MSs.getListStr()], \
+#            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-norm.parset'])
+    
     # LoSoTo plot
     # TODO: add some smoothing on Ga?
     # TODO: add normalization!
-    lib_util.run_losoto(s, 'gs'+str(c), [MS+'/gs.h5' for MS in MSs.getListStr()], \
-            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-norm.parset'])
-    os.system('mv plots-gs'+str(c)+'* self/solutions/')
-    os.system('mv cal-gs'+str(c)+'*.h5 self/solutions/')
+#    lib_util.run_losoto(s, 'gs'+str(c), [MS+'/gs.h5' for MS in MSs.getListStr()], \
+#            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-norm.parset'])
+            #[parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-norm.parset'])
+    os.system('mv plots-tec'+str(c)+'* self/solutions/')
+    os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
 
     # correct phases - MS:DATA -> MS:CORRECTED_DATA
     logger.info('Correcting Gp...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=phase000', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=tec000', \
                 log='$nameMS_corGp-c'+str(c)+'.log', commandType='DPPP')
     if c >= 2:
         # correct amplitudes - MS:DATA -> MS:CORRECTED_DATA
