@@ -41,6 +41,7 @@ os.makedirs('img')
 lib_util.check_rm('self')
 if not os.path.exists('self/images'): os.makedirs('self/images')
 if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
+if not os.path.exists('self/plots'): os.makedirs('self/plots')
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
@@ -118,7 +119,7 @@ for c in range(2):
 
     # LoSoTo plot
     lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-tec.parset'])
-    os.system('mv plots-tec'+str(c)+'* self/solutions/')
+    os.system('mv plots-tec'+str(c)+'* self/plots/')
     os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
 
     # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
@@ -128,27 +129,6 @@ for c in range(2):
 
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA (FR/TEC corrected, beam corrected)
-
-    # do beam-corrected+deeper image at last cycle
-    # TODO: find a way to save the beam image
-    if c == 1:
-        logger.info('Cleaning beam (cycle: '+str(c)+')...')
-        imagename = 'img/wideBeam'
-        lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
-                weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
-                multiscale='', multiscale_scale_bias=0.5, multiscale_scales='0,10,20', \
-                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-                parallel_deconvolution=256, auto_mask=10, auto_threshold=1, \
-                join_channels='', fit_spectral_pol=2, channels_out=8)
-        os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
-
-        #logger.info('Cleaning beam low-res (cycle: '+str(c)+')...')
-        #imagename = 'img/wideBeamLR'
-        #lib_util.run_wsclean(s, 'wscleanBeamLR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix/5, scale='60arcsec', \
-        #        weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=1000, mgain=0.85, \
-        #        use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-        #        parallel_deconvolution=256, auto_mask=10, auto_threshold=1, pol='IQUV', \
-        #        join_channels='', fit_spectral_pol=2, channels_out=8)
 
     # clean mask clean (cut at 5k lambda)
     logger.info('Cleaning (cycle: '+str(c)+')...')
@@ -163,6 +143,19 @@ for c in range(2):
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
     im.makeMask(threshisl = 3)
+
+    # do beam-corrected+deeper image at last cycle
+    # TODO: find a way to save the beam image
+    if c == 1:
+        logger.info('Cleaning beam (cycle: '+str(c)+')...')
+        imagename = 'img/wideBeam'
+        lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
+                weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
+                multiscale='', multiscale_scales='0,10,20', \
+                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
+                parallel_deconvolution=256, auto_threshold=1, fits_mask=im.maskname, \
+                join_channels='', fit_spectral_pol=2, channels_out=8)
+        os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
     
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     # TODO: add -parallel-deconvolution=256 when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)

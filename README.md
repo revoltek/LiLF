@@ -1,7 +1,8 @@
 # LiLF
-Libraries for Low Frequencies
+Library for Low Frequencies
 
-LiLF includes pipeline for the reduction of low-frequency data in radio astronomy. It is built upon LOFAR software. LiLF can be used on LOFAR and on uGMRT data.
+LiLF is a set of functions linked together in pipelines for the reduction of low-frequency interferometric data in radio astronomy. It is built upon LOFAR software. LiLF can be used on both LOFAR and uGMRT data.
+
 
 LOFAR: http://lofar.org/
 
