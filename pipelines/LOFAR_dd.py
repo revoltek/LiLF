@@ -288,12 +288,12 @@ for c in range(maxniter):
 
         # if one wants to make a low-res pathc
         if p == 'Isl_patch_663': 
-            clean(p+'high', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[p], res='high')
             logger.info('Patch '+p+': imaging high-res...')
+            clean(p+'high', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[p], res='high')
             logger.info('Patch '+p+': predict high-res...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=img/ddcalM-'+str(p)+'high-MFS-image.fits pre.sources='+p,log='$nameMS_pre1-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
+            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=img/ddcalM-'+p+'high-MFS-image.fits pre.sources='+p,log='$nameMS_pre1-c'+str(c)+'-p'+p+'.log', commandType='DPPP')
             logger.info('Patch '+p+': subtract high-res...')
-            MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql4-c'+str(c)+'-p'+str(p)+'.log', commandType='general')
+            MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql4-c'+str(c)+'-p'+p+'.log', commandType='general')
             logger.info('Patch '+p+': imaging low-res...')
             clean(p+'low', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=sizes[p], res='low', apply_beam = c==maxniter )
 
