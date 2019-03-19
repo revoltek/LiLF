@@ -230,7 +230,8 @@ def run_wsclean(s, logfile, MSs_files, **kwargs):
         if parm == 'cont': 
             parm = 'continue'
             value = ''
-        if parm == 'size': value = '%i %i' % (value, value)
+        if parm == 'size' and type(value) is int: value = '%i %i' % (value, value)
+        if parm == 'size' and type(value) is list: value = '%i %i' % (value[0], value[1])
         wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
 
     # files
