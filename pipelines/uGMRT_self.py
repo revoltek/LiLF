@@ -64,16 +64,15 @@ if sourcedb is None:
 
     sourcedb = 'tgts.skydb'
 
+##################################################################################################
+# Add model to MODEL_DATA
+# copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
+sourcedb_basename = sourcedb.split('/')[-1]
+for MS in MSs.getListStr():
+    lib_util.check_rm(MS+'/'+sourcedb_basename)
+    logger.debug('Copy: '+sourcedb+' -> '+MS)
+    os.system('cp -r '+sourcedb+' '+MS)
 
-###################################################################################################
-## Add model to MODEL_DATA
-## copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
-#sourcedb_basename = sourcedb.split('/')[-1]
-#for MS in MSs.getListStr():
-#    lib_util.check_rm(MS+'/'+sourcedb_basename)
-#    logger.debug('Copy: '+sourcedb+' -> '+MS)
-#    os.system('cp -r '+sourcedb+' '+MS)
-#
 #logger.info('Add columns...')
 #MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA,SUBTRACTED_DATA,CORRECTED_DATA_DIE -i DATA', log="$nameMS_addcol.log", commandType="python")
 #
@@ -91,22 +90,26 @@ if sourcedb is None:
 #    logger.info('Start selfcal cycle: '+str(c))
 #
 #    # solve - concat*.MS:SMOOTHED_DATA
-#    logger.info('Solving G...')
+#    logger.info('Solving tec...')
 #    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/gs.h5 \
 #             sol.solint=1 sol.nchan=1 sol.mode=complexgain sol.smoothnessconstraint=1e6', \
 #                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-#
-#    # LoSoTo plot
-#    # TODO: add some smoothing on Ga?
-#    # TODO: add normalization!
 #    lib_util.run_losoto(s, 'gs'+str(c), [MS+'/gs.h5' for MS in MSs.getListStr()], \
 #            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-norm.parset'])
 #    os.system('mv plots-gs'+str(c)+'* self/solutions/')
 #    os.system('mv cal-gs'+str(c)+'*.h5 self/solutions/')
+##    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/tec.h5 \
+##             sol.solint=1 sol.nchan=1 sol.mode=tec', \
+##                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+##    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], \
+##            [parset_dir+'/losoto-plot-tec.parset'])
+##    os.system('mv plots-tec'+str(c)+'* self/solutions/')
+##    os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
 #
 #    # correct phases - MS:DATA -> MS:CORRECTED_DATA
 #    logger.info('Correcting Gp...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=phase000', \
+#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=tec000', \
+#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=phase000', \
 #                log='$nameMS_corGp-c'+str(c)+'.log', commandType='DPPP')
 #    if c >= 2:
 #        # correct amplitudes - MS:DATA -> MS:CORRECTED_DATA
@@ -116,7 +119,6 @@ if sourcedb is None:
 #
 #    # set image size at 1.5 * FWHM
 #    imgsizepix = 1.5*MSs.getListObj()[0].getFWHM()*3600/2.
-#    if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 #    if c>=2: imgsizepix *= 2 # last cycle make a very large image to catch source in the sidelobes
 #
 #    # clean mask clean
@@ -400,7 +402,8 @@ for c in range(3):
         image.selectCC()
         # restrict skymodel to facet
         lsm = lsmtool.load(image.skymodel_cut)
-        lsm.select('%s == %i' % ( mask_voro, int(patchName[10:]) ))
+        lsm.group('facet', facet=mask_voro )
+        lsm.select('PatchName == %i' % int(patchName[10:]) )
         lsm.write(image.skymodel_cut, format='makesourcedb', clobber=True)
         images.append(image)
 
