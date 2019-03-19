@@ -19,6 +19,68 @@ except:
 from LiLF.lib_log import logger
 from LiLF import lib_img
 
+class Direction(object):
+
+    def __init__(self, name):
+        self.name = name 
+        self.isl_num = int(name[10:])
+        self.mask_voro = None
+        self.position_facet = None # [deg, deg]
+        self.position_cal = None # [deg, deg]
+        self.flux_cal = None # Jy
+        self.flux_facet = None # Jy
+        self.region_facet = None
+        self.size = None # [deg, deg]
+        # lib_img.Image objects:
+        self.image = None
+        self.image_res = None
+        self.image_low = None
+        self.image_high = None
+
+    def is_in_bean(self):
+        """
+        Return true if the direction is in the beam or an outsider
+        """
+        return True
+
+    def set_position(self, position, cal=True):
+        """
+        cal: if Tue is position of the central calibrator otherwise central position of the facet.
+        """
+        if cal:
+            self.position_cal = position
+        else:
+            self.position_facet = position
+
+    def set_flux(self, flux, cal=True):
+        """
+        cal: if Tue is flux of the central calibrator otherwise of the whole facet.
+        """
+        if cal:
+            self.flux_cal = flux
+        else:
+            self.flux_facet = flux
+
+    def add_mask_voro(self, mask_voro):
+        """
+        """
+        # read mask
+        fits = pyfits.open(mask_voro)
+        hdr, data = lib_img.flatten(fits)
+        pixsize_ra = -1*hdr['CDELT1']
+        pixsize_dec = hdr['CDELT2']
+
+        coord = np.where(data.T == self.isl_num)
+        # calculate size
+        size_ra = (np.max(coord[0])-np.min(coord[0]))*pixsize_ra
+        size_dec = (np.max(coord[1])-np.min(coord[1]))*pixsize_dec
+        self.size = [size_ra, size_dec]
+        # calculate position 
+        dir_x = np.mean([ np.max(coord[0]), np.min(coord[0]) ])
+        dir_y = np.mean([ np.max(coord[1]), np.min(coord[1]) ])
+        ra, dec =  w.all_pix2world(dir_x, dir_y, 0, ra_dec_order=True)
+        self.position_facet = [float(ra), float(dec)]
+
 
 def split_directions(directions, fitsfile):
     """
@@ -310,60 +372,60 @@ def voronoi_finite_polygons_2d_box(vor, box):
     return np.asarray(newpoly)
 
 
-def sizes_from_mask_voro(mask_voro):
-    """
-    Compute image sizes from the mask_voro
-    mask_voro has different numbers for each patch
-
-    Returns
-    -------
-    Dict indexed by facet names with [size_ra and size_dec] in degrees
-    """
-    sizes = {}
-    # read mask
-    fits = pyfits.open(mask_voro)
-    hdr, data = lib_img.flatten(fits)
-    pixsize_ra = -1*hdr['CDELT1']
-    pixsize_dec = hdr['CDELT2']
-
-    # calculate sizes
-    for i in np.unique(data):
-        assert i != 0 # there should not be any 0 in the mask ptherwise something is wrong with tessellation
-        #print 'Working on', i
-        coord = np.where(data.T == i)
-        size_ra = (np.max(coord[0])-np.min(coord[0]))*pixsize_ra
-        size_dec = (np.max(coord[1])-np.min(coord[1]))*pixsize_dec
-        sizes['Isl_patch_%i' % i] = [size_ra, size_dec]
-        #print sizes[-1]
-
-    # return list
-    return sizes
-
-def directions_from_mask_voro(mask_voro):
-    """
-    Compute facet direction (centre) from the mask_voro
-    mask_voro has different numbers for each patch
-
-    Returns
-    -------
-    Dict indexed by facet names with direction [ra dec] in degrees
-    """
-    directions = {}
-    # read mask
-    fits = pyfits.open(mask_voro)
-    hdr, data = lib_img.flatten(fits)
-    w = pywcs.WCS(hdr)
-
-    # calculate sizes
-    for i in np.unique(data):
-        assert i != 0 # there should not be any 0 in the mask ptherwise something is wrong with tessellation
-        #print 'Working on', i
-        coord = np.where(data.T == i)
-        dir_x = np.mean([ np.max(coord[0]), np.min(coord[0]) ])
-        dir_y = np.mean([ np.max(coord[1]), np.min(coord[1]) ])
-        ra, dec =  w.all_pix2world(dir_x, dir_y, 0, ra_dec_order=True)
-        directions['Isl_patch_%i' % i] = [float(ra), float(dec)]
-        #print directions[-1]
-
-    # return list
-    return directions
+#def sizes_from_mask_voro(mask_voro):
+#    """
+#    Compute image sizes from the mask_voro
+#    mask_voro has different numbers for each patch
+#
+#    Returns
+#    -------
+#    Dict indexed by facet names with [size_ra and size_dec] in degrees
+#    """
+#    sizes = {}
+#    # read mask
+#    fits = pyfits.open(mask_voro)
+#    hdr, data = lib_img.flatten(fits)
+#    pixsize_ra = -1*hdr['CDELT1']
+#    pixsize_dec = hdr['CDELT2']
+#
+#    # calculate sizes
+#    for i in np.unique(data):
+#        assert i != 0 # there should not be any 0 in the mask ptherwise something is wrong with tessellation
+#        #print 'Working on', i
+#        coord = np.where(data.T == i)
+#        size_ra = (np.max(coord[0])-np.min(coord[0]))*pixsize_ra
+#        size_dec = (np.max(coord[1])-np.min(coord[1]))*pixsize_dec
+#        sizes['Isl_patch_%i' % i] = [size_ra, size_dec]
+#        #print sizes[-1]
+#
+#    # return list
+#    return sizes
+#
+#def directions_from_mask_voro(mask_voro):
+#    """
+#    Compute facet direction (centre) from the mask_voro
+#    mask_voro has different numbers for each patch
+#
+#    Returns
+#    -------
+#    Dict indexed by facet names with direction [ra dec] in degrees
+#    """
+#    directions = {}
+#    # read mask
+#    fits = pyfits.open(mask_voro)
+#    hdr, data = lib_img.flatten(fits)
+#    w = pywcs.WCS(hdr)
+#
+#    # calculate sizes
+#    for i in np.unique(data):
+#        assert i != 0 # there should not be any 0 in the mask ptherwise something is wrong with tessellation
+#        #print 'Working on', i
+#        coord = np.where(data.T == i)
+#        dir_x = np.mean([ np.max(coord[0]), np.min(coord[0]) ])
+#        dir_y = np.mean([ np.max(coord[1]), np.min(coord[1]) ])
+#        ra, dec =  w.all_pix2world(dir_x, dir_y, 0, ra_dec_order=True)
+#        directions['Isl_patch_%i' % i] = [float(ra), float(dec)]
+#        #print directions[-1]
+#
+#    # return list
+#    return directions

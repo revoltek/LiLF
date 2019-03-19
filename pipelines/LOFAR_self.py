@@ -45,6 +45,7 @@ if not os.path.exists('self/plots'): os.makedirs('self/plots')
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
+# TODO: add a first null region and use that?
 # make beam
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
 MSs.getListObj()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
@@ -104,13 +105,6 @@ for c in range(2):
     # Smooth DATA -> SMOOTHED_DATA
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
-
-    #logger.info('Solving G...')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS ddecal.h5parm=$pathMS/tecmax70km.h5 ddecal.solint=3 ddecal.nchan=1', \
-    #            log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS sol.h5parm=$pathMS/gspmax70kmavg3x12.h5 sol.solint=3 sol.nchan=12 sol.mode=scalarphase sol.uvmmax=70e3', \
-    #            log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-    #sys.exit()
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving TEC...')
@@ -187,7 +181,7 @@ for c in range(2):
         # TODO: add -parallel-deconvolution=256 when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
-        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, save_source_list='', temp_dir='./', size=imgsizepix, scale='20arcsec', \
+        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, save_source_list='', temp_dir='./', size=imgsizepix, scale='30arcsec', \
                 weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.85, \
                 baseline_averaging=5, auto_threshold=1, \
                 join_channels='', fit_spectral_pol=2, channels_out=8)
