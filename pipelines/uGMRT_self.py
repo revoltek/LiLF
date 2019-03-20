@@ -121,7 +121,8 @@ for c in range(3):
                 log='$nameMS_corGa-c'+str(c)+'.log', commandType='DPPP')
 
     # set image size at 1.5 * FWHM
-    imgsizepix = 1.5*MSs.getListObj()[0].getFWHM()*3600/2.
+    imgsizepix = int(1.5*MSs.getListObj()[0].getFWHM()/(2./3600))
+    imgsizepix += imgsizepix % 2 # make even
     if c>=2: imgsizepix *= 2 # last cycle make a very large image to catch source in the sidelobes
 
     # clean mask clean
@@ -160,7 +161,7 @@ for c in range(3):
 
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(3) ]
-#os.system('mv img/wideM-2-sources.txt self/images')
+os.system('mv img/wideM-2-sources.txt self/images')
 
 # final, large self-cal image (used to get the skymodel)
 image_field = lib_img.Image('self/images/wideM-2-MFS-image.fits', userReg=userReg)
@@ -361,10 +362,10 @@ for c in range(3):
         imsize = [0,0]
         imsize[0] = int(d.size[0]*1.05/(2/3600.)) # add 5%
         imsize[1] = int(d.size[1]*1.05/(2/3600.)) # add 5%
-        imsize[0] += imsize[0]%1
-        imsize[1] += imsize[1]%1
-        if size[0] < 64: seize[0] == 64
-        if size[1] < 64: seize[1] == 64
+        imsize[0] += imsize[0]%2
+        imsize[1] += imsize[1]%2
+        if imsize[0] < 64: seize[0] == 64
+        if imsize[1] < 64: seize[1] == 64
     
         logger.debug('Image size: '+str(imsize))
     
