@@ -19,46 +19,115 @@ except:
 from LiLF.lib_log import logger
 from LiLF import lib_img
 
+class Direction(object):
 
-def split_directions(directions, fitsfile):
-    """
-    Return 2 direction dicts. One contains only the directions that are within the boundaries of the image.
-    The other the rest of the directions.
-    
-    directions : dict with {'Dir_0':[ra,dec], 'Dir_1':[ra,dec]...}
-    fitsfile: used to find what is in/out the image
-    """
-    fits = pyfits.open(fitsfile)
-    hdr, data = lib_img.flatten(fits)
-    w = pywcs.WCS(hdr)
+    def __init__(self, name):
+        self.name = name 
+        self.isl_num = int(name[10:])
+        self.mask_voro = None
+        self.position_facet = None # [deg, deg]
+        self.position_cal = None # [deg, deg]
+        self.flux_cal = None # Jy
+        self.flux_facet = None # Jy
+        self.region_facet = None
+        self.size = None # [deg, deg]
+        self.cal_has_facet = None # Bool that tells if the cal is within the mask_voro
+        # lib_img.Image objects:
+        self.image = None
+        self.image_res = None
+        self.image_low = None
+        self.image_high = None
 
-    directions_in = {}
-    directions_out = {}
+    def is_in_bean(self):
+        """
+        Return true if the direction is in the beam or an outsider
+        """
+        return True
 
-    for direction in directions:
-        # Get facets central pixels
-        ras = directions[direction][0].degree
-        decs = directions[direction][1].degree
-        x, y = w.all_world2pix(ras, decs, 0, ra_dec_order=True)
-        if x < 0 or x > data.shape[0] or y < 0 or y > data.shape[1]:
-            logger.info('Direction %s is outside the primary beam.' % direction)
-            directions_out[direction] = directions[direction]
+    def set_position(self, position, cal=True):
+        """
+        cal: if Tue is position of the central calibrator otherwise central position of the facet.
+        """
+        if cal:
+            self.position_cal = position
         else:
-            directions_in[direction] = directions[direction]
+            self.position_facet = position
 
-    return directions_in, directions_out
+    def set_flux(self, flux, cal=True):
+        """
+        cal: if Tue is flux of the central calibrator otherwise of the whole facet.
+        """
+        if cal:
+            self.flux_cal = flux
+        else:
+            self.flux_facet = flux
+
+    def add_mask_voro(self, mask_voro):
+        """
+        """
+        # read mask
+        fits = pyfits.open(mask_voro)
+        hdr, data = lib_img.flatten(fits)
+        w = pywcs.WCS(hdr)
+        pixsize_ra = -1*hdr['CDELT1']
+        pixsize_dec = hdr['CDELT2']
+
+        coord = np.where(data.T == self.isl_num)
+        if len(coord) == 0:
+            self.cal_has_facet = False
+            self.size = [0.1,0.1]
+            self.position_facet = self.position_cal
+        else:
+            self.cal_has_facet = True
+            # calculate size
+            size_ra = (np.max(coord[0])-np.min(coord[0]))*pixsize_ra
+            size_dec = (np.max(coord[1])-np.min(coord[1]))*pixsize_dec
+            self.size = [size_ra, size_dec]
+            # calculate position 
+            dir_x = np.mean([ np.max(coord[0]), np.min(coord[0]) ])
+            dir_y = np.mean([ np.max(coord[1]), np.min(coord[1]) ])
+            ra, dec =  w.all_pix2world(dir_x, dir_y, 0, ra_dec_order=True)
+            self.position_facet = [float(ra), float(dec)]
+
+
+#def split_directions(directions, fitsfile):
+#    """
+#    Return 2 direction dicts. One contains only the directions that are within the boundaries of the image.
+#    The other the rest of the directions.
+#    
+#    directions : dict with {'Dir_0':[ra,dec], 'Dir_1':[ra,dec]...}
+#    fitsfile: used to find what is in/out the image
+#    """
+#    fits = pyfits.open(fitsfile)
+#    hdr, data = lib_img.flatten(fits)
+#    w = pywcs.WCS(hdr)
+#
+#    directions_in = {}
+#    directions_out = {}
+#
+#    for direction in directions:
+#        # Get facets central pixels
+#        ras = directions[direction][0].degree
+#        decs = directions[direction][1].degree
+#        x, y = w.all_world2pix(ras, decs, 0, ra_dec_order=True)
+#        if x < 0 or x > data.shape[0] or y < 0 or y > data.shape[1]:
+#            logger.info('Direction %s is outside the primary beam and will not have a facet (it will still be a calibrator).' % direction)
+#            directions_out[direction] = directions[direction]
+#        else:
+#            directions_in[direction] = directions[direction]
+#
+#    return directions_in, directions_out
  
 
-def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet.fits', beam_reg=None, png=None):
+def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet.fits', png=None):
     """
     Take a list of coordinates and an image and voronoi tesselate the sky.
     It saves ds9 regions + fits mask of the facets
 
-    directions : dict with {'Dir_0':[ra,dec], 'Dir_1':[ra,dec]...}
+    directions : array of Direction objects
     firsfile : mask fits file to tassellate (used for coordinates and as template for the out_mask)
     outdir_reg : dir where to save regions
     out_mask : output mask with different numbers in each facet
-    beam_reg : a ds9 region showing the the primary beam, exclude directions outside it
     png : output png file that shows the tassellation
     """
 
@@ -77,27 +146,24 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     pixsize = np.abs(hdr['CDELT1'])
 
     # Get facets central pixels
-    ras = np.array([directions[d][0].degree for d in directions])
-    decs = np.array([directions[d][1].degree for d in directions])
+    ras = np.array([d.position_cal[0] for d in directions])
+    decs = np.array([d.position_cal[1] for d in directions])
     x_fs, y_fs = w.all_world2pix(ras, decs, 0, ra_dec_order=True)
     # keep trak of numbers in the direction names to name correctly patches in the fits files
     # in this way Isl_patch_12 will have "12" into the fits for that patch.
-    nums = [int(d.split('_')[-1]) for d in list(directions.keys())]
+    nums = [d.isl_num for d in directions]
 
     x_c = data.shape[0]/2.
     y_c = data.shape[1]/2.
 
-    if beam_reg is None:
-        # no beam, use all directions for facets
-        idx_for_facet = list(range(len(directions)))
-    else:
-        r = pyregion.open(beam_reg)
-        beam_mask = r.get_mask(header=hdr, shape=data.shape)
-        beamradius_pix = r[0].coord_list[2]/pixsize
-        idx_for_facet = []
-        for i, dd in enumerate(t):
-            if beam_mask[t['x'][i],t['y'][i]] == True:
-                idx_for_facet.append(i)
+    # Check if dir is in img, otherwise drop
+    idx_for_facet = []
+    for i, direction in enumerate(directions):
+        x, y = w.all_world2pix(ras[i], decs[i], 0, ra_dec_order=True)
+        if x < 0 or x > data.shape[0] or y < 0 or y > data.shape[1]:
+            logger.info('Direction %s is outside the primary beam and will not have a facet (it will still be a calibrator).' % direction.name)
+        else:
+            idx_for_facet.append(i)
 
     # convert to pixel space (voronoi must be in eucledian space)
     x1 = 0
@@ -152,18 +218,18 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
         all_s.append(s)
 
         regions = pyregion.ShapeList([s])
-        regionfile = outdir_reg+'/'+list(directions.keys())[idx_for_facet[i]]+'.reg'
+        regionfile = outdir_reg+'/'+directions[idx_for_facet[i]].name+'.reg'
         regions.write(regionfile)
 
     # add names for all.reg
-    for d_name, d_coord in directions.items():
+    for d in directions:
         s = Shape('circle', None)
         s.coord_format = 'fk5'
-        s.coord_list = [ d_coord[0].degree, d_coord[1].degree, 0.01 ] # ra, dec, radius
+        s.coord_list = [ d.position_cal[0], d.position_cal[1], 0.01 ] # ra, dec, radius
         s.coord_format = 'fk5'
         s.attr = ([], {'width': '1', 'point': 'cross',
                        'font': '"helvetica 16 normal roman"'})
-        s.comment = 'color=white text="%s"' % d_name
+        s.comment = 'color=white text="%s"' % d.name
         all_s.append(s)
 
     regions = pyregion.ShapeList(all_s)
@@ -178,9 +244,6 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
         ax1 = pl.gca()
         voronoi_plot_2d(vor, ax1, show_vertices=True, line_colors='black', line_width=2, point_size=4)
         for i, d in enumerate(directions): ax1.text(x_fs[i], y_fs[i], d, fontsize=15)
-        if not beam_reg is None:
-            c1 = pl.Circle((x_c, y_c), beamradius_pix, color='g', fill=False)
-            ax1.add_artist(c1)
         ax1.plot([x1,x1,x2,x2,x1],[y1,y2,y2,y1,y1])
         ax1.set_xlabel('RA (pixel)')
         ax1.set_ylabel('Dec (pixel)')
@@ -302,6 +365,13 @@ def voronoi_finite_polygons_2d_box(vor, box):
     for p in poly:
         polyPath = mplPath.Path(p)
         newpolyPath = polyPath.clip_to_bbox(bbox)
+        # makes vertices on the edge of the image 1 pixel outside the image
+        # this is to be sure to include the pixels on the edge
+        for i, vertice in enumerate(newpolyPath.vertices):
+            if vertice[0] == box[0,0]: newpolyPath.vertices[i][0] = box[0,0]-1
+            if vertice[1] == box[0,1]: newpolyPath.vertices[i][1] = box[0,1]-1
+            if vertice[0] == box[1,0]: newpolyPath.vertices[i][0] = box[1,0]+1
+            if vertice[1] == box[1,1]: newpolyPath.vertices[i][1] = box[1,1]+1
         coords, idx = np.unique([ x+1j*y for (x,y) in newpolyPath.vertices], return_index=True) # using complex; a way for grouping
         coords = [[x.real,x.imag] for x in coords[np.argsort(idx)]] # preserve order
         coords += [coords[0]] # close the line
@@ -309,61 +379,60 @@ def voronoi_finite_polygons_2d_box(vor, box):
 
     return np.asarray(newpoly)
 
-
-def sizes_from_mask_voro(mask_voro):
-    """
-    Compute image sizes from the mask_voro
-    mask_voro has different numbers for each patch
-
-    Returns
-    -------
-    Dict indexed by facet names with [size_ra and size_dec] in degrees
-    """
-    sizes = {}
-    # read mask
-    fits = pyfits.open(mask_voro)
-    hdr, data = lib_img.flatten(fits)
-    pixsize_ra = -1*hdr['CDELT1']
-    pixsize_dec = hdr['CDELT2']
-
-    # calculate sizes
-    for i in np.unique(data):
-        assert i != 0 # there should not be any 0 in the mask ptherwise something is wrong with tessellation
-        #print 'Working on', i
-        coord = np.where(data.T == i)
-        size_ra = (np.max(coord[0])-np.min(coord[0]))*pixsize_ra
-        size_dec = (np.max(coord[1])-np.min(coord[1]))*pixsize_dec
-        sizes['Isl_patch_%i' % i] = [size_ra, size_dec]
-        #print sizes[-1]
-
-    # return list
-    return sizes
-
-def directions_from_mask_voro(mask_voro):
-    """
-    Compute facet direction (centre) from the mask_voro
-    mask_voro has different numbers for each patch
-
-    Returns
-    -------
-    Dict indexed by facet names with direction [ra dec] in degrees
-    """
-    directions = {}
-    # read mask
-    fits = pyfits.open(mask_voro)
-    hdr, data = lib_img.flatten(fits)
-    w = pywcs.WCS(hdr)
-
-    # calculate sizes
-    for i in np.unique(data):
-        assert i != 0 # there should not be any 0 in the mask ptherwise something is wrong with tessellation
-        #print 'Working on', i
-        coord = np.where(data.T == i)
-        dir_x = np.mean([ np.max(coord[0]), np.min(coord[0]) ])
-        dir_y = np.mean([ np.max(coord[1]), np.min(coord[1]) ])
-        ra, dec =  w.all_pix2world(dir_x, dir_y, 0, ra_dec_order=True)
-        directions['Isl_patch_%i' % i] = [float(ra), float(dec)]
-        #print directions[-1]
-
-    # return list
-    return directions
+#def sizes_from_mask_voro(mask_voro):
+#    """
+#    Compute image sizes from the mask_voro
+#    mask_voro has different numbers for each patch
+#
+#    Returns
+#    -------
+#    Dict indexed by facet names with [size_ra and size_dec] in degrees
+#    """
+#    sizes = {}
+#    # read mask
+#    fits = pyfits.open(mask_voro)
+#    hdr, data = lib_img.flatten(fits)
+#    pixsize_ra = -1*hdr['CDELT1']
+#    pixsize_dec = hdr['CDELT2']
+#
+#    # calculate sizes
+#    for i in np.unique(data):
+#        assert i != 0 # there should not be any 0 in the mask ptherwise something is wrong with tessellation
+#        #print 'Working on', i
+#        coord = np.where(data.T == i)
+#        size_ra = (np.max(coord[0])-np.min(coord[0]))*pixsize_ra
+#        size_dec = (np.max(coord[1])-np.min(coord[1]))*pixsize_dec
+#        sizes['Isl_patch_%i' % i] = [size_ra, size_dec]
+#        #print sizes[-1]
+#
+#    # return list
+#    return sizes
+#
+#def directions_from_mask_voro(mask_voro):
+#    """
+#    Compute facet direction (centre) from the mask_voro
+#    mask_voro has different numbers for each patch
+#
+#    Returns
+#    -------
+#    Dict indexed by facet names with direction [ra dec] in degrees
+#    """
+#    directions = {}
+#    # read mask
+#    fits = pyfits.open(mask_voro)
+#    hdr, data = lib_img.flatten(fits)
+#    w = pywcs.WCS(hdr)
+#
+#    # calculate sizes
+#    for i in np.unique(data):
+#        assert i != 0 # there should not be any 0 in the mask ptherwise something is wrong with tessellation
+#        #print 'Working on', i
+#        coord = np.where(data.T == i)
+#        dir_x = np.mean([ np.max(coord[0]), np.min(coord[0]) ])
+#        dir_y = np.mean([ np.max(coord[1]), np.min(coord[1]) ])
+#        ra, dec =  w.all_pix2world(dir_x, dir_y, 0, ra_dec_order=True)
+#        directions['Isl_patch_%i' % i] = [float(ra), float(dec)]
+#        #print directions[-1]
+#
+#    # return list
+#    return directions
