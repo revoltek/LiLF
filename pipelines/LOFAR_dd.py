@@ -43,7 +43,14 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     size = in deg of the image
     """
     # set pixscale and imsize
-    pixscale = MSs.getListObj()[0].getResolution()/2. # weighting lower the resolutions a bit, therefore a /2 should be enough
+    pixscale = MSs.getListObj()[0].getResolution() 
+    # weighting lower the resolutions a bit, therefore a /2 should be enough
+    if res == 'normal':
+        pixscale /= 2.
+    elif res == 'high':
+        pixscale /= 1. # no change
+    elif res == 'low':
+        pixscale /= 4.
 
     # TODO: test uneven size
     size = np.max(size)*1.05 # add 5%
@@ -57,7 +64,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
         weight = 'briggs 0'
         maxuv_l = 1e30
     elif res == 'high':
-        weight = 'uniform'
+        weight = 'briggs -1.5'
         maxuv_l = 1e30
     elif res == 'low':
         weight = 'briggs 0'
