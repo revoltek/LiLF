@@ -130,7 +130,8 @@ for c in range(maxniter):
     lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
     for name, flux in zip(lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum')):
         direction = lib_dd.Direction(name)
-        direction.set_position_cal( lsm.getPatchPositions()[name], cal=True )
+        position = [ lsm.getPatchPositions()[name][0].deg, lsm.getPatchPositions()[name][1].deg ]
+        direction.set_position( position, cal=True )
         direction.set_flux(flux, cal=True)
         directions.append(direction)
     #directions = lsm.getPatchPositions()
@@ -180,7 +181,7 @@ for c in range(maxniter):
     ### create regions (using cluster directions)
     logger.info("Create regions.")
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
-    lib_dd.make_voronoi_reg([d.position_cal for d in directions], mosaic_image.maskname, \
+    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, \
             outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
     [ d.add_mask_voro(mask_voro) for d in directions ]
@@ -286,7 +287,7 @@ for c in range(maxniter):
         lib_util.check_rm('mss-dir')
         os.makedirs('mss-dir')
         MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=CORRECTED_DATA \
-                shift.phasecenter=['+str(d.position_cal[0])+'deg,'+str(d.position_cal[1])+'deg\]', \
+                shift.phasecenter=['+str(d.position_facet[0])+'deg,'+str(d.position_facet[1])+'deg\]', \
                 log='$nameMS_shift-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
         
         logger.info('Patch '+d.name+': imaging...')

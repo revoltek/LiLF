@@ -202,7 +202,8 @@ for c in range(3):
     lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
     for name, flux in zip(lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum')):
         direction = lib_dd.Direction(name)
-        direction.set_position( lsm.getPatchPositions()[name], cal=True )
+        position = [ lsm.getPatchPositions()[name][0].deg, lsm.getPatchPositions()[name][1].deg ]
+        direction.set_position( position, cal=True )
         direction.set_flux(flux, cal=True)
         directions.append(direction)
 
@@ -251,7 +252,7 @@ for c in range(3):
     logger.info("Create regions.")
     lsm = lsmtool.load(image_field.skymodel_cut)
     # use the cycle=1 image that is as large as the beam
-    lib_dd.make_voronoi_reg([d.position_cal for d in directions], image_small.maskname, \
+    lib_dd.make_voronoi_reg(directions, image_small.maskname, \
         outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
     # TODO: check if group ignore sources outside mask_voro
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
@@ -306,7 +307,7 @@ for c in range(3):
     for i, d in enumerate(directions):
         # predict - ms:MODEL_DATA
         logger.info('Patch '+d.name+': predict...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+p,log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name,log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
 
         # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
         # TODO: corrupt also for amplitudes?
@@ -315,6 +316,7 @@ for c in range(3):
                  msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA', \
                 log='$nameMS_corrupt1-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
 
+        # subtract - ms:SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA
         logger.info('Patch '+d.name+': subtract...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql3-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
