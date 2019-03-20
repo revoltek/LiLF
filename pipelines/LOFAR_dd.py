@@ -196,7 +196,7 @@ for c in range(maxniter):
 
     logger.debug("Islands' info:")
     for i, d in enumerate(directions):
-        logger.info("%s: Flux=%f (coord: %s - size: %s)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
+        logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
 
     ################################################################
 

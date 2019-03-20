@@ -270,7 +270,7 @@ for c in range(3):
 
     logger.debug("Island info:")
     for i, d in enumerate(directions):
-        logger.info("%s: Flux=%f (coord: %s - size: %s)" % ( d.name, d.flux_cal, str(d.position_cal), str(s.size) ) )
+        logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
 
     ###############################################################
     # Calibration
@@ -361,8 +361,8 @@ for c in range(3):
         imsize[1] = int(d.size[1]*1.05/(2/3600.)) # add 5%
         imsize[0] += imsize[0]%1
         imsize[1] += imsize[1]%1
-        if size[0] < 128: seize[0] == 128
-        if size[1] < 128: seize[1] == 128
+        if size[0] < 64: seize[0] == 64
+        if size[1] < 64: seize[1] == 64
     
         logger.debug('Image size: '+str(imsize))
     
@@ -391,7 +391,7 @@ for c in range(3):
 
     ##############################################################
     # Mosaiching
-    images = []
+    images = []; images_formosaic = []
     for d in directions:
         image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % d.name, userReg = userReg)
         image.selectCC()
@@ -400,15 +400,18 @@ for c in range(3):
         if d.cal_has_facet:
             lsm.group('facet', facet=mask_voro, root='Isl_patch' )
             lsm.select('Patch = Isl_patch_%i' % d.isl_num )
+            images_formosaic.append(image)
         lsm.write(image.skymodel_cut, format='makesourcedb', clobber=True)
         images.append(image)
 
     logger.info('Mosaic: image...')
-    image_files = ' '.join([image.imagename for image in images])
+    image_files = ' '.join([image.imagename for image in images_formosaic])
     mosaic_imagename = 'img/mos-MFS-image.fits'
     s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_imagename, log='mosaic-img-c'+str(c)+'.log', commandType='python')
     s.run(check=True)
 
+    logger.info('Mosaic: residuals...')
+    image_files = ' '.join([image.imagename.replace('image','residual') for image in images_formosaic])
     mosaic_residual = 'img/mos-MFS-residual.fits'
     s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_residual, log='mosaic-res-c'+str(c)+'.log', commandType='python')
     s.run(check=True)

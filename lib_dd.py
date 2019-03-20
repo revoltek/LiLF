@@ -73,7 +73,7 @@ class Direction(object):
         pixsize_dec = hdr['CDELT2']
 
         coord = np.where(data.T == self.isl_num)
-        if len(coord) == 0:
+        if len(coord[0]) == 0:
             self.cal_has_facet = False
             self.size = [0.1,0.1]
             self.position_facet = self.position_cal
@@ -193,7 +193,7 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     center_of_masses = center_of_mass(data, blobs, list(range(number_of_blobs+1)))
     for blob in range(1,number_of_blobs+1):
         # get closer facet
-        facet_num = closest_node(center_of_masses[blob], np.array([y_fs,x_fs]).T)
+        facet_num = closest_node(center_of_masses[blob], np.array([y_fs[idx_for_facet],x_fs[idx_for_facet]]).T)
         # put all pixel of that mask to that facet value
         data_facet[ blobs == blob ] = nums[facet_num]
 
