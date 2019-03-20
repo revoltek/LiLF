@@ -100,7 +100,7 @@ for c in range(3):
              sol.solint=1 sol.nchan=1 sol.mode=tec', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
     lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], \
-            [parset_dir+'/losoto-plot-tec.parset'])
+            [parset_dir+'/losoto-plot-tecdd.parset'])
 #    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/tecs.h5 \
 #             sol.solint=1 sol.nchan=1 sol.mode=tec sol.smoothnessconstraint=1e6', \
 #                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
