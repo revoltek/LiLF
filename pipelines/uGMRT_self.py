@@ -185,6 +185,7 @@ os.makedirs('ddcal/skymodels')
 #####################################################################################################
 # DDE-cal cycle
 directions = []
+rms_noise_pre = np.inf
 for c in range(3):
 
     logger.info('Start DDE-cal cycle: '+str(c))
@@ -213,7 +214,7 @@ for c in range(3):
     tot_flux = np.sum([d.flux_cal for d in directions])
     logger.info("Total flux of bright sources %i Jy" % tot_flux)
 
-    # write file
+    # write file (skymodel cluster: has only cals, no facets)
     skymodel_cl = 'ddcal/skymodels/skymodel%02i_cluster.txt' % c
     lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
     skymodel_cl_plot = 'ddcal/skymodels/skymodel%02i_cluster.png' % c
@@ -234,7 +235,7 @@ for c in range(3):
     rest_field = np.sum(rest_field)
     logger.info("Total flux in rest field %i Jy" % rest_field)
 
-    # write file
+    # write file (skymodel rest: has only facets, no cals)
     skymodel_rest = 'ddcal/skymodels/skymodel%02i_rest.txt' % c
     lsm.write(skymodel_rest, format='makesourcedb', clobber=True)
     skymodel_rest_plot = 'ddcal/skymodels/skymodel%02i_rest.png' % c
@@ -256,7 +257,7 @@ for c in range(3):
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
     [ d.add_mask_voro(mask_voro) for d in directions ]
 
-    # write file
+    # write file (skymodel voro: has all cals+facets)
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
     lsm.write(skymodel_voro, format='makesourcedb', clobber=True)
     skymodel_voro_plot = 'ddcal/skymodels/skymodel%02i_voro.png' % c
