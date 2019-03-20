@@ -24,14 +24,16 @@ userReg = parset.get('model','userReg') # relative to tgts dir "./tgts/xxx/regio
 MSs = lib_ms.AllMSs( glob.glob('mss/*.MS'), s )
 
 #############################################################################
-## Clear
-#logger.info('Cleaning...')
-#lib_util.check_rm('img')
-#os.makedirs('img')
-#lib_util.check_rm('self')
-#os.makedirs('self/images')
-#os.makedirs('self/solutions')
-#os.makedirs('self/plots')
+# Clear
+logger.info('Cleaning...')
+lib_util.check_rm('img')
+os.makedirs('img')
+lib_util.check_rm('self')
+os.makedirs('self/images')
+os.makedirs('self/solutions')
+os.makedirs('self/plots')
+
+is_wideband = len(MSs.getListObj()[0].getFreqs()) > 1000 # if > 1000 chans, it is wideband
 
 # make beam
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
@@ -80,10 +82,6 @@ MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA,SUBTRACTED_DATA,CORRECTED_DATA_DI
 logger.info('Add model to MODEL_DATA...')
 MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 
-# Smooth DATA -> SMOOTHED_DATA
-#logger.info('BL-based smoothing...')
-#MSs.run('BLsmooth.py -r -f 0.2 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
-
 #####################################################################################################
 # Self-cal cycle
 for c in range(3):
@@ -91,34 +89,35 @@ for c in range(3):
     logger.info('Start selfcal cycle: '+str(c))
 
     # solve - concat*.MS:SMOOTHED_DATA
-#    logger.info('Solving tec...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/gs.h5 \
-#             sol.solint=1 sol.nchan=1 sol.mode=complexgain sol.smoothnessconstraint=1e6', \
-#                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-#    lib_util.run_losoto(s, 'gs'+str(c), [MS+'/gs.h5' for MS in MSs.getListStr()], \
-#            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-norm.parset'])
-#    os.system('mv plots-gs'+str(c)+'* self/solutions/')
-#    os.system('mv cal-gs'+str(c)+'*.h5 self/solutions/')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/tec.h5 \
-             sol.solint=1 sol.nchan=1 sol.mode=tec', \
-                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], \
-            [parset_dir+'/losoto-plot-tec.parset'])
-    os.system('mv plots-tec'+str(c)+'* self/plots/')
-    os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
-
-    # correct phases - MS:DATA -> MS:CORRECTED_DATA
-    logger.info('Correcting Gp...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=tec000', \
+    if not is_wideband:
+        logger.info('Solving tec...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/gs.h5 \
+                 sol.solint=1 sol.nchan=1 sol.mode=complexgain sol.smoothnessconstraint=1e6', \
+                    log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+        lib_util.run_losoto(s, 'gs'+str(c), [MS+'/gs.h5' for MS in MSs.getListStr()], \
+                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-norm.parset'])
+        os.system('mv plots-gs'+str(c)+'* self/solutions/')
+        os.system('mv cal-gs'+str(c)+'*.h5 self/solutions/')
+        # correct phases - MS:DATA -> MS:CORRECTED_DATA
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=phase000', \
+                    log='$nameMS_corGp-c'+str(c)+'.log', commandType='DPPP')
+        if c >= 2:
+            # correct amplitudes - MS:DATA -> MS:CORRECTED_DATA
+            logger.info('Correcting Ga...')
+            MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=amplitude000', \
+                    log='$nameMS_corGa-c'+str(c)+'.log', commandType='DPPP')
+    else:
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/tec.h5 \
+                 sol.solint=1 sol.nchan=1 sol.mode=tec', \
+                    log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+        lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], \
+                [parset_dir+'/losoto-plot-tec.parset'])
+        os.system('mv plots-tec'+str(c)+'* self/plots/')
+        os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
+        # correct phases - MS:DATA -> MS:CORRECTED_DATA
+        logger.info('Correcting Gp...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=tec000', \
                 log='$nameMS_corGp-c'+str(c)+'.log', commandType='DPPP')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=phase000', \
-#                log='$nameMS_corGp-c'+str(c)+'.log', commandType='DPPP')
-
-    if c >= 2:
-        # correct amplitudes - MS:DATA -> MS:CORRECTED_DATA
-        logger.info('Correcting Ga...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=amplitude000', \
-                log='$nameMS_corGa-c'+str(c)+'.log', commandType='DPPP')
 
     # set image size at 1.5 * FWHM
     imgsizepix = int(1.5*MSs.getListObj()[0].getFWHM()/(2./3600))
