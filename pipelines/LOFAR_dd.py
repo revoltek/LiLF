@@ -134,14 +134,8 @@ for c in range(maxniter):
         direction.set_position( position, cal=True )
         direction.set_flux(flux, cal=True)
         directions.append(direction)
-    #directions = lsm.getPatchPositions()
-    #patchFluxes = lsm.getColValues('I', aggregate='sum')
 
     logger.info("Created %i bright sources" % len(directions))
-    logger.debug("Island info:")
-    for i, d in enumerate(directions):
-        logger.debug("%s: Flux=%f (coord: %s)" % ( d.name, d.flux_cal, str(d.position_cal) ) )
-    
     tot_flux = np.sum([d.flux_cal for d in directions])
     logger.info("Total flux of bright sources %i Jy" % tot_flux)
     
@@ -185,8 +179,6 @@ for c in range(maxniter):
             outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
     [ d.add_mask_voro(mask_voro) for d in directions ]
-    #sizes = lib_dd.sizes_from_mask_voro(mask_voro)
-    #directions = lib_dd.directions_from_mask_voro(mask_voro)
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
@@ -201,6 +193,11 @@ for c in range(maxniter):
     s.run(check=True)
 
     del lsm
+
+    logger.debug("Islands' info:")
+    for i, d in enumerate(directions):
+        logger.info("%s: Flux=%f (coord: %s - size: %s)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
+
     ################################################################
 
     #Predict - ms:MODEL_DATA

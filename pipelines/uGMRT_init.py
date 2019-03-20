@@ -80,6 +80,7 @@ for MS in MSs.getListObj():
 
 ##################################
 # 6. Flagging
+# TODO: move it after calibration, best strategy is: some flag, calibration, interpolation, applly, put back otiginal flags, reflag
 MSs = lib_ms.AllMSs( glob.glob('cals/*/*MS')+glob.glob('tgts/*/mss/*MS'), s )
 
 logger.info('Flagging...')

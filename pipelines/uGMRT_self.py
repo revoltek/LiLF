@@ -208,10 +208,6 @@ for c in range(3):
         directions.append(direction)
 
     logger.info("Created %i bright sources" % len(directions))
-    logger.debug("Island info:")
-    for i, d in enumerate(directions):
-        logger.debug("%s: Flux=%f (coord: %s)" % ( d.name, d.flux_cal, str(d.position_cal) ) )
-
     tot_flux = np.sum([d.flux_cal for d in directions])
     logger.info("Total flux of bright sources %i Jy" % tot_flux)
 
@@ -272,6 +268,10 @@ for c in range(3):
 
     del lsm
 
+    logger.debug("Island info:")
+    for i, d in enumerate(directions):
+        logger.info("%s: Flux=%f (coord: %s - size: %s)" % ( d.name, d.flux_cal, str(d.position_cal), str(s.size) ) )
+
     ###############################################################
     # Calibration
 
@@ -314,7 +314,7 @@ for c in range(3):
         logger.info('Patch '+d.name+': corrupt...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+d.name+'] cor.correction=phase000 cor.invert=False \
                  msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA', \
-                log='$nameMS_corrupt1-c'+str(c)+'-p'+str(p)+'.log', commandType='DPPP')
+                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
 
         # subtract - ms:SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA
         logger.info('Patch '+d.name+': subtract...')
@@ -361,6 +361,8 @@ for c in range(3):
         imsize[1] = int(d.size[1]*1.05/(2/3600.)) # add 5%
         imsize[0] += imsize[0]%1
         imsize[1] += imsize[1]%1
+        if size[0] < 128: seize[0] == 128
+        if size[1] < 128: seize[1] == 128
     
         logger.debug('Image size: '+str(imsize))
     
