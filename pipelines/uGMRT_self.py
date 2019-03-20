@@ -395,6 +395,7 @@ for c in range(3):
     ##############################################################
     # Mosaiching
     images = []; images_formosaic = []
+    isl_nums = []
     for d in directions:
         image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % d.name, userReg = userReg)
         image.selectCC()
@@ -404,8 +405,12 @@ for c in range(3):
             lsm.group('facet', facet=mask_voro, root='Isl_patch' )
             lsm.select('Patch = Isl_patch_%i' % d.isl_num )
             images_formosaic.append(image)
+            isl_nums.append(d.isl_num)
         lsm.write(image.skymodel_cut, format='makesourcedb', clobber=True)
         images.append(image)
+
+    # reorder in increasing isl_num order
+    images_formosaic = [image for _, image in sorted(zip(isl_nums,images_formosaic))]
 
     logger.info('Mosaic: image...')
     image_files = ' '.join([image.imagename for image in images_formosaic])
