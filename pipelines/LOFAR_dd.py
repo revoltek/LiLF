@@ -311,6 +311,11 @@ for c in range(maxniter):
 
     ##############################################################
     # Mosaiching
+
+    # reorder in increasing isl_num order
+    isl_nums = [d.isl_num for d in directions]
+    directions = [d for _, d in sorted(zip(isl_nums,directions))]
+
     for d in directions:
         d.image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % d.name, userReg = userReg)
         d.image_res = lib_img.Image('img/ddcalM-%s-MFS-residual.fits' % d.name, userReg = userReg)
@@ -323,7 +328,6 @@ for c in range(maxniter):
         lsm.group('facet', facet=mask_voro, root='Isl_patch' )
         lsm.select('Patch = Isl_patch_%i' % d.isl_num )
         lsm.write(d.image.skymodel_cut, format='makesourcedb', clobber=True)
-
 
     logger.info('Mosaic: image...')
     image_files = ' '.join([d.image.imagename for d in directions])
