@@ -43,7 +43,14 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     size = in deg of the image
     """
     # set pixscale and imsize
-    pixscale = MSs.getListObj()[0].getResolution()/2. # weighting lower the resolutions a bit, therefore a /2 should be enough
+    pixscale = MSs.getListObj()[0].getResolution() 
+    # weighting lower the resolutions a bit, therefore a /2 should be enough
+    if res == 'normal':
+        pixscale /= 2.
+    elif res == 'high':
+        pixscale /= 1. # no change
+    elif res == 'low':
+        pixscale /= 4.
 
     # TODO: test uneven size
     size = np.max(size)*1.05 # add 5%
@@ -57,7 +64,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
         weight = 'briggs 0'
         maxuv_l = 1e30
     elif res == 'high':
-        weight = 'uniform'
+        weight = 'briggs -1.5'
         maxuv_l = 1e30
     elif res == 'low':
         weight = 'briggs 0'
@@ -295,7 +302,7 @@ for c in range(maxniter):
             logger.info('Patch '+d.name+': imaging high-res...')
             clean(d.name+'-high', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size, res='high')
             logger.info('Patch '+d.name+': predict high-res...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=img/ddcalM-'+d.name+'high-MFS-image.fits pre.sources='+p, \
+            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=img/ddcalM-'+d.name+'-high-MFS-image.fits pre.sources='+p, \
                     log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
             logger.info('Patch '+d.name+': subtract high-res...')
             MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql4-c'+str(c)+'-'+d.name+'.log', commandType='general')
