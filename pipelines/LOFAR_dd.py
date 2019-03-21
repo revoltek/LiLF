@@ -55,7 +55,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     # TODO: test uneven size
     size = np.max(size)*1.05 # add 5%
     imsize = int(size/(pixscale/3600.))
-    if imsize % 2 != 0: imsize += 1 # make even
+    if imsize: imsize += imsize % 2 # make even
     if imsize < 512: imsize = 512 # prevent supersmall images
 
     logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
@@ -142,14 +142,8 @@ for c in range(maxniter):
         direction.set_position( position, cal=True )
         direction.set_flux(flux, cal=True)
         directions.append(direction)
-    #directions = lsm.getPatchPositions()
-    #patchFluxes = lsm.getColValues('I', aggregate='sum')
 
     logger.info("Created %i bright sources" % len(directions))
-    logger.debug("Island info:")
-    for i, d in enumerate(directions):
-        logger.debug("%s: Flux=%f (coord: %s)" % ( d.name, d.flux_cal, str(d.position_cal) ) )
-    
     tot_flux = np.sum([d.flux_cal for d in directions])
     logger.info("Total flux of bright sources %i Jy" % tot_flux)
     
@@ -193,8 +187,6 @@ for c in range(maxniter):
             outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
     lsm.group('facet', facet=mask_voro, root='Isl_patch')
     [ d.add_mask_voro(mask_voro) for d in directions ]
-    #sizes = lib_dd.sizes_from_mask_voro(mask_voro)
-    #directions = lib_dd.directions_from_mask_voro(mask_voro)
 
     # write file
     skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
@@ -209,6 +201,11 @@ for c in range(maxniter):
     s.run(check=True)
 
     del lsm
+
+    logger.debug("Islands' info:")
+    for i, d in enumerate(directions):
+        logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
+
     ################################################################
 
     #Predict - ms:MODEL_DATA
@@ -315,6 +312,11 @@ for c in range(maxniter):
 
     ##############################################################
     # Mosaiching
+
+    # reorder in increasing isl_num order
+    isl_nums = [d.isl_num for d in directions]
+    directions = [d for _, d in sorted(zip(isl_nums,directions))]
+
     for d in directions:
         d.image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % d.name, userReg = userReg)
         d.image_res = lib_img.Image('img/ddcalM-%s-MFS-residual.fits' % d.name, userReg = userReg)
@@ -327,7 +329,6 @@ for c in range(maxniter):
         lsm.group('facet', facet=mask_voro, root='Isl_patch' )
         lsm.select('Patch = Isl_patch_%i' % d.isl_num )
         lsm.write(d.image.skymodel_cut, format='makesourcedb', clobber=True)
-
 
     logger.info('Mosaic: image...')
     image_files = ' '.join([d.image.imagename for d in directions])
@@ -362,6 +363,7 @@ for c in range(maxniter):
 
     os.system('cp img/*M*MFS-image.fits img/mos-MFS-image.fits img/mos-MFS-residual.fits ddcal/images/c%02i' % c )
     mosaic_image = lib_img.Image('ddcal/images/c%02i/mos-MFS-image.fits' % c, userReg = userReg)
+    mosaic_image.makeMask(threshisl=3, atrous_do=True)
 
     # get noise, if larger than 95% of prev cycle: break
     rms_noise = lib_img.Image(mosaic_residual).getNoise()
