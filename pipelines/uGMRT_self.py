@@ -378,13 +378,10 @@ for c in range(3):
         # set pixscale and imsize
         MSs_shift = lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s )
     
-        imsize = [0,0]
-        imsize[0] = int(d.size[0]*1.05/(2/3600.)) # add 5%
-        imsize[1] = int(d.size[1]*1.05/(2/3600.)) # add 5%
-        imsize[0] += imsize[0]%2
-        imsize[1] += imsize[1]%2
-        if imsize[0] < 64: seize[0] == 64
-        if imsize[1] < 64: seize[1] == 64
+        imsize = int(d.size*1.05/(2/3600.)) # add 5%
+        imsize += imsize%2
+        if imsize[0] < 64: imsize[0] == 64
+        if imsize[1] < 64: imsize[1] == 64
     
         logger.debug('Image size: '+str(imsize))
     

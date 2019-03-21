@@ -53,10 +53,15 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
         pixscale /= 4.
 
     # TODO: test uneven size
-    size = np.max(size)*1.05 # add 5%
-    imsize = int(size/(pixscale/3600.))
-    if imsize: imsize += imsize % 2 # make even
-    if imsize < 512: imsize = 512 # prevent supersmall images
+#    size = np.max(size)*1.05 # add 5%
+#    imsize = int(size/(pixscale/3600.))
+#    if imsize: imsize += imsize % 2 # make even
+#    if imsize < 512: imsize = 512 # prevent supersmall images
+
+    imsize = int(size*1.05/(pixscale/3600.)) # add 5%
+    imsize += imsize % 2
+    if imsize[0] < 64: imsize[0] == 64
+    if imsize[1] < 64: imsize[1] == 64
 
     logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
 
@@ -130,6 +135,7 @@ for c in range(maxniter):
     mask_voro = 'ddcal/masks/facets%02i.fits' % c
 
     ### group into patches corresponding to the mask islands
+    # TODO: aggregate nearby sources. Expand mask?
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
     lsm.group(mosaic_image.maskname, root='Isl')
 
