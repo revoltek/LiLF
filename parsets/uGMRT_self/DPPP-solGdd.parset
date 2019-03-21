@@ -1,5 +1,5 @@
 msin =
-msin.datacolumn = SMOOTHED_DATA
+msin.datacolumn = DATA
 msout = .
 msout.datacolumn = CORRECTED_DATA
 
@@ -11,7 +11,7 @@ sol.sourcedb =
 sol.h5parm =
 sol.tolerance = 1e-3
 sol.maxiter = 500
-sol.nchan = 1
-sol.solint = 1
+sol.nchan = 30
+sol.solint = 2
 sol.propagatesolutions = True
-sol.smoothnessconstraint = 1e6
+#sol.smoothnessconstraint = 1e6
