@@ -34,7 +34,7 @@ class AllMSs(object):
         if len(self.mssListObj) == 0:
             raise('ALL MS files flagged.')
 
-        self.mssListStr = sorted([ms.pathsMS for ms in self.mssListObj)
+        self.mssListStr = sorted([ms.pathsMS for ms in self.mssListObj])
 
 
     def getListObj(self):
