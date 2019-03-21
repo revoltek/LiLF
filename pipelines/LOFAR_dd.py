@@ -206,61 +206,61 @@ for c in range(maxniter):
     for i, d in enumerate(directions):
         logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
 
-    ################################################################
-
-    #Predict - ms:MODEL_DATA
-    logger.info('Add rest_field to MODEL_DATA...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-
-    # Empty dataset from faint sources (TODO: better corrupt with DDE solutions when available before subtract)
-    logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
-    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-
-    # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
-
-    # Calibration - ms:SMOOTHED_DATA
-    logger.info('Calibrating...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS ddecal.h5parm=$pathMS/cal-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
-            log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
-#    logger.info('Calibrating2...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calg-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
-#            log='$nameMS_solDDg-c'+str(c)+'.log', commandType='DPPP')
-#    logger.info('Calibrating3...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calgsmooth-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb+" ddecal.smoothnessconstraint=2e6", \
-#            log='$nameMS_solDDg-c'+str(c)+'.log', commandType='DPPP')
-
-    # Plot solutions
-    lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
-    os.system('mv plots-c'+str(c)+'* ddcal/plots')
-
-    ##############################################################
-    # low S/N DIE corrections
-    # TODO: add amp and FR sol + correction here after ft() a DDE-corrupted model
-
-    ###########################################################
-    ## Empty the dataset
-    logger.info('Set SUBTRACTED_DATA = DATA...')
-    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-
-    logger.info('Subtraction...')
-    ##MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_voro_skydb, \
-    ##               log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP')
-
-    for i, d in enumerate(directions):
-        # predict - ms:MODEL_DATA
-        logger.info('Patch '+d.name+': predict...')
-        #pre.applycal.h5parm='+ms+'/cal-c'+str(c)+'.h5 pre.applycal.direction='+d.name, \
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name,log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-    
-        # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
-        logger.info('Patch '+d.name+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+d.name+']', \
-                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-        
-        logger.info('Patch '+d.name+': subtract...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
+#    ################################################################
+#
+#    #Predict - ms:MODEL_DATA
+#    logger.info('Add rest_field to MODEL_DATA...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+#
+#    # Empty dataset from faint sources (TODO: better corrupt with DDE solutions when available before subtract)
+#    logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
+#    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+#
+#    # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
+#    logger.info('BL-based smoothing...')
+#    MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
+#
+#    # Calibration - ms:SMOOTHED_DATA
+#    logger.info('Calibrating...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS ddecal.h5parm=$pathMS/cal-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
+#            log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
+##    logger.info('Calibrating2...')
+##    MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calg-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
+##            log='$nameMS_solDDg-c'+str(c)+'.log', commandType='DPPP')
+##    logger.info('Calibrating3...')
+##    MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calgsmooth-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb+" ddecal.smoothnessconstraint=2e6", \
+##            log='$nameMS_solDDg-c'+str(c)+'.log', commandType='DPPP')
+#
+#    # Plot solutions
+#    lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
+#    os.system('mv plots-c'+str(c)+'* ddcal/plots')
+#
+#    ##############################################################
+#    # low S/N DIE corrections
+#    # TODO: add amp and FR sol + correction here after ft() a DDE-corrupted model
+#
+#    ###########################################################
+#    ## Empty the dataset
+#    logger.info('Set SUBTRACTED_DATA = DATA...')
+#    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+#
+#    logger.info('Subtraction...')
+#    ##MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_voro_skydb, \
+#    ##               log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP')
+#
+#    for i, d in enumerate(directions):
+#        # predict - ms:MODEL_DATA
+#        logger.info('Patch '+d.name+': predict...')
+#        #pre.applycal.h5parm='+ms+'/cal-c'+str(c)+'.h5 pre.applycal.direction='+d.name, \
+#        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name,log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+#    
+#        # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
+#        logger.info('Patch '+d.name+': corrupt...')
+#        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+d.name+']', \
+#                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+#        
+#        logger.info('Patch '+d.name+': subtract...')
+#        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
     # Add back 
     logger.info('Facet imaging...')

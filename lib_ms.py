@@ -24,17 +24,17 @@ class AllMSs(object):
             raise('Cannot find MS files.')
 
         self.mssListObj = []
-        for pathMS in self.mssListStr:
+        for pathMS in sorted(pathsMS):
             ms = MS(pathMS)
             if ms.isAllFlagged(): 
-                logger.warning('Skipping all flagged ms: %s' % pathMS)
+                logger.warning('Skip fully flagged ms: %s' % pathMS)
             else:
                 self.mssListObj.append(MS(pathMS))
 
         if len(self.mssListObj) == 0:
             raise('ALL MS files flagged.')
 
-        self.mssListStr = sorted([ms.pathsMS for ms in self.mssListObj])
+        self.mssListStr = [ms.pathMS for ms in self.mssListObj]
 
 
     def getListObj(self):
@@ -384,4 +384,4 @@ class MS(object):
         Is the dataset fully flagged?
         """
         with tables.table(self.pathMS, ack = False) as t:
-            return np.all(t.getCol('FLAG'))
+            return np.all(t.getcol('FLAG'))
