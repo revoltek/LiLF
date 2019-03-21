@@ -48,9 +48,9 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     if res == 'normal':
         pixscale /= 2.
     elif res == 'high':
-        pixscale /= 1. # no change
-    elif res == 'low':
         pixscale /= 4.
+    elif res == 'low':
+        pixscale /= 1. # no change
 
     # TODO: test uneven size
 #    size = np.max(size)*1.05 # add 5%
@@ -262,7 +262,7 @@ for c in range(maxniter):
 #    
 #        # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
 #        logger.info('Patch '+d.name+': corrupt...')
-#        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+d.name+']', \
+#        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+d.name+']', \
 #                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
 #        
 #        logger.info('Patch '+d.name+': subtract...')
@@ -284,7 +284,7 @@ for c in range(maxniter):
 
         # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
         logger.info('Patch '+d.name+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+d.name+']', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+d.name+']', \
                  log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
 
         logger.info('Patch '+d.name+': add...')
@@ -292,7 +292,7 @@ for c in range(maxniter):
 
         # DD-correct - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
         logger.info('Patch '+d.name+': correct...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor1.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor1.direction=['+d.name+']', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+d.name+']', \
                log='$nameMS_cor-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
 
         logger.info('Patch '+d.name+': phase shift and avg...')
