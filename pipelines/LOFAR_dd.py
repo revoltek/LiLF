@@ -55,7 +55,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     # TODO: test uneven size
     size = np.max(size)*1.05 # add 5%
     imsize = int(size/(pixscale/3600.))
-    if imsize += imsize % 2 # make even
+    if imsize: imsize += imsize % 2 # make even
     if imsize < 512: imsize = 512 # prevent supersmall images
 
     logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
