@@ -140,6 +140,7 @@ for c in range(2):
 
     # do beam-corrected+deeper image at last cycle
     # TODO: find a way to save the beam image
+    # Add V-stokes
     if c == 1:
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
