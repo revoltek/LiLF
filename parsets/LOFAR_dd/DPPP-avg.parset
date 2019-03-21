@@ -5,7 +5,7 @@ msout.datacolumn = DATA
 msout.writefullresflag = False
 #msout.storagemanager = dysco
 
-steps = [avg]
+steps = [avg,count]
 
 avg.type = averager
 avg.freqstep = 4

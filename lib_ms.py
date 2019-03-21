@@ -21,12 +21,20 @@ class AllMSs(object):
 
         # sort them, useful for some concatenating steps
         if len(pathsMS) == 0:
-            logger.error('Cannot find MS files.')
-        self.mssListStr = sorted(pathsMS)
+            raise('Cannot find MS files.')
 
         self.mssListObj = []
         for pathMS in self.mssListStr:
-            self.mssListObj.append(MS(pathMS))
+            ms = MS(pathMS)
+            if ms.isAllFlagged(): 
+                logger.warning('Skipping all flagged ms: %s' % pathMS)
+            else:
+                self.mssListObj.append(MS(pathMS))
+
+        if len(self.mssListObj) == 0:
+            raise('ALL MS files flagged.')
+
+        self.mssListStr = sorted([ms.pathsMS for ms in self.mssListObj)
 
 
     def getListObj(self):
@@ -370,3 +378,10 @@ class MS(object):
         maxdist = np.nanmax( np.sqrt(col[:,0] ** 2 + col[:,1] ** 2) )
 
         return int(round(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcseconds
+
+    def isAllFlagged(self):
+        """
+        Is the dataset fully flagged?
+        """
+        with tables.table(self.pathMS, ack = False) as t:
+            return np.all(t.getCol('FLAG'))

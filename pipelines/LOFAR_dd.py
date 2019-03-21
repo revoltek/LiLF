@@ -263,6 +263,7 @@ for c in range(maxniter):
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
     # Add back 
+    logger.info('Facet imaging...')
     ##  for patch, phasecentre in directions.iteritems():
     ##      # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
     ##      logger.info('Patch '+patch+': add back...')
