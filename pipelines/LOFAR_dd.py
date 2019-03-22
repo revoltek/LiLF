@@ -58,8 +58,11 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 #    if imsize: imsize += imsize % 2 # make even
 #    if imsize < 512: imsize = 512 # prevent supersmall images
 
-    imsize = int(size*1.05/(pixscale/3600.)) # add 5%
-    imsize += imsize % 2
+    imsize = [0,0]
+    imsize[0] = int(size[0]*1.05/(pixscale/3600.)) # add 5%
+    imsize[1] = int(size[1]*1.05/(pixscale/3600.)) # add 5%
+    imsize[0] += imsize[0] % 2
+    imsize[1] += imsize[1] % 2
     if imsize[0] < 64: imsize[0] == 64
     if imsize[1] < 64: imsize[1] == 64
 
@@ -73,7 +76,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
         maxuv_l = 1e30
     elif res == 'low':
         weight = 'briggs 0'
-        maxuv_l = 4000
+        maxuv_l = 5000
 
     # clean 1
     logger.info('Cleaning ('+str(p)+')...')
@@ -100,7 +103,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
             join_channels='', fit_spectral_pol=2, channels_out=8)
     else:
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', \
-            weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+            weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             baseline_averaging=5, auto_threshold=0.1, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=2, channels_out=8)
 
@@ -310,7 +313,7 @@ for c in range(maxniter):
             logger.info('Patch '+d.name+': imaging high-res...')
             clean(d.name+'-high', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size, res='high')
             logger.info('Patch '+d.name+': predict high-res...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=img/ddcalM-'+d.name+'-high-MFS-image.fits pre.sources='+p, \
+            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=img/ddcalM-'+d.name+'-high-MFS-image.fits pre.sources='+d.name, \
                     log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
             logger.info('Patch '+d.name+': subtract high-res...')
             MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
