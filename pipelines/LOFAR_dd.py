@@ -218,32 +218,27 @@ for c in range(maxniter):
 
     ################################################################
 
-    #Predict - ms:MODEL_DATA
-    logger.info('Add rest_field to MODEL_DATA...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-
-    # Empty dataset from faint sources (TODO: better corrupt with DDE solutions when available before subtract)
-    logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
-    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-
-    # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
-
-    # Calibration - ms:SMOOTHED_DATA
-    logger.info('Calibrating...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS ddecal.h5parm=$pathMS/cal-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
-            log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
-#    logger.info('Calibrating2...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calg-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
-#            log='$nameMS_solDDg-c'+str(c)+'.log', commandType='DPPP')
-#    logger.info('Calibrating3...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calgsmooth-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb+" ddecal.smoothnessconstraint=2e6", \
-#            log='$nameMS_solDDg-c'+str(c)+'.log', commandType='DPPP')
-
-    # Plot solutions
-    lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
-    os.system('mv plots-c'+str(c)+'* ddcal/plots')
+    if c>0:
+     #Predict - ms:MODEL_DATA
+     logger.info('Add rest_field to MODEL_DATA...')
+     MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+ 
+     # Empty dataset from faint sources (TODO: better corrupt with DDE solutions when available before subtract)
+     logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
+     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+ 
+     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
+     logger.info('BL-based smoothing...')
+     MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
+ 
+     # Calibration - ms:SMOOTHED_DATA
+     logger.info('Calibrating...')
+     MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS ddecal.h5parm=$pathMS/cal-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
+             log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
+ 
+     # Plot solutions
+     lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
+     os.system('mv plots-c'+str(c)+'* ddcal/plots')
 
     ##############################################################
     # low S/N DIE corrections
@@ -310,7 +305,7 @@ for c in range(maxniter):
         clean(d.name, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size, apply_beam = c==maxniter )
 
         # TEST: if one wants to make a low-res patch
-        if True: #d.name == 'Isl_patch_663': 
+        if c>0:
             logger.info('Patch '+d.name+': imaging high-res...')
             clean(d.name+'-high', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size, res='high')
             logger.info('Patch '+d.name+': predict high-res...')
