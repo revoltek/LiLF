@@ -118,6 +118,9 @@ if not os.path.exists('mss-dd'):
     MSs_self.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA avg.freqstep=1 avg.timestep=1', \
                 log='$nameMS_avg.log', commandType='DPPP')
 MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9].MS'), s )
+
+# TEST: DIE image
+clean('init', MSs, size=(4,4), res='normal')
        
 logger.info('Add columns...')
 MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
@@ -218,7 +221,7 @@ for c in range(maxniter):
 
     ################################################################
 
-    if c>0:
+    if c>0: # TESTTESTTEST
      #Predict - ms:MODEL_DATA
      logger.info('Add rest_field to MODEL_DATA...')
      MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
@@ -266,6 +269,9 @@ for c in range(maxniter):
         
         logger.info('Patch '+d.name+': subtract...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
+
+    # TEST: empty image
+    clean('empty-c'+str(c), MSs, size=(4,4), res='normal')
 
     # Add back 
     logger.info('Facet imaging...')
