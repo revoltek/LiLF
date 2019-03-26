@@ -140,7 +140,7 @@ for c in range(maxniter):
 
     # TEST: DIE image
     if c == 0:
-        clean('init', MSs, size=(4,4), res='normal')
+        clean('init', MSs, size=(8,8), res='normal')
 
     ### group into patches corresponding to the mask islands
     # TODO: aggregate nearby sources. Expand mask?
