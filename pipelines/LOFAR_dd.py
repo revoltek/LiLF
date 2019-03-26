@@ -118,9 +118,6 @@ if not os.path.exists('mss-dd'):
     MSs_self.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA avg.freqstep=1 avg.timestep=1', \
                 log='$nameMS_avg.log', commandType='DPPP')
 MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9].MS'), s )
-
-# TEST: DIE image
-clean('init', MSs, size=(4,4), res='normal')
        
 logger.info('Add columns...')
 MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
@@ -140,6 +137,10 @@ for c in range(maxniter):
     os.makedirs('ddcal/masks/regions-c%02i' % c)
     os.makedirs('ddcal/images/c%02i' % c)
     mask_voro = 'ddcal/masks/facets%02i.fits' % c
+
+    # TEST: DIE image
+    if c == 0:
+        clean('init', MSs, size=(4,4), res='normal')
 
     ### group into patches corresponding to the mask islands
     # TODO: aggregate nearby sources. Expand mask?
