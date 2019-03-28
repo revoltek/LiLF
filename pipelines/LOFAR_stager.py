@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# export PYTHONPATH='/home/baq1889/opt/lib/python3.5/site-packages/'
 
 import os, sys, time, glob, pickle
 from datetime import datetime
@@ -18,35 +19,35 @@ cls = CorrelatedDataProduct
 downloaded_mss = glob.glob('*MS')
  
 query_observations = Observation.select_all().project_only(project)
-#uris = set() # All URIS to stage
-#for observation in query_observations :
-#    print("Querying ObservationID %s" % observation.observationId)
-#    # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
-#    dataproduct_query = cls.observations.contains(observation)
-#    # isValid = 1 means there should be an associated URI
-#    dataproduct_query &= cls.isValid == 1
-#    for i, dataproduct in enumerate(dataproduct_query):
-#        # This DataProduct should have an associated URL
-#        fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
-#        if fileobject :
-#            #print("URI found %s" % fileobject.URI)
-#            if i%10 == 0:
-#                print(".", end='')
-#                sys.stdout.flush()
-#            skip = False
-#            for ms in downloaded_mss:
-#                if ms in fileobject.URI:
-#                    print("%s: already downloaded in %s." % (fileobject.URI, ms) )
-#                    skip = True
-#            if not skip: uris.add(fileobject.URI)
-#        else :
-#            print("No URI found for %s with dataProductIdentifier %d" % (dataproduct.__class__.__name__, dataproduct.dataProductIdentifier))
-#        
-#        #if len(uris) == 1: break # TEST
-#    #break # TEST
+uris = set() # All URIS to stage
+for observation in query_observations :
+    print("Querying ObservationID %s" % observation.observationId)
+    # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
+    dataproduct_query = cls.observations.contains(observation)
+    # isValid = 1 means there should be an associated URI
+    dataproduct_query &= cls.isValid == 1
+    for i, dataproduct in enumerate(dataproduct_query):
+        # This DataProduct should have an associated URL
+        fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
+        if fileobject :
+            #print("URI found %s" % fileobject.URI)
+            if i%10 == 0:
+                print(".", end='')
+                sys.stdout.flush()
+            skip = False
+            for ms in downloaded_mss:
+                if ms in fileobject.URI:
+                    print("%s: already downloaded in %s." % (fileobject.URI, ms) )
+                    skip = True
+            if not skip: uris.add(fileobject.URI)
+        else :
+            print("No URI found for %s with dataProductIdentifier %d" % (dataproduct.__class__.__name__, dataproduct.dataProductIdentifier))
+        
+        #if len(uris) == 1: break # TEST
+    #break # TEST
  
 #pickle.dump(uris, open('uris.pickle', 'wb'))
-uris = pickle.load(open('uris.pickle','rb'))
+#uris = pickle.load(open('uris.pickle','rb'))
 
 print(("Total URI's found %d" % len(uris)))
  

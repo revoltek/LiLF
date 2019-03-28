@@ -48,7 +48,7 @@ MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 # TODO: add a first null region and use that?
 # make beam
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
-MSs.getListObj()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
+MSs.getListObj()[0].makeBeamReg('self/beam.reg')
 beamReg = 'self/beam.reg'
 
 # set image size
@@ -63,7 +63,8 @@ if sourcedb is None:
         radeg = phasecentre[0]
         decdeg = phasecentre[1]
         # get model the size of the image (radius=fwhm/2)
-        os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm/2.))
+        #os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm/2.)) # Alex, outdated
+        os.system('wget -O tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (radeg, decdeg, fwhm/2.)) # ASTRON
         lsm = lsmtool.load('tgts.skymodel')#, beamMS=MSs.getListObj()[0])
         lsm.remove('I<1')
         lsm.write('tgts.skymodel', clobber=True)
@@ -140,6 +141,7 @@ for c in range(2):
 
     # do beam-corrected+deeper image at last cycle
     # TODO: find a way to save the beam image
+    # Add V-stokes
     if c == 1:
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'

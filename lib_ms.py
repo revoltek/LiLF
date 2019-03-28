@@ -12,21 +12,30 @@ from LiLF.lib_log import logger
 
 class AllMSs(object):
 
-    def __init__(self, pathsMS, scheduler):
+    def __init__(self, pathsMS, scheduler, check_flags=True):
         """
-        pathsMS:   list of MS paths
-        scheduler: scheduler object
+        pathsMS:    list of MS paths
+        scheduler:  scheduler object
+        check_flag: if true ignore fully flagged ms
         """
         self.scheduler    = scheduler
 
         # sort them, useful for some concatenating steps
         if len(pathsMS) == 0:
-            logger.error('Cannot find MS files.')
-        self.mssListStr = sorted(pathsMS)
+            raise('Cannot find MS files.')
 
         self.mssListObj = []
-        for pathMS in self.mssListStr:
-            self.mssListObj.append(MS(pathMS))
+        for pathMS in sorted(pathsMS):
+            ms = MS(pathMS)
+            if check_flags and ms.isAllFlagged(): 
+                logger.warning('Skip fully flagged ms: %s' % pathMS)
+            else:
+                self.mssListObj.append(MS(pathMS))
+
+        if len(self.mssListObj) == 0:
+            raise('ALL MS files flagged.')
+
+        self.mssListStr = [ms.pathMS for ms in self.mssListObj]
 
 
     def getListObj(self):
@@ -295,17 +304,23 @@ class MS(object):
         with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
             return t.getcell("LOFAR_ANTENNA_SET",0)
         
-    def getFWHM(self):
+    def getFWHM(self, freq='mid'):
         """
         Return the expected FWHM in degree
+        freq: min,max,med - which frequency to use to estimate the beam size
         """
         # get minimum freq as it has the largest FWHM
-        min_freq = np.min(self.getFreqs()) 
+        if freq == 'min':
+            freq = np.min(self.getFreqs()) 
+        elif freq == 'max':
+            freq = np.max(self.getFreqs()) 
+        elif freq == 'mid':
+            freq = np.mean(self.getFreqs()) 
 
         if self.getTelescope() == 'LOFAR':
 
             # Following numbers are based at 60 MHz (https://www.astron.nl/radio-observatory/astronomers/lofar-imaging-capabilities-sensitivity/lofar-imaging-capabilities/lofa)
-            scale = 60e6/min_freq 
+            scale = 60e6/freq 
 
             if 'OUTER' in self.getAntennaSet():
                 return 3.88*scale
@@ -316,7 +331,7 @@ class MS(object):
                 
         elif self.getTelescope() == 'GMRT':
             # equation from http://gmrt.ncra.tifr.res.in/gmrt_hpage/Users/doc/manual/Manual_2013/manual_20Sep2013.pdf    
-            return (85.2/60) * (325.e6 / min_freq)
+            return (85.2/60) * (325.e6 / freq)
 
         else:
             raise('Only LOFAR or GMRT implemented.')
@@ -370,3 +385,10 @@ class MS(object):
         maxdist = np.nanmax( np.sqrt(col[:,0] ** 2 + col[:,1] ** 2) )
 
         return int(round(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcseconds
+
+    def isAllFlagged(self):
+        """
+        Is the dataset fully flagged?
+        """
+        with tables.table(self.pathMS, ack = False) as t:
+            return np.all(t.getcol('FLAG'))

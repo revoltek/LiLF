@@ -23,7 +23,7 @@ userReg = parset.get('model','userReg') # relative to tgts dir "./tgts/xxx/regio
 
 MSs = lib_ms.AllMSs( glob.glob('mss/*.MS'), s )
 
-#############################################################################
+############################################################################
 # Clear
 logger.info('Cleaning...')
 lib_util.check_rm('img')
@@ -90,7 +90,7 @@ for c in range(3):
 
     # solve - concat*.MS:SMOOTHED_DATA
     if not is_wideband:
-        logger.info('Solving tec...')
+        logger.info('Solving G...')
         MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/gs.h5 \
                  sol.solint=1 sol.nchan=1 sol.mode=complexgain sol.smoothnessconstraint=1e6', \
                     log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
@@ -99,7 +99,7 @@ for c in range(3):
         os.system('mv plots-gs'+str(c)+'* self/solutions/')
         os.system('mv cal-gs'+str(c)+'*.h5 self/solutions/')
         # correct phases - MS:DATA -> MS:CORRECTED_DATA
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=phase000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=phase000', \
                     log='$nameMS_corGp-c'+str(c)+'.log', commandType='DPPP')
         if c >= 2:
             # correct amplitudes - MS:DATA -> MS:CORRECTED_DATA
@@ -107,6 +107,7 @@ for c in range(3):
             MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=amplitude000', \
                     log='$nameMS_corGa-c'+str(c)+'.log', commandType='DPPP')
     else:
+        logger.info('Solving TEC...')
         MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/tec.h5 \
                  sol.solint=1 sol.nchan=1 sol.mode=tec', \
                     log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
@@ -174,6 +175,15 @@ image_small.makeMask(threshisl=5, atrous_do=True)
 logger.info('Set CORRECTED_DATA_DIE = CORRECTED_DATA...')
 MSs.run('taql "update $pathMS set CORRECTED_DATA_DIE = CORRECTED_DATA"', log='$nameMS_taql2.log', commandType='general')
 
+# TESTTESTTEST
+imgsizepix = int(1.5*MSs.getListObj()[0].getFWHM()/(2./3600))
+imgsizepix += imgsizepix % 2 # make even
+lib_util.run_wsclean(s, 'wscleanTEST-c'+str(c)+'.log', MSs.getStrWsclean(), name='img/testinit', size=imgsizepix, scale='2arcsec', \
+        data_column='CORRECTED_DATA_DIE', \
+        weight='briggs 0.', niter=100000, no_update_model_required='', mgain=0.9, \
+        baseline_averaging=5, auto_threshold=1, \
+        join_channels='', fit_spectral_pol=2, channels_out=8)
+
 logger.info('== Starting DDE cal ==')
 logger.info('Cleaning...')
 lib_util.check_rm('ddcal')
@@ -191,8 +201,8 @@ for c in range(3):
     logger.info('Start DDE-cal cycle: '+str(c))
 
     # Prepare facets
-    os.makedirs('ddcal/masks/regions-c%02i' % c)
-    os.makedirs('ddcal/images/c%02i' % c)
+    if not os.path.exists('ddcal/masks/regions-c%02i' % c): os.makedirs('ddcal/masks/regions-c%02i' % c)
+    if not os.path.exists('ddcal/images/c%02i' % c): os.makedirs('ddcal/images/c%02i' % c)
     mask_voro = 'ddcal/masks/facets%02i.fits' % c
 
     ### group into patches corresponding to the mask islands
@@ -286,6 +296,15 @@ for c in range(3):
     logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA_DIE - MODEL_DATA...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA_DIE - MODEL_DATA"', log='$nameMS_taql1-c'+str(c)+'.log', commandType='general')
 
+    # TESTTESTTEST
+    imgsizepix = int(1.5*MSs.getListObj()[0].getFWHM()/(2./3600))
+    imgsizepix += imgsizepix % 2 # make even
+    lib_util.run_wsclean(s, 'wscleanTEST-c'+str(c)+'.log', MSs.getStrWsclean(), name='img/testempty', size=imgsizepix, scale='2arcsec', \
+            data_column='SUBTRACTED_DATA', \
+            weight='briggs 0.', niter=100000, no_update_model_required='', mgain=0.9, \
+            baseline_averaging=5, auto_threshold=1, \
+            join_channels='', fit_spectral_pol=2, channels_out=8)
+
     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
     # TODO: check if it makes sense
     #logger.info('BL-based smoothing...')
@@ -362,10 +381,10 @@ for c in range(3):
         imsize = [0,0]
         imsize[0] = int(d.size[0]*1.05/(2/3600.)) # add 5%
         imsize[1] = int(d.size[1]*1.05/(2/3600.)) # add 5%
-        imsize[0] += imsize[0]%2
-        imsize[1] += imsize[1]%2
-        if imsize[0] < 64: seize[0] == 64
-        if imsize[1] < 64: seize[1] == 64
+        imsize[0] += imsize[0] % 2
+        imsize[1] += imsize[1] % 2
+        if imsize[0] < 64: imsize[0] == 64
+        if imsize[1] < 64: imsize[1] == 64
     
         logger.debug('Image size: '+str(imsize))
     
@@ -394,45 +413,44 @@ for c in range(3):
 
     ##############################################################
     # Mosaiching
-    images = []; images_formosaic = []
-    isl_nums = []
+    isl_nums = [d.isl_num for d in directions]
+    directions = [d for _, d in sorted(zip(isl_nums,directions))]
+
+    directions_formosaic = []
     for d in directions:
-        image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % d.name, userReg = userReg)
-        image.selectCC()
+        d.image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % d.name, userReg = userReg)
+        d.image_res = lib_img.Image('img/ddcalM-%s-MFS-residual.fits' % d.name, userReg = userReg)
         # restrict skymodel to facet
-        lsm = lsmtool.load(image.skymodel_cut)
+        d.image.selectCC()
+        lsm = lsmtool.load(d.image.skymodel_cut)
         if d.cal_has_facet:
             lsm.group('facet', facet=mask_voro, root='Isl_patch' )
             lsm.select('Patch = Isl_patch_%i' % d.isl_num )
-            images_formosaic.append(image)
-            isl_nums.append(d.isl_num)
-        lsm.write(image.skymodel_cut, format='makesourcedb', clobber=True)
-        images.append(image)
-
-    # reorder in increasing isl_num order
-    images_formosaic = [image for _, image in sorted(zip(isl_nums,images_formosaic))]
+            directions_formosaic.append(d)
+        lsm.write(d.image.skymodel_cut, format='makesourcedb', clobber=True)
 
     logger.info('Mosaic: image...')
-    image_files = ' '.join([image.imagename for image in images_formosaic])
+    image_files = ' '.join([d.image_res.imagename for d in directions_formosaic])
     mosaic_imagename = 'img/mos-MFS-image.fits'
     s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_imagename, log='mosaic-img-c'+str(c)+'.log', commandType='python')
     s.run(check=True)
 
     logger.info('Mosaic: residuals...')
-    image_files = ' '.join([image.imagename.replace('image','residual') for image in images_formosaic])
+    image_files = ' '.join([d.image_res.imagename for d in directions_formosaic])
     mosaic_residual = 'img/mos-MFS-residual.fits'
     s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_residual, log='mosaic-res-c'+str(c)+'.log', commandType='python')
     s.run(check=True)
 
     # prepare new skymodel
-    lsm = lsmtool.load(images[0].skymodel_cut)
-    for image in images[1:]:
+    lsm = lsmtool.load(directions[0].image.skymodel_cut)
+    for image in [d.image for d in directions[1:]]:
         lsm2 = lsmtool.load(image.skymodel_cut)
         lsm.concatenate(lsm2)
     lsm.write('ddcal/images/c%02i/mos-sources-cut.txt' % c, format='makesourcedb', clobber=True)
 
     os.system('cp img/*M*MFS-image.fits img/mos-MFS-image.fits img/mos-MFS-residual.fits ddcal/images/c%02i' % c )
     image_field = lib_img.Image('ddcal/images/c%02i/mos-MFS-image.fits' % c, userReg = userReg)
+    image_field.makeMask(threshisl=3, atrous_do=True)
 
     # get noise, if larger than 95% of prev cycle: break
     rms_noise = lib_img.Image(mosaic_residual).getNoise()
