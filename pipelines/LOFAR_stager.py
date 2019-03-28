@@ -11,8 +11,8 @@ from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
 import subprocess, multiprocessing
 import stager_access as stager
 
-#project = 'LC9_017' # 3c first part
-project = 'LC10_020' # 3c second part
+project = 'LC9_017' # 3c first part
+#project = 'LC10_020' # 3c second part
 # The class of data to query
 cls = CorrelatedDataProduct
 
