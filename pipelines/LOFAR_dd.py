@@ -27,6 +27,7 @@ MSs_self = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 phasecentre = MSs_self.getListObj()[0].getPhaseCentre()
 MSs_self.getListObj()[0].makeBeamReg('self/beam.reg', to_null=True) # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
 beamReg = 'self/beam.reg'
+fwhm = MSs_self.getListObj()[0]getFWHM(self, freq='mid')
 
 ##########################
 logger.info('Cleaning...')
@@ -132,9 +133,10 @@ for c in range(maxniter):
     os.makedirs('ddcal/images/c%02i' % c)
     mask_voro = 'ddcal/masks/facets%02i.fits' % c
 
-    # TEST: DIE image
-    #if c == 0:
-    #    clean('init', MSs, size=(8,8), res='normal')
+    ### TTESTTESTTEST: DIE image
+    if c == 0:
+        clean('init', MSs, size=(fwhm,fwhm), res='normal')
+    ############################
 
     ### group into patches corresponding to the mask islands
     # TODO: aggregate nearby sources. Expand mask?
@@ -224,9 +226,10 @@ for c in range(maxniter):
     logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 
-    # TEST: empty image with cals
+    ### TESTTESTTEST: empty image with cals
     MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    clean('onlycals-c'+str(c), MSs, size=(4,4), res='normal')
+    clean('onlycals-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    ########################################
 
     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
     logger.info('BL-based smoothing...')
@@ -268,8 +271,10 @@ for c in range(maxniter):
         logger.info('Patch '+d.name+': subtract...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
-    # TEST: empty image
-    clean('empty-c'+str(c), MSs, size=(4,4), res='normal')
+    ### TESTTESTTEST: empty image
+    MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    clean('empty-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    ##############################
 
     # Add back 
     logger.info('Facet imaging...')
