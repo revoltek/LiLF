@@ -63,7 +63,8 @@ if sourcedb is None:
         radeg = phasecentre[0]
         decdeg = phasecentre[1]
         # get model the size of the image (radius=fwhm/2)
-        os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm/2.))
+        #os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm/2.)) # Alex, outdated
+        os.system('wget -O tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (radeg, decdeg, fwhm/2.)) # ASTRON
         lsm = lsmtool.load('tgts.skymodel')#, beamMS=MSs.getListObj()[0])
         lsm.remove('I<1')
         lsm.write('tgts.skymodel', clobber=True)

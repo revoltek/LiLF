@@ -3,7 +3,7 @@
 
 import sys, os, re, glob, time
 import numpy as np
-import pyrap.tables as pt
+import casacore.tables as pt
 from astropy.time import Time
 
 ##########################################
