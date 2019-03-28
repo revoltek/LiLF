@@ -304,17 +304,23 @@ class MS(object):
         with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
             return t.getcell("LOFAR_ANTENNA_SET",0)
         
-    def getFWHM(self):
+    def getFWHM(self, freq='mid'):
         """
         Return the expected FWHM in degree
+        freq: min,max,med - which frequency to use to estimate the beam size
         """
         # get minimum freq as it has the largest FWHM
-        min_freq = np.min(self.getFreqs()) 
+        if freq == 'min':
+            freq = np.min(self.getFreqs()) 
+        elif freq == 'max':
+            freq = np.max(self.getFreqs()) 
+        elif freq == 'mid':
+            freq = np.mean(self.getFreqs()) 
 
         if self.getTelescope() == 'LOFAR':
 
             # Following numbers are based at 60 MHz (https://www.astron.nl/radio-observatory/astronomers/lofar-imaging-capabilities-sensitivity/lofar-imaging-capabilities/lofa)
-            scale = 60e6/min_freq 
+            scale = 60e6/freq 
 
             if 'OUTER' in self.getAntennaSet():
                 return 3.88*scale
@@ -325,7 +331,7 @@ class MS(object):
                 
         elif self.getTelescope() == 'GMRT':
             # equation from http://gmrt.ncra.tifr.res.in/gmrt_hpage/Users/doc/manual/Manual_2013/manual_20Sep2013.pdf    
-            return (85.2/60) * (325.e6 / min_freq)
+            return (85.2/60) * (325.e6 / freq)
 
         else:
             raise('Only LOFAR or GMRT implemented.')
