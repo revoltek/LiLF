@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# export PYTHONPATH='/home/baq1889/opt/lib/python3.5/site-packages/'
 
 import os, sys, time, glob, pickle
 from datetime import datetime

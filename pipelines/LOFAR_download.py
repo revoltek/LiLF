@@ -88,7 +88,7 @@ if not download_file is None:
             logger.debug('Queue download of: '+line[:-1])
         s.run(check=True, maxThreads=4)
 
-MSs = lib_ms.AllMSs(glob.glob('*MS'), s)
+MSs = lib_ms.AllMSs(glob.glob('*MS'), s, check_flags=False)
 if len(MSs.getListStr()) == 0:
     logger.info('Done.')
     sys.exit(0)
@@ -121,7 +121,7 @@ if renameavg:
     logger.info('Renaming/averaging...')
 
     with open('renamed.txt','a') as flog:
-        MSs = lib_ms.AllMSs([MS for MS in glob.glob('*MS') if not os.path.exists(getName(MS))], s)
+        MSs = lib_ms.AllMSs([MS for MS in glob.glob('*MS') if not os.path.exists(getName(MS))], s, check_flags=False)
 
         for MS in MSs.getListObj():
 

@@ -12,10 +12,11 @@ from LiLF.lib_log import logger
 
 class AllMSs(object):
 
-    def __init__(self, pathsMS, scheduler):
+    def __init__(self, pathsMS, scheduler, check_flags=True):
         """
-        pathsMS:   list of MS paths
-        scheduler: scheduler object
+        pathsMS:    list of MS paths
+        scheduler:  scheduler object
+        check_flag: if true ignore fully flagged ms
         """
         self.scheduler    = scheduler
 
@@ -26,7 +27,7 @@ class AllMSs(object):
         self.mssListObj = []
         for pathMS in sorted(pathsMS):
             ms = MS(pathMS)
-            if ms.isAllFlagged(): 
+            if check_flags and ms.isAllFlagged(): 
                 logger.warning('Skip fully flagged ms: %s' % pathMS)
             else:
                 self.mssListObj.append(MS(pathMS))
