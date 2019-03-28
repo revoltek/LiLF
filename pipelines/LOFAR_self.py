@@ -48,7 +48,7 @@ MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 # TODO: add a first null region and use that?
 # make beam
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
-MSs.getListObj()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
+MSs.getListObj()[0].makeBeamReg('self/beam.reg')
 beamReg = 'self/beam.reg'
 
 # set image size
