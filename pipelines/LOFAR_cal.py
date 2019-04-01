@@ -28,7 +28,7 @@ if 'LBAsurvey' in os.getcwd():
     data_dir = '/home/baq1889/lofar1/LBAsurvey/%s/%s' % (obs, calname)
 
 #############################################################
-MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
+MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags = False )
 # copy data
 logger.info('Copy data...')
 for MS in MSs.getListObj():
@@ -36,7 +36,7 @@ for MS in MSs.getListObj():
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=False)
         os.system('cp -r %s %s' % (skymodel, MS.pathMS))
 
-MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
+MSs = lib_ms.AllMSs( glob.glob('*MS'), s, check_flags = False )
 calname = MSs.getListObj()[0].getNameField()
 
 if min(MSs.getFreqs()) < 40.e6:
@@ -219,7 +219,7 @@ if imaging:
     logger.info("Imaging section:")
 
     if iono3rd:
-        MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[int(len(glob.glob('./*MS'))/2.):], s ) # keep only upper band
+        MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[int(len(glob.glob('./*MS'))/2.):], s, check_flags = False ) # keep only upper band
 
     # Correct all CORRECTED_DATA (PA, beam, FR, BP corrected) -> CORRECTED_DATA
     logger.info('IONO correction...')
