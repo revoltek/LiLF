@@ -168,8 +168,8 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     # convert to pixel space (voronoi must be in eucledian space)
     x1 = 0
     y1 = 0
-    x2 = data.shape[0]
-    y2 = data.shape[1]
+    x2 = data.shape[1] # note that y is before x in fits.data
+    y2 = data.shape[0]
 
     # do tasselization
     vor = Voronoi(np.array((x_fs[idx_for_facet], y_fs[idx_for_facet])).transpose())
@@ -183,8 +183,8 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     data_facet = np.zeros(shape=data.shape)
     for num, poly in zip(nums,impoly):
         p = Path(poly)
-        pixels_region = p.contains_points(pixels, radius=1e-6)
-        data_facet[ pixels_region.reshape(x2,y2) ] = num
+        pixels_region = p.contains_points(pixels)
+        data_facet[ pixels_region.reshape(y2,x2) ] = num
 
     # put all values in each island equal to the closest region
     struct = generate_binary_structure(2, 2)

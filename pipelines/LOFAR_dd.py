@@ -31,11 +31,11 @@ fwhm = MSs_self.getListObj()[0].getFWHM(freq='min')
 
 ##########################
 logger.info('Cleaning...')
-#lib_util.check_rm('ddcal')
-#os.makedirs('ddcal/masks')
-#os.makedirs('ddcal/plots')
-#os.makedirs('ddcal/images')
-#os.makedirs('ddcal/skymodels')
+lib_util.check_rm('ddcal')
+os.makedirs('ddcal/masks')
+os.makedirs('ddcal/plots')
+os.makedirs('ddcal/images')
+os.makedirs('ddcal/skymodels')
 
 def clean(p, MSs, size, res='normal', apply_beam=False):
     """
@@ -122,10 +122,10 @@ MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg, beamReg = beamReg)
 mosaic_image.selectCC()
 # TEST:
-mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg, beamReg = beamReg)
+#mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg, beamReg = beamReg)
 rms_noise_pre = np.inf
 
-for c in range(1,maxniter):
+for c in range(maxniter):
     logger.info('Starting cycle: %i' % c)
     directions = []
 
