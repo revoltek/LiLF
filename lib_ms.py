@@ -18,7 +18,7 @@ class AllMSs(object):
         scheduler:  scheduler object
         check_flag: if true ignore fully flagged ms
         """
-        self.scheduler    = scheduler
+        self.scheduler = scheduler
 
         # sort them, useful for some concatenating steps
         if len(pathsMS) == 0:
@@ -311,16 +311,16 @@ class MS(object):
         """
         # get minimum freq as it has the largest FWHM
         if freq == 'min':
-            freq = np.min(self.getFreqs()) 
+            beamfreq = np.min(self.getFreqs()) 
         elif freq == 'max':
-            freq = np.max(self.getFreqs()) 
+            beamfreq = np.max(self.getFreqs()) 
         elif freq == 'mid':
-            freq = np.mean(self.getFreqs()) 
+            beamfreq = np.mean(self.getFreqs()) 
 
         if self.getTelescope() == 'LOFAR':
 
             # Following numbers are based at 60 MHz (https://www.astron.nl/radio-observatory/astronomers/lofar-imaging-capabilities-sensitivity/lofar-imaging-capabilities/lofa)
-            scale = 60e6/freq 
+            scale = 60e6/beamfreq 
 
             if 'OUTER' in self.getAntennaSet():
                 return 3.88*scale
@@ -331,12 +331,12 @@ class MS(object):
                 
         elif self.getTelescope() == 'GMRT':
             # equation from http://gmrt.ncra.tifr.res.in/gmrt_hpage/Users/doc/manual/Manual_2013/manual_20Sep2013.pdf    
-            return (85.2/60) * (325.e6 / freq)
+            return (85.2/60) * (325.e6 / beamfreq)
 
         else:
             raise('Only LOFAR or GMRT implemented.')
 
-    def makeBeamReg(self, outfile, pb_cut=None, to_null=False):
+    def makeBeamReg(self, outfile, pb_cut=None, to_null=False, freq='mid'):
         """
         Create a ds9 region of the beam
         outfile : str
@@ -345,12 +345,14 @@ class MS(object):
             diameter of the beam
         to_null : bool, optional
             arrive to the first null, not the FWHM
+        freq: min,max,med 
+            which frequency to use to estimate the beam size
         """
         logger.debug('Making PB region: '+outfile)
         ra, dec = self.getPhaseCentre()
 
         if pb_cut is None:
-            radius = self.getFWHM()/2.
+            radius = self.getFWHM(freq=freq)/2.
         else:
             radius = pb_cut/2.
 
