@@ -12,7 +12,8 @@ import subprocess, multiprocessing
 import stager_access as stager
 
 #project = 'LC9_017' # 3c first part
-project = 'LC10_020' # 3c second part
+#project = 'LC10_020' # 3c second part
+project = 'LC4_012' # Lazio planet
 # The class of data to query
 cls = CorrelatedDataProduct
 

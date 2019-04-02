@@ -67,11 +67,11 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
         weight = 'briggs 0'
         maxuv_l = 1e30
     elif res == 'high':
-        weight = 'briggs -1.3'
+        weight = 'briggs -0.7'
         maxuv_l = 1e30
     elif res == 'low':
         weight = 'briggs 0'
-        maxuv_l = 4000
+        maxuv_l = 3500
 
     # clean 1
     logger.info('Cleaning ('+str(p)+')...')
@@ -259,7 +259,7 @@ for c in range(1,maxniter):
             # TODO: fix direction
             logger.info('Patch '+d.name+': predict+corrupt...')
             MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.operation=add pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name+ \
-                    'pre.applycal.h5parm=$pathMS/cal-c'+str(c)+'.h5 pre.applycal.direction=['+d.name+']', \
+                    'pre.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 pre.applycal.direction=['+d.name+']', \
                 log='$nameMS_preDIE-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
 
         # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
@@ -281,10 +281,17 @@ for c in range(1,maxniter):
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 
     logger.info('Subtraction...')
+    ## TODO: use this command once DP3 is fixed
     ##MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_voro_skydb, \
     ##               log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP')
 
     for i, d in enumerate(directions):
+        
+        # TODO: use this command once tested
+        #MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=SUBTRACTED_DATA pre.operation=sub pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name+ \
+        #            'pre.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 pre.applycal.direction=['+d.name+']', \
+        #            log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        
         # predict - ms:MODEL_DATA
         logger.info('Patch '+d.name+': predict...')
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name,log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
