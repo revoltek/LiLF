@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# export PYTHONPATH='/home/baq1889/opt/lib/python3.5/site-packages/'
+# export PYTHONPATH="$HOME/opt/lib/python3.?/site-packages/"
 
 import os, sys, time, glob, pickle
 from datetime import datetime
@@ -31,7 +31,6 @@ for observation in query_observations :
         # This DataProduct should have an associated URL
         fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
         if fileobject :
-            #print("URI found %s" % fileobject.URI)
             if i%10 == 0:
                 print(".", end='')
                 sys.stdout.flush()

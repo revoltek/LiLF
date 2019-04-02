@@ -178,21 +178,22 @@ for c in range(100):
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=phase000', \
                 log='$nameMS_corIONO3.log', commandType='DPPP')
 
-    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
-    logger.info('Solving BP...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal sol.flagunconverged=False \
-            sol.uvlambdarange='+str(nouseblrange)+' sol.nchan=2 sol.solint=10', log='$nameMS_solAMP3.log', commandType="DPPP")
-    
-    lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
-            [parset_dir+'/losoto-plot-amp.parset'])
+#    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
+#    logger.info('Solving BP...')
+#    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal sol.flagunconverged=False \
+#            sol.uvlambdarange='+str(nouseblrange)+' sol.nchan=2 sol.solint=10', log='$nameMS_solAMP3.log', commandType="DPPP")
+#    
+#    lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
+#            [parset_dir+'/losoto-plot-amp.parset'])
 
     # Correct BP CORRECTED_DATA -> CORRECTED_DATA
+    # TEST: change iono->amp to correct for bandpass
     logger.info('BP correction...')
     if c == 0:
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitude000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=amplitude000', \
                 log='$nameMS_corAMP3.log', commandType='DPPP')
     else:
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitude000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=amplitude000', \
                 log='$nameMS_corAMP3.log', commandType='DPPP')
        
     # briggs: -1.2 for virgo; -1.0 for subtraction to get good minihalo?
