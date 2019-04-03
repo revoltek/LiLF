@@ -122,7 +122,7 @@ class Worker_checker(Worker):
                 # reschedule
                 else:
                     print("Checker -- ERROR: Sid %i status is %s!" % (sid, status) )
-                    continue
+                    self.stager.reschedule(sid)
     
             time.sleep(60)
     
@@ -136,7 +136,8 @@ class Worker_downloader(Worker):
                 print("Downloader -- Download: "+surl.split('/')[-1])
                 self.L_inDownload.append(surl)
                 with open("wgetout.txt","wb") as out, open("wgeterr.txt","wb") as err:
-                    p = subprocess.Popen('wget -nv https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
+                    if 'psnc.pl' in surl: p = subprocess.Popen('wget -nv https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
+                    if 'sara.nl' in surl: p = subprocess.Popen('wget -nv https://lofar-download.grid.surfsara.nl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
                     os.waitpid(p.pid, 0)
                 self.L_inDownload.remove(surl)
 
