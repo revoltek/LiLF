@@ -57,7 +57,7 @@ def getName(ms):
     # get time (saved in ms as MJD in seconds)
     with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
         time = Time(t.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
-        time = time.iso.replace('-','').replace(' ','').replace(':','')[8:12]
+        time = time.iso.replace('-','').replace(' ','').replace(':','')[0:12]
 
     pattern = re.compile("^c[0-9][0-9]-.*$")
     # is survey?
