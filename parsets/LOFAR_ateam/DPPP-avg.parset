@@ -3,9 +3,10 @@ msin.datacolumn = DATA
 #do not copy aucorr as they have too weird weights for dysco
 msin.baseline = [CR]S*&
 msout = 
+msout.writefullresflag = False
 msout.storagemanager = dysco
 
-numthreads = 1 # keep this to 1 as they are called with s.run()
+numthreads = 1 # leave this to 1 as it is called with s.run() and IO limited
 
 steps = [avg, filter]
 
@@ -16,4 +17,3 @@ avg.timestep = 1
 # should remove stations not used in any baseline (international)
 filter.type = filter
 filter.remove = True
-
