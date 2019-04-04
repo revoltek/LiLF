@@ -256,10 +256,9 @@ for c in range(1,maxniter):
 
         for i, d in enumerate(directions):
             # predict - ms:MODEL_DATA
-            # TODO: fix direction
             logger.info('Patch '+d.name+': predict+corrupt...')
             MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.operation=add pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name+ \
-                    'pre.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 pre.applycal.direction=['+d.name+']', \
+                    'pre.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 pre.applycal.direction=['+d.name+'] pre.applycal.correction=tec000', \
                 log='$nameMS_preDIE-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
 
         # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
@@ -394,7 +393,7 @@ for c in range(1,maxniter):
     s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_residual, log='mosaic-res-c'+str(c)+'.log', commandType='python')
     s.run(check=True)
 
-    if c>0:
+    if c>1:
         logger.info('Mosaic: low-res image...')
         image_files = ' '.join([d.image_low.imagename for d in directions])
         mosaic_residual = 'img/mos-low-MFS-image.fits'
