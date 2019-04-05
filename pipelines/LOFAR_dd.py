@@ -25,8 +25,8 @@ MSs_self = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
 # make beam
 phasecentre = MSs_self.getListObj()[0].getPhaseCentre()
-MSs_self.getListObj()[0].makeBeamReg('self/beam.reg', to_null=True) # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
-beamReg = 'self/beam.reg'
+#MSs_self.getListObj()[0].makeBeamReg('self/beam.reg', to_null=True) # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
+#beamReg = 'self/beam.reg'
 fwhm = MSs_self.getListObj()[0].getFWHM(freq='min')
 
 ##########################
@@ -119,10 +119,10 @@ MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log
 
 ##############################################################
 # setup initial model
-mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg, beamReg = beamReg)
+mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
 mosaic_image.selectCC()
 # TEST:
-#mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg, beamReg = beamReg)
+#mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
 rms_noise_pre = np.inf
 
 for c in range(maxniter):
@@ -142,8 +142,11 @@ for c in range(maxniter):
 
     ### group into patches corresponding to the mask islands
     # TODO: aggregate nearby sources. Expand mask?
+    mask_cl = mosaic_image.imagename.replace('MFS-image.fits', 'mask-cl.fits')
+    # this mask is with no user region, done isolate only bight compact sources
+    lib_img.make_mask.make_mask(image_name=mosaic_image.imagename, mask_name=mask_cl, threshisl=5)
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
-    lsm.group(mosaic_image.maskname, root='Isl')
+    lsm.group(mask_cl, root='Isl')
 
     ### select bright sources
     lsm.select('I >= 2.0 Jy', aggregate='sum')
@@ -421,5 +424,5 @@ for c in range(maxniter):
     # get noise, if larger than 95% of prev cycle: break
     rms_noise = lib_img.Image(mosaic_residual).getNoise()
     logger.info('RMS noise: %f' % rms_noise)
-    if rms_noise > 0.95 * rms_noise_pre: break
+    if rms_noise > rms_noise_pre: break
     rms_noise_pre = rms_noise
