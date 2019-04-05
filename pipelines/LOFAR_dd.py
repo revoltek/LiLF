@@ -65,10 +65,10 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 
     if res == 'normal':
         weight = 'briggs 0'
-        maxuv_l = 1e30
+        maxuv_l = None
     elif res == 'high':
         weight = 'briggs -0.7'
-        maxuv_l = 1e30
+        maxuv_l = None
     elif res == 'low':
         weight = 'briggs 0'
         maxuv_l = 3500
@@ -87,11 +87,10 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 
     # clean 2
     # TODO: add -parallel-deconvolution when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
-    # TODO: add V-stokes
     logger.info('Cleaning w/ mask ('+str(p)+')...')
     imagename = 'img/ddcalM-'+str(p)
     if apply_beam:
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imsize, scale=str(pixscale)+'arcsec', \
+        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imsize, scale=str(pixscale)+'arcsec', pol='IQUV', \
             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
             auto_threshold=0.1, fits_mask=im.maskname, \
