@@ -319,7 +319,7 @@ class MS(object):
 
         if self.getTelescope() == 'LOFAR':
 
-            # Following numbers are based at 60 MHz (https://www.astron.nl/radio-observatory/astronomers/lofar-imaging-capabilities-sensitivity/lofar-imaging-capabilities/lofa)
+            # Following numbers are based at 60 MHz (old.astron.nl/radio-observatory/astronomers/lofar-imaging-capabilities-sensitivity/lofar-imaging-capabilities/lofa)
             scale = 60e6/beamfreq 
 
             if 'OUTER' in self.getAntennaSet():
@@ -356,7 +356,7 @@ class MS(object):
         else:
             radius = pb_cut/2.
 
-        if to_null: radius *= 1.7 # rough estimation
+        if to_null: radius *= 2 # rough estimation
 
         s = Shape('circle', None)
         s.coord_format = 'fk5'
