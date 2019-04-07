@@ -45,13 +45,12 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     """
     # set pixscale and imsize
     pixscale = MSs.getListObj()[0].getResolution() 
-    # weighting lower the resolutions a bit, therefore a /2 should be enough
     if res == 'normal':
-        pixscale /= 2.
+        pixscale = float('%.1f'%(pixscale/3.5))
     elif res == 'high':
-        pixscale /= 4.
+        pixscale = float('%.1f'%(pixscale/5.))
     elif res == 'low':
-        pixscale /= 1. # no change
+        pass # no change
 
     imsize = [0,0]
     imsize[0] = int(size[0]*1.05/(pixscale/3600.)) # add 5%

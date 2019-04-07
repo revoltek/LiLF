@@ -386,7 +386,8 @@ class MS(object):
 
         maxdist = np.nanmax( np.sqrt(col[:,0] ** 2 + col[:,1] ** 2) )
 
-        return int(round(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcseconds
+        #return int(round(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcseconds
+        return float('%.1f'%(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcsec
 
     def isAllFlagged(self):
         """
