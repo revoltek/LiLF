@@ -27,7 +27,7 @@ MSs_self = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 phasecentre = MSs_self.getListObj()[0].getPhaseCentre()
 #MSs_self.getListObj()[0].makeBeamReg('self/beam.reg', to_null=True) # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
 #beamReg = 'self/beam.reg'
-fwhm = MSs_self.getListObj()[0].getFWHM(freq='min')
+fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
 ##########################
 logger.info('Cleaning...')
@@ -46,9 +46,9 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     # set pixscale and imsize
     pixscale = MSs.getListObj()[0].getResolution() 
     if res == 'normal':
-        pixscale = float('%.1f'%(pixscale/3.5))
+        pixscale = float('%.1f'%(pixscale/2.))
     elif res == 'high':
-        pixscale = float('%.1f'%(pixscale/5.))
+        pixscale = float('%.1f'%(pixscale/4.))
     elif res == 'low':
         pass # no change
 
