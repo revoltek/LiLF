@@ -18,6 +18,7 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_dd','parset_dir')
 maxniter = parset.getint('LOFAR_dd','maxniter')
+calFlux = parset.getfloat('LOFAR_dd','calFlux')
 userReg = parset.get('model','userReg')
 
 ####################################################
@@ -134,20 +135,20 @@ for c in range(maxniter):
     mask_voro = 'ddcal/masks/facets%02i.fits' % c
 
     ### TTESTTESTTEST: DIE image
-    if c == 0:
-        clean('init', MSs, size=(fwhm,fwhm), res='normal')
+    #if c == 0:
+    #    clean('init', MSs, size=(fwhm,fwhm), res='normal')
     ############################
 
     ### group into patches corresponding to the mask islands
     # TODO: aggregate nearby sources. Expand mask?
     mask_cl = mosaic_image.imagename.replace('MFS-image.fits', 'mask-cl.fits')
     # this mask is with no user region, done isolate only bight compact sources
-    lib_img.make_mask.make_mask(image_name=mosaic_image.imagename, mask_name=mask_cl, threshisl=5)
+    if not os.path.exists(mask_cl): lib_img.make_mask.make_mask(image_name=mosaic_image.imagename, mask_name=mask_cl, threshisl=5)
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
     lsm.group(mask_cl, root='Isl')
 
     ### select bright sources
-    lsm.select('I >= 2.0 Jy', aggregate='sum')
+    lsm.select('I >= %f Jy' % calFlux, aggregate='sum')
     lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
     for name, flux in zip(lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum')):
         direction = lib_dd.Direction(name)
@@ -176,7 +177,7 @@ for c in range(maxniter):
     ### select the rest of the sources to be subtracted
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
     lsm.group(mosaic_image.maskname, root='Isl')
-    lsm.select('I < 2.0 Jy', aggregate='sum')
+    lsm.select('I < %f Jy' % calFlux, aggregate='sum')
     lsm.ungroup()
     rest_field = lsm.getColValues('I')
     rest_field = np.sum(rest_field)
