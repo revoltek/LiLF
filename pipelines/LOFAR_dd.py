@@ -90,9 +90,11 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     logger.info('Cleaning w/ mask ('+str(p)+')...')
     imagename = 'img/ddcalM-'+str(p)
     if apply_beam:
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imsize, scale=str(pixscale)+'arcsec', pol='IQUV', \
+        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imsize, scale=str(pixscale)+'arcsec', \
+            pol='IQUV', join_polarizations='', \
             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
+            multiscale='', multiscale_scales='0,10,20', \
             auto_threshold=0.1, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=2, channels_out=8)
     else:
