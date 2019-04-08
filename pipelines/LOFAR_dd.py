@@ -178,7 +178,7 @@ for c in range(maxniter):
     
     ### select the rest of the sources to be subtracted
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
-    lsm.group(mosaic_image.maskname, root='Isl')
+    lsm.group(mask_cl, root='Isl')
     lsm.select('I < %f Jy' % calFlux, aggregate='sum')
     lsm.ungroup()
     rest_field = lsm.getColValues('I')
