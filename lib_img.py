@@ -12,11 +12,16 @@ class Image(object):
         userMask: keep this region when making masks
         BeamReg: ds9 region file of the beam
         """
+        assert os.path.exists(imagename)
+
+        if 'MFS' in imagename: root = 'MFS-image.fits'
+        else: root = 'image.fits'
+
         self.imagename    = imagename
-        self.maskname     = imagename.replace('MFS-image.fits', 'mask.fits')
-        self.skymodel     = imagename.replace('MFS-image.fits', 'sources.txt')
-        self.skymodel_cut = imagename.replace('MFS-image.fits', 'sources-cut.txt')
-        self.skydb        = imagename.replace('MFS-image.fits', 'sources-cut.skydb')
+        self.maskname     = imagename.replace(root, 'mask.fits')
+        self.skymodel     = imagename.replace(root, 'sources.txt')
+        self.skymodel_cut = imagename.replace(root, 'sources-cut.txt')
+        self.skydb        = imagename.replace(root, 'sources-cut.skydb')
         self.userReg      = userReg
         self.beamReg      = beamReg
 

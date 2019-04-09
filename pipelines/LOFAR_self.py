@@ -44,6 +44,7 @@ if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
 if not os.path.exists('self/plots'): os.makedirs('self/plots')
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+MSs.plot_HAcov('HAcov.png')
 
 # make beam to the first mid null
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
@@ -81,9 +82,9 @@ for MS in MSs.getListStr():
     logger.debug('Copy: '+sourcedb+' -> '+MS)
     os.system('cp -r '+sourcedb+' '+MS)
 
-# Create columns (non compressed)
+# Create columns
 logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
+MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
 
 logger.info('Add model to MODEL_DATA...')
 if apparent:

@@ -10,3 +10,4 @@ pre.sourcedb =
 pre.usebeammodel = True
 pre.usechannelfreq = True
 pre.beammode = array_factor
+pre.onebeamperpatch = True

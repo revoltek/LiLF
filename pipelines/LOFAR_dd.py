@@ -143,7 +143,7 @@ for c in range(maxniter):
 
     ### group into patches corresponding to the mask islands
     # TODO: aggregate nearby sources. Expand mask?
-    mask_cl = mosaic_image.imagename.replace('MFS-image.fits', 'mask-cl.fits')
+    mask_cl = mosaic_image.imagename.replace('image.fits', 'mask-cl.fits')
     # this mask is with no user region, done isolate only bight compact sources
     if not os.path.exists(mask_cl): lib_img.make_mask.make_mask(image_name=mosaic_image.imagename, mask_name=mask_cl, threshisl=5)
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
@@ -186,7 +186,7 @@ for c in range(maxniter):
     logger.info("Total flux in rest field %i Jy" % rest_field)
 
     # write file
-    skymodel_rest = 'ddcal/masks/skymodel%02i_rest.txt' % c
+    skymodel_rest = 'ddcal/skymodels/skymodel%02i_rest.txt' % c
     lsm.write(skymodel_rest, format='makesourcedb', clobber=True)
     skymodel_rest_plot = 'ddcal/masks/skymodel%02i_rest.png' % c
     lsm.plot(fileName=skymodel_rest_plot, labelBy='patch')
@@ -252,7 +252,7 @@ for c in range(maxniter):
 
     ##############################################################
     # low S/N DIE corrections
-    if c>0:
+    if c>=0:
         logger.info('DIE calibration...')
         # predict and corrupt each facet
         logger.info('Reset MODEL_DATA...')
@@ -262,14 +262,15 @@ for c in range(maxniter):
             # predict - ms:MODEL_DATA
             logger.info('Patch '+d.name+': predict+corrupt...')
             MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.operation=add pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name+ \
-                    'pre.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 pre.applycal.direction=['+d.name+'] pre.applycal.correction=tec000', \
-                log='$nameMS_preDIE-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+                    ' pre.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 pre.applycal.direction=['+d.name+'] pre.applycal.correction=tec000', \
+                    log='$nameMS_preDIE-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
 
         # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
         logger.info('BL-based smoothing...')
         MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
     
         # DIE Calibration - ms:SMOOTHED_DATA
+        # TODO: a time-independent amp solution might also work
         logger.info('Calibrating DIE...')
         MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calG-c'+str(c)+'.h5', \
                 log='$nameMS_solDDg-c'+str(c)+'.log', commandType='DPPP')
@@ -292,12 +293,13 @@ for c in range(maxniter):
         
         # TODO: use this command once tested
         #MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=SUBTRACTED_DATA pre.operation=sub pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name+ \
-        #            'pre.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 pre.applycal.direction=['+d.name+']', \
+        #            ' pre.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 pre.applycal.direction=['+d.name+']', \
         #            log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
         
         # predict - ms:MODEL_DATA
         logger.info('Patch '+d.name+': predict...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name,log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
+                log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
     
         # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
         logger.info('Patch '+d.name+': corrupt...')
@@ -420,7 +422,7 @@ for c in range(maxniter):
 
     os.system('cp img/*M*MFS-image.fits img/mos*.fits ddcal/images/c%02i' % c )
     mosaic_image = lib_img.Image('ddcal/images/c%02i/mos-MFS-image.fits' % c, userReg = userReg)
-    mosaic_image.makeMask(threshisl=3, atrous_do=True)
+    mosaic_image.makeMask(threshisl=3, atrous_do=True) # used in the faceting function
 
     # get noise, if larger than 95% of prev cycle: break
     rms_noise = lib_img.Image(mosaic_residual).getNoise()

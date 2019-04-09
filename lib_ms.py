@@ -107,6 +107,34 @@ class AllMSs(object):
 
         self.scheduler.run(check = True, maxThreads = maxThreads)
 
+    def plot_HAcov(self, plotname='HAcov.png'):
+        """
+        Show the coverage in HA
+        """
+        from astropy.coordinates import get_sun, SkyCoord, EarthLocation, AltAz
+        from astropy.time import Time
+        from astropy import units as u
+
+        telescope = self.mssListObj[0].getTelescope()
+        if telescope == 'LOFAR':
+            telescope_coords = EarthLocation(lat=52.90889*u.deg, lon=6.86889*u.deg, height=0*u.m)
+        elif telescope == 'GMRT':
+            telescope_coords = EarthLocation(lat=19.0948*u.deg, lon=74.0493*u.deg, height=0*u.m)
+        else:
+            raise('Unknown Telescope.')
+        
+        for ms in self.mssListObj:
+            time = np.mean(ms.getTimeRange())
+            time = Time( time/86400, format='mjd')
+            coord_sun = get_sun(time)
+            ra, dec = ms.getPhaseCentre()
+            coord = SkyCoord(ra*u.deg, dec*u.deg)
+            sun_dist = coord.separation(coord_sun)
+            lst = time.sidereal_time('mean', telescope_coords.longitude)
+            ha = lst - coord.ra # hour angle
+            print 'Sun distance: %.2f deg' % sun_dist.deg
+            print 'Hour angle: %s deg' % ha
+
 
 class MS(object):
 
@@ -225,7 +253,7 @@ class MS(object):
 
     def getFreqs(self):
         """
-        Get chan frequency
+        Get chan frequencies in Hz
         """
         with tables.table(self.pathMS + "/SPECTRAL_WINDOW", ack = False) as t:
             freqs = t.getcol("CHAN_FREQ")
@@ -264,10 +292,18 @@ class MS(object):
         with tables.table(self.pathMS, ack = False) as t:
             nTimes = len(set(t.getcol("TIME")))
         with tables.table(self.pathMS + "/OBSERVATION", ack = False) as t:
-            deltat = (t.getcol("TIME_RANGE")[0][1] - t.getcol("TIME_RANGE")[0][0]) / nTimes
+            deltaT = (t.getcol("TIME_RANGE")[0][1] - t.getcol("TIME_RANGE")[0][0]) / nTimes
 
-        logger.debug("%s: time interval (seconds): %f", self.pathMS, deltat)
-        return deltat
+        logger.debug("%s: time interval (seconds): %f", self.pathMS, deltaT)
+        return deltaT
+
+
+    def getTimeRange(self):
+        """
+        Return the time interval of this observation
+        """
+        with tables.table(self.pathMS + "/OBSERVATION", ack = False) as t:
+            return ( t.getcol("TIME_RANGE")[0][1], t.getcol("TIME_RANGE")[0][0] )
 
 
     def getPhaseCentre(self):
