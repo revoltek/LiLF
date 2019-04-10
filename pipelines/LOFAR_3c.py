@@ -195,7 +195,7 @@ for c in range(100):
             join_channels='', fit_spectral_pol=1, channels_out=2)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
-    rms_noise = lib_img.Image(imagename+'-image.fits').getNoise()
+    rms_noise = lib_img.Image(imagename+'-MFS-image.fits').getNoise()
     logger.info('RMS noise: %f' % rms_noise)
     if rms_noise > 0.95 * rms_noise_pre: break
     rms_noise_pre = rms_noise
