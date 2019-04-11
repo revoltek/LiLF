@@ -26,8 +26,6 @@ MSs_self = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
 # make beam
 phasecentre = MSs_self.getListObj()[0].getPhaseCentre()
-#MSs_self.getListObj()[0].makeBeamReg('self/beam.reg', to_null=True) # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
-#beamReg = 'self/beam.reg'
 fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
 ##########################
@@ -224,7 +222,7 @@ for c in range(maxniter):
 
     ################################################################
 
-    #Predict - ms:MODEL_DATA
+    # Predict - ms:MODEL_DATA
     logger.info('Add rest_field to MODEL_DATA...')
     MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
 
@@ -278,6 +276,8 @@ for c in range(maxniter):
         # Plot solutions
         lib_util.run_losoto(s, 'G-c'+str(c), [MS+'/calG-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
         os.system('mv plots-G-c'+str(c)+'* ddcal/plots')
+
+        sys.exit()
 
     ###########################################################
     ## Empty the dataset
