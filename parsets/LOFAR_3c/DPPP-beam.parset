@@ -1,5 +1,6 @@
 msin =
 msin.datacolumn = CORRECTED_DATA
+
 msout = .
 msout.datacolumn = CORRECTED_DATA
 
@@ -7,4 +8,5 @@ steps = [corrbeam]
 
 corrbeam.type = applybeam
 corrbeam.usechannelfreq = True
+corrbeam.updateweights = True # add reweight
 corrbeam.beammode = element

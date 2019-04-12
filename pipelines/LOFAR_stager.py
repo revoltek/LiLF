@@ -12,8 +12,8 @@ import subprocess, multiprocessing
 import stager_access as stager
 
 #project = 'LC9_017' # 3c first part
-#project = 'LC10_020' # 3c second part
-project = 'LC4_012' # Lazio planet
+project = 'LC10_020' # 3c second part
+#project = 'LC4_012' # Lazio planet
 # The class of data to query
 cls = CorrelatedDataProduct
 
@@ -156,14 +156,17 @@ w_downloader2 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_
 
 # add things already staged
 i=0
-for sid, _ in stager.get_progress():
-    sid = int(sid)
-    L_inStage.append(sid) # the worker will take care of starting downloads
-    for surl in stager.get_surls_online(sid):
-        if surl in L_toStage:
-            L_toStage.remove(surl)
-            i+=1
-print("Removed %i already staged surls." % i)
+try:
+    for sid, _ in stager.get_progress():
+        sid = int(sid)
+        L_inStage.append(sid) # the worker will take care of starting downloads
+        for surl in stager.get_surls_online(sid):
+            if surl in L_toStage:
+                L_toStage.remove(surl)
+                i+=1
+    print("Removed %i already staged surls." % i)
+except:
+    pass
 
 w_stager.start()
 w_checker.start()

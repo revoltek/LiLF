@@ -56,6 +56,7 @@ def getParset(parsetFile='../lilf.config'):
     # self
     # dd
     add_default('LOFAR_dd', 'maxniter', '10')
+    add_default('LOFAR_dd', 'calFlux', '2.0')
 
     ### uGMRT ###
 
@@ -213,7 +214,8 @@ def run_wsclean(s, logfile, MSs_files, **kwargs):
     """
     Use only for imaging - not for predict
     s : scheduler
-    args : parameters for wsclean
+    args : parameters for wsclean, "_" are replaced with "-", any parms=None is ignored.
+           To pass a parameter with no values use e.g. " no_update_model_required='' "
     """
     
     wsc_parms = []
@@ -227,6 +229,7 @@ def run_wsclean(s, logfile, MSs_files, **kwargs):
         wsc_parms.append( '-temp-dir /localwork.ssd' )
     # user defined parms
     for parm, value in list(kwargs.items()):
+        if value is None: continue
         if parm == 'cont': 
             parm = 'continue'
             value = ''

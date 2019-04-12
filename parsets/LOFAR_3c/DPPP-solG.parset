@@ -1,19 +1,16 @@
 msin =
 msin.datacolumn = SMOOTHED_DATA
 msout = .
-msout.datacolumn = CORRECTED_DATA
-
-numthreads = 0 # the pipeline should set this number
 
 steps = [sol]
 
-sol.type = gaincal
+sol.type = ddecal
 sol.uvlambdamin = 30
-sol.caltype = diagonal
-sol.maxiter = 500
+sol.mode = diagonal
 sol.tolerance = 1e-3
+sol.maxiter = 500
 sol.nchan = 1
 sol.solint = 1
 sol.propagatesolutions = True
 sol.usemodelcolumn = True
-sol.minblperant=10
+sol.smoothnessconstraint = 1e6

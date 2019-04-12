@@ -4,7 +4,7 @@ msin.datacolumn = CORRECTED_DATA
 msin.baseline = [CR]S*&
 msout = 
 msout.writefullresflag = False
-msout.storagemanager = dysco
+#msout.storagemanager = dysco
 
 steps = [shift, avg]
 

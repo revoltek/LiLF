@@ -6,12 +6,12 @@ steps=[ddecal]
 
 ddecal.type = ddecal
 ddecal.uvlambdamin = 100
-ddecal.sourcedb =
 ddecal.h5parm = 
-ddecal.maxiter = 300
+ddecal.maxiter = 500
 ddecal.tolerance = 1e-3
 ddecal.solint = 60
-ddecal.nchan = 40
-ddecal.mode = complexgain # phaseonly, complexgain, tec, tecandphase
+ddecal.nchan = 1
+ddecal.mode = diagonal # phaseonly, complexgain, tec, tecandphase
 ddecal.propagatesolutions = True
 ddecal.usemodelcolumn = True
+ddecal.smoothnessconstraint = 1e6

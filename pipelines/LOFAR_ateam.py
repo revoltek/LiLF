@@ -21,7 +21,6 @@ elif 'Cas' in os.getcwd():
 elif 'Cyg' in os.getcwd():
     patch = 'CygA'
     nouseblrange = ''
-    nouseblrange = '[15000..1e30]'
     f = lambda nu: 10690. * 10**(-0.67 * (np.log10(nu/150.e6))**1) * 10**(-0.204 * (np.log10(nu/150.e6))**2) * 10**(-0.021 * (np.log10(nu/150.e6))**3)
 
 skymodel = '/home/fdg/scripts/model/A-team_4_CC.skydb'

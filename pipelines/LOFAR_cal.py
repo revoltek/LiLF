@@ -185,7 +185,7 @@ else:
     lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
             [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono.parset'])
 
-if 'survey' in os.getcwd():
+if 'LBAsurvey' in os.getcwd():
     os.system('cp cal-pa.h5 cal-pa-full.h5')
     os.system('mv cal-fr.h5 cal-fr-full.h5') # no need to keep orig
     os.system('cp cal-amp.h5 cal-amp-full.h5')
@@ -209,7 +209,7 @@ if 'survey' in os.getcwd():
 
     logger.info('Copy survey caltable...')
     cal = 'cal_'+os.getcwd().split('/')[-2]+'_'+calname
-    logger.info('Copy: cal*h5 -> dsk:/disks/paradata/fdg/LBAsurvey/%s' % cal)
+    logger.info('Copy: cal*h5 -> portal_lei:/disks/paradata/fdg/LBAsurvey/%s' % cal)
     os.system('ssh portal_lei "rm -rf /disks/paradata/fdg/LBAsurvey/%s"' % cal)
     os.system('ssh portal_lei "mkdir /disks/paradata/fdg/LBAsurvey/%s"' % cal)
     os.system('scp -q cal-*.h5 portal_lei:/disks/paradata/fdg/LBAsurvey/%s' % cal)

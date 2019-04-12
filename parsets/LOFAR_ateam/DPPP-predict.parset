@@ -1,6 +1,5 @@
 msin = 
 msin.datacolumn = DATA
-msin.baseline = [CR]S*&
 msout = .
 msout.datacolumn = MODEL_DATA
 
@@ -12,3 +11,4 @@ pre.sources =
 pre.usebeammodel = True
 pre.usechannelfreq = True
 pre.beammode = array_factor
+pre.onebeamperpatch = True

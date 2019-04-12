@@ -12,11 +12,16 @@ class Image(object):
         userMask: keep this region when making masks
         BeamReg: ds9 region file of the beam
         """
+        assert os.path.exists(imagename)
+
+        if 'MFS' in imagename: root = 'MFS-image.fits'
+        else: root = 'image.fits'
+
         self.imagename    = imagename
-        self.maskname     = imagename.replace('MFS-image.fits', 'mask.fits')
-        self.skymodel     = imagename.replace('MFS-image.fits', 'sources.txt')
-        self.skymodel_cut = imagename.replace('MFS-image.fits', 'sources-cut.txt')
-        self.skydb        = imagename.replace('MFS-image.fits', 'sources-cut.skydb')
+        self.maskname     = imagename.replace(root, 'mask.fits')
+        self.skymodel     = imagename.replace(root, 'sources.txt')
+        self.skymodel_cut = imagename.replace(root, 'sources-cut.txt')
+        self.skydb        = imagename.replace(root, 'sources-cut.skydb')
         self.userReg      = userReg
         self.beamReg      = beamReg
 
@@ -81,33 +86,28 @@ class Image(object):
         os.system('makesourcedb outtype="blob" format="<" in="'+self.skymodel_cut+'" out="'+self.skydb+'"')
 
 
-    def getNoise(self, boxsize=None, niter=20, eps=1e-5):
+    def getNoise(self, boxsize=None):
         """
-        Return the rms of all the pixels in an image
+        Return the rms of all the non-masked pixels in an image
         boxsize : limit to central box of this pixelsize
-        niter : robust rms estimation
-        eps : convergency
         """   
+        self.makeMask()
+
         with pyfits.open(self.imagename) as fits:
-            data = fits[0].data
-            if boxsize is None:
-                subim = data
-            else:
-               if len(data.shape)==4:
-                    _,_,ys,xs = data.shape
-                    subim = data[0,0,ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
-               else:
-                    ys,xs = data.shape
-                    subim = data[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
-            oldrms = 1.
-            for i in range(niter):
-                rms = np.nanstd(subim)
-                #print len(subim),rms
-                if np.abs(oldrms-rms)/rms < eps:
-                    return rms
-                subim=subim[np.abs(subim)<5*rms]
-                oldrms=rms
-            raise Exception('Failed to converge')
+            with pyfits.open(self.maskname) as mask:
+                data = fits[0].data
+                mask = mask[0].data
+                if boxsize is not None:
+                    if len(data.shape)==4:
+                        _,_,ys,xs = data.shape
+                        data = data[0,0,ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
+                        mask = mask[0,0,ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
+                    else:
+                        ys,xs = data.shape
+                        data = data[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
+                        mask = mask[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
+    
+                return np.nanstd(data[mask==0])
 
 
 

@@ -44,11 +44,11 @@ if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
 if not os.path.exists('self/plots'): os.makedirs('self/plots')
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+MSs.plot_HAcov('HAcov.png')
 
-# TODO: add a first null region and use that?
-# make beam
+# make beam to the first mid null
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
-MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='min')
+MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='mid', to_null=True)
 beamReg = 'self/beam.reg'
 
 # set image size
@@ -82,9 +82,9 @@ for MS in MSs.getListStr():
     logger.debug('Copy: '+sourcedb+' -> '+MS)
     os.system('cp -r '+sourcedb+' '+MS)
 
-# Create columns (non compressed)
+# Create columns
 logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
+MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
 
 logger.info('Add model to MODEL_DATA...')
 if apparent:
@@ -156,7 +156,8 @@ for c in range(2):
     if c == 1:
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
-        lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', pol='IQUV', \
+        lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
+                pol='IQUV', join_polarizations='', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
                 multiscale='', multiscale_scales='0,10,20', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
@@ -221,8 +222,6 @@ for c in range(2):
         # Subtract low-res model - SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES
         logger.info('Subtracting low-res model (SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES)...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-
-        # TODO: remove only from short baselines
 
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(2) ]
