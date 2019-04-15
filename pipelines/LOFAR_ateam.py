@@ -46,9 +46,9 @@ os.makedirs('img')
 MSs = lib_ms.AllMSs( sorted(glob.glob(data_dir+'/*MS')), s )
 
 # copy data (avg to 1ch/sb and 10 sec)
-nchan = MSs.getListObj()[0].getNchan()
+nchan = int(MSs.getListObj()[0].getNchan()) # add /4. to have more channels
 timeint = MSs.getListObj()[0].getTimeInt()
-avg_time = int(np.rint(10./timeint))
+avg_time = int(np.rint(10./timeint)) # change 10. to a lower number to have more times
 
 logger.info('Copy data...')
 for obs in set([ os.path.basename(ms).split('_')[0] for ms in MSs.getListStr() ]):
@@ -200,7 +200,7 @@ for c in range(100):
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1000, scale='1.5arcsec', \
-                weight='briggs -1.5', no_mfs_weighting='', niter=50000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -1.5', niter=50000, no_update_model_required='', mgain=0.5, \
                 #iuwt='', gain=0.2, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 #multiscale_scales='0,10,20,40', \
@@ -210,7 +210,7 @@ for c in range(100):
 
     elif patch == 'CasA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1300, scale='2arcsec', \
-                weight='briggs -1.2', no_mfs_weighting='', niter=75000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -1.2', niter=75000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CasA.fits', \
@@ -218,10 +218,13 @@ for c in range(100):
                 join_channels='', deconvolution_channels=20, fit_spectral_pol=7, channels_out=61)
 
     elif patch == 'TauA':
-        # predict point
-        # subtract point
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1200, scale='2arcsec', \
-                weight='briggs -1.2', no_mfs_weighting='', niter=100000, no_update_model_required='', mgain=0.5, \
+        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1200, scale='2arcsec', \
+                weight='briggs -1.2', niter=150, update_model_required='', mgain=0.5, \
+                fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/pulsar.fits', \
+                join_channels='', deconvolution_channels=20, fit_spectral_pol=7, channels_out=61) # use cont=True
+
+        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, save_source_list='', size=1200, scale='2arcsec', \
+                weight='briggs -1.2', niter=100000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/TauA.fits', \
                 baseline_averaging=5, auto_threshold=1, \

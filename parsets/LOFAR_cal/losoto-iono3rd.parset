@@ -80,41 +80,33 @@ refAnt = 'CS002LBA'
 [residuals]
 operation = RESIDUALS
 soltab = sol000/phase000
-#soltabsToSub = [tec000,clock000]
-soltabsToSub = [tec000,clock000,tec3rd000] # only for very low-freq dataset
+soltabsToSub = [tec000,clock000,tec3rd000]
 
 [PlotPr1]
-operation = PLOT
-soltab = sol000/phase000
-freq.minmaxstep = [0,300e6,100]
-axesInPlot = time
-axisInTable = ant
-axisInCol = pol
-plotFlag = True
-prefix = plots/phRes_
-refAnt = 'CS002LBA'
-minmax = [-3.14,3.14]
-NColFig = 4
-figSize = [20,20]
-
-[PlotPr2]
-operation = PLOT
-soltab = sol000/phase000
-time.minmaxstep = [0,1e20,500]
-axesInPlot = freq
-axisInTable = ant
-axisInCol = pol
-plotFlag = True
-prefix = plots/phRes_
-refAnt = 'CS002LBA'
-minmax = [-3.14,3.14]
-
-[PlotPr3]
 operation = PLOT
 soltab = sol000/phase000
 axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/phRes
-refAnt = 'CS002LBA'
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
+minmax = [-3.14,3.14]
+
+[smooth]
+operation = SMOOTH
+soltab = sol000/phase000
+axesToSmooth = [time,freq]
+mode = median
+refAnt = 'CS001LBA'
+
+[PlotPr2]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/phResSmooth
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]
