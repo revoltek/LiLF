@@ -10,7 +10,7 @@ operation = SMOOTH
 soltab = sol000/amplitudeSmooth
 axesToSmooth = [time]
 mode = runningmedian
-size = 20
+size = 21
 
 [plotAs]
 operation = PLOT

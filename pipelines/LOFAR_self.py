@@ -157,13 +157,19 @@ for c in range(2):
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
         lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
-                pol='IQUV', join_polarizations='', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
                 multiscale='', multiscale_scales='0,10,20', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
                 parallel_deconvolution=256, auto_threshold=1, fits_mask=im.maskname, \
                 join_channels='', fit_spectral_pol=2, channels_out=8)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
+        
+        logger.info('Cleaning V (cycle: '+str(c)+')...')
+        imagename = 'img/wideV'
+        lib_util.run_wsclean(s, 'wscleanV-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
+            pol='V', \
+            weight='briggs 0.', niter=1, no_update_model_required='', minuv_l=30, maxuv_l=5000, \
+            baseline_averaging=5, channels_out=8)
 
     if c != 1:
 

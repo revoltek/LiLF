@@ -200,11 +200,11 @@ if 'LBAsurvey' in os.getcwd():
     os.system('losoto -d sol000/phase000 cal-amp.h5')
     os.system('h5repack cal-amp.h5 cal-amp-compressed.h5; mv cal-amp-compressed.h5 cal-amp.h5')
 
-    os.system('losoto -d sol000/tec000 cal-iono.h5')
-    os.system('losoto -d sol000/clock000 cal-iono.h5')
+#    os.system('losoto -d sol000/tec000 cal-iono.h5')
+#    os.system('losoto -d sol000/clock000 cal-iono.h5')
     os.system('losoto -d sol000/amplitude000 cal-iono.h5')
     os.system('losoto -d sol000/phase_offset000 cal-iono.h5')
-    os.system('losoto -d sol000/phase000 cal-iono.h5')
+#    os.system('losoto -d sol000/phase000 cal-iono.h5')
     os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
 
     logger.info('Copy survey caltable...')
