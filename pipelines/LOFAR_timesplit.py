@@ -67,21 +67,22 @@ MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.steps=[pa] \
 
 # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, calibrator corrected+reweight, beam corrected+reweight)
 logger.info('Apply solutions (amp/ph)...')
-#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
-#        cor.amp.parmdb='+h5_amp+' cor.amp.correction=amplitudeSmooth cor.amp.updateweights=True\
-#        cor.ph.parmdb='+h5_iono+' cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DPPP')
+MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
+        cor.amp.parmdb='+h5_amp+' cor.amp.correction=amplitudeSmooth cor.amp.updateweights=True\
+        cor.ph.parmdb='+h5_iono+' cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DPPP')
 
-# TEST clock
-logger.warning('Correcting clock!')
-MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-        cor.parmdb='+h5_amp+' cor.correction=amplitudeSmooth cor.updateweights=True', \
-        log='$nameMS_cor2.log', commandType='DPPP')
-MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-        cor.parmdb='+h5_iono+' cor.correction=clock000', \
-        log='$nameMS_cor3.log', commandType='DPPP')
-MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-        cor.parmdb='+h5_iono+' cor.correction=phase000', \
-        log='$nameMS_cor4.log', commandType='DPPP')
+### TEST clock
+#logger.warning('Correcting clock!')
+#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+#        cor.parmdb='+h5_amp+' cor.correction=amplitudeSmooth cor.updateweights=True', \
+#        log='$nameMS_cor2.log', commandType='DPPP')
+#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+#        cor.parmdb='+h5_iono+' cor.correction=clock000', \
+#        log='$nameMS_cor3.log', commandType='DPPP')
+#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+#        cor.parmdb='+h5_iono+' cor.correction=phase000', \
+#        log='$nameMS_cor4.log', commandType='DPPP')
+###
 
 # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
 logger.info('Beam correction...')

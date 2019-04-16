@@ -257,12 +257,6 @@ for c in range(maxniter):
 
         for i, d in enumerate(directions):
             # predict - ms:MODEL_DATA
-            #logger.info('Patch '+d.name+': predict+corrupt...')
-            #MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.operation=add pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name+ \
-            #        ' pre.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 pre.applycal.direction=['+d.name+'] pre.applycal.correction=tec000', \
-            #        log='$nameMS_preDIE-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-
-            # predict - ms:MODEL_DATA
             logger.info('Patch '+d.name+': predict...')
             MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_DIR pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
                 log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
@@ -278,30 +272,53 @@ for c in range(maxniter):
         # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
         logger.info('BL-based smoothing...')
         MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
-    
-        # DIE Calibration - ms:SMOOTHED_DATA
-        # TODO: a time-independent amp solution might also work
-        logger.info('Calibrating DIE...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calG-c'+str(c)+'.h5', \
-                log='$nameMS_solDDg-c'+str(c)+'.log', commandType='DPPP')
+
+        # Convert to circular - SMOOTHED_DATA -> SMOOTHED_DATA
+        logger.info('Converting to circular...')
+        MSs.run('mslin2circ.py -i $pathMS:SMOOTHED_DATA -o $pathMS:SMOOTHED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+
+        # FR Calibration - ms:SMOOTHED_DATA
+        logger.info('Solving DIE FR...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calG1-c'+str(c)+'.h5', \
+                log='$nameMS_solDDg1-c'+str(c)+'.log', commandType='DPPP')
     
         # Plot solutions
-        lib_util.run_losoto(s, 'G-c'+str(c), [MS+'/calG-c'+str(c)+'.h5' for MS in MSs.getListStr()], \
+        lib_util.run_losoto(s, 'G1-c'+str(c), [MS+'/calG1-c'+str(c)+'.h5' for MS in MSs.getListStr()], \
+                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
+        os.system('mv plots-G1-c'+str(c)+'* ddcal/plots')
+
+        # Correct DIE FR - ms:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('DIE FR correct...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/calG1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+               log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
+
+        # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
+        logger.info('BL-based smoothing...')
+        MSs.run('BLsmooth.py -f 1.0 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
+    
+        # DIE Calibration - ms:SMOOTHED_DATA
+        logger.info('Solving DIE AMP...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calG2-c'+str(c)+'.h5', \
+                log='$nameMS_solDDg2-c'+str(c)+'.log', commandType='DPPP')
+    
+        # Plot solutions
+        lib_util.run_losoto(s, 'G2-c'+str(c), [MS+'/calG2-c'+str(c)+'.h5' for MS in MSs.getListStr()], \
                 [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-amp.parset'])
-        os.system('mv plots-G-c'+str(c)+'* ddcal/plots')
+        os.system('mv plots-G2-c'+str(c)+'* ddcal/plots')
+
+        # Correct DIE AMP - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
+        logger.info('DIE AMP correct...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/calG2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
+               log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
 
         sys.exit()
 
     ###########################################################
-    ## Empty the dataset
+    # Empty the dataset
     logger.info('Set SUBTRACTED_DATA = DATA...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 
     logger.info('Subtraction...')
-    ## TODO: use this command once DP3 is fixed
-    ##MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_voro_skydb, \
-    ##               log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP')
-
     for i, d in enumerate(directions):
         
         # TODO: use this command once tested
@@ -329,11 +346,6 @@ for c in range(maxniter):
 
     # Add back 
     logger.info('Facet imaging...')
-    ##  for patch, phasecentre in directions.iteritems():
-    ##      # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
-    ##      logger.info('Patch '+patch+': add back...')
-    ##      MSs.run('DPPP '+parset_dir+'/DPPP-add.parset msin=$pathMS add.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 add.sourcedb='+skymodel_voro_skydb+' add.directions=[['+patch+']]', \
-    ##          log='$nameMS_add-c'+str(c)+'-p'+str(patch)+'.log', commandType='DPPP')
     for i, d in enumerate(directions):
         #TODO: see if we can phase shift and average before predict-corrupt=correct
         # predict - ms:MODEL_DATA
