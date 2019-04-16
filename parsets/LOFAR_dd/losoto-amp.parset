@@ -27,6 +27,12 @@ soltab = sol000/amplitudeSmooth
 axisReplicate = ant
 fromCell = CS001LBA
 
+[norm]
+operation = NORM
+soltab = sol000/amplitudeSmooth
+normVal = 1.
+axesToNorm = [time,freq,ant,pol]
+
 [plotAsmooth2]
 operation = PLOT
 soltab = sol000/amplitudeSmooth
@@ -35,13 +41,3 @@ axisInTable = ant
 plotFlag = True
 prefix = plots/ampSmooth2_
 #minmax = [0.8,1.2]
-
-[reset]
-operation = REWEIGHT
-soltab = sol000/amplitudeSmooth
-
-[norm]
-operation = NORM
-soltab = sol000/amplitudeSmooth
-normVal = 1.
-axesToNorm = [time,freq,ant,pol]

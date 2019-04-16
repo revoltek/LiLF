@@ -25,7 +25,7 @@ def get_cal_dir(timestamp):
     """
     Get the proper cal directory from a timestamp
     """
-    for cal_dir in glob.glob('../../cals/*/*'):
+    for cal_dir in sorted(glob.glob('../../cals/*/*')):
         cal_timestamps = set( [ms.split('_')[1][1:] for ms in glob.glob(cal_dir+'/cals/*MS')] )
         if timestamp in cal_timestamps:
             logger.info('Calibrator found: %s (t=%s)' % (cal_dir, timestamp))
@@ -148,7 +148,7 @@ for c in range(100):
 
     # solve G - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving G...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG.h5 sol.mode=diagonal', \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG.h5 sol.mode=scalarcomplexgain', \
             log='$nameMS_solG-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'G-c'+str(c), [ms+'/calG.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-amp.parset'])
@@ -167,20 +167,20 @@ for c in range(100):
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/img-'+str(c)
     lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=3000, scale='4arcsec', \
-            weight='briggs -0.3', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+            weight='briggs 0.2', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.85, \
             multiscale='', multiscale_scales='0,10,20', auto_threshold=1, \
             baseline_averaging=5)
 
     if doamp: sys.exit()
     
     im = lib_img.Image(imagename+'-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 5)
+    im.makeMask(threshisl = 3)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/imgM-'+str(c)
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=3000, scale='4arcsec', \
-            weight='briggs -0.3', niter=10000, update_model_required='', minuv_l=30, mgain=0.85, \
-            multiscale='', multiscale_scales='0,10,20', auto_threshold=1, fits_mask=im.maskname)
+            weight='briggs 0.2', niter=10000, update_model_required='', minuv_l=30, mgain=0.85, \
+            multiscale='', multiscale_scales='0,10,20,40,80', auto_threshold=1, fits_mask=im.maskname)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     rms_noise = lib_img.Image(imagename+'-image.fits').getNoise()
