@@ -91,7 +91,7 @@ if lofar_system == 'hba': model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 
 if os.path.exists(model_dir+'/img-MFS-model.fits'):
-    im = lib_img.Image(model_dir+'/img')
+    im = lib_img.Image(model_dir+'/img-MFS-image.fits')
     im.rescaleModel(f)
     n = len(glob.glob(model_dir+'/img-[0-9]*-model.fits'))
     logger.info('Predict (wsclean: %s - chan: %i)...' % (model_dir, n))
@@ -204,7 +204,7 @@ for c in range(100):
                 #iuwt='', gain=0.2, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 #multiscale_scales='0,10,20,40', \
-                #fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
+                fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
                 baseline_averaging=5, auto_threshold=1, \
                 join_channels='', deconvolution_channels=20, fit_spectral_pol=7, channels_out=61)
 
