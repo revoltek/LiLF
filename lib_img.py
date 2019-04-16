@@ -12,16 +12,15 @@ class Image(object):
         userMask: keep this region when making masks
         BeamReg: ds9 region file of the beam
         """
-        assert os.path.exists(imagename)
-
-        if 'MFS' in imagename: root = 'MFS-image.fits'
-        else: root = 'image.fits'
+        if 'MFS' in imagename: suffix = 'MFS-image.fits'
+        else: suffix = 'image.fits'
 
         self.imagename    = imagename
-        self.maskname     = imagename.replace(root, 'mask.fits')
-        self.skymodel     = imagename.replace(root, 'sources.txt')
-        self.skymodel_cut = imagename.replace(root, 'sources-cut.txt')
-        self.skydb        = imagename.replace(root, 'sources-cut.skydb')
+        self.root         = imagename.replace(suffix, '')
+        self.maskname     = imagename.replace(suffix, 'mask.fits')
+        self.skymodel     = imagename.replace(suffix, 'sources.txt')
+        self.skymodel_cut = imagename.replace(suffix, 'sources-cut.txt')
+        self.skydb        = imagename.replace(suffix, 'sources-cut.skydb')
         self.userReg      = userReg
         self.beamReg      = beamReg
 
@@ -32,7 +31,7 @@ class Image(object):
 
         funct_flux: is a function of frequency (Hz) which returns the total expected flux (Jy) at that frequency.
         """
-        for model_img in sorted(glob.glob(self.imagename+'*model*.fits')):
+        for model_img in sorted(glob.glob(self.root+'*model*.fits')):
             fits = pyfits.open(model_img)
             # get frequency
             assert fits[0].header['CTYPE3'] == 'FREQ'
