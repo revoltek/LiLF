@@ -250,24 +250,24 @@ for c in range(1,maxniter):
     ##############################################################
     # low S/N DIE corrections
     if c>=0:
-        #logger.info('DIE calibration...')
-        ## predict and corrupt each facet
-        #logger.info('Reset MODEL_DATA...')
-        #MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-
-        #for i, d in enumerate(directions):
-        #    # predict - ms:MODEL_DATA
-        #    logger.info('Patch '+d.name+': predict...')
-        #    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_DIR pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
-        #        log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        logger.info('DIE calibration...')
+       # # predict and corrupt each facet
+       # logger.info('Reset MODEL_DATA...')
+       # MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+       #
+       # for i, d in enumerate(directions):
+       #     # predict - ms:MODEL_DATA
+       #     logger.info('Patch '+d.name+': predict...')
+       #     MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_DIR pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
+       #         log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
     
-        #    # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
-        #    logger.info('Patch '+d.name+': corrupt...')
-        #    MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS msin.datacolumn=MODEL_DATA_DIR msout.datacolumn=MODEL_DATA_DIR cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+d.name+']', \
-        #        log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-        #
-        #    logger.info('Patch '+d.name+': subtract...')
-        #    MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA + MODEL_DATA_DIR"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
+       #     # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
+       #     logger.info('Patch '+d.name+': corrupt...')
+       #     MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS msin.datacolumn=MODEL_DATA_DIR msout.datacolumn=MODEL_DATA_DIR cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+d.name+']', \
+       #         log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+       # 
+       #     logger.info('Patch '+d.name+': subtract...')
+       #     MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA + MODEL_DATA_DIR"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
         # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
         logger.info('BL-based smoothing...')
@@ -289,7 +289,7 @@ for c in range(1,maxniter):
 
         # Correct DIE FR - ms:DATA -> CORRECTED_DATA
         logger.info('DIE FR correct...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=$pathMS/calG1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
                log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
         # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
@@ -308,7 +308,7 @@ for c in range(1,maxniter):
 
         # Correct DIE AMP - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
         logger.info('DIE AMP correct...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/calG2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-G2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
                log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
 
         sys.exit()
