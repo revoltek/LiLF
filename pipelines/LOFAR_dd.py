@@ -128,7 +128,7 @@ MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
 mosaic_image.selectCC()
 # TEST:
-mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
+#mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
 rms_noise_pre = np.inf
 
 for c in range(1,maxniter):
@@ -143,8 +143,8 @@ for c in range(1,maxniter):
     if c>0: mask_voro_old = 'ddcal/masks/facets%02i.fits' % (c-1)
 
     ### TTESTTESTTEST: DIE image
-    #if c == 0:
-    #    clean('init', MSs, size=(fwhm,fwhm), res='normal')
+    if c == 0:
+        clean('init', MSs, size=(fwhm,fwhm), res='normal')
     ###
 
     ### group into patches corresponding to the mask islands
@@ -192,7 +192,7 @@ for c in range(1,maxniter):
     logger.info("Total flux in rest field %i Jy" % rest_field)
     
     # when possible regroup in patches using old DD-calibrators
-    if c>0: lsm.grop('facet', facet=mask_voro_old, root='Isl_patch')
+    if c>0: lsm.group('facet', facet=mask_voro_old, root='Isl_patch')
 
     # write file
     skymodel_rest = 'ddcal/skymodels/skymodel%02i_rest.txt' % c
@@ -232,6 +232,7 @@ for c in range(1,maxniter):
         logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
 
     ################################################################
+    # Calibrate TEC
     logger.info('Subtraction rest_field...')
 
     # Fist cycle remove other sources with no DD corrections, when DD correction is available use it
