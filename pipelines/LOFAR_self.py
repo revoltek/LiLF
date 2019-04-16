@@ -231,6 +231,7 @@ for c in range(2):
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(2) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in range(2) ]
 os.system('mv img/wide-lr-MFS-image.fits self/images')
+os.system('mv img/wideV-MFS-image.fits self/images')
 os.system('mv img/wideBeam-MFS-image.fits  img/wideBeam-MFS-image-pb.fits self/images')
 os.system('mv logs self')
 
