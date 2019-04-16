@@ -131,7 +131,7 @@ mosaic_image.selectCC()
 #mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
 rms_noise_pre = np.inf
 
-for c in range(1,maxniter):
+for c in range(maxniter):
     logger.info('Starting cycle: %i' % c)
     directions = []
 
