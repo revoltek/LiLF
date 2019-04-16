@@ -5,17 +5,6 @@ operation = DUPLICATE
 soltab = sol000/phase000
 soltabOut = phaseOrig000
 
-[plotPh]
-operation = PLOT
-soltab = sol000/phase000
-axesInPlot = [time,freq]
-AxisInTable = ant
-AxisDiff = pol
-plotFlag = True
-prefix = plots/ph-rot
-refAnt = CS002LBA
-minmax = [-1.,1.]
-
 [faraday]
 operation = FARADAY
 soltab = sol000/phase000
