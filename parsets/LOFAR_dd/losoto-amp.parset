@@ -31,7 +31,7 @@ fromCell = CS001LBA
 operation = NORM
 soltab = sol000/amplitudeSmooth
 normVal = 1.
-axesToNorm = [time,freq,ant,pol]
+axesToNorm = [time,freq,ant]
 
 [plotAsmooth2]
 operation = PLOT
