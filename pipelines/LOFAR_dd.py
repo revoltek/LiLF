@@ -344,10 +344,17 @@ for c in range(maxniter):
         logger.info('DIE AMP correct...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-G2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
                log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
+
+        # Copy CORRECTED_DATA -> SUBTRACTED_DATA
         logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 
+        ### TESTTESTTEST: init image with DIE correction
+        #clean('die-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+        ###
+
     else:
+        # Copy DATA -> SUBTRACTED_DATA
         logger.info('Set SUBTRACTED_DATA = DATA...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 
