@@ -166,7 +166,7 @@ for c in range(2):
         imagename = 'img/wideV'
         lib_util.run_wsclean(s, 'wscleanV-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
             pol='V', \
-            weight='briggs 0.', niter=1, no_update_model_required='', minuv_l=30, maxuv_l=5000, \
+            weight='briggs 0.', no_update_model_required='', minuv_l=30, maxuv_l=5000, \
             baseline_averaging=5)
 
     if c != 1:

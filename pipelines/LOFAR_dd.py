@@ -88,25 +88,27 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     logger.info('Cleaning w/ mask ('+str(p)+')...')
     imagename = 'img/ddcalM-'+str(p)
     if apply_beam:
+
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imsize, scale=str(pixscale)+'arcsec', \
             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
             multiscale='', multiscale_scales='0,10,20', \
-            auto_threshold=0.1, fits_mask=im.maskname, \
+            auto_threshold=1, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=2, channels_out=8)
 
         logger.info('Cleaning V ('+str(p)+')...')
         imagename = 'img/ddcalV-'+str(p)
         lib_util.run_wsclean(s, 'wscleanV-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsize, scale=str(pixscale)+'srcsec', \
             pol='V', \
-            weight='briggs 0.', niter=1, no_update_model_required='', minuv_l=30, maxuv_l=5000, \
+            weight='briggs 0.', no_update_model_required='', minuv_l=30, maxuv_l=5000, \
             baseline_averaging=5)
 
     else:
+
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', \
-            weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
-            baseline_averaging=5, auto_threshold=0.1, fits_mask=im.maskname, \
-            join_channels='', fit_spectral_pol=2, channels_out=8)
+            weight=weight, niter=50000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
+            auto_threshold=1, fits_mask=im.maskname, \
+            baseline_averaging=5, join_channels='', fit_spectral_pol=2, channels_out=8)
 
     os.system('cat logs/wscleanA-'+str(p)+'.log logs/wscleanB-'+str(p)+'.log | grep "background noise"')
 
@@ -140,11 +142,11 @@ for c in range(maxniter):
     if not os.path.exists('ddcal/masks/regions-c%02i' % c): os.makedirs('ddcal/masks/regions-c%02i' % c)
     if not os.path.exists('ddcal/images/c%02i' % c): os.makedirs('ddcal/images/c%02i' % c)
     mask_voro = 'ddcal/masks/facets%02i.fits' % c
-    if c>0: mask_voro_old = 'ddcal/masks/facets%02i.fits' % (c-1)
+    if c>=1: mask_voro_old = 'ddcal/masks/facets%02i.fits' % (c-1)
 
     ### TTESTTESTTEST: DIE image
-    if c == 0:
-        clean('init', MSs, size=(fwhm,fwhm), res='normal')
+    #if c == 0:
+    #    clean('init', MSs, size=(fwhm,fwhm), res='normal')
     ###
 
     ### group into patches corresponding to the mask islands
@@ -192,7 +194,7 @@ for c in range(maxniter):
     logger.info("Total flux in rest field %i Jy" % rest_field)
     
     # when possible regroup in patches using old DD-calibrators
-    if c>0: lsm.group('facet', facet=mask_voro_old, root='Isl_patch')
+    if c>=1: lsm.group('facet', facet=mask_voro_old, root='Isl_patch')
 
     # write file
     skymodel_rest = 'ddcal/skymodels/skymodel%02i_rest.txt' % c
@@ -262,8 +264,8 @@ for c in range(maxniter):
             MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
     ### TESTTESTTEST: empty image with cals
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    clean('onlycals-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    #MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    #clean('onlycals-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
     ###
 
     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
@@ -281,7 +283,7 @@ for c in range(maxniter):
 
     ##############################################################
     # low S/N DIE corrections
-    if c>=0:
+    if c>=1:
         logger.info('DIE calibration...')
         # predict and corrupt each facet
         logger.info('Reset MODEL_DATA...')
@@ -369,8 +371,8 @@ for c in range(maxniter):
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
     ### TESTTESTTEST: empty image
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    clean('empty-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    #MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    #clean('empty-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
     ###
 
     ###########################################################
@@ -407,7 +409,7 @@ for c in range(maxniter):
         clean(d.name, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size, apply_beam = c==maxniter )
 
         # TEST: if one wants to make a low-res patch
-        if c>1:
+        if c>=2:
             logger.info('Patch '+d.name+': imaging high-res...')
             clean(d.name+'-high', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size, res='high')
             logger.info('Patch '+d.name+': predict high-res...')
@@ -454,7 +456,7 @@ for c in range(maxniter):
     s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_residual, log='mosaic-res-c'+str(c)+'.log', commandType='python')
     s.run(check=True)
 
-    if c>1:
+    if c>=2:
         logger.info('Mosaic: low-res image...')
         image_files = ' '.join([d.image_low.imagename for d in directions])
         mosaic_residual = 'img/mos-low-MFS-image.fits'
