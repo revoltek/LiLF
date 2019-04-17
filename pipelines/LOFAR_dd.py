@@ -471,9 +471,11 @@ for c in range(maxniter):
 
     # prepare new skymodel
     lsm = lsmtool.load(directions[0].image.skymodel_cut)
+    lsm.ungroup()
     for image in [d.image for d in directions[1:]]:
         lsm2 = lsmtool.load(image.skymodel_cut)
-        lsm.concatenate(lsm2)
+        lsm2.ungroup()
+        lsm.concatenate(lsm2, keep='all')
     lsm.write('ddcal/images/c%02i/mos-sources-cut.txt' % c, format='makesourcedb', clobber=True)
     del lsm
 
