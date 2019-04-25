@@ -169,7 +169,7 @@ for c in range(maxniter):
     patchNames = lsm.getPatchNames()
 
     ### select bright sources
-    logging.info('Merging nearby sources...')
+    logger.info('Merging nearby sources...')
     for cluster in clusters:
         patches = patchNames[cluster]
         #print ('merging:', cluster, patches)
