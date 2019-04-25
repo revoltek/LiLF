@@ -135,6 +135,7 @@ rms_noise_pre = np.inf
 
 for c in range(maxniter):
     logger.info('Starting cycle: %i' % c)
+    if c>=1: directions_old = directions
     directions = []
 
     lib_util.check_rm('img')
@@ -150,15 +151,36 @@ for c in range(maxniter):
     ###
 
     ### group into patches corresponding to the mask islands
-    # TODO: aggregate nearby sources. Expand mask?
     mask_cl = mosaic_image.imagename.replace('image.fits', 'mask-cl.fits')
     # this mask is with no user region, done isolate only bight compact sources
-    if not os.path.exists(mask_cl): lib_img.make_mask.make_mask(image_name=mosaic_image.imagename, mask_name=mask_cl, threshisl=5)
+    if not os.path.exists(mask_cl): 
+        lib_img.make_mask.make_mask(image_name=mosaic_image.imagename, mask_name=mask_cl, threshisl=5)
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
     lsm.group(mask_cl, root='Isl')
+    # this remove all sources not in the mask-cl
+    lsm.select('Patch = Isl.*', useRegEx=True)
+    x = lsm.getColValues('RA',aggregate='wmean')
+    y = lsm.getColValues('Dec',aggregate='wmean')
+    flux = lsm.getColValues('I',aggregate='sum')
+    grouper = lib_dd.Grouper(zip(x,y),flux)
+    grouper.run()
+    clusters = grouper.grouping()
+    grouper.plot()
+    patchNames = lsm.getPatchNames()
 
     ### select bright sources
+    logging.info('Merging nearby sources...')
+    for cluster in clusters:
+        patches = patchNames[cluster]
+        #print ('merging:', cluster, patches)
+        if len(patches) > 1:
+            lsm.merge(patches.tolist())
+
     lsm.select('I >= %f Jy' % calFlux, aggregate='sum')
+
+    # keep track of CC names used for calibrators so not to subtract them afterwards
+    cal_names = lsm.getColValues('Name')
+
     lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
     for name, flux in zip(lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum')):
         direction = lib_dd.Direction(name)
@@ -186,12 +208,10 @@ for c in range(maxniter):
     
     ### select the rest of the sources to be subtracted
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
-    lsm.group(mask_cl, root='Isl')
-    lsm.select('I < %f Jy' % calFlux, aggregate='sum')
+    names = lsm.getColValues('Name')
+    lsm.remove( np.array([ i for i, name in enumerate(names) if name in cal_names ]) )
     lsm.ungroup()
-    rest_field = lsm.getColValues('I')
-    rest_field = np.sum(rest_field)
-    logger.info("Total flux in rest field %i Jy" % rest_field)
+    logger.info("Total flux in rest field %i Jy" % np.sum(lsm.getColValues('I')) )
     
     # when possible regroup in patches using old DD-calibrators
     if c>=1: lsm.group('facet', facet=mask_voro_old, root='Isl_patch')
@@ -249,7 +269,11 @@ for c in range(maxniter):
     
     else:
 
-        for i, d in enumerate(directions):
+        # Copy DATA -> SUBTRACTED_DATA
+        logger.info('Set SUBTRACTED_DATA = DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+
+        for i, d in enumerate(directions_old):
             # predict - ms:MODEL_DATA
             logger.info('Patch '+d.name+': predict...')
             MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb+' pre.sources='+d.name, \
@@ -445,6 +469,7 @@ for c in range(maxniter):
         d.image_high = lib_img.Image('img/ddcalM-%s-high-MFS-image.fits' % d.name, userReg = userReg)
 
         # restrict skymodel to facet
+        d.image.makeMask(self, threshisl=5)
         d.image.selectCC()
         lsm = lsmtool.load(d.image.skymodel_cut)
         lsm.group('facet', facet=mask_voro, root='Isl_patch' )
@@ -453,34 +478,36 @@ for c in range(maxniter):
 
     logger.info('Mosaic: image...')
     image_files = ' '.join([d.image.imagename for d in directions])
-    mosaic_imagename = 'img/mos-MFS-image.fits'
-    s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_imagename, log='mosaic-img-c'+str(c)+'.log', commandType='python')
+    mosaic_image_file = 'img/mos-MFS-image.fits'
+    s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_image_file, log='mosaic-img-c'+str(c)+'.log', commandType='python')
     s.run(check=True)
 
     logger.info('Mosaic: residual image...')
     image_files = ' '.join([d.image_res.imagename for d in directions])
-    mosaic_residual = 'img/mos-MFS-residual.fits'
-    s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_residual, log='mosaic-res-c'+str(c)+'.log', commandType='python')
+    mosaic_residual_file = 'img/mos-MFS-residual.fits'
+    s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_residual_file, log='mosaic-res-c'+str(c)+'.log', commandType='python')
     s.run(check=True)
 
     if c>=2:
         logger.info('Mosaic: low-res image...')
         image_files = ' '.join([d.image_low.imagename for d in directions])
-        mosaic_residual = 'img/mos-low-MFS-image.fits'
-        s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_residual, log='mosaic-img-low-c'+str(c)+'.log', commandType='python')
+        mosaic_image_low_file = 'img/mos-low-MFS-image.fits'
+        s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_image_low_file, log='mosaic-img-low-c'+str(c)+'.log', commandType='python')
         s.run(check=True)
     
         logger.info('Mosaic: high-res image...')
         image_files = ' '.join([d.image_high.imagename for d in directions])
-        mosaic_residual = 'img/mos-high-MFS-image.fits'
-        s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_residual, log='mosaic-img-high-c'+str(c)+'.log', commandType='python')
+        mosaic_image_high_file = 'img/mos-high-MFS-image.fits'
+        s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_image_high_file, log='mosaic-img-high-c'+str(c)+'.log', commandType='python')
         s.run(check=True)
 
     # prepare new skymodel
     lsm = lsmtool.load(directions[0].image.skymodel_cut)
+    lsm.ungroup()
     for image in [d.image for d in directions[1:]]:
         lsm2 = lsmtool.load(image.skymodel_cut)
-        lsm.concatenate(lsm2)
+        lsm2.ungroup()
+        lsm.concatenate(lsm2, keep='all')
     lsm.write('ddcal/images/c%02i/mos-sources-cut.txt' % c, format='makesourcedb', clobber=True)
     del lsm
 
@@ -489,7 +516,7 @@ for c in range(maxniter):
     mosaic_image.makeMask(threshisl=3, atrous_do=True) # used in the faceting function
 
     # get noise, if larger than 95% of prev cycle: break
-    rms_noise = lib_img.Image(mosaic_residual).getNoise()
+    rms_noise = mosaic_image.getNoise()
     logger.info('RMS noise: %f' % rms_noise)
     if rms_noise > rms_noise_pre: break
     rms_noise_pre = rms_noise
