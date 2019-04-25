@@ -81,18 +81,19 @@ for timestamp in set([ os.path.basename(ms).split('_')[1][1:] for ms in MSs.getL
         
         # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, calibrator corrected+reweight, beam corrected+reweight)
         logger.info('Apply solutions (amp/ph)...')
-        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
-        #        cor.amp.parmdb='+h5_amp+' cor.amp.correction=amplitudeSmooth cor.amp.updateweights=True\
-        #        cor.ph.parmdb='+h5_iono+' cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DPPP')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                cor.parmdb='+h5_amp+' cor.correction=amplitudeSmooth cor.updateweights=True', \
-                log='$nameMS_cor2.log', commandType='DPPP')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                cor.parmdb='+h5_iono+' cor.correction=clock000', \
-                log='$nameMS_cor3.log', commandType='DPPP')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                cor.parmdb='+h5_iono+' cor.correction=phase000', \
-                log='$nameMS_cor4.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
+                cor.amp.parmdb='+h5_amp+' cor.amp.correction=amplitudeSmooth cor.amp.updateweights=True\
+                cor.ph.parmdb='+h5_iono+' cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DPPP')
+        # clock?
+        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+        #        cor.parmdb='+h5_amp+' cor.correction=amplitudeSmooth cor.updateweights=True', \
+        #        log='$nameMS_cor2.log', commandType='DPPP')
+        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+        #        cor.parmdb='+h5_iono+' cor.correction=clock000', \
+        #        log='$nameMS_cor3.log', commandType='DPPP')
+        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+        #        cor.parmdb='+h5_iono+' cor.correction=phase000', \
+        #        log='$nameMS_cor4.log', commandType='DPPP')
         
         # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
         logger.info('Beam correction...')
@@ -148,23 +149,32 @@ for c in range(100):
 
     # solve G - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving G...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG.h5 sol.mode=scalarcomplexgain', \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG.h5 sol.mode=diagonal', \
             log='$nameMS_solG-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'G-c'+str(c), [ms+'/calG.h5' for ms in MSs.getListStr()], \
-                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-amp.parset'])
+                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
 
     # Correct DATA -> CORRECTED_DATA
-    logger.info('Correction...')
+    logger.info('Correction PH...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-G-c'+str(c)+'.h5 cor.correction=phase000', \
             log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
+
     if doamp:
-        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-G-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
+        # solve G - group*_TC.MS:CORRECTED_DATA
+        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGa.h5 sol.mode=diagonal sol.solint=900', \
+            log='$nameMS_solGa-c'+str(c)+'.log', commandType="DPPP")
+        lib_util.run_losoto(s, 'Ga-c'+str(c), [ms+'/calGa.h5' for ms in MSs.getListStr()], \
+                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-amp.parset'])
+
+        # Correct CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('Correction AMP...')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
             log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
 
     #################################################
     # 2: Cleaning
     
-    logger.info('Cleaning (cycle: '+str(c)+')...')
+#    logger.info('Cleaning (cycle: '+str(c)+')...')
 #    imagename = 'img/img-'+str(c)
 #    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=3000, scale='4arcsec', \
 #            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.85, \
@@ -179,14 +189,14 @@ for c in range(100):
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/imgM-'+str(c)
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=3000, scale='4arcsec', \
-            weight='briggs 0.', niter=10000, update_model_required='', minuv_l=30, mgain=0.85, \
-            multiscale='', multiscale_scales='0,10,20,40,80', auto_threshold=0.5, auto_mask=3, local_rms='')#, fits_mask=im.maskname)
+            weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.85, \
+            multiscale='', auto_threshold=3)#, auto_mask=5, local_rms='')#, fits_mask=im.maskname)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     rms_noise = lib_img.Image(imagename+'-image.fits').getNoise()
     logger.info('RMS noise: %f' % rms_noise)
     if rms_noise > 0.95*rms_noise_pre:
-        if doamp: break # if already doing amp and not getting better, quit
+        #if doamp: break # if already doing amp and not getting better, quit
         doamp = True
     rms_noise_pre = rms_noise
 
