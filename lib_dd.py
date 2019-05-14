@@ -450,6 +450,7 @@ class Grouper( object ):
         mpl.use("Agg")
         import matplotlib.pyplot as plt
 
+        logger.info('Plotting grouped sources: grouping_xxx.png')
         for i, X in enumerate(self.past_coords):
             fig = plt.figure(figsize=(8, 8))
             fig.subplots_adjust(wspace=0)
@@ -464,8 +465,8 @@ class Grouper( object ):
             ax.set_xlim( np.min(initial_x), np.max(initial_x) )
             ax.set_ylim( np.min(initial_y), np.max(initial_y) )
 
-            print ('Saving plot_%i.png' % i)
-            fig.savefig('plot_%00i.png' % i, bbox_inches='tight')
+            #print ('Saving plot_%i.png' % i)
+            fig.savefig('grouping_%00i.png' % i, bbox_inches='tight')
 
         # plot clustering
         fig = plt.figure(figsize=(8, 8))
@@ -477,5 +478,5 @@ class Grouper( object ):
         ax.set_xlim( np.min(initial_x), np.max(initial_x) )
         ax.set_ylim( np.min(initial_y), np.max(initial_y) )
 
-        print ('Saving clusters.png')
-        fig.savefig('clusters.png', bbox_inches='tight')
+        logger.info('Plotting: grouping_clusters.png')
+        fig.savefig('grouping_clusters.png', bbox_inches='tight')

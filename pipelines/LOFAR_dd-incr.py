@@ -159,7 +159,7 @@ for c in range(maxniter):
     lsm.group(mask_cl, root='Isl')
     # this removes all sources not in the mask-cl
     lsm.select('Patch = Isl.*', useRegEx=True)
-    # this removes extended regions
+    # this removes extended regions ang regroup sources
     x = lsm.getColValues('RA',aggregate='wmean')
     y = lsm.getColValues('Dec',aggregate='wmean')
     flux = lsm.getColValues('I',aggregate='sum')
@@ -167,6 +167,7 @@ for c in range(maxniter):
     grouper.run()
     clusters = grouper.grouping()
     grouper.plot()
+    os.system('mv grouping*png ddcal/skymodels/')
     patchNames = lsm.getPatchNames()
 
     logger.info('Merging nearby sources...')
