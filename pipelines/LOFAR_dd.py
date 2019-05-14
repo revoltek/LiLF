@@ -146,8 +146,8 @@ for c in range(maxniter):
     if c>=1: mask_voro_old = 'ddcal/masks/facets%02i.fits' % (c-1)
 
     ### TTESTTESTTEST: DIE image
-    #if c == 0:
-    #    clean('init', MSs, size=(fwhm,fwhm), res='normal')
+    if c == 0:
+        clean('init', MSs, size=(fwhm,fwhm), res='normal')
     ###
 
     ### group into patches corresponding to the mask islands
