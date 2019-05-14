@@ -1,0 +1,27 @@
+# losoto parset
+Ncpu = 0
+
+[plotTECdir]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = time
+axisInTable = dir
+plotFlag = True
+minmax = [-0.5,0.5]
+prefix = plots/tecjump
+refAnt = 'CS002LBA'
+
+[plotTECant]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = time
+axisInTable = ant
+plotFlag = True
+minmax = [-0.5,0.5]
+prefix = plots/tecjump
+refAnt = 'CS002LBA'
+
+[fixJump]
+operation=TECJUMP
+soltab = sol000/tec000
+refAnt=CS001LBA
