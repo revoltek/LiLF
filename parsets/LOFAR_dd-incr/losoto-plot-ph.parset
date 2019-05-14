@@ -12,21 +12,21 @@ prefix = plots/ph_
 refAnt = 'CS001LBA'
 #refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]
-NColFig = 1
-figSize = [20,80]
+NColFig = 4
+figSize = [20,20]
 
-#[plotP2]
-#operation = PLOT
-#soltab = sol000/phase000
-#time.minmaxstep = [0,1e20,500]
-#axesInPlot = freq
-#axisInTable = ant
-#axisInCol = pol
-#plotFlag = True
-#prefix = plots/ph_
-#refAnt = 'CS001LBA'
-##refAnt = 'CS002LBA'
-#minmax = [-3.14,3.14]
+[plotP2]
+operation = PLOT
+soltab = sol000/phase000
+time.minmaxstep = [0,1e20,500]
+axesInPlot = freq
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ph_
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
+minmax = [-3.14,3.14]
 
 [plotP3]
 operation = PLOT

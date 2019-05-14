@@ -174,24 +174,28 @@ for c in range(100):
     #################################################
     # 2: Cleaning
     
-#    logger.info('Cleaning (cycle: '+str(c)+')...')
-#    imagename = 'img/img-'+str(c)
-#    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=3000, scale='4arcsec', \
-#            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-#            multiscale='', multiscale_scales='0,10,20', auto_threshold=1, \
-#            baseline_averaging=5)
-#
-#    if doamp: sys.exit()
-#    
-#    im = lib_img.Image(imagename+'-image.fits', userReg=userReg)
-#    im.makeMask(threshisl = 3)
+    logger.info('Cleaning (cycle: '+str(c)+')...')
+    imagename = 'img/img-%02i' % c
+    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=4500, scale='4arcsec', \
+            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.5, baseline_averaging=5)
+
+    im = lib_img.Image(imagename+'-image.fits', userReg=userReg)
+    im.makeMask(threshisl = 3)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
-    imagename = 'img/imgM-'+str(c)
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=3000, scale='4arcsec', \
-            weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.85, \
-            multiscale='', auto_threshold=3)#, auto_mask=5, local_rms='')#, fits_mask=im.maskname)
+    imagename = 'img/imgM-%02i' % c
+    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=4500, scale='4arcsec', \
+            weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.5, \
+            multiscale='', auto_threshold=3, use_weights_as_taper='', fits_mask=im.maskname)#, auto_mask=5, local_rms='')#, fits_mask=im.maskname)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
+
+    # Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA
+    logger.info('Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA...')
+    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql.log', commandType='general')
+
+    # Flag on residuals (CORRECTED_DATA)
+    logger.info('Flagging residuals...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-flagres.parset msin=$pathMS', log='$nameMS_flagres-c'+str(c)+'.log', commandType='DPPP')
 
     rms_noise = lib_img.Image(imagename+'-image.fits').getNoise()
     logger.info('RMS noise: %f' % rms_noise)
@@ -199,68 +203,5 @@ for c in range(100):
         #if doamp: break # if already doing amp and not getting better, quit
         doamp = True
     rms_noise_pre = rms_noise
-
-###############################################
-# Peeling
-im = lib_img.Image(imagename+'-image.fits', userReg=userReg)
-im.selectCC()
-
-lsm = lsmtool.load(im.skymodel_cut)
-lsm.group(im.maskname, root='Isl')
-lsm.select('I >= 5 Jy', aggregate='sum')
-for name, flux in zip(lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum')):
-    direction = lib_dd.Direction(name)
-    position = [ lsm.getPatchPositions()[name][0].deg, lsm.getPatchPositions()[name][1].deg ]
-    direction.set_position( position, cal=True )
-    direction.set_flux(flux, cal=True)
-    directions.append(direction)
-
-tot_flux = np.sum([d.flux_cal for d in directions])
-logger.info("Sources to peel: %s - Total flux: %i Jy" % ( len(directions), tot_flux))
-
-# write file
-skymodel_cl = 'skymodels/skymodel%02i_cluster.txt' % c
-lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
-skymodel_cl_plot = 'skymodels/skymodel%02i_cluster.png' % c
-lsm.plot(fileName=skymodel_cl_plot, labelBy='patch')
-
-# convert to blob
-skymodel_cl_skydb = skymodel_cl.replace('.txt','.skydb')
-lib_util.check_rm(skymodel_cl_skydb)
-s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_cl, skymodel_cl_skydb), log='makesourcedb_cl.log', commandType='general' )
-s.run(check=True)
-del lsm
-
-### select the rest of the sources to be subtracted
-lsm = lsmtool.load(mosaic_image.skymodel_cut)
-lsm.group(mask_cl, root='Isl')
-lsm.select('I < %f Jy' % calFlux, aggregate='sum')
-lsm.ungroup()
-rest_field = lsm.getColValues('I')
-rest_field = np.sum(rest_field)
-logger.info("Total flux in rest field %i Jy" % rest_field)
-
-# write file
-skymodel_rest = 'skymodels/skymodel%02i_rest.txt' % c
-lsm.write(skymodel_rest, format='makesourcedb', clobber=True)
-skymodel_rest_plot = 'skymodels/skymodel%02i_rest.png' % c
-lsm.plot(fileName=skymodel_rest_plot, labelBy='patch')
-
-# convert to blob
-skymodel_rest_skydb = skymodel_rest.replace('.txt','.skydb')
-lib_util.check_rm(skymodel_rest_skydb)
-s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_rest, skymodel_rest_skydb), log='makesourcedb_rest.log', commandType='general')
-s.run(check=True)
-
-# Subtract rest field
-
-# Calibrate
-
-# Peel
-
-
-# Smooth CORRECTED_DATA -> SMOOTHED_DATA
-logger.info('BL-based smoothing...')
-MSs.run('BLsmooth.py -r -f 0.2 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
 logger.info("Done.")

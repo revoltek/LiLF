@@ -2,24 +2,10 @@ Ncpu = 0
 
 [duplicatePbkp]
 operation = DUPLICATE
-soltab = sol000/phase000
-soltabOut = phaseOrig000
+soltab = sol000/tec000
+soltabOut = tecOrig000
 
-[plotP]
-operation = PLOT
-soltab = sol000/phase000
-axesInPlot = [time,freq]
-axisInTable = ant
-plotFlag = True
-prefix = plots/ph_
-refAnt = 'CS001LBA'
-
-[tec]
-operation = TEC
-soltab = sol000/phase000
-refAnt = 'CS001LBA'
-
-[plotTEC]
+[plotTEC1]
 operation = PLOT
 soltab = sol000/tec000
 axesInPlot = time
@@ -29,16 +15,17 @@ minmax = [-0.5,0.5]
 prefix = plots/tec
 refAnt = 'CS001LBA'
 
-[subTEC]
-operation = RESIDUALS
-soltab = sol000/phase000
-soltabsToSub = [tec000]
+[dejump]
+operation = TECJUMP
+soltab = sol000/tec000
+refAnt = 'CS001LBA'
 
-[plotPr]
+[plotTEC2]
 operation = PLOT
-soltab = sol000/phase000
-axesInPlot = [time,freq]
+soltab = sol000/tec000
+axesInPlot = time
 axisInTable = ant
 plotFlag = True
-prefix = plots/ph-res_
+minmax = [-0.5,0.5]
+prefix = plots/tec_nojump
 refAnt = 'CS001LBA'

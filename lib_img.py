@@ -3,6 +3,7 @@ import numpy as np
 import astropy.io.fits as pyfits
 import lsmtool
 import pyregion
+from scipy.ndimage.measurements import label
 from LiLF import make_mask, lib_util
 from LiLF.lib_log import logger
 
@@ -48,9 +49,14 @@ class Image(object):
             fits.writeto(model_img, overwrite=True)
             fits.close()
 
-    def makeMask(self, threshisl=5, atrous_do=True):
+
+    def makeMask(self, threshisl=5, atrous_do=True, remove_extended_cutoff=0.):
         """
         Create a mask of the image where only believable flux is
+
+        remove_extended_cutoff: if >0 then remove all islands where sum(brightness_pixels)/(#pixels^2) < remove_extended_cutoff
+        this is useful to remove extended sources from the mask. This higher this number the more compact must be the source.
+        A good value is 0.001 for DIE cal images.
         """
         if not os.path.exists(self.maskname):
             logger.info('%s: Making mask...' % self.imagename)
@@ -58,6 +64,29 @@ class Image(object):
         if self.userReg is not None:
             logger.info('%s: Adding user mask (%s)...' % (self.imagename, self.userReg))
             blank_image_reg(self.maskname, self.userReg, inverse=False, blankval=1)
+
+        if remove_extended_cutoff > 0:
+
+            # get data
+            with pyfits.open(self.imagename) as fits:
+                data = fits[0].data
+            # get mask
+            with pyfits.open(self.maskname) as fits:
+                mask = fits[0].data
+                # for each island calculate the catoff
+                blobs, number_of_blobs = label(mask.astype(int).squeeze(), structure=[[1,1,1],[1,1,1],[1,1,1]])
+                for i in range(1,number_of_blobs):
+                    this_blob = blobs == i
+                    max_pix = np.max(data[0,0,this_blob])
+                    ratio = np.sum(data[0,0,this_blob])/np.sum(mask[0,0,this_blob])**2
+                    if max_pix < 1. and ratio < remove_extended_cutoff:
+                        mask[0,0,this_blob] = False
+                    #mask[0,0,this_blob] = ratio # debug
+
+                # write mask back
+                fits[0].data = mask
+                fits.writeto(self.maskname, overwrite=True)
+
 
     def selectCC(self, keepInBeam=True):
         """
