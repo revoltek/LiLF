@@ -14,32 +14,42 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 #parset = lib_util.getParset()
-#parset_dir = '/home/baq1889/scripts/LiLF/parsets/LOFAR_cal'
+parset_dir = '/home/baq1889/scripts/LiLF/parsets/LOFAR_dd'
 
 #############################################################
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s, check_flags=False )
 
-#with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
-#    t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
-#    time = np.int(t.iso.replace('-','')[0:8])
-#
-## Rescale visibilities by 1e3 if before 2014-03-19 (old correlator), and by 1e-2 otherwise
-#if time < 20140500:
-#    MSs.run('taql "update $pathMS set DATA = 1e10*DATA"', log='$nameMS_taql.log', commandType='general')
-#else:
-#    MSs.run('taql "update $pathMS set DATA = 1e-4*DATA"', log='$nameMS_taql.log', commandType='general')
-
-parset_dir = '/home/baq1889/scripts/LiLF/parsets/LOFAR_dd'
-skymodel_voro_skydb = '../ddcal/skymodels/skymodel01_voro.skydb'
-name = 'Isl_patch_186'
+skymodel_voro_skydb = 'skymodel00_voro.skydb'
 c=0
 
-print 'DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.operation=add pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+name+ \
-                'pre.applycal.parmdb=cal-c0.h5 pre.applycal.direction=\['+name+'\] pre.applycal.correction=tec000'
+# Calibration - ms:SMOOTHED_DATA
+logger.info('Calibrating...')
+MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS ddecal.h5parm=$pathMS/cal-core.h5 \
+        ddecal.sourcedb='+skymodel_cl_skydb+' ddecal.solint=15 ddecal.nchan=30', \
+        log='$nameMS_solDD-core.log', commandType='DPPP')
 
-MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.operation=add pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+name+ \
-        'pre.applycal.parmdb=cal-c0.h5 pre.applycal.direction=\['+name+'\] pre.applycal.correction=tec000', \
-        log='$nameMS_preDIE-c'+str(c)+'-'+name+'.log', commandType='DPPP')
+lib_util.run_losoto(s, 'core', [MS+'/cal-core.h5' for MS in MSs.getListStr()], \
+        [parset_dir+'/losoto-core.parset'])
+
+logger.info('re-calibration...')
+# predict and corrupt each facet
+logger.info('Reset MODEL_DATA...')
+MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+
+for i, d in enumerate(directions):
+    # predict - ms:MODEL_DATA
+    logger.info('Patch '+d.name+': predict...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_DIR pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
+        log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+
+    # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
+    logger.info('Patch '+d.name+': corrupt...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS msin.datacolumn=MODEL_DATA_DIR msout.datacolumn=MODEL_DATA_DIR cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+d.name+']', \
+        log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+
+    logger.info('Patch '+d.name+': subtract...')
+    MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA + MODEL_DATA_DIR"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
+
 
 
 logger.info("Done.")

@@ -1,0 +1,52 @@
+# losoto parset
+Ncpu = 0
+
+[plotTECdir]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = time
+axisInTable = dir
+plotFlag = True
+minmax = [-0.1,0.1]
+prefix = plots/tec
+refAnt = 'CS002LBA'
+
+[plotTECant]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = time
+axisInTable = ant
+plotFlag = True
+minmax = [-0.1,0.1]
+prefix = plots/tec
+refAnt = 'CS002LBA'
+
+[resetRemote]
+operation = RESET
+soltab = sol000/tec000
+ant = [RS509LBA,RS508LBA,RS409LBA,RS407LBA,RS406LBA,RS310LBA,RS307LBA,RS208LBA,RS210LBA]
+
+[fixJump]
+operation=TECJUMP
+soltab = sol000/tec000
+refAnt=CS001LBA
+
+[plotTECdir2]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = time
+axisInTable = dir
+plotFlag = True
+minmax = [-0.1,0.1]
+prefix = plots/tec2
+refAnt = 'CS002LBA'
+
+[plotTECant]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = time
+axisInTable = ant
+plotFlag = True
+minmax = [-0.1,0.1]
+prefix = plots/tec2
+refAnt = 'CS002LBA'

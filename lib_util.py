@@ -56,7 +56,7 @@ def getParset(parsetFile='../lilf.config'):
     # self
     # dd
     add_default('LOFAR_dd', 'maxniter', '10')
-    add_default('LOFAR_dd', 'calFlux', '2.0')
+    add_default('LOFAR_dd', 'calFlux', '3.0')
 
     ### uGMRT ###
 
@@ -182,13 +182,15 @@ def run_losoto(s, c, h5s, parsets):
     """
     s : scheduler
     c : cycle name, e.g. "final"
-    h5s : lists of H5parm files
+    h5s : lists of H5parm files or string of 1 h5parm
     parsets : lists of parsets to execute
     """
 
     logger.info("Running LoSoTo...")
 
     h5 = 'cal-'+c+'.h5'
+
+    if type(h5s) is str: h5s = [h5s]
 
     # concat/move
     if len(h5s) > 1:
@@ -219,9 +221,10 @@ def run_wsclean(s, logfile, MSs_files, **kwargs):
     """
     
     wsc_parms = []
+    reordering_processors = np.min([len(MSs_files),s.max_processors])
 
     # basic parms
-    wsc_parms.append( '-reorder -j '+str(s.max_processors) )
+    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering '+str(reordering_processors) )
     # other stanrdard parms
     wsc_parms.append( '-clean-border 1' )
     # temp dir

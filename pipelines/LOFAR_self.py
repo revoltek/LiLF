@@ -114,13 +114,17 @@ for c in range(2):
     MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
-    # LoSoTo plot
-    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-tec.parset'])
+    # LoSoTo plot dejump
+    # TODO: is there a better way then run it on each hour?
+    for MS in MSs.getListObj():
+        lib_util.run_losoto(s, 'tec'+str(c)+'-'+MS.nameMS, MS.pathMS+'/tec.h5',[parset_dir+'/losoto-tec.parset'])
     os.system('mv plots-tec'+str(c)+'* self/plots/')
     os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
 
     # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC...')
+    lib_util.run_losoto(s, 'tec'+str(c), glob.glob('self/solutions/cal-tec'+str(c)+'*.h5'),[]) # concat H5parms
+    os.system('mv cal-tec'+str(c)+'.h5 self/solutions/')
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=tec000', \
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
@@ -153,17 +157,17 @@ for c in range(2):
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     # do beam-corrected+deeper image at last cycle
-    # TODO: Find a way to save the beam image
     if c == 1:
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
         lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
                 multiscale='', multiscale_scales='0,10,20', \
-                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
+                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600, \
                 parallel_deconvolution=256, auto_threshold=1, fits_mask=im.maskname, \
                 join_channels='', fit_spectral_pol=2, channels_out=8)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
+        os.system('makepb.py -o img/avgbeam.fits -i '+imagename)
         
         logger.info('Cleaning V (cycle: '+str(c)+')...')
         imagename = 'img/wideV'
@@ -234,8 +238,8 @@ for c in range(2):
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(2) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in range(2) ]
 os.system('mv img/wide-lr-MFS-image.fits self/images')
-os.system('mv img/wideV-MFS-image.fits self/images')
-os.system('mv img/wideBeam-MFS-image.fits  img/wideBeam-MFS-image-pb.fits self/images')
+os.system('mv img/wideV-image.fits self/images')
+os.system('mv img/wideBeam-MFS-image.fits  img/wideBeam-MFS-image-pb.fits img/avgbeam.fits self/images')
 os.system('mv logs self')
 
 logger.info("Done.")
