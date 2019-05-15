@@ -46,9 +46,9 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     pixscale = MSs.getListObj()[0].getResolution() 
     # weighting lower the resolutions a bit, therefore a /2 should be enough
     if res == 'normal':
-        pixscale /= 2.
+        pixscale /= 3.
     elif res == 'high':
-        pixscale /= 4.
+        pixscale /= 5.
     elif res == 'low':
         pixscale /= 1. # no change
 
