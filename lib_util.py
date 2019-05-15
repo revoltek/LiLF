@@ -221,9 +221,10 @@ def run_wsclean(s, logfile, MSs_files, **kwargs):
     """
     
     wsc_parms = []
+    reordering_processors = np.min([len(MSs_files),s.max_processors])
 
     # basic parms
-    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-gridding '+str(s.max_processors)+' -parallel-reordering '+str(s.max_processors) )
+    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering '+str(reordering_processors) )
     # other stanrdard parms
     wsc_parms.append( '-clean-border 1' )
     # temp dir
