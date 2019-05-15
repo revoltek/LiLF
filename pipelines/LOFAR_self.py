@@ -44,7 +44,10 @@ if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
 if not os.path.exists('self/plots'): os.makedirs('self/plots')
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
-MSs.plot_HAcov('HAcov.png')
+try:
+    MSs.plot_HAcov('HAcov.png')
+except:
+    logger.error('Problem with HAcov, continue anyway.')
 
 # make beam to the first mid null
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
