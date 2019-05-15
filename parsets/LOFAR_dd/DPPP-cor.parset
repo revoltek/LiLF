@@ -8,4 +8,3 @@ steps=[cor]
 cor.type = applycal
 cor.parmdb=
 cor.correction=tec000
-cor.direction=

@@ -18,6 +18,7 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_dd','parset_dir')
 maxniter = parset.getint('LOFAR_dd','maxniter')
+calFlux = parset.getfloat('LOFAR_dd','calFlux')
 userReg = parset.get('model','userReg')
 
 ####################################################
@@ -25,8 +26,7 @@ MSs_self = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
 # make beam
 phasecentre = MSs_self.getListObj()[0].getPhaseCentre()
-MSs_self.getListObj()[0].makeBeamReg('self/beam.reg', to_null=True) # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
-beamReg = 'self/beam.reg'
+fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
 ##########################
 logger.info('Cleaning...')
@@ -44,19 +44,12 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     """
     # set pixscale and imsize
     pixscale = MSs.getListObj()[0].getResolution() 
-    # weighting lower the resolutions a bit, therefore a /2 should be enough
     if res == 'normal':
-        pixscale /= 3.
+        pixscale = float('%.1f'%(pixscale/2.))
     elif res == 'high':
-        pixscale /= 5.
+        pixscale = float('%.1f'%(pixscale/4.))
     elif res == 'low':
-        pixscale /= 1. # no change
-
-    # TODO: test uneven size
-#    size = np.max(size)*1.05 # add 5%
-#    imsize = int(size/(pixscale/3600.))
-#    if imsize: imsize += imsize % 2 # make even
-#    if imsize < 512: imsize = 512 # prevent supersmall images
+        pass # no change
 
     imsize = [0,0]
     imsize[0] = int(size[0]*1.05/(pixscale/3600.)) # add 5%
@@ -70,13 +63,13 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 
     if res == 'normal':
         weight = 'briggs 0'
-        maxuv_l = 1e30
+        maxuv_l = None
     elif res == 'high':
-        weight = 'briggs -1.3'
-        maxuv_l = 1e30
+        weight = 'briggs -0.7'
+        maxuv_l = None
     elif res == 'low':
         weight = 'briggs 0'
-        maxuv_l = 4000
+        maxuv_l = 3500
 
     # clean 1
     logger.info('Cleaning ('+str(p)+')...')
@@ -92,20 +85,30 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 
     # clean 2
     # TODO: add -parallel-deconvolution when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
-    # TODO: add V-stokes
     logger.info('Cleaning w/ mask ('+str(p)+')...')
     imagename = 'img/ddcalM-'+str(p)
     if apply_beam:
+
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imsize, scale=str(pixscale)+'arcsec', \
             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-            auto_threshold=0.1, fits_mask=im.maskname, \
+            multiscale='', multiscale_scales='0,10,20', \
+            auto_threshold=1, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=2, channels_out=8)
+
+        logger.info('Cleaning V ('+str(p)+')...')
+        imagename = 'img/ddcalV-'+str(p)
+        lib_util.run_wsclean(s, 'wscleanV-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsize, scale=str(pixscale)+'srcsec', \
+            pol='V', \
+            weight='briggs 0.', no_update_model_required='', minuv_l=30, maxuv_l=5000, \
+            baseline_averaging=5)
+
     else:
+
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', \
-            weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
-            baseline_averaging=5, auto_threshold=0.1, fits_mask=im.maskname, \
-            join_channels='', fit_spectral_pol=2, channels_out=8)
+            weight=weight, niter=50000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
+            auto_threshold=1, fits_mask=im.maskname, \
+            baseline_averaging=5, join_channels='', fit_spectral_pol=2, channels_out=8)
 
     os.system('cat logs/wscleanA-'+str(p)+'.log logs/wscleanB-'+str(p)+'.log | grep "background noise"')
 
@@ -115,40 +118,69 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 logger.info('Copy data...')
 if not os.path.exists('mss-dd'):
     os.makedirs('mss-dd')
-    MSs_self.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA avg.freqstep=1 avg.timestep=1', \
+    MSs_self.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=CORRECTED_DATA avg.freqstep=1 avg.timestep=1', \
                 log='$nameMS_avg.log', commandType='DPPP')
 MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9].MS'), s )
        
 logger.info('Add columns...')
-MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
+MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
 
 ##############################################################
 # setup initial model
-mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg, beamReg = beamReg)
+mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
 mosaic_image.selectCC()
+# TEST:
+#mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
 rms_noise_pre = np.inf
-directions = []
 
 for c in range(maxniter):
     logger.info('Starting cycle: %i' % c)
+    if c>=1: directions_old = directions
+    directions = []
 
     lib_util.check_rm('img')
     os.makedirs('img')
-    os.makedirs('ddcal/masks/regions-c%02i' % c)
-    os.makedirs('ddcal/images/c%02i' % c)
+    if not os.path.exists('ddcal/masks/regions-c%02i' % c): os.makedirs('ddcal/masks/regions-c%02i' % c)
+    if not os.path.exists('ddcal/images/c%02i' % c): os.makedirs('ddcal/images/c%02i' % c)
     mask_voro = 'ddcal/masks/facets%02i.fits' % c
+    if c>=1: mask_voro_old = 'ddcal/masks/facets%02i.fits' % (c-1)
 
-    # TEST: DIE image
+    ### TTESTTESTTEST: DIE image
     if c == 0:
-        clean('init', MSs, size=(8,8), res='normal')
+        clean('init', MSs, size=(fwhm,fwhm), res='normal')
+    ###
 
     ### group into patches corresponding to the mask islands
-    # TODO: aggregate nearby sources. Expand mask?
+    mask_cl = mosaic_image.imagename.replace('image.fits', 'mask-cl.fits')
+    # this mask is with no user region, done isolate only bight compact sources
+    if not os.path.exists(mask_cl): 
+        lib_img.make_mask.make_mask(image_name=mosaic_image.imagename, mask_name=mask_cl, threshisl=7, remove_extended_cutoff=0.001)
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
-    lsm.group(mosaic_image.maskname, root='Isl')
+    lsm.group(mask_cl, root='Isl')
+    # this removes all sources not in the mask-cl
+    lsm.select('Patch = Isl.*', useRegEx=True)
+    # this removes extended regions
+    x = lsm.getColValues('RA',aggregate='wmean')
+    y = lsm.getColValues('Dec',aggregate='wmean')
+    flux = lsm.getColValues('I',aggregate='sum')
+    grouper = lib_dd.Grouper(zip(x,y),flux)
+    grouper.run()
+    clusters = grouper.grouping()
+    grouper.plot()
+    patchNames = lsm.getPatchNames()
 
-    ### select bright sources
-    lsm.select('I >= 2.0 Jy', aggregate='sum')
+    logger.info('Merging nearby sources...')
+    for cluster in clusters:
+        patches = patchNames[cluster]
+        #print ('merging:', cluster, patches)
+        if len(patches) > 1:
+            lsm.merge(patches.tolist())
+
+    lsm.select('I >= %f Jy' % calFlux, aggregate='sum')
+
+    # keep track of CC names used for calibrators so not to subtract them afterwards
+    cal_names = lsm.getColValues('Name')
+
     lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
     for name, flux in zip(lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum')):
         direction = lib_dd.Direction(name)
@@ -172,18 +204,20 @@ for c in range(maxniter):
     lib_util.check_rm(skymodel_cl_skydb)
     s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_cl, skymodel_cl_skydb), log='makesourcedb_cl.log', commandType='general' )
     s.run(check=True)
+    del lsm
     
     ### select the rest of the sources to be subtracted
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
-    lsm.group(mosaic_image.maskname, root='Isl')
-    lsm.select('I < 2.0 Jy', aggregate='sum')
+    names = lsm.getColValues('Name')
+    lsm.remove( np.array([ i for i, name in enumerate(names) if name in cal_names ]) )
     lsm.ungroup()
-    rest_field = lsm.getColValues('I')
-    rest_field = np.sum(rest_field)
-    logger.info("Total flux in rest field %i Jy" % rest_field)
+    logger.info("Total flux in rest field %i Jy" % np.sum(lsm.getColValues('I')) )
+    
+    # when possible regroup in patches using old DD-calibrators
+    if c>=1: lsm.group('facet', facet=mask_voro_old, root='Isl_patch')
 
     # write file
-    skymodel_rest = 'ddcal/masks/skymodel%02i_rest.txt' % c
+    skymodel_rest = 'ddcal/skymodels/skymodel%02i_rest.txt' % c
     lsm.write(skymodel_rest, format='makesourcedb', clobber=True)
     skymodel_rest_plot = 'ddcal/masks/skymodel%02i_rest.png' % c
     lsm.plot(fileName=skymodel_rest_plot, labelBy='patch')
@@ -213,7 +247,6 @@ for c in range(maxniter):
     lib_util.check_rm(skymodel_voro_skydb)
     s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_voro, skymodel_voro_skydb), log='makesourcedb_voro.log', commandType='general')
     s.run(check=True)
-
     del lsm
 
     logger.debug("Islands' info:")
@@ -221,47 +254,145 @@ for c in range(maxniter):
         logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
 
     ################################################################
+    # Calibrate TEC
+    logger.info('Subtraction rest_field...')
 
-    if c>0: # TESTTESTTEST
-     #Predict - ms:MODEL_DATA
-     logger.info('Add rest_field to MODEL_DATA...')
-     MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
- 
-     # Empty dataset from faint sources (TODO: better corrupt with DDE solutions when available before subtract)
-     logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
-     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
- 
-     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
-     logger.info('BL-based smoothing...')
-     MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
- 
-     # Calibration - ms:SMOOTHED_DATA
-     logger.info('Calibrating...')
-     MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS ddecal.h5parm=$pathMS/cal-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
-             log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
- 
-     # Plot solutions
-     lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
-     os.system('mv plots-c'+str(c)+'* ddcal/plots')
+    # Fist cycle remove other sources with no DD corrections, when DD correction is available use it
+    if c == 0:
+        # Predict - ms:MODEL_DATA
+        logger.info('Add rest_field to MODEL_DATA...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+    
+        # Empty dataset from faint sources
+        logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    
+    else:
+
+        # Copy DATA -> SUBTRACTED_DATA
+        logger.info('Set SUBTRACTED_DATA = DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+
+        for i, d in enumerate(directions_old):
+            # predict - ms:MODEL_DATA
+            logger.info('Patch '+d.name+': predict...')
+            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb+' pre.sources='+d.name, \
+                    log='$nameMS_pre0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        
+            # corrupt (note: use previous cal table) - ms:MODEL_DATA -> ms:MODEL_DATA
+            logger.info('Patch '+d.name+': corrupt...')
+            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS cor.parmdb=$pathMS/cal-c'+str(c-1)+'.h5 cor.direction=['+d.name+']', \
+                    log='$nameMS_corrupt0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+            
+            logger.info('Patch '+d.name+': subtract...')
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
+
+    ### TESTTESTTEST: empty image with cals
+    MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    clean('onlycals-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    ###
+
+    # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
+    logger.info('BL-based smoothing...')
+    MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
+
+    # Calibration - ms:SMOOTHED_DATA
+    logger.info('Calibrating...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS ddecal.h5parm=$pathMS/cal-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
+            log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
+
+    # Plot solutions
+    lib_util.run_losoto(s, 'c'+str(c), [MS+'/cal-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
+    os.system('mv plots-c'+str(c)+'* ddcal/plots')
 
     ##############################################################
     # low S/N DIE corrections
-    # TODO: add amp and FR sol + correction here after ft() a DDE-corrupted model
+    # TODO: add a higher low-uv cut to remove galaxy effect
+    if c>=1:
+        logger.info('DIE calibration...')
+        # predict and corrupt each facet
+        logger.info('Reset MODEL_DATA...')
+        MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+       
+        for i, d in enumerate(directions):
+            # predict - ms:MODEL_DATA
+            logger.info('Patch '+d.name+': predict...')
+            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_DIR pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
+                log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+    
+            # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
+            logger.info('Patch '+d.name+': corrupt...')
+            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS msin.datacolumn=MODEL_DATA_DIR msout.datacolumn=MODEL_DATA_DIR cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+d.name+']', \
+                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        
+            logger.info('Patch '+d.name+': subtract...')
+            MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA + MODEL_DATA_DIR"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
+
+        # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
+        logger.info('BL-based smoothing...')
+        MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
+
+        # Convert to circular - SMOOTHED_DATA -> SMOOTHED_DATA
+        logger.info('Converting to circular...')
+        MSs.run('mslin2circ.py -i $pathMS:SMOOTHED_DATA -o $pathMS:SMOOTHED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+
+        # FR Calibration - ms:SMOOTHED_DATA
+        logger.info('Solving DIE FR...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calG1-c'+str(c)+'.h5', \
+                log='$nameMS_solDDg1-c'+str(c)+'.log', commandType='DPPP')
+    
+        # Plot solutions
+        lib_util.run_losoto(s, 'G1-c'+str(c), [MS+'/calG1-c'+str(c)+'.h5' for MS in MSs.getListStr()], \
+                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
+        os.system('mv plots-G1-c'+str(c)+'* ddcal/plots')
+
+        # Correct DIE FR - ms:DATA -> CORRECTED_DATA
+        logger.info('DIE FR correct...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+               log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
+
+        # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
+        logger.info('BL-based smoothing...')
+        MSs.run('BLsmooth.py -f 1.0 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
+    
+        # DIE Calibration - ms:SMOOTHED_DATA
+        logger.info('Solving DIE AMP...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calG2-c'+str(c)+'.h5', \
+                log='$nameMS_solDDg2-c'+str(c)+'.log', commandType='DPPP')
+    
+        # Plot solutions
+        lib_util.run_losoto(s, 'G2-c'+str(c), [MS+'/calG2-c'+str(c)+'.h5' for MS in MSs.getListStr()], \
+                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-amp.parset'])
+        os.system('mv plots-G2-c'+str(c)+'* ddcal/plots')
+
+        # Correct DIE AMP - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
+        logger.info('DIE AMP correct...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-G2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
+               log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
+
+        # Copy CORRECTED_DATA -> SUBTRACTED_DATA
+        logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+
+        ### TESTTESTTEST: init image with DIE correction
+        clean('die-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+        ###
+
+    else:
+        # Copy DATA -> SUBTRACTED_DATA
+        logger.info('Set SUBTRACTED_DATA = DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 
     ###########################################################
-    ## Empty the dataset
-    logger.info('Set SUBTRACTED_DATA = DATA...')
-    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    # Empty the dataset
 
     logger.info('Subtraction...')
-    ##MSs.run('DPPP '+parset_dir+'/DPPP-sub.parset msin=$pathMS sub.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 sub.sourcedb='+skymodel_voro_skydb, \
-    ##               log='$nameMS_sub-c'+str(c)+'.log', commandType='DPPP')
-
     for i, d in enumerate(directions):
+        
         # predict - ms:MODEL_DATA
         logger.info('Patch '+d.name+': predict...')
-        #pre.applycal.h5parm='+ms+'/cal-c'+str(c)+'.h5 pre.applycal.direction='+d.name, \
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name,log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
+                log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
     
         # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
         logger.info('Patch '+d.name+': corrupt...')
@@ -271,16 +402,14 @@ for c in range(maxniter):
         logger.info('Patch '+d.name+': subtract...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
-    # TEST: empty image
-    clean('empty-c'+str(c), MSs, size=(4,4), res='normal')
+    ### TESTTESTTEST: empty image
+    MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    clean('empty-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    ###
 
+    ###########################################################
     # Add back 
     logger.info('Facet imaging...')
-    ##  for patch, phasecentre in directions.iteritems():
-    ##      # add back single path - ms:SUBTRACTED_DATA -> ms:CORRECTED_DATA
-    ##      logger.info('Patch '+patch+': add back...')
-    ##      MSs.run('DPPP '+parset_dir+'/DPPP-add.parset msin=$pathMS add.applycal.parmdb=$pathMS/cal-c'+str(c)+'.h5 add.sourcedb='+skymodel_voro_skydb+' add.directions=[['+patch+']]', \
-    ##          log='$nameMS_add-c'+str(c)+'-p'+str(patch)+'.log', commandType='DPPP')
     for i, d in enumerate(directions):
         #TODO: see if we can phase shift and average before predict-corrupt=correct
         # predict - ms:MODEL_DATA
@@ -312,7 +441,7 @@ for c in range(maxniter):
         clean(d.name, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size, apply_beam = c==maxniter )
 
         # TEST: if one wants to make a low-res patch
-        if c>0:
+        if c>=2:
             logger.info('Patch '+d.name+': imaging high-res...')
             clean(d.name+'-high', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size, res='high')
             logger.info('Patch '+d.name+': predict high-res...')
@@ -341,6 +470,7 @@ for c in range(maxniter):
         d.image_high = lib_img.Image('img/ddcalM-%s-high-MFS-image.fits' % d.name, userReg = userReg)
 
         # restrict skymodel to facet
+        d.image.makeMask(self, threshisl=5)
         d.image.selectCC()
         lsm = lsmtool.load(d.image.skymodel_cut)
         lsm.group('facet', facet=mask_voro, root='Isl_patch' )
@@ -349,41 +479,45 @@ for c in range(maxniter):
 
     logger.info('Mosaic: image...')
     image_files = ' '.join([d.image.imagename for d in directions])
-    mosaic_imagename = 'img/mos-MFS-image.fits'
-    s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_imagename, log='mosaic-img-c'+str(c)+'.log', commandType='python')
+    mosaic_image_file = 'img/mos-MFS-image.fits'
+    s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_image_file, log='mosaic-img-c'+str(c)+'.log', commandType='python')
     s.run(check=True)
 
     logger.info('Mosaic: residual image...')
     image_files = ' '.join([d.image_res.imagename for d in directions])
-    mosaic_residual = 'img/mos-MFS-residual.fits'
-    s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_residual, log='mosaic-res-c'+str(c)+'.log', commandType='python')
+    mosaic_residual_file = 'img/mos-MFS-residual.fits'
+    s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_residual_file, log='mosaic-res-c'+str(c)+'.log', commandType='python')
     s.run(check=True)
 
-    logger.info('Mosaic: low-res image...')
-    image_files = ' '.join([d.image_low.imagename for d in directions])
-    mosaic_residual = 'img/mos-low-MFS-image.fits'
-    s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_residual, log='mosaic-img-low-c'+str(c)+'.log', commandType='python')
-    s.run(check=True)
-
-    logger.info('Mosaic: high-res image...')
-    image_files = ' '.join([d.image_high.imagename for d in directions])
-    mosaic_residual = 'img/mos-high-MFS-image.fits'
-    s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_residual, log='mosaic-img-high-c'+str(c)+'.log', commandType='python')
-    s.run(check=True)
+    if c>=2:
+        logger.info('Mosaic: low-res image...')
+        image_files = ' '.join([d.image_low.imagename for d in directions])
+        mosaic_image_low_file = 'img/mos-low-MFS-image.fits'
+        s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_image_low_file, log='mosaic-img-low-c'+str(c)+'.log', commandType='python')
+        s.run(check=True)
+    
+        logger.info('Mosaic: high-res image...')
+        image_files = ' '.join([d.image_high.imagename for d in directions])
+        mosaic_image_high_file = 'img/mos-high-MFS-image.fits'
+        s.add('mosaic.py --image '+image_files+' --mask '+mask_voro+' --output '+mosaic_image_high_file, log='mosaic-img-high-c'+str(c)+'.log', commandType='python')
+        s.run(check=True)
 
     # prepare new skymodel
     lsm = lsmtool.load(directions[0].image.skymodel_cut)
+    lsm.ungroup()
     for image in [d.image for d in directions[1:]]:
         lsm2 = lsmtool.load(image.skymodel_cut)
-        lsm.concatenate(lsm2)
+        lsm2.ungroup()
+        lsm.concatenate(lsm2, keep='all')
     lsm.write('ddcal/images/c%02i/mos-sources-cut.txt' % c, format='makesourcedb', clobber=True)
+    del lsm
 
-    os.system('cp img/*M*MFS-image.fits img/mos-MFS-image.fits img/mos-MFS-residual.fits ddcal/images/c%02i' % c )
+    os.system('cp img/*M*MFS-image.fits img/mos*.fits ddcal/images/c%02i' % c )
     mosaic_image = lib_img.Image('ddcal/images/c%02i/mos-MFS-image.fits' % c, userReg = userReg)
-    mosaic_image.makeMask(threshisl=3, atrous_do=True)
+    mosaic_image.makeMask(threshisl=3, atrous_do=True) # used in the faceting function
 
     # get noise, if larger than 95% of prev cycle: break
-    rms_noise = lib_img.Image(mosaic_residual).getNoise()
+    rms_noise = mosaic_image.getNoise()
     logger.info('RMS noise: %f' % rms_noise)
-    if rms_noise > 0.95 * rms_noise_pre: break
+    if rms_noise > rms_noise_pre: break
     rms_noise_pre = rms_noise

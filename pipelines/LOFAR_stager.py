@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# export PYTHONPATH="$HOME/opt/lib/python3.?/site-packages/"
 
 import os, sys, time, glob, pickle
 from datetime import datetime
@@ -11,42 +12,47 @@ import subprocess, multiprocessing
 import stager_access as stager
 
 #project = 'LC9_017' # 3c first part
-project = 'LC10_020' # 3c second part
+#project = 'LC10_020' # 3c second part
+project = 'LC4_012' # Lazio planet
 # The class of data to query
 cls = CorrelatedDataProduct
 
 downloaded_mss = glob.glob('*MS')
+with open('renamed.txt','r') as flog:
+    for line in flog:
+        downloaded_mss.append(line[:-1]+'.MS')
+
+if not os.path.exists('uris.pickle'):
+    query_observations = Observation.select_all().project_only(project)
+    uris = set() # All URIS to stage
+    for observation in query_observations :
+        print("Querying ObservationID %s" % observation.observationId)
+        # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
+        dataproduct_query = cls.observations.contains(observation)
+        # isValid = 1 means there should be an associated URI
+        dataproduct_query &= cls.isValid == 1
+        for i, dataproduct in enumerate(dataproduct_query):
+            # This DataProduct should have an associated URL
+            fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
+            if fileobject :
+                if i%10 == 0:
+                    print(".", end='')
+                    sys.stdout.flush()
+                skip = False
+                for ms in downloaded_mss:
+                    if ms in fileobject.URI:
+                        print("%s: already downloaded in %s." % (fileobject.URI, ms) )
+                        skip = True
+                if not skip: uris.add(fileobject.URI)
+            else :
+                print("No URI found for %s with dataProductIdentifier %d" % (dataproduct.__class__.__name__, dataproduct.dataProductIdentifier))
+            
+            #if len(uris) == 1: break # TEST
+        #break # TEST
  
-query_observations = Observation.select_all().project_only(project)
-#uris = set() # All URIS to stage
-#for observation in query_observations :
-#    print("Querying ObservationID %s" % observation.observationId)
-#    # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
-#    dataproduct_query = cls.observations.contains(observation)
-#    # isValid = 1 means there should be an associated URI
-#    dataproduct_query &= cls.isValid == 1
-#    for i, dataproduct in enumerate(dataproduct_query):
-#        # This DataProduct should have an associated URL
-#        fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
-#        if fileobject :
-#            #print("URI found %s" % fileobject.URI)
-#            if i%10 == 0:
-#                print(".", end='')
-#                sys.stdout.flush()
-#            skip = False
-#            for ms in downloaded_mss:
-#                if ms in fileobject.URI:
-#                    print("%s: already downloaded in %s." % (fileobject.URI, ms) )
-#                    skip = True
-#            if not skip: uris.add(fileobject.URI)
-#        else :
-#            print("No URI found for %s with dataProductIdentifier %d" % (dataproduct.__class__.__name__, dataproduct.dataProductIdentifier))
-#        
-#        #if len(uris) == 1: break # TEST
-#    #break # TEST
- 
-#pickle.dump(uris, open('uris.pickle', 'wb'))
-uris = pickle.load(open('uris.pickle','rb'))
+    pickle.dump(uris, open('uris.pickle', 'wb'))
+else:
+    uris = pickle.load(open('uris.pickle','rb'))
 
 print(("Total URI's found %d" % len(uris)))
  
@@ -111,7 +117,7 @@ class Worker_checker(Worker):
                         self.L_toDownload.append(surl)
 
                 # pass to download
-                if status == 'success':
+                if status == 'success' or status == 'partial success':
                     print("Checker -- Sid %i completed." % sid)
                     self.L_inStage.remove(sid)
 
@@ -121,7 +127,7 @@ class Worker_checker(Worker):
                 # reschedule
                 else:
                     print("Checker -- ERROR: Sid %i status is %s!" % (sid, status) )
-                    continue
+                    self.stager.reschedule(sid)
     
             time.sleep(60)
     
@@ -135,7 +141,8 @@ class Worker_downloader(Worker):
                 print("Downloader -- Download: "+surl.split('/')[-1])
                 self.L_inDownload.append(surl)
                 with open("wgetout.txt","wb") as out, open("wgeterr.txt","wb") as err:
-                    p = subprocess.Popen('wget -nv https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
+                    if 'psnc.pl' in surl: p = subprocess.Popen('wget -nv https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
+                    if 'sara.nl' in surl: p = subprocess.Popen('wget -nv https://lofar-download.grid.surfsara.nl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
                     os.waitpid(p.pid, 0)
                 self.L_inDownload.remove(surl)
 
@@ -151,15 +158,18 @@ w_downloader2 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_
 [L_toStage.append(uri) for uri in uris]
 
 # add things already staged
-#i=0
-#for sid in list(stager.get_progress().keys()):
-#    sid = int(sid)
-#    L_inStage.append(sid) # the worker will take care of starting downloads
-#    for surl in stager.get_surls_online(sid):
-#        if surl in L_toStage:
-#            L_toStage.remove(surl)
-#            i+=1
-#print(("Removed %i already staged surls." % i))
+i=0
+try:
+    for sid, _ in stager.get_progress():
+        sid = int(sid)
+        L_inStage.append(sid) # the worker will take care of starting downloads
+        for surl in stager.get_surls_online(sid):
+            if surl in L_toStage:
+                L_toStage.remove(surl)
+                i+=1
+    print("Removed %i already staged surls." % i)
+except:
+    pass
 
 w_stager.start()
 w_checker.start()

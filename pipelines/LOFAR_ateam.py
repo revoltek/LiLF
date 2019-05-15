@@ -21,7 +21,6 @@ elif 'Cas' in os.getcwd():
 elif 'Cyg' in os.getcwd():
     patch = 'CygA'
     nouseblrange = ''
-    nouseblrange = '[15000..1e30]'
     f = lambda nu: 10690. * 10**(-0.67 * (np.log10(nu/150.e6))**1) * 10**(-0.204 * (np.log10(nu/150.e6))**2) * 10**(-0.021 * (np.log10(nu/150.e6))**3)
 
 skymodel = '/home/fdg/scripts/model/A-team_4_CC.skydb'
@@ -47,9 +46,9 @@ os.makedirs('img')
 MSs = lib_ms.AllMSs( sorted(glob.glob(data_dir+'/*MS')), s )
 
 # copy data (avg to 1ch/sb and 10 sec)
-nchan = MSs.getListObj()[0].getNchan()
+nchan = int(MSs.getListObj()[0].getNchan()) # add /4. to have more channels
 timeint = MSs.getListObj()[0].getTimeInt()
-avg_time = int(np.rint(10./timeint))
+avg_time = int(np.rint(10./timeint)) # change 10. to a lower number to have more times
 
 logger.info('Copy data...')
 for obs in set([ os.path.basename(ms).split('_')[0] for ms in MSs.getListStr() ]):
@@ -92,7 +91,7 @@ if lofar_system == 'hba': model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 
 if os.path.exists(model_dir+'/img-MFS-model.fits'):
-    im = lib_img.Image(model_dir+'/img')
+    im = lib_img.Image(model_dir+'/img-MFS-image.fits')
     im.rescaleModel(f)
     n = len(glob.glob(model_dir+'/img-[0-9]*-model.fits'))
     logger.info('Predict (wsclean: %s - chan: %i)...' % (model_dir, n))
@@ -178,21 +177,22 @@ for c in range(100):
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=phase000', \
                 log='$nameMS_corIONO3.log', commandType='DPPP')
 
-    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
-    logger.info('Solving BP...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal sol.flagunconverged=False \
-            sol.uvlambdarange='+str(nouseblrange)+' sol.nchan=2 sol.solint=10', log='$nameMS_solAMP3.log', commandType="DPPP")
-    
-    lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
-            [parset_dir+'/losoto-plot-amp.parset'])
+#    # Solve cal_SB.MS:CORRECTED_DATA (only solve)
+#    logger.info('Solving BP...')
+#    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal sol.flagunconverged=False \
+#            sol.uvlambdarange='+str(nouseblrange)+' sol.nchan=2 sol.solint=10', log='$nameMS_solAMP3.log', commandType="DPPP")
+#    
+#    lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
+#            [parset_dir+'/losoto-plot-amp.parset'])
 
     # Correct BP CORRECTED_DATA -> CORRECTED_DATA
+    # TEST: change iono->amp to correct for bandpass
     logger.info('BP correction...')
     if c == 0:
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitude000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=amplitude000', \
                 log='$nameMS_corAMP3.log', commandType='DPPP')
     else:
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitude000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=amplitude000', \
                 log='$nameMS_corAMP3.log', commandType='DPPP')
        
     # briggs: -1.2 for virgo; -1.0 for subtraction to get good minihalo?
@@ -200,17 +200,17 @@ for c in range(100):
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1000, scale='1.5arcsec', \
-                weight='briggs -1', niter=50000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -1.5', niter=50000, no_update_model_required='', mgain=0.5, \
                 #iuwt='', gain=0.2, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 #multiscale_scales='0,10,20,40', \
-                #fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
+                fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
                 baseline_averaging=5, auto_threshold=1, \
                 join_channels='', deconvolution_channels=20, fit_spectral_pol=7, channels_out=61)
 
     elif patch == 'CasA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1300, scale='2arcsec', \
-                weight='briggs -1', niter=75000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -1.2', niter=75000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CasA.fits', \
@@ -218,8 +218,13 @@ for c in range(100):
                 join_channels='', deconvolution_channels=20, fit_spectral_pol=7, channels_out=61)
 
     elif patch == 'TauA':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1200, scale='2arcsec', \
-                weight='briggs -1', niter=100000, no_update_model_required='', mgain=0.5, \
+        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1200, scale='2arcsec', \
+                weight='briggs -1.2', niter=150, update_model_required='', mgain=0.5, \
+                fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/pulsar.fits', \
+                join_channels='', deconvolution_channels=20, fit_spectral_pol=7, channels_out=61) # use cont=True
+
+        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, save_source_list='', size=1200, scale='2arcsec', \
+                weight='briggs -1.2', niter=100000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/TauA.fits', \
                 baseline_averaging=5, auto_threshold=1, \
@@ -227,7 +232,7 @@ for c in range(100):
 
     elif patch == 'VirA' and lofar_system == 'lba':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1500, scale='2arcsec', \
-                weight='briggs -1.', niter=50000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -1.0', niter=50000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 # multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAlba.fits', \

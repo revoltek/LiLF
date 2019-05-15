@@ -1,0 +1,16 @@
+msin =
+msin.datacolumn = SMOOTHED_DATA
+msout = .
+
+steps = [sol]
+
+sol.type = ddecal
+sol.uvlambdamin = 30
+sol.mode = diagonal
+sol.tolerance = 1e-3
+sol.maxiter = 500
+sol.nchan = 1
+sol.solint = 1
+sol.propagatesolutions = True
+sol.usemodelcolumn = True
+sol.smoothnessconstraint = 1e6

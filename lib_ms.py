@@ -12,12 +12,13 @@ from LiLF.lib_log import logger
 
 class AllMSs(object):
 
-    def __init__(self, pathsMS, scheduler):
+    def __init__(self, pathsMS, scheduler, check_flags=True):
         """
-        pathsMS:   list of MS paths
-        scheduler: scheduler object
+        pathsMS:    list of MS paths
+        scheduler:  scheduler object
+        check_flag: if true ignore fully flagged ms
         """
-        self.scheduler    = scheduler
+        self.scheduler = scheduler
 
         # sort them, useful for some concatenating steps
         if len(pathsMS) == 0:
@@ -26,7 +27,7 @@ class AllMSs(object):
         self.mssListObj = []
         for pathMS in sorted(pathsMS):
             ms = MS(pathMS)
-            if ms.isAllFlagged(): 
+            if check_flags and ms.isAllFlagged(): 
                 logger.warning('Skip fully flagged ms: %s' % pathMS)
             else:
                 self.mssListObj.append(MS(pathMS))
@@ -105,6 +106,34 @@ class AllMSs(object):
             #print (logCurrent)
 
         self.scheduler.run(check = True, maxThreads = maxThreads)
+
+    def plot_HAcov(self, plotname='HAcov.png'):
+        """
+        Show the coverage in HA
+        """
+        from astropy.coordinates import get_sun, SkyCoord, EarthLocation, AltAz
+        from astropy.time import Time
+        from astropy import units as u
+
+        telescope = self.mssListObj[0].getTelescope()
+        if telescope == 'LOFAR':
+            telescope_coords = EarthLocation(lat=52.90889*u.deg, lon=6.86889*u.deg, height=0*u.m)
+        elif telescope == 'GMRT':
+            telescope_coords = EarthLocation(lat=19.0948*u.deg, lon=74.0493*u.deg, height=0*u.m)
+        else:
+            raise('Unknown Telescope.')
+        
+        for ms in self.mssListObj:
+            time = np.mean(ms.getTimeRange())
+            time = Time( time/86400, format='mjd')
+            coord_sun = get_sun(time)
+            ra, dec = ms.getPhaseCentre()
+            coord = SkyCoord(ra*u.deg, dec*u.deg)
+            sun_dist = coord.separation(coord_sun)
+            lst = time.sidereal_time('mean', telescope_coords.longitude)
+            ha = lst - coord.ra # hour angle
+            print 'Sun distance: %.2f deg' % sun_dist.deg
+            print 'Hour angle: %s deg' % ha
 
 
 class MS(object):
@@ -224,7 +253,7 @@ class MS(object):
 
     def getFreqs(self):
         """
-        Get chan frequency
+        Get chan frequencies in Hz
         """
         with tables.table(self.pathMS + "/SPECTRAL_WINDOW", ack = False) as t:
             freqs = t.getcol("CHAN_FREQ")
@@ -263,10 +292,18 @@ class MS(object):
         with tables.table(self.pathMS, ack = False) as t:
             nTimes = len(set(t.getcol("TIME")))
         with tables.table(self.pathMS + "/OBSERVATION", ack = False) as t:
-            deltat = (t.getcol("TIME_RANGE")[0][1] - t.getcol("TIME_RANGE")[0][0]) / nTimes
+            deltaT = (t.getcol("TIME_RANGE")[0][1] - t.getcol("TIME_RANGE")[0][0]) / nTimes
 
-        logger.debug("%s: time interval (seconds): %f", self.pathMS, deltat)
-        return deltat
+        logger.debug("%s: time interval (seconds): %f", self.pathMS, deltaT)
+        return deltaT
+
+
+    def getTimeRange(self):
+        """
+        Return the time interval of this observation
+        """
+        with tables.table(self.pathMS + "/OBSERVATION", ack = False) as t:
+            return ( t.getcol("TIME_RANGE")[0][1], t.getcol("TIME_RANGE")[0][0] )
 
 
     def getPhaseCentre(self):
@@ -303,17 +340,23 @@ class MS(object):
         with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
             return t.getcell("LOFAR_ANTENNA_SET",0)
         
-    def getFWHM(self):
+    def getFWHM(self, freq='mid'):
         """
         Return the expected FWHM in degree
+        freq: min,max,med - which frequency to use to estimate the beam size
         """
         # get minimum freq as it has the largest FWHM
-        min_freq = np.min(self.getFreqs()) 
+        if freq == 'min':
+            beamfreq = np.min(self.getFreqs()) 
+        elif freq == 'max':
+            beamfreq = np.max(self.getFreqs()) 
+        elif freq == 'mid':
+            beamfreq = np.mean(self.getFreqs()) 
 
         if self.getTelescope() == 'LOFAR':
 
-            # Following numbers are based at 60 MHz (https://www.astron.nl/radio-observatory/astronomers/lofar-imaging-capabilities-sensitivity/lofar-imaging-capabilities/lofa)
-            scale = 60e6/min_freq 
+            # Following numbers are based at 60 MHz (old.astron.nl/radio-observatory/astronomers/lofar-imaging-capabilities-sensitivity/lofar-imaging-capabilities/lofa)
+            scale = 60e6/beamfreq 
 
             if 'OUTER' in self.getAntennaSet():
                 return 3.88*scale
@@ -324,12 +367,12 @@ class MS(object):
                 
         elif self.getTelescope() == 'GMRT':
             # equation from http://gmrt.ncra.tifr.res.in/gmrt_hpage/Users/doc/manual/Manual_2013/manual_20Sep2013.pdf    
-            return (85.2/60) * (325.e6 / min_freq)
+            return (85.2/60) * (325.e6 / beamfreq)
 
         else:
             raise('Only LOFAR or GMRT implemented.')
 
-    def makeBeamReg(self, outfile, pb_cut=None, to_null=False):
+    def makeBeamReg(self, outfile, pb_cut=None, to_null=False, freq='mid'):
         """
         Create a ds9 region of the beam
         outfile : str
@@ -338,16 +381,18 @@ class MS(object):
             diameter of the beam
         to_null : bool, optional
             arrive to the first null, not the FWHM
+        freq: min,max,med 
+            which frequency to use to estimate the beam size
         """
         logger.debug('Making PB region: '+outfile)
         ra, dec = self.getPhaseCentre()
 
         if pb_cut is None:
-            radius = self.getFWHM()/2.
+            radius = self.getFWHM(freq=freq)/2.
         else:
             radius = pb_cut/2.
 
-        if to_null: radius *= 1.7 # rough estimation
+        if to_null: radius *= 2 # rough estimation
 
         s = Shape('circle', None)
         s.coord_format = 'fk5'
@@ -377,7 +422,8 @@ class MS(object):
 
         maxdist = np.nanmax( np.sqrt(col[:,0] ** 2 + col[:,1] ** 2) )
 
-        return int(round(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcseconds
+        #return int(round(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcseconds
+        return float('%.1f'%(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcsec
 
     def isAllFlagged(self):
         """

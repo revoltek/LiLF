@@ -28,7 +28,7 @@ if 'LBAsurvey' in os.getcwd():
     data_dir = '/home/baq1889/lofar1/LBAsurvey/%s/%s' % (obs, calname)
 
 #############################################################
-MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
+MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags = False )
 # copy data
 logger.info('Copy data...')
 for MS in MSs.getListObj():
@@ -36,7 +36,7 @@ for MS in MSs.getListObj():
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=False)
         os.system('cp -r %s %s' % (skymodel, MS.pathMS))
 
-MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
+MSs = lib_ms.AllMSs( glob.glob('*MS'), s, check_flags = False )
 calname = MSs.getListObj()[0].getNameField()
 
 if min(MSs.getFreqs()) < 40.e6:
@@ -185,7 +185,7 @@ else:
     lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
             [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono.parset'])
 
-if 'survey' in os.getcwd():
+if 'LBAsurvey' in os.getcwd():
     os.system('cp cal-pa.h5 cal-pa-full.h5')
     os.system('mv cal-fr.h5 cal-fr-full.h5') # no need to keep orig
     os.system('cp cal-amp.h5 cal-amp-full.h5')
@@ -200,16 +200,16 @@ if 'survey' in os.getcwd():
     os.system('losoto -d sol000/phase000 cal-amp.h5')
     os.system('h5repack cal-amp.h5 cal-amp-compressed.h5; mv cal-amp-compressed.h5 cal-amp.h5')
 
-    os.system('losoto -d sol000/tec000 cal-iono.h5')
-    os.system('losoto -d sol000/clock000 cal-iono.h5')
+#    os.system('losoto -d sol000/tec000 cal-iono.h5')
+#    os.system('losoto -d sol000/clock000 cal-iono.h5')
     os.system('losoto -d sol000/amplitude000 cal-iono.h5')
     os.system('losoto -d sol000/phase_offset000 cal-iono.h5')
-    os.system('losoto -d sol000/phase000 cal-iono.h5')
+#    os.system('losoto -d sol000/phase000 cal-iono.h5')
     os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
 
     logger.info('Copy survey caltable...')
     cal = 'cal_'+os.getcwd().split('/')[-2]+'_'+calname
-    logger.info('Copy: cal*h5 -> dsk:/disks/paradata/fdg/LBAsurvey/%s' % cal)
+    logger.info('Copy: cal*h5 -> portal_lei:/disks/paradata/fdg/LBAsurvey/%s' % cal)
     os.system('ssh portal_lei "rm -rf /disks/paradata/fdg/LBAsurvey/%s"' % cal)
     os.system('ssh portal_lei "mkdir /disks/paradata/fdg/LBAsurvey/%s"' % cal)
     os.system('scp -q cal-*.h5 portal_lei:/disks/paradata/fdg/LBAsurvey/%s' % cal)
@@ -219,7 +219,7 @@ if imaging:
     logger.info("Imaging section:")
 
     if iono3rd:
-        MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[int(len(glob.glob('./*MS'))/2.):], s ) # keep only upper band
+        MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[int(len(glob.glob('./*MS'))/2.):], s, check_flags = False ) # keep only upper band
 
     # Correct all CORRECTED_DATA (PA, beam, FR, BP corrected) -> CORRECTED_DATA
     logger.info('IONO correction...')

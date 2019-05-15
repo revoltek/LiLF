@@ -3,6 +3,7 @@ import numpy as np
 import astropy.io.fits as pyfits
 import lsmtool
 import pyregion
+from scipy.ndimage.measurements import label
 from LiLF import make_mask, lib_util
 from LiLF.lib_log import logger
 
@@ -12,11 +13,15 @@ class Image(object):
         userMask: keep this region when making masks
         BeamReg: ds9 region file of the beam
         """
+        if 'MFS' in imagename: suffix = 'MFS-image.fits'
+        else: suffix = 'image.fits'
+
         self.imagename    = imagename
-        self.maskname     = imagename.replace('MFS-image.fits', 'mask.fits')
-        self.skymodel     = imagename.replace('MFS-image.fits', 'sources.txt')
-        self.skymodel_cut = imagename.replace('MFS-image.fits', 'sources-cut.txt')
-        self.skydb        = imagename.replace('MFS-image.fits', 'sources-cut.skydb')
+        self.root         = imagename.replace(suffix, '')
+        self.maskname     = imagename.replace(suffix, 'mask.fits')
+        self.skymodel     = imagename.replace(suffix, 'sources.txt')
+        self.skymodel_cut = imagename.replace(suffix, 'sources-cut.txt')
+        self.skydb        = imagename.replace(suffix, 'sources-cut.skydb')
         self.userReg      = userReg
         self.beamReg      = beamReg
 
@@ -27,7 +32,7 @@ class Image(object):
 
         funct_flux: is a function of frequency (Hz) which returns the total expected flux (Jy) at that frequency.
         """
-        for model_img in sorted(glob.glob(self.imagename+'*model*.fits')):
+        for model_img in sorted(glob.glob(self.root+'*model*.fits')):
             fits = pyfits.open(model_img)
             # get frequency
             assert fits[0].header['CTYPE3'] == 'FREQ'
@@ -44,9 +49,14 @@ class Image(object):
             fits.writeto(model_img, overwrite=True)
             fits.close()
 
-    def makeMask(self, threshisl=5, atrous_do=True):
+
+    def makeMask(self, threshisl=5, atrous_do=True, remove_extended_cutoff=0.):
         """
         Create a mask of the image where only believable flux is
+
+        remove_extended_cutoff: if >0 then remove all islands where sum(brightness_pixels)/(#pixels^2) < remove_extended_cutoff
+        this is useful to remove extended sources from the mask. This higher this number the more compact must be the source.
+        A good value is 0.001 for DIE cal images.
         """
         if not os.path.exists(self.maskname):
             logger.info('%s: Making mask...' % self.imagename)
@@ -54,6 +64,29 @@ class Image(object):
         if self.userReg is not None:
             logger.info('%s: Adding user mask (%s)...' % (self.imagename, self.userReg))
             blank_image_reg(self.maskname, self.userReg, inverse=False, blankval=1)
+
+        if remove_extended_cutoff > 0:
+
+            # get data
+            with pyfits.open(self.imagename) as fits:
+                data = fits[0].data
+            # get mask
+            with pyfits.open(self.maskname) as fits:
+                mask = fits[0].data
+                # for each island calculate the catoff
+                blobs, number_of_blobs = label(mask.astype(int).squeeze(), structure=[[1,1,1],[1,1,1],[1,1,1]])
+                for i in range(1,number_of_blobs):
+                    this_blob = blobs == i
+                    max_pix = np.max(data[0,0,this_blob])
+                    ratio = np.sum(data[0,0,this_blob])/np.sum(mask[0,0,this_blob])**2
+                    if max_pix < 1. and ratio < remove_extended_cutoff:
+                        mask[0,0,this_blob] = False
+                    #mask[0,0,this_blob] = ratio # debug
+
+                # write mask back
+                fits[0].data = mask
+                fits.writeto(self.maskname, overwrite=True)
+
 
     def selectCC(self, keepInBeam=True):
         """
@@ -81,33 +114,28 @@ class Image(object):
         os.system('makesourcedb outtype="blob" format="<" in="'+self.skymodel_cut+'" out="'+self.skydb+'"')
 
 
-    def getNoise(self, boxsize=None, niter=20, eps=1e-5):
+    def getNoise(self, boxsize=None):
         """
-        Return the rms of all the pixels in an image
+        Return the rms of all the non-masked pixels in an image
         boxsize : limit to central box of this pixelsize
-        niter : robust rms estimation
-        eps : convergency
         """   
+        self.makeMask()
+
         with pyfits.open(self.imagename) as fits:
-            data = fits[0].data
-            if boxsize is None:
-                subim = data
-            else:
-               if len(data.shape)==4:
-                    _,_,ys,xs = data.shape
-                    subim = data[0,0,ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
-               else:
-                    ys,xs = data.shape
-                    subim = data[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
-            oldrms = 1.
-            for i in range(niter):
-                rms = np.nanstd(subim)
-                #print len(subim),rms
-                if np.abs(oldrms-rms)/rms < eps:
-                    return rms
-                subim=subim[np.abs(subim)<5*rms]
-                oldrms=rms
-            raise Exception('Failed to converge')
+            with pyfits.open(self.maskname) as mask:
+                data = fits[0].data
+                mask = mask[0].data
+                if boxsize is not None:
+                    if len(data.shape)==4:
+                        _,_,ys,xs = data.shape
+                        data = data[0,0,ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
+                        mask = mask[0,0,ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
+                    else:
+                        ys,xs = data.shape
+                        data = data[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
+                        mask = mask[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
+    
+                return np.nanstd(data[mask==0])
 
 
 
@@ -229,41 +257,3 @@ def blank_image_reg(filename, region, outfile = None, inverse = False, blankval 
         fits.writeto(outfile, overwrite=True)
 
     logger.debug("%s: Blanking (%s): sum of values: %f -> %f" % (filename, region, sum_before, np.sum(data)))
-
-
-#def nan2zeros(filename):
-#    """
-#    Replace NaNs to zeros in a fits file
-#    """
-#    import astropy.io.fits as pyfits
-#    with pyfits.open(filename) as fits:
-#        fits[0].data = np.nan_to_num(fits[0].data)
-#        fits.writeto(filename, overwrite=True)
-#
-#
-#def get_coord_centroid(filename, region):
-#    """
-#    Get centroid coordinates from an image and a region
-#    filename: fits file
-#    region: ds9 region
-#    """
-#    import astropy.io.fits as pyfits
-#    import astropy.wcs as pywcs
-#    import pyregion
-#    from scipy.ndimage.measurements import center_of_mass
-#
-#    fits = pyfits.open(filename)
-#    header, data = flatten(fits)
-#
-#    # extract mask and find center of mass
-#    r = pyregion.open(region)
-#    mask = r.get_mask(header=header, shape=data.shape)
-#    dec_pix, ra_pix = center_of_mass(mask)
-#    
-#    # convert to ra/dec in angle
-#    w = pywcs.WCS(fits[0].header)
-#    #w = w.celestial # needs newer astropy
-#    ra, dec = w.all_pix2world(ra_pix, dec_pix, 0, 0, 0, ra_dec_order=True)
-#
-#    fits.close()
-#    return float(ra), float(dec)

@@ -6,6 +6,5 @@ msout.datacolumn = CORRECTED_DATA
 steps = [corrbeam]
 
 corrbeam.type = applybeam
-corrbeam.invert = True
 corrbeam.usechannelfreq = False
 corrbeam.beammode = element

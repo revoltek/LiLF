@@ -44,26 +44,26 @@ if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
 if not os.path.exists('self/plots'): os.makedirs('self/plots')
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+MSs.plot_HAcov('HAcov.png')
 
-# TODO: add a first null region and use that?
-# make beam
+# make beam to the first mid null
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
-MSs.getListObj()[0].makeBeamReg('self/beam.reg') # SPARSE: go to 12 deg, first null - OUTER: go to 7 deg, first null
+MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='mid', to_null=True)
 beamReg = 'self/beam.reg'
 
 # set image size
-imgsizepix = int(1.2*MSs.getListObj()[0].getFWHM()*3600/10.)
+imgsizepix = int(1.2*MSs.getListObj()[0].getFWHM(freq='min')*3600/10.)
 if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 
 #################################################################
 # Get online model
 if sourcedb is None:
     if not os.path.exists('tgts.skydb'):
-        fwhm = MSs.getListObj()[0].getFWHM()
+        fwhm = MSs.getListObj()[0].getFWHM(freq='min')
         radeg = phasecentre[0]
         decdeg = phasecentre[1]
         # get model the size of the image (radius=fwhm/2)
-        os.system('wget -O tgts.skymodel "http://172.104.228.177/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f"' % (radeg, decdeg, fwhm/2.))
+        os.system('wget -O tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (radeg, decdeg, fwhm/2.)) # ASTRON
         lsm = lsmtool.load('tgts.skymodel')#, beamMS=MSs.getListObj()[0])
         lsm.remove('I<1')
         lsm.write('tgts.skymodel', clobber=True)
@@ -81,9 +81,9 @@ for MS in MSs.getListStr():
     logger.debug('Copy: '+sourcedb+' -> '+MS)
     os.system('cp -r '+sourcedb+' '+MS)
 
-# Create columns (non compressed)
+# Create columns
 logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA', log='$nameMS_addcol.log', commandType='python')
+MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
 
 logger.info('Add model to MODEL_DATA...')
 if apparent:
@@ -111,13 +111,17 @@ for c in range(2):
     MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
-    # LoSoTo plot
-    lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-tec.parset'])
+    # LoSoTo plot dejump
+    # TODO: is there a better way then run it on each hour?
+    for MS in MSs.getListObj():
+        lib_util.run_losoto(s, 'tec'+str(c)+'-'+MS.nameMS, MS.pathMS+'/tec.h5',[parset_dir+'/losoto-tec.parset'])
     os.system('mv plots-tec'+str(c)+'* self/plots/')
     os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
 
     # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC...')
+    lib_util.run_losoto(s, 'tec'+str(c), glob.glob('self/solutions/cal-tec'+str(c)+'*.h5'),[]) # concat H5parms
+    os.system('mv cal-tec'+str(c)+'.h5 self/solutions/')
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=tec000', \
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
@@ -137,21 +141,7 @@ for c in range(2):
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
     im.makeMask(threshisl = 3)
-
-    # do beam-corrected+deeper image at last cycle
-    # TODO: find a way to save the beam image
-    # Add V-stokes
-    if c == 1:
-        logger.info('Cleaning beam (cycle: '+str(c)+')...')
-        imagename = 'img/wideBeam'
-        lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
-                weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
-                multiscale='', multiscale_scales='0,10,20', \
-                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-                parallel_deconvolution=256, auto_threshold=1, fits_mask=im.maskname, \
-                join_channels='', fit_spectral_pol=2, channels_out=8)
-        os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
-    
+   
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     # TODO: add -parallel-deconvolution=256 when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
@@ -162,6 +152,26 @@ for c in range(2):
             baseline_averaging=5, auto_threshold=1, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=2, channels_out=8)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
+
+    # do beam-corrected+deeper image at last cycle
+    if c == 1:
+        logger.info('Cleaning beam (cycle: '+str(c)+')...')
+        imagename = 'img/wideBeam'
+        lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
+                weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
+                multiscale='', multiscale_scales='0,10,20', \
+                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600, \
+                parallel_deconvolution=256, auto_threshold=1, fits_mask=im.maskname, \
+                join_channels='', fit_spectral_pol=2, channels_out=8)
+        os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
+        os.system('makepb.py -o img/avgbeam.fits -i '+imagename)
+        
+        logger.info('Cleaning V (cycle: '+str(c)+')...')
+        imagename = 'img/wideV'
+        lib_util.run_wsclean(s, 'wscleanV-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
+            pol='V', \
+            weight='briggs 0.', no_update_model_required='', minuv_l=30, maxuv_l=5000, \
+            baseline_averaging=5)
 
     if c != 1:
 
@@ -221,13 +231,12 @@ for c in range(2):
         logger.info('Subtracting low-res model (SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES)...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 
-        # TODO: remove only from short baselines
-
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(2) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in range(2) ]
 os.system('mv img/wide-lr-MFS-image.fits self/images')
-os.system('mv img/wideBeam-MFS-image.fits  img/wideBeam-MFS-image-pb.fits self/images')
+os.system('mv img/wideV-image.fits self/images')
+os.system('mv img/wideBeam-MFS-image.fits  img/wideBeam-MFS-image-pb.fits img/avgbeam.fits self/images')
 os.system('mv logs self')
 
 logger.info("Done.")

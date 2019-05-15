@@ -1,32 +1,17 @@
 msin = 
 msin.datacolumn = SMOOTHED_DATA
-msin.baseline = [CR]S*&
 msout = .
 
 steps=[ddecal]
 
 ddecal.type = ddecal
 ddecal.uvlambdamin = 100
-ddecal.sourcedb =
 ddecal.h5parm = 
-ddecal.maxiter = 300
+ddecal.maxiter = 500
 ddecal.tolerance = 1e-3
-ddecal.solint = 3
-ddecal.nchan = 20
-ddecal.stepsize = 0.2
-ddecal.mode = scalarphase # phaseonly, complexgain, tec, tecandphase
+ddecal.solint = 45
+ddecal.nchan = 8
+ddecal.mode = diagonal # phaseonly, complexgain, tec, tecandphase
 ddecal.propagatesolutions = True
-#ddecal.approximatetec = True
-#ddecal.maxapproxiter = 100
-#ddecal.approxtolerance = 1e-2
-
-#ddecal.coreconstraint = 500 # in meters
-
-#ddecal.mode = tecscreen
-#ddecal.tecscreen.order = 4
-#ddecal.tecscreen.height = 300e3
-#ddecal.tecscreen.beta = 1.666666666666667
-#ddecal.tecscreen.rdiff = 1e3
-#ddecal.tecscreen.mode = direction # station, direction, full, CSfull
-
-
+ddecal.usemodelcolumn = True
+ddecal.smoothnessconstraint = 3e6

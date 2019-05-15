@@ -3,7 +3,7 @@
 
 import sys, os, re, glob, time
 import numpy as np
-import pyrap.tables as pt
+import casacore.tables as pt
 from astropy.time import Time
 
 ##########################################
@@ -57,7 +57,7 @@ def getName(ms):
     # get time (saved in ms as MJD in seconds)
     with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
         time = Time(t.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
-        time = time.iso.replace('-','').replace(' ','').replace(':','')[8:12]
+        time = time.iso.replace('-','').replace(' ','').replace(':','')[0:12]
 
     pattern = re.compile("^c[0-9][0-9]-.*$")
     # is survey?
@@ -66,8 +66,8 @@ def getName(ms):
         if not os.path.exists(cycle_obs+'/'+sou): os.makedirs(cycle_obs+'/'+sou)
         return cycle_obs+'/'+sou+'/'+sou+'_t'+time+'_SB'+str(nu2num(freq/1.e6))+'.MS'
     else:
-        if not os.path.exists('mss'): os.makedirs('mss')
-        return 'mss/'+code+'_t'+time+'_SB'+str(nu2num(freq/1.e6))+'.MS'
+        if not os.path.exists('mss/'+code): os.makedirs('mss/'+code)
+        return 'mss/'+code+'/'+code+'_t'+time+'_SB'+str(nu2num(freq/1.e6))+'.MS'
 
 #########################################
 if not download_file is None:
@@ -88,31 +88,31 @@ if not download_file is None:
             logger.debug('Queue download of: '+line[:-1])
         s.run(check=True, maxThreads=4)
 
-MSs = lib_ms.AllMSs(glob.glob('*MS'), s)
-if len(MSs.getListStr()) == 0:
-    logger.info('Done.')
-    sys.exit(0)
-
+#MSs = lib_ms.AllMSs(glob.glob('*MS'), s, check_flags=False)
+#if len(MSs.getListStr()) == 0:
+#    logger.info('Done.')
+#    sys.exit(0)
+#
 #######################################
-with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
-    t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
-    time = np.int(t.iso.replace('-','')[0:8])
-
-if fix_table:
-    logger.info('Fix MS table...')
-    MSs.run('fixMS_TabRef.py $pathMS', log='$nameMS_fixms.log', commandType='python')
-
-    # only ms created in range (2/2013->2/2014)
-    if time > 20130200 and time < 20140300:
-        logger.info('Fix beam table...')
-        MSs.run('/home/fdg/scripts/fixinfo/fixbeaminfo $pathMS', log='$nameMS_fixbeam.log', commandType='python')
-
-# Rescale visibilities by 1e3 if before 2014-03-19 (old correlator), and by 1e-2 otherwise
-logger.info('Rescaling flux...')
-if time < 20140319:
-    MSs.run('taql "update $pathMS set DATA = 1e6*DATA"', log='$nameMS_taql.log', commandType='general')
-else:
-    MSs.run('taql "update $pathMS set DATA = 1e-4*DATA"', log='$nameMS_taql.log', commandType='general')
+#with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
+#    t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
+#    time = np.int(t.iso.replace('-','')[0:8])
+#
+#if fix_table:
+#    logger.info('Fix MS table...')
+#    MSs.run('fixMS_TabRef.py $pathMS', log='$nameMS_fixms.log', commandType='python')
+#
+#    # only ms created in range (2/2013->2/2014)
+#    if time > 20130200 and time < 20140300:
+#        logger.info('Fix beam table...')
+#        MSs.run('/home/fdg/scripts/fixinfo/fixbeaminfo $pathMS', log='$nameMS_fixbeam.log', commandType='python')
+#
+## Rescale visibilities by 1e3 if before 2014-03-19 (old correlator), and by 1e-2 otherwise
+#logger.info('Rescaling flux...')
+#if time < 20140319:
+#    MSs.run('taql "update $pathMS set DATA = 1e6*DATA"', log='$nameMS_taql.log', commandType='general')
+#else:
+#    MSs.run('taql "update $pathMS set DATA = 1e-4*DATA"', log='$nameMS_taql.log', commandType='general')
 
 ######################################
 # Avg to 4 chan and 4 sec
@@ -121,7 +121,7 @@ if renameavg:
     logger.info('Renaming/averaging...')
 
     with open('renamed.txt','a') as flog:
-        MSs = lib_ms.AllMSs([MS for MS in glob.glob('*MS') if not os.path.exists(getName(MS))], s)
+        MSs = lib_ms.AllMSs([MS for MS in glob.glob('*MS') if not os.path.exists(getName(MS))], s, check_flags=False)
 
         for MS in MSs.getListObj():
 
@@ -141,18 +141,17 @@ if renameavg:
             avg_factor_t = int(np.round(4/timeint)) # to 4 sec
             if avg_factor_t < 1: avg_factor_t = 1
         
+            MSout = getName(MS.pathMS)
             if avg_factor_f != 1 or avg_factor_t != 1:
                 logger.info('%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, avg_factor_f, avg_factor_t))
                 flog.write(MS.nameMS+'\n')
-                MSout = getName(MS.pathMS)
                 s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
                         log=MS.nameMS+'_avg.log', commandType='DPPP')
                 s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
-                #lib_util.check_rm(MS.nameMS)
+                lib_util.check_rm(MS.pathMS)
             else:
                 logger.info('%s: Move data - no averaging...' % MS.nameMS)
-                MSout = getName(MS.pathMS)
                 MS.move(MSout)
 
 logger.info("Done.")

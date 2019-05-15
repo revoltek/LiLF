@@ -5,6 +5,6 @@ msout.datacolumn = CORRECTED_DATA
 
 steps = [cor, count]
 
-cor.type = applycal
+cor.type = correct
 cor.parmdb =
 cor.correction = 
