@@ -300,7 +300,7 @@ for c in range(maxniter):
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Core calibration...')
     #MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS msin.baseline=CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA \
-    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS msin.baseline=CS*&CS* \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS msin.baseline="CS*&CS*" \
             ddecal.antennaconstraint=[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA] \
             ddecal.solint=15 ddecal.nchan=30 ddecal.h5parm=$pathMS/cal-core-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solDDcore-c'+str(c)+'.log', commandType='DPPP')
