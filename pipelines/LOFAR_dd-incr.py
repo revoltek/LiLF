@@ -16,7 +16,7 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('LOFAR_dd','parset_dir')
+parset_dir = parset.get('LOFAR_dd-incr','parset_dir')
 maxniter = parset.getint('LOFAR_dd','maxniter')
 calFlux = parset.getfloat('LOFAR_dd','calFlux')
 userReg = parset.get('model','userReg')
@@ -118,7 +118,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 logger.info('Copy data...')
 if not os.path.exists('mss-dd'):
     os.makedirs('mss-dd')
-    MSs_self.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA avg.freqstep=1 avg.timestep=1', \
+    MSs_self.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=CORRECTED_DATA avg.freqstep=1 avg.timestep=1', \
                 log='$nameMS_avg.log', commandType='DPPP')
 MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9].MS'), s )
        
@@ -129,6 +129,7 @@ MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log
 # setup initial model
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
 mosaic_image.selectCC()
+
 # TEST:
 #mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
 rms_noise_pre = np.inf
@@ -154,7 +155,8 @@ for c in range(maxniter):
     mask_cl = mosaic_image.imagename.replace('image.fits', 'mask-cl.fits')
     # this mask is with no user region, done isolate only bight compact sources
     if not os.path.exists(mask_cl): 
-        lib_img.make_mask.make_mask(image_name=mosaic_image.imagename, mask_name=mask_cl, threshisl=7, remove_extended_cutoff=0.001)
+        mosaic_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=0.001, maskname=mask_cl)
+    
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
     lsm.group(mask_cl, root='Isl')
     # this removes all sources not in the mask-cl
@@ -316,7 +318,7 @@ for c in range(maxniter):
     logger.info('Remote calibration...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS \
             ddecal.antennaconstraint=[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA] \
-            ddecal.applycal.parmdb=$pathMS/cal-core-c'+str(c)+'.h5 \
+            ddecal.applycal.parmdb=$pathMS/cal-core-c'+str(c)+'.h5 ddecal.applycal.correction=tec000 \
             ddecal.solint=1 ddecal.nchan=10 ddecal.h5parm=$pathMS/cal-remote-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solDDremote-c'+str(c)+'.log', commandType='DPPP')
 
