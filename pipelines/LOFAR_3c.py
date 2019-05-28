@@ -141,6 +141,13 @@ for c in range(100):
 
     logger.info('== Start cycle: %s ==' % c)
 
+    logger.info('Merge source model into 1 patch...')
+    lsm = lsmtool.load('tgts.skymodel')
+    lsm.group('single')
+    lsm.write('tgts-onepatch.skymodel', clobber=True)
+    os.system('makesourcedb outtype="blob" format="<" in=tgts-onepatch.skymodel out=tgts-onepatch.skydb')
+    sourcedb = 'tgts-onepatch.skydb'
+
     logger.info('Remove bad timestamps...')
     MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
@@ -148,13 +155,25 @@ for c in range(100):
     # 1: Solving
 
     # solve G - group*_TC.MS:SMOOTHED_DATA
-    logger.info('Solving G...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG.h5 sol.mode=diagonal', \
+    logger.info('Solving...')
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG.h5 sol.mode=complexgain', \
             log='$nameMS_solG-c'+str(c)+'.log', commandType="DPPP")
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.baseline="CS*&CS*" \
+#            sol.solint=5 sol.h5parm=$pathMS/calG-core.h5 sol.mode=diagonal', \
+#            log='$nameMS_solG-core-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'G-c'+str(c), [ms+'/calG.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
 
-    # Correct DATA -> CORRECTED_DATA
+#    logger.info('Remote calibration...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
+#            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
+#            sol.applycal.parmdb=cal-G-core-c'+str(c)+'.h5 sol.applycal.correction=phase000 sol.usemodelcolumn=False sol.sourcedb='+sourcedb+' \
+#            sol.solint=1 sol.h5parm=$pathMS/calG-remote.h5 sol.mode=diagonal', \
+#            log='$nameMS_solG-remote-c'+str(c)+'.log', commandType='DPPP')
+#    lib_util.run_losoto(s, 'G-remote-c'+str(c), [ms+'/calG-remote.h5' for ms in MSs.getListStr()], \
+#                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
+
+   # # Correct DATA -> CORRECTED_DATA
     logger.info('Correction PH...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-G-c'+str(c)+'.h5 cor.correction=phase000', \
             log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
@@ -180,7 +199,7 @@ for c in range(100):
             weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.5, baseline_averaging=5)
 
     im = lib_img.Image(imagename+'-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 3)
+    im.makeMask(threshisl = 5)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/imgM-%02i' % c

@@ -115,16 +115,16 @@ for c in range(2):
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
     # LoSoTo plot dejump
-    # TODO: is there a better way then run it on each hour?
     for MS in MSs.getListObj():
         lib_util.run_losoto(s, 'tec'+str(c)+'-'+MS.nameMS, MS.pathMS+'/tec.h5',[parset_dir+'/losoto-tec.parset'])
     os.system('mv plots-tec'+str(c)+'* self/plots/')
-    os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
+    s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-tec'+str(c)+'.h5 '+' '.join(glob.glob('cal-tec'+str(c)+'*.h5')),\
+            log='losoto-'+c+'.log', commandType="python", processors='max')
+    s.run(check = True)
+    check_rm('cal-tec'+str(c)+'*.h5')
 
     # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC...')
-    lib_util.run_losoto(s, 'tec'+str(c), glob.glob('self/solutions/cal-tec'+str(c)+'*.h5'),[]) # concat H5parms
-    os.system('mv cal-tec'+str(c)+'.h5 self/solutions/')
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=tec000', \
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 

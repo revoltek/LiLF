@@ -16,7 +16,7 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('LOFAR_dd','parset_dir')
+parset_dir = parset.get('LOFAR_dd-incr','parset_dir')
 maxniter = parset.getint('LOFAR_dd','maxniter')
 calFlux = parset.getfloat('LOFAR_dd','calFlux')
 userReg = parset.get('model','userReg')
@@ -30,11 +30,12 @@ fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
 ##########################
 logger.info('Cleaning...')
-lib_util.check_rm('ddcal')
-os.makedirs('ddcal/masks')
-os.makedirs('ddcal/plots')
-os.makedirs('ddcal/images')
-os.makedirs('ddcal/skymodels')
+#lib_util.check_rm('ddcal')
+#os.makedirs('ddcal/masks')
+#os.makedirs('ddcal/plots')
+#os.makedirs('ddcal/images')
+#os.makedirs('ddcal/solutions')
+#os.makedirs('ddcal/skymodels')
 
 def clean(p, MSs, size, res='normal', apply_beam=False):
     """
@@ -118,7 +119,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 logger.info('Copy data...')
 if not os.path.exists('mss-dd'):
     os.makedirs('mss-dd')
-    MSs_self.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA avg.freqstep=1 avg.timestep=1', \
+    MSs_self.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=CORRECTED_DATA avg.freqstep=1 avg.timestep=1', \
                 log='$nameMS_avg.log', commandType='DPPP')
 MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9].MS'), s )
        
@@ -129,6 +130,7 @@ MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log
 # setup initial model
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
 mosaic_image.selectCC()
+
 # TEST:
 #mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
 rms_noise_pre = np.inf
@@ -154,7 +156,8 @@ for c in range(maxniter):
     mask_cl = mosaic_image.imagename.replace('image.fits', 'mask-cl.fits')
     # this mask is with no user region, done isolate only bight compact sources
     if not os.path.exists(mask_cl): 
-        lib_img.make_mask.make_mask(image_name=mosaic_image.imagename, mask_name=mask_cl, threshisl=7, remove_extended_cutoff=0.001)
+        mosaic_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=0.001, maskname=mask_cl)
+    
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
     lsm.group(mask_cl, root='Isl')
     # this removes all sources not in the mask-cl
@@ -296,28 +299,39 @@ for c in range(maxniter):
 #    # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
 #    logger.info('BL-based smoothing...')
 #    MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
+#
+#    # Calibration - ms:SMOOTHED_DATA
+#    logger.info('Core calibration...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS msin.baseline="CS*&CS*" \
+#            ddecal.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
+#            ddecal.smoothnessconstraint=1e6 ddecal.mode=complexgain \
+#            ddecal.solint=15 ddecal.nchan=1 ddecal.h5parm=$pathMS/cal-core-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
+#            log='$nameMS_solDDcore-c'+str(c)+'.log', commandType='DPPP')
+#
+#
+#    lib_util.run_losoto(s, 'core-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-core-c'+str(c)+'.h5', \
+#                [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
+#
+#    sys.exit()
+#
+#    # Plot solutions
+#    for MS in MSs.getListObj():
+#        lib_util.run_losoto(s, 'core-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-core-c'+str(c)+'.h5', \
+#                [parset_dir+'/losoto-jump.parset', parset_dir+'/losoto-resetremote.parset', parset_dir+'/losoto-plot-tec.parset'])
+#    os.system('mv plots-core-c'+str(c)+'* ddcal/plots')
+#    s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-core-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-core-c'+str(c)+'-*.h5')),\
+#                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
+#    s.run(check = True)
+#    lib_util.check_rm('cal-core-c'+str(c)+'-*.h5')
+
 
     # Calibration - ms:SMOOTHED_DATA
-    logger.info('Core calibration...')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS msin.baseline=CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA \
-    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS msin.baseline=CS*&CS* \
-            ddecal.antennaconstraint=[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA] \
-            ddecal.solint=15 ddecal.nchan=30 ddecal.h5parm=$pathMS/cal-core-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
-            log='$nameMS_solDDcore-c'+str(c)+'.log', commandType='DPPP')
-
-    # Plot solutions
-    for MS in MSs.getListObj():
-        lib_util.run_losoto(s, 'core-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-core-c'+str(c)+'.h5', \
-                [parset_dir+'/losoto-jump.parset', parset_dir+'/losoto-resetremote.parset', parset_dir+'/losoto-plot-tec.parset'])
-    os.system('mv plots-core-c'+str(c)+'* ddcal/plots')
-
-    # Calibration - ms:SMOOTHED_DATA
-    # TODO: pre-apply DDE on CS and contrain all CS
+#            ddecal.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
     logger.info('Remote calibration...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS \
-            ddecal.antennaconstraint=[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA] \
-            ddecal.applycal.parmdb=$pathMS/cal-core-c'+str(c)+'.h5 \
-            ddecal.solint=1 ddecal.nchan=10 ddecal.h5parm=$pathMS/cal-remote-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
+            ddecal.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
+            ddecal.applycal.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 ddecal.applycal.correction=tec000 \
+            ddecal.solint=1 ddecal.nchan=4 ddecal.h5parm=$pathMS/cal-remote-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solDDremote-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions
@@ -327,27 +341,6 @@ for c in range(maxniter):
     os.system('mv plots-remote-c'+str(c)+'* ddcal/plots')
     
     sys.exit()
-
-
-    # predict and corrupt each facet
-    logger.info('Reset MODEL_DATA...')
-    MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-   
-    for i, d in enumerate(directions):
-        # predict - ms:MODEL_DATA
-        logger.info('Patch '+d.name+': predict...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_DIR pre.sourcedb='+skymodel_cl_skydb+' pre.sources='+d.name, \
-            log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-
-        # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
-        logger.info('Patch '+d.name+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS msin.datacolumn=MODEL_DATA_DIR msout.datacolumn=MODEL_DATA_DIR cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+d.name+']', \
-            log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-    
-        logger.info('Patch '+d.name+': subtract...')
-        MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA + MODEL_DATA_DIR"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
-
-
 
     ##############################################################
     # low S/N DIE corrections
