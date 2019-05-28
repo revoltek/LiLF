@@ -5,6 +5,7 @@ Ncpu = 0
 operation = RESET
 soltab = sol000/tec000
 ant.regexp = RS*
+dataVal = 0.
 
 [removeFlags]
 operation = REWEIGHT
