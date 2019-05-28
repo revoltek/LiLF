@@ -1,5 +1,5 @@
 msin =
-msin.datacolumn = SMOOTHED_DATA
+msin.datacolumn = DATA
 msout = .
 msout.datacolumn = CORRECTED_DATA
 
@@ -7,10 +7,10 @@ steps = [sol]
 
 sol.type = ddecal
 sol.uvlambdamin = 100
-sol.mode = diagonal
+sol.mode = complexgain
 sol.tolerance = 1e-3
 sol.maxiter = 500
-sol.nchan = 1
-sol.solint = 1
+sol.nchan = 20
+sol.solint = 10
 sol.propagatesolutions = True
 sol.usemodelcolumn = True

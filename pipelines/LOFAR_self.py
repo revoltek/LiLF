@@ -111,15 +111,15 @@ for c in range(2):
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving TEC...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
     # LoSoTo plot dejump
     for MS in MSs.getListObj():
-        lib_util.run_losoto(s, 'tec'+str(c)+'-'+MS.nameMS, MS.pathMS+'/tec.h5',[parset_dir+'/losoto-tec.parset'])
+        lib_util.run_losoto(s, 'tec-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/tec.h5',[parset_dir+'/losoto-tec.parset'])
     os.system('mv plots-tec'+str(c)+'* self/plots/')
-    s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-tec'+str(c)+'.h5 '+' '.join(glob.glob('cal-tec'+str(c)+'*.h5')),\
-            log='losoto-'+c+'.log', commandType="python", processors='max')
+    s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-tec-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-tec-c'+str(c)+'*.h5')),\
+            log='losotoTEC-c'+c+'.log', commandType="python", processors='max')
     s.run(check = True)
     check_rm('cal-tec'+str(c)+'*.h5')
 
@@ -127,6 +127,14 @@ for c in range(2):
     logger.info('Correcting TEC...')
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=tec000', \
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
+
+    # AMP+LEAK DIE correction
+    if c == 1:
+        # DIE Calibration - ms:DATA
+        logger.info('Solving slow G...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS ddecal.h5parm=$pathMS/g.h5', \
+                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+        lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
 
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA (FR/TEC corrected, beam corrected)
