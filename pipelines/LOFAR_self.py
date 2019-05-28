@@ -147,8 +147,6 @@ for c in range(2):
             baseline_averaging=5, parallel_deconvolution=256, auto_threshold=20, \
             join_channels='', fit_spectral_pol=2, channels_out=8)
 
-    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
-
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
     im.makeMask(threshisl = 4)
