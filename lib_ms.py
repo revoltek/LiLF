@@ -132,8 +132,8 @@ class AllMSs(object):
             sun_dist = coord.separation(coord_sun)
             lst = time.sidereal_time('mean', telescope_coords.longitude)
             ha = lst - coord.ra # hour angle
-            print 'Sun distance: %.2f deg' % sun_dist.deg
-            print 'Hour angle: %s deg' % ha
+            logger.info('Sun distance: %.2f deg' % sun_dist.deg)
+            logger.info('Hour angle: %s deg' % ha)
 
 
 class MS(object):

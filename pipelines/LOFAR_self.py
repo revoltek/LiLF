@@ -143,7 +143,7 @@ for c in range(2):
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 3)
+    im.makeMask(threshisl = 4)
    
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     # TODO: add -parallel-deconvolution=256 when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
@@ -158,6 +158,7 @@ for c in range(2):
 
     # do beam-corrected+deeper image at last cycle
     if c == 1:
+
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
         lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
@@ -176,7 +177,8 @@ for c in range(2):
             weight='briggs 0.', no_update_model_required='', minuv_l=30, maxuv_l=5000, \
             baseline_averaging=5)
 
-    if c != 1:
+    # add model and remove first sidelobe
+    if c == 0:
 
         im = lib_img.Image(imagename+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=True)
@@ -186,7 +188,6 @@ for c in range(2):
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
                 log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
 
-    if c == 0:
         # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
         logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
         MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
