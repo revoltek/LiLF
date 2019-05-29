@@ -99,6 +99,11 @@ for timestamp in set([ os.path.basename(ms).split('_')[1][1:] for ms in MSs.getL
         logger.info('Beam correction...')
         MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DPPP')
 
+        # TODO: TEST
+        # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('Converting to circular...')
+        MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+
         # Move CORRECTED_DATA -> DATA
         logger.info('Move CORRECTED_DATA -> DATA...')
         MSs.run('taql "update $pathMS set DATA = CORRECTED_DATA"', log='$nameMS_taql.log', commandType='general')
@@ -157,7 +162,7 @@ for c in range(100):
     # solve G - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG.h5 sol.mode=complexgain \
-            dol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
+            sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
             log='$nameMS_solG-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'G-c'+str(c), [ms+'/calG.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
@@ -184,19 +189,19 @@ for c in range(100):
     
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/img-%02i' % c
-    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=4500, scale='4arcsec', \
+    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=4500, scale='4arcsec', parallel_deconvolution=256, \
             weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.7, baseline_averaging=5, \
             join_channels='', fit_spectral_pol=2, channels_out=3)
 
-    im = lib_img.Image(imagename+'-image.fits', userReg=userReg)
+    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
     im.makeMask(threshisl = 5)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/imgM-%02i' % c
     #auto_mask=5, local_rms=''
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=4500, scale='4arcsec', \
+    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=4500, scale='4arcsec', parallel_deconvolution=256, \
             weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.7, \
-            multiscale='', auto_threshold=3, fits_mask=im.maskname, \
+            multiscale='', auto_threshold=1, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=2, channels_out=3)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
@@ -204,11 +209,19 @@ for c in range(100):
     logger.info('Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA...')
     MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql.log', commandType='general')
 
+    logger.info('Cleaning residuals (cycle: '+str(c)+')...')
+    imagename = 'img/imgR-%02i' % c
+    lib_util.run_wsclean(s, 'wscleanC-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=4500, scale='4arcsec', parallel_deconvolution=256, \
+            weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.7, \
+            multiscale='', auto_threshold=1, \
+            join_channels='', fit_spectral_pol=2, channels_out=3)
+    os.system('cat logs/wscleanC-c'+str(c)+'.log | grep "background noise"')
+
     # Flag on residuals (CORRECTED_DATA)
     logger.info('Flagging residuals...')
     MSs.run('DPPP '+parset_dir+'/DPPP-flagres.parset msin=$pathMS', log='$nameMS_flagres-c'+str(c)+'.log', commandType='DPPP')
 
-    rms_noise = lib_img.Image(imagename+'-image.fits').getNoise()
+    rms_noise = lib_img.Image(imagename+'-MFS-image.fits').getNoise()
     logger.info('RMS noise: %f' % rms_noise)
     if rms_noise > 0.95*rms_noise_pre:
         if doamp: break # if already doing amp and not getting better, quit
