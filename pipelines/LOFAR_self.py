@@ -119,7 +119,7 @@ for c in range(2):
         lib_util.run_losoto(s, 'tec-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/tec.h5',[parset_dir+'/losoto-tec.parset'])
     os.system('mv plots-tec'+str(c)+'* self/plots/')
     s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-tec-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-tec-c'+str(c)+'*.h5')),\
-            log='losotoTEC-c'+c+'.log', commandType="python", processors='max')
+            log='losotoTEC-c'+str(c)+'.log', commandType="python", processors='max')
     s.run(check = True)
     check_rm('cal-tec'+str(c)+'*.h5')
 
