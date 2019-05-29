@@ -156,22 +156,11 @@ for c in range(100):
 
     # solve G - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG.h5 sol.mode=complexgain', \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG.h5 sol.mode=complexgain \
+            dol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
             log='$nameMS_solG-c'+str(c)+'.log', commandType="DPPP")
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.baseline="CS*&CS*" \
-#            sol.solint=5 sol.h5parm=$pathMS/calG-core.h5 sol.mode=diagonal', \
-#            log='$nameMS_solG-core-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'G-c'+str(c), [ms+'/calG.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
-
-#    logger.info('Remote calibration...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
-#            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
-#            sol.applycal.parmdb=cal-G-core-c'+str(c)+'.h5 sol.applycal.correction=phase000 sol.usemodelcolumn=False sol.sourcedb='+sourcedb+' \
-#            sol.solint=1 sol.h5parm=$pathMS/calG-remote.h5 sol.mode=diagonal', \
-#            log='$nameMS_solG-remote-c'+str(c)+'.log', commandType='DPPP')
-#    lib_util.run_losoto(s, 'G-remote-c'+str(c), [ms+'/calG-remote.h5' for ms in MSs.getListStr()], \
-#                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
 
    # # Correct DATA -> CORRECTED_DATA
     logger.info('Correction PH...')
@@ -196,16 +185,19 @@ for c in range(100):
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/img-%02i' % c
     lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=4500, scale='4arcsec', \
-            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.5, baseline_averaging=5)
+            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.7, baseline_averaging=5, \
+            join_channels='', fit_spectral_pol=2, channels_out=3)
 
     im = lib_img.Image(imagename+'-image.fits', userReg=userReg)
     im.makeMask(threshisl = 5)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/imgM-%02i' % c
+    #auto_mask=5, local_rms=''
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=4500, scale='4arcsec', \
-            weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.5, \
-            multiscale='', auto_threshold=3, use_weights_as_taper='', fits_mask=im.maskname)#, auto_mask=5, local_rms='')#, fits_mask=im.maskname)
+            weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.7, \
+            multiscale='', auto_threshold=3, fits_mask=im.maskname, \
+            join_channels='', fit_spectral_pol=2, channels_out=3)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     # Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA
@@ -219,7 +211,7 @@ for c in range(100):
     rms_noise = lib_img.Image(imagename+'-image.fits').getNoise()
     logger.info('RMS noise: %f' % rms_noise)
     if rms_noise > 0.95*rms_noise_pre:
-        #if doamp: break # if already doing amp and not getting better, quit
+        if doamp: break # if already doing amp and not getting better, quit
         doamp = True
     rms_noise_pre = rms_noise
 
