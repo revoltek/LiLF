@@ -130,9 +130,9 @@ for c in range(2):
 
     # AMP+LEAK DIE correction
     if c == 1:
-        # DIE Calibration - ms:DATA
+        # DIE Calibration - ms:CORRECTED_DATA
         logger.info('Solving slow G...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS ddecal.h5parm=$pathMS/g.h5', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS cal.h5parm=$pathMS/g.h5', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
         lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
 

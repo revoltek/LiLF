@@ -322,7 +322,7 @@ for c in range(maxniter):
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Remote calibration...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS \
-            ddecal.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
+            ddecal.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
             ddecal.applycal.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 ddecal.applycal.correction=tec000 \
             ddecal.solint=1 ddecal.nchan=4 ddecal.h5parm=$pathMS/cal-remote-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solDDremote-c'+str(c)+'.log', commandType='DPPP')
