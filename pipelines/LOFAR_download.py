@@ -17,6 +17,7 @@ parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_download','parset_dir')
 fix_table = parset.getboolean('LOFAR_download','fix_table')
 renameavg = parset.getboolean('LOFAR_download','renameavg')
+keep_IS = parset.getboolean('LOFAR_download','keep_IS')
 
 ###########################################
 if os.path.exists('html.txt'):
@@ -145,7 +146,13 @@ if renameavg:
             if avg_factor_f != 1 or avg_factor_t != 1:
                 logger.info('%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, avg_factor_f, avg_factor_t))
                 flog.write(MS.nameMS+'\n')
-                s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
+                if keep_IS:
+                    s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
+                        avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
+                        log=MS.nameMS+'_avg.log', commandType='DPPP')
+                else:
+                    s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
+                        msin.baseline = "[CR]S*&" \
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
                         log=MS.nameMS+'_avg.log', commandType='DPPP')
                 s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
