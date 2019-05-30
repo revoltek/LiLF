@@ -298,6 +298,7 @@ for c in range(maxniter):
 
     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
     #TODO: add smoothing on amplitudes
+    #TODO: circular basis?
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
 
@@ -307,10 +308,6 @@ for c in range(maxniter):
             ddecal.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
             ddecal.solint=5 ddecal.nchan=4 ddecal.h5parm=$pathMS/cal-core-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solDDcore-c'+str(c)+'.log', commandType='DPPP')
-
-
-    #lib_util.run_losoto(s, 'core-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-core-c'+str(c)+'.h5', \
-    #            [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
 
     # Plot solutions
     for MS in MSs.getListObj():
@@ -322,11 +319,7 @@ for c in range(maxniter):
     s.run(check = True)
     lib_util.check_rm('cal-core-c'+str(c)+'-*.h5')
 
-    sys.exit()
-
-
     # Calibration - ms:SMOOTHED_DATA
-#            ddecal.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
     logger.info('Remote calibration...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS \
             ddecal.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
@@ -340,11 +333,9 @@ for c in range(maxniter):
                 [parset_dir+'/losoto-jump.parset', parset_dir+'/losoto-plot-tec.parset'])
     os.system('mv plots-remote-c'+str(c)+'* ddcal/plots')
     
-    sys.exit()
-
     ##############################################################
     # low S/N DIE corrections
-    if c>=1:
+    if c>=0:
         logger.info('DIE calibration...')
         # predict and corrupt each facet
         logger.info('Reset MODEL_DATA...')
