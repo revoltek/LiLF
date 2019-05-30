@@ -108,36 +108,36 @@ for c in range(2):
     # Smooth DATA -> SMOOTHED_DATA
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
-
+ 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving TEC...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
-
+ 
     # LoSoTo plot dejump
     for MS in MSs.getListObj():
         lib_util.run_losoto(s, 'tec-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/tec.h5',[parset_dir+'/losoto-tec.parset'])
-    os.system('mv plots-tec'+str(c)+'* self/plots/')
+    os.system('mv plots-tec-c'+str(c)+'* self/plots/')
     s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-tec-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-tec-c'+str(c)+'*.h5')),\
             log='losotoTEC-c'+str(c)+'.log', commandType="python", processors='max')
     s.run(check = True)
-    check_rm('cal-tec'+str(c)+'*.h5')
+    lib_util.check_rm('cal-tec'+str(c)+'*.h5')
 
     # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=tec000', \
-                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000', \
+               log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
     # AMP+LEAK DIE correction
-    if c == 1:
-        # DIE Calibration - ms:DATA
+    if c >= 0:
+        # DIE Calibration - ms:CORRECTED_DATA
         logger.info('Solving slow G...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS ddecal.h5parm=$pathMS/g.h5', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/g.h5', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
         lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
 
     ###################################################################################################################
-    # clen on concat.MS:CORRECTED_DATA (FR/TEC corrected, beam corrected)
+    # clen on concat.MS:CORRECTED_DATA
 
     # clean mask clean (cut at 5k lambda)
     logger.info('Cleaning (cycle: '+str(c)+')...')

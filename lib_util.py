@@ -41,6 +41,7 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_download', 'fix_table', 'True') # fix bug in some old observations
     add_default('LOFAR_download', 'renameavg', 'True')
     add_default('LOFAR_download', 'flag_elev', 'True')
+    add_default('LOFAR_download', 'keep_IS', 'False')
     # demix
     add_default('LOFAR_demix', 'data_dir', '../cals-bkp/')
     add_default('LOFAR_demix', 'demix_model', '/home/fdg/scripts/model/demix_all.skydb')
