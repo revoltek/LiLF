@@ -285,7 +285,9 @@ for c in range(maxniter):
         
             # corrupt (note: use previous cal table) - ms:MODEL_DATA -> ms:MODEL_DATA
             logger.info('Patch '+d.name+': corrupt...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS cor.parmdb=$pathMS/cal-c'+str(c-1)+'.h5 cor.direction=['+d.name+']', \
+            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS \
+                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c-1)+'.h5   corC.direction=['+d.name+'] \
+                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c-1)+'.h5 corR.direction=['+d.name+']', \
                     log='$nameMS_corrupt0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
             
             logger.info('Patch '+d.name+': subtract...')
@@ -312,7 +314,7 @@ for c in range(maxniter):
     # Plot solutions
     for MS in MSs.getListObj():
         lib_util.run_losoto(s, 'core-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-core-c'+str(c)+'.h5', \
-                [parset_dir+'/losoto-jump.parset', parset_dir+'/losoto-resetremote.parset', parset_dir+'/losoto-plot-tec.parset'])
+                [parset_dir+'/losoto-jump.parset', parset_dir+'/losoto-resetremote.parset', parset_dir+'/losoto-plot-tec-core.parset'])
     os.system('mv plots-core-c'+str(c)+'* ddcal/plots')
     s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-core-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-core-c'+str(c)+'-*.h5')),\
                             log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
@@ -322,7 +324,7 @@ for c in range(maxniter):
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Remote calibration...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS \
-            ddecal.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
+            ddecal.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
             ddecal.applycal.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 ddecal.applycal.correction=tec000 \
             ddecal.solint=1 ddecal.nchan=4 ddecal.h5parm=$pathMS/cal-remote-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solDDremote-c'+str(c)+'.log', commandType='DPPP')
@@ -332,6 +334,10 @@ for c in range(maxniter):
         lib_util.run_losoto(s, 'remote-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-remote-c'+str(c)+'.h5', \
                 [parset_dir+'/losoto-jump.parset', parset_dir+'/losoto-plot-tec.parset'])
     os.system('mv plots-remote-c'+str(c)+'* ddcal/plots')
+    s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-remote-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-remote-c'+str(c)+'-*.h5')),\
+                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
+    s.run(check = True)
+    lib_util.check_rm('cal-remote-c'+str(c)+'-*.h5')
     
     ##############################################################
     # low S/N DIE corrections
@@ -349,7 +355,9 @@ for c in range(maxniter):
     
             # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
             logger.info('Patch '+d.name+': corrupt...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS msin.datacolumn=MODEL_DATA_DIR msout.datacolumn=MODEL_DATA_DIR cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+d.name+']', \
+            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS msin.datacolumn=MODEL_DATA_DIR msout.datacolumn=MODEL_DATA_DIR \
+                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
+                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
                 log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
         
             logger.info('Patch '+d.name+': subtract...')
@@ -375,7 +383,7 @@ for c in range(maxniter):
 
         # Correct DIE FR - ms:DATA -> CORRECTED_DATA
         logger.info('DIE FR correct...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor1.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
                log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
         # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
@@ -394,7 +402,7 @@ for c in range(maxniter):
 
         # Correct DIE AMP - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
         logger.info('DIE AMP correct...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-G2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor1.parset msin=$pathMS cor.parmdb=cal-G2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
                log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
 
         # Copy CORRECTED_DATA -> SUBTRACTED_DATA
@@ -423,7 +431,9 @@ for c in range(maxniter):
     
         # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
         logger.info('Patch '+d.name+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+d.name+']', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS \
+                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
+                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
                 log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
         
         logger.info('Patch '+d.name+': subtract...')
@@ -446,7 +456,9 @@ for c in range(maxniter):
 
         # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
         logger.info('Patch '+d.name+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+d.name+']', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS \
+                 corC.parm1db=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
+                 corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
                  log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
 
         logger.info('Patch '+d.name+': add...')
@@ -454,8 +466,10 @@ for c in range(maxniter):
 
         # DD-correct - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
         logger.info('Patch '+d.name+': correct...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+d.name+']', \
-               log='$nameMS_cor-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor2.parset msin=$pathMS \
+                corC.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
+                corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
+                log='$nameMS_cor-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
 
         logger.info('Patch '+d.name+': phase shift and avg...')
         lib_util.check_rm('mss-dir')
