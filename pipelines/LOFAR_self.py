@@ -134,7 +134,9 @@ for c in range(2):
         logger.info('Solving slow G...')
         MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/g.h5', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-        lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
+        lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()], \
+                [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-leak.parset'])
+        os.system('mv plots-g-c'+str(c)+' self/plots/')
 
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA
