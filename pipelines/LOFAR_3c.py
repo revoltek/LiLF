@@ -242,8 +242,8 @@ for c in range(100):
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     # Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA
-    #logger.info('Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA...')
-    #MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql.log', commandType='general')
+    logger.info('Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA...')
+    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql.log', commandType='general')
 
     #logger.info('Cleaning residuals (cycle: '+str(c)+')...')
     #imagename = 'img/imgR-%02i' % c

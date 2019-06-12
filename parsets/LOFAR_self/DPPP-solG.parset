@@ -7,12 +7,12 @@ msout.datacolumn = CORRECTED_DATA
 steps = [sol]
 
 sol.type = ddecal
-sol.uvlambdamin = 200
+sol.uvlambdamin = 100
 sol.mode = fulljones
 sol.tolerance = 1e-3
 sol.maxiter = 500
 sol.nchan = 8
 sol.solint = 20
-sol.propagatesolutions = True
+sol.propagatesolutions = False
 sol.usemodelcolumn = True
 #sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]
