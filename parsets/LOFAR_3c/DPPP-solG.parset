@@ -13,4 +13,4 @@ sol.nchan = 1
 sol.solint = 1
 sol.propagatesolutions = True
 sol.usemodelcolumn = True
-sol.smoothnessconstraint = 1e6
+#sol.smoothnessconstraint = 1e6

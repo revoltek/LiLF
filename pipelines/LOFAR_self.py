@@ -145,9 +145,9 @@ for c in range(2):
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wide-'+str(c)
     lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
-            weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=256, auto_threshold=20, \
-            join_channels='', fit_spectral_pol=2, channels_out=8)
+            weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.8, \
+            baseline_averaging=5, parallel_deconvolution=256, auto_threshold=10, \
+            join_channels='', fit_spectral_pol=2, channels_out=8, deconvolution_channels=4)
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
@@ -158,10 +158,10 @@ for c in range(2):
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
-            weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
-            multiscale='', multiscale_scales='0,10,20', \
+            weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.8, \
+            multiscale='', \
             baseline_averaging=5, auto_threshold=1, fits_mask=im.maskname, \
-            join_channels='', fit_spectral_pol=2, channels_out=8)
+            join_channels='', fit_spectral_pol=2, channels_out=8, deconvolution_channels=4)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     # do beam-corrected+deeper image at last cycle
@@ -170,20 +170,19 @@ for c in range(2):
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
         lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
-                weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
-                multiscale='', multiscale_scales='0,10,20', \
+                weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.8, \
+                multiscale='', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600, \
                 parallel_deconvolution=256, auto_threshold=1, fits_mask=im.maskname, \
-                join_channels='', fit_spectral_pol=2, channels_out=8)
+                join_channels='', fit_spectral_pol=2, channels_out=8, deconvolution_channels=4)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
         os.system('makepb.py -o img/avgbeam.fits -i '+imagename)
         
         logger.info('Cleaning V (cycle: '+str(c)+')...')
         imagename = 'img/wideV'
-        lib_util.run_wsclean(s, 'wscleanV-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
-            pol='V', \
-            weight='briggs 0.', no_update_model_required='', minuv_l=30, maxuv_l=5000, \
-            baseline_averaging=5)
+        lib_util.run_wsclean(s, 'wscleanV-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', pol='V', \
+            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, maxuv_l=5000, \
+            use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600)
 
     # add model and remove first sidelobe
     if c == 0:
@@ -205,9 +204,9 @@ for c in range(2):
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
         lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, save_source_list='', temp_dir='./', size=imgsizepix, scale='30arcsec', \
-                weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.85, \
+                weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
                 baseline_averaging=5, auto_threshold=1, \
-                join_channels='', fit_spectral_pol=2, channels_out=8)
+                join_channels='', fit_spectral_pol=2, channels_out=8, deconvolution_channels=4)
         
         im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=False)
