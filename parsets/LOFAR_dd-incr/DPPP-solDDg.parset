@@ -5,7 +5,7 @@ msout = .
 steps=[ddecal]
 
 ddecal.type = ddecal
-ddecal.uvlambdamin = 100
+ddecal.uvmmin = 500
 ddecal.h5parm = 
 ddecal.maxiter = 500
 ddecal.tolerance = 1e-3
