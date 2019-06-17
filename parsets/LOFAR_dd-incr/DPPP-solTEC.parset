@@ -1,0 +1,20 @@
+msin = 
+msin.datacolumn = SMOOTHED_DATA
+msout = .
+
+steps=[sol]
+
+sol.type = sol
+sol.uvlambdamin = 100
+sol.sourcedb =
+sol.h5parm = 
+sol.maxiter = 400
+sol.tolerance = 1e-3
+sol.solint = 3
+sol.nchan = 20
+sol.stepsize = 0.2
+sol.mode = tec # phaseonly, complexgain, tec, tecandphase
+sol.propagatesolutions = True
+sol.approximatetec = True
+sol.maxapproxiter = 400
+sol.approxtolerance = 1e-3

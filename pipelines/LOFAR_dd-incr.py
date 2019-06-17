@@ -310,10 +310,10 @@ for c in range(maxniter):
 
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Core calibration...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS msin.baseline="CS*&CS*" \
-            ddecal.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
-            ddecal.solint=5 ddecal.nchan=4 ddecal.h5parm=$pathMS/cal-core-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
-            log='$nameMS_solDDcore-c'+str(c)+'.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS msin.baseline="CS*&CS*" \
+            sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
+            sol.solint=5 sol.nchan=4 sol.h5parm=$pathMS/cal-core-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
+            log='$nameMS_solTECcore-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions
     for MS in MSs.getListObj():
@@ -327,11 +327,11 @@ for c in range(maxniter):
 
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Remote calibration...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solDD.parset msin=$pathMS \
-            ddecal.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
-            ddecal.applycal.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 ddecal.applycal.correction=tec000 \
-            ddecal.solint=1 ddecal.nchan=4 ddecal.h5parm=$pathMS/cal-remote-c'+str(c)+'.h5 ddecal.sourcedb='+skymodel_cl_skydb, \
-            log='$nameMS_solDDremote-c'+str(c)+'.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS \
+            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
+            sol.applycal.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.applycal.correction=tec000 \
+            sol.solint=1 sol.nchan=4 sol.h5parm=$pathMS/cal-remote-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
+            log='$nameMS_solTECremote-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions
     for MS in MSs.getListObj():
@@ -377,8 +377,8 @@ for c in range(maxniter):
 
         # FR Calibration - ms:SMOOTHED_DATA
         logger.info('Solving DIE FR...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calG1-c'+str(c)+'.h5', \
-                log='$nameMS_solDDg1-c'+str(c)+'.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG1-c'+str(c)+'.h5', \
+                log='$nameMS_solG1-c'+str(c)+'.log', commandType='DPPP')
     
         # Plot solutions
         lib_util.run_losoto(s, 'G1-c'+str(c), [MS+'/calG1-c'+str(c)+'.h5' for MS in MSs.getListStr()], \
@@ -396,8 +396,8 @@ for c in range(maxniter):
     
         # DIE Calibration - ms:SMOOTHED_DATA
         logger.info('Solving DIE AMP...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solDDg.parset msin=$pathMS ddecal.h5parm=$pathMS/calG2-c'+str(c)+'.h5', \
-                log='$nameMS_solDDg2-c'+str(c)+'.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG2-c'+str(c)+'.h5', \
+                log='$nameMS_solG2-c'+str(c)+'.log', commandType='DPPP')
     
         # Plot solutions
         lib_util.run_losoto(s, 'G2-c'+str(c), [MS+'/calG2-c'+str(c)+'.h5' for MS in MSs.getListStr()], \
