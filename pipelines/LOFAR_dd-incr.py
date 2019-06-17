@@ -299,14 +299,8 @@ for c in range(maxniter):
     ###
 
     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
-    #TODO: add smoothing on amplitudes
-    #TODO: circular basis?
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
-
-    # TODO: TEST Convert to circular - SMOOTHED_DATA -> SMOOTHED_DATA
-    logger.info('Converting to circular...')
-    MSs.run('mslin2circ.py -i $pathMS:SMOOTHED_DATA -o $pathMS:SMOOTHED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
 
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Core calibration...')
