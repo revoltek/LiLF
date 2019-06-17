@@ -298,6 +298,10 @@ for c in range(maxniter):
     #clean('onlycals-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
     ###
 
+    # TODO: TEST Convert to circular - SUBTRACTED_DATA -> SUBTRACTED_DATA
+    logger.info('Converting to circular...')
+    MSs.run('mslin2circ.py -i $pathMS:SUBTRACTED_DATA -o $pathMS:SUBTRACTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+
     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    

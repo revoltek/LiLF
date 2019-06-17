@@ -4,7 +4,7 @@ msout = .
 
 steps=[sol]
 
-sol.type = sol
+sol.type = ddecal
 sol.uvmmin = 500
 sol.h5parm = 
 sol.maxiter = 500
