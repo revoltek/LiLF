@@ -354,11 +354,11 @@ for c in range(maxniter):
                 log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
     
             # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
-#            logger.info('Patch '+d.name+': corrupt...')
-#            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS msin.datacolumn=MODEL_DATA_DIR msout.datacolumn=MODEL_DATA_DIR \
-#                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
-#                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
-#                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+            logger.info('Patch '+d.name+': corrupt...')
+            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS msin.datacolumn=MODEL_DATA_DIR msout.datacolumn=MODEL_DATA_DIR \
+                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
+                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
+                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
         
             logger.info('Patch '+d.name+': subtract...')
             MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA + MODEL_DATA_DIR"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
@@ -418,8 +418,6 @@ for c in range(maxniter):
         logger.info('Set SUBTRACTED_DATA = DATA...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 
-    print('No corruption, FR should be much worse.')
-    sys.exit()
 
     ###########################################################
     # Empty the dataset
