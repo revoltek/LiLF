@@ -225,8 +225,7 @@ def run_wsclean(s, logfile, MSs_files, **kwargs):
     reordering_processors = np.min([len(MSs_files),s.max_processors])
 
     # basic parms
-    #wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering '+str(reordering_processors) ) # TODO: it crashes
-    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-gridding 5' )
+    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 8 -parallel-gridding 3' )
     # other stanrdard parms
     wsc_parms.append( '-clean-border 1' )
     # temp dir

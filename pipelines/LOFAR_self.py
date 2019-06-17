@@ -147,7 +147,7 @@ for c in range(2):
     lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
             weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.8, \
             baseline_averaging=5, parallel_deconvolution=256, auto_threshold=10, \
-            join_channels='', fit_spectral_pol=2, channels_out=8, deconvolution_channels=4)
+            join_channels='', fit_spectral_pol=3, channels_out=8, deconvolution_channels=3)
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
@@ -161,7 +161,7 @@ for c in range(2):
             weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.8, \
             multiscale='', \
             baseline_averaging=5, auto_threshold=1, fits_mask=im.maskname, \
-            join_channels='', fit_spectral_pol=2, channels_out=8, deconvolution_channels=4)
+            join_channels='', fit_spectral_pol=3, channels_out=8, deconvolution_channels=3)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     # do beam-corrected+deeper image at last cycle
@@ -174,7 +174,7 @@ for c in range(2):
                 multiscale='', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600, \
                 parallel_deconvolution=256, auto_threshold=1, fits_mask=im.maskname, \
-                join_channels='', fit_spectral_pol=2, channels_out=8, deconvolution_channels=4)
+                join_channels='', fit_spectral_pol=3, channels_out=8, deconvolution_channels=3)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
         os.system('makepb.py -o img/avgbeam.fits -i '+imagename)
         
@@ -206,7 +206,7 @@ for c in range(2):
         lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, save_source_list='', temp_dir='./', size=imgsizepix, scale='30arcsec', \
                 weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
                 baseline_averaging=5, auto_threshold=1, \
-                join_channels='', fit_spectral_pol=2, channels_out=8, deconvolution_channels=4)
+                join_channels='', fit_spectral_pol=3, channels_out=8, deconvolution_channels=3)
         
         im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=False)
