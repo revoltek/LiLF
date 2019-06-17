@@ -7,7 +7,7 @@ msout.datacolumn = CORRECTED_DATA
 steps = [sol]
 
 sol.type = ddecal
-sol.uvlambdamin = 200
+sol.uvmmin = 500
 sol.mode = fulljones
 sol.tolerance = 1e-3
 sol.maxiter = 500

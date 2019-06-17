@@ -13,5 +13,6 @@ ddecal.solint = 45
 ddecal.nchan = 8
 ddecal.mode = diagonal # phaseonly, complexgain, tec, tecandphase
 ddecal.propagatesolutions = True
+ddecal.propagateconvergedonly = True
 ddecal.usemodelcolumn = True
 ddecal.smoothnessconstraint = 3e6
