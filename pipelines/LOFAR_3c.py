@@ -227,7 +227,7 @@ for c in range(100):
     imagename = 'img/img-%02i' % c
     lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='3arcsec', \
             weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.7, baseline_averaging=5, \
-            join_channels='', fit_spectral_pol=2, channels_out=5, deconvolution_channels=2 )
+            join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
 
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
     im.makeMask(threshisl = 5)
@@ -238,7 +238,7 @@ for c in range(100):
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='3arcsec', \
             weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.7, \
             fits_mask=im.maskname, multiscale='', auto_threshold=3, use_weights_as_taper='', \
-            join_channels='', fit_spectral_pol=2, channels_out=5, deconvolution_channels=2 )
+            join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     # Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA

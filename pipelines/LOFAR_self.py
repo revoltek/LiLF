@@ -146,7 +146,7 @@ for c in range(2):
     imagename = 'img/wide-'+str(c)
     lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
             weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.8, \
-            baseline_averaging=5, parallel_deconvolution=256, auto_threshold=10, \
+            baseline_averaging=5, parallel_deconvolution=256, auto_threshold=3, \
             join_channels='', fit_spectral_pol=3, channels_out=8, deconvolution_channels=3)
 
     # make mask
