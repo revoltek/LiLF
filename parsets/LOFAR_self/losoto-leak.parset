@@ -6,6 +6,10 @@ soltab = sol000/amplitude000
 axesToSmooth = [ant]
 mode = median
 
+[unflag]
+operation = REWEIGHT
+soltab = sol000/amplitude000
+
 [splitA]
 operation = SPLITLEAK
 soltab = sol000/amplitude000

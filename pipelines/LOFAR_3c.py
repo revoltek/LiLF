@@ -101,8 +101,8 @@ for timestamp in set([ os.path.basename(ms).split('_')[1][1:] for ms in MSs.getL
 
         # TODO: TEST
         # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
-        logger.info('Converting to circular...')
-        MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+        #logger.info('Converting to circular...')
+        #MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
 
         # Move CORRECTED_DATA -> DATA
         logger.info('Move CORRECTED_DATA -> DATA...')
@@ -225,7 +225,7 @@ for c in range(100):
     
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/img-%02i' % c
-    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='3arcsec', \
+    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='4arcsec', \
             weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.7, baseline_averaging=5, \
             join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
 
@@ -235,7 +235,7 @@ for c in range(100):
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/imgM-%02i' % c
     #auto_mask=5, local_rms=''
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='3arcsec', \
+    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='4arcsec', \
             weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.7, \
             fits_mask=im.maskname, multiscale='', auto_threshold=3, use_weights_as_taper='', \
             join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
