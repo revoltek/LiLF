@@ -300,7 +300,7 @@ for c in range(maxniter):
 
     # TODO: TEST Convert to circular - SUBTRACTED_DATA -> SUBTRACTED_DATA
     logger.info('Converting to circular...')
-    MSs.run('mslin2circ.py -i $pathMS:SUBTRACTED_DATA -o $pathMS:SUBTRACTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+    MSs.run('mslin2circ.py -i $pathMS:SUBTRACTED_DATA -o $pathMS:SUBTRACTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=4)
 
     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
     logger.info('BL-based smoothing...')
