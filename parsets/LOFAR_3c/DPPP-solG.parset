@@ -12,5 +12,6 @@ sol.maxiter = 500
 sol.nchan = 1
 sol.solint = 1
 sol.propagatesolutions = True
+sol.propagateconvergedonly = True
 sol.usemodelcolumn = True
-#sol.smoothnessconstraint = 1e6
+sol.smoothnessconstraint = 0.5e6

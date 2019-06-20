@@ -162,11 +162,11 @@ for c in range(100):
     # First get scalar solution to fix TEC
     # solve G - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/calG0.h5 sol.mode=scalarphase \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/calG0.h5 sol.mode=diagonal \
             sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
             log='$nameMS_solG0-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'G0-c'+str(c), [ms+'/calG0.h5' for ms in MSs.getListStr()], \
-                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
+                    [parset_dir+'/losoto-ph.parset',parset_dir+'/losoto-amp.parset'])
 
 #    # Correct SMOOTHED_DATA -> CORRECTED_DATA
 #    logger.info('Correction PH...')
@@ -206,7 +206,7 @@ for c in range(100):
 #            log='$nameMS_corFR2-c'+str(c)+'.log', commandType='DPPP')
     logger.info('Correction PH...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-G0-c'+str(c)+'.h5 cor.correction=phase000', \
-            log='$nameMS_corPH2-c'+str(c)+'.log', commandType='DPPP')
+            log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
 
     if doamp:
         # solve G - group*_TC.MS:CORRECTED_DATA

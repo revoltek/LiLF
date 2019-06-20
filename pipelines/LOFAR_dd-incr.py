@@ -308,7 +308,7 @@ for c in range(maxniter):
 
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Core calibration...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS msin.baseline="CS*&CS*" \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS msin.baseline="[CR]*&&;!RS210LBA;!RS310LBA;!RS509LBA;!RS508LBA;!RS409LBA;!RS208LBA;!RS307LBA" \
             sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
             sol.solint=5 sol.nchan=4 sol.h5parm=$pathMS/cal-core-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solTECcore-c'+str(c)+'.log', commandType='DPPP')
@@ -316,7 +316,7 @@ for c in range(maxniter):
     # Plot solutions
     for MS in MSs.getListObj():
         lib_util.run_losoto(s, 'core-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-core-c'+str(c)+'.h5', \
-                [parset_dir+'/losoto-jump.parset', parset_dir+'/losoto-resetremote.parset', parset_dir+'/losoto-plot-tec-core.parset'])
+                [parset_dir+'/losoto-jump.parset', parset_dir+'/losoto-resetremote.parset', parset_dir+'/losoto-plot-tec.parset'])
     os.system('mv plots-core-c'+str(c)+'* ddcal/plots')
     s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-core-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-core-c'+str(c)+'-*.h5')),\
                             log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
@@ -326,7 +326,7 @@ for c in range(maxniter):
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Remote calibration...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS \
-            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
+            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS406LBA,RS407LBA,RS503LBA]] \
             sol.applycal.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.applycal.correction=tec000 \
             sol.solint=1 sol.nchan=4 sol.h5parm=$pathMS/cal-remote-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solTECremote-c'+str(c)+'.log', commandType='DPPP')
@@ -340,6 +340,9 @@ for c in range(maxniter):
                             log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
     s.run(check = True)
     lib_util.check_rm('cal-remote-c'+str(c)+'-*.h5')
+
+
+    sys.exit()
     
     ##############################################################
     # low S/N DIE corrections

@@ -37,11 +37,11 @@ logger.info('Cleaning...')
 lib_util.check_rm('img')
 os.makedirs('img')
 
-# here images, models, solutions for each group will be saved
-lib_util.check_rm('self')
-if not os.path.exists('self/images'): os.makedirs('self/images')
-if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
-if not os.path.exists('self/plots'): os.makedirs('self/plots')
+## here images, models, solutions for each group will be saved
+#lib_util.check_rm('self')
+#if not os.path.exists('self/images'): os.makedirs('self/images')
+#if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
+#if not os.path.exists('self/plots'): os.makedirs('self/plots')
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 try:
@@ -105,14 +105,14 @@ for c in range(2):
     else:
         incol = 'DATA'
 
-    # Smooth DATA -> SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
- 
-    # solve TEC - group*_TC.MS:SMOOTHED_DATA
-    logger.info('Solving TEC...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5', \
-                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
+#    # Smooth DATA -> SMOOTHED_DATA
+#    logger.info('BL-based smoothing...')
+#    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
+# 
+#    # solve TEC - group*_TC.MS:SMOOTHED_DATA
+#    logger.info('Solving TEC...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5', \
+#                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
  
     # LoSoTo plot dejump
     for MS in MSs.getListObj():
