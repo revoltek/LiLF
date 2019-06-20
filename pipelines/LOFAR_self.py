@@ -105,14 +105,14 @@ for c in range(2):
     else:
         incol = 'DATA'
 
-#    # Smooth DATA -> SMOOTHED_DATA
-#    logger.info('BL-based smoothing...')
-#    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
-# 
-#    # solve TEC - group*_TC.MS:SMOOTHED_DATA
-#    logger.info('Solving TEC...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5', \
-#                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
+    # Smooth DATA -> SMOOTHED_DATA
+    logger.info('BL-based smoothing...')
+    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
+ 
+    # solve TEC - group*_TC.MS:SMOOTHED_DATA
+    logger.info('Solving TEC...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5', \
+                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
  
     # LoSoTo plot dejump
     for MS in MSs.getListObj():
