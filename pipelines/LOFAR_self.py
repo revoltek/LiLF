@@ -140,9 +140,9 @@ for c in range(2):
         os.system('mv cal-g-c'+str(c)+'.h5 self/solutions/')
 
         # TEST: correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-        logger.info('Correcting G...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitudeG', \
-                log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
+        #logger.info('Correcting G...')
+        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitudeG', \
+        #        log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
 
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA

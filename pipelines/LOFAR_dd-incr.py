@@ -257,42 +257,42 @@ for c in range(maxniter):
     for i, d in enumerate(directions):
         logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
 
-#    ################################################################
-#    # Calibrate TEC
-#    logger.info('Subtraction rest_field...')
-#
-#    # Fist cycle remove other sources with no DD corrections, when DD correction is available use it
-#    if c == 0:
-#        # Predict - ms:MODEL_DATA
-#        logger.info('Add rest_field to MODEL_DATA...')
-#        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-#    
-#        # Empty dataset from faint sources
-#        logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
-#        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-#    
-#    else:
-#
-#        # Copy DATA -> SUBTRACTED_DATA
-#        logger.info('Set SUBTRACTED_DATA = DATA...')
-#        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-#
-#        for i, d in enumerate(directions_old):
-#            # predict - ms:MODEL_DATA
-#            logger.info('Patch '+d.name+': predict...')
-#            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb+' pre.sources='+d.name, \
-#                    log='$nameMS_pre0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-#        
-#            # corrupt (note: use previous cal table) - ms:MODEL_DATA -> ms:MODEL_DATA
-#            logger.info('Patch '+d.name+': corrupt...')
-#            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS \
-#                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c-1)+'.h5   corC.direction=['+d.name+'] \
-#                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c-1)+'.h5 corR.direction=['+d.name+']', \
-#                    log='$nameMS_corrupt0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-#            
-#            logger.info('Patch '+d.name+': subtract...')
-#            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
-#
+    ################################################################
+    # Calibrate TEC
+    logger.info('Subtraction rest_field...')
+
+    # Fist cycle remove other sources with no DD corrections, when DD correction is available use it
+    if c == 0:
+        # Predict - ms:MODEL_DATA
+        logger.info('Add rest_field to MODEL_DATA...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+    
+        # Empty dataset from faint sources
+        logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    
+    else:
+
+        # Copy DATA -> SUBTRACTED_DATA
+        logger.info('Set SUBTRACTED_DATA = DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+
+        for i, d in enumerate(directions_old):
+            # predict - ms:MODEL_DATA
+            logger.info('Patch '+d.name+': predict...')
+            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb+' pre.sources='+d.name, \
+                    log='$nameMS_pre0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        
+            # corrupt (note: use previous cal table) - ms:MODEL_DATA -> ms:MODEL_DATA
+            logger.info('Patch '+d.name+': corrupt...')
+            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS \
+                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c-1)+'.h5   corC.direction=['+d.name+'] \
+                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c-1)+'.h5 corR.direction=['+d.name+']', \
+                    log='$nameMS_corrupt0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+            
+            logger.info('Patch '+d.name+': subtract...')
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
+
 #    ### TESTTESTTEST: empty image with cals
 #    #MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 #    #clean('onlycals-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
@@ -352,23 +352,25 @@ for c in range(maxniter):
        
         for i, d in enumerate(directions):
             # predict - ms:MODEL_DATA
+            # TEST: try cl instead of voro skydb
             logger.info('Patch '+d.name+': predict...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_DIR pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
+            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_DIR pre.sourcedb='+skymodel_cl_skydb+' pre.sources='+d.name, \
                 log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
     
-#            # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
-#            logger.info('Patch '+d.name+': corrupt...')
-#            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS msin.datacolumn=MODEL_DATA_DIR msout.datacolumn=MODEL_DATA_DIR \
-#                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
-#                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
-#                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+            # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
+            logger.info('Patch '+d.name+': corrupt...')
+            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS msin.datacolumn=MODEL_DATA_DIR msout.datacolumn=MODEL_DATA_DIR \
+                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
+                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
+                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
         
             logger.info('Patch '+d.name+': add...')
             MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA + MODEL_DATA_DIR"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
-        # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
+        # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
+        # TEST: use SUBTRACTED_DATA instead of DATA to remove when cl->voro skydb
         logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
+        MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
 
         # Convert to circular - SMOOTHED_DATA -> SMOOTHED_DATA
         logger.info('Converting to circular...')
