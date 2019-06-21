@@ -226,8 +226,8 @@ def run_wsclean(s, logfile, MSs_files, **kwargs):
 
     # basic parms
     # TODO: add when https://sourceforge.net/p/wsclean/tickets/142/ is fixed
-    #wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 8 -parallel-gridding 3' )
-    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 8' )
+    #wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4 -parallel-gridding 3' )
+    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4' )
     # other stanrdard parms
     wsc_parms.append( '-clean-border 1' )
     # temp dir
