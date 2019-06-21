@@ -3,12 +3,24 @@ Ncpu = 0
 [smooth]
 operation = SMOOTH
 soltab = sol000/amplitude000
+ant.regexp = CS*
 axesToSmooth = [ant]
 mode = median
 
 [unflag]
 operation = REWEIGHT
 soltab = sol000/amplitude000
+
+[replicate]
+operation = REPLICATEONAXIS
+soltab = sol000/amplitude000
+axisReplicate = ant
+fromCell = CS001LBA
+
+[normalize]
+operation = NORM
+soltab = sol000/amplitude000
+axesToNorm = [pol]
 
 [splitA]
 operation = SPLITLEAK

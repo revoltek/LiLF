@@ -141,7 +141,7 @@ for c in range(2):
 
         # TEST: correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting G...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitudeG', \
                 log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
 
     ###################################################################################################################
@@ -170,26 +170,25 @@ for c in range(2):
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
-    # do beam-corrected+deeper image at last cycle
+    print('try adding antennacontraint on all stations when solving for G')
+    sys.exit()
+
+
+    # do beam-corrected+fullstokes image at last cycle
     if c == 1:
 
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
         lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.8, \
+                pol='IQUV', join_polarizations='', \
                 multiscale='', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600, \
                 parallel_deconvolution=256, auto_threshold=0.5, fits_mask=im.maskname, \
-                join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+                join_channels='', channels_out=9)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
         os.system('makepb.py -o img/avgbeam.fits -i '+imagename)
         
-        logger.info('Cleaning V (cycle: '+str(c)+')...')
-        imagename = 'img/wideV'
-        lib_util.run_wsclean(s, 'wscleanV-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', pol='V', \
-            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, maxuv_l=5000, \
-            use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600)
-
     # add model and remove first sidelobe
     if c == 0:
 

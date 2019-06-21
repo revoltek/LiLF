@@ -28,7 +28,7 @@ MSs_self = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 phasecentre = MSs_self.getListObj()[0].getPhaseCentre()
 fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
-##########################
+###########################
 logger.info('Cleaning...')
 lib_util.check_rm('ddcal')
 os.makedirs('ddcal/masks')
@@ -257,6 +257,7 @@ for c in range(maxniter):
     for i, d in enumerate(directions):
         logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
 
+<<<<<<< HEAD
     ################################################################
     # Calibrate TEC
     logger.info('Subtraction rest_field...')
@@ -338,8 +339,6 @@ for c in range(maxniter):
     lib_util.check_rm('cal-remote-c'+str(c)+'-*.h5')
 
 
-    sys.exit()
-    
     ##############################################################
     # low S/N DIE corrections
     if c>=0:
@@ -361,7 +360,7 @@ for c in range(maxniter):
                     corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
                 log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
         
-            logger.info('Patch '+d.name+': subtract...')
+            logger.info('Patch '+d.name+': add...')
             MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA + MODEL_DATA_DIR"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
         # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
@@ -419,6 +418,10 @@ for c in range(maxniter):
         logger.info('Set SUBTRACTED_DATA = DATA...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 
+    print('NO CORRUPT MODEL BEFORE G')
+    sys.exit()
+
+    
     ###########################################################
     # Empty the dataset
 
