@@ -262,11 +262,11 @@ def blank_image_reg(filename, region, outfile = None, inverse = False, blankval 
 
     logger.debug("%s: Blanking (%s): sum of values: %f -> %f" % (filename, region, sum_before, np.sum(data)))
 
-def make_fits(filename, size, fill_value=1):
+def make_fits(filename, shape, fill_value=1):
     """
     Create a fits file
     """
-    data = np.full(shape=size, fill_value=fill_value)
+    data = np.full(shape=shape, fill_value=fill_value)
     hdu = pyfits.PrimaryHDU(data)
     hdul = pyfits.HDUList([hdu])
-    hdul.writeto(filename)
+    hdul.writeto(filename, overwrite=True)

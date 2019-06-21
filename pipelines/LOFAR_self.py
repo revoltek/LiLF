@@ -85,8 +85,8 @@ for MS in MSs.getListStr():
     os.system('cp -r '+sourcedb+' '+MS)
 
 # Create columns
-logger.info('Creating MODEL_DATA_LOWRES and SUBTRACTED_DATA...')
-MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA_LOWRES,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+logger.info('Creating SUBTRACTED_DATA...')
+MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
 
 logger.info('Add model to MODEL_DATA...')
 if apparent:
@@ -204,32 +204,28 @@ for c in range(2):
         # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
         logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
         MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    
+
         # reclean low-resolution
-        # TODO: add -parallel-deconvolution=256 when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
-        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, save_source_list='', temp_dir='./', size=imgsizepix, scale='30arcsec', \
-                weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
-                baseline_averaging=5, auto_mask=3, auto_threshold=0.5, \
+        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
+                weight='briggs 0.', niter=50000, update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
+                parallel_deconvolution=256, baseline_averaging=5, auto_mask=3, auto_threshold=0.5, fits_mask='img/wide-lr-maskbeam.fits', \
                 join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
         
-        im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
-        im.selectCC(keepInBeam=False)
-
-        # predict low-res model for CS-CS baselines only (sols are too inaccurate and data smeared for the RS) - ms: MODEL_DATA_LOWRES
-        logger.info('Set MODEL_DATA_LOWRES to 0')
-        MSs.run('taql "update $pathMS set MODEL_DATA_LOWRES = 0"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-        logger.info('Predict low-res model...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msin.baseline="CS*&" msout.datacolumn=MODEL_DATA_LOWRES pre.usebeammodel=false pre.sourcedb='+im.skydb, \
-                log='$nameMS_pre-lr.log', commandType='DPPP')
+        # predict using WSClean only on certain range
+        for model_img in glob.glob('img/wide-lr*model*fits'):
+            lib_img.blank_image_reg(model_img, beamReg, blankval = 0.)
+        s.add('wsclean -predict -name img/wide-lr -j '+str(s.max_processors)+' -channels-out 9 -maxuvw-m 5000 '+MSs.getStrWsclean(), \
+                              log='wscleanLR-PRE.log', commandType='wsclean', processors='max')
+        s.run(check=True)
 
         ##############################################
         # Flag on empty dataset
 
-        # Subtract low-res model - CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_LOWRES
-        logger.info('Subtracting low-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_LOWRES)...')
-        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_LOWRES"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+        # Subtract low-res model - CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA
+        logger.info('Subtracting low-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
+        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 
         # Flag on residuals (CORRECTED_DATA)
         logger.info('Flagging residuals...')
@@ -238,15 +234,21 @@ for c in range(2):
         ##############################################
         # Prepare SUBTRACTED_DATA
 
-        # corrupt model with TEC solutions - ms:MODEL_DATA_LOWRES -> ms:MODEL_DATA_LOWRES
+        # corrupt model with TEC solutions - ms:MODEL_DATA -> ms:MODEL_DATA
         logger.info('Corrupt low-res model...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA_LOWRES msout.datacolumn=MODEL_DATA_LOWRES  \
-                cor.parmdb=$pathMS/tec.h5 cor.correction=tec000 cor.invert=false', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=false', \
                 log='$nameMS_corrupt.log', commandType='DPPP')
     
-        # Subtract low-res model - SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES
-        logger.info('Subtracting low-res model (SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES)...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA_LOWRES"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+        # Subtract low-res model - SUBTRACTED_DATA = DATA - MODEL_DATA
+        logger.info('Subtracting low-res model (SUBTRACTED_DATA = DATA - MODEL_DATA)...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+
+        # Recreate MODEL_DATA
+        logger.info('Predict model...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
+                log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+
 
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(2) ]
