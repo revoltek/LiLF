@@ -1,20 +1,6 @@
 Ncpu = 0
 
-[plotA]
-operation = PLOT
-soltab = sol000/amplitude000
-axesInPlot = [time,freq]
-axisInTable = ant
-plotFlag = True
-prefix = plots/amp_
-
-[clip]
-operation = CLIP
-soltab = sol000/amplitude000
-mode = below
-clipLevel = 0.5
-
-[copy]
+[bkp]
 operation = DUPLICATE
 soltab = sol000/amplitude000
 soltabOut = amplitudeSmooth
@@ -33,19 +19,19 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/ampSmooth1_
+#minmax = [0.8,1.2]
 
 [replicate]
 operation = REPLICATEONAXIS
 soltab = sol000/amplitudeSmooth
 axisReplicate = ant
 fromCell = CS001LBA
-updateWeights = False
 
 [norm]
 operation = NORM
 soltab = sol000/amplitudeSmooth
 normVal = 1.
-axesToNorm = [time,freq]
+axesToNorm = [time,freq,ant]
 
 [plotAsmooth2]
 operation = PLOT
@@ -54,3 +40,4 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/ampSmooth2_
+#minmax = [0.8,1.2]

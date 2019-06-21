@@ -1,17 +1,18 @@
-msin =
+msin = 
 msin.datacolumn = SMOOTHED_DATA
 msout = .
-msout.datacolumn = CORRECTED_DATA
 
-steps = [sol]
+steps=[sol]
 
 sol.type = ddecal
-sol.uvlambdamin = 100
-sol.mode = rotation+diagonal
+sol.uvmmin = 500
+sol.h5parm = 
 sol.maxiter = 500
 sol.tolerance = 1e-3
+sol.solint = 45
+sol.nchan = 8
+sol.mode = diagonal # phaseonly, complexgain, tec, tecandphase
 sol.propagatesolutions = True
 sol.propagateconvergedonly = True
 sol.usemodelcolumn = True
-sol.flagunconverged = False
-#sol.flagdivergedonly = True
+sol.smoothnessconstraint = 3e6

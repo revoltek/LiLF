@@ -132,8 +132,8 @@ class AllMSs(object):
             sun_dist = coord.separation(coord_sun)
             lst = time.sidereal_time('mean', telescope_coords.longitude)
             ha = lst - coord.ra # hour angle
-            print 'Sun distance: %.2f deg' % sun_dist.deg
-            print 'Hour angle: %s deg' % ha
+            logger.info('Sun distance: %.2f deg' % sun_dist.deg)
+            logger.info('Hour angle: %s deg' % ha)
 
 
 class MS(object):
@@ -291,8 +291,8 @@ class MS(object):
         """
         with tables.table(self.pathMS, ack = False) as t:
             nTimes = len(set(t.getcol("TIME")))
-        with tables.table(self.pathMS + "/OBSERVATION", ack = False) as t:
-            deltaT = (t.getcol("TIME_RANGE")[0][1] - t.getcol("TIME_RANGE")[0][0]) / nTimes
+        t_init, t_end = self.getTimeRange()
+        deltaT = (t_end - t_init) / nTimes
 
         logger.debug("%s: time interval (seconds): %f", self.pathMS, deltaT)
         return deltaT
@@ -302,8 +302,8 @@ class MS(object):
         """
         Return the time interval of this observation
         """
-        with tables.table(self.pathMS + "/OBSERVATION", ack = False) as t:
-            return ( t.getcol("TIME_RANGE")[0][1], t.getcol("TIME_RANGE")[0][0] )
+        with tables.table(self.pathMS, ack = False) as t:
+            return ( t.getcol("TIME")[0], t.getcol("TIME")[-1] )
 
 
     def getPhaseCentre(self):

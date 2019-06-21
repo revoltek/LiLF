@@ -99,6 +99,11 @@ for timestamp in set([ os.path.basename(ms).split('_')[1][1:] for ms in MSs.getL
         logger.info('Beam correction...')
         MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DPPP')
 
+        # TODO: TEST
+        # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
+        #logger.info('Converting to circular...')
+        #MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+
         # Move CORRECTED_DATA -> DATA
         logger.info('Move CORRECTED_DATA -> DATA...')
         MSs.run('taql "update $pathMS set DATA = CORRECTED_DATA"', log='$nameMS_taql.log', commandType='general')
@@ -130,10 +135,6 @@ if not os.path.exists(sourcedb):
 logger.info('Predict (DPPP)...')
 MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+sourcedb, log='$nameMS_pre.log', commandType='DPPP')
 
-# Smooth DATA -> SMOOTHED_DATA
-logger.info('BL-based smoothing...')
-MSs.run('BLsmooth.py -r -f 0.2 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
-
 ###############################################################
 # Selfcal
 rms_noise_pre = np.inf; doamp = False
@@ -141,22 +142,70 @@ for c in range(100):
 
     logger.info('== Start cycle: %s ==' % c)
 
+    logger.info('Merge source model into 1 patch...')
+    lsm = lsmtool.load('tgts.skymodel')
+    lsm.group('single')
+    lsm.write('tgts-onepatch.skymodel', clobber=True)
+    os.system('makesourcedb outtype="blob" format="<" in=tgts-onepatch.skymodel out=tgts-onepatch.skydb')
+    sourcedb = 'tgts-onepatch.skydb'
+
     logger.info('Remove bad timestamps...')
     MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
     ####################################################
     # 1: Solving
 
+    # Smooth DATA -> SMOOTHED_DATA
+    logger.info('BL-based smoothing...')
+    MSs.run('BLsmooth.py -r -f 0.2 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
+
+    # First get scalar solution to fix TEC
     # solve G - group*_TC.MS:SMOOTHED_DATA
-    logger.info('Solving G...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG.h5 sol.mode=diagonal', \
-            log='$nameMS_solG-c'+str(c)+'.log', commandType="DPPP")
-    lib_util.run_losoto(s, 'G-c'+str(c), [ms+'/calG.h5' for ms in MSs.getListStr()], \
-                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
+    logger.info('Solving...')
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/calG0.h5 sol.mode=diagonal \
+            sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
+            log='$nameMS_solG0-c'+str(c)+'.log', commandType="DPPP")
+    lib_util.run_losoto(s, 'G0-c'+str(c), [ms+'/calG0.h5' for ms in MSs.getListStr()], \
+                    [parset_dir+'/losoto-ph.parset',parset_dir+'/losoto-amp.parset'])
+
+#    # Correct SMOOTHED_DATA -> CORRECTED_DATA
+#    logger.info('Correction PH...')
+#    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA cor.parmdb=cal-G0-c'+str(c)+'.h5 cor.correction=phase000', \
+#            log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
+#
+#    # Then get phaseonly diagonal to find FR
+#    # solve G - group*_TC.MS:CORRECTED_DATA
+#    logger.info('Solving...')
+#    MSs.run('DPPP ' + parset_dir + '/DPPP-solFR.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calG1.h5 sol.mode=phaseonly \
+#            sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
+#            log='$nameMS_solG1-c'+str(c)+'.log', commandType="DPPP")
+#    lib_util.run_losoto(s, 'G1-c'+str(c), [ms+'/calG1.h5' for ms in MSs.getListStr()], \
+#                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-fr.parset'])
+#
+#    # Correct DATA -> CORRECTED_DATA
+#    logger.info('Correction FR...')
+#    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+#            log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
+#
+#    # Smooth CORRECTED_DATA -> SMOOTHED_DATA
+#    logger.info('BL-based smoothing...')
+#    MSs.run('BLsmooth.py -r -f 0.2 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
+#
+#    # Get again TEC with scalr
+#    # solve G - group*_TC.MS:SMOOTHED_DATA
+#    logger.info('Solving...')
+#    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/calG2.h5 sol.mode=scalarcomplexgain \
+#            sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
+#            log='$nameMS_solG2-c'+str(c)+'.log', commandType="DPPP")
+#    lib_util.run_losoto(s, 'G2-c'+str(c), [ms+'/calG2.h5' for ms in MSs.getListStr()], \
+#                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
 
     # Correct DATA -> CORRECTED_DATA
+#    logger.info('Correction FR...')
+#    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+#            log='$nameMS_corFR2-c'+str(c)+'.log', commandType='DPPP')
     logger.info('Correction PH...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-G-c'+str(c)+'.h5 cor.correction=phase000', \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-G0-c'+str(c)+'.h5 cor.correction=phase000', \
             log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
 
     if doamp:
@@ -176,31 +225,34 @@ for c in range(100):
     
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/img-%02i' % c
-    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=4500, scale='4arcsec', \
-            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.5, baseline_averaging=5)
+    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='4arcsec', \
+            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.7, baseline_averaging=5, \
+            join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
 
-    im = lib_img.Image(imagename+'-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 3)
+    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
+    im.makeMask(threshisl = 5)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/imgM-%02i' % c
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=4500, scale='4arcsec', \
-            weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.5, \
-            multiscale='', auto_threshold=3, use_weights_as_taper='', fits_mask=im.maskname)#, auto_mask=5, local_rms='')#, fits_mask=im.maskname)
+    #auto_mask=5, local_rms=''
+    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='4arcsec', \
+            weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.7, \
+            fits_mask=im.maskname, multiscale='', auto_threshold=3, use_weights_as_taper='', \
+            join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     # Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA
-    logger.info('Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA...')
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql.log', commandType='general')
+    #logger.info('Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA...')
+    #MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql.log', commandType='general')
 
     # Flag on residuals (CORRECTED_DATA)
-    logger.info('Flagging residuals...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-flagres.parset msin=$pathMS', log='$nameMS_flagres-c'+str(c)+'.log', commandType='DPPP')
+    #logger.info('Flagging residuals...')
+    #MSs.run('DPPP '+parset_dir+'/DPPP-flagres.parset msin=$pathMS', log='$nameMS_flagres-c'+str(c)+'.log', commandType='DPPP')
 
-    rms_noise = lib_img.Image(imagename+'-image.fits').getNoise()
+    rms_noise = lib_img.Image(imagename+'-MFS-image.fits').getNoise()
     logger.info('RMS noise: %f' % rms_noise)
     if rms_noise > 0.95*rms_noise_pre:
-        #if doamp: break # if already doing amp and not getting better, quit
+        if doamp: break # if already doing amp and not getting better, quit
         doamp = True
     rms_noise_pre = rms_noise
 

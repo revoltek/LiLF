@@ -154,7 +154,7 @@ for c in range(100):
 
     # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
-    if c == 0:
+    if c == 0 and lofar_system == 'lba':
         MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM3.log', commandType='DPPP')
     else:
         MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=False', log='$nameMS_corBEAM3.log', commandType='DPPP')
@@ -188,23 +188,23 @@ for c in range(100):
     # Correct BP CORRECTED_DATA -> CORRECTED_DATA
     # TEST: change iono->amp to correct for bandpass
     logger.info('BP correction...')
-    if c == 0:
+    if c == 0 and lofar_system == 'lba':
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=amplitude000', \
                 log='$nameMS_corAMP3.log', commandType='DPPP')
     else:
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=amplitude000', \
                 log='$nameMS_corAMP3.log', commandType='DPPP')
        
-    # briggs: -1.2 for virgo; -1.0 for subtraction to get good minihalo?
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1000, scale='1.5arcsec', \
                 weight='briggs -1.5', niter=50000, no_update_model_required='', mgain=0.5, \
                 #iuwt='', gain=0.2, \
+                use_weights_as_taper='',\
                 multiscale='', multiscale_scale_bias=0.7, \
                 #multiscale_scales='0,10,20,40', \
-                fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
+                #fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
                 baseline_averaging=5, auto_threshold=1, \
                 join_channels='', deconvolution_channels=20, fit_spectral_pol=7, channels_out=61)
 
@@ -244,6 +244,7 @@ for c in range(100):
                 weight='briggs -0.9', niter=1000, update_model_required='', mgain=0.5, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
                 join_channels='', deconvolution_channels=20, fit_spectral_pol=7, channels_out=61) # use cont=True
+        sys.exit()
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
                 weight='briggs -0.6', niter=50000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80', \

@@ -334,7 +334,7 @@ for c in range(maxniter):
 
         # Convert to circular - SMOOTHED_DATA -> SMOOTHED_DATA
         logger.info('Converting to circular...')
-        MSs.run('mslin2circ.py -i $pathMS:SMOOTHED_DATA -o $pathMS:SMOOTHED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+        MSs.run('mslin2circ.py -i $pathMS:SMOOTHED_DATA -o $pathMS:SMOOTHED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=3)
 
         # FR Calibration - ms:SMOOTHED_DATA
         logger.info('Solving DIE FR...')

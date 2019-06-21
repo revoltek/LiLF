@@ -8,8 +8,8 @@ axesInPlot = time
 axisInTable = dir
 plotFlag = True
 minmax = [-0.5,0.5]
-prefix = plots/tecjump
-refAnt = 'CS002LBA'
+prefix = plots/tec-prejump
+refAnt = 'CS001LBA'
 
 [plotTECant]
 operation = PLOT
@@ -18,10 +18,10 @@ axesInPlot = time
 axisInTable = ant
 plotFlag = True
 minmax = [-0.5,0.5]
-prefix = plots/tecjump
-refAnt = 'CS002LBA'
+prefix = plots/tec-prejump
+refAnt = 'CS001LBA'
 
 [fixJump]
-operation=TECJUMP
+operation = TECJUMP
 soltab = sol000/tec000
-refAnt=CS001LBA
+refAnt = 'CS001LBA'

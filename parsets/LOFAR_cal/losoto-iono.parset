@@ -84,22 +84,20 @@ refAnt = 'CS001LBA'
 #refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]
 
-[smooth]
-operation = SMOOTH
-soltab = sol000/phase000
-axesToSmooth = [time,freq]
-mode = median
-refAnt = 'CS001LBA'
-
-[PlotPr2]
-operation = PLOT
-soltab = sol000/phase000
-axesInPlot = [time,freq]
-axisInTable = ant
-plotFlag = True
-prefix = plots/phResSmooth
-refAnt = 'CS001LBA'
-#refAnt = 'CS002LBA'
-minmax = [-3.14,3.14]
-
-
+#[smooth]
+#operation = SMOOTH
+#soltab = sol000/phase000
+#axesToSmooth = [time,freq]
+#mode = median
+#refAnt = 'CS001LBA'
+#
+#[PlotPr2]
+#operation = PLOT
+#soltab = sol000/phase000
+#axesInPlot = [time,freq]
+#axisInTable = ant
+#plotFlag = True
+#prefix = plots/phResSmooth
+#refAnt = 'CS001LBA'
+##refAnt = 'CS002LBA'
+#minmax = [-3.14,3.14]

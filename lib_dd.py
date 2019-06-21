@@ -364,7 +364,7 @@ class Grouper( object ):
         self.fluxes = fluxes
         self.kernel_size = 0.1 # deg
         self.n_iterations = 100
-        self.look_distance = 0.3 # deg
+        self.look_distance = 0.2 # deg
         self.grouping_distance = 0.01 # deg
         self.past_coords = [np.copy(self.coords)]
         self.clusters = []

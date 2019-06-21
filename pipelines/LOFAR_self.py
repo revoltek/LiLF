@@ -44,7 +44,10 @@ if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
 if not os.path.exists('self/plots'): os.makedirs('self/plots')
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
-MSs.plot_HAcov('HAcov.png')
+try:
+    MSs.plot_HAcov('HAcov.png')
+except:
+    logger.error('Problem with HAcov, continue anyway.')
 
 # make beam to the first mid null
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
@@ -105,75 +108,90 @@ for c in range(2):
     # Smooth DATA -> SMOOTHED_DATA
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
-
+ 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving TEC...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS ddecal.h5parm=$pathMS/tec.h5', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
-
+ 
     # LoSoTo plot dejump
-    # TODO: is there a better way then run it on each hour?
     for MS in MSs.getListObj():
-        lib_util.run_losoto(s, 'tec'+str(c)+'-'+MS.nameMS, MS.pathMS+'/tec.h5',[parset_dir+'/losoto-tec.parset'])
-    os.system('mv plots-tec'+str(c)+'* self/plots/')
-    os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
+        lib_util.run_losoto(s, 'tec-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/tec.h5',[parset_dir+'/losoto-tec.parset'])
+    os.system('mv plots-tec-c'+str(c)+'* self/plots/')
+    s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-tec-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-tec-c'+str(c)+'*.h5')),\
+            log='losotoTEC-c'+str(c)+'.log', commandType="python", processors='max')
+    s.run(check = True)
+    lib_util.check_rm('cal-tec'+str(c)+'*.h5')
 
     # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC...')
-    lib_util.run_losoto(s, 'tec'+str(c), glob.glob('self/solutions/cal-tec'+str(c)+'*.h5'),[]) # concat H5parms
-    os.system('mv cal-tec'+str(c)+'.h5 self/solutions/')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=tec000', \
-                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000', \
+               log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
+
+    # AMP+LEAK DIE correction
+    if c >= 0:
+        # DIE Calibration - ms:CORRECTED_DATA
+        logger.info('Solving slow G...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/g.h5', \
+                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+        lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()], \
+                [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-leak.parset'])
+        os.system('mv plots-g-c'+str(c)+' self/plots/')
+        os.system('mv cal-g-c'+str(c)+'.h5 self/solutions/')
+
+        # TEST: correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
+        logger.info('Correcting G...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000', \
+                log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
 
     ###################################################################################################################
-    # clen on concat.MS:CORRECTED_DATA (FR/TEC corrected, beam corrected)
+    # clen on concat.MS:CORRECTED_DATA
 
     # clean mask clean (cut at 5k lambda)
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wide-'+str(c)
     lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
-            weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=256, auto_threshold=20, \
-            join_channels='', fit_spectral_pol=2, channels_out=8)
-
-    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg, beamReg=beamReg)
+            weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.8, \
+            baseline_averaging=5, parallel_deconvolution=256, auto_threshold=3, \
+            join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 3)
+    im.makeMask(threshisl = 4)
    
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     # TODO: add -parallel-deconvolution=256 when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
-            weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
-            multiscale='', multiscale_scales='0,10,20', \
-            baseline_averaging=5, auto_threshold=1, fits_mask=im.maskname, \
-            join_channels='', fit_spectral_pol=2, channels_out=8)
+            weight='briggs 0.', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.8, \
+            multiscale='', \
+            baseline_averaging=5, auto_threshold=0.5, fits_mask=im.maskname, \
+            join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     # do beam-corrected+deeper image at last cycle
     if c == 1:
+
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
         lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
-                weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
-                multiscale='', multiscale_scales='0,10,20', \
+                weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.8, \
+                multiscale='', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600, \
-                parallel_deconvolution=256, auto_threshold=1, fits_mask=im.maskname, \
-                join_channels='', fit_spectral_pol=2, channels_out=8)
+                parallel_deconvolution=256, auto_threshold=0.5, fits_mask=im.maskname, \
+                join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
         os.system('makepb.py -o img/avgbeam.fits -i '+imagename)
         
         logger.info('Cleaning V (cycle: '+str(c)+')...')
         imagename = 'img/wideV'
-        lib_util.run_wsclean(s, 'wscleanV-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', \
-            pol='V', \
-            weight='briggs 0.', no_update_model_required='', minuv_l=30, maxuv_l=5000, \
-            baseline_averaging=5)
+        lib_util.run_wsclean(s, 'wscleanV-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='10arcsec', pol='V', \
+            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, maxuv_l=5000, \
+            use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600)
 
-    if c != 1:
+    # add model and remove first sidelobe
+    if c == 0:
 
         im = lib_img.Image(imagename+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=True)
@@ -183,7 +201,6 @@ for c in range(2):
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
                 log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
 
-    if c == 0:
         # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
         logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
         MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
@@ -193,9 +210,9 @@ for c in range(2):
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
         lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, save_source_list='', temp_dir='./', size=imgsizepix, scale='30arcsec', \
-                weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.85, \
-                baseline_averaging=5, auto_threshold=1, \
-                join_channels='', fit_spectral_pol=2, channels_out=8)
+                weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
+                baseline_averaging=5, auto_mask=3, auto_threshold=0.5, \
+                join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
         
         im = lib_img.Image(imagename_lr+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=False)

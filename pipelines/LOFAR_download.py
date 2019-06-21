@@ -17,6 +17,7 @@ parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_download','parset_dir')
 fix_table = parset.getboolean('LOFAR_download','fix_table')
 renameavg = parset.getboolean('LOFAR_download','renameavg')
+keep_IS = parset.getboolean('LOFAR_download','keep_IS')
 
 ###########################################
 if os.path.exists('html.txt'):
@@ -88,31 +89,31 @@ if not download_file is None:
             logger.debug('Queue download of: '+line[:-1])
         s.run(check=True, maxThreads=4)
 
-#MSs = lib_ms.AllMSs(glob.glob('*MS'), s, check_flags=False)
-#if len(MSs.getListStr()) == 0:
-#    logger.info('Done.')
-#    sys.exit(0)
-#
-#######################################
-#with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
-#    t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
-#    time = np.int(t.iso.replace('-','')[0:8])
-#
-#if fix_table:
-#    logger.info('Fix MS table...')
-#    MSs.run('fixMS_TabRef.py $pathMS', log='$nameMS_fixms.log', commandType='python')
-#
-#    # only ms created in range (2/2013->2/2014)
-#    if time > 20130200 and time < 20140300:
-#        logger.info('Fix beam table...')
-#        MSs.run('/home/fdg/scripts/fixinfo/fixbeaminfo $pathMS', log='$nameMS_fixbeam.log', commandType='python')
-#
-## Rescale visibilities by 1e3 if before 2014-03-19 (old correlator), and by 1e-2 otherwise
-#logger.info('Rescaling flux...')
-#if time < 20140319:
-#    MSs.run('taql "update $pathMS set DATA = 1e6*DATA"', log='$nameMS_taql.log', commandType='general')
-#else:
-#    MSs.run('taql "update $pathMS set DATA = 1e-4*DATA"', log='$nameMS_taql.log', commandType='general')
+MSs = lib_ms.AllMSs(glob.glob('*MS'), s, check_flags=False)
+if len(MSs.getListStr()) == 0:
+    logger.info('Done.')
+    sys.exit(0)
+
+######################################
+with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
+    t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
+    time = np.int(t.iso.replace('-','')[0:8])
+
+if fix_table:
+    logger.info('Fix MS table...')
+    MSs.run('fixMS_TabRef.py $pathMS', log='$nameMS_fixms.log', commandType='python')
+
+    # only ms created in range (2/2013->2/2014)
+    if time > 20130200 and time < 20140300:
+        logger.info('Fix beam table...')
+        MSs.run('/home/fdg/scripts/fixinfo/fixbeaminfo $pathMS', log='$nameMS_fixbeam.log', commandType='python')
+
+# Rescale visibilities by 1e3 if before 2014-03-19 (old correlator), and by 1e-2 otherwise
+logger.info('Rescaling flux...')
+if time < 20140319:
+    MSs.run('taql "update $pathMS set DATA = 1e6*DATA"', log='$nameMS_taql.log', commandType='general')
+else:
+    MSs.run('taql "update $pathMS set DATA = 1e-4*DATA"', log='$nameMS_taql.log', commandType='general')
 
 ######################################
 # Avg to 4 chan and 4 sec
@@ -145,7 +146,13 @@ if renameavg:
             if avg_factor_f != 1 or avg_factor_t != 1:
                 logger.info('%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, avg_factor_f, avg_factor_t))
                 flog.write(MS.nameMS+'\n')
-                s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
+                if keep_IS:
+                    s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
+                        avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
+                        log=MS.nameMS+'_avg.log', commandType='DPPP')
+                else:
+                    s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
+                        msin.baseline = "[CR]S*&" \
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
                         log=MS.nameMS+'_avg.log', commandType='DPPP')
                 s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues

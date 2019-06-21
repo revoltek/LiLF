@@ -41,6 +41,7 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_download', 'fix_table', 'True') # fix bug in some old observations
     add_default('LOFAR_download', 'renameavg', 'True')
     add_default('LOFAR_download', 'flag_elev', 'True')
+    add_default('LOFAR_download', 'keep_IS', 'False')
     # demix
     add_default('LOFAR_demix', 'data_dir', '../cals-bkp/')
     add_default('LOFAR_demix', 'demix_model', '/home/fdg/scripts/model/demix_all.skydb')
@@ -224,7 +225,9 @@ def run_wsclean(s, logfile, MSs_files, **kwargs):
     reordering_processors = np.min([len(MSs_files),s.max_processors])
 
     # basic parms
-    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering '+str(reordering_processors) )
+    # TODO: add when https://sourceforge.net/p/wsclean/tickets/142/ is fixed
+    #wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4 -parallel-gridding 3' )
+    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4' )
     # other stanrdard parms
     wsc_parms.append( '-clean-border 1' )
     # temp dir

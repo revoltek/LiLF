@@ -4,10 +4,11 @@ Ncpu = 0
 [resetRemote]
 operation = RESET
 soltab = sol000/tec000
-ant = [RS509LBA,RS508LBA,RS409LBA,RS407LBA,RS406LBA,RS310LBA,RS307LBA,RS208LBA,RS210LBA]
+ant.regexp = RS*
+dataVal = 0.
 
 [removeFlags]
 operation = REWEIGHT
 soltab = sol000/tec000
-ant = [RS509LBA,RS508LBA,RS409LBA,RS407LBA,RS406LBA,RS310LBA,RS307LBA,RS208LBA,RS210LBA]
+ant.regexp = RS*
 weightVal = 1.

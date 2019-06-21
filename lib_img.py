@@ -50,20 +50,24 @@ class Image(object):
             fits.close()
 
 
-    def makeMask(self, threshisl=5, atrous_do=True, remove_extended_cutoff=0.):
+    def makeMask(self, threshisl=5, atrous_do=True, remove_extended_cutoff=0., maskname=None):
         """
         Create a mask of the image where only believable flux is
 
         remove_extended_cutoff: if >0 then remove all islands where sum(brightness_pixels)/(#pixels^2) < remove_extended_cutoff
         this is useful to remove extended sources from the mask. This higher this number the more compact must be the source.
         A good value is 0.001 for DIE cal images.
+
+        maskname: if give, then use a specific maskname
         """
-        if not os.path.exists(self.maskname):
+        if maskname is None: maskname = self.maskname
+
+        if not os.path.exists(maskname):
             logger.info('%s: Making mask...' % self.imagename)
-            make_mask.make_mask(image_name=self.imagename, mask_name=self.maskname, threshisl=threshisl, atrous_do=atrous_do)
+            make_mask.make_mask(image_name=self.imagename, mask_name=maskname, threshisl=threshisl, atrous_do=atrous_do)
         if self.userReg is not None:
             logger.info('%s: Adding user mask (%s)...' % (self.imagename, self.userReg))
-            blank_image_reg(self.maskname, self.userReg, inverse=False, blankval=1)
+            blank_image_reg(maskname, self.userReg, inverse=False, blankval=1)
 
         if remove_extended_cutoff > 0:
 
@@ -71,7 +75,7 @@ class Image(object):
             with pyfits.open(self.imagename) as fits:
                 data = fits[0].data
             # get mask
-            with pyfits.open(self.maskname) as fits:
+            with pyfits.open(maskname) as fits:
                 mask = fits[0].data
                 # for each island calculate the catoff
                 blobs, number_of_blobs = label(mask.astype(int).squeeze(), structure=[[1,1,1],[1,1,1],[1,1,1]])
@@ -85,7 +89,7 @@ class Image(object):
 
                 # write mask back
                 fits[0].data = mask
-                fits.writeto(self.maskname, overwrite=True)
+                fits.writeto(maskname, overwrite=True)
 
 
     def selectCC(self, keepInBeam=True):
