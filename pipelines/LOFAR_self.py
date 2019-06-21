@@ -171,8 +171,6 @@ for c in range(2):
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
     print('try adding antennacontraint on all stations when solving for G')
-    sys.exit()
-
 
     # do beam-corrected+fullstokes image at last cycle
     if c == 1:
@@ -192,6 +190,14 @@ for c in range(2):
     # add model and remove first sidelobe
     if c == 0:
 
+        # TEST: reclean low-resolution
+        logger.info('Cleaning low resolution...')
+        imagename_lr = 'img/TESTpre-wide-lr'
+        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
+                weight='briggs 0.', niter=50000, update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
+                parallel_deconvolution=256, baseline_averaging=5, auto_mask=3, auto_threshold=0.5, \
+                join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+
         im = lib_img.Image(imagename+'-MFS-image.fits', beamReg=beamReg)
         im.selectCC(keepInBeam=True)
 
@@ -204,20 +210,25 @@ for c in range(2):
         logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
         MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 
+        # Making beam mask
+        lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name='img/tmp', size=imgsizepix, scale='30arcsec')
+        os.system('mv img/tmp-image.fits img/wide-lr-maks.fits')
+        lib_img.blank_image_reg('img/wide-lr-maks.fits', beamReg, blankval = 0.)
+        lib_img.blank_image_reg('img/wide-lr-maks.fits', beamReg, blankval = 1., inverse=True)
+
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
         lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
                 weight='briggs 0.', niter=50000, update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
-                parallel_deconvolution=256, baseline_averaging=5, auto_mask=3, auto_threshold=0.5, fits_mask='img/wide-lr-maskbeam.fits', \
+                parallel_deconvolution=256, auto_mask=3, auto_threshold=0.5, fits_mask='img/wide-lr-maks.fits', \
                 join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
         
-        # predict using WSClean only on certain range
-        for model_img in glob.glob('img/wide-lr*model*fits'):
-            lib_img.blank_image_reg(model_img, beamReg, blankval = 0.)
-        s.add('wsclean -predict -name img/wide-lr -j '+str(s.max_processors)+' -channels-out 9 -maxuvw-m 5000 '+MSs.getStrWsclean(), \
-                              log='wscleanLR-PRE.log', commandType='wsclean', processors='max')
-        s.run(check=True)
+        #for model_img in glob.glob('img/wide-lr*model*fits'):
+        #    lib_img.blank_image_reg(model_img, beamReg, blankval = 0.)
+        #s.add('wsclean -predict -name img/wide-lr -j '+str(s.max_processors)+' -channels-out 9 -maxuvw-m 5000 '+MSs.getStrWsclean(), \
+        #                      log='wscleanLR-PRE.log', commandType='wsclean', processors='max')
+        #s.run(check=True)
 
         ##############################################
         # Flag on empty dataset
@@ -247,6 +258,14 @@ for c in range(2):
         logger.info('Predict model...')
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
                 log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+
+        # TEST: reclean low-resolution
+        logger.info('Cleaning low resolution...')
+        imagename_lr = 'img/TESTpost-wide-lr'
+        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), data_column='SUBTRACTED_DATA', name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
+                weight='briggs 0.', niter=50000, update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
+                parallel_deconvolution=256, baseline_averaging=5, auto_mask=3, auto_threshold=0.5, \
+                join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
 
 # Copy images
