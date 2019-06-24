@@ -210,16 +210,16 @@ for c in range(2):
 
         # Making beam mask
         lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name='img/tmp', size=imgsizepix, scale='30arcsec')
-        os.system('mv img/tmp-image.fits img/wide-lr-maks.fits')
-        lib_img.blank_image_reg('img/wide-lr-maks.fits', beamReg, blankval = 0.)
-        lib_img.blank_image_reg('img/wide-lr-maks.fits', beamReg, blankval = 1., inverse=True)
+        os.system('mv img/tmp-image.fits img/wide-lr-mask.fits')
+        lib_img.blank_image_reg('img/wide-lr-mask.fits', beamReg, blankval = 0.)
+        lib_img.blank_image_reg('img/wide-lr-mask.fits', beamReg, blankval = 1., inverse=True)
 
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
         lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
                 weight='briggs 0.', niter=50000, update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
-                parallel_deconvolution=256, auto_mask=3, auto_threshold=0.5, fits_mask='img/wide-lr-maks.fits', \
+                parallel_deconvolution=256, auto_mask=3, auto_threshold=0.5, fits_mask='img/wide-lr-mask.fits', \
                 join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
         
         #for model_img in glob.glob('img/wide-lr*model*fits'):
@@ -260,7 +260,7 @@ for c in range(2):
         # TEST: reclean low-resolution
         logger.info('TEST: Cleaning low resolution...')
         imagename_lr = 'img/TESTpost-wide-lr'
-        lib_util.run_wsclean(s, 'wscleanLR-after.log', MSs.getStrWsclean(), data_column='SUBTRACTED_DATA', name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
+        lib_util.run_wsclean(s, 'wscleanLR-after.log', MSs.getStrWsclean(), name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
                 weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
                 parallel_deconvolution=256, baseline_averaging=5, auto_mask=3, auto_threshold=0.5, \
                 join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
