@@ -101,8 +101,8 @@ for timestamp in set([ os.path.basename(ms).split('_')[1][1:] for ms in MSs.getL
 
         # TODO: TEST
         # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
-        logger.info('Converting to circular...')
-        MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+        #logger.info('Converting to circular...')
+        #MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
 
         # Move CORRECTED_DATA -> DATA
         logger.info('Move CORRECTED_DATA -> DATA...')
@@ -162,7 +162,7 @@ for c in range(100):
     # First get scalar solution to fix TEC
     # solve G - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/calG0.h5 sol.mode=scalarphase \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/calG0.h5 sol.mode=diagonal \
             sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
             log='$nameMS_solG0-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'G0-c'+str(c), [ms+'/calG0.h5' for ms in MSs.getListStr()], \
@@ -206,7 +206,7 @@ for c in range(100):
 #            log='$nameMS_corFR2-c'+str(c)+'.log', commandType='DPPP')
     logger.info('Correction PH...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-G0-c'+str(c)+'.h5 cor.correction=phase000', \
-            log='$nameMS_corPH2-c'+str(c)+'.log', commandType='DPPP')
+            log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
 
     if doamp:
         # solve G - group*_TC.MS:CORRECTED_DATA
@@ -225,8 +225,9 @@ for c in range(100):
     
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/img-%02i' % c
-    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='3arcsec', \
+    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='4arcsec', \
             weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.7, baseline_averaging=5, \
+            parallel_deconvolution=256, auto_threshold=2, multiscale='', use_weights_as_taper='', \
             join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
 
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
@@ -235,9 +236,9 @@ for c in range(100):
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/imgM-%02i' % c
     #auto_mask=5, local_rms=''
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='3arcsec', \
+    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='4arcsec', \
             weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.7, \
-            fits_mask=im.maskname, multiscale='', auto_threshold=3, use_weights_as_taper='', \
+            parallel_deconvolution=256, auto_threshold=0.5, fits_mask=im.maskname, multiscale='', use_weights_as_taper='', \
             join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 

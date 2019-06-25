@@ -15,6 +15,7 @@ sol.nchan = 20
 sol.stepsize = 0.2
 sol.mode = tec # phaseonly, complexgain, tec, tecandphase
 sol.propagatesolutions = True
+sol.propagateconvergedonly = True
 sol.approximatetec = True
 sol.maxapproxiter = 400
 sol.approxtolerance = 1e-3
