@@ -118,6 +118,8 @@ for timestamp in set([ os.path.basename(ms).split('_')[1][1:] for ms in MSs.getL
 
 MSs = lib_ms.AllMSs( glob.glob('*concat.MS'), s, check_flags=False )
 MSs.plot_HAcov('HAcov.png')
+MSs.getListObj()[0].makeBeamReg('beam.reg', freq='mid', to_null=True)
+beamReg = 'beam.reg'
 
 #####################################################
 # Model
@@ -227,7 +229,7 @@ for c in range(100):
 
     # Making beam mask
     if not os.path.exists('img/img-lr-mask.fits'):   
-        lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name='img/tmp', size=imgsizepix, scale='30arcsec')
+        lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name='img/tmp', size=5000, scale='30arcsec')
         os.system('mv img/tmp-image.fits img/img-lr-mask.fits')
         lib_img.blank_image_reg('img/img-lr-mask.fits', beamReg, blankval = 0.)
         lib_img.blank_image_reg('img/img-lr-mask.fits', beamReg, blankval = 1., inverse=True)
@@ -235,7 +237,7 @@ for c in range(100):
     # reclean low-resolution
     logger.info('Cleaning low resolution (cycle: '+str(c)+')...')
     imagename_lr = 'img/img-lr-%02i' % c
-    lib_util.run_wsclean(s, 'wscleanLR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
+    lib_util.run_wsclean(s, 'wscleanLR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename_lr, temp_dir='./', size=5000, scale='30arcsec', \
             weight='briggs 0.', niter=50000, update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
             parallel_deconvolution=256, auto_mask=3, auto_threshold=0.5, fits_mask='img/img-lr-mask.fits', \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
@@ -254,22 +256,23 @@ for c in range(100):
     #################################################
     # 3: Cleaning
     
-    logger.info('Cleaning (cycle: '+str(c)+')...')
-    imagename = 'img/img-%02i' % c
-    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='4arcsec', \
-            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.7, baseline_averaging=5, \
-            parallel_deconvolution=256, auto_threshold=2, multiscale='', use_weights_as_taper='', \
-            join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
-
-    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 5)
+#    logger.info('Cleaning (cycle: '+str(c)+')...')
+#    imagename = 'img/img-%02i' % c
+#    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=6000, scale='4arcsec', \
+#            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.7, baseline_averaging=5, \
+#            parallel_deconvolution=256, auto_threshold=2, multiscale='', use_weights_as_taper='', \
+#            join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
+#
+#    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
+#    im.makeMask(threshisl = 5)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/imgM-%02i' % c
-    #auto_mask=5, local_rms=''
+    #auto_mask=5, local_rms='', fits_mask=im.maskname
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='4arcsec', \
             weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.7, \
-            parallel_deconvolution=256, auto_threshold=0.5, fits_mask=im.maskname, multiscale='', use_weights_as_taper='', \
+            parallel_deconvolution=256, auto_threshold=0.5, multiscale='', use_weights_as_taper='', \
+            auto_mask=5, local_rms='', \
             join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 

@@ -28,12 +28,13 @@ MSs_self = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 phasecentre = MSs_self.getListObj()[0].getPhaseCentre()
 fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
-##########################
+###########################
 logger.info('Cleaning...')
 lib_util.check_rm('ddcal')
 os.makedirs('ddcal/masks')
 os.makedirs('ddcal/plots')
 os.makedirs('ddcal/images')
+os.makedirs('ddcal/solutions')
 os.makedirs('ddcal/skymodels')
 
 def clean(p, MSs, size, res='normal', apply_beam=False):
@@ -75,13 +76,13 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     logger.info('Cleaning ('+str(p)+')...')
     imagename = 'img/ddcal-'+str(p)
     lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
-            weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=256, \
-            auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=8)
+            weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.8, \
+            baseline_averaging=5, parallel_deconvolution=256, auto_threshold=3, \
+            join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 3)
+    im.makeMask(threshisl = 4)
 
     # clean 2
     # TODO: add -parallel-deconvolution when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
@@ -90,25 +91,25 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     if apply_beam:
 
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imsize, scale=str(pixscale)+'arcsec', \
-            weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
+            weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.8, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-            multiscale='', multiscale_scales='0,10,20', \
-            auto_threshold=1, fits_mask=im.maskname, \
-            join_channels='', fit_spectral_pol=2, channels_out=8)
+            multiscale='', \
+            auto_threshold=0.5, fits_mask=im.maskname, \
+            join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
         logger.info('Cleaning V ('+str(p)+')...')
         imagename = 'img/ddcalV-'+str(p)
-        lib_util.run_wsclean(s, 'wscleanV-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsize, scale=str(pixscale)+'srcsec', \
-            pol='V', \
-            weight='briggs 0.', no_update_model_required='', minuv_l=30, maxuv_l=5000, \
+        lib_util.run_wsclean(s, 'wscleanV-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsize, scale=str(pixscale)+'srcsec', pol='V', \
+            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, maxuv_l=5000, \
             baseline_averaging=5)
 
     else:
 
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', \
             weight=weight, niter=50000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
-            auto_threshold=1, fits_mask=im.maskname, \
-            baseline_averaging=5, join_channels='', fit_spectral_pol=2, channels_out=8)
+            multiscale='', \
+            auto_threshold=0.5, fits_mask=im.maskname, \
+            baseline_averaging=5, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     os.system('cat logs/wscleanA-'+str(p)+'.log logs/wscleanB-'+str(p)+'.log | grep "background noise"')
 
@@ -129,6 +130,7 @@ MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log
 # setup initial model
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
 mosaic_image.selectCC()
+
 # TEST:
 #mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
 rms_noise_pre = np.inf
@@ -146,20 +148,21 @@ for c in range(maxniter):
     if c>=1: mask_voro_old = 'ddcal/masks/facets%02i.fits' % (c-1)
 
     ### TTESTTESTTEST: DIE image
-    if c == 0:
-        clean('init', MSs, size=(fwhm,fwhm), res='normal')
+    #if c == 0:
+    #    clean('init', MSs, size=(fwhm,fwhm), res='normal')
     ###
 
     ### group into patches corresponding to the mask islands
     mask_cl = mosaic_image.imagename.replace('image.fits', 'mask-cl.fits')
     # this mask is with no user region, done isolate only bight compact sources
     if not os.path.exists(mask_cl): 
-        lib_img.make_mask.make_mask(image_name=mosaic_image.imagename, mask_name=mask_cl, threshisl=7, remove_extended_cutoff=0.001)
+        mosaic_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=0.001, maskname=mask_cl)
+
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
     lsm.group(mask_cl, root='Isl')
     # this removes all sources not in the mask-cl
     lsm.select('Patch = Isl.*', useRegEx=True)
-    # this removes extended regions
+    # this regroup sources
     x = lsm.getColValues('RA',aggregate='wmean')
     y = lsm.getColValues('Dec',aggregate='wmean')
     flux = lsm.getColValues('I',aggregate='sum')
@@ -167,6 +170,7 @@ for c in range(maxniter):
     grouper.run()
     clusters = grouper.grouping()
     grouper.plot()
+    os.system('mv grouping*png ddcal/skymodels/')
     patchNames = lsm.getPatchNames()
 
     logger.info('Merging nearby sources...')
@@ -288,8 +292,8 @@ for c in range(maxniter):
             MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
     ### TESTTESTTEST: empty image with cals
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    clean('onlycals-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    #MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    #clean('onlycals-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
     ###
 
     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
@@ -308,7 +312,7 @@ for c in range(maxniter):
     ##############################################################
     # low S/N DIE corrections
     # TODO: add a higher low-uv cut to remove galaxy effect
-    if c>=1:
+    if c>=0:
         logger.info('DIE calibration...')
         # predict and corrupt each facet
         logger.info('Reset MODEL_DATA...')
@@ -325,7 +329,7 @@ for c in range(maxniter):
             MSs.run('DPPP '+parset_dir+'/DPPP-corrupt.parset msin=$pathMS msin.datacolumn=MODEL_DATA_DIR msout.datacolumn=MODEL_DATA_DIR cor.parmdb=$pathMS/cal-c'+str(c)+'.h5 cor.direction=['+d.name+']', \
                 log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
         
-            logger.info('Patch '+d.name+': subtract...')
+            logger.info('Patch '+d.name+': add...')
             MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA + MODEL_DATA_DIR"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
         # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
@@ -470,7 +474,7 @@ for c in range(maxniter):
         d.image_high = lib_img.Image('img/ddcalM-%s-high-MFS-image.fits' % d.name, userReg = userReg)
 
         # restrict skymodel to facet
-        d.image.makeMask(self, threshisl=5)
+        d.image.makeMask(threshisl=5)
         d.image.selectCC()
         lsm = lsmtool.load(d.image.skymodel_cut)
         lsm.group('facet', facet=mask_voro, root='Isl_patch' )
