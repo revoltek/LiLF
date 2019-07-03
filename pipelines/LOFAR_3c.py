@@ -108,12 +108,18 @@ for timestamp in set([ os.path.basename(ms).split('_')[1][1:] for ms in MSs.getL
         logger.info('Move CORRECTED_DATA -> DATA...')
         MSs.run('taql "update $pathMS set DATA = CORRECTED_DATA"', log='$nameMS_taql.log', commandType='general')
 
+	# Add SUBTRACTED_DATA
+	logger.info('Creating SUBTRACTED_DATA...')
+	MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+
         # bkp
         logger.info('Making backup...')
         os.system('cp -r %s %s' % (MS_concat, MS_concat_bkp) ) # do not use MS.move here as it resets the MS path to the moved one
 
 MSs = lib_ms.AllMSs( glob.glob('*concat.MS'), s, check_flags=False )
 MSs.plot_HAcov('HAcov.png')
+MSs.getListObj()[0].makeBeamReg('beam.reg', freq='mid', to_null=True)
+beamReg = 'beam.reg'
 
 #####################################################
 # Model
@@ -141,13 +147,6 @@ rms_noise_pre = np.inf; doamp = False
 for c in range(100):
 
     logger.info('== Start cycle: %s ==' % c)
-
-    logger.info('Merge source model into 1 patch...')
-    lsm = lsmtool.load('tgts.skymodel')
-    lsm.group('single')
-    lsm.write('tgts-onepatch.skymodel', clobber=True)
-    os.system('makesourcedb outtype="blob" format="<" in=tgts-onepatch.skymodel out=tgts-onepatch.skydb')
-    sourcedb = 'tgts-onepatch.skydb'
 
     logger.info('Remove bad timestamps...')
     MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
@@ -220,25 +219,60 @@ for c in range(100):
         MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
             log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
 
-    #################################################
-    # 2: Cleaning
-    
-    logger.info('Cleaning (cycle: '+str(c)+')...')
-    imagename = 'img/img-%02i' % c
-    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='4arcsec', \
-            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.7, baseline_averaging=5, \
-            parallel_deconvolution=256, auto_threshold=2, multiscale='', use_weights_as_taper='', \
-            join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
 
-    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 5)
+    #################################################
+    # 2: Remove sources form 1st sidelobe
+
+    # Subtract model from all TCs - ms:SUBTRACTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
+    logger.info('Subtracting high-res model (SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
+    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+
+    # Making beam mask
+    if not os.path.exists('img/img-lr-mask.fits'):   
+        lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name='img/tmp', size=5000, scale='30arcsec')
+        os.system('mv img/tmp-image.fits img/img-lr-mask.fits')
+        lib_img.blank_image_reg('img/img-lr-mask.fits', beamReg, blankval = 0.)
+        lib_img.blank_image_reg('img/img-lr-mask.fits', beamReg, blankval = 1., inverse=True)
+
+    # reclean low-resolution
+    logger.info('Cleaning low resolution (cycle: '+str(c)+')...')
+    imagename_lr = 'img/img-lr-%02i' % c
+    lib_util.run_wsclean(s, 'wscleanLR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename_lr, temp_dir='./', size=5000, scale='30arcsec', \
+            weight='briggs 0.', niter=50000, update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
+            parallel_deconvolution=256, auto_mask=3, auto_threshold=0.5, fits_mask='img/img-lr-mask.fits', \
+            join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+
+    # corrupt model with phase solutions - ms:MODEL_DATA -> ms:MODEL_DATA
+    logger.info('Corrupt low-res model...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+            cor.parmdb=cal-G0-c'+str(c)+'.h5 cor.correction=phase000 cor.invert=false', \
+            log='$nameMS_corrupt-c'+str(c)+'.log', commandType='DPPP')
+
+    # Subtract low-res model - CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA
+    logger.info('Subtracting low-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
+    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+
+
+    #################################################
+    # 3: Cleaning
+    
+#    logger.info('Cleaning (cycle: '+str(c)+')...')
+#    imagename = 'img/img-%02i' % c
+#    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=6000, scale='4arcsec', \
+#            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.7, baseline_averaging=5, \
+#            parallel_deconvolution=256, auto_threshold=2, multiscale='', use_weights_as_taper='', \
+#            join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
+#
+#    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
+#    im.makeMask(threshisl = 5)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/imgM-%02i' % c
-    #auto_mask=5, local_rms=''
+    #auto_mask=5, local_rms='', fits_mask=im.maskname
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='4arcsec', \
             weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.7, \
-            parallel_deconvolution=256, auto_threshold=0.5, fits_mask=im.maskname, multiscale='', use_weights_as_taper='', \
+            parallel_deconvolution=256, auto_threshold=0.5, multiscale='', use_weights_as_taper='', \
+            auto_mask=5, local_rms='', \
             join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
@@ -249,6 +283,7 @@ for c in range(100):
     # Flag on residuals (CORRECTED_DATA)
     #logger.info('Flagging residuals...')
     #MSs.run('DPPP '+parset_dir+'/DPPP-flagres.parset msin=$pathMS', log='$nameMS_flagres-c'+str(c)+'.log', commandType='DPPP')
+
 
     rms_noise = lib_img.Image(imagename+'-MFS-image.fits').getNoise()
     logger.info('RMS noise: %f' % rms_noise)
