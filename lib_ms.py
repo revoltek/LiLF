@@ -129,11 +129,11 @@ class AllMSs(object):
             coord_sun = get_sun(time)
             ra, dec = ms.getPhaseCentre()
             coord = SkyCoord(ra*u.deg, dec*u.deg)
+            elev = coord.transform_to(AltAz(obstime=time,location=telescope_coords)).alt
             sun_dist = coord.separation(coord_sun)
             lst = time.sidereal_time('mean', telescope_coords.longitude)
             ha = lst - coord.ra # hour angle
-            logger.info('Sun distance: %.2f deg' % sun_dist.deg)
-            logger.info('Hour angle: %s deg' % ha)
+            logger.info('Hour angle: %.2f deg - Elev: %.2f (Sun distance: %.0f)' % (ha.deg,elev.deg,sun_dist.deg))
 
 
 class MS(object):
