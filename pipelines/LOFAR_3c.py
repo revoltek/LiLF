@@ -269,12 +269,16 @@ for c in range(100):
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/imgM-%02i' % c
     #auto_mask=5, local_rms='', fits_mask=im.maskname
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='4arcsec', \
-            weight='briggs 0.', niter=1000000, update_model_required='', minuv_l=30, mgain=0.7, \
-            parallel_deconvolution=256, auto_threshold=0.5, multiscale='', use_weights_as_taper='', \
-            auto_mask=5, local_rms='', \
+    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=5000, scale='4arcsec', \
+            weight='briggs 0.', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.5, baseline_averaging=5, \
+            auto_threshold=0.5, multiscale='', \
             join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
+    sys.exit()
+
+    #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 4 '+MSs.getStrWsclean(), \
+    #     log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+    #s.run(check=True)
 
     # Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA
     #logger.info('Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA...')

@@ -37,7 +37,7 @@ logger.info('Cleaning...')
 lib_util.check_rm('img')
 os.makedirs('img')
 
- here images, models, solutions for each group will be saved
+# here images, models, solutions for each group will be saved
 lib_util.check_rm('self')
 if not os.path.exists('self/images'): os.makedirs('self/images')
 if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
@@ -55,7 +55,7 @@ MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='mid', to_null=True)
 beamReg = 'self/beam.reg'
 
 # set image size
-imgsizepix = int(1.2*MSs.getListObj()[0].getFWHM(freq='min')*3600/10.)
+imgsizepix = int(1.3*MSs.getListObj()[0].getFWHM(freq='min')*3600/10.)
 if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 
 #################################################################
@@ -206,9 +206,9 @@ for c in range(2):
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
-        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
-                weight='briggs 0.', niter=50000, update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
-                parallel_deconvolution=256, auto_mask=3, auto_threshold=0.5, fits_mask='img/wide-lr-mask.fits', \
+        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), do_predict=True, name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
+                weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
+                parallel_deconvolution=256, baseline_averaging=5, auto_mask=3, auto_threshold=0.5, fits_mask='img/wide-lr-mask.fits', \
                 join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
         
         #for model_img in glob.glob('img/wide-lr*model*fits'):
