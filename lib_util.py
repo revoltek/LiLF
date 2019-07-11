@@ -474,6 +474,7 @@ class Scheduler():
 
         elif (commandType == "wsclean"):
             out = subprocess.check_output('grep -l "exception occured" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output('grep -l "Segmentation fault" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logger.error('WSClean run problem on:\n'+out.split("\n")[0])
