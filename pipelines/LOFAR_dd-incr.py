@@ -76,8 +76,8 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     logger.info('Cleaning ('+str(p)+')...')
     imagename = 'img/ddcal-'+str(p)
     lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
-            weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.8, \
-            baseline_averaging=5, parallel_deconvolution=256, auto_threshold=3, \
+            weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
+            baseline_averaging=5, parallel_deconvolution=256, auto_threshold=5, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     # make mask
@@ -91,24 +91,18 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     if apply_beam:
 
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imsize, scale=str(pixscale)+'arcsec', \
-            weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.8, \
+            weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
             multiscale='', \
-            auto_threshold=0.5, fits_mask=im.maskname, \
+            auto_threshold=1, auto_mask=3, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
-
-        logger.info('Cleaning V ('+str(p)+')...')
-        imagename = 'img/ddcalV-'+str(p)
-        lib_util.run_wsclean(s, 'wscleanV-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsize, scale=str(pixscale)+'srcsec', pol='V', \
-            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, maxuv_l=5000, \
-            use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400)
 
     else:
 
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', \
-            weight=weight, niter=50000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.8, \
+            weight=weight, niter=50000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             multiscale='', \
-            auto_threshold=0.5, fits_mask=im.maskname, \
+            auto_threshold=1, auto_mask=3, fits_mask=im.maskname, \
             baseline_averaging=5, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     os.system('cat logs/wscleanA-'+str(p)+'.log logs/wscleanB-'+str(p)+'.log | grep "background noise"')
@@ -336,28 +330,29 @@ for c in range(maxniter):
 #                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
 #    s.run(check = True)
 #    lib_util.check_rm('cal-remote-c'+str(c)+'-*.h5')
-
-    # Calibration 2 - ms:SMOOTHED_DATA
-    logger.info('Remote calibration...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS \
-            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS406LBA,RS407LBA,RS503LBA]] \
-            sol.applycal.steps=[myapplycal1,myapplycal2] sol.applycal.myapplycal1.correction=tec000 sol.applycal.myapplycal2.correction=tec000 \
-            sol.applycal.myapplycal1.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.applycal.myapplycal2.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5\
-            sol.solint=400 sol.nchan=4 sol.h5parm=$pathMS/cal-remote2-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
-            log='$nameMS_solTECremote2-c'+str(c)+'.log', commandType='DPPP')
-
-    # Plot solutions
-    for MS in MSs.getListObj():
-        lib_util.run_losoto(s, 'remote2-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-remote2-c'+str(c)+'.h5', \
-                [parset_dir+'/losoto-plot-tec.parset'])
-    #os.system('mv plots-remote-c'+str(c)+'* ddcal/plots')
-    s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-remote2-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-remote2-c'+str(c)+'-*.h5')),\
-                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
-    s.run(check = True)
-    lib_util.check_rm('cal-remote-c'+str(c)+'-*.h5')
-
-    print('check the "plot/" to see if a single time solve can fix the abs value')
-    sys.exit()
+#
+#    # Calibration 2 - ms:SMOOTHED_DATA
+#    logger.info('Remote calibration...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS \
+#            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS406LBA,RS407LBA,RS503LBA]] \
+#            sol.applycal.steps=[myapplycal1,myapplycal2] sol.applycal.myapplycal1.correction=tec000 sol.applycal.myapplycal2.correction=tec000 \
+#            sol.applycal.myapplycal1.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.applycal.myapplycal2.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5\
+#            sol.solint=100 sol.nchan=4 sol.h5parm=$pathMS/cal-remote2-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
+#            log='$nameMS_solTECremote2-c'+str(c)+'.log', commandType='DPPP')
+#
+#    # Plot solutions
+#    for MS in MSs.getListObj():
+#        lib_util.run_losoto(s, 'remote2-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-remote2-c'+str(c)+'.h5', \
+#                [parset_dir+'/losoto-plot-tec.parset'])
+#    #os.system('mv plots-remote-c'+str(c)+'* ddcal/plots')
+#    s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-remote2-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-remote2-c'+str(c)+'-*.h5')),\
+#                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
+#    s.run(check = True)
+#    lib_util.check_rm('cal-remote-c'+str(c)+'-*.h5')
+#
+#
+#    print('check the "plot/" to see if a single time solve can fix the abs value')
+#    sys.exit()
 
     ##############################################################
     # low S/N DIE corrections
@@ -430,7 +425,7 @@ for c in range(maxniter):
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 
         ### TESTTESTTEST: init image with DIE correction
-        #clean('die-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+        clean('die-c'+str(c), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal')
         ###
 
     else:
@@ -461,8 +456,8 @@ for c in range(maxniter):
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
     ### TESTTESTTEST: empty image
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    clean('empty-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    #MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    #clean('empty-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
     ###
 
     ###########################################################
