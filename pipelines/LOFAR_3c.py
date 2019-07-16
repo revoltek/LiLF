@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# initial calibration of the calibrator in circular, get and corr FR, back to linear, sol flag + effects separation
-
 import sys, os, glob, re
 import numpy as np
 import lsmtool
@@ -91,8 +89,8 @@ for timestamp in set([ os.path.basename(ms).split('_')[1][1:] for ms in MSs.getL
 
         # TODO: TEST
         # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
-        #logger.info('Converting to circular...')
-        #MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+        logger.info('Converting to circular...')
+        MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
 
         # Move CORRECTED_DATA -> DATA
         logger.info('Move CORRECTED_DATA -> DATA...')
@@ -247,26 +245,25 @@ for c in range(100):
     # 3: Cleaning
    
     logger.info('Cleaning (cycle: '+str(c)+')...')
-    imagename = 'img/img-%02i' % c
-    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='4arcsec', \
-            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.7, \
-            baseline_averaging=5, parallel_deconvolution=256, \
-            auto_threshold=5, multiscale='', \
-            join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
-
-    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 5)
+#    imagename = 'img/img-%02i' % c
+#    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='4arcsec', \
+#            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.7, \
+#            baseline_averaging=5, parallel_deconvolution=256, \
+#            auto_threshold=5, multiscale='', \
+#            join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
+#
+#    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
+#    im.makeMask(threshisl = 5)
 
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/imgM-%02i' % c
-    #auto_mask=5, local_rms='', fits_mask=im.maskname, parallel_deconvolution=256
+    #TODO: add parallel_deconvolution=256
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=5000, scale='4arcsec', \
             weight='briggs 0.', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.7, \
-            baseline_averaging=5, parallel_deconvolution=256, \
+            baseline_averaging=5, \
             auto_threshold=3, auto_mask=4, local_rms='', multiscale='', \
             join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
-    sys.exit()
 
     # Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA
     #logger.info('Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA...')
@@ -280,7 +277,7 @@ for c in range(100):
     rms_noise = lib_img.Image(imagename+'-MFS-image.fits').getNoise()
     logger.info('RMS noise: %f' % rms_noise)
     if rms_noise > 0.95*rms_noise_pre:
-        if doamp: break # if already doing amp and not getting better, quit
+#        if doamp: break # if already doing amp and not getting better, quit
         doamp = True
     rms_noise_pre = rms_noise
 

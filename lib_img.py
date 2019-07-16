@@ -131,17 +131,12 @@ class Image(object):
 
         with pyfits.open(self.imagename) as fits:
             with pyfits.open(self.maskname) as mask:
-                data = fits[0].data
-                mask = mask[0].data
+                data = np.squeeze(fits[0].data)
+                mask = np.squeeze(mask[0].data)
                 if boxsize is not None:
-                    if len(data.shape)==4:
-                        _,_,ys,xs = data.shape
-                        data = data[0,0,ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
-                        mask = mask[0,0,ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
-                    else:
-                        ys,xs = data.shape
-                        data = data[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
-                        mask = mask[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
+                    ys,xs = data.shape
+                    data = data[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2]
+                    mask = mask[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2]
     
                 return np.nanstd(data[mask==0])
 

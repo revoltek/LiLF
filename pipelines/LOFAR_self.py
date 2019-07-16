@@ -34,14 +34,13 @@ userReg = parset.get('model','userReg')
 # Clear
 logger.info('Cleaning...')
 
-lib_util.check_rm('img')
-os.makedirs('img')
-
 # here images, models, solutions for each group will be saved
-lib_util.check_rm('self')
-if not os.path.exists('self/images'): os.makedirs('self/images')
-if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
-if not os.path.exists('self/plots'): os.makedirs('self/plots')
+#lib_util.check_rm('self')
+#if not os.path.exists('self/images'): os.makedirs('self/images')
+#if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
+#if not os.path.exists('self/plots'): os.makedirs('self/plots')
+#lib_util.check_rm('img')
+#os.makedirs('img')
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 try:
@@ -55,7 +54,7 @@ MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='mid', to_null=True)
 beamReg = 'self/beam.reg'
 
 # set image size
-imgsizepix = int(1.3*MSs.getListObj()[0].getFWHM(freq='min')*3600/10.)
+imgsizepix = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/10.)
 if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 
 #################################################################
@@ -84,15 +83,15 @@ for MS in MSs.getListStr():
     logger.debug('Copy: '+sourcedb+' -> '+MS)
     os.system('cp -r '+sourcedb+' '+MS)
 
-# Create columns
-logger.info('Creating SUBTRACTED_DATA...')
-MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
-
-logger.info('Add model to MODEL_DATA...')
-if apparent:
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
-else:
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+## Create columns
+#logger.info('Creating SUBTRACTED_DATA...')
+#MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+#
+#logger.info('Add model to MODEL_DATA...')
+#if apparent:
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+#else:
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 
 #####################################################################################################
 # Self-cal cycle
@@ -105,37 +104,42 @@ for c in range(2):
     else:
         incol = 'DATA'
 
-    # Smooth DATA -> SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
- 
-    # solve TEC - group*_TC.MS:SMOOTHED_DATA
-    logger.info('Solving TEC...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5', \
-                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
- 
-    # LoSoTo plot dejump
-    for MS in MSs.getListObj():
-        lib_util.run_losoto(s, 'tec-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/tec.h5',[parset_dir+'/losoto-tec.parset'])
-    os.system('mv plots-tec-c'+str(c)+'* self/plots/')
-    s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-tec-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-tec-c'+str(c)+'*.h5')),\
-            log='losotoTEC-c'+str(c)+'.log', commandType="python", processors='max')
-    s.run(check = True)
-    lib_util.check_rm('cal-tec'+str(c)+'*.h5')
-
-    # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
-    logger.info('Correcting TEC...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000', \
-               log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
+#    # Smooth DATA -> SMOOTHED_DATA
+#    logger.info('BL-based smoothing...')
+#    MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
+# 
+#    # solve TEC - group*_TC.MS:SMOOTHED_DATA
+#    logger.info('Solving TEC...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5', \
+#                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
+# 
+#    # LoSoTo plot dejump
+#    for MS in MSs.getListObj():
+#        lib_util.run_losoto(s, 'tec-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/tec.h5',[parset_dir+'/losoto-tec.parset'])
+#    os.system('mv plots-tec-c'+str(c)+'* self/plots/')
+#    s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-tec-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-tec-c'+str(c)+'*.h5')),\
+#            log='losotoTEC-c'+str(c)+'.log', commandType="python", processors='max')
+#    s.run(check = True)
+#    lib_util.check_rm('cal-tec'+str(c)+'*.h5')
+#
+#    # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
+#    logger.info('Correcting TEC...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000', \
+#               log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
     # AMP+LEAK DIE correction
     if c >= 0:
+
+        # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('Converting to circular...')
+        MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+
         # DIE Calibration - ms:CORRECTED_DATA
         logger.info('Solving slow G...')
         MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/g.h5', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
         lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()], \
-                [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-leak.parset'])
+                [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-fr.parset'])
         os.system('mv plots-g-c'+str(c)+' self/plots/')
         os.system('mv cal-g-c'+str(c)+'.h5 self/solutions/')
 
@@ -143,6 +147,7 @@ for c in range(2):
         #logger.info('Correcting G...')
         #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitudeG', \
         #        log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
+    sys.exit()
 
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA
@@ -270,7 +275,7 @@ for c in range(2):
                 multiscale='', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600, \
                 parallel_deconvolution=256, auto_threshold=1, auto_mask=3., fits_mask=im.maskname, \
-                join_channels='', fit_spectral_pol=3, channels_out=9)
+                join_channels='', channels_out=9)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
         os.system('makepb.py -o img/avgbeam.fits -i '+imagename)
  
