@@ -93,8 +93,8 @@ for timestamp in set([ os.path.basename(ms).split('_')[1][1:] for ms in MSs.getL
         MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
 
         # Move CORRECTED_DATA -> DATA
-        logger.info('Move CORRECTED_DATA -> DATA...')
-        MSs.run('taql "update $pathMS set DATA = CORRECTED_DATA"', log='$nameMS_taql.log', commandType='general')
+        #logger.info('Move CORRECTED_DATA -> DATA...')
+        #MSs.run('taql "update $pathMS set DATA = CORRECTED_DATA"', log='$nameMS_taql.log', commandType='general')
 
 	# Add SUBTRACTED_DATA
 	logger.info('Creating SUBTRACTED_DATA...')
