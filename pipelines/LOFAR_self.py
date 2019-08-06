@@ -37,7 +37,7 @@ logger.info('Cleaning...')
 lib_util.check_rm('img')
 os.makedirs('img')
 
- here images, models, solutions for each group will be saved
+# here images, models, solutions for each group will be saved
 lib_util.check_rm('self')
 if not os.path.exists('self/images'): os.makedirs('self/images')
 if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
