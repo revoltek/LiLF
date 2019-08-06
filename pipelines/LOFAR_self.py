@@ -135,22 +135,37 @@ for c in range(2):
         MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
 
         # DIE Calibration - ms:CORRECTED_DATA
-        logger.info('Solving slow G...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/g.h5', \
-                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-        lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()], \
-                [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-fr.parset', parset_dir+'/losoto-amp.parset'])
-        os.system('mv plots-g-c'+str(c)+' self/plots/')
-        os.system('mv cal-g-c'+str(c)+'.h5 self/solutions/')
+        logger.info('Solving slow G1...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/g1.h5', \
+                log='$nameMS_solG1-c'+str(c)+'.log', commandType='DPPP')
+        lib_util.run_losoto(s, 'g1-c'+str(c), [MS+'/g1.h5' for MS in MSs.getListStr()], \
+                [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-fr.parset'])
+        os.system('mv plots-g1-c'+str(c)+' self/plots/')
+        os.system('mv cal-g1-c'+str(c)+'.h5 self/solutions/')
 
         # Convert back to linear CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Converting to linear...')
         MSs.run('mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
 
+        # TEST: correct FR - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
+        logger.info('Correcting FR...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+                log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
+
+        # DIE Calibration - ms:CORRECTED_DATA
+        logger.info('Solving slow G2...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/g2.h5', \
+                log='$nameMS_solG2-c'+str(c)+'.log', commandType='DPPP')
+        lib_util.run_losoto(s, 'g2-c'+str(c), [MS+'/g2.h5' for MS in MSs.getListStr()], \
+                [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-amp.parset'])
+        os.system('mv plots-g2-c'+str(c)+' self/plots/')
+        os.system('mv cal-g2-c'+str(c)+'.h5 self/solutions/')
+
         # TEST: correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-        #logger.info('Correcting G...')
-        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitudeG', \
-        #        log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
+        logger.info('Correcting G...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
+                log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
+
 
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA
