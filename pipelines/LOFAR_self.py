@@ -85,11 +85,7 @@ for MS in MSs.getListStr():
 
 # Create columns
 logger.info('Creating SUBTRACTED_DATA...')
-<<<<<<< HEAD
 MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA,CORRECTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
-=======
-MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
->>>>>>> 6e2265e27356dfc4a2618adfbcff2d3ff769a941
 
 logger.info('Add model to MODEL_DATA...')
 if apparent:
@@ -131,13 +127,8 @@ for c in range(2):
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000', \
                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
-<<<<<<< HEAD
-    # AMP+FR DIE correction
-    if c >= 1:
-=======
     # AMP+LEAK DIE correction
     if c >= 0:
->>>>>>> 6e2265e27356dfc4a2618adfbcff2d3ff769a941
 
         # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Converting to circular...')
@@ -157,17 +148,9 @@ for c in range(2):
         MSs.run('mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
 
         # TEST: correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-<<<<<<< HEAD
-        logger.info('Correcting G...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
-                log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
-                log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
-=======
         #logger.info('Correcting G...')
         #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitudeG', \
         #        log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
->>>>>>> 6e2265e27356dfc4a2618adfbcff2d3ff769a941
 
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA
