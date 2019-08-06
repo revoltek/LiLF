@@ -50,7 +50,7 @@ class Image(object):
             fits.close()
 
 
-    def makeMask(self, threshisl=5, atrous_do=True, remove_extended_cutoff=0., maskname=None):
+    def makeMask(self, threshisl=5, atrous_do=True, remove_extended_cutoff=0., only_beam=False, maskname=None):
         """
         Create a mask of the image where only believable flux is
 
@@ -59,6 +59,7 @@ class Image(object):
         A good value is 0.001 for DIE cal images.
 
         maskname: if give, then use a specific maskname
+        only_beam: set to 0 outside the beam
         """
         if maskname is None: maskname = self.maskname
 
@@ -68,6 +69,9 @@ class Image(object):
         if self.userReg is not None:
             logger.info('%s: Adding user mask (%s)...' % (self.imagename, self.userReg))
             blank_image_reg(maskname, self.userReg, inverse=False, blankval=1)
+        if only_beam and self.beamReg is not None:
+            logger.info('%s: Restricting to the beam (%s)...' % (self.imagename, self.beamReg))
+            blank_image_reg(maskname, self.beamReg, inverse=True, blankval=0)
 
         if remove_extended_cutoff > 0:
 
@@ -127,17 +131,12 @@ class Image(object):
 
         with pyfits.open(self.imagename) as fits:
             with pyfits.open(self.maskname) as mask:
-                data = fits[0].data
-                mask = mask[0].data
+                data = np.squeeze(fits[0].data)
+                mask = np.squeeze(mask[0].data)
                 if boxsize is not None:
-                    if len(data.shape)==4:
-                        _,_,ys,xs = data.shape
-                        data = data[0,0,ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
-                        mask = mask[0,0,ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
-                    else:
-                        ys,xs = data.shape
-                        data = data[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
-                        mask = mask[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2].flatten()
+                    ys,xs = data.shape
+                    data = data[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2]
+                    mask = mask[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2]
     
                 return np.nanstd(data[mask==0])
 

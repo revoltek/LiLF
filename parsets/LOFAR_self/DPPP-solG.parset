@@ -1,6 +1,6 @@
 msin =
 msin.datacolumn = CORRECTED_DATA
-msin.baseline = CS*&CS*
+#msin.baseline = CS*&CS*
 #msin.baseline = [CR]*&&;!RS210LBA;!RS310LBA;!RS509LBA;!RS508LBA;!RS409LBA;!RS208LBA
 msout = .
 msout.datacolumn = CORRECTED_DATA
@@ -8,12 +8,13 @@ msout.datacolumn = CORRECTED_DATA
 steps = [sol]
 
 sol.type = ddecal
-sol.uvlambdamin = 300
-sol.mode = fulljones
+sol.uvlambdamin = 100
+sol.uvmmax = 80e3
+sol.mode = diagonal
 sol.tolerance = 1e-3
 sol.maxiter = 500
-sol.nchan = 8
-sol.solint = 20
+sol.nchan = 16
+sol.solint = 40
 sol.propagatesolutions = True
 sol.propagateconvergedonly = True
 sol.usemodelcolumn = True

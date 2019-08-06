@@ -213,7 +213,7 @@ def run_losoto(s, c, h5s, parsets):
     os.system('mv plots plots-' + c)
 
 
-def run_wsclean(s, logfile, MSs_files, **kwargs):
+def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     """
     Use only for imaging - not for predict
     s : scheduler
@@ -251,6 +251,22 @@ def run_wsclean(s, logfile, MSs_files, **kwargs):
     s.add(command_string, log=logfile, commandType='wsclean', processors='max')
     logger.debug('Running wsclean: %s' % command_string)
     s.run(check=True)
+
+    # Predict in case update_model_required cannot be used
+    if do_predict == True:
+        wsc_parms = []
+        # keep imagename, uv-cuts and channel number
+        for parm, value in list(kwargs.items()):
+            if 'min' in parm or 'max' in parm or parm == 'name' or parm == 'channels_out':
+                wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
+
+        # files
+        wsc_parms.append( MSs_files )
+
+        command_string = 'wsclean -predict '+' '.join(wsc_parms)
+        s.add(command_string, log=logfile, commandType='wsclean', processors='max')
+        logger.debug('Running wsclean: %s' % command_string)
+        s.run(check=True)
 
 
 class Scheduler():
@@ -458,6 +474,7 @@ class Scheduler():
 
         elif (commandType == "wsclean"):
             out = subprocess.check_output('grep -l "exception occured" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output('grep -l "Segmentation fault" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             if out != '':
                 logger.error('WSClean run problem on:\n'+out.split("\n")[0])
