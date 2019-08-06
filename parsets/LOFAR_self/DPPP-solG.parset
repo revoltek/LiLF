@@ -8,11 +8,16 @@ msout.datacolumn = CORRECTED_DATA
 steps = [sol]
 
 sol.type = ddecal
-sol.uvlambdamin = 300
+sol.uvlambdamin = 100
+sol.uvmmax = 80e3
 sol.mode = diagonal
 sol.tolerance = 1e-3
 sol.maxiter = 500
+<<<<<<< HEAD
 sol.nchan = 8
+=======
+sol.nchan = 16
+>>>>>>> 6e2265e27356dfc4a2618adfbcff2d3ff769a941
 sol.solint = 40
 sol.propagatesolutions = True
 sol.propagateconvergedonly = True
