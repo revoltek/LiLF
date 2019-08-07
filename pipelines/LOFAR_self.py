@@ -127,7 +127,7 @@ for c in range(2):
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000', \
                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
-    # AMP+LEAK DIE correction
+    # AMP+FR DIE correction
     if c >= 0:
 
         # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
