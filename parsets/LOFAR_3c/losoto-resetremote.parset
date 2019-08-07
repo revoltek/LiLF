@@ -1,0 +1,14 @@
+# losoto parset
+Ncpu = 0
+
+[resetRemote]
+operation = RESET
+soltab = sol000/tec000
+ant.regexp = RS*
+dataVal = 0.
+
+[removeFlags]
+operation = REWEIGHT
+soltab = sol000/tec000
+ant.regexp = RS*
+weightVal = 1.
