@@ -347,7 +347,7 @@ for c in range(maxniter):
     s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-remote2-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-remote2-c'+str(c)+'-*.h5')),\
                             log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
     s.run(check = True)
-    lib_util.check_rm('cal-remote-c'+str(c)+'-*.h5')
+    lib_util.check_rm('cal-remote2-c'+str(c)+'-*.h5')
 
     print('check the "plot/" to see if a single time solve can fix the abs value')
     sys.exit()

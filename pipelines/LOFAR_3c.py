@@ -219,7 +219,6 @@ for c in range(100):
 #    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
 #    im.makeMask(threshisl = 5)
 
-    logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/imgM-%02i' % c
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=1000, scale='4arcsec', \
             weight='briggs 0.', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.7, \
