@@ -134,7 +134,7 @@ for c in range(2):
 
         # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Converting to circular...')
-        MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+        MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=4)
 
         # DIE Calibration - ms:CORRECTED_DATA
         logger.info('Solving slow G1...')
@@ -147,7 +147,7 @@ for c in range(2):
 
         # Convert back to linear CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Converting to linear...')
-        MSs.run('mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+        MSs.run('mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=4)
 
         # TEST: correct FR - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting FR...')
