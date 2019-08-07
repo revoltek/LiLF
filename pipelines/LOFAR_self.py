@@ -33,6 +33,8 @@ userReg = parset.get('model','userReg')
 #############################################################################
 # Clear
 logger.info('Cleaning...')
+lib_util.check_rm('img')
+os.makedirs('img')
 
 # here images, models, solutions for each group will be saved
 lib_util.check_rm('self')
