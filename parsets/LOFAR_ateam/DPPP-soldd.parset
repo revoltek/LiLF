@@ -9,6 +9,7 @@ sol.type = ddecal
 sol.mode = 
 sol.h5parm =
 sol.uvlambdamin = 30
+sol.uvmmax = 80e3
 sol.maxiter = 500
 sol.tolerance = 1e-3
 sol.propagatesolutions = True
