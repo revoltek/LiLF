@@ -186,13 +186,12 @@ for c in range(2):
     #im.makeMask(threshisl = 4, only_beam=True)
    
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
-    # add parallel-deconv when ok wit local-rms
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
-            weight='briggs 0.', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
+            weight='briggs 0.', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, nmiter=0, \
+            parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_threshold=1, auto_mask=3, \
             multiscale='', \
-            baseline_averaging=5, local_rms='', auto_threshold=1, auto_mask=3, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
        
@@ -226,7 +225,7 @@ for c in range(2):
         imagename_lr = 'img/wide-lr'
         lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), do_predict=True, name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
                 weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.85, \
-                parallel_deconvolution=256, baseline_averaging=5, auto_mask=3, auto_threshold=1, fits_mask='img/wide-lr-mask.fits', \
+                parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_mask=3, auto_threshold=1, fits_mask='img/wide-lr-mask.fits', \
                 join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
         
         ##############################################
