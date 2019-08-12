@@ -189,8 +189,8 @@ for c in range(2):
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
     lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
-            weight='briggs 0.', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, nmiter=0, \
-            parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_threshold=1, auto_mask=3, \
+            weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
+            parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_threshold=1.5, auto_mask=3, \
             multiscale='', \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
@@ -225,7 +225,7 @@ for c in range(2):
         imagename_lr = 'img/wide-lr'
         lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), do_predict=True, name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
                 weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.85, \
-                parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_mask=3, auto_threshold=1, fits_mask='img/wide-lr-mask.fits', \
+                parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits', \
                 join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
         
         ##############################################
@@ -276,11 +276,11 @@ for c in range(2):
         logger.info('Cleaning beam (cycle: '+str(c)+')...')
         imagename = 'img/wideBeam'
         lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
-                weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
+                weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
                 pol='IQUV', join_polarizations='', \
                 multiscale='', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600, \
-                parallel_deconvolution=256, auto_threshold=1, auto_mask=3., \
+                parallel_deconvolution=256, auto_threshold=1.5, auto_mask=3., \
                 join_channels='', channels_out=9)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
         os.system('makepb.py -o img/avgbeam.fits -i '+imagename)

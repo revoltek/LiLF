@@ -220,8 +220,13 @@ for c in range(100):
 #    im.makeMask(threshisl = 5)
 
     imagename = 'img/imgM-%02i' % c
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=2000, scale='1arcsec', \
+    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=False, name=imagename, size=2000, scale='1arcsec', \
             weight='briggs 0.', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
+            baseline_averaging=5, \
+            auto_threshold=3, auto_mask=5, local_rms='', \
+            join_channels='', fit_spectral_pol=2, channels_out=2 )
+    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, size=2000, scale='1arcsec', \
+            weight='briggs 0.', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.8, nmiter=0, \
             baseline_averaging=5, \
             auto_threshold=0.5, auto_mask=2.5, local_rms='', \
             join_channels='', fit_spectral_pol=2, channels_out=2 )
