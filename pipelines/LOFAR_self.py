@@ -280,7 +280,7 @@ for c in range(2):
                 pol='IQUV', join_polarizations='', \
                 multiscale='', \
                 use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600, \
-                parallel_deconvolution=256, auto_threshold=1.5, auto_mask=3., \
+                parallel_deconvolution=256, local_rms='', auto_threshold=1.5, auto_mask=3, \
                 join_channels='', channels_out=9)
         os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
         os.system('makepb.py -o img/avgbeam.fits -i '+imagename)
