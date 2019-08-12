@@ -237,7 +237,7 @@ for c in range(100):
 
 
     im = lib_img.Image(imagename+'-MFS-image.fits')
-    im.makeMask(threshisl=8, atrous_do=False)
+    im.makeMask(threshisl=3, atrous_do=False)
     rms_noise = im.getNoise()
     logger.info('RMS noise: %f' % rms_noise)
     if rms_noise > 0.95*rms_noise_pre:
