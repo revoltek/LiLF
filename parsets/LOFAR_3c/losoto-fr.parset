@@ -4,7 +4,7 @@ Ncpu = 0
 operation = FARADAY
 soltab = sol000/phase000
 refAnt = CS001LBA
-maxResidual = 1.
+maxResidual = 10.
 
 [plotFR]
 operation = PLOT

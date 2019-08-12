@@ -220,10 +220,10 @@ for c in range(100):
 #    im.makeMask(threshisl = 5)
 
     imagename = 'img/imgM-%02i' % c
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=1000, scale='4arcsec', \
-            weight='briggs 0.', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.7, \
+    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=2000, scale='1arcsec', \
+            weight='briggs 0.', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
             baseline_averaging=5, \
-            auto_threshold=1, auto_mask=3, local_rms='', \
+            auto_threshold=0.5, auto_mask=2.5, local_rms='', \
             join_channels='', fit_spectral_pol=2, channels_out=2 )
     os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
 
@@ -236,7 +236,9 @@ for c in range(100):
     #MSs.run('DPPP '+parset_dir+'/DPPP-flagres.parset msin=$pathMS', log='$nameMS_flagres-c'+str(c)+'.log', commandType='DPPP')
 
 
-    rms_noise = lib_img.Image(imagename+'-MFS-image.fits').getNoise()
+    im = lib_img.Image(imagename+'-MFS-image.fits')
+    im.makeMask(threshisl=8, atrous_do=False)
+    rms_noise = im.getNoise()
     logger.info('RMS noise: %f' % rms_noise)
     if rms_noise > 0.95*rms_noise_pre:
 #        if doamp: break # if already doing amp and not getting better, quit
