@@ -220,17 +220,17 @@ for c in range(100):
 #    im.makeMask(threshisl = 5)
 
     imagename = 'img/imgM-%02i' % c
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=False, name=imagename, size=2000, scale='1arcsec', \
-            weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
+    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=False, name=imagename, size=2000, scale='1arcsec', \
+            weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
             baseline_averaging=5, \
             auto_threshold=2, auto_mask=3, local_rms='', \
             join_channels='', fit_spectral_pol=2, channels_out=2 )
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, size=2000, scale='1arcsec', \
-            weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.8, nmiter=0, \
+    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, size=2000, scale='1arcsec', \
+            weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.8, nmiter=0, \
             baseline_averaging=5, \
             auto_threshold=0.5, auto_mask=2.5, local_rms='', \
             join_channels='', fit_spectral_pol=2, channels_out=2 )
-    os.system('cat logs/wscleanB-c'+str(c)+'.log | grep "background noise"')
+    os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
 
     # Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA
     #logger.info('Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA...')
@@ -240,14 +240,14 @@ for c in range(100):
     #logger.info('Flagging residuals...')
     #MSs.run('DPPP '+parset_dir+'/DPPP-flagres.parset msin=$pathMS', log='$nameMS_flagres-c'+str(c)+'.log', commandType='DPPP')
 
-
     im = lib_img.Image(imagename+'-MFS-image.fits')
     im.makeMask( threshisl=3, rmsbox=(1000,100), atrous_do=False )
     rms_noise = im.getNoise()
     logger.info('RMS noise: %f' % rms_noise)
     if rms_noise > 0.95*rms_noise_pre:
-#        if doamp: break # if already doing amp and not getting better, quit
         doamp = True
+    if doamp and rms_noise > rms_noise_pre and c > 5:
+        break # if already doing amp and not getting better, quit
     rms_noise_pre = rms_noise
 
 logger.info("Done.")
