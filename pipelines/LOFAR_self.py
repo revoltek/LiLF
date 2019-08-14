@@ -258,9 +258,6 @@ for c in range(2):
                log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
         s.run(check=True)
 
-        #MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.usebeammodel=false pre.sourcedb='+im.skydb, \
-        #        log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-
         # TEST: reclean low-resolution
         #logger.info('TEST: Cleaning low resolution...')
         #imagename_lr = 'img/TESTpost-wide-lr'
