@@ -249,8 +249,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     # create command string
     command_string = 'wsclean '+' '.join(wsc_parms)
     s.add(command_string, log=logfile, commandType='wsclean', processors='max')
-    logger.debug('Running wsclean: %s' % command_string)
     s.run(check=True)
+    #logger.debug('Running wsclean: %s' % command_string)
 
     # Predict in case update_model_required cannot be used
     if do_predict == True:
@@ -265,8 +265,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
 
         command_string = 'wsclean -predict '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean', processors='max')
-        logger.debug('Running wsclean: %s' % command_string)
         s.run(check=True)
+        #logger.debug('Running wsclean: %s' % command_string)
 
 
 class Scheduler():
@@ -347,8 +347,6 @@ class Scheduler():
         processors:  number of processors to use, can be "max" to automatically use max number of processors per node
         """
 
-        #cmd = cmd.replace(';','\;') # escape ;
-
         if (log != ''):
             log = self.log_dir + '/' + log
 
@@ -357,6 +355,12 @@ class Scheduler():
             else:
                 cmd += " > "
             cmd += log + " 2>&1"
+
+        # if running wsclean add the string
+        if commandType == 'wsclean':
+            logger.debug('Running wsclean: %s' % cmd)
+        elif commandType == 'DPPP':
+            logger.debug('Running DPPP: %s' % cmd)
 
         if (processors != None and processors == 'max'):
             processors = self.max_processors
