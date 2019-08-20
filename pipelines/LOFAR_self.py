@@ -242,10 +242,14 @@ for c in range(2):
         ##############################################
         # Prepare SUBTRACTED_DATA
 
-        # corrupt model with TEC solutions - ms:MODEL_DATA -> ms:MODEL_DATA
-        logger.info('Corrupt low-res model...')
+        # corrupt model with TEC+Beam2ord solutions - ms:MODEL_DATA -> ms:MODEL_DATA
+        logger.info('Corrupt low-res model: TEC...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
                 cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False', \
+                log='$nameMS_corrupt.log', commandType='DPPP')
+        logger.info('Corrupt low-res model: G...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                cor.parmdb=self/solutions/cal-g2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth cor.invert=False', \
                 log='$nameMS_corrupt.log', commandType='DPPP')
     
         # Subtract low-res model - SUBTRACTED_DATA = DATA - MODEL_DATA
@@ -262,8 +266,8 @@ for c in range(2):
         #logger.info('TEST: Cleaning low resolution...')
         #imagename_lr = 'img/TESTpost-wide-lr'
         #lib_util.run_wsclean(s, 'wscleanLR-after.log', MSs.getStrWsclean(), name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
-        #        weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.8, \
-        #        parallel_deconvolution=256, baseline_averaging=5, auto_mask=3, auto_threshold=0.5, \
+        #        weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.85, \
+        #        parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits', \
         #        join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
 

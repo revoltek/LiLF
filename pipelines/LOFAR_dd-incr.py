@@ -63,7 +63,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
 
     if res == 'normal':
-        weight = 'briggs 0'
+        weight = 'briggs -0.3'
         maxuv_l = None
     elif res == 'high':
         weight = 'briggs -0.7'
