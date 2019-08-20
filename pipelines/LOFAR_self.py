@@ -223,10 +223,16 @@ for c in range(2):
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
-        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), do_predict=True, name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
+        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
                 weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.85, \
                 parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits', \
                 join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+
+        logger.info('Predict low resolution...')
+        s.add('wsclean -predict -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out 9 '+MSs.getStrWsclean(), \
+                              log='wscleanLR-pre.log', commandType='wsclean', processors='max')
+        s.run(check=True)
+
         
         ##############################################
         # Flag on empty dataset
@@ -246,6 +252,10 @@ for c in range(2):
         logger.info('Corrupt low-res model: TEC...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
                 cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False', \
+                log='$nameMS_corrupt.log', commandType='DPPP')
+        logger.info('Corrupt low-res model: FR...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                cor.parmdb=self/solutions/cal-g1-c'+str(c)+'.h5 cor.correction=rotationmeasure000 cor.invert=False', \
                 log='$nameMS_corrupt.log', commandType='DPPP')
         logger.info('Corrupt low-res model: G...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
