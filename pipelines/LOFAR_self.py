@@ -217,8 +217,8 @@ for c in range(2):
         lib_img.blank_image_reg('img/wide-lr-mask.fits', beamReg, blankval = 1., inverse=True)
 
         # not all vis are overwritten by wsclean
-        logger.info('Reset MODEL_DATA...')
-        MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+        #logger.info('Reset MODEL_DATA...')
+        #MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
