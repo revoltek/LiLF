@@ -122,7 +122,7 @@ for c in range(2):
     s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-tec-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-tec-c'+str(c)+'*.h5')),\
             log='losotoTEC-c'+str(c)+'.log', commandType="python", processors='max')
     s.run(check = True)
-    lib_util.check_rm('cal-tec'+str(c)+'*.h5')
+    lib_util.check_rm('cal-tec-c'+str(c)+'*.h5')
 
     # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC...')
