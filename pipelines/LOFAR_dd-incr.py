@@ -112,7 +112,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 logger.info('Copy data...')
 if not os.path.exists('mss-dd'):
     os.makedirs('mss-dd')
-    MSs_self.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=CORRECTED_DATA avg.freqstep=1 avg.timestep=1', \
+    MSs_self.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA avg.freqstep=1 avg.timestep=1', \
                 log='$nameMS_avg.log', commandType='DPPP')
 MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9].MS'), s )
        
@@ -250,7 +250,7 @@ for c in range(maxniter):
     for i, d in enumerate(directions):
         logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
 
-   ################################################################
+    ################################################################
     # Calibrate TEC
     logger.info('Subtraction rest_field...')
 
@@ -329,6 +329,7 @@ for c in range(maxniter):
                             log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
     s.run(check = True)
     lib_util.check_rm('cal-remote-c'+str(c)+'-*.h5')
+    sys.exit()
 
     # Calibration 2 - ms:SMOOTHED_DATA
     logger.info('Remote calibration...')
