@@ -221,7 +221,7 @@ for c in range(100):
 
     imagename = 'img/imgM-%02i' % c
     lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=False, name=imagename, size=2000, scale='1arcsec', \
-            weight='briggs -0.6', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
+            weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
             baseline_averaging=5, \
             auto_threshold=2, auto_mask=3, local_rms='', \
             join_channels='', fit_spectral_pol=2, channels_out=2 )
@@ -229,10 +229,10 @@ for c in range(100):
     os.system('cp -r img/imgM-%02i-MFS-model.fits img/imgMbkp-%02i-MFS-model.fits' % (c,c))
     os.system('cp -r img/imgM-%02i-MFS-residual.fits img/imgMbkp-%02i-MFS-residual.fits' % (c,c))
     lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, size=2000, scale='1arcsec', \
-            weight='briggs -0.6', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.8, nmiter=0, \
+            weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.8, nmiter=0, \
             baseline_averaging=5, \
             auto_threshold=0.5, auto_mask=2., local_rms='', \
-            multiscale='',\
+            multiscale='', multiscale_bias=0.8 \
             join_channels='', fit_spectral_pol=2, channels_out=2 )
     os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
 

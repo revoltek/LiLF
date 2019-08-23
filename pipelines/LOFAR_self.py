@@ -249,7 +249,7 @@ for c in range(2):
         ##############################################
         # Prepare SUBTRACTED_DATA
 
-        # corrupt model with TEC+Beam2ord solutions - ms:MODEL_DATA -> ms:MODEL_DATA
+        # corrupt model with TEC+FR+Beam2ord solutions - ms:MODEL_DATA -> ms:MODEL_DATA
         logger.info('Corrupt low-res model: TEC...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
                 cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False', \
