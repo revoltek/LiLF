@@ -188,7 +188,7 @@ for c in range(2):
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
-    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
+    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=c==0, name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
             weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=4500, mgain=0.85, \
             parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_threshold=1.5, auto_mask=2.5, \
             multiscale='', multiscale_scale_bias=0.75, \
