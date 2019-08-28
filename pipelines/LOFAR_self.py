@@ -125,9 +125,11 @@ for c in range(2):
     lib_util.check_rm('cal-ph-c'+str(c)+'*.h5')
 
     # correct DELAY - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
-    logger.info('Correcting TEC...')
+    logger.info('Correcting Delay...')
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=clock000', \
                log='$nameMS_corDELAY-c'+str(c)+'.log', commandType='DPPP')
+    #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=phase000', \
+    #           log='$nameMS_corDELAY-c'+str(c)+'.log', commandType='DPPP')
 
     # Smooth CORRECTED_DATA -> SMOOTHED_DATA
     logger.info('BL-based smoothing...')
@@ -147,9 +149,9 @@ for c in range(2):
     s.run(check = True)
     lib_util.check_rm('cal-tec-c'+str(c)+'*.h5')
 
-    # correct TEC - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
+    # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000', \
                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
     # AMP+FR DIE correction
