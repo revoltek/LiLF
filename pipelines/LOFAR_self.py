@@ -110,30 +110,30 @@ for c in range(2):
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -f 0.2 -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
-    # solve PH - group*_TC.MS:SMOOTHED_DATA
-    logger.info('Solving PH...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solPH.parset msin=$pathMS sol.h5parm=$pathMS/ph.h5', \
-                log='$nameMS_solPH-c'+str(c)+'.log', commandType='DPPP')
- 
-    # LoSoTo
-    for MS in MSs.getListObj():
-        lib_util.run_losoto(s, 'ph-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/ph.h5',[parset_dir+'/losoto-ph.parset'])
-    os.system('mv plots-ph-c'+str(c)+'* self/plots/')
-    s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-ph-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-ph-c'+str(c)+'*.h5')),\
-            log='losotoPH-c'+str(c)+'.log', commandType="python", processors='max')
-    s.run(check = True)
-    lib_util.check_rm('cal-ph-c'+str(c)+'*.h5')
-
-    # correct DELAY - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
-    logger.info('Correcting Delay...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=clock000', \
-               log='$nameMS_corDELAY-c'+str(c)+'.log', commandType='DPPP')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=phase000', \
-    #           log='$nameMS_corDELAY-c'+str(c)+'.log', commandType='DPPP')
-
-    # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -f 0.2 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
+#    # solve PH - group*_TC.MS:SMOOTHED_DATA
+#    logger.info('Solving PH...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solPH.parset msin=$pathMS sol.h5parm=$pathMS/ph.h5', \
+#                log='$nameMS_solPH-c'+str(c)+'.log', commandType='DPPP')
+# 
+#    # LoSoTo
+#    for MS in MSs.getListObj():
+#        lib_util.run_losoto(s, 'ph-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/ph.h5',[parset_dir+'/losoto-ph.parset'])
+#    os.system('mv plots-ph-c'+str(c)+'* self/plots/')
+#    s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-ph-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-ph-c'+str(c)+'*.h5')),\
+#            log='losotoPH-c'+str(c)+'.log', commandType="python", processors='max')
+#    s.run(check = True)
+#    lib_util.check_rm('cal-ph-c'+str(c)+'*.h5')
+#
+#    # correct DELAY - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
+#    logger.info('Correcting Delay...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=clock000', \
+#               log='$nameMS_corDELAY-c'+str(c)+'.log', commandType='DPPP')
+#    #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=phase000', \
+#    #           log='$nameMS_corDELAY-c'+str(c)+'.log', commandType='DPPP')
+#
+#    # Smooth CORRECTED_DATA -> SMOOTHED_DATA
+#    logger.info('BL-based smoothing...')
+#    MSs.run('BLsmooth.py -r -f 0.2 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving TEC...')
@@ -148,6 +148,8 @@ for c in range(2):
             log='losotoTEC-c'+str(c)+'.log', commandType="python", processors='max')
     s.run(check = True)
     lib_util.check_rm('cal-tec-c'+str(c)+'*.h5')
+
+    sys.exit()
 
     # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC...')

@@ -209,21 +209,11 @@ for c in range(100):
     # 2: Cleaning
    
     logger.info('Cleaning (cycle: '+str(c)+')...')
-#    imagename = 'img/img-%02i' % c
-#    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=5000, scale='4arcsec', \
-#            weight='briggs 0.', niter=1000, no_update_model_required='', minuv_l=30, mgain=0.7, \
-#            baseline_averaging=5, parallel_deconvolution=256, \
-#            auto_threshold=5, multiscale='', \
-#            join_channels='', fit_spectral_pol=2, channels_out=4, deconvolution_channels=2 )
-#
-#    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-#    im.makeMask(threshisl = 5)
-
     imagename = 'img/imgM-%02i' % c
     # if next is a "cont" then I need the do_predict
     lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=2000, scale='1arcsec', \
             weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
-            auto_threshold=2.5, local_rms='', \
+            auto_threshold=3, local_rms='', \
             join_channels='', fit_spectral_pol=2, channels_out=2 )
     os.system('cp -r img/imgM-%02i-MFS-image.fits img/imgMbkp-%02i-MFS-image.fits' % (c,c))
     os.system('cp -r img/imgM-%02i-MFS-model.fits img/imgMbkp-%02i-MFS-model.fits' % (c,c))

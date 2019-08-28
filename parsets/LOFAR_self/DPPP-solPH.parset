@@ -16,4 +16,3 @@ sol.nchan = 8
 sol.propagatesolutions = True
 sol.usemodelcolumn = True
 sol.h5parm = 
-

@@ -288,8 +288,10 @@ for c in range(maxniter):
             MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
     ### TESTTESTTEST: empty image with cals
-    #MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    #clean('onlycals-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    clean('onlycals-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    MSs.run('taql "update $pathMS set CORRECTED_DATA = MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    clean('onlyrestmodel-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
     ###
 
     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
@@ -432,8 +434,8 @@ for c in range(maxniter):
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
     ### TESTTESTTEST: empty image
-    #MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    #clean('empty-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    clean('empty-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
     ###
 
     ###########################################################
