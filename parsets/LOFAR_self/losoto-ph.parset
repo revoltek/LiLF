@@ -64,18 +64,3 @@ prefix = plots/phRes_
 refAnt = 'CS001LBA'
 minmax = [-3.14,3.14]
 
-[smoothRes]
-operation = SMOOTH
-soltab = sol000/phase000
-axesToSmooth = [time,freq]
-mode = median
-
-[plotphResSmooth]
-operation = PLOT
-soltab = sol000/phase000
-axesInPlot = [time,freq]
-axisInTable = ant
-plotFlag = True
-prefix = plots/phResSmooth_
-refAnt = 'CS001LBA'
-minmax = [-3.14,3.14]
