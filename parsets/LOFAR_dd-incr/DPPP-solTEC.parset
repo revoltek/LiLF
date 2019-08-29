@@ -18,4 +18,4 @@ sol.mode = tec # phaseonly, complexgain, tec, tecandphase
 sol.propagatesolutions = True
 sol.approximatetec = True
 sol.maxapproxiter = 250
-sol.approxtolerance = 5e-3
+sol.approxtolerance = 1e-3
