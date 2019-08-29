@@ -17,6 +17,5 @@ sol.stepsize = 0.2
 sol.mode = tec # phaseonly, complexgain, tec, tecandphase
 sol.propagatesolutions = True
 sol.approximatetec = True
-sol.maxapproxiter = 150
+sol.maxapproxiter = 250
 sol.approxtolerance = 5e-3
-#sol.approxchunksize = 1
