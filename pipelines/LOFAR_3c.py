@@ -144,7 +144,7 @@ for c in range(100):
 
     # Smooth DATA -> SMOOTHED_DATA
     logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -f 0.2 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
+    MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
 
     # First get scalar solution to get ph for CS
     # solve G - group*_TC.MS:SMOOTHED_DATA
@@ -176,7 +176,7 @@ for c in range(100):
 
     # Smooth CORRECTED_DATA -> SMOOTHED_DATA
     logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -f 0.2 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
+    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
 
     # Re-do calibration after faradayrotation removal
     # solve G - group*_TC.MS:SMOOTHED_DATA
