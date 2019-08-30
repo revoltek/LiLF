@@ -124,10 +124,12 @@ for c in range(2):
     s.run(check = True)
     lib_util.check_rm('cal-ph-c'+str(c)+'*.h5')
 
-    # correct DELAY - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
-    logger.info('Correcting Phases...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=phase000', \
-               log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
+    sys.exit()
+
+#    # correct DELAY - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
+#    logger.info('Correcting Phases...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=phase000', \
+#               log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
 
 #    # correct DELAY - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
 #    logger.info('Correcting Delay...')
