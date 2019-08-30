@@ -288,15 +288,16 @@ for c in range(maxniter):
             MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
     ### TESTTESTTEST: empty image with cals
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    clean('onlycals-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    #MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    #clean('onlycals-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
     MSs.run('taql "update $pathMS set CORRECTED_DATA = MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
     clean('onlyrestmodel-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    sys.exit()
     ###
 
     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
     logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -f 1.0 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
+    MSs.run('BLsmooth.py -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
 
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Core calibration...')
@@ -359,7 +360,7 @@ for c in range(maxniter):
 #
 #        # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
 #        logger.info('BL-based smoothing...')
-#        MSs.run('BLsmooth.py -f 1.0 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
+#        MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
 #
 #        # Convert to circular - SMOOTHED_DATA -> SMOOTHED_DATA
 #        logger.info('Converting to circular...')
@@ -382,7 +383,7 @@ for c in range(maxniter):
 #
 #        # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
 #        logger.info('BL-based smoothing...')
-#        MSs.run('BLsmooth.py -f 1.0 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
+#        MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
 #    
 #        # DIE Calibration - ms:SMOOTHED_DATA
 #        logger.info('Solving DIE AMP...')
