@@ -124,12 +124,10 @@ for c in range(2):
     s.run(check = True)
     lib_util.check_rm('cal-ph-c'+str(c)+'*.h5')
 
-    sys.exit()
-
-#    # correct DELAY - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
-#    logger.info('Correcting Phases...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=phase000', \
-#               log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
+    # correct PHASES - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
+    logger.info('Correcting Phases...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=phase000', \
+        log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
 
 #    # correct DELAY - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
 #    logger.info('Correcting Delay...')
@@ -268,11 +266,14 @@ for c in range(2):
         # Prepare SUBTRACTED_DATA
 
         # corrupt model with TEC+FR+Beam2ord solutions - ms:MODEL_DATA -> ms:MODEL_DATA
-        logger.info('Corrupt low-res model: TEC...')
+        #logger.info('Corrupt low-res model: TEC...')
+        #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+        #        cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False', \
+        #        log='$nameMS_corrupt.log', commandType='DPPP')
+        logger.info('Corrupt low-res model: PH...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False', \
+                cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=phase000 cor.invert=False', \
                 log='$nameMS_corrupt.log', commandType='DPPP')
-        logger.info('Corrupt low-res model: FR...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                 cor.parmdb=self/solutions/cal-g1-c'+str(c)+'.h5 cor.correction=rotationmeasure000 cor.invert=False', \
                 log='$nameMS_corrupt.log', commandType='DPPP')
