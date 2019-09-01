@@ -101,40 +101,29 @@ for c in range(2):
 
     logger.info('Start selfcal cycle: '+str(c))
 
-    if c == 0:
-        incol = 'DATA'
+    if c != 0:
+        incol = 'SUBTRACTED_DATA'
     else:
-
-        # TEST: correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-        logger.info('Correcting G...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb=self/solutions/cal-g2-c0.h5 cor.correction=amplitudeSmooth', \
-                log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
-
-        # TEST: correct FR - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-        logger.info('Correcting FR...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g1-c0.h5 cor.correction=rotationmeasure000', \
-                log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
-
-        incol = 'CORRECTED_DATA'
+        incol = 'DATA'
 
     # Smooth DATA -> SMOOTHED_DATA
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
-    # solve PH - group*_TC.MS:SMOOTHED_DATA
-    logger.info('Solving PH...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solPH.parset msin=$pathMS sol.h5parm=$pathMS/ph.h5', \
-                log='$nameMS_solPH-c'+str(c)+'.log', commandType='DPPP')
- 
-    # LoSoTo
-    for MS in MSs.getListObj():
-        lib_util.run_losoto(s, 'ph-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/ph.h5',[parset_dir+'/losoto-ph.parset'])
-    os.system('mv plots-ph-c'+str(c)+'* self/plots/')
-    s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-ph-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-ph-c'+str(c)+'*.h5')),\
-            log='losotoPH-c'+str(c)+'.log', commandType="python", processors='max')
-    s.run(check = True)
-    lib_util.check_rm('cal-ph-c'+str(c)+'*.h5')
-
+#    # solve PH - group*_TC.MS:SMOOTHED_DATA
+#    logger.info('Solving PH...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solPH.parset msin=$pathMS sol.h5parm=$pathMS/ph.h5', \
+#                log='$nameMS_solPH-c'+str(c)+'.log', commandType='DPPP')
+# 
+#    # LoSoTo
+#    for MS in MSs.getListObj():
+#        lib_util.run_losoto(s, 'ph-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/ph.h5',[parset_dir+'/losoto-ph.parset'])
+#    os.system('mv plots-ph-c'+str(c)+'* self/plots/')
+#    s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-ph-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-ph-c'+str(c)+'*.h5')),\
+#            log='losotoPH-c'+str(c)+'.log', commandType="python", processors='max')
+#    s.run(check = True)
+#    lib_util.check_rm('cal-ph-c'+str(c)+'*.h5')
+#
 #    # correct PHASES - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
 #    logger.info('Correcting Phases...')
 #    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=phase000', \
@@ -150,7 +139,7 @@ for c in range(2):
 #    # Smooth CORRECTED_DATA -> SMOOTHED_DATA
 #    logger.info('BL-based smoothing...')
 #    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
-
+#
     # solve TEC - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving TEC...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5', \
@@ -165,13 +154,24 @@ for c in range(2):
     s.run(check = True)
     lib_util.check_rm('cal-tec-c'+str(c)+'*.h5')
 
-#    # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-#    logger.info('Correcting TEC...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000', \
-#               log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
+    # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
+    logger.info('Correcting TEC...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000', \
+               log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
+
+    if c>0:
+     # Smooth CORRECTED_DATA -> SMOOTHED_DATA
+     logger.info('BL-based smoothing...')
+     MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
+
+     # solve PH - group*_TC.MS:SMOOTHED_DATA
+     logger.info('Solving PH...')
+     MSs.run('DPPP '+parset_dir+'/DPPP-solPH.parset msin=$pathMS sol.h5parm=$pathMS/ph.h5', \
+                log='$nameMS_solPH-c'+str(c)+'.log', commandType='DPPP')
+ 
 
     # AMP+FR DIE correction
-    if c == 0:
+    if c >= 0:
 
         # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Converting to circular...')
@@ -211,7 +211,7 @@ for c in range(2):
 
 
     ###################################################################################################################
-    # clean on concat.MS:CORRECTED_DATA
+    # clen on concat.MS:CORRECTED_DATA
 
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     logger.info('Cleaning (cycle: '+str(c)+')...')
