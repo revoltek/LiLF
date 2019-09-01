@@ -17,7 +17,7 @@ CombinePol = False
 FlagBadChannels = False
 Fit3rdOrder = False
 Circular = False
-#removePhaseWraps = False
+removePhaseWraps = False
 chi2cut = 1e9
 
 [plotClock]
@@ -35,7 +35,7 @@ axesInPlot = time
 axisInTable = ant
 plotFlag = True
 minmax = [-0.5,0.5]
-prefix = plots/tec_
+prefix = plots/tec
 refAnt = 'CS001LBA'
 
 [smoothClock]
@@ -49,18 +49,22 @@ operation = REWEIGHT
 soltab = sol000/clock000
 weightVal = 1.
 
+[dublicateR]
+operation = DUPLICATE
+soltab = sol000/phase000
+soltabOut = phaseRes
+
 [residuals]
 operation = RESIDUALS
-soltab = sol000/phase000
+soltab = sol000/phaseRes
 soltabsToSub = [clock000,tec000]
 
 [plotphRes]
 operation = PLOT
-soltab = sol000/phase000
+soltab = sol000/phaseRes
 axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/phRes_
 refAnt = 'CS001LBA'
 minmax = [-3.14,3.14]
-
