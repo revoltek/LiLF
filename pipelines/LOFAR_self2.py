@@ -135,7 +135,7 @@ for c in range(2):
     logger.info('Correcting TEC1...')
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
             cor.parmdb=ddcal/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000', \
-            log='$nameMS_cor-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+            log='$nameMS_cor-c'+str(c)+'.log', commandType='DPPP')
 
     # Smooth CORRECTED_DATA -> SMOOTHED_DATA
     logger.info('BL-based smoothing...')
@@ -157,7 +157,7 @@ for c in range(2):
     logger.info('Correcting TEC2...')
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
             cor.parmdb=ddcal/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000', \
-            log='$nameMS_cor-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+            log='$nameMS_cor-c'+str(c)+'.log', commandType='DPPP')
 
     # AMP+FR DIE correction
     if c == 0:
