@@ -105,12 +105,12 @@ for c in range(2):
         incol = 'DATA'
     else:
 
-        # TEST: correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
+        # correct G - group*_TC.MS:SUBTRACTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting G...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA cor.parmdb=self/solutions/cal-g2-c0.h5 cor.correction=amplitudeSmooth', \
                 log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
 
-        # TEST: correct FR - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
+        # correct FR - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting FR...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g1-c0.h5 cor.correction=rotationmeasure000', \
                 log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
@@ -120,6 +120,22 @@ for c in range(2):
     # Smooth DATA -> SMOOTHED_DATA
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -i '+incol+' -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
+
+    ### TEST
+    # solve TEC - group*_TC.MS:SMOOTHED_DATA
+    logger.info('Solving TEC...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5', \
+                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
+ 
+    # LoSoTo
+    for MS in MSs.getListObj():
+        lib_util.run_losoto(s, 'tec-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/tec.h5',[parset_dir+'/losoto-tec.parset'])
+    os.system('mv plots-tec-c'+str(c)+'* self/plots/')
+    s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-tec-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-tec-c'+str(c)+'*.h5')),\
+            log='losotoTEC-c'+str(c)+'.log', commandType="python", processors='max')
+    s.run(check = True)
+    lib_util.check_rm('cal-tec-c'+str(c)+'*.h5')
+    ###
 
     # solve PH - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving PH...')
@@ -135,40 +151,10 @@ for c in range(2):
     s.run(check = True)
     lib_util.check_rm('cal-ph-c'+str(c)+'*.h5')
 
-#    # correct PHASES - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
-#    logger.info('Correcting Phases...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=phase000', \
-#        log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
-#
-#    # correct DELAY - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
-#    logger.info('Correcting Delay...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=clock000', \
-#               log='$nameMS_corDELAY-c'+str(c)+'.log', commandType='DPPP')
-#    #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=phase000', \
-#    #           log='$nameMS_corDELAY-c'+str(c)+'.log', commandType='DPPP')
-#
-#    # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-#    logger.info('BL-based smoothing...')
-#    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
-
-    # solve TEC - group*_TC.MS:SMOOTHED_DATA
-    logger.info('Solving TEC...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5', \
-                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
- 
-    # LoSoTo
-    for MS in MSs.getListObj():
-        lib_util.run_losoto(s, 'tec-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/tec.h5',[parset_dir+'/losoto-tec.parset'])
-    os.system('mv plots-tec-c'+str(c)+'* self/plots/')
-    s.add('H5parm_collector.py -V -s sol000 -o self/solutions/cal-tec-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-tec-c'+str(c)+'*.h5')),\
-            log='losotoTEC-c'+str(c)+'.log', commandType="python", processors='max')
-    s.run(check = True)
-    lib_util.check_rm('cal-tec-c'+str(c)+'*.h5')
-
-#    # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-#    logger.info('Correcting TEC...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=self/solutions/cal-tec-c'+str(c)+'.h5 cor.correction=tec000', \
-#               log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
+    # correct PHASES - group*_TC.MS:(SUBTRACTED_)DATA -> group*_TC.MS:CORRECTED_DATA
+    logger.info('Correcting Phases...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn='+incol+' cor.parmdb=self/solutions/cal-ph-c'+str(c)+'.h5 cor.correction=phase000', \
+        log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
 
     # AMP+FR DIE correction
     if c == 0:
