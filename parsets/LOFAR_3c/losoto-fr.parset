@@ -14,7 +14,7 @@ axisInTable = ant
 prefix = plots/fr
 
 [duplicate]
-peration = DUPLICATE
+operation = DUPLICATE
 soltab = sol000/phase000
 soltabOut = phaseRes000
 
