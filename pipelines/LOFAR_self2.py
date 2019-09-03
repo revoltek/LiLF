@@ -129,12 +129,12 @@ for c in range(2):
 
     lib_util.run_losoto(s, 'tec1-c'+str(c), [ms+'/tec1.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
     os.system('mv cal-tec1-c'+str(c)+'.h5 self/solutions/')
-    os.system('mv plots-tec1-c'+str(c)+'.h5 self/plots/')
+    os.system('mv plots-tec1-c'+str(c)+' self/plots/')
 
     # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC1...')
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
-            cor.parmdb=ddcal/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000', \
+            cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000', \
             log='$nameMS_cor-c'+str(c)+'.log', commandType='DPPP')
 
     # Smooth CORRECTED_DATA -> SMOOTHED_DATA
@@ -151,12 +151,12 @@ for c in range(2):
 
     lib_util.run_losoto(s, 'tec2-c'+str(c), [ms+'/tec2.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
     os.system('mv cal-tec2-c'+str(c)+'.h5 self/solutions/')
-    os.system('mv plots-tec2-c'+str(c)+'.h5 self/plots/')
+    os.system('mv plots-tec2-c'+str(c)+' self/plots/')
  
     # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
     logger.info('Correcting TEC2...')
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
-            cor.parmdb=ddcal/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000', \
+            cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000', \
             log='$nameMS_cor-c'+str(c)+'.log', commandType='DPPP')
 
     # AMP+FR DIE correction
