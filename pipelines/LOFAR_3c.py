@@ -149,7 +149,7 @@ for c in range(100):
     # First get scalar solution to get ph for CS
     # solve G - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving 1...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/calG0.h5 sol.mode=diagonal \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG0.h5 sol.mode=diagonal \
             sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
             log='$nameMS_solG0-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'G0-c'+str(c), [ms+'/calG0.h5' for ms in MSs.getListStr()], \
@@ -157,7 +157,7 @@ for c in range(100):
 
     # Correct DATA -> CORRECTED_DATA
     logger.info('Correction PH...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-G0-c'+str(c)+'.h5 cor.correction=phase000', \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-G0-c'+str(c)+'.h5 cor.correction=phase000', \
             log='$nameMS_corPH1-c'+str(c)+'.log', commandType='DPPP')
 
     # Smooth CORRECTED_DATA -> SMOOTHED_DATA
@@ -167,9 +167,8 @@ for c in range(100):
     # Pre-apply ph on CS and fix all of them to get ph for RS
     # solve G - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving 2...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/calG1.h5 sol.mode=diagonal \
-            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
-            sol.applycal.parmdb=cal-G0-c'+str(c)+'.h5 sol.applycal.correction=phase000', \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG1.h5 sol.mode=diagonal \
+            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]', \
             log='$nameMS_solG1-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'G1-c'+str(c), [ms+'/calG1.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
@@ -190,7 +189,7 @@ for c in range(100):
     # Re-do calibration after faradayrotation removal
     # solve G - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving 3...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/calG2.h5 sol.mode=diagonal \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG2.h5 sol.mode=diagonal \
             sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
             log='$nameMS_solG2-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'G2-c'+str(c), [ms+'/calG2.h5' for ms in MSs.getListStr()], \
