@@ -102,6 +102,7 @@ for c in range(2):
     logger.info('Start selfcal cycle: '+str(c))
 
     if c == 0:
+        logger.info('Set CORRECTED_DATA = DATA...')
         MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
     else:
 
@@ -127,7 +128,7 @@ for c in range(2):
        	    sol.solint=15 sol.nchan=16', \
             log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
-    lib_util.run_losoto(s, 'tec1-c'+str(c), [ms+'/tec1.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
+    lib_util.run_losoto(s, 'tec1-c'+str(c), [ms+'/tec1.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-resetremote.parset', parset_dir+'/losoto-plot-tec.parset'])
     os.system('mv cal-tec1-c'+str(c)+'.h5 self/solutions/')
     os.system('mv plots-tec1-c'+str(c)+' self/plots/')
 

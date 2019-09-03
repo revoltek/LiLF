@@ -6,5 +6,3 @@ msout.datacolumn = CORRECTED_DATA
 steps = [cor, count]
 
 cor.type = correct
-cor.parmdb = 
-cor.correction =
