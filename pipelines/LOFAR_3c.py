@@ -74,8 +74,8 @@ for timestamp in set([ os.path.basename(ms).split('_')[1][1:] for ms in MSs.getL
         
         # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign corrected)
         logger.info('Apply solutions (pa)...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.steps=[pa] \
-                cor.pa.parmdb='+h5_pa+' cor.pa.correction=polalign', log='$nameMS_cor1.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS \
+                cor.parmdb='+h5_pa+' cor.correction=polalign', log='$nameMS_cor1.log', commandType='DPPP')
         
         # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, calibrator corrected+reweight, beam corrected+reweight)
         logger.info('Apply solutions (amp/ph)...')
@@ -155,6 +155,15 @@ for c in range(100):
     lib_util.run_losoto(s, 'G0-c'+str(c), [ms+'/calG0.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-resetremote.parset'])
 
+    # Correct DATA -> CORRECTED_DATA
+    logger.info('Correction PH...')
+    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-G0-c'+str(c)+'.h5 cor.correction=phase000', \
+            log='$nameMS_corPH1-c'+str(c)+'.log', commandType='DPPP')
+
+    # Smooth CORRECTED_DATA -> SMOOTHED_DATA
+    logger.info('BL-based smoothing...')
+    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
+
     # Pre-apply ph on CS and fix all of them to get ph for RS
     # solve G - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving 2...')
@@ -190,7 +199,7 @@ for c in range(100):
     # Correct CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Correction PH...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-G2-c'+str(c)+'.h5 cor.correction=phase000', \
-            log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
+            log='$nameMS_corPH2-c'+str(c)+'.log', commandType='DPPP')
 
     if doamp:
         # solve G - group*_TC.MS:CORRECTED_DATA
@@ -215,7 +224,6 @@ for c in range(100):
             weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
             auto_threshold=3, local_rms='', \
             join_channels='', fit_spectral_pol=2, channels_out=2 )
-    os.system('cp -r img/imgM-%02i-MFS-image.fits img/imgMbkp-%02i-MFS-image.fits' % (c,c))
     os.system('cp -r img/imgM-%02i-MFS-model.fits img/imgMbkp-%02i-MFS-model.fits' % (c,c))
     os.system('cp -r img/imgM-%02i-MFS-residual.fits img/imgMbkp-%02i-MFS-residual.fits' % (c,c))
     lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, size=2000, scale='1arcsec', \

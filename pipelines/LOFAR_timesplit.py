@@ -62,8 +62,8 @@ assert os.path.exists(h5_iono)
 
 # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign corrected)
 logger.info('Apply solutions (pa)...')
-MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.steps=[pa] \
-        cor.pa.parmdb='+h5_pa+' cor.pa.correction=polalign', log='$nameMS_cor1.log', commandType='DPPP')
+MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS \
+        cor.parmdb='+h5_pa+' cor.correction=polalign', log='$nameMS_cor1.log', commandType='DPPP')
 
 # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, calibrator corrected+reweight, beam corrected+reweight)
 logger.info('Apply solutions (amp/ph)...')
