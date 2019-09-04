@@ -213,7 +213,7 @@ for c in range(2):
     os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
        
     # add model and remove first sidelobe
-    if c == 1:
+    if c == 0:
 
         # TEST: reclean low-resolution
         #logger.info('TEST: Cleaning low resolution...')
