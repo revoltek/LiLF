@@ -89,20 +89,20 @@ for MS in MSs.getListStr():
 logger.info('Creating CORRECTED_DATA...')
 MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
 
-#logger.info('Add model to MODEL_DATA...')
-#if apparent:
-#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
-#else:
-#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+logger.info('Add model to MODEL_DATA...')
+if apparent:
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+else:
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 
 
 #TODO: TEST
-logger.info('Corrupt beam...')
-MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.invert=False', \
-        log='$nameMS_beamcorr.log', commandType='DPPP')
+#logger.info('Corrupt beam...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.invert=False', \
+#        log='$nameMS_beamcorr.log', commandType='DPPP')
 
-logger.info('Add model...')
-MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.beammode=default pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+#logger.info('Add model...')
+#MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.beammode=default pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 
 #####################################################################################################
 # Self-cal cycle
@@ -111,9 +111,8 @@ for c in range(2):
     logger.info('Start selfcal cycle: '+str(c))
 
     if c == 0:
-        #logger.info('Set CORRECTED_DATA = DATA...')
-        #MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-        pass
+        logger.info('Set CORRECTED_DATA = DATA...')
+        MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
     else:
 
         # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
@@ -178,12 +177,17 @@ for c in range(2):
             cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000', \
             log='$nameMS_cor-c'+str(c)+'.log', commandType='DPPP')
 
+    ###### TEST: solve PH - ms:SMOOTHED_DATA
+    logger.info('Solving PH...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solPH.parset msin=$pathMS sol.h5parm=$pathMS/ph2.h5', \
+                                    log='$nameMS_solPH-c'+str(c)+'.log', commandType='DPPP')
+    lib_util.run_losoto(s, 'ph2-c'+str(c), [ms+'/ph2.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-ph.parset'])
+    os.system('mv cal-ph2-c'+str(c)+'.h5 self/solutions/')
+    os.system('mv plots-ph2-c'+str(c)+' self/plots/')
+    #######
+
     # AMP+FR DIE correction
     if c == 0:
-
-        logger.info('Correct beam...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA corrbeam.invert=True', \
-        log='$nameMS_beamcorr.log', commandType='DPPP')
 
         # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Converting to circular...')
