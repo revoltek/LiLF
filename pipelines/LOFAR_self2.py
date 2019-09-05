@@ -178,6 +178,9 @@ for c in range(2):
             log='$nameMS_cor-c'+str(c)+'.log', commandType='DPPP')
 
     ###### TEST: solve PH - ms:SMOOTHED_DATA
+    logger.info('BL-based smoothing...')
+    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
+
     logger.info('Solving PH...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solPH.parset msin=$pathMS sol.h5parm=$pathMS/ph2.h5', \
                                     log='$nameMS_solPH-c'+str(c)+'.log', commandType='DPPP')
