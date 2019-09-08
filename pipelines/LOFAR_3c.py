@@ -142,6 +142,8 @@ for c in range(100):
     ####################################################
     # 1: Solving
 
+    # TODO: make rotationmeasure only after a few cycles
+
     # Smooth DATA -> SMOOTHED_DATA
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
@@ -171,11 +173,11 @@ for c in range(100):
     # Re-do calibration after faradayrotation removal
     # solve G - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving 2...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG2.h5 sol.mode=scalarphase \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG2.h5 sol.mode=diagonal \
             sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
             log='$nameMS_solG2-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'G2-c'+str(c), [ms+'/calG2.h5' for ms in MSs.getListStr()], \
-                    [parset_dir+'/losoto-plot-ph.parset'])
+                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
 
     # Correct CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Correction PH...')
@@ -218,16 +220,30 @@ for c in range(100):
     # if next is a "cont" then I need the do_predict
     lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=2000, scale='1arcsec', \
             weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
-            auto_threshold=3, local_rms='', fits_mask='3c264.fits', \
+            auto_threshold=3, local_rms='', \
             join_channels='', fit_spectral_pol=2, channels_out=2 )
     os.system('cp -r img/imgM-%02i-MFS-model.fits img/imgMbkp-%02i-MFS-model.fits' % (c,c))
     os.system('cp -r img/imgM-%02i-MFS-residual.fits img/imgMbkp-%02i-MFS-residual.fits' % (c,c))
     lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, size=2000, scale='1arcsec', \
             weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.7, nmiter=0, \
-            auto_threshold=0.5, auto_mask=2.5, local_rms='', fits_mask='3c264.fits', \
+            auto_threshold=0.5, auto_mask=2.5, local_rms='', \
             multiscale='', multiscale_scale_bias=0.7, \
             join_channels='', fit_spectral_pol=2, channels_out=2 )
     os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
+
+
+#    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=2000, scale='1arcsec', \
+#            weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
+#            auto_threshold=3, local_rms='', fits_mask='3c264.fits', \
+#            join_channels='', fit_spectral_pol=2, channels_out=2 )
+#    os.system('cp -r img/imgM-%02i-MFS-model.fits img/imgMbkp-%02i-MFS-model.fits' % (c,c))
+#    os.system('cp -r img/imgM-%02i-MFS-residual.fits img/imgMbkp-%02i-MFS-residual.fits' % (c,c))
+#    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, size=2000, scale='1arcsec', \
+#            weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.7, nmiter=0, \
+#            auto_threshold=0.5, auto_mask=1.5, local_rms='', fits_mask='3c264.fits', \
+#            multiscale='', multiscale_scale_bias=0.75, \
+#            join_channels='', fit_spectral_pol=2, channels_out=2 )
+#    os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
 
     # Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA
     #logger.info('Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA...')
