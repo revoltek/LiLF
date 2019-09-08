@@ -1,7 +1,6 @@
 msin =
 msin.datacolumn = SMOOTHED_DATA
 msout = .
-msout.datacolumn = CORRECTED_DATA
 
 steps = [sol]
 
