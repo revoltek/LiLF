@@ -290,15 +290,16 @@ for c in range(maxniter):
     ### TESTTESTTEST: empty image with cals
     #MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
     #clean('onlycals-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    clean('onlyrestmodel-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
-    sys.exit()
+    #MSs.run('taql "update $pathMS set CORRECTED_DATA = MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    #clean('onlyrestmodel-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
     ###
 
+    # TEST without smoothing
     # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
 
+    # TEST assuming no core calibration necessary
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Core calibration...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS msin.baseline="[CR]*&&;!RS210LBA;!RS310LBA;!RS509LBA;!RS508LBA;!RS409LBA;!RS208LBA;!RS307LBA" \
