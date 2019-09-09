@@ -118,10 +118,6 @@ for c in range(2):
 
     # Smooth CORRECTED_DATA -> SMOOTHED_DATA
     logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -i MODEL_DATA -o SMOOTHED_MODEL_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
-
-    # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
 #    ###### TEST: solve PH - ms:SMOOTHED_DATA
@@ -141,7 +137,7 @@ for c in range(2):
 
     # solve TEC - ms:SMOOTHED_DATA
     logger.info('Solving TEC1...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 msin.modelcolumn=SMOOTHED_MODEL_DATA \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 \
             msin.baseline="[CR]*&&;!RS208LBA;!RS210LBA;!RS307LBA;!RS310LBA;!RS406LBA;!RS407LBA;!RS409LBA;!RS508LBA;!RS509LBA" \
             sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
        	    sol.solint=15 sol.nchan=16', \
@@ -163,7 +159,7 @@ for c in range(2):
 
     # solve TEC - ms:SMOOTHED_DATA
     logger.info('Solving TEC2...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec2.h5 msin.modelcolumn=SMOOTHED_MODEL_DATA \
+    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec2.h5 \
             sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]] \
             sol.solint=1 sol.nchan=8', \
             log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
@@ -191,6 +187,10 @@ for c in range(2):
 
     # AMP+FR DIE correction
     if c == 0:
+
+        # Smooth MODEL_DATA -> MODEL_DATA
+        logger.info('BL-based smoothing...')
+        MSs.run('BLsmooth.py -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smooth1-c'+str(c)+'.log', commandType='python')
 
         # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Converting to circular...')
