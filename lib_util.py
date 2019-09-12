@@ -57,7 +57,7 @@ def getParset(parsetFile='../lilf.config'):
     # self
     # dd
     add_default('LOFAR_dd', 'maxniter', '10')
-    add_default('LOFAR_dd', 'calFlux', '3.0')
+    add_default('LOFAR_dd', 'calFlux', '4.0')
 
     ### uGMRT ###
 
@@ -227,6 +227,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     # basic parms
     if 'use_idg' in kwargs.keys():
         wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4' )
+        if s.get_cluster() == 'Hamburg_fat':
+            wsc_parms.append( '-idg-mode hybrid' )
     else:
         wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4 -parallel-gridding 3' )
 
