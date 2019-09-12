@@ -355,18 +355,21 @@ class Grouper( object ):
     Based on: http://www.chioka.in/meanshift-algorithm-for-the-rest-of-us-python/
     """
 
-    def __init__(self, coords, fluxes):
+    def __init__(self, coords, fluxes, kernel_size=0.2, look_distance=0.3, grouping_distance=0.03):
         """
         coords: x,y coordinates for source positions
         fluxes: total flux for each source
+        kernel_size: attenuate attraction, it this the flux times a gaussian of the distance with this as sigma [deg]
+        look_distance: max distance to look for nearby sources [deg]
+        grouping_distance: [deg]
         """
         self.coords = np.array(coords)
         self.fluxes = fluxes
-        self.kernel_size = 0.2 # deg
-        self.n_iterations = 100
-        self.look_distance = 0.3 # deg
-        self.grouping_distance = 0.03 # deg orig: 0.01
+        self.kernel_size = kernel_size # deg
+        self.look_distance = look_distance # deg
+        self.grouping_distance = grouping_distance # deg orig: 0.01
         self.past_coords = [np.copy(self.coords)]
+        self.n_iterations = 100
         self.clusters = []
 
     def euclid_distance(self, coord, coords):

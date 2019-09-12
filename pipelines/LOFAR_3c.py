@@ -142,19 +142,18 @@ for c in range(100):
     ####################################################
     # 1: Solving
 
-    # TODO: make rotationmeasure only after a few cycles
+    if doamp:
+        # Smooth DATA -> SMOOTHED_DATA
+        logger.info('BL-based smoothing...')
+        MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
 
-    # Smooth DATA -> SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
-
-    # solve G - group*_TC.MS:SMOOTHED_DATA
-    logger.info('Solving 1...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG1.h5 sol.mode=diagonal \
-            sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
-            log='$nameMS_solG1-c'+str(c)+'.log', commandType="DPPP")
-    lib_util.run_losoto(s, 'G1-c'+str(c), [ms+'/calG1.h5' for ms in MSs.getListStr()], \
-                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
+        # solve G - group*_TC.MS:SMOOTHED_DATA
+        logger.info('Solving 1...')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG1.h5 sol.mode=diagonal \
+                sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
+                log='$nameMS_solG1-c'+str(c)+'.log', commandType="DPPP")
+        lib_util.run_losoto(s, 'G1-c'+str(c), [ms+'/calG1.h5' for ms in MSs.getListStr()], \
+                        [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
 
     # Convert to linear DATA -> CORRECTED_DATA
     logger.info('Converting to linear...')
@@ -166,9 +165,9 @@ for c in range(100):
         MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
             log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
-        # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-        logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
+    # Smooth CORRECTED_DATA -> SMOOTHED_DATA
+    logger.info('BL-based smoothing...')
+    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
 
     # Re-do calibration after faradayrotation removal
     # solve G - group*_TC.MS:SMOOTHED_DATA
@@ -218,15 +217,18 @@ for c in range(100):
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/imgM-%02i' % c
     # if next is a "cont" then I need the do_predict
-    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=2000, scale='1arcsec', \
+    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=2000, scale='1.5arcsec', \
             weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
-            auto_threshold=3, local_rms='', \
+            auto_threshold=3, auto_mask=4, local_rms='', \
             join_channels='', fit_spectral_pol=2, channels_out=2 )
     os.system('cp -r img/imgM-%02i-MFS-model.fits img/imgMbkp-%02i-MFS-model.fits' % (c,c))
     os.system('cp -r img/imgM-%02i-MFS-residual.fits img/imgMbkp-%02i-MFS-residual.fits' % (c,c))
-    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, size=2000, scale='1arcsec', \
+    im = lib_img.Image(imagename+'-MFS-image.fits')
+    im.makeMask( threshisl=5, rmsbox=(500,30), atrous_do=True )
+    logger.info('Cleaning II (cycle: '+str(c)+')...')
+    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, size=2000, scale='1.5arcsec', \
             weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.7, nmiter=0, \
-            auto_threshold=0.5, auto_mask=2.5, local_rms='', \
+            auto_threshold=0.5, auto_mask=2.5, local_rms='', fits_mask=imagename+'-mask.fits', \
             multiscale='', multiscale_scale_bias=0.7, \
             join_channels='', fit_spectral_pol=2, channels_out=2 )
     os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
