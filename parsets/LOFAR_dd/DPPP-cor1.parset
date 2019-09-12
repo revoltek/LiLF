@@ -1,0 +1,10 @@
+msin = 
+msin.datacolumn = CORRECTED_DATA
+msout = .
+msout.datacolumn = CORRECTED_DATA
+
+steps=[cor]
+
+cor.type = applycal
+cor.parmdb=
+cor.correction=tec000

@@ -1,0 +1,18 @@
+msin =
+msin.datacolumn = MODEL_DATA
+msout = .
+msout.datacolumn = MODEL_DATA
+
+steps = [corC, corR]
+
+corC.type = applycal
+corC.parmdb =
+corC.correction = tec000
+corC.invert = False
+corC.direction=
+
+corR.type = applycal
+corR.parmdb =
+corR.correction = tec000
+corR.invert = False
+corR.direction=
