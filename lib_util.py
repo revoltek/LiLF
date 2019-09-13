@@ -69,7 +69,7 @@ def getParset(parsetFile='../lilf.config'):
     ### General ###
 
     # flag
-    add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IR*;PL*') # LOFAR
+    add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IE*;PL*') # LOFAR
     add_default('flag', 'antennas', '') # uGMRT
     # model
     add_default('model', 'sourcedb', None)
