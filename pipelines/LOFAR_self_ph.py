@@ -8,12 +8,12 @@ import numpy as np
 import pyrap.tables as pt
 import lsmtool
 
-# Temporary
+# Survey
 if 'LBAsurvey' in os.getcwd():
     obs = os.getcwd().split('/')[-1]
     if not os.path.exists('mss'):
         os.makedirs('mss')
-        for i, tc in enumerate(glob.glob('../../c*-o*/%s/mss/*' % obs)):
+        for i, tc in enumerate(glob.glob('/home/fdg/lofar1/LBAsurvey/splitted/c*-o*/%s/mss/*' % obs)):
             tc_ren = 'TC%02i.MS' % i
             print('cp -r %s mss/%s' % (tc,tc_ren))
             os.system('cp -r %s mss/%s' % (tc,tc_ren))
@@ -223,11 +223,13 @@ for c in range(2):
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
-    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=c==0, name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
+    if c==0: kwargs = {"do_predict":True}
+    else: kwargs = {"apply_primary_beam":""}
+    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
             weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=4500, mgain=0.85, \
             parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_threshold=1.5, auto_mask=2.5, \
             multiscale='', multiscale_scale_bias=0.75, \
-            join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+            join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3, **kwargs)
     os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
        
     # add model and remove first sidelobe
@@ -303,25 +305,26 @@ for c in range(2):
         s.run(check=True)
 
 
-# do beam-corrected+fullstokes image at last cycle
-logger.info('Cleaning beam (cycle: '+str(c)+')...')
-imagename = 'img/wideBeam'
-lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
-                weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
-                pol='IQUV', join_polarizations='', \
-                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600, \
-                parallel_deconvolution=256, local_rms='', auto_threshold=1.5, auto_mask=3, \
-                multiscale='', multiscale_scale_bias=0.75, \
-                join_channels='', channels_out=9)
-os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
-os.system('makepb.py -o img/avgbeam.fits -i '+imagename)
+## do beam-corrected+fullstokes image at last cycle
+#logger.info('Cleaning beam (cycle: '+str(c)+')...')
+#imagename = 'img/wideBeam'
+#lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
+#                weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
+#                pol='IQUV', join_polarizations='', \
+#                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600, \
+#                parallel_deconvolution=256, local_rms='', auto_threshold=1.5, auto_mask=3, \
+#                multiscale='', multiscale_scale_bias=0.75, \
+#                join_channels='', channels_out=9)
+#os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
+#os.system('makepb.py -o img/avgbeam.fits -i '+imagename)
  
 
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(2) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in range(2) ]
-os.system('mv img/wide-lr-MFS-image.fits self/images')
-os.system('mv img/wideBeam-MFS-*-image.fits  img/wideBeam-MFS-*-image-pb.fits img/avgbeam.fits self/images')
+os.system('mv img/wide-lr-MFS-image.fits img/wide-vlr-MFS-image.fits self/images')
+os.system('mv img/wideM-1-MFS-image-pb.fits self/images')
+#os.system('mv img/wideBeam-MFS-*-image.fits  img/wideBeam-MFS-*-image-pb.fits img/avgbeam.fits self/images')
 os.system('mv logs self')
 
 logger.info("Done.")

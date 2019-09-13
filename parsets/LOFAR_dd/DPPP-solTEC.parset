@@ -10,7 +10,7 @@ sol.sourcedb =
 sol.h5parm = 
 sol.maxiter = 300
 sol.tolerance = 1e-3
-sol.solint = 15 $ 15*4 = 1 minute
+sol.solint = 15 # 15*4 = 1 minute
 sol.nchan = 50 # if dTEC is 0.03, this number can be up to 150
 sol.stepsize = 0.2
 
