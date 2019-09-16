@@ -208,14 +208,27 @@ for c in range(2):
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
-    if c==0: kwargs = {"do_predict":True}
-    else: kwargs = {"apply_primary_beam":""}
+    if c==0: kwargs = {'do_predict':True,'baseline_averaging':5}
+    else: kwargs = {'temp_dir':'./', 'pol':'IQUV', 'join_polarizations':'', 'use_idg':'', 'grid_with_beam':'', 'use_differential_lofar_beam':'', 'beam_aterm_update':600}
     lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
             weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=4500, mgain=0.85, \
-            parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_threshold=1.5, auto_mask=2.5, \
+            parallel_deconvolution=256, local_rms='', auto_threshold=1.5, auto_mask=2.5, \
             multiscale='', multiscale_scale_bias=0.75, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3, **kwargs)
     os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
+
+    ## do beam-corrected+fullstokes image at last cycle
+    #logger.info('Cleaning beam (cycle: '+str(c)+')...')
+    #imagename = 'img/wideBeam'
+    #lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
+    #                weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
+    #                pol='IQUV', join_polarizations='', \
+    #                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600, \
+    #                parallel_deconvolution=256, local_rms='', auto_threshold=1.5, auto_mask=3, \
+    #                multiscale='', multiscale_scale_bias=0.75, \
+    #                join_channels='', channels_out=9)
+    #os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
+    #os.system('makepb.py -o img/avgbeam.fits -i '+imagename)
        
     # add model and remove first sidelobe
     if c == 0:
@@ -244,14 +257,6 @@ for c in range(2):
                               log='wscleanLR-pre.log', commandType='wsclean', processors='max')
         s.run(check=True)
 
-        # Very low resolution clean
-        logger.info('Cleaning very low resolution...')
-        imagename_vlr = 'img/wide-vlr'
-        lib_util.run_wsclean(s, 'wscleanVLR.log', MSs.getStrWsclean(), name=imagename_vlr, temp_dir='./', size=750, scale='1arcmin', \
-                weight='briggs -0.3', niter=50000, no_update_model_required='', mgain=0.85, minuv_l=30, taper_gaussian='5arcmin', \
-                parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_mask=3, auto_threshold=1.5, \
-                join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
-
         ##############################################
         # Flag on empty dataset
 
@@ -262,6 +267,15 @@ for c in range(2):
         # Flag on residuals (CORRECTED_DATA)
         logger.info('Flagging residuals...')
         MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', log='$nameMS_flag-c'+str(c)+'.log', commandType='DPPP')
+
+        ###############################################
+        # Very low resolution clean
+        logger.info('Cleaning very low resolution...')
+        imagename_vlr = 'img/wide-vlr'
+        lib_util.run_wsclean(s, 'wscleanVLR.log', MSs.getStrWsclean(), name=imagename_vlr, temp_dir='./', size=750, scale='1arcmin', \
+                weight='briggs -0.3', niter=50000, no_update_model_required='', mgain=0.85, minuv_l=30, taper_gaussian='5arcmin', \
+                parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_mask=3, auto_threshold=1.5, \
+                join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
         ##############################################
         # Prepare SUBTRACTED_DATA
@@ -292,21 +306,6 @@ for c in range(2):
         s.add('wsclean -predict -name img/wideM-'+str(c)+' -j '+str(s.max_processors)+' -channels-out 9 '+MSs.getStrWsclean(), \
                log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
         s.run(check=True)
-
-
-## do beam-corrected+fullstokes image at last cycle
-#logger.info('Cleaning beam (cycle: '+str(c)+')...')
-#imagename = 'img/wideBeam'
-#lib_util.run_wsclean(s, 'wscleanBeam-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, temp_dir='./', size=imgsizepix, scale='10arcsec', \
-#                weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=5000, mgain=0.85, \
-#                pol='IQUV', join_polarizations='', \
-#                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=600, \
-#                parallel_deconvolution=256, local_rms='', auto_threshold=1.5, auto_mask=3, \
-#                multiscale='', multiscale_scale_bias=0.75, \
-#                join_channels='', channels_out=9)
-#os.system('cat logs/wscleanBeam-c'+str(c)+'.log | grep "background noise"')
-#os.system('makepb.py -o img/avgbeam.fits -i '+imagename)
- 
 
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(2) ]

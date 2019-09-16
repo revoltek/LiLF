@@ -259,14 +259,6 @@ for c in range(2):
                               log='wscleanLR-pre.log', commandType='wsclean', processors='max')
         s.run(check=True)
 
-        # Very low resolution clean
-        logger.info('Cleaning very low resolution...')
-        imagename_vlr = 'img/wide-vlr'
-        lib_util.run_wsclean(s, 'wscleanVLR.log', MSs.getStrWsclean(), name=imagename_vlr, temp_dir='./', size=750, scale='1arcmin', \
-                weight='briggs -0.3', niter=50000, no_update_model_required='', mgain=0.85, minuv_l=30, taper_gaussian='5arcmin', \
-                parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_mask=3, auto_threshold=1.5, \
-                join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
-
         ##############################################
         # Flag on empty dataset
 
@@ -277,6 +269,15 @@ for c in range(2):
         # Flag on residuals (CORRECTED_DATA)
         logger.info('Flagging residuals...')
         MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', log='$nameMS_flag-c'+str(c)+'.log', commandType='DPPP')
+
+        # Very low resolution clean
+        logger.info('Cleaning very low resolution...')
+        imagename_vlr = 'img/wide-vlr'
+        lib_util.run_wsclean(s, 'wscleanVLR.log', MSs.getStrWsclean(), name=imagename_vlr, temp_dir='./', size=750, scale='1arcmin', \
+                weight='briggs -0.3', niter=50000, no_update_model_required='', mgain=0.85, minuv_l=30, taper_gaussian='5arcmin', \
+                parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_mask=3, auto_threshold=1.5, \
+                join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+
 
         ##############################################
         # Prepare SUBTRACTED_DATA

@@ -18,6 +18,7 @@ bl2flag = parset.get('flag','stations')
 target = os.getcwd().split('/')[-1]
 data_dir = '/home/fdg/lofar5/3Csurvey/%s' % target
 userReg = parset.get('model','userReg')
+extended_targets = ['3c31','3c231']
 
 def get_cal_dir(timestamp):
     """
@@ -213,14 +214,20 @@ for c in range(100):
 
     #################################################
     # 2: Cleaning
+
+    # special for extended sources:
+    if target in extended_targets:
+        kwargs = {'auto_mask':3, 'multiscale':'', 'multiscale_scale_bias':0.7}
+    else:
+        kwargs = {'auto_mask':4}
    
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/imgM-%02i' % c
     # if next is a "cont" then I need the do_predict
     lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=2500, scale='1.5arcsec', \
             weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
-            auto_threshold=3, auto_mask=4, local_rms='', \
-            join_channels='', fit_spectral_pol=2, channels_out=2 )
+            auto_threshold=3, local_rms='', \
+            join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs )
     os.system('cp -r img/imgM-%02i-MFS-model.fits img/imgMbkp-%02i-MFS-model.fits' % (c,c))
     os.system('cp -r img/imgM-%02i-MFS-residual.fits img/imgMbkp-%02i-MFS-residual.fits' % (c,c))
     im = lib_img.Image(imagename+'-MFS-image.fits')
