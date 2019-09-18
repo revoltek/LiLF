@@ -217,27 +217,29 @@ for c in range(100):
 
     # special for extended sources:
     if target in extended_targets:
-        kwargs = {'auto_mask':3, 'multiscale':'', 'multiscale_scale_bias':0.7}
+        kwargs1 = {'auto_mask':3.5, 'multiscale':'', 'multiscale_scale_bias':0.7, 'weight':'briggs -0.3'}
+        kwargs2 = {'weight':'briggs -0.3'}
     else:
-        kwargs = {'auto_mask':4}
+        kwargs1 = {'auto_mask':4, 'weight':'briggs -1'}
+        kwargs2 = {'weight':'briggs -1'}
    
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/imgM-%02i' % c
     # if next is a "cont" then I need the do_predict
     lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=2500, scale='1.5arcsec', \
-            weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
+            niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
             auto_threshold=3, local_rms='', \
-            join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs )
+            join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1 )
     os.system('cp -r img/imgM-%02i-MFS-model.fits img/imgMbkp-%02i-MFS-model.fits' % (c,c))
     os.system('cp -r img/imgM-%02i-MFS-residual.fits img/imgMbkp-%02i-MFS-residual.fits' % (c,c))
     im = lib_img.Image(imagename+'-MFS-image.fits')
     im.makeMask( threshisl=5, rmsbox=(500,30), atrous_do=True )
     logger.info('Cleaning II (cycle: '+str(c)+')...')
     lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, size=2500, scale='1.5arcsec', \
-            weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.7, nmiter=0, \
+            niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.7, nmiter=0, \
             auto_threshold=0.5, auto_mask=2.5, local_rms='', fits_mask=imagename+'-mask.fits', \
             multiscale='', multiscale_scale_bias=0.7, \
-            join_channels='', fit_spectral_pol=2, channels_out=2 )
+            join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2 )
     os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
 
 

@@ -46,7 +46,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     # set pixscale and imsize
     pixscale = MSs.getListObj()[0].getResolution() 
     if res == 'normal':
-        pixscale = float('%.1f'%(pixscale/2.))
+        pixscale = float('%.1f'%(pixscale/3.))
     elif res == 'high':
         pixscale = float('%.1f'%(pixscale/4.))
     elif res == 'low':
@@ -142,7 +142,7 @@ for c in range(maxniter):
 
     ### TTESTTESTTEST: DIE image
     #if c == 0:
-    #    clean('init', MSs, size=(fwhm,fwhm), res='normal')
+    #    clean('init', MSs, size=(fwhm*2,fwhm*2), res='normal')
     ###
 
     ### group into patches corresponding to the mask islands
@@ -289,9 +289,9 @@ for c in range(maxniter):
 
     ### TESTTESTTEST: empty image with cals
     #MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    #clean('onlycals-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    #clean('onlycals-c'+str(c), MSs, size=(fwhm*2,fwhm*2), res='normal')
     #MSs.run('taql "update $pathMS set CORRECTED_DATA = MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    #clean('onlyrestmodel-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    #clean('onlyrestmodel-c'+str(c), MSs, size=(fwhm*2,fwhm*2), res='normal')
     ###
 
     # TEST without smoothing
@@ -417,6 +417,10 @@ for c in range(maxniter):
     ###########################################################
     # Empty the dataset
 
+    # Copy DATA -> SUBTRACTED_DATA
+    logger.info('Set SUBTRACTED_DATA = DATA...')
+    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+
     logger.info('Subtraction...')
     for i, d in enumerate(directions):
         
@@ -436,8 +440,8 @@ for c in range(maxniter):
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
     ### TESTTESTTEST: empty image
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    clean('empty-c'+str(c), MSs, size=(fwhm,fwhm), res='normal')
+    #MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    #clean('empty-c'+str(c), MSs, size=(fwhm*2,fwhm*2), res='normal')
     ###
 
     ###########################################################
