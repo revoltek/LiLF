@@ -230,8 +230,8 @@ for c in range(100):
             niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
             auto_threshold=3, local_rms='', \
             join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1 )
-    os.system('cp -r img/imgM-%02i-MFS-model.fits img/imgMbkp-%02i-MFS-model.fits' % (c,c))
-    os.system('cp -r img/imgM-%02i-MFS-residual.fits img/imgMbkp-%02i-MFS-residual.fits' % (c,c))
+    #os.system('cp -r img/imgM-%02i-MFS-model.fits img/imgMbkp-%02i-MFS-model.fits' % (c,c))
+    #os.system('cp -r img/imgM-%02i-MFS-residual.fits img/imgMbkp-%02i-MFS-residual.fits' % (c,c))
     im = lib_img.Image(imagename+'-MFS-image.fits')
     im.makeMask( threshisl=5, rmsbox=(500,30), atrous_do=True )
     logger.info('Cleaning II (cycle: '+str(c)+')...')
