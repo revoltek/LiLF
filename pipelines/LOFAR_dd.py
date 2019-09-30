@@ -46,9 +46,9 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     # set pixscale and imsize
     pixscale = MSs.getListObj()[0].getResolution() 
     if res == 'normal':
-        pixscale = float('%.1f'%(pixscale/3.))
+        pixscale = float('%.1f'%(pixscale/2.5))
     elif res == 'high':
-        pixscale = float('%.1f'%(pixscale/4.))
+        pixscale = float('%.1f'%(pixscale/3.5))
     elif res == 'low':
         pass # no change
 
