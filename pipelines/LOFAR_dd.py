@@ -12,7 +12,7 @@ import lsmtool
 from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd
 logger_obj = lib_log.Logger('pipeline-dd.logger')
 logger = lib_log.logger
-s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
+s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)#, maxThreads = 4)
 
 # parse parset
 parset = lib_util.getParset()
@@ -159,7 +159,8 @@ for c in range(maxniter):
     x = lsm.getColValues('RA',aggregate='wmean')
     y = lsm.getColValues('Dec',aggregate='wmean')
     flux = lsm.getColValues('I',aggregate='sum')
-    grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=1.0,kernel_size=0.5,grouping_distance=0.3)
+    #grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=1.0,kernel_size=0.5,grouping_distance=0.3)
+    grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=0.8,kernel_size=0.4,grouping_distance=0.2) # a851
     grouper.run()
     clusters = grouper.grouping()
     grouper.plot()
