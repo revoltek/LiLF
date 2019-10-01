@@ -77,7 +77,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     imagename = 'img/ddcal-'+str(p)
     lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
             weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=256, auto_threshold=5, \
+            baseline_averaging=5, parallel_deconvolution=512, auto_threshold=5, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     # make mask
@@ -93,7 +93,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
             multiscale='', multiscale_scale_bias=0.75, \
-            parallel_deconvolution=256, local_rms='', auto_threshold=1.5, auto_mask=3, fits_mask=im.maskname, \
+            parallel_deconvolution=512, local_rms='', auto_threshold=1.5, auto_mask=3, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     else:
@@ -101,7 +101,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', \
             weight=weight, niter=50000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             multiscale='', multiscale_scale_bias=0.75, \
-            baseline_averaging=5, parallel_deconvolution=256, local_rms='', auto_threshold=1.5, auto_mask=3, fits_mask=im.maskname, \
+            baseline_averaging=5, parallel_deconvolution=512, local_rms='', auto_threshold=1.5, auto_mask=3, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     os.system('cat logs/wscleanA-'+str(p)+'.log logs/wscleanB-'+str(p)+'.log | grep "background noise"')
