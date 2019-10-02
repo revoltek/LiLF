@@ -30,12 +30,12 @@ fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
 ############################
 logger.info('Cleaning...')
-lib_util.check_rm('ddcal')
-os.makedirs('ddcal/masks')
-os.makedirs('ddcal/plots')
-os.makedirs('ddcal/images')
-os.makedirs('ddcal/solutions')
-os.makedirs('ddcal/skymodels')
+#lib_util.check_rm('ddcal')
+#os.makedirs('ddcal/masks')
+#os.makedirs('ddcal/plots')
+#os.makedirs('ddcal/images')
+#os.makedirs('ddcal/solutions')
+#os.makedirs('ddcal/skymodels')
 
 def clean(p, MSs, size, res='normal', apply_beam=False):
     """
@@ -82,7 +82,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 4)
+    im.makeMask(threshisl = 3)
 
     # clean 2
     logger.info('Cleaning w/ mask ('+str(p)+')...')
@@ -93,7 +93,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
             multiscale='', multiscale_scale_bias=0.75, \
-            parallel_deconvolution=512, local_rms='', auto_threshold=1.5, auto_mask=3, fits_mask=im.maskname, \
+            parallel_deconvolution=512, local_rms='', auto_threshold=1.5, auto_mask=2.5, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     else:
@@ -101,7 +101,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', \
             weight=weight, niter=50000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             multiscale='', multiscale_scale_bias=0.75, \
-            baseline_averaging=5, parallel_deconvolution=512, local_rms='', auto_threshold=1.5, auto_mask=3, fits_mask=im.maskname, \
+            baseline_averaging=5, parallel_deconvolution=512, local_rms='', auto_threshold=1.5, auto_mask=2.5, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     os.system('cat logs/wscleanA-'+str(p)+'.log logs/wscleanB-'+str(p)+'.log | grep "background noise"')
@@ -126,6 +126,7 @@ mosaic_image.selectCC()
 
 # TEST:
 #mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
+
 rms_noise_pre = np.inf
 
 for c in range(maxniter):
@@ -141,8 +142,8 @@ for c in range(maxniter):
     if c>=1: mask_voro_old = 'ddcal/masks/facets%02i.fits' % (c-1)
 
     ### TTESTTESTTEST: DIE image
-    #if c == 0:
-    #    clean('init', MSs, size=(fwhm*2,fwhm*2), res='normal')
+    if c == 0:
+        clean('init', MSs, size=(fwhm*2,fwhm*2), res='normal')
     ###
 
     ### group into patches corresponding to the mask islands
