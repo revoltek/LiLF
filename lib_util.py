@@ -225,12 +225,9 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     reordering_processors = np.min([len(MSs_files),s.max_processors])
 
     # basic parms
-    if 'use_idg' in kwargs.keys():
-        wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4' )
-        if s.get_cluster() == 'Hamburg_fat':
+    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4' )
+    if 'use_idg' in kwargs.keys() and s.get_cluster() == 'Hamburg_fat':
             wsc_parms.append( '-idg-mode hybrid' )
-    else:
-        wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4 -parallel-gridding 3' )
 
     # other stanrdard parms
     wsc_parms.append( '-clean-border 1' )

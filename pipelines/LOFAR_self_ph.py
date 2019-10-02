@@ -225,7 +225,7 @@ for c in range(2):
     imagename = 'img/wideM-'+str(c)
     if c==0: kwargs = {"do_predict":True}
     else: kwargs = {"apply_primary_beam":""}
-    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
+    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, parallel_gridding=4, save_source_list='', size=imgsizepix, scale='10arcsec', \
             weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=4500, mgain=0.85, \
             parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_threshold=1.5, auto_mask=2.5, \
             multiscale='', multiscale_scale_bias=0.75, \
@@ -248,7 +248,7 @@ for c in range(2):
         # reclean low-resolution
         logger.info('Cleaning low resolution...')
         imagename_lr = 'img/wide-lr'
-        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, temp_dir='./', size=imgsizepix, scale='30arcsec', \
+        lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, parallel_gridding=4, temp_dir='./', size=imgsizepix, scale='30arcsec', \
                 weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.85, \
                 parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits', \
                 join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
@@ -273,7 +273,7 @@ for c in range(2):
         # Very low resolution clean
         logger.info('Cleaning very low resolution...')
         imagename_vlr = 'img/wide-vlr'
-        lib_util.run_wsclean(s, 'wscleanVLR.log', MSs.getStrWsclean(), name=imagename_vlr, temp_dir='./', size=750, scale='1arcmin', \
+        lib_util.run_wsclean(s, 'wscleanVLR.log', MSs.getStrWsclean(), name=imagename_vlr, parallel_gridding=4, temp_dir='./', size=750, scale='1arcmin', \
                 weight='briggs -0.3', niter=50000, no_update_model_required='', mgain=0.85, minuv_l=30, taper_gaussian='5arcmin', \
                 parallel_deconvolution=256, baseline_averaging=5, local_rms='', auto_mask=3, auto_threshold=1.5, \
                 join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
