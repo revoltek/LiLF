@@ -41,10 +41,8 @@ lib_util.check_rm('self')
 if not os.path.exists('self/images'): os.makedirs('self/images')
 if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
 if not os.path.exists('self/plots'): os.makedirs('self/plots')
-lib_util.check_rm('img')
-os.makedirs('img')
 
-MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+MSs = lib_ms.AllMSs( glob.glob('mss*/TC*[0-9].MS'), s )
 try:
     MSs.plot_HAcov('HAcov.png')
 except:
