@@ -85,7 +85,7 @@ class Image(object):
                 blobs, number_of_blobs = label(mask.astype(int).squeeze(), structure=[[1,1,1],[1,1,1],[1,1,1]])
                 for i in range(1,number_of_blobs):
                     this_blob = blobs == i
-                    if len(data.size) == 4:
+                    if len(data.shape) == 4:
                         max_pix = np.max(data[0,0,this_blob])
                         ratio = np.sum(data[0,0,this_blob])/np.sum(mask[0,0,this_blob])**2
                         if max_pix < 1. and ratio < remove_extended_cutoff:
