@@ -30,12 +30,12 @@ fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
 ############################
 logger.info('Cleaning...')
-#lib_util.check_rm('ddcal')
-#os.makedirs('ddcal/masks')
-#os.makedirs('ddcal/plots')
-#os.makedirs('ddcal/images')
-#os.makedirs('ddcal/solutions')
-#os.makedirs('ddcal/skymodels')
+lib_util.check_rm('ddcal')
+os.makedirs('ddcal/masks')
+os.makedirs('ddcal/plots')
+os.makedirs('ddcal/images')
+os.makedirs('ddcal/solutions')
+os.makedirs('ddcal/skymodels')
 
 def clean(p, MSs, size, res='normal', apply_beam=False):
     """
@@ -125,7 +125,7 @@ mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image
 mosaic_image.selectCC()
 
 # TEST:
-#mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
+mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
 
 rms_noise_pre = np.inf
 
