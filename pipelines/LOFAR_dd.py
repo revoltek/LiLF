@@ -125,7 +125,7 @@ mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image
 mosaic_image.selectCC()
 
 # TEST:
-mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
+#mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
 
 rms_noise_pre = np.inf
 
