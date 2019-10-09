@@ -1,46 +1,29 @@
 Ncpu = 0
 
-[plotP1]
+[plotPdir]
 operation = PLOT
 soltab = sol000/phase000
-freq.minmaxstep = [0,300e6,100]
-axesInPlot = time
-axisInTable = ant
-plotFlag = True
-prefix = plots/ph_
-refAnt = 'CS002LBA'
-minmax = [-3.14,3.14]
-NColFig = 4
-figSize = [20,20]
-
-[plotP2]
-operation = PLOT
-soltab = sol000/phase000
-time.minmaxstep = [0,1e20,500]
-axesInPlot = freq
-axisInTable = ant
-plotFlag = True
+axesInPlot = [time,freq]
+axisInTable = dir
 prefix = plots/ph_
 refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]
 
-[plotP3]
+[plotPant]
 operation = PLOT
 soltab = sol000/phase000
 axesInPlot = [time,freq]
 axisInTable = ant
-plotFlag = True
 prefix = plots/ph_
 refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]
 
-[plotPd]
+[plotPdirD]
 operation = PLOT
 soltab = sol000/phase000
 axesInPlot = [time,freq]
 axisInTable = ant
 axisDiff = pol
-plotFlag = True
 prefix = plots/ph-dif
 refAnt = 'CS002LBA'
 minmax = [-1,+1]

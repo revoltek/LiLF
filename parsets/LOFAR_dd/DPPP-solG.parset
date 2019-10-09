@@ -5,14 +5,13 @@ msout = .
 steps=[sol]
 
 sol.type = ddecal
-sol.uvmmin = 500
+sol.uvmmin = 100
+sol.sourcedb =
 sol.h5parm = 
-sol.maxiter = 500
+sol.maxiter = 300
 sol.tolerance = 1e-3
 sol.solint = 45
 sol.nchan = 8
 sol.mode = diagonal # phaseonly, complexgain, tec, tecandphase
 sol.propagatesolutions = True
-sol.propagateconvergedonly = True
-sol.usemodelcolumn = True
 sol.smoothnessconstraint = 3e6

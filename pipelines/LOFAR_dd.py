@@ -125,7 +125,7 @@ mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image
 mosaic_image.selectCC()
 
 # TEST:
-mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
+#mosaic_image = lib_img.Image('ddcal/images/c00/mos-MFS-image.fits', userReg = userReg)
 
 rms_noise_pre = np.inf
 
@@ -142,8 +142,8 @@ for c in range(maxniter):
     if c>=1: mask_voro_old = 'ddcal/masks/facets%02i.fits' % (c-1)
 
     ### TTESTTESTTEST: DIE image
-    if c == 0:
-        clean('init', MSs, size=(fwhm*2,fwhm*2), res='normal')
+    #if c == 0:
+    #    clean('init', MSs, size=(fwhm*1.5,fwhm*1.5), res='normal')
     ###
 
     ### group into patches corresponding to the mask islands
@@ -336,6 +336,25 @@ for c in range(maxniter):
                             log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
     s.run(check = True)
     lib_util.check_rm('cal-remote-c'+str(c)+'-*.h5')
+
+    # Calibration - ms:SMOOTHED_DATA
+    logger.info('Slow gain calibration...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
+            sol.applycal.steps = [core, remote]
+            sol.applycal.core.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.core.applycal.correction=tec000 \
+            sol.applycal.remote.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.remote.applycal.correction=tec000 \
+            sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
+            log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+
+    # Plot solutions
+    for MS in MSs.getListObj():
+        lib_util.run_losoto(s, 'g-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-g-c'+str(c)+'.h5', \
+                [parset_dir+'/losoto-plot-amp.parset'], parset_dir+'/losoto-plot-ph.parset'])
+    os.system('mv plots-g-c'+str(c)+'* ddcal/plots')
+    s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-g-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-g-c'+str(c)+'-*.h5')),\
+                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
+    s.run(check = True)
+    lib_util.check_rm('cal-g-c'+str(c)+'-*.h5')
 
 #    ##############################################################
 #    # low S/N DIE corrections
