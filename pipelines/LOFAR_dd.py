@@ -30,12 +30,12 @@ fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
 ############################
 logger.info('Cleaning...')
-#lib_util.check_rm('ddcal')
-#os.makedirs('ddcal/masks')
-#os.makedirs('ddcal/plots')
-#os.makedirs('ddcal/images')
-#os.makedirs('ddcal/solutions')
-#os.makedirs('ddcal/skymodels')
+lib_util.check_rm('ddcal')
+os.makedirs('ddcal/masks')
+os.makedirs('ddcal/plots')
+os.makedirs('ddcal/images')
+os.makedirs('ddcal/solutions')
+os.makedirs('ddcal/skymodels')
 
 def clean(p, MSs, size, res='normal', apply_beam=False):
     """
@@ -142,8 +142,8 @@ for c in range(maxniter):
     if c>=1: mask_voro_old = 'ddcal/masks/facets%02i.fits' % (c-1)
 
     ### TTESTTESTTEST: DIE image
-    if c == 0:
-        clean('init', MSs, size=(fwhm*2,fwhm*2), res='normal')
+    #if c == 0:
+    #    clean('init', MSs, size=(fwhm*2,fwhm*2), res='normal')
     ###
 
     ### group into patches corresponding to the mask islands
