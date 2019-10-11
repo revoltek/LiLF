@@ -206,9 +206,9 @@ for c in range(2):
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
-    if c==0: kwargs = {'do_predict':True,'baseline_averaging':5}
+    if c==0: kwargs = {'do_predict':True,'baseline_averaging':5,'parallel_gridding':4}
     else: kwargs = {'temp_dir':'./', 'pol':'I', 'use_idg':'', 'grid_with_beam':'', 'use_differential_lofar_beam':'', 'beam_aterm_update':600}
-    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, parallel_gridding=4, save_source_list='', size=imgsizepix, scale='10arcsec', \
+    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
             weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=4500, mgain=0.85, \
             parallel_deconvolution=256, local_rms='', auto_threshold=1.5, auto_mask=2.5, \
             multiscale='', multiscale_scale_bias=0.75, \

@@ -340,21 +340,23 @@ for c in range(maxniter):
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Slow gain calibration...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
-            sol.applycal.steps = [core, remote]
-            sol.applycal.core.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.core.applycal.correction=tec000 \
-            sol.applycal.remote.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.remote.applycal.correction=tec000 \
+            sol.applycal.steps=[core,remote] \
+            sol.applycal.core.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.applycal.core.correction=tec000 \
+            sol.applycal.remote.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.applycal.remote.correction=tec000 \
             sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions
     for MS in MSs.getListObj():
         lib_util.run_losoto(s, 'g-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-g-c'+str(c)+'.h5', \
-                [parset_dir+'/losoto-plot-amp.parset'], parset_dir+'/losoto-plot-ph.parset'])
+                [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
     os.system('mv plots-g-c'+str(c)+'* ddcal/plots')
     s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-g-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-g-c'+str(c)+'-*.h5')),\
                             log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
     s.run(check = True)
     lib_util.check_rm('cal-g-c'+str(c)+'-*.h5')
+
+    sys.exit()
 
 #    ##############################################################
 #    # low S/N DIE corrections
