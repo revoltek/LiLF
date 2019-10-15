@@ -150,6 +150,7 @@ for c in range(maxniter):
     mask_cl = mosaic_image.imagename.replace('image.fits', 'mask-cl.fits')
     # this mask is with no user region, done to isolate only bight compact sources
     if not os.path.exists(mask_cl): 
+        #mosaic_image.makeMask(threshisl=7, atrous_do=True, maskname=mask_cl) # tooth
         mosaic_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=0.001, maskname=mask_cl)
     
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
@@ -342,7 +343,7 @@ for c in range(maxniter):
     MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
             sol.applycal.steps=[core,remote] \
             sol.applycal.core.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.applycal.core.correction=tec000 \
-            sol.applycal.remote.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.applycal.remote.correction=tec000 \
+            sol.applycal.remote.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 sol.applycal.remote.correction=tec000 \
             sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
             log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
 
@@ -355,8 +356,6 @@ for c in range(maxniter):
                             log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
     s.run(check = True)
     lib_util.check_rm('cal-g-c'+str(c)+'-*.h5')
-
-    sys.exit()
 
 #    ##############################################################
 #    # low S/N DIE corrections
