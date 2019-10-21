@@ -1,0 +1,12 @@
+msin =
+msin.datacolumn = MODEL_DATA
+msout = .
+msout.datacolumn = MODEL_DATA
+
+steps = [cor]
+
+corC.type = applycal
+corC.parmdb =
+corC.correction = 
+corC.invert = False
+corC.direction =
