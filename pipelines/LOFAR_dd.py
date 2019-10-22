@@ -29,13 +29,13 @@ phasecentre = MSs_self.getListObj()[0].getPhaseCentre()
 fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
 ############################
-logger.info('Cleaning...')
-lib_util.check_rm('ddcal')
-os.makedirs('ddcal/masks')
-os.makedirs('ddcal/plots')
-os.makedirs('ddcal/images')
-os.makedirs('ddcal/solutions')
-os.makedirs('ddcal/skymodels')
+#logger.info('Cleaning...')
+#lib_util.check_rm('ddcal')
+#os.makedirs('ddcal/masks')
+#os.makedirs('ddcal/plots')
+#os.makedirs('ddcal/images')
+#os.makedirs('ddcal/solutions')
+#os.makedirs('ddcal/skymodels')
 
 def clean(p, MSs, size, res='normal', apply_beam=False):
     """
@@ -339,13 +339,10 @@ for c in range(maxniter):
 #    lib_util.check_rm('cal-remote-c'+str(c)+'-*.h5')
 
     # Calibration - ms:SMOOTHED_DATA
-            #sol.applycal.steps=[core,remote] \
-            #sol.applycal.core.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.applycal.core.correction=tec000 \
-            #sol.applycal.remote.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 sol.applycal.remote.correction=tec000 \
     logger.info('Gain calibration...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
             sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb+' \
-            sol.solint=3 sol.nchan=4 sol.smoothnessconstraint=1e6', \
+            sol.solint=10 sol.nchan=8 sol.smoothnessconstraint=5e6', \
             log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions
