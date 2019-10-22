@@ -346,14 +346,9 @@ for c in range(maxniter):
             log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions
-    for MS in MSs.getListObj():
-        lib_util.run_losoto(s, 'g-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-g-c'+str(c)+'.h5', \
+    lib_util.run_losoto(s, 'g-c'+str(c), [ms+'/cal-g-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
                 [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
-    os.system('mv plots-g-c'+str(c)+'* ddcal/plots')
-    s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-g-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-g-c'+str(c)+'-*.h5')),\
-                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
-    s.run(check = True)
-    lib_util.check_rm('cal-g-c'+str(c)+'-*.h5')
+    os.system('mv plots-g-c'+str(c)+' ddcal/plots')
 
 #    ##############################################################
 #    # low S/N DIE corrections
