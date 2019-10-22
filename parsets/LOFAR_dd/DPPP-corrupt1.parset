@@ -5,8 +5,8 @@ msout.datacolumn = MODEL_DATA
 
 steps = [cor]
 
-corC.type = applycal
-corC.parmdb =
-corC.correction = 
-corC.invert = False
-corC.direction =
+cor.type = applycal
+cor.parmdb =
+cor.correction = 
+cor.invert = False
+cor.direction =
