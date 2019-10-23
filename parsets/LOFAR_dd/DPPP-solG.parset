@@ -14,4 +14,4 @@ sol.solint = 5
 sol.nchan = 8
 sol.mode = diagonal # phaseonly, complexgain, tec, tecandphase
 sol.propagatesolutions = True
-sol.smoothnessconstraint = 3e6
+sol.smoothnessconstraint = 5e6
