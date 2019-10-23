@@ -345,16 +345,9 @@ for c in range(maxniter):
             log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions
-    for MS in MSs.getListObj():
-        lib_util.run_losoto(s, 'g-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-g-c'+str(c)+'.h5', \
+    lib_util.run_losoto(s, 'g-c'+str(c), [ms+'/cal-g-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
                 [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
-    os.system('mv plots-g-c'+str(c)+'* ddcal/plots')
-    s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-g-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-g-c'+str(c)+'-*.h5')),\
-                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
-    s.run(check = True)
-    lib_util.check_rm('cal-g-c'+str(c)+'-*.h5')
-
-    sys.exit()
+    os.system('mv plots-g-c'+str(c)+' ddcal/plots')
 
 #    ##############################################################
 #    # low S/N DIE corrections
@@ -400,7 +393,7 @@ for c in range(maxniter):
 #
 #        # Correct DIE FR - ms:DATA -> CORRECTED_DATA
 #        logger.info('DIE FR correct...')
-#        MSs.run('DPPP '+parset_dir+'/DPPP-cor1.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+#        MSs.run('DPPP '+parset_dir+'/DPPP-xxx.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
 #               log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 #
 #        # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
@@ -419,7 +412,7 @@ for c in range(maxniter):
 #
 #        # Correct DIE AMP - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
 #        logger.info('DIE AMP correct...')
-#        MSs.run('DPPP '+parset_dir+'/DPPP-cor1.parset msin=$pathMS cor.parmdb=cal-G2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
+#        MSs.run('DPPP '+parset_dir+'/DPPP-xxx.parset msin=$pathMS cor.parmdb=cal-G2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
 #               log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
 #
 #        # Copy CORRECTED_DATA -> SUBTRACTED_DATA
@@ -450,13 +443,19 @@ for c in range(maxniter):
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
                 log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
     
-        # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
+#        # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
+#        logger.info('Patch '+d.name+': corrupt...')
+#        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS \
+#                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
+#                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
+#                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+
+        # corrupt G - ms:MODEL_DATA -> ms:MODEL_DATA
         logger.info('Patch '+d.name+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS \
-                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
-                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
                 log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-        
+ 
         logger.info('Patch '+d.name+': subtract...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
@@ -475,22 +474,35 @@ for c in range(maxniter):
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
                    log='$nameMS_pre2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
 
-        # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
+#        # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
+#        logger.info('Patch '+d.name+': corrupt...')
+#        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS \
+#                 corC.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
+#                 corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
+#                 log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+
+        # corrupt G - ms:MODEL_DATA -> ms:MODEL_DATA
         logger.info('Patch '+d.name+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS \
-                 corC.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
-                 corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
-                 log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
+                log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
 
         logger.info('Patch '+d.name+': add...')
         MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA + MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
-        # DD-correct - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
+#        # DD-correct - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
+#        logger.info('Patch '+d.name+': correct...')
+#        MSs.run('DPPP '+parset_dir+'/DPPP-correct2.parset msin=$pathMS \
+#                corC.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
+#                corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
+#                log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+
+        # correct G - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
         logger.info('Patch '+d.name+': correct...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor2.parset msin=$pathMS \
-                corC.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
-                corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
-                log='$nameMS_cor-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-correct1.parset msin=$pathMS \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
+                log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
+
 
         logger.info('Patch '+d.name+': phase shift and avg...')
         lib_util.check_rm('mss-dir')

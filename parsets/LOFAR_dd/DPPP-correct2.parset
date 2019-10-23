@@ -6,9 +6,9 @@ msout.datacolumn = CORRECTED_DATA
 steps=[corC,corR]
 
 corC.type = applycal
-corC.parmdb=
-corC.correction=tec000
+corC.parmdb =
+corC.correction =
 
 corR.type = applycal
-corR.parmdb=
-corR.correction=tec000
+corR.parmdb =
+corR.correction =
