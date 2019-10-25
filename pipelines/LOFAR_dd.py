@@ -29,13 +29,13 @@ phasecentre = MSs_self.getListObj()[0].getPhaseCentre()
 fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
 ############################
-#logger.info('Cleaning...')
-#lib_util.check_rm('ddcal')
-#os.makedirs('ddcal/masks')
-#os.makedirs('ddcal/plots')
-#os.makedirs('ddcal/images')
-#os.makedirs('ddcal/solutions')
-#os.makedirs('ddcal/skymodels')
+logger.info('Cleaning...')
+lib_util.check_rm('ddcal')
+os.makedirs('ddcal/masks')
+os.makedirs('ddcal/plots')
+os.makedirs('ddcal/images')
+os.makedirs('ddcal/solutions')
+os.makedirs('ddcal/skymodels')
 
 def clean(p, MSs, size, res='normal', apply_beam=False):
     """
@@ -253,43 +253,43 @@ for c in range(maxniter):
     for i, d in enumerate(directions):
         logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
 
-#    ################################################################
-#    # Calibrate TEC
-#    logger.info('Subtraction rest_field...')
-#
-#    # Fist cycle remove other sources with no DD corrections, when DD correction is available use it
-#    if c == 0:
-#        # Predict - ms:MODEL_DATA
-#        logger.info('Add rest_field to MODEL_DATA...')
-#        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-#    
-#        # Empty dataset from faint sources
-#        logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
-#        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-#    
-#    else:
-#
-#        # Copy DATA -> SUBTRACTED_DATA
-#        logger.info('Set SUBTRACTED_DATA = DATA...')
-#        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-#
-#        # TODO: what happens if the directions are different?
-#        for i, d in enumerate(directions_old):
-#            # predict - ms:MODEL_DATA
-#            logger.info('Patch '+d.name+': predict...')
-#            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb+' pre.sources='+d.name, \
-#                    log='$nameMS_pre0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-#        
-#            # corrupt (note: use previous cal table) - ms:MODEL_DATA -> ms:MODEL_DATA
-#            logger.info('Patch '+d.name+': corrupt...')
-#            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS \
-#                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c-1)+'.h5   corC.direction=['+d.name+'] \
-#                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c-1)+'.h5 corR.direction=['+d.name+']', \
-#                    log='$nameMS_corrupt0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-#            
-#            logger.info('Patch '+d.name+': subtract...')
-#            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
-#
+    ################################################################
+    # Calibrate TEC
+    logger.info('Subtraction rest_field...')
+
+    # Fist cycle remove other sources with no DD corrections, when DD correction is available use it
+    if c == 0:
+        # Predict - ms:MODEL_DATA
+        logger.info('Add rest_field to MODEL_DATA...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+    
+        # Empty dataset from faint sources
+        logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+    
+    else:
+
+        # Copy DATA -> SUBTRACTED_DATA
+        logger.info('Set SUBTRACTED_DATA = DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+
+        # TODO: what happens if the directions are different?
+        for i, d in enumerate(directions_old):
+            # predict - ms:MODEL_DATA
+            logger.info('Patch '+d.name+': predict...')
+            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb+' pre.sources='+d.name, \
+                    log='$nameMS_pre0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        
+            # corrupt (note: use previous cal table) - ms:MODEL_DATA -> ms:MODEL_DATA
+            logger.info('Patch '+d.name+': corrupt...')
+            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS \
+                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c-1)+'.h5   corC.direction=['+d.name+'] \
+                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c-1)+'.h5 corR.direction=['+d.name+']', \
+                    log='$nameMS_corrupt0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+            
+            logger.info('Patch '+d.name+': subtract...')
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
+
 #    ### TESTTESTTEST: empty image with cals
 #    #MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 #    #clean('onlycals-c'+str(c), MSs, size=(fwhm*2,fwhm*2), res='normal')
@@ -454,8 +454,15 @@ for c in range(maxniter):
 
         # corrupt G - ms:MODEL_DATA -> ms:MODEL_DATA
         logger.info('Patch '+d.name+': corrupt...')
+        # TODO: this is the correct "combined" applycal, but it doesn't work now
+        #MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+        #        cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
+        #        log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
         MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
-                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
+                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
                 log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
  
         logger.info('Patch '+d.name+': subtract...')
@@ -485,8 +492,15 @@ for c in range(maxniter):
 
         # corrupt G - ms:MODEL_DATA -> ms:MODEL_DATA
         logger.info('Patch '+d.name+': corrupt...')
+        # TODO: this is the correct "combined" applycal, but it doesn't work now
+        #MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+        #        cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
+        #        log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
         MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
-                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
+                log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
+        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
                 log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
 
         logger.info('Patch '+d.name+': add...')
@@ -501,10 +515,16 @@ for c in range(maxniter):
 
         # correct G - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
         logger.info('Patch '+d.name+': correct...')
+        # TODO: this is the correct "combined" applycal, but it doesn't work now
+        #MSs.run('DPPP '+parset_dir+'/DPPP-correct1.parset msin=$pathMS \
+        #        cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
+        #        log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
         MSs.run('DPPP '+parset_dir+'/DPPP-correct1.parset msin=$pathMS \
-                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
                 log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
-
+        MSs.run('DPPP '+parset_dir+'/DPPP-correct1.parset msin=$pathMS \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
+                log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
 
         logger.info('Patch '+d.name+': phase shift and avg...')
         lib_util.check_rm('mss-dir')
