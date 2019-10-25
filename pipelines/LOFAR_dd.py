@@ -452,8 +452,15 @@ for c in range(maxniter):
 
         # corrupt G - ms:MODEL_DATA -> ms:MODEL_DATA
         logger.info('Patch '+d.name+': corrupt...')
+        # TODO: this is the correct "combined" applycal, but it doesn't work now
+        #MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+        #        cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
+        #        log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
         MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
-                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
+                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
                 log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
  
         logger.info('Patch '+d.name+': subtract...')
@@ -483,8 +490,15 @@ for c in range(maxniter):
 
         # corrupt G - ms:MODEL_DATA -> ms:MODEL_DATA
         logger.info('Patch '+d.name+': corrupt...')
+        # TODO: this is the correct "combined" applycal, but it doesn't work now
+        #MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+        #        cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
+        #        log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
         MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
-                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
+                log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
+        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
                 log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
 
         logger.info('Patch '+d.name+': add...')
@@ -499,10 +513,16 @@ for c in range(maxniter):
 
         # correct G - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
         logger.info('Patch '+d.name+': correct...')
+        # TODO: this is the correct "combined" applycal, but it doesn't work now
+        #MSs.run('DPPP '+parset_dir+'/DPPP-correct1.parset msin=$pathMS \
+        #        cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
+        #        log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
         MSs.run('DPPP '+parset_dir+'/DPPP-correct1.parset msin=$pathMS \
-                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.direction=['+d.name+']', \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
                 log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
-
+        MSs.run('DPPP '+parset_dir+'/DPPP-correct1.parset msin=$pathMS \
+                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
+                log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
 
         logger.info('Patch '+d.name+': phase shift and avg...')
         lib_util.check_rm('mss-dir')
