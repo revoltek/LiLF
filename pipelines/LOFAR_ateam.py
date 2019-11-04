@@ -229,7 +229,7 @@ for c in range(100):
                 multiscale='', multiscale_scale_bias=0.7, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
                 baseline_averaging=5, auto_threshold=1, \
-                join_channels='', deconvolution_channels=10, fit_spectral_pol=7, channels_out=61)
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
 
     elif patch == 'CasA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1300, scale='2arcsec', \
@@ -237,20 +237,20 @@ for c in range(100):
                 multiscale='', multiscale_scale_bias=0.7, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CasA.fits', \
                 baseline_averaging=5, auto_threshold=1, \
-                join_channels='', deconvolution_channels=10, fit_spectral_pol=7, channels_out=61)
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
 
     elif patch == 'TauA':
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1200, scale='2arcsec', \
                 weight='briggs -1.2', niter=150, update_model_required='', mgain=0.5, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/pulsar.fits', \
-                join_channels='', deconvolution_channels=10, fit_spectral_pol=7, channels_out=61) # use cont=True
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61) # use cont=True
 
         lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, save_source_list='', size=1200, scale='2arcsec', \
                 weight='briggs -1.2', niter=100000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/TauA.fits', \
                 auto_threshold=1, \
-                join_channels='', deconvolution_channels=10, fit_spectral_pol=7, channels_out=61)
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'lba':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1500, scale='2arcsec', \
@@ -258,7 +258,7 @@ for c in range(100):
                 multiscale='', multiscale_scale_bias=0.7, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAlba.fits', \
                 baseline_averaging=5, auto_threshold=1, \
-                join_channels='', deconvolution_channels=10, fit_spectral_pol=5, channels_out=61)
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'hba':
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
