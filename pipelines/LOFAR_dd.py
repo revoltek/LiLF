@@ -300,12 +300,11 @@ for c in range(maxniter):
 #    #MSs.run('taql "update $pathMS set CORRECTED_DATA = MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 #    #clean('onlyrestmodel-c'+str(c), MSs, size=(fwhm*2,fwhm*2), res='normal')
 #    ###
-#
-#    # TEST without smoothing
-#    # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
-#    logger.info('BL-based smoothing...')
-#    MSs.run('BLsmooth.py -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
-#
+
+    # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
+    logger.info('BL-based smoothing...')
+    MSs.run('BLsmooth.py -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
+
 ##    # Calibration - ms:SMOOTHED_DATA
 ##    logger.info('Core calibration...')
 ##    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS msin.baseline="[CR]*&&;!RS210LBA;!RS310LBA;!RS509LBA;!RS508LBA;!RS409LBA;!RS208LBA;!RS307LBA" \
@@ -340,19 +339,18 @@ for c in range(maxniter):
 ##                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
 ##    s.run(check = True)
 ##    lib_util.check_rm('cal-remote-c'+str(c)+'-*.h5')
-#
-#    # Calibration - ms:SMOOTHED_DATA
-#    logger.info('Gain calibration...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
-#            sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb+' \
-#            sol.solint=10 sol.nchan=8 sol.smoothnessconstraint=10e6', \
-#            log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-#
-#    # Plot solutions
-#    lib_util.run_losoto(s, 'g-c'+str(c), [ms+'/cal-g-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
-#                [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
-#    os.system('mv plots-g-c'+str(c)+' ddcal/plots')
-#    os.system('mv cal-g-c'+str(c)+'.h5 ddcal/solutions')
+
+    # Calibration - ms:SMOOTHED_DATA
+    logger.info('Gain calibration...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
+            sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
+            log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+
+    # Plot solutions
+    lib_util.run_losoto(s, 'g-c'+str(c), [ms+'/cal-g-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
+                [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
+    os.system('mv plots-g-c'+str(c)+' ddcal/plots')
+    os.system('mv cal-g-c'+str(c)+'.h5 ddcal/solutions')
 
 #    ##############################################################
 #    # low S/N DIE corrections
