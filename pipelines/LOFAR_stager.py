@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # export PYTHONPATH="$HOME/opt/lib/python3.?/site-packages/"
+# To do a second run, rename the uris.pickle
 
 import os, sys, time, glob, pickle
 from datetime import datetime

@@ -29,13 +29,13 @@ phasecentre = MSs_self.getListObj()[0].getPhaseCentre()
 fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
 ############################
-logger.info('Cleaning...')
-lib_util.check_rm('ddcal')
-os.makedirs('ddcal/masks')
-os.makedirs('ddcal/plots')
-os.makedirs('ddcal/images')
-os.makedirs('ddcal/solutions')
-os.makedirs('ddcal/skymodels')
+#logger.info('Cleaning...')
+#lib_util.check_rm('ddcal')
+#os.makedirs('ddcal/masks')
+#os.makedirs('ddcal/plots')
+#os.makedirs('ddcal/images')
+#os.makedirs('ddcal/solutions')
+#os.makedirs('ddcal/skymodels')
 
 def clean(p, MSs, size, res='normal', apply_beam=False):
     """
@@ -161,8 +161,8 @@ for c in range(maxniter):
     x = lsm.getColValues('RA',aggregate='wmean')
     y = lsm.getColValues('Dec',aggregate='wmean')
     flux = lsm.getColValues('I',aggregate='sum')
-    #grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=1.0,kernel_size=0.5,grouping_distance=0.3)
-    grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=0.8,kernel_size=0.4,grouping_distance=0.2) # a851
+    grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=0.7,kernel_size=0.4,grouping_distance=0.1)
+    #grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=0.8,kernel_size=0.4,grouping_distance=0.2) # a851
     grouper.run()
     clusters = grouper.grouping()
     grouper.plot()
@@ -198,13 +198,15 @@ for c in range(maxniter):
     lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
     skymodel_cl_plot = 'ddcal/masks/skymodel%02i_cluster.png' % c
     lsm.plot(fileName=skymodel_cl_plot, labelBy='patch')
+    lsm.setColValues('name', [x.split('_')[-1] for x in lsm.getColValues('patch')]) # just for the region - this makes this lsm useless
+    lsm.write('ddcal/masks/regions-c%02i/cluster.reg' % c, format='ds9', clobber=True)
+    del lsm
 
     # convert to blob
     skymodel_cl_skydb = skymodel_cl.replace('.txt','.skydb')
     lib_util.check_rm(skymodel_cl_skydb)
     s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_cl, skymodel_cl_skydb), log='makesourcedb_cl.log', commandType='general' )
     s.run(check=True)
-    del lsm
     
     ### select the rest of the sources to be subtracted
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
@@ -241,55 +243,57 @@ for c in range(maxniter):
     lsm.write(skymodel_voro, format='makesourcedb', clobber=True)
     skymodel_voro_plot = 'ddcal/masks/skymodel%02i_voro.png' % c
     lsm.plot(fileName=skymodel_voro_plot, labelBy='patch')
+    lsm.setColValues('name', [x.split('_')[-1] for x in lsm.getColValues('patch')]) # just for the region - this makes this lsm useless
+    lsm.write('ddcal/masks/regions-c%02i/voro.reg' % c, format='ds9', clobber=True)
+    del lsm
 
     # convert to blob
     skymodel_voro_skydb = skymodel_voro.replace('.txt','.skydb')
     lib_util.check_rm(skymodel_voro_skydb)
     s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_voro, skymodel_voro_skydb), log='makesourcedb_voro.log', commandType='general')
     s.run(check=True)
-    del lsm
 
     logger.debug("Islands' info:")
     for i, d in enumerate(directions):
         logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
 
-    ################################################################
-    # Calibrate TEC
-    logger.info('Subtraction rest_field...')
-
-    # Fist cycle remove other sources with no DD corrections, when DD correction is available use it
-    if c == 0:
-        # Predict - ms:MODEL_DATA
-        logger.info('Add rest_field to MODEL_DATA...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-    
-        # Empty dataset from faint sources
-        logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    
-    else:
-
-        # Copy DATA -> SUBTRACTED_DATA
-        logger.info('Set SUBTRACTED_DATA = DATA...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-
-        # TODO: what happens if the directions are different?
-        for i, d in enumerate(directions_old):
-            # predict - ms:MODEL_DATA
-            logger.info('Patch '+d.name+': predict...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb+' pre.sources='+d.name, \
-                    log='$nameMS_pre0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-        
-            # corrupt (note: use previous cal table) - ms:MODEL_DATA -> ms:MODEL_DATA
-            logger.info('Patch '+d.name+': corrupt...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS \
-                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c-1)+'.h5   corC.direction=['+d.name+'] \
-                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c-1)+'.h5 corR.direction=['+d.name+']', \
-                    log='$nameMS_corrupt0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-            
-            logger.info('Patch '+d.name+': subtract...')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
-
+#    ################################################################
+#    # Calibrate
+#    logger.info('Subtraction rest_field...')
+#
+#    # Fist cycle remove other sources with no DD corrections, when DD correction is available use it
+#    if c == 0:
+#        # Predict - ms:MODEL_DATA
+#        logger.info('Add rest_field to MODEL_DATA...')
+#        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+#    
+#        # Empty dataset from faint sources
+#        logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
+#        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+#    
+#    else:
+#
+#        # Copy DATA -> SUBTRACTED_DATA
+#        logger.info('Set SUBTRACTED_DATA = DATA...')
+#        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+#
+#        # TODO: what happens if the directions are different?
+#        for i, d in enumerate(directions_old):
+#            # predict - ms:MODEL_DATA
+#            logger.info('Patch '+d.name+': predict...')
+#            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb+' pre.sources='+d.name, \
+#                    log='$nameMS_pre0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+#        
+#            # corrupt (note: use previous cal table) - ms:MODEL_DATA -> ms:MODEL_DATA
+#            logger.info('Patch '+d.name+': corrupt...')
+#            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS \
+#                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c-1)+'.h5   corC.direction=['+d.name+'] \
+#                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c-1)+'.h5 corR.direction=['+d.name+']', \
+#                    log='$nameMS_corrupt0-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+#            
+#            logger.info('Patch '+d.name+': subtract...')
+#            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
+#
 #    ### TESTTESTTEST: empty image with cals
 #    #MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 #    #clean('onlycals-c'+str(c), MSs, size=(fwhm*2,fwhm*2), res='normal')
@@ -301,55 +305,54 @@ for c in range(maxniter):
 #    # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
 #    logger.info('BL-based smoothing...')
 #    MSs.run('BLsmooth.py -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
-
-#    # TEST assuming no core calibration necessary
+#
+##    # Calibration - ms:SMOOTHED_DATA
+##    logger.info('Core calibration...')
+##    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS msin.baseline="[CR]*&&;!RS210LBA;!RS310LBA;!RS509LBA;!RS508LBA;!RS409LBA;!RS208LBA;!RS307LBA" \
+##            sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
+##            sol.solint=20 sol.nchan=40 sol.h5parm=$pathMS/cal-core-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
+##            log='$nameMS_solTECcore-c'+str(c)+'.log', commandType='DPPP')
+##
+##    # Plot solutions
+##    for MS in MSs.getListObj():
+##        lib_util.run_losoto(s, 'core-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-core-c'+str(c)+'.h5', \
+##                [parset_dir+'/losoto-resetremote.parset', parset_dir+'/losoto-plot-tec.parset'])
+##    os.system('mv plots-core-c'+str(c)+'* ddcal/plots')
+##    s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-core-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-core-c'+str(c)+'-*.h5')),\
+##                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
+##    s.run(check = True)
+##    lib_util.check_rm('cal-core-c'+str(c)+'-*.h5')
+##    
+##    # Calibration - ms:SMOOTHED_DATA
+##    logger.info('Remote calibration...')
+##    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS \
+##            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS406LBA,RS407LBA,RS503LBA]] \
+##            sol.applycal.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.applycal.correction=tec000 \
+##            sol.solint=10 sol.nchan=4 sol.h5parm=$pathMS/cal-remote-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
+##            log='$nameMS_solTECremote-c'+str(c)+'.log', commandType='DPPP')
+##
+##    # Plot solutions
+##    for MS in MSs.getListObj():
+##        lib_util.run_losoto(s, 'remote-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-remote-c'+str(c)+'.h5', \
+##                [parset_dir+'/losoto-plot-tec.parset'])
+##    os.system('mv plots-remote-c'+str(c)+'* ddcal/plots')
+##    s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-remote-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-remote-c'+str(c)+'-*.h5')),\
+##                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
+##    s.run(check = True)
+##    lib_util.check_rm('cal-remote-c'+str(c)+'-*.h5')
+#
 #    # Calibration - ms:SMOOTHED_DATA
-#    logger.info('Core calibration...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS msin.baseline="[CR]*&&;!RS210LBA;!RS310LBA;!RS509LBA;!RS508LBA;!RS409LBA;!RS208LBA;!RS307LBA" \
-#            sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
-#            sol.solint=20 sol.nchan=40 sol.h5parm=$pathMS/cal-core-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
-#            log='$nameMS_solTECcore-c'+str(c)+'.log', commandType='DPPP')
+#    logger.info('Gain calibration...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
+#            sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb+' \
+#            sol.solint=10 sol.nchan=8 sol.smoothnessconstraint=10e6', \
+#            log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
 #
 #    # Plot solutions
-#    for MS in MSs.getListObj():
-#        lib_util.run_losoto(s, 'core-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-core-c'+str(c)+'.h5', \
-#                [parset_dir+'/losoto-resetremote.parset', parset_dir+'/losoto-plot-tec.parset'])
-#    os.system('mv plots-core-c'+str(c)+'* ddcal/plots')
-#    s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-core-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-core-c'+str(c)+'-*.h5')),\
-#                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
-#    s.run(check = True)
-#    lib_util.check_rm('cal-core-c'+str(c)+'-*.h5')
-#    
-#    # Calibration - ms:SMOOTHED_DATA
-#    logger.info('Remote calibration...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS \
-#            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS406LBA,RS407LBA,RS503LBA]] \
-#            sol.applycal.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.applycal.correction=tec000 \
-#            sol.solint=10 sol.nchan=4 sol.h5parm=$pathMS/cal-remote-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
-#            log='$nameMS_solTECremote-c'+str(c)+'.log', commandType='DPPP')
-#
-#    # Plot solutions
-#    for MS in MSs.getListObj():
-#        lib_util.run_losoto(s, 'remote-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-remote-c'+str(c)+'.h5', \
-#                [parset_dir+'/losoto-plot-tec.parset'])
-#    os.system('mv plots-remote-c'+str(c)+'* ddcal/plots')
-#    s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-remote-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-remote-c'+str(c)+'-*.h5')),\
-#                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
-#    s.run(check = True)
-#    lib_util.check_rm('cal-remote-c'+str(c)+'-*.h5')
-
-    # Calibration - ms:SMOOTHED_DATA
-    logger.info('Gain calibration...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
-            sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb+' \
-            sol.solint=10 sol.nchan=8 sol.smoothnessconstraint=5e6', \
-            log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-
-    # Plot solutions
-    lib_util.run_losoto(s, 'g-c'+str(c), [ms+'/cal-g-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
-                [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
-    os.system('mv plots-g-c'+str(c)+' ddcal/plots')
-    os.system('mv cal-g-c'+str(c)+'.h5 ddcal/solutions')
+#    lib_util.run_losoto(s, 'g-c'+str(c), [ms+'/cal-g-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
+#                [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
+#    os.system('mv plots-g-c'+str(c)+' ddcal/plots')
+#    os.system('mv cal-g-c'+str(c)+'.h5 ddcal/solutions')
 
 #    ##############################################################
 #    # low S/N DIE corrections
@@ -461,9 +464,9 @@ for c in range(maxniter):
         MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
                 cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
                 log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
-                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
-                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+#        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+#                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
+#                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
  
         logger.info('Patch '+d.name+': subtract...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
@@ -499,9 +502,9 @@ for c in range(maxniter):
         MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
                 cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
                 log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
-        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
-                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
-                log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
+#        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+#                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
+#                log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
 
         logger.info('Patch '+d.name+': add...')
         MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA + MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
@@ -522,9 +525,9 @@ for c in range(maxniter):
         MSs.run('DPPP '+parset_dir+'/DPPP-correct1.parset msin=$pathMS \
                 cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
                 log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
-        MSs.run('DPPP '+parset_dir+'/DPPP-correct1.parset msin=$pathMS \
-                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
-                log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
+#        MSs.run('DPPP '+parset_dir+'/DPPP-correct1.parset msin=$pathMS \
+#                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
+#                log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
 
         logger.info('Patch '+d.name+': phase shift and avg...')
         lib_util.check_rm('mss-dir')
