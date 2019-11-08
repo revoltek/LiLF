@@ -206,7 +206,7 @@ for c in range(2):
     # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
-    if c==0: kwargs = {'do_predict':True,'baseline_averaging':5,'parallel_gridding':4}
+    if c==0: kwargs = {'do_predict':True,'baseline_averaging':5,'parallel_gridding':2}
     else: kwargs = {'temp_dir':'./', 'pol':'I', 'use_idg':'', 'grid_with_beam':'', 'use_differential_lofar_beam':'', 'beam_aterm_update':600}
     lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
             weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=4500, mgain=0.85, \
@@ -310,7 +310,6 @@ for c in range(2):
 [ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in range(2) ]
 os.system('mv img/wide-lr-MFS-image.fits img/wide-vlr-MFS-image.fits self/images')
 os.system('mv img/wideM-1-MFS-image-pb.fits self/images')
-#os.system('mv img/wideBeam-MFS-*-image.fits  img/wideBeam-MFS-*-image-pb.fits img/avgbeam.fits self/images')
 os.system('mv logs self')
 
 logger.info("Done.")
