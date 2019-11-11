@@ -156,7 +156,7 @@ if renameavg:
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
                         log=MS.nameMS+'_avg.log', commandType='DPPP')
                 s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
-                lib_util.check_rm(MS.pathMS)
+                #lib_util.check_rm(MS.pathMS)
             else:
                 logger.info('%s: Move data - no averaging...' % MS.nameMS)
                 MS.move(MSout)
