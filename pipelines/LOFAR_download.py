@@ -116,7 +116,7 @@ else:
     MSs.run('taql "update $pathMS set DATA = 1e-4*DATA"', log='$nameMS_taql.log', commandType='general')
 
 ######################################
-# Avg to 4 chan and 4 sec
+# Avg to 4 chan and 2 sec
 # Remove internationals
 if renameavg:
     logger.info('Renaming/averaging...')
@@ -139,7 +139,7 @@ if renameavg:
                 sys.exit(1)
             if avg_factor_f < 1 or keep_IS: avg_factor_f = 1
 
-            avg_factor_t = int(np.round(4/timeint)) # to 4 sec
+            avg_factor_t = int(np.round(2/timeint)) # to 2 sec
             if avg_factor_t < 1 or keep_IS: avg_factor_t = 1
         
             MSout = getName(MS.pathMS)

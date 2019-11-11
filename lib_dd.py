@@ -405,7 +405,7 @@ class Grouper( object ):
                 ### Step 2. For each datapoint x in X, calculate the mean shift m(x).
                 distances = self.euclid_distance(self.coords[idx_neighbours], x)
                 weights = self.gaussian_kernel(distances)
-                weights *= self.fluxes[idx_neighbours]
+                weights *= self.fluxes[idx_neighbours]**2 # multiply by flux**2 to make bright sources more important
                 numerator = np.sum(weights[:,np.newaxis] * self.coords[idx_neighbours], axis=0)
                 denominator = np.sum(weights)
                 new_x = numerator / denominator
@@ -452,6 +452,13 @@ class Grouper( object ):
         import matplotlib as mpl
         mpl.use("Agg")
         import matplotlib.pyplot as plt
+       
+        # decent colors
+        import cycler, random
+        color_idx = np.linspace(0, 1, len(self.clusters))
+        random.shuffle(color_idx)
+        color = plt.cm.rainbow(color_idx)
+        mpl.rcParams['axes.prop_cycle'] = cycler.cycler('color', color)
 
         logger.info('Plotting grouped sources: grouping_xxx.png')
         for i, X in enumerate(self.past_coords):
@@ -469,6 +476,7 @@ class Grouper( object ):
             ax.set_ylim( np.min(initial_y), np.max(initial_y) )
 
             #print ('Saving plot_%i.png' % i)
+            ax.set_xlim(ax.get_xlim()[::-1]) # reverse RA
             fig.savefig('grouping_%00i.png' % i, bbox_inches='tight')
 
         # plot clustering
@@ -480,6 +488,7 @@ class Grouper( object ):
 
         ax.set_xlim( np.min(initial_x), np.max(initial_x) )
         ax.set_ylim( np.min(initial_y), np.max(initial_y) )
+        ax.set_xlim(ax.get_xlim()[::-1]) # reverse RA
 
         logger.info('Plotting: grouping_clusters.png')
         fig.savefig('grouping_clusters.png', bbox_inches='tight')
