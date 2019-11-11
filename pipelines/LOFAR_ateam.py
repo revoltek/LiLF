@@ -223,10 +223,10 @@ for c in range(100):
     logger.info('Cleaning (cycle %i)...' % c)
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
+                #use_weights_as_taper='',\
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1000, scale='1.5arcsec', \
                 weight='briggs -1.5', niter=50000, no_update_model_required='', mgain=0.5, \
-                use_weights_as_taper='',\
-                multiscale='', multiscale_scale_bias=0.7, \
+                multiscale='', multiscale_scale_bias=0.6, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
                 baseline_averaging=5, auto_threshold=1, \
                 join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
