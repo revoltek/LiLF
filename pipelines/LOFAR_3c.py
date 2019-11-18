@@ -130,6 +130,10 @@ if not os.path.exists(sourcedb):
 logger.info('Predict (DPPP)...')
 MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+sourcedb, log='$nameMS_pre.log', commandType='DPPP')
 
+# Smooth DATA -> DATA
+logger.info('BL-based smoothing...')
+MSs.run('BLsmooth.py -r -i DATA -o DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
+
 ###############################################################
 # Selfcal
 rms_noise_pre = np.inf; doamp = False
@@ -145,12 +149,12 @@ for c in range(100):
 
     if doamp:
         # Smooth DATA -> SMOOTHED_DATA
-        logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
+        #logger.info('BL-based smoothing...')
+        #MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
 
         # solve G - group*_TC.MS:SMOOTHED_DATA
         logger.info('Solving 1...')
-        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG1.h5 sol.mode=diagonal \
+        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calG1.h5 sol.mode=diagonal \
                 sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
                 log='$nameMS_solG1-c'+str(c)+'.log', commandType="DPPP")
         lib_util.run_losoto(s, 'G1-c'+str(c), [ms+'/calG1.h5' for ms in MSs.getListStr()], \
@@ -166,14 +170,10 @@ for c in range(100):
         MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
             log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
-    # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
-
     # Re-do calibration after faradayrotation removal
     # solve G - group*_TC.MS:SMOOTHED_DATA
     logger.info('Solving 2...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG2.h5 sol.mode=diagonal \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calG2.h5 sol.mode=diagonal \
             sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
             log='$nameMS_solG2-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'G2-c'+str(c), [ms+'/calG2.h5' for ms in MSs.getListStr()], \
@@ -197,21 +197,6 @@ for c in range(100):
         MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
             log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
 
-    ########### TEST
-    ## Smooth CORRECTED_DATA -> SMOOTHED_DATA
-    #logger.info('BL-based smoothing...')
-    #MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
-    #
-    ## Re-do calibration after faradayrotation removal
-    ## solve G - group*_TC.MS:SMOOTHED_DATA
-    #logger.info('Solving 3...')
-    #MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG3.h5 sol.mode=scalarphase \
-    #        sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
-    #        log='$nameMS_solG3-c'+str(c)+'.log', commandType="DPPP")
-    #lib_util.run_losoto(s, 'G3-c'+str(c), [ms+'/calG3.h5' for ms in MSs.getListStr()], \
-    #                [parset_dir+'/losoto-plot-ph.parset'])
-    ##############
-
     #################################################
     # 2: Cleaning
 
@@ -230,15 +215,20 @@ for c in range(100):
             niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
             auto_threshold=3, local_rms='', \
             join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1 )
-    #os.system('cp -r img/imgM-%02i-MFS-model.fits img/imgMbkp-%02i-MFS-model.fits' % (c,c))
-    #os.system('cp -r img/imgM-%02i-MFS-residual.fits img/imgMbkp-%02i-MFS-residual.fits' % (c,c))
-    im = lib_img.Image(imagename+'-MFS-image.fits')
-    im.makeMask( threshisl=5, rmsbox=(500,30), atrous_do=True )
+
+    # check if hand-made mask is available
+    if os.path.exists('../masks/%s.fits' % target):
+        maskfits = '../masks/%s.fits' % target
+    else:
+        im = lib_img.Image(imagename+'-MFS-image.fits')
+        im.makeMask( threshisl=5, rmsbox=(500,30), atrous_do=True )
+        maskfits = imagename+'-mask.fits'
+
     logger.info('Cleaning II (cycle: '+str(c)+')...')
     lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, parallel_gridding=4, size=2500, scale='1.5arcsec', \
-            niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.7, nmiter=0, \
-            auto_threshold=0.5, auto_mask=2.5, local_rms='', fits_mask=imagename+'-mask.fits', \
-            multiscale='', multiscale_scale_bias=0.7, \
+            niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0, \
+            auto_threshold=0.5, auto_mask=2.5, local_rms='', fits_mask=maskfits, \
+            multiscale='', multiscale_scale_bias=0.8, \
             join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2 )
     os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
 

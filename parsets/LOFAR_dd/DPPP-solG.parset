@@ -12,6 +12,6 @@ sol.maxiter = 300
 sol.tolerance = 1e-3
 sol.solint = 10
 sol.nchan = 8
-sol.mode = diagonal # phaseonly, complexgain, tec, tecandphase
+sol.mode = scalarcomplexgain # diagonal, scalarcomplexgain, tec
 sol.propagatesolutions = True
 sol.smoothnessconstraint = 5e6

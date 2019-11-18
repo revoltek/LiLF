@@ -77,29 +77,24 @@ class Image(object):
 
             # get data
             with pyfits.open(self.imagename) as fits:
-                data = fits[0].data
+                data = np.squeeze(fits[0].data)
+
             # get mask
             with pyfits.open(maskname) as fits:
-                mask = fits[0].data
+                mask = np.squeeze(fits[0].data)
+
                 # for each island calculate the catoff
                 blobs, number_of_blobs = label(mask.astype(int).squeeze(), structure=[[1,1,1],[1,1,1],[1,1,1]])
                 for i in range(1,number_of_blobs):
                     this_blob = blobs == i
-                    if len(data.shape) == 4:
-                        max_pix = np.max(data[0,0,this_blob])
-                        ratio = np.sum(data[0,0,this_blob])/np.sum(mask[0,0,this_blob])**2
-                        if max_pix < 1. and ratio < remove_extended_cutoff:
-                            mask[0,0,this_blob] = False
-                    else:
-                        # mosaic images have only 2 axes
-                        max_pix = np.max(data[this_blob])
-                        ratio = np.sum(data[this_blob])/np.sum(mask[this_blob])**2
-                        if max_pix < 1. and ratio < remove_extended_cutoff:
-                            mask[this_blob] = False
+                    max_pix = np.max(data[this_blob])
+                    ratio = np.sum(data[this_blob])/np.sum(mask[this_blob])**2
+                    if max_pix < 1. and ratio < remove_extended_cutoff:
+                        mask[this_blob] = False
                     #mask[0,0,this_blob] = ratio # debug
 
                 # write mask back
-                fits[0].data = mask
+                fits[0].data[0,0] = mask
                 fits.writeto(maskname, overwrite=True)
 
 
