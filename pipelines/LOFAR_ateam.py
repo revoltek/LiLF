@@ -106,6 +106,11 @@ else:
     logger.info('Predict (DPPP)...')
     MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
 
+# TESTTESTTEST
+# BL Smooth DATA -> DATA
+logger.info('BL-based smoothing...')
+MSs.run('BLsmooth.py -r -i DATA -o DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
+
 for c in range(100):
 
     logger.info('== Start cycle: %s ==' % c)
@@ -167,10 +172,6 @@ for c in range(100):
     logger.info('Faraday rotation correction...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
             log='$nameMS_corFR3.log', commandType="DPPP")
-
-    # BL Smooth DATA -> SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
 
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Solving IONO...')
@@ -241,7 +242,7 @@ for c in range(100):
 
     elif patch == 'TauA':
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1200, scale='2arcsec', \
-                weight='briggs -1.2', niter=150, update_model_required='', mgain=0.5, \
+                weight='briggs -1.2', niter=100, update_model_required='', mgain=0.3, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/pulsar.fits', \
                 join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61) # use cont=True
 
@@ -254,7 +255,7 @@ for c in range(100):
 
     elif patch == 'VirA' and lofar_system == 'lba':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1500, scale='2arcsec', \
-                weight='briggs -1.0', niter=50000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -1.0', niter=50000, no_update_model_required='', nmiter=50, mgain=0.4, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAlba.fits', \
                 baseline_averaging=5, auto_threshold=1, \
@@ -290,9 +291,9 @@ for c in range(100):
         logger.info('Cleaning wide (cycle %i)...' % c)
         imagename = 'img/imgsub-c'+str(c)
         lib_util.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
-                weight='briggs 0.', taper_gaussian='100arcsec', niter=10000, no_update_model_required='', mgain=0.85, \
-                baseline_averaging=5, deconvolution_channels=8, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=32)
+                weight='briggs -0.2', taper_gaussian='90arcsec', niter=10000, no_update_model_required='', mgain=0.85, \
+                baseline_averaging=5, deconvolution_channels=4, \
+                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16)
  
         #logger.info('Predict wide (wsclean)...')
         #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 32 '+MSs.getStrWsclean(), \
