@@ -143,7 +143,7 @@ for c in range(100):
     
     # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Converting to circular...')
-    MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+    MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=5)
     
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Solving FR...')
@@ -242,7 +242,7 @@ for c in range(100):
 
     elif patch == 'TauA':
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1200, scale='2arcsec', \
-                weight='briggs -1.2', niter=100, update_model_required='', mgain=0.3, \
+                weight='briggs -1.2', niter=30, update_model_required='', mgain=0.3, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/pulsar.fits', \
                 join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61) # use cont=True
 
@@ -270,7 +270,7 @@ for c in range(100):
                 weight='briggs -0.6', niter=50000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
-                auto_threshold=0.1, \
+                auto_threshold=1, \
                 join_channels='', deconvolution_channels=20, fit_spectral_pol=5, channels_out=61)
 
     logger.info('Predict (wsclean: %s)...' % imagename)
