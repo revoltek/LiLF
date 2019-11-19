@@ -108,8 +108,8 @@ else:
 
 # TESTTESTTEST
 # BL Smooth DATA -> DATA
-logger.info('BL-based smoothing...')
-MSs.run('BLsmooth.py -r -i DATA -o DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
+#logger.info('BL-based smoothing...')
+#MSs.run('BLsmooth.py -r -i DATA -o DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
 
 for c in range(100):
 
@@ -258,20 +258,20 @@ for c in range(100):
                 weight='briggs -1.0', niter=50000, no_update_model_required='', nmiter=50, mgain=0.4, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAlba.fits', \
-                baseline_averaging=5, auto_threshold=1, \
+                baseline_averaging=5, auto_threshold=5, \
                 join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'hba':
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -0.9', niter=1000, update_model_required='', mgain=0.5, \
+                weight='briggs 0.', niter=500, update_model_required='', mgain=0.3, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
-                join_channels='', deconvolution_channels=20, fit_spectral_pol=7, channels_out=61) # use cont=True
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61) # use cont=True
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -0.6', niter=50000, no_update_model_required='', mgain=0.5, \
+                weight='briggs 0.', niter=50000, no_update_model_required='', mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
                 auto_threshold=1, \
-                join_channels='', deconvolution_channels=20, fit_spectral_pol=5, channels_out=61)
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
 
     logger.info('Predict (wsclean: %s)...' % imagename)
     s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 61 '+MSs.getStrWsclean(), \
@@ -291,7 +291,7 @@ for c in range(100):
         logger.info('Cleaning wide (cycle %i)...' % c)
         imagename = 'img/imgsub-c'+str(c)
         lib_util.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
-                weight='briggs -0.2', taper_gaussian='90arcsec', niter=10000, no_update_model_required='', mgain=0.85, \
+                weight='briggs 0.4', taper_gaussian='100arcsec', niter=10000, no_update_model_required='', mgain=0.85, \
                 baseline_averaging=5, deconvolution_channels=4, \
                 auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16)
  
