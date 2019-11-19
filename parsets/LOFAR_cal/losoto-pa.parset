@@ -11,7 +11,7 @@ operation = POLALIGN
 soltabOut = polalign
 average = True
 replace = True
-fitOffset = False
+fitOffset = True
 refAnt = 'CS001LBA'
 #refAnt = 'CS002LBA'
 
@@ -32,7 +32,7 @@ plotFlag = True
 prefix = plots/ph-align_
 refAnt = 'CS001LBA'
 #refAnt = 'CS002LBA'
-minmax = [-1,+1]
+minmax = [-2,+2]
 
 [residual]
 operation = RESIDUALS
@@ -49,7 +49,7 @@ plotFlag = True
 prefix = plots/ph-res_
 refAnt = 'CS001LBA'
 #refAnt = 'CS002LBA'
-minmax = [-1,+1]
+minmax = [-2,+2]
 
 [plotPr2]
 operation = PLOT
