@@ -108,8 +108,8 @@ else:
 
 # TESTTESTTEST
 # BL Smooth DATA -> DATA
-logger.info('BL-based smoothing...')
-MSs.run('BLsmooth.py -r -i DATA -o DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
+#logger.info('BL-based smoothing...')
+#MSs.run('BLsmooth.py -r -i DATA -o DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
 
 for c in range(100):
 
@@ -225,7 +225,7 @@ for c in range(100):
     imagename = 'img/img-c'+str(c)
     if patch == 'CygA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1000, scale='1.5arcsec', \
-                weight='briggs -1.5', niter=50000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -1.5', niter=50000, no_update_model_required='', nmiter=50, mgain=0.5, \
                 use_weights_as_taper='',\
                 multiscale='', multiscale_scale_bias=0.6, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
@@ -234,7 +234,7 @@ for c in range(100):
 
     elif patch == 'CasA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1300, scale='2arcsec', \
-                weight='briggs -1.2', niter=75000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -1.2', niter=75000, no_update_model_required='', nmiter=50, mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CasA.fits', \
                 baseline_averaging=5, auto_threshold=1, \
@@ -247,7 +247,7 @@ for c in range(100):
                 join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61) # use cont=True
 
         lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, save_source_list='', size=1200, scale='2arcsec', \
-                weight='briggs -1.2', niter=100000, no_update_model_required='', mgain=0.5, \
+                weight='briggs -1.2', niter=100000, no_update_model_required='', nmiter=50, mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/TauA.fits', \
                 auto_threshold=1, \
