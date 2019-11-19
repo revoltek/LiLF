@@ -11,7 +11,7 @@ operation = POLALIGN
 soltabOut = polalign
 average = True
 replace = True
-fitOffset = False
+fitOffset = True
 refAnt = 'CS002LBA'
 maxResidual = 1.5
 
