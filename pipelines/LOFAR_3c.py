@@ -18,7 +18,7 @@ bl2flag = parset.get('flag','stations')
 target = os.getcwd().split('/')[-1]
 data_dir = '/home/fdg/lofar5/3Csurvey/%s' % target
 userReg = parset.get('model','userReg')
-extended_targets = ['3c31','3c231']
+extended_targets = ['3c31','3c231','3c84']
 
 def get_cal_dir(timestamp):
     """
@@ -227,7 +227,7 @@ for c in range(100):
     logger.info('Cleaning II (cycle: '+str(c)+')...')
     lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, parallel_gridding=4, size=2500, scale='1.5arcsec', \
             niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0, \
-            auto_threshold=0.5, auto_mask=2.5, local_rms='', fits_mask=maskfits, \
+            auto_threshold=0.5, auto_mask=2, local_rms='', fits_mask=maskfits, \
             multiscale='', multiscale_scale_bias=0.8, \
             join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2 )
     os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
