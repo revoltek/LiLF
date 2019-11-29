@@ -13,7 +13,6 @@ average = True
 replace = True
 fitOffset = True
 refAnt = 'CS001LBA'
-#refAnt = 'CS002LBA'
 
 # copy flags on polalign (this is because diag+rot is good at flagging bad points)
 [merge]
@@ -31,8 +30,7 @@ axisDiff = pol
 plotFlag = True
 prefix = plots/ph-align_
 refAnt = 'CS001LBA'
-#refAnt = 'CS002LBA'
-minmax = [-2,+2]
+minmax = [-3.14,+3.14]
 
 [residual]
 operation = RESIDUALS
@@ -48,8 +46,7 @@ axisDiff = pol
 plotFlag = True
 prefix = plots/ph-res_
 refAnt = 'CS001LBA'
-#refAnt = 'CS002LBA'
-minmax = [-2,+2]
+minmax = [-3.14,+3.14]
 
 [plotPr2]
 operation = PLOT
@@ -61,5 +58,4 @@ axisInCol = pol
 plotFlag = True
 prefix = plots/ph-res_
 refAnt = 'CS001LBA'
-#refAnt = 'CS002LBA'
 minmax = [-3.14,+3.14]

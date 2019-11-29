@@ -34,10 +34,11 @@ logger.info('Copy data...')
 for MS in MSs.getListObj():
     if min(MS.getFreqs()) > 30.e6:
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=False)
-        os.system('cp -r %s %s' % (skymodel, MS.pathMS))
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s, check_flags = False )
 calname = MSs.getListObj()[0].getNameField()
+for MS in MSs.getListObj():
+    os.system('cp -r %s %s' % (skymodel, MS.pathMS))
 
 if min(MSs.getFreqs()) < 40.e6:
     iono3rd = True

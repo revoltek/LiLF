@@ -254,26 +254,31 @@ for c in range(100):
                 join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'lba':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1500, scale='2arcsec', \
+        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
+                weight='briggs -1.5', niter=500, update_model_required='', mgain=0.2, \
+                multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10', \
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61) # use cont=True
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, save_source_list='', size=1500, scale='2arcsec', \
                 weight='briggs -1.0', niter=50000, no_update_model_required='', nmiter=50, mgain=0.4, \
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80,160', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAlba.fits', \
-                baseline_averaging=5, auto_threshold=5, \
+                auto_threshold=5, \
                 join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
 
         # to do the minihalo
-        lib_util.run_wsclean(s, 'wscleanLR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
-                weight='briggs 0.', taper_gaussian='80arcsec', niter=30000, no_update_model_required='', mgain=0.85, \
+        lib_util.run_wsclean(s, 'wscleanLR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename+'LR', size=1000, scale='15arcsec', \
+                weight='briggs 0.', taper_gaussian='50arcsec', niter=30000, no_update_model_required='', mgain=0.85, \
                 baseline_averaging=5, auto_threshold=1, \
                 join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'hba':
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -0.3', niter=300, update_model_required='', mgain=0.3, \
+                weight='briggs -0.7', niter=700, update_model_required='', mgain=0.3, \
+                multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
                 join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61) # use cont=True
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -0.3', niter=50000, no_update_model_required='', nmiter=50, mgain=0.3, \
+                weight='briggs -0.7', niter=50000, no_update_model_required='', nmiter=50, mgain=0.3, \
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80,160', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
                 auto_threshold=1, \
