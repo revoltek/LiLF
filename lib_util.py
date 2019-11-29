@@ -58,6 +58,8 @@ def getParset(parsetFile='../lilf.config'):
     # dd
     add_default('LOFAR_dd', 'maxniter', '10')
     add_default('LOFAR_dd', 'calFlux', '3.')
+    # facet_self
+    add_default('LOFAR_facet_self', 'maxniter', '10')
 
     ### uGMRT ###
 

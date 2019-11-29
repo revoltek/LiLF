@@ -1,0 +1,8 @@
+Ncpu = 0
+
+[plotAdir]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/amp_

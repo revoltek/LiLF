@@ -1,0 +1,6 @@
+Ncpu = 0
+
+[copy]
+operation = DUPLICATE
+soltab = sol000/amplitude000
+soltabOut = amplitudeSmooth
