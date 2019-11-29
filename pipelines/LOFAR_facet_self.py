@@ -124,14 +124,14 @@ for c in range(maxniter):
                 [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
 
     # correct G - ms:DATA -> ms:CORRECTED_DATA
-    logger.info('Patch '+d.name+': correct...')
+    logger.info('Patch  correct...')
     MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS \
                 cor.parmdb=cal-g-c'+str(c)+'.h5 cor.correction=phase000', \
-                log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
+                log='$nameMS_correct-c'+str(c)+'.log', commandType='DPPP') 
     if c>0:
         MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn = CORRECTED_DATA \
                 cor.parmdb=cal-g-c'+str(c)+'.h5 cor.correction=amplitude000', \
-                log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
+                log='$nameMS_correct-c'+str(c)+'.log', commandType='DPPP') 
 
     logger.info('Imaging...')
     clean('%02i' % c, MSs, size=size, apply_beam = c==maxniter )
