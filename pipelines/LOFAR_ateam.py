@@ -221,8 +221,8 @@ for c in range(100):
 #                log='$nameMS_cor-c'+str(c)+'.log', commandType='DPPP')
 
        
-    logger.info('Cleaning (cycle %i)...' % c)
-    imagename = 'img/img-c'+str(c)
+    logger.info('Cleaning (cycle %02i)...' % c)
+    imagename = 'img/img-c%02i' % c
     #use_weights_as_taper='',\
     if patch == 'CygA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1000, scale='1.5arcsec', \
