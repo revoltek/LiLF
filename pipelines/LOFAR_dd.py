@@ -30,12 +30,12 @@ fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
 ############################
 logger.info('Cleaning...')
-#lib_util.check_rm('ddcal')
-#os.makedirs('ddcal/masks')
-#os.makedirs('ddcal/plots')
-#os.makedirs('ddcal/images')
-#os.makedirs('ddcal/solutions')
-#os.makedirs('ddcal/skymodels')
+lib_util.check_rm('ddcal')
+os.makedirs('ddcal/masks')
+os.makedirs('ddcal/plots')
+os.makedirs('ddcal/images')
+os.makedirs('ddcal/solutions')
+os.makedirs('ddcal/skymodels')
 
 def clean(p, MSs, size, res='normal', apply_beam=False):
     """
@@ -121,6 +121,8 @@ MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log
 
 ##############################################################
 # setup initial model
+MSs.getListObj()[0].makeBeamReg('ddcal/beam.reg', freq='max')
+beamReg = 'ddcal/beam.reg'
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
 mosaic_image.selectCC()
 
@@ -141,15 +143,16 @@ for c in range(maxniter):
     mask_voro = 'ddcal/masks/facets%02i.fits' % c
 
     ### TTESTTESTTEST: DIE image
-    if c == 0:
-        clean('init', MSs, size=(fwhm*1.5,fwhm*1.5), res='normal')
+    #if c == 0:
+    #    clean('init', MSs, size=(fwhm*1.5,fwhm*1.5), res='normal')
     ###
 
     ### group into patches corresponding to the mask islands
     mask_cl = mosaic_image.imagename.replace('image.fits', 'mask-cl.fits')
     # this mask is with no user region, done to isolate only bight compact sources
     if not os.path.exists(mask_cl): 
-        mosaic_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=0.001, maskname=mask_cl)
+        mosaic_image.beamReg = 'ddcal/beam.reg'
+        mosaic_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=0.001, maskname=mask_cl, only_beam=True)
     
     lsm = lsmtool.load(mosaic_image.skymodel_cut)
     lsm.group(mask_cl, root='Isl')

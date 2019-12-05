@@ -152,7 +152,7 @@ if renameavg:
                         log=MS.nameMS+'_avg.log', commandType='DPPP')
                 else:
                     s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
-                        msin.baseline = "[CR]S*&" \
+                        msin.baseline="[CR]S*&" \
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
                         log=MS.nameMS+'_avg.log', commandType='DPPP')
                 s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
