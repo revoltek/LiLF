@@ -2,3 +2,5 @@
 global color=green dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1
 fk5
 circle(12:30:47.2356,+12:24:40.058,51.449")
+circle(12:30:53.3317,+12:24:17.172,29.501")
+circle(12:30:51.5026,+12:22:16.610,24.211")
