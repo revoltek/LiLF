@@ -8,9 +8,10 @@ import numpy as np
 import pyrap.tables as pt
 import lsmtool
 
-
-#TODO:
-size=[3.,3.]
+#TODO, to extract from regionfile:
+size=[1.,1.]
+lastcycle = 0 # get from somewhere
+target_reg = 'target.reg'
 
 #######################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd
@@ -23,16 +24,20 @@ parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_facet_self','parset_dir')
 maxniter = parset.getint('LOFAR_facet_self','maxniter')
 userReg = parset.get('model','userReg')
-
-####################################################
-MSs_self = lib_ms.AllMSs( glob.glob('mss-facet/TC*[0-9].MS'), s )
+mosaic_image = lib_img.Image('ddcal/images/c%02i/mos-MFS-image.fits' % lastcycle)
 
 ############################
 logger.info('Cleaning...')
 lib_util.check_rm('plot*')
 lib_util.check_rm('cal*h5')
 lib_util.check_rm('img')
+lib_util.check_rm('facet')
 os.makedirs('img')
+os.makedirs('facet')
+lib_util.check_rm('mss-facet')
+if not os.path.exists('mss-facet'): os.system('cp -r mss-dd mss-facet')
+
+MSs = lib_ms.AllMSs( glob.glob('mss-facet/*MS'), s )
 
 def clean(p, MSs, size, res='normal', apply_beam=False):
     """
@@ -89,21 +94,77 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-            multiscale='', multiscale_scale_bias=0.6, multiscale_scales='0,10,20,40', \
-            parallel_deconvolution=512, local_rms='', auto_threshold=1., auto_mask=2., fits_mask=im.maskname, \
+            multiscale='', multiscale_scale_bias=0.75, multiscale_scales='0,10,20,40', \
+            parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     else:
 
+
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
-            multiscale='', multiscale_scale_bias=0.6, multiscale_scales='0,10,20,40', \
-            baseline_averaging=5, parallel_deconvolution=512, local_rms='', auto_threshold=1., auto_mask=2., fits_mask=im.maskname, \
+            multiscale='', multiscale_scale_bias=0.75, multiscale_scales='0,10,20,40', \
+            baseline_averaging=5, parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1., fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     os.system('cat logs/wscleanB-'+str(p)+'.log | grep "background noise"')
 
-MSs = lib_ms.AllMSs( glob.glob('mss-facet/*MS'), s )
+# Load facet mask and set target region to 0
+mask_voro = 'ddcal/masks/facets%02i.fits' % lastcycle
+os.system('cp %s facet/facets.fits' % mask_voro)
+lib_img.blank_image_reg('facet/facets.fits', target_reg, blankval=0)
+
+# mosaic the skymodel, Isl_patch_000 will be the target of interest
+lsm = lsmtool.load(mosaic_image.skymodel_cut)
+lsm.group('facet', facet='facet/facets.fits', root='Isl_patch')
+lsm.setPatchPositions(method='mean') # center of the facets
+lsm.write('facet/skymodel_init.txt', format='makesourcedb', clobber=True)
+lib_util.check_rm('facet/skymodel_init.skydb')
+s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % ('facet/skymodel_init.txt', 'facet/skymodel_init.skydb'), \
+	log='makesourcedb.log', commandType='general')
+s.run(check=True)
+directions = set(lsm.getColValues('patch'))
+coord = [c.deg for c in lsm.getPatchPositions('Isl_patch_0')['Isl_patch_0']]
+logger.info("Facet centre: "+str(coord))
+del lsm
+
+logger.info('Subtraction...')
+# Copy DATA -> SUBTRACTED_DATA
+logger.info('Add columns...')
+MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+logger.info('Set SUBTRACTED_DATA = DATA...')
+MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql.log', commandType='general')
+
+for d in directions:
+    if d == 'Isl_patch_0':
+        # this is the target of interest
+        continue
+
+    # predict - ms:MODEL_DATA
+    logger.info('Patch '+d+': predict...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=facet/skymodel_init.skydb pre.sources='+d, \
+            log='$nameMS_pre-'+d+'.log', commandType='DPPP')
+
+    # corrupt G - ms:MODEL_DATA -> ms:MODEL_DATA
+    logger.info('Patch '+d+': corrupt...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+            cor.parmdb=ddcal/solutions/cal-g-c'+str(lastcycle)+'.h5 cor.correction=phase000 cor.direction=['+d+']', \
+            log='$nameMS_corrupt1-'+d+'.log', commandType='DPPP')
+    #MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+    #        cor.parmdb=ddcal/solutions/cal-g-c'+str(lastcycle)+'.h5 cor.correction=amplitude000 cor.direction=['+d+']', \
+    #        log='$nameMS_corrupt2-'+d+'.log', commandType='DPPP')
+
+    logger.info('Patch '+d+': subtract...')
+    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-'+d+'.log', commandType='general')
+ 
+# Phase shift in the target location
+logger.info('Phase shift and avg...')
+lib_util.check_rm('mss-facet/*MS-small')
+MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-facet/$nameMS.MS-small msin.datacolumn=SUBTRACTED_DATA \
+        shift.phasecenter=['+str(coord[0])+'deg,'+str(coord[1])+'deg\]', \
+        log='$nameMS_avgshift.log', commandType='DPPP')
+
+MSs = lib_ms.AllMSs( glob.glob('mss-facet/*MS-small'), s )
 
 # initial imaging to get the model in the MODEL_DATA
 logger.info('Initial imaging...')
@@ -119,13 +180,15 @@ for c in range(maxniter):
 
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Gain calibration...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
+    solint = max(8-c,2)
+    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.solint='+str(solint)+'\
             sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5', \
             log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
 
     # Plot solutions
     lib_util.run_losoto(s, 'g-c'+str(c), [ms+'/cal-g-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
                 [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
+    os.system('mv plots-g-c%i facet' % c)
 
     # correct G - ms:DATA -> ms:CORRECTED_DATA
     logger.info('Ph correct...')

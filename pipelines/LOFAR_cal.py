@@ -40,7 +40,7 @@ calname = MSs.getListObj()[0].getNameField()
 for MS in MSs.getListObj():
     os.system('cp -r %s %s' % (skymodel, MS.pathMS))
 
-if min(MSs.getFreqs()) < 40.e6:
+if min(MSs.getFreqs()) < 35.e6:
     iono3rd = True
     logger.debug('Include iono 3rd order.')
 else: iono3rd = False

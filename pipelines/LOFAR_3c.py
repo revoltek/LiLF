@@ -45,6 +45,7 @@ for timestamp in set([ os.path.basename(ms).split('_')[1][1:] for ms in MSs.getL
     mss_toconcat = glob.glob(data_dir+'/'+target+'_t'+timestamp+'_SB*.MS')
     MS_concat = target+'_t'+timestamp+'_concat.MS'
     MS_concat_bkp = target+'_t'+timestamp+'_concat.MS-bkp'
+
     if os.path.exists(MS_concat_bkp): 
         logger.info('Restoring bkp data...')
         os.system('rm -r %s' % MS_concat)
@@ -101,7 +102,15 @@ for timestamp in set([ os.path.basename(ms).split('_')[1][1:] for ms in MSs.getL
         logger.info('Making backup...')
         os.system('cp -r %s %s' % (MS_concat, MS_concat_bkp) ) # do not use MS.move here as it resets the MS path to the moved one
 
-MSs = lib_ms.AllMSs( glob.glob('*concat.MS'), s, check_flags=False )
+
+MSs_orig = lib_ms.AllMSs( glob.glob('*concat.MS'), s, check_flags=False )
+
+# Phase up stations DATA -> DATA
+lib_util.check_rm('*MS-phaseup')
+logger.info('Phase up superterp DATA -> DATA...')
+MSs_orig.run('DPPP '+parset_dir+'/DPPP-phaseup.parset msin=$pathMS msout=$pathMS-phaseup', log='$nameMS_phaseup.log', commandType='DPPP')
+
+MSs = lib_ms.AllMSs( glob.glob('*concat.MS-phaseup'), s, check_flags=False )
 MSs.plot_HAcov('HAcov.png')
 MSs.getListObj()[0].makeBeamReg('beam.reg', freq='mid', to_null=True)
 beamReg = 'beam.reg'
@@ -167,15 +176,16 @@ for c in range(100):
     #        log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
     # Re-do calibration after faradayrotation removal
-    # solve G - group*_TC.MS:SMOOTHED_DATA
+    # solve G - group*_TC.MS:DATA
+    #sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \ # rimosso per test su phaseup
     logger.info('Solving...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calGp.h5 sol.mode=diagonal sol.smoothnessconstraint=0.5e6 \
-            sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
+    solint = max(4-c,1)
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calGp.h5 sol.mode=diagonal sol.solint='+str(solint)+' sol.smoothnessconstraint=0.5e6', \
             log='$nameMS_solGp-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'Gp-c'+str(c), [ms+'/calGp.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
 
-    # Correct CORRECTED_DATA -> CORRECTED_DATA
+    # Correct DATA -> CORRECTED_DATA
     logger.info('Correction PH...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-Gp-c'+str(c)+'.h5 cor.correction=phase000', \
             log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
