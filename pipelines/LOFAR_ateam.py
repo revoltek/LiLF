@@ -6,6 +6,31 @@
 import sys, os, glob, re
 import numpy as np
 
+def rev_reg(filename, region):
+    """
+    reverse region negative values
+
+    filename: fits file
+    region: ds9 region or list of regions
+    """
+    import astropy.io.fits as pyfits
+    import pyregion
+
+    # open fits
+    with pyfits.open(filename) as fits:
+        origshape    = fits[0].data.shape
+        header, data = lib_img.flatten(fits)
+        
+        # extract mask
+        r = pyregion.open(region)
+        mask = r.get_mask(header=header, shape=data.shape)
+        data[mask & (data<0)] *= -1
+        # save fits
+        fits[0].data = data.reshape(origshape)
+        fits.writeto(filename, overwrite=True)
+
+    logger.debug("%s: Reversing pixels (%s)" % (filename, region))
+
 if 'Vir' in os.getcwd():
     patch = 'VirA'
     nouseblrange = ''
@@ -189,7 +214,7 @@ for c in range(100):
     # Solve MS:CORRECTED_DATA (only solve)
     logger.info('Solving BP...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal sol.flagunconverged=False \
-            sol.uvlambdarange='+str(nouseblrange)+' sol.nchan=2 sol.solint=10', log='$nameMS_solAMP3.log', commandType="DPPP")
+            sol.uvlambdarange='+str(nouseblrange)+' sol.nchan=4 sol.solint=10', log='$nameMS_solAMP3.log', commandType="DPPP")
     
     lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
             [parset_dir+'/losoto-plot-amp.parset'])
@@ -230,7 +255,7 @@ for c in range(100):
                 multiscale='', multiscale_scale_bias=0.6, multiscale_scales='0,5,10,20,40', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
                 baseline_averaging=5, auto_threshold=1, \
-                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=3, channels_out=61)
 
     elif patch == 'CasA':
         #RMS per scale: {0: 16.87 mJy, 13: 13.81 mJy, 27: 11.81 mJy, 53: 9.35 mJy, 106: 6.34 mJy, 212: 2.96 mJy, 425: 1.4 mJy}
@@ -239,50 +264,57 @@ for c in range(100):
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CasA.fits', \
                 baseline_averaging=5, auto_threshold=1, \
-                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=3, channels_out=61)
 
     elif patch == 'TauA':
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1500, scale='1arcsec', \
-                weight='briggs -1.2', niter=30, update_model_required='', mgain=0.3, \
+                weight='briggs -1.', niter=30, update_model_required='', mgain=0.3, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/pulsar.fits', \
-                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61) # use cont=True
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=3, channels_out=61) # use cont=True
         lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, save_source_list='', size=1500, scale='1arcsec', \
-                weight='briggs -1.2', niter=100000, no_update_model_required='', nmiter=50, mgain=0.5, \
-                multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80', \
+                weight='briggs -1.', niter=100000, no_update_model_required='', nmiter=50, mgain=0.5, \
+                multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/TauA.fits', \
                 auto_threshold=1, \
-                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=3, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'lba':
-        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
-                weight='briggs -1.5', niter=500, update_model_required='', mgain=0.2, \
-                multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10', \
-                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61) # use cont=True
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, save_source_list='', size=1500, scale='2arcsec', \
+        #lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
+        #        weight='briggs -1.5', niter=500, update_model_required='', mgain=0.2, \
+        #        multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10', \
+        #        join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61) # use cont=True
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1500, scale='2arcsec', \
                 weight='briggs -1.0', niter=50000, no_update_model_required='', nmiter=50, mgain=0.4, \
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80,160', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAlba.fits', \
                 auto_threshold=5, \
-                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=3, channels_out=61)
+        for modelfile in glob.glob(imagename+'*model*'):
+            rev_reg(modelfile,'/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/virgohole.reg')
 
         # to do the minihalo
-        lib_util.run_wsclean(s, 'wscleanLR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename+'LR', size=1000, scale='15arcsec', \
-                weight='briggs 0.', taper_gaussian='50arcsec', niter=30000, no_update_model_required='', mgain=0.85, \
-                baseline_averaging=5, auto_threshold=1, \
-                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
+        #lib_util.run_wsclean(s, 'wscleanLR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename+'LR', size=1000, scale='15arcsec', \
+        #        weight='briggs 0.', taper_gaussian='50arcsec', niter=30000, no_update_model_required='', mgain=0.85, \
+        #        baseline_averaging=5, auto_threshold=1, \
+        #        join_channels='', deconvolution_channels=5, fit_spectral_pol=3, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'hba':
         lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -0.7', niter=700, update_model_required='', mgain=0.3, \
-                multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20', \
+                weight='briggs -0.7', niter=1000, update_model_required='', mgain=0.3, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
-                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61) # use cont=True
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=3, channels_out=61) # use cont=True
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
                 weight='briggs -0.7', niter=50000, no_update_model_required='', nmiter=50, mgain=0.3, \
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80,160', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
                 auto_threshold=1, \
-                join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61)
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=3, channels_out=61)
+        for modelfile in glob.glob(imagename+'*model*'):
+            rev_reg(modelfile,'/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/virgoholehba.reg')
+
+    # TEST: rescale model
+    im = lib_img.Image(imagename+'-MFS-image.fits')
+    im.rescaleModel(f)
 
     logger.info('Predict (wsclean: %s)...' % imagename)
     s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 61 '+MSs.getStrWsclean(), \
