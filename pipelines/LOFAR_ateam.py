@@ -214,7 +214,7 @@ for c in range(100):
     # Solve MS:CORRECTED_DATA (only solve)
     logger.info('Solving BP...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal sol.flagunconverged=False \
-            sol.uvlambdarange='+str(nouseblrange)+' sol.nchan=2 sol.solint=10', log='$nameMS_solAMP3.log', commandType="DPPP")
+            sol.uvlambdarange='+str(nouseblrange)+' sol.nchan=4 sol.solint=10', log='$nameMS_solAMP3.log', commandType="DPPP")
     
     lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
             [parset_dir+'/losoto-plot-amp.parset'])
@@ -272,8 +272,8 @@ for c in range(100):
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/pulsar.fits', \
                 join_channels='', deconvolution_channels=5, fit_spectral_pol=3, channels_out=61) # use cont=True
         lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, save_source_list='', size=1500, scale='1arcsec', \
-                weight='briggs -1.2', niter=100000, no_update_model_required='', nmiter=50, mgain=0.5, \
-                multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80', \
+                weight='briggs -1.', niter=100000, no_update_model_required='', nmiter=50, mgain=0.5, \
+                multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/TauA.fits', \
                 auto_threshold=1, \
                 join_channels='', deconvolution_channels=5, fit_spectral_pol=3, channels_out=61)
