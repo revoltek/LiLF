@@ -113,7 +113,7 @@ MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
 
 # Flagging on concatenated dataset - also flag low-elevation
 logger.info('Flagging...')
-MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag + "\"', \
+MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\"', \
                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
 
 logger.info('Remove bad timestamps...')
