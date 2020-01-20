@@ -23,6 +23,7 @@ data_dir = parset.get('LOFAR_timesplit','data_dir')
 cal_dir = parset.get('LOFAR_timesplit','cal_dir')
 ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
+bl2flag = parset.get('flag','stations')
 if 'LBAsurvey' in os.getcwd():
     data_dir = '/home/fdg/lofar1/LBAsurvey/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
 
@@ -71,19 +72,6 @@ MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORREC
         cor.amp.parmdb='+h5_amp+' cor.amp.correction=amplitudeSmooth cor.amp.updateweights=True\
         cor.ph.parmdb='+h5_iono+' cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DPPP')
 
-### TEST clock
-#logger.warning('Correcting clock!')
-#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-#        cor.parmdb='+h5_amp+' cor.correction=amplitudeSmooth cor.updateweights=True', \
-#        log='$nameMS_cor2.log', commandType='DPPP')
-#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-#        cor.parmdb='+h5_iono+' cor.correction=clock000', \
-#        log='$nameMS_cor3.log', commandType='DPPP')
-#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-#        cor.parmdb='+h5_iono+' cor.correction=phase000', \
-#        log='$nameMS_cor4.log', commandType='DPPP')
-###
-
 # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
 logger.info('Beam correction...')
 MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DPPP')
@@ -125,7 +113,7 @@ MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
 
 # Flagging on concatenated dataset - also flag low-elevation
 logger.info('Flagging...')
-MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
+MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\"', \
                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
 
 logger.info('Remove bad timestamps...')

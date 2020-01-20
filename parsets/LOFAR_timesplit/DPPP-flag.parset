@@ -2,11 +2,13 @@ msin=
 msin.datacolumn = DATA
 msout=.
 
-steps=[elev, aoflagger, count]
+steps=[ant, elev, aoflagger, count]
+
+ant.type = preflagger
+ant.baseline =
 
 elev.type = preflagger
 elev.elevation = 0 .. 30 deg
 
-#aoflagger.strategy = /home/fdg/scripts/LiLF/parsets/LOFAR_timesplit/LBAdefault.rfis # TEST FOR OLD AOFLAGGER
 aoflagger.strategy = /home/fdg/scripts/LiLF/parsets/LOFAR_timesplit/LBAdefaultwideband.rfis
 aoflagger.memoryperc = 6
