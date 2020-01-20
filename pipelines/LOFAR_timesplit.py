@@ -23,6 +23,7 @@ data_dir = parset.get('LOFAR_timesplit','data_dir')
 cal_dir = parset.get('LOFAR_timesplit','cal_dir')
 ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
+bl2flag = parset.get('flag','stations')
 if 'LBAsurvey' in os.getcwd():
     data_dir = '/home/fdg/lofar1/LBAsurvey/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
 
@@ -125,7 +126,7 @@ MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
 
 # Flagging on concatenated dataset - also flag low-elevation
 logger.info('Flagging...')
-MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', \
+MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag + "\"', \
                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
 
 logger.info('Remove bad timestamps...')

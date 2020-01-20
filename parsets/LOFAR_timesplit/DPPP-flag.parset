@@ -2,7 +2,10 @@ msin=
 msin.datacolumn = DATA
 msout=.
 
-steps=[elev, aoflagger, count]
+steps=[ant, elev, aoflagger, count]
+
+ant.type = preflagger
+ant.baseline =
 
 elev.type = preflagger
 elev.elevation = 0 .. 30 deg
