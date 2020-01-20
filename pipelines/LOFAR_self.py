@@ -42,7 +42,7 @@ if not os.path.exists('self/images'): os.makedirs('self/images')
 if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
 if not os.path.exists('self/plots'): os.makedirs('self/plots')
 
-MSs = lib_ms.AllMSs( glob.glob('mss*/TC*[0-9].MS'), s )
+MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 try:
     MSs.plot_HAcov('HAcov.png')
 except:
@@ -214,8 +214,6 @@ for c in range(2):
             multiscale='', multiscale_scale_bias=0.75, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3, **kwargs)
     os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
-
-    os.system('makepb.py -o img/avgbeam.fits -i '+imagename)
        
     # add model and remove first sidelobe
     if c == 0:
@@ -295,12 +293,12 @@ for c in range(2):
         s.run(check=True)
 
 # Copy images
-[ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(2) ]
-[ os.system('mv img/wideM-'+str(c)+'-MFS-residual.fits self/images') for c in range(2) ]
-[ os.system('mv img/wideM-'+str(c)+'-sources.txt self/images') for c in range(2) ]
-os.system('mv img/wideM-1-MFS-image-pb.fits self/images')
-os.system('mv img/wideM-1-MFS-residual-pb.fits self/images')
+[ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits self/images') for c in range(2) ]
+[ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits self/images') for c in range(2) ]
+[ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(2) ]
 os.system('mv img/wide-lr-MFS-image.fits self/images')
+os.system('makepb.py -o img/avgbeam.fits -i img/wideM-1')
+os.system('mv img/avgbeam.fits self/images')
 os.system('mv logs self')
 
 logger.info("Done.")

@@ -162,7 +162,7 @@ for c in range(maxniter):
     x = lsm.getColValues('RA',aggregate='wmean')
     y = lsm.getColValues('Dec',aggregate='wmean')
     flux = lsm.getColValues('I',aggregate='sum')
-    grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=0.7,kernel_size=0.4,grouping_distance=0.1)
+    grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=0.4,kernel_size=0.1,grouping_distance=0.1)
     #grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=0.8,kernel_size=0.4,grouping_distance=0.2) # a851
     grouper.run()
     clusters = grouper.grouping()

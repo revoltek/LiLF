@@ -278,9 +278,9 @@ for c in range(100):
     im.makeMask( threshisl=3, rmsbox=(1000,100), atrous_do=False )
     rms_noise = im.getNoise()
     logger.info('RMS noise: %f' % rms_noise)
-    if rms_noise > rms_noise_pre:
+    if rms_noise > 0.98*rms_noise_pre:
         doamp = True
-    if doamp and rms_noise > rms_noise_pre and c > 10:
+    if doamp and rms_noise > 0.98*rms_noise_pre and c > 10:
         break # if already doing amp and not getting better, quit
     rms_noise_pre = rms_noise
 

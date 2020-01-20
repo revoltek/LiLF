@@ -126,6 +126,7 @@ class AllMSs(object):
         for ms in self.mssListObj:
             time = np.mean(ms.getTimeRange())
             time = Time( time/86400, format='mjd')
+            time.delta_ut1_utc = 0. # no need to download precise table for leap seconds
             coord_sun = get_sun(time)
             ra, dec = ms.getPhaseCentre()
             coord = SkyCoord(ra*u.deg, dec*u.deg)

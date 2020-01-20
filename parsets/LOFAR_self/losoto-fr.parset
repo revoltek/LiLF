@@ -9,6 +9,7 @@ soltabOut = phaseOrig000
 operation = FARADAY
 soltab = sol000/phase000
 refAnt = CS002LBA
+freq.minmaxstep = [0,70e6, 1]
 maxResidual = 2.
 
 [plotFR]
