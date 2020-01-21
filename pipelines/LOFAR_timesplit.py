@@ -85,7 +85,7 @@ MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweight
 # to be understood if calibration/imaging gain anything from using only the central group or all of them
 groupnames = []
 logger.info('Concatenating in frequency...')
-timechunks = set([re.findall(r'_t\d+', ms)[0][2:] for ms in MSs.getListStr() ])
+timechunks = sorted(set([re.findall(r'_t\d+', ms)[0][2:] for ms in MSs.getListStr() ]))
 for timechunk in timechunks:
     for i, msg in enumerate(np.array_split(sorted(glob.glob('*_t'+timechunk+'_*MS')), ngroups)):
         if ngroups == 1:
