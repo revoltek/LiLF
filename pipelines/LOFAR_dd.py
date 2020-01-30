@@ -53,8 +53,8 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
         pass # no change
 
     imsize = [0,0]
-    imsize[0] = int(size[0]*1.05/(pixscale/3600.)) # add 5%
-    imsize[1] = int(size[1]*1.05/(pixscale/3600.)) # add 5%
+    imsize[0] = int(size[0]*1.1/(pixscale/3600.)) # add 10%
+    imsize[1] = int(size[1]*1.1/(pixscale/3600.)) # add 10%
     imsize[0] += imsize[0] % 2
     imsize[1] += imsize[1] % 2
     if imsize[0] < 64: imsize[0] == 64
@@ -93,7 +93,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
             multiscale='', multiscale_scale_bias=0.75, multiscale_scales='0,10,20,40,80', \
-            parallel_deconvolution=512, local_rms='', auto_threshold=1., auto_mask=2., fits_mask=im.maskname, \
+            parallel_deconvolution=512, local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     else:
@@ -101,7 +101,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', \
             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             multiscale='', multiscale_scale_bias=0.75, multiscale_scales='0,10,20,40,80', 
-            baseline_averaging=5, parallel_deconvolution=512, local_rms='', auto_threshold=1., auto_mask=2., fits_mask=im.maskname, \
+            baseline_averaging=5, parallel_deconvolution=512, local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     os.system('cat logs/wscleanA-'+str(p)+'.log logs/wscleanB-'+str(p)+'.log | grep "background noise"')
@@ -121,7 +121,7 @@ MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log
 
 ##############################################################
 # setup initial model
-MSs.getListObj()[0].makeBeamReg('ddcal/beam.reg', freq='max')
+MSs.getListObj()[0].makeBeamReg('ddcal/beam.reg', freq='mid')
 beamReg = 'ddcal/beam.reg'
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
 mosaic_image.selectCC()
@@ -162,7 +162,7 @@ for c in range(maxniter):
     x = lsm.getColValues('RA',aggregate='wmean')
     y = lsm.getColValues('Dec',aggregate='wmean')
     flux = lsm.getColValues('I',aggregate='sum')
-    grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=0.4,kernel_size=0.1,grouping_distance=0.1)
+    grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=0.3,kernel_size=0.1,grouping_distance=0.05)
     #grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=0.8,kernel_size=0.4,grouping_distance=0.2) # a851
     grouper.run()
     clusters = grouper.grouping()

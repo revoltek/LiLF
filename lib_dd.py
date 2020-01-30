@@ -371,6 +371,7 @@ class Grouper( object ):
         self.past_coords = [np.copy(self.coords)]
         self.n_iterations = 100
         self.clusters = []
+        logger.debug("Grouper: kernel_size=%.1f; look_distance=%.1f; grouping_distance=%.2f" % (kernel_size,look_distance,grouping_distance) )
 
     def euclid_distance(self, coord, coords):
         """
@@ -405,7 +406,7 @@ class Grouper( object ):
                 ### Step 2. For each datapoint x in X, calculate the mean shift m(x).
                 distances = self.euclid_distance(self.coords[idx_neighbours], x)
                 weights = self.gaussian_kernel(distances)
-                weights *= self.fluxes[idx_neighbours]**1.5 # multiply by flux**1.5 to make bright sources more important
+                weights *= self.fluxes[idx_neighbours]**2 # multiply by flux**1.5 to make bright sources more important
                 numerator = np.sum(weights[:,np.newaxis] * self.coords[idx_neighbours], axis=0)
                 denominator = np.sum(weights)
                 new_x = numerator / denominator

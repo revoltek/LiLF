@@ -12,5 +12,5 @@ shift.type = phaseshifter
 shift.phasecenter = 
 
 avg.type = averager
-avg.freqstep = 2
+avg.freqstep = 1
 avg.timestep = 4

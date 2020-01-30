@@ -353,6 +353,8 @@ class MS(object):
             beamfreq = np.max(self.getFreqs()) 
         elif freq == 'mid':
             beamfreq = np.mean(self.getFreqs()) 
+        else:
+            raise "Wrong freq value for beam size, use: min|mid|max."
 
         if self.getTelescope() == 'LOFAR':
 
