@@ -28,7 +28,6 @@ parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_self','parset_dir')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
-userReg = parset.get('model','userReg')
 
 #############################################################################
 # Clear
@@ -61,7 +60,7 @@ if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 
 #################################################################
 # Get online model
-if sourcedb is None:
+if sourcedb == '':
     if not os.path.exists('tgts.skydb'):
         fwhm = MSs.getListObj()[0].getFWHM(freq='min')
         radeg = phasecentre[0]

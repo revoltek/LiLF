@@ -15,6 +15,8 @@ class Image(object):
         """
         if 'MFS' in imagename: suffix = 'MFS-image.fits'
         else: suffix = 'image.fits'
+        if userReg == '': userReg = None
+        if beamReg == '': beamReg = None
 
         self.imagename    = imagename
         self.root         = imagename.replace(suffix, '')

@@ -132,7 +132,7 @@ class AllMSs(object):
             coord = SkyCoord(ra*u.deg, dec*u.deg)
             elev = coord.transform_to(AltAz(obstime=time,location=telescope_coords)).alt
             sun_dist = coord.separation(coord_sun)
-            lst = time.sidereal_time('mean', telescope_coords.longitude)
+            lst = time.sidereal_time('mean', telescope_coords.lon)
             ha = lst - coord.ra # hour angle
             logger.info('%s (%s): Hour angle: %.1f hrs - Elev: %.2f (Sun distance: %.0f)' % (ms.nameMS,time.iso,ha.deg/15.,elev.deg,sun_dist.deg))
 

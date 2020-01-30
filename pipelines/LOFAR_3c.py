@@ -17,7 +17,6 @@ parset_dir = parset.get('LOFAR_3c','parset_dir')
 bl2flag = parset.get('flag','stations')
 target = os.getcwd().split('/')[-1]
 data_dir = '/home/fdg/lofar5/3Csurvey/%s' % target
-userReg = parset.get('model','userReg')
 extended_targets = ['3c31','3c231','3c84']
 
 def get_cal_dir(timestamp):
