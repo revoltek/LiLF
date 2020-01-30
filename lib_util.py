@@ -22,7 +22,7 @@ def getParset(parsetFile='../lilf.config'):
     def add_default(section, option, val):
         if not config.has_option(section, option): config.set(section, option, val)
 
-    config = ConfigParser()
+    config = ConfigParser(defaults=None)
     config.read(parsetFile)
     
     # add pipeline sections and defaul parset dir:
@@ -74,9 +74,9 @@ def getParset(parsetFile='../lilf.config'):
     add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IE*;PL*') # LOFAR
     add_default('flag', 'antennas', '') # uGMRT
     # model
-    add_default('model', 'sourcedb', None)
+    add_default('model', 'sourcedb', '')
     add_default('model', 'apparent', 'False')
-    add_default('model', 'userreg', None)
+    add_default('model', 'userReg', '')
 
     return config
 
@@ -456,54 +456,38 @@ class Scheduler():
             logger.warning("No log file found to check results: " + log)
             return 1
 
-        if (commandType == "BBS"):
-            out = subprocess.check_output('grep -L success '+log+' ; exit 0', shell = False, stderr = subprocess.STDOUT)
-            if out != '':
-                logger.error('BBS run problem on:\n'+out.split("\n")[0])
-                return 1
-
-        elif (commandType == "DPPP"):
+        if (commandType == "DPPP"):
             out = subprocess.check_output('grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "**** uncaught exception ****" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "misspelled" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            if out != '':
-                logger.error('DPPP run problem on:\n'+out.split("\n")[0])
-                return 1
 
         elif (commandType == "CASA"):
             out = subprocess.check_output('grep -l "[a-z]Error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "An error occurred running" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "\*\*\* Error \*\*\*" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            if out != '':
-                logger.error('CASA run problem on:\n'+out.split("\n")[0])
-                return 1
 
         elif (commandType == "wsclean"):
             out = subprocess.check_output('grep -l "exception occured" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Segmentation fault" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            if out != '':
-                logger.error('WSClean run problem on:\n'+out.split("\n")[0])
-                return 1
 
         elif (commandType == "python"):
             out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            if out != '':
-                logger.error('Python run problem on:\n'+out.split("\n")[0])
-                return 1
 
         elif (commandType == "general"):
             out = subprocess.check_output('grep -l -i "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            if out != '':
-                logger.error('Run problem on:\n'+out.split("\n")[0])
-                return 1
 
         else:
             logger.warning("Unknown command type for log checking: '" + commandType + "'")
+            return 1
+
+        if out != b'':
+            out = out.split(b'\n')[0].decode()
+            logger.error(commandType+' run problem on:\n'+out)
             return 1
 
         return 0

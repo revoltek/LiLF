@@ -42,7 +42,7 @@ beamReg = 'self/beam.reg'
 
 #################################################################
 # Get online model
-if sourcedb is None:
+if sourcedb == '':
     if not os.path.exists('tgts.skydb'):
         fwhm = MSs.getListObj()[0].getFWHM()
         radeg = phasecentre[0]
