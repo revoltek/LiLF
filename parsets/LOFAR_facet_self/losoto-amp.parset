@@ -10,12 +10,10 @@ operation = SMOOTH
 soltab = sol000/amplitude000
 mode = runningmedian
 axesToSmooth = [time,freq]
-size = [50,30]
+size = [100,50]
 
 [norm]
 operation = NORM
 soltab = sol000/amplitude000
 normVal = 1.
 axesToNorm = [time,freq,ant]
-
-

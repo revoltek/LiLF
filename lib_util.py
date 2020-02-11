@@ -258,10 +258,11 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     # Predict in case update_model_required cannot be used
     if do_predict == True:
         wsc_parms = []
-        # keep imagename, uv-cuts and channel number
+        # keep imagename and channel number
         for parm, value in list(kwargs.items()):
             if value is None: continue
-            if 'min' in parm or 'max' in parm or parm == 'name' or parm == 'channels_out':
+            #if 'min' in parm or 'max' in parm or parm == 'name' or parm == 'channels_out':
+            if parm == 'name' or parm == 'channels_out':
                 wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
 
         # files
@@ -365,6 +366,8 @@ class Scheduler():
             logger.debug('Running wsclean: %s' % cmd)
         elif commandType == 'DPPP':
             logger.debug('Running DPPP: %s' % cmd)
+        elif commandType == 'python':
+            logger.debug('Running python: %s' % cmd)
 
         if (processors != None and processors == 'max'):
             processors = self.max_processors
@@ -373,13 +376,9 @@ class Scheduler():
             # if number of processors not specified, try to find automatically
             if (processors == None):
                 processors = 1 # default use single CPU
-                if ("calibrate-stand-alone" == cmd[ : 21]):
-                    processors = 1
-                if ("DPPP" == cmd[ : 5]):
+                if ("DPPP" == cmd[ : 4]):
                     processors = 1
                 if ("wsclean" == cmd[ : 7]):
-                    processors = self.max_processors
-                if ("awimager" == cmd[ : 8]):
                     processors = self.max_processors
             if (processors > self.max_processors):
                 processors = self.max_processors

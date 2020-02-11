@@ -100,9 +100,14 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 
     else:
 
-
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
+            multiscale='', multiscale_scale_bias=0.75, multiscale_scales='0,10,20,40', \
+            baseline_averaging=5, parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1., fits_mask=im.maskname, \
+            join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+
+        lib_util.run_wsclean(s, 'wscleanBlow-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename+'-low', size=imsize, scale=str(pixscale)+'arcsec', \
+            weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, taper_gaussian='30asec', mgain=0.85, \
             multiscale='', multiscale_scale_bias=0.75, multiscale_scales='0,10,20,40', \
             baseline_averaging=5, parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1., fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)

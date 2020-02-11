@@ -162,8 +162,8 @@ for c in range(maxniter):
     x = lsm.getColValues('RA',aggregate='wmean')
     y = lsm.getColValues('Dec',aggregate='wmean')
     flux = lsm.getColValues('I',aggregate='sum')
-    grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=0.3,kernel_size=0.1,grouping_distance=0.05)
-    #grouper = lib_dd.Grouper(zip(x,y),flux,look_distance=0.8,kernel_size=0.4,grouping_distance=0.2) # a851
+    grouper = lib_dd.Grouper(list(zip(x,y)),flux,look_distance=0.3,kernel_size=0.1,grouping_distance=0.05)
+    #grouper = lib_dd.Grouper(list(zip(x,y)),flux,look_distance=0.8,kernel_size=0.4,grouping_distance=0.2) # a851
     grouper.run()
     clusters = grouper.grouping()
     grouper.plot()
@@ -476,8 +476,6 @@ for c in range(maxniter):
         
         logger.info('Patch '+d.name+': imaging...')
         clean(d.name, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size, apply_beam = c==maxniter )
-        if '229' in d.name:
-            os.system('cp -r mss-dir mss-tooth')
 
         # TEST: if one wants to make a low-res patch
         if c>=2:
