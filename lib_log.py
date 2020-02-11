@@ -1,5 +1,4 @@
 import os, sys, logging, time
-#from LiLF import lib_util
 
 class _ColorStreamHandler(logging.StreamHandler):
 
@@ -39,7 +38,7 @@ class Logger():
         # hopefully kill other loggers
         logger = logging.getLogger()
         logger.propagate = False
-        for l in logger.handlers: l.setLevel("CRITICAL")
+        logger.handlers = []
  
         self.logfile = logfile
         self.log_dir = log_dir
