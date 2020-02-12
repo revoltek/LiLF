@@ -136,8 +136,8 @@ for c in range(maxniter):
     if c>=1: directions_old = directions
     directions = []
 
-    lib_util.check_rm('img')
-    os.makedirs('img')
+    #lib_util.check_rm('img')
+    #os.makedirs('img')
     if not os.path.exists('ddcal/masks/regions-c%02i' % c): os.makedirs('ddcal/masks/regions-c%02i' % c)
     if not os.path.exists('ddcal/images/c%02i' % c): os.makedirs('ddcal/images/c%02i' % c)
     mask_voro = 'ddcal/masks/facets%02i.fits' % c
@@ -271,45 +271,6 @@ for c in range(maxniter):
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
 
-######################################
-# TEC
-#    # Calibration - ms:SMOOTHED_DATA
-#    logger.info('Core calibration...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS msin.baseline="[CR]*&&;!RS210LBA;!RS310LBA;!RS509LBA;!RS508LBA;!RS409LBA;!RS208LBA;!RS307LBA" \
-#            sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
-#            sol.solint=20 sol.nchan=40 sol.h5parm=$pathMS/cal-core-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
-#            log='$nameMS_solTECcore-c'+str(c)+'.log', commandType='DPPP')
-#
-#    # Plot solutions
-#    for MS in MSs.getListObj():
-#        lib_util.run_losoto(s, 'core-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-core-c'+str(c)+'.h5', \
-#                [parset_dir+'/losoto-resetremote.parset', parset_dir+'/losoto-plot-tec.parset'])
-#    os.system('mv plots-core-c'+str(c)+'* ddcal/plots')
-#    s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-core-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-core-c'+str(c)+'-*.h5')),\
-#                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
-#    s.run(check = True)
-#    lib_util.check_rm('cal-core-c'+str(c)+'-*.h5')
-#    
-#    # Calibration - ms:SMOOTHED_DATA
-#    logger.info('Remote calibration...')
-#    MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS \
-#            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS406LBA,RS407LBA,RS503LBA]] \
-#            sol.applycal.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5 sol.applycal.correction=tec000 \
-#            sol.solint=10 sol.nchan=4 sol.h5parm=$pathMS/cal-remote-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
-#            log='$nameMS_solTECremote-c'+str(c)+'.log', commandType='DPPP')
-#
-#    # Plot solutions
-#    for MS in MSs.getListObj():
-#        lib_util.run_losoto(s, 'remote-c'+str(c)+'-'+MS.nameMS, MS.pathMS+'/cal-remote-c'+str(c)+'.h5', \
-#                [parset_dir+'/losoto-plot-tec.parset'])
-#    os.system('mv plots-remote-c'+str(c)+'* ddcal/plots')
-#    s.add('H5parm_collector.py -V -s sol000 -o ddcal/solutions/cal-remote-c'+str(c)+'.h5 '+' '.join(glob.glob('cal-remote-c'+str(c)+'-*.h5')),\
-#                            log='losoto-collector-c'+str(c)+'.log', commandType="python", processors='max')
-#    s.run(check = True)
-#    lib_util.check_rm('cal-remote-c'+str(c)+'-*.h5')
-#########################################
-
-# G
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Gain calibration...')
     MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
@@ -322,85 +283,6 @@ for c in range(maxniter):
     os.system('mv plots-g-c'+str(c)+' ddcal/plots')
     os.system('mv cal-g-c'+str(c)+'.h5 ddcal/solutions')
 
-#    ##############################################################
-#    # low S/N DIE corrections
-#    if c>=0:
-#        logger.info('DIE calibration...')
-#        # predict and corrupt each facet
-#        logger.info('Reset MODEL_DATA...')
-#        MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-#       
-#        for i, d in enumerate(directions):
-#            # predict - ms:MODEL_DATA
-#            logger.info('Patch '+d.name+': predict...')
-#            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_DIR pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
-#                log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-#    
-#            # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
-#            logger.info('Patch '+d.name+': corrupt...')
-#            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt2.parset msin=$pathMS msin.datacolumn=MODEL_DATA_DIR msout.datacolumn=MODEL_DATA_DIR \
-#                    corC.parmdb=ddcal/solutions/cal-core-c'+str(c)+'.h5   corC.direction=['+d.name+'] \
-#                    corR.parmdb=ddcal/solutions/cal-remote-c'+str(c)+'.h5 corR.direction=['+d.name+']', \
-#                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-#        
-#            logger.info('Patch '+d.name+': add...')
-#            MSs.run('taql "update $pathMS set MODEL_DATA = MODEL_DATA + MODEL_DATA_DIR"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
-#
-#        # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
-#        logger.info('BL-based smoothing...')
-#        MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
-#
-#        # Convert to circular - SMOOTHED_DATA -> SMOOTHED_DATA
-#        logger.info('Converting to circular...')
-#        MSs.run('mslin2circ.py -i $pathMS:SMOOTHED_DATA -o $pathMS:SMOOTHED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=3)
-#
-#        # FR Calibration - ms:SMOOTHED_DATA
-#        logger.info('Solving DIE FR...')
-#        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG1-c'+str(c)+'.h5', \
-#                log='$nameMS_solG1-c'+str(c)+'.log', commandType='DPPP')
-#    
-#        # Plot solutions
-#        lib_util.run_losoto(s, 'G1-c'+str(c), [MS+'/calG1-c'+str(c)+'.h5' for MS in MSs.getListStr()], \
-#                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
-#        os.system('mv plots-G1-c'+str(c)+'* ddcal/plots')
-#
-#        # Correct DIE FR - ms:DATA -> CORRECTED_DATA
-#        logger.info('DIE FR correct...')
-#        MSs.run('DPPP '+parset_dir+'/DPPP-xxx.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
-#               log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
-#
-#        # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
-#        logger.info('BL-based smoothing...')
-#        MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
-#    
-#        # DIE Calibration - ms:SMOOTHED_DATA
-#        logger.info('Solving DIE AMP...')
-#        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calG2-c'+str(c)+'.h5', \
-#                log='$nameMS_solG2-c'+str(c)+'.log', commandType='DPPP')
-#    
-#        # Plot solutions
-#        lib_util.run_losoto(s, 'G2-c'+str(c), [MS+'/calG2-c'+str(c)+'.h5' for MS in MSs.getListStr()], \
-#                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-amp.parset'])
-#        os.system('mv plots-G2-c'+str(c)+'* ddcal/plots')
-#
-#        # Correct DIE AMP - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
-#        logger.info('DIE AMP correct...')
-#        MSs.run('DPPP '+parset_dir+'/DPPP-xxx.parset msin=$pathMS cor.parmdb=cal-G2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
-#               log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
-#
-#        # Copy CORRECTED_DATA -> SUBTRACTED_DATA
-#        logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA...')
-#        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-#
-#        ### TESTTESTTEST: init image with DIE correction
-#        #clean('die-c'+str(c), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal')
-#        ###
-#
-#    else:
-#        # Copy DATA -> SUBTRACTED_DATA
-#        logger.info('Set SUBTRACTED_DATA = DATA...')
-#        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    
     ###########################################################
     # Empty the dataset
 
@@ -438,6 +320,10 @@ for c in range(maxniter):
     # Add back 
     logger.info('Facet imaging...')
     for i, d in enumerate(directions):
+
+        # skip if a patch has been already done
+        if os.path.exists('img/ddcal-'+str(d.name)+'-MFS-image.fits'): continue
+
         #TODO: see if we can phase shift and average before predict-corrupt=correct
         # predict - ms:MODEL_DATA
         logger.info('Patch '+d.name+': predict...')
