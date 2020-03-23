@@ -30,12 +30,12 @@ fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
 ############################
 logger.info('Cleaning...')
-lib_util.check_rm('ddcal')
-os.makedirs('ddcal/masks')
-os.makedirs('ddcal/plots')
-os.makedirs('ddcal/images')
-os.makedirs('ddcal/solutions')
-os.makedirs('ddcal/skymodels')
+#lib_util.check_rm('ddcal')
+#os.makedirs('ddcal/masks')
+#os.makedirs('ddcal/plots')
+#os.makedirs('ddcal/images')
+#os.makedirs('ddcal/solutions')
+#os.makedirs('ddcal/skymodels')
 
 def clean(p, MSs, size, res='normal', apply_beam=False):
     """
@@ -163,7 +163,6 @@ for c in range(maxniter):
     y = lsm.getColValues('Dec',aggregate='wmean')
     flux = lsm.getColValues('I',aggregate='sum')
     grouper = lib_dd.Grouper(list(zip(x,y)),flux,look_distance=0.3,kernel_size=0.1,grouping_distance=0.05)
-    #grouper = lib_dd.Grouper(list(zip(x,y)),flux,look_distance=0.8,kernel_size=0.4,grouping_distance=0.2) # a851
     grouper.run()
     clusters = grouper.grouping()
     grouper.plot()
@@ -255,21 +254,21 @@ for c in range(maxniter):
     for i, d in enumerate(directions):
         logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
 
-    ################################################################
-    # Calibrate
-    logger.info('Subtraction rest_field...')
-
-    # Predict - ms:MODEL_DATA
-    logger.info('Add rest_field to MODEL_DATA...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-    
-    # Empty dataset from faint sources
-    logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
-    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    
-    # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
-    logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
+#    ################################################################
+#    # Calibrate
+#    logger.info('Subtraction rest_field...')
+#
+#    # Predict - ms:MODEL_DATA
+#    logger.info('Add rest_field to MODEL_DATA...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+#    
+#    # Empty dataset from faint sources
+#    logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
+#    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+#    
+#    # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
+#    logger.info('BL-based smoothing...')
+#    MSs.run('BLsmooth.py -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
 
 ######################################
 # TEC
@@ -310,17 +309,17 @@ for c in range(maxniter):
 #########################################
 
 # G
-    # Calibration - ms:SMOOTHED_DATA
-    logger.info('Gain calibration...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
-            sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
-            log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-
-    # Plot solutions
-    lib_util.run_losoto(s, 'g-c'+str(c), [ms+'/cal-g-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
-                [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
-    os.system('mv plots-g-c'+str(c)+' ddcal/plots')
-    os.system('mv cal-g-c'+str(c)+'.h5 ddcal/solutions')
+#    # Calibration - ms:SMOOTHED_DATA
+#    logger.info('Gain calibration...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
+#            sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
+#            log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+#
+#    # Plot solutions
+#    lib_util.run_losoto(s, 'g-c'+str(c), [ms+'/cal-g-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
+#                [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
+#    os.system('mv plots-g-c'+str(c)+' ddcal/plots')
+#    os.system('mv cal-g-c'+str(c)+'.h5 ddcal/solutions')
 
 #    ##############################################################
 #    # low S/N DIE corrections
@@ -401,33 +400,33 @@ for c in range(maxniter):
 #        logger.info('Set SUBTRACTED_DATA = DATA...')
 #        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
     
-    ###########################################################
-    # Empty the dataset
-
-    # Copy DATA -> SUBTRACTED_DATA
-    logger.info('Set SUBTRACTED_DATA = DATA...')
-    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-
-    logger.info('Subtraction...')
-    for i, d in enumerate(directions):
-        
-        # predict - ms:MODEL_DATA
-        logger.info('Patch '+d.name+': predict...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
-                log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-    
-        # corrupt G - ms:MODEL_DATA -> ms:MODEL_DATA
-        logger.info('Patch '+d.name+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
-                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
-                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-        if c>0:
-            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
-                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
-                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
- 
-        logger.info('Patch '+d.name+': subtract...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
+#    ###########################################################
+#    # Empty the dataset
+#
+#    # Copy DATA -> SUBTRACTED_DATA
+#    logger.info('Set SUBTRACTED_DATA = DATA...')
+#    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+#
+#    logger.info('Subtraction...')
+#    for i, d in enumerate(directions):
+#        
+#        # predict - ms:MODEL_DATA
+#        logger.info('Patch '+d.name+': predict...')
+#        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
+#                log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+#    
+#        # corrupt G - ms:MODEL_DATA -> ms:MODEL_DATA
+#        logger.info('Patch '+d.name+': corrupt...')
+#        MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+#                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
+#                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+#        if c>0:
+#            MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+#                cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
+#                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+# 
+#        logger.info('Patch '+d.name+': subtract...')
+#        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
     ### TESTTESTTEST: empty image
     #MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
