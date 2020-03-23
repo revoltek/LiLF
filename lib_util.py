@@ -194,24 +194,32 @@ def run_losoto(s, c, h5s, parsets):
 
     logger.info("Running LoSoTo...")
 
-    h5 = 'cal-'+c+'.h5'
+    h5out = 'cal-'+c+'.h5'
 
     if type(h5s) is str: h5s = [h5s]
 
+    # convert from killMS
+    for i, h5 in enumerate(h5s):
+        if h5[-3:] == 'npz':
+            newh5 = h5.replace('.npz','.h5')
+            s.add('killMS2H5parm.py -V --nofulljones %s %s ' % (newh5, h5), log='losoto-'+c+'.log', commandType="python", processors='max')
+            s.run(check = True)
+            h5s[i] = newh5
+
     # concat/move
     if len(h5s) > 1:
-        check_rm("cal-" + c + ".h5")
-        s.add('H5parm_collector.py -V -s sol000 -o '+h5+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
+        check_rm(h5out)
+        s.add('H5parm_collector.py -V -s sol000 -o '+h5out+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
         s.run(check = True)
     else:
-        os.system('cp -r %s %s' % (h5s[0], h5) )
+        os.system('cp -r %s %s' % (h5s[0], h5out) )
 
     check_rm('plots')
     os.makedirs('plots')
 
     for parset in parsets:
         logger.debug('-- executing '+parset+'...')
-        s.add('losoto -V '+h5+' '+parset, log='losoto-'+c+'.log', logAppend=True, commandType="python", processors='max')
+        s.add('losoto -V '+h5out+' '+parset, log='losoto-'+c+'.log', logAppend=True, commandType="python", processors='max')
         s.run(check = True)
 
     check_rm('plots-' + c)
@@ -232,7 +240,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     # basic parms
     wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4' )
     if 'use_idg' in kwargs.keys() and s.get_cluster() == 'Hamburg_fat':
-        wsc_parms.append( '-idg-mode hybrid' ) # TODO: move to hybrid when fixed
+        wsc_parms.append( '-idg-mode hybrid' )
 
     # other stanrdard parms
     wsc_parms.append( '-clean-border 1' )
@@ -369,6 +377,9 @@ class Scheduler():
             logger.debug('Running wsclean: %s' % cmd)
         elif commandType == 'DPPP':
             logger.debug('Running DPPP: %s' % cmd)
+        elif commandType == 'singularity':
+            cmd = 'SINGULARITY_TMPDIR=/dev/shm singularity exec -B /tmp,/dev/shm,/localwork,/localwork.ssd,/home /home/fdg/node31/opt/src/lofar_sksp_ddf.simg ' + cmd
+            logger.debug('Running singularity: %s' % cmd)
         elif commandType == 'python':
             logger.debug('Running python: %s' % cmd)
 
@@ -471,11 +482,16 @@ class Scheduler():
             out += subprocess.check_output('grep -l "\*\*\* Error \*\*\*" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "wsclean"):
-            out = subprocess.check_output('grep -l "exception occured" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output('grep -l "exception occurred" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Segmentation fault" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "python"):
+            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+
+        elif (commandType == "singularity"):
             out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)

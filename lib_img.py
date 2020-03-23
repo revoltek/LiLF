@@ -14,7 +14,8 @@ class Image(object):
         BeamReg: ds9 region file of the beam
         """
         if 'MFS' in imagename: suffix = 'MFS-image.fits'
-        else: suffix = 'image.fits'
+        elif 'image.fits' in imagename: suffix = 'image.fits'
+        else: suffix = '.fits'
         if userReg == '': userReg = None
         if beamReg == '': beamReg = None
 
