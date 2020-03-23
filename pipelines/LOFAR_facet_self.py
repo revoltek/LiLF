@@ -72,7 +72,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
         maxuv_l = None
     elif res == 'low':
         weight = 'briggs 0'
-        maxuv_l = 3500
+        maxuv_l = None
 
     # clean 1
     logger.info('Cleaning ('+str(p)+')...')
