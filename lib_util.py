@@ -287,6 +287,27 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
         #logger.debug('Running wsclean: %s' % command_string)
 
 
+class Walker():
+    def __init__(self, filename):
+        open(filename, 'a').close() # create the file if doesn't exists
+        self.filename = filename
+
+    def done(self, stepname):
+        with open(self.filename, "a") as f:
+            f.write(stepname+'\n')
+
+    def todo(self, stepname):
+        """
+        Return false if stepname has been already done
+        """
+        with open(self.filename, "r") as f:
+            for stepname_done in f:
+                if stepname == stepname_done.rstrip():
+                    logging.info('SKIP: %s' % stepname)
+                    return False
+        return True
+
+
 class Scheduler():
     def __init__(self, qsub = None, maxThreads = None, max_processors = None, log_dir = 'logs', dry = False):
         """
