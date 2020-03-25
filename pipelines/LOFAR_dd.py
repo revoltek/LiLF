@@ -3,7 +3,7 @@
 
 # Pipeline for direction dependent calibration
 
-import sys, os, glob, re
+import sys, os, glob, re, pickle
 import numpy as np
 import pyrap.tables as pt
 import lsmtool
@@ -30,12 +30,12 @@ fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
 
 ############################
 logger.info('Cleaning...')
-#lib_util.check_rm('ddcal')
-#os.makedirs('ddcal/masks')
-#os.makedirs('ddcal/plots')
-#os.makedirs('ddcal/images')
-#os.makedirs('ddcal/solutions')
-#os.makedirs('ddcal/skymodels')
+lib_util.check_rm('ddcal')
+os.makedirs('ddcal/masks')
+os.makedirs('ddcal/plots')
+os.makedirs('ddcal/images')
+os.makedirs('ddcal/solutions')
+os.makedirs('ddcal/skymodels')
 
 def clean(p, MSs, size, res='normal', apply_beam=False):
     """
@@ -134,122 +134,134 @@ rms_noise_pre = np.inf
 for c in range(maxniter):
     logger.info('Starting cycle: %i' % c)
     if c>=1: directions_old = directions
-    directions = []
-
-    #lib_util.check_rm('img')
-    #os.makedirs('img')
-    if not os.path.exists('ddcal/masks/regions-c%02i' % c): os.makedirs('ddcal/masks/regions-c%02i' % c)
-    if not os.path.exists('ddcal/images/c%02i' % c): os.makedirs('ddcal/images/c%02i' % c)
-    mask_voro = 'ddcal/masks/facets%02i.fits' % c
-
-    ### TTESTTESTTEST: DIE image
-    #if c == 0:
-    #    clean('init', MSs, size=(fwhm*1.5,fwhm*1.5), res='normal')
-    ###
-
-    ### group into patches corresponding to the mask islands
-    mask_cl = mosaic_image.imagename.replace('image.fits', 'mask-cl.fits')
-    # this mask is with no user region, done to isolate only bight compact sources
-    if not os.path.exists(mask_cl): 
-        mosaic_image.beamReg = 'ddcal/beam.reg'
-        mosaic_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=0.001, maskname=mask_cl, only_beam=True)
     
-    lsm = lsmtool.load(mosaic_image.skymodel_cut)
-    lsm.group(mask_cl, root='Isl')
-    # this removes all sources not in the mask-cl
-    lsm.select('Patch = Isl.*', useRegEx=True)
-    # this regroup sources
-    x = lsm.getColValues('RA',aggregate='wmean')
-    y = lsm.getColValues('Dec',aggregate='wmean')
-    flux = lsm.getColValues('I',aggregate='sum')
-    grouper = lib_dd.Grouper(list(zip(x,y)),flux,look_distance=0.3,kernel_size=0.1,grouping_distance=0.05)
-    grouper.run()
-    clusters = grouper.grouping()
-    grouper.plot()
-    os.system('mv grouping*png ddcal/plots/')
-    patchNames = lsm.getPatchNames()
+    lib_util.check_rm('img')
+    os.makedirs('img')
 
-    logger.info('Merging nearby sources...')
-    for cluster in clusters:
-        patches = patchNames[cluster]
-        #print ('merging:', cluster, patches)
-        if len(patches) > 1:
-            lsm.merge(patches.tolist())
+    skymodel_cl = 'ddcal/skymodels/skymodel%02i_cluster.txt' % c
+    skymodel_cl_skydb = skymodel_cl.replace('.txt','.skydb')
+    skymodel_rest = 'ddcal/skymodels/skymodel%02i_rest.txt' % c
+    skymodel_rest_skydb = skymodel_rest.replace('.txt','.skydb')
+    skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
+    skymodel_voro_skydb = skymodel_voro.replace('.txt','.skydb')
 
-    lsm.select('I >= %f Jy' % calFlux, aggregate='sum')
+    picklefile = 'ddcal/directions-c%02i.pickle' % c
 
-    # keep track of CC names used for calibrators so not to subtract them afterwards
-    cal_names = lsm.getColValues('Name')
+    if not os.path.exists(picklefile):
+        directions = []
 
-    lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
-    for name, flux in zip(lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum')):
-        direction = lib_dd.Direction(name)
-        position = [ lsm.getPatchPositions()[name][0].deg, lsm.getPatchPositions()[name][1].deg ]
-        direction.set_position( position, cal=True )
-        direction.set_flux(flux, cal=True)
-        directions.append(direction)
+        if not os.path.exists('ddcal/masks/regions-c%02i' % c): os.makedirs('ddcal/masks/regions-c%02i' % c)
+        if not os.path.exists('ddcal/images/c%02i' % c): os.makedirs('ddcal/images/c%02i' % c)
+        mask_voro = 'ddcal/masks/facets%02i.fits' % c
+    
+        ### TTESTTESTTEST: DIE image
+        #if c == 0:
+        #    clean('init', MSs, size=(fwhm*1.5,fwhm*1.5), res='normal')
+        ###
+    
+        ### group into patches corresponding to the mask islands
+        mask_cl = mosaic_image.imagename.replace('image.fits', 'mask-cl.fits')
+        # this mask is with no user region, done to isolate only bight compact sources
+        if not os.path.exists(mask_cl): 
+            mosaic_image.beamReg = 'ddcal/beam.reg'
+            mosaic_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=0.001, maskname=mask_cl, only_beam=True)
+        
+        lsm = lsmtool.load(mosaic_image.skymodel_cut)
+        lsm.group(mask_cl, root='Isl')
+        # this removes all sources not in the mask-cl
+        lsm.select('Patch = Isl.*', useRegEx=True)
+        # this regroup sources
+        x = lsm.getColValues('RA',aggregate='wmean')
+        y = lsm.getColValues('Dec',aggregate='wmean')
+        flux = lsm.getColValues('I',aggregate='sum')
+        grouper = lib_dd.Grouper(list(zip(x,y)),flux,look_distance=0.3,kernel_size=0.1,grouping_distance=0.05)
+        grouper.run()
+        clusters = grouper.grouping()
+        grouper.plot()
+        os.system('mv grouping*png ddcal/plots/')
+        patchNames = lsm.getPatchNames()
+    
+        logger.info('Merging nearby sources...')
+        for cluster in clusters:
+            patches = patchNames[cluster]
+            #print ('merging:', cluster, patches)
+            if len(patches) > 1:
+                lsm.merge(patches.tolist())
+    
+        lsm.select('I >= %f Jy' % calFlux, aggregate='sum')
+    
+        # keep track of CC names used for calibrators so not to subtract them afterwards
+        cal_names = lsm.getColValues('Name')
+    
+        lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
+        for name, flux in zip(lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum')):
+            direction = lib_dd.Direction(name)
+            position = [ lsm.getPatchPositions()[name][0].deg, lsm.getPatchPositions()[name][1].deg ]
+            direction.set_position( position, cal=True )
+            direction.set_flux(flux, cal=True)
+            directions.append(direction)
+
+
+        # write file
+        lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
+        skymodel_cl_plot = 'ddcal/masks/skymodel%02i_cluster.png' % c
+        lsm.plot(fileName=skymodel_cl_plot, labelBy='patch')
+        lsm.setColValues('name', [x.split('_')[-1] for x in lsm.getColValues('patch')]) # just for the region - this makes this lsm useless
+        lsm.write('ddcal/masks/regions-c%02i/cluster.reg' % c, format='ds9', clobber=True)
+        del lsm
+    
+        # convert to blob
+        lib_util.check_rm(skymodel_cl_skydb)
+        s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_cl, skymodel_cl_skydb), log='makesourcedb_cl.log', commandType='general' )
+        s.run(check=True)
+        
+        ### select the rest of the sources to be subtracted
+        lsm = lsmtool.load(mosaic_image.skymodel_cut)
+        names = lsm.getColValues('Name')
+        lsm.remove( np.array([ i for i, name in enumerate(names) if name in cal_names ]) )
+        lsm.ungroup()
+        logger.info("Total flux in rest field %i Jy" % np.sum(lsm.getColValues('I')) )
+        
+        # write file
+        lsm.write(skymodel_rest, format='makesourcedb', clobber=True)
+        skymodel_rest_plot = 'ddcal/masks/skymodel%02i_rest.png' % c
+        lsm.plot(fileName=skymodel_rest_plot, labelBy='patch')
+           
+        # convert to blob
+        lib_util.check_rm(skymodel_rest_skydb)
+        s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_rest, skymodel_rest_skydb), log='makesourcedb_rest.log', commandType='general')
+        s.run(check=True)
+        
+        ### create regions (using cluster directions)
+        logger.info("Create regions.")
+        lsm = lsmtool.load(mosaic_image.skymodel_cut)
+        lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, \
+                outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
+        lsm.group('facet', facet=mask_voro, root='Isl_patch')
+        [ d.add_mask_voro(mask_voro) for d in directions ]
+    
+        # write file
+        lsm.write(skymodel_voro, format='makesourcedb', clobber=True)
+        skymodel_voro_plot = 'ddcal/masks/skymodel%02i_voro.png' % c
+        lsm.plot(fileName=skymodel_voro_plot, labelBy='patch')
+        lsm.setColValues('name', [x.split('_')[-1] for x in lsm.getColValues('patch')]) # just for the region - this makes this lsm useless
+        lsm.write('ddcal/masks/regions-c%02i/voro.reg' % c, format='ds9', clobber=True)
+        del lsm
+    
+        # convert to blob
+        lib_util.check_rm(skymodel_voro_skydb)
+        s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_voro, skymodel_voro_skydb), log='makesourcedb_voro.log', commandType='general')
+        s.run(check=True)
+
+        pickle.dump( favorite_color, open( picklefile, "wb" ) )
+
+    else:
+        directions = pickle.load( open( picklefile, "rb" ) )
 
     logger.info("Created %i bright sources" % len(directions))
     tot_flux = np.sum([d.flux_cal for d in directions])
     logger.info("Total flux of bright sources %i Jy" % tot_flux)
     
-    # write file
-    skymodel_cl = 'ddcal/skymodels/skymodel%02i_cluster.txt' % c
-    lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
-    skymodel_cl_plot = 'ddcal/masks/skymodel%02i_cluster.png' % c
-    lsm.plot(fileName=skymodel_cl_plot, labelBy='patch')
-    lsm.setColValues('name', [x.split('_')[-1] for x in lsm.getColValues('patch')]) # just for the region - this makes this lsm useless
-    lsm.write('ddcal/masks/regions-c%02i/cluster.reg' % c, format='ds9', clobber=True)
-    del lsm
-
-    # convert to blob
-    skymodel_cl_skydb = skymodel_cl.replace('.txt','.skydb')
-    lib_util.check_rm(skymodel_cl_skydb)
-    s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_cl, skymodel_cl_skydb), log='makesourcedb_cl.log', commandType='general' )
-    s.run(check=True)
-    
-    ### select the rest of the sources to be subtracted
-    lsm = lsmtool.load(mosaic_image.skymodel_cut)
-    names = lsm.getColValues('Name')
-    lsm.remove( np.array([ i for i, name in enumerate(names) if name in cal_names ]) )
-    lsm.ungroup()
-    logger.info("Total flux in rest field %i Jy" % np.sum(lsm.getColValues('I')) )
-    
-    # write file
-    skymodel_rest = 'ddcal/skymodels/skymodel%02i_rest.txt' % c
-    lsm.write(skymodel_rest, format='makesourcedb', clobber=True)
-    skymodel_rest_plot = 'ddcal/masks/skymodel%02i_rest.png' % c
-    lsm.plot(fileName=skymodel_rest_plot, labelBy='patch')
-       
-    # convert to blob
-    skymodel_rest_skydb = skymodel_rest.replace('.txt','.skydb')
-    lib_util.check_rm(skymodel_rest_skydb)
-    s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_rest, skymodel_rest_skydb), log='makesourcedb_rest.log', commandType='general')
-    s.run(check=True)
-    
-    ### create regions (using cluster directions)
-    logger.info("Create regions.")
-    lsm = lsmtool.load(mosaic_image.skymodel_cut)
-    lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, \
-            outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
-    lsm.group('facet', facet=mask_voro, root='Isl_patch')
-    [ d.add_mask_voro(mask_voro) for d in directions ]
-
-    # write file
-    skymodel_voro = 'ddcal/skymodels/skymodel%02i_voro.txt' % c
-    lsm.write(skymodel_voro, format='makesourcedb', clobber=True)
-    skymodel_voro_plot = 'ddcal/masks/skymodel%02i_voro.png' % c
-    lsm.plot(fileName=skymodel_voro_plot, labelBy='patch')
-    lsm.setColValues('name', [x.split('_')[-1] for x in lsm.getColValues('patch')]) # just for the region - this makes this lsm useless
-    lsm.write('ddcal/masks/regions-c%02i/voro.reg' % c, format='ds9', clobber=True)
-    del lsm
-
-    # convert to blob
-    skymodel_voro_skydb = skymodel_voro.replace('.txt','.skydb')
-    lib_util.check_rm(skymodel_voro_skydb)
-    s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel_voro, skymodel_voro_skydb), log='makesourcedb_voro.log', commandType='general')
-    s.run(check=True)
-
     logger.debug("Islands' info:")
     for i, d in enumerate(directions):
         logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
@@ -363,7 +375,7 @@ for c in range(maxniter):
         clean(d.name, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size, apply_beam = c==maxniter )
 
         # TEST: if one wants to make a low-res patch
-        if c>=2:
+        if c>=0:
             logger.info('Patch '+d.name+': imaging high-res...')
             clean(d.name+'-high', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size, res='high')
             logger.info('Patch '+d.name+': predict high-res...')
