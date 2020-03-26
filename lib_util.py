@@ -241,6 +241,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4' )
     if 'use_idg' in kwargs.keys() and s.get_cluster() == 'Hamburg_fat':
         wsc_parms.append( '-idg-mode hybrid' )
+    else:
+        wsc_parms.append( '-idg-mode cpu' )
 
     # other stanrdard parms
     wsc_parms.append( '-clean-border 1' )
@@ -283,6 +285,27 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
         s.add(command_string, log=logfile, commandType='wsclean', processors='max')
         s.run(check=True)
         #logger.debug('Running wsclean: %s' % command_string)
+
+
+class Walker():
+    def __init__(self, filename):
+        open(filename, 'a').close() # create the file if doesn't exists
+        self.filename = filename
+
+    def done(self, stepname):
+        with open(self.filename, "a") as f:
+            f.write(stepname+'\n')
+
+    def todo(self, stepname):
+        """
+        Return false if stepname has been already done
+        """
+        with open(self.filename, "r") as f:
+            for stepname_done in f:
+                if stepname == stepname_done.rstrip():
+                    logging.info('SKIP: %s' % stepname)
+                    return False
+        return True
 
 
 class Scheduler():

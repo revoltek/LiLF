@@ -27,15 +27,15 @@ userReg = parset.get('model','userReg')
 mosaic_image = lib_img.Image('ddcal/images/c%02i/mos-MFS-image.fits' % lastcycle)
 
 ############################
-logger.info('Cleaning...')
-lib_util.check_rm('plot*')
-lib_util.check_rm('cal*h5')
-lib_util.check_rm('img')
-lib_util.check_rm('facet')
-os.makedirs('img')
-os.makedirs('facet')
-lib_util.check_rm('mss-facet')
-if not os.path.exists('mss-facet'): os.system('cp -r mss-dd mss-facet')
+#logger.info('Cleaning...')
+#lib_util.check_rm('plot*')
+#lib_util.check_rm('cal*h5')
+#lib_util.check_rm('img')
+#lib_util.check_rm('facet')
+#os.makedirs('img')
+#os.makedirs('facet')
+#lib_util.check_rm('mss-facet')
+#if not os.path.exists('mss-facet'): os.system('cp -r mss-dd mss-facet')
 
 MSs = lib_ms.AllMSs( glob.glob('mss-facet/*MS'), s )
 
@@ -114,70 +114,70 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 
     os.system('cat logs/wscleanB-'+str(p)+'.log | grep "background noise"')
 
-# Load facet mask and set target region to 0
-mask_voro = 'ddcal/masks/facets%02i.fits' % lastcycle
-os.system('cp %s facet/facets.fits' % mask_voro)
-lib_img.blank_image_reg('facet/facets.fits', target_reg, blankval=0)
-
-# mosaic the skymodel, Isl_patch_000 will be the target of interest
-lsm = lsmtool.load(mosaic_image.skymodel_cut)
-lsm.group('facet', facet='facet/facets.fits', root='Isl_patch')
-lsm.setPatchPositions(method='mean') # center of the facets
-lsm.write('facet/skymodel_init.txt', format='makesourcedb', clobber=True)
-lib_util.check_rm('facet/skymodel_init.skydb')
-s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % ('facet/skymodel_init.txt', 'facet/skymodel_init.skydb'), \
-	log='makesourcedb.log', commandType='general')
-s.run(check=True)
-directions = set(lsm.getColValues('patch'))
-coord = [c.deg for c in lsm.getPatchPositions('Isl_patch_0')['Isl_patch_0']]
-logger.info("Facet centre: "+str(coord))
-del lsm
-
-logger.info('Subtraction...')
-# Copy DATA -> SUBTRACTED_DATA
-logger.info('Add columns...')
-MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
-logger.info('Set SUBTRACTED_DATA = DATA...')
-MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql.log', commandType='general')
-
-for d in directions:
-    if d == 'Isl_patch_0':
-        # this is the target of interest
-        continue
-
-    # predict - ms:MODEL_DATA
-    logger.info('Patch '+d+': predict...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=facet/skymodel_init.skydb pre.sources='+d, \
-            log='$nameMS_pre-'+d+'.log', commandType='DPPP')
-
-    # corrupt G - ms:MODEL_DATA -> ms:MODEL_DATA
-    logger.info('Patch '+d+': corrupt...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
-            cor.parmdb=ddcal/solutions/cal-g-c'+str(lastcycle)+'.h5 cor.correction=phase000 cor.direction=['+d+']', \
-            log='$nameMS_corrupt1-'+d+'.log', commandType='DPPP')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
-    #        cor.parmdb=ddcal/solutions/cal-g-c'+str(lastcycle)+'.h5 cor.correction=amplitude000 cor.direction=['+d+']', \
-    #        log='$nameMS_corrupt2-'+d+'.log', commandType='DPPP')
-
-    logger.info('Patch '+d+': subtract...')
-    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-'+d+'.log', commandType='general')
- 
-# Phase shift in the target location
-logger.info('Phase shift and avg...')
-lib_util.check_rm('mss-facet/*MS-small')
-MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-facet/$nameMS.MS-small msin.datacolumn=SUBTRACTED_DATA \
-        shift.phasecenter=['+str(coord[0])+'deg,'+str(coord[1])+'deg\]', \
-        log='$nameMS_avgshift.log', commandType='DPPP')
-
-MSs = lib_ms.AllMSs( glob.glob('mss-facet/*MS-small'), s )
-
-# initial imaging to get the model in the MODEL_DATA
-logger.info('Initial imaging...')
-clean('init', MSs, size=size )
-
-# Smoothing - ms:DATA -> ms:SMOOTHED_DATA
-logger.info('BL-based smoothing...')
-MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
+## Load facet mask and set target region to 0
+#mask_voro = 'ddcal/masks/facets%02i.fits' % lastcycle
+#os.system('cp %s facet/facets.fits' % mask_voro)
+#lib_img.blank_image_reg('facet/facets.fits', target_reg, blankval=0)
+#
+## mosaic the skymodel, Isl_patch_000 will be the target of interest
+#lsm = lsmtool.load(mosaic_image.skymodel_cut)
+#lsm.group('facet', facet='facet/facets.fits', root='Isl_patch')
+#lsm.setPatchPositions(method='mean') # center of the facets
+#lsm.write('facet/skymodel_init.txt', format='makesourcedb', clobber=True)
+#lib_util.check_rm('facet/skymodel_init.skydb')
+#s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % ('facet/skymodel_init.txt', 'facet/skymodel_init.skydb'), \
+#	log='makesourcedb.log', commandType='general')
+#s.run(check=True)
+#directions = set(lsm.getColValues('patch'))
+#coord = [c.deg for c in lsm.getPatchPositions('Isl_patch_0')['Isl_patch_0']]
+#logger.info("Facet centre: "+str(coord))
+#del lsm
+#
+#logger.info('Subtraction...')
+## Copy DATA -> SUBTRACTED_DATA
+#logger.info('Add columns...')
+#MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+#logger.info('Set SUBTRACTED_DATA = DATA...')
+#MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql.log', commandType='general')
+#
+#for d in directions:
+#    if d == 'Isl_patch_0':
+#        # this is the target of interest
+#        continue
+#
+#    # predict - ms:MODEL_DATA
+#    logger.info('Patch '+d+': predict...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=facet/skymodel_init.skydb pre.sources='+d, \
+#            log='$nameMS_pre-'+d+'.log', commandType='DPPP')
+#
+#    # corrupt G - ms:MODEL_DATA -> ms:MODEL_DATA
+#    logger.info('Patch '+d+': corrupt...')
+#    MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+#            cor.parmdb=ddcal/solutions/cal-g-c'+str(lastcycle)+'.h5 cor.correction=phase000 cor.direction=['+d+']', \
+#            log='$nameMS_corrupt1-'+d+'.log', commandType='DPPP')
+#    #MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+#    #        cor.parmdb=ddcal/solutions/cal-g-c'+str(lastcycle)+'.h5 cor.correction=amplitude000 cor.direction=['+d+']', \
+#    #        log='$nameMS_corrupt2-'+d+'.log', commandType='DPPP')
+#
+#    logger.info('Patch '+d+': subtract...')
+#    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-'+d+'.log', commandType='general')
+# 
+## Phase shift in the target location
+#logger.info('Phase shift and avg...')
+#lib_util.check_rm('mss-facet/*MS-small')
+#MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-facet/$nameMS.MS-small msin.datacolumn=SUBTRACTED_DATA \
+#        shift.phasecenter=['+str(coord[0])+'deg,'+str(coord[1])+'deg\]', \
+#        log='$nameMS_avgshift.log', commandType='DPPP')
+#
+#MSs = lib_ms.AllMSs( glob.glob('mss-facet/*MS-small'), s )
+#
+## initial imaging to get the model in the MODEL_DATA
+#logger.info('Initial imaging...')
+#clean('init', MSs, size=size )
+#
+## Smoothing - ms:DATA -> ms:SMOOTHED_DATA
+#logger.info('BL-based smoothing...')
+#MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
 
 rms_noise_pre = np.inf
 for c in range(maxniter):
