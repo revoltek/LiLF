@@ -5,7 +5,6 @@
 
 import sys, os, glob, re
 import numpy as np
-import pyrap.tables as pt
 import lsmtool
 
 #######################################################
@@ -75,6 +74,8 @@ lib_ddfacet.ddf_image(s, 'ddf1.log', MSs, rootimg1, cleanmode='SSD', \
                       peakfactor=0.02, rms_factor=3, colname='DATA', clusterfile=None, \
                       automask=True, automask_threshold=15, \
                       apply_weights=False, use_weightspectrum=True, uvrange=uvrange)
+
+sys.exit()
 
 # make mask
 logger.info('Making mask...')
