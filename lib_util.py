@@ -303,7 +303,7 @@ class Walker():
         with open(self.filename, "r") as f:
             for stepname_done in f:
                 if stepname == stepname_done.rstrip():
-                    logging.info('SKIP: %s' % stepname)
+                    logger.info('SKIP: %s' % stepname)
                     return False
         return True
 
