@@ -343,6 +343,8 @@ for c in range(maxniter):
     logger.info('Facet imaging...')
     for i, d in enumerate(directions):
 
+        #if d.name != 'Isl_patch_103': continue # TEST!
+
         if w.todo('facet-%s-c%02i' % (d.name,c)):
         # skip if a patch has been already done
         #if os.path.exists('img/ddcal-'+str(d.name)+'-MFS-image.fits'): continue
