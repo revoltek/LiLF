@@ -94,10 +94,10 @@ def killms_data(s, logfile, MSs, imagename, outsols, clusterfile=None, colname='
 def ddf_image(s, logfile, MSs, imagename, cleanmask=None, cleanmode='HMP', ddsols=None, applysols=None, threshold=None, majorcycles=3, use_dicomodel=False, robust=0, beamsize=None, beamsize_minor=None, beamsize_pa=None, reuse_psf=False, reuse_dirty=False, verbose=False, saveimages=None, imsize=None, cellsize=None, uvrange=None, colname='CORRECTED_DATA', peakfactor=0.1, dicomodel_base=None, do_decorr=None, normalization=None, dirty_from_resid=False, clusterfile=None, HMPsize=10, automask=True, automask_threshold=10.0, smooth=False, noweights=False, cubemode=False, apply_weights=True, use_weightspectrum=False, rms_factor=3.0, predict_column=None, conditional_clearcache=False, PredictSettings=None, RMSFactorInitHMP=1., MaxMinorIterInitHMP=10000, OuterSpaceTh=None, AllowNegativeInitHMP=False, phasecenter=None, polcubemode=False, channels=None, startchan=None, endchan=None, stokes=None):
 
     # prepare MSsfile
-    mslist='mslist.txt'
-    with open(mslist, 'w') as the_file:
-        for MS in MSs.getListObj():
-            the_file.write(MS.pathMS+'\n')
+    mslist = ','.join(MSs.getListStr())
+    #with open(mslist, 'w') as the_file:
+    #    for MS in MSs.getListObj():
+    #        the_file.write(MS.pathMS+'\n')
 
     # saveimages lists _additional_ images to save
     if saveimages is None:
@@ -166,20 +166,20 @@ def ddf_image(s, logfile, MSs, imagename, cleanmask=None, cleanmode='HMP', ddsol
         else:
             runcommand+=' --Weight-ColName="WEIGHT_SPECTRUM"'
 
-    if cubemode:
-        # number of channels equals number of distinct freqs in data
-        freqs=[]
-        mss=[l.rstrip() for l in open(mslist).readlines()]
-        for ms in mss:
-            t = pt.table(ms+'/SPECTRAL_WINDOW', readonly=True, ack=False)
-            freq=t[0]['REF_FREQUENCY']
-            if freq not in freqs:
-                freqs.append(freq)
-        channels=len(freqs)
-        runcommand+=' --Output-Cubes I --Freq-NBand=%i' % channels
-
-    if polcubemode:
-        runcommand+=' --Output-Cubes=dD --RIME-PolMode=QU --Output-Mode=Dirty  --Freq-NBand=%i --Selection-ChanStart=%s --Selection-ChanEnd=%s' % (channels,startchan,endchan)
+#    if cubemode:
+#        # number of channels equals number of distinct freqs in data
+#        freqs=[]
+#        mss=[l.rstrip() for l in open(mslist).readlines()]
+#        for ms in mss:
+#            t = pt.table(ms+'/SPECTRAL_WINDOW', readonly=True, ack=False)
+#            freq=t[0]['REF_FREQUENCY']
+#            if freq not in freqs:
+#                freqs.append(freq)
+#        channels=len(freqs)
+#        runcommand+=' --Output-Cubes I --Freq-NBand=%i' % channels
+#
+#    if polcubemode:
+#        runcommand+=' --Output-Cubes=dD --RIME-PolMode=QU --Output-Mode=Dirty  --Freq-NBand=%i --Selection-ChanStart=%s --Selection-ChanEnd=%s' % (channels,startchan,endchan)
 
     if not cubemode and not polcubemode:
         runcommand+=' --Freq-NBand=2'
@@ -250,7 +250,6 @@ def ddf_image(s, logfile, MSs, imagename, cleanmask=None, cleanmode='HMP', ddsol
     s.run(check=True)
 
     return imagename
-
 
 
 def smooth_solutions(mslist, ddsols, catcher=None, dryrun=False, SkipSmooth=False, SigmaFilterOutliers=None):
