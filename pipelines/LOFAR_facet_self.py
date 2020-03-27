@@ -9,7 +9,6 @@ import pyrap.tables as pt
 import lsmtool
 
 #TODO, to extract from regionfile:
-size=[1.,1.]
 lastcycle = 0 # get from somewhere
 target_reg = 'target.reg'
 
@@ -132,6 +131,14 @@ lsm.setPatchPositions(method='mid') # center of the facets
 directions = set(lsm.getColValues('patch'))
 coord = [c.deg for c in lsm.getPatchPositions('Isl_patch_0')['Isl_patch_0']]
 logger.info("Facet centre: "+str(coord))
+
+# calculate region size (TODO: maybe better using regionfile?)
+ramin = np.min(lsm.getColValues('RA')[lsm.getColValues('Patch')=='Isl_patch_0'])
+ramax = np.max(lsm.getColValues('RA')[lsm.getColValues('Patch')=='Isl_patch_0'])
+decmin = np.min(lsm.getColValues('Dec')[lsm.getColValues('Patch')=='Isl_patch_0'])
+decmax = np.max(lsm.getColValues('Dec')[lsm.getColValues('Patch')=='Isl_patch_0'])
+size = [abs(ramax-ramin),abs(decmax-decmin)]
+
 # write skymodel
 lsm.write('facet/skymodel_init.txt', format='makesourcedb', clobber=True)
 lib_util.check_rm('facet/skymodel_init.skydb')
