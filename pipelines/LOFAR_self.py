@@ -178,7 +178,7 @@ for c in range(2):
         w.done('solve_tec2_c%02i' % c)
     ### DONE
 
-    if w.todo('cor_tec1_c%02i' % c):
+    if w.todo('cor_tec2_c%02i' % c):
         # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting TEC2...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
