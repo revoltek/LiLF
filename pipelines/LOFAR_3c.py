@@ -88,7 +88,6 @@ for timestamp in set([ os.path.basename(ms).split('_')[1][1:] for ms in MSs.getL
         logger.info('Beam correction...')
         MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DPPP')
 
-        # TODO: TEST
         # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Converting to circular...')
         MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
@@ -126,7 +125,7 @@ if not os.path.exists(sourcedb):
     # get model the size of the image (radius=fwhm/2)
     os.system('wget -O tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (radeg, decdeg, fwhm/2.)) # ASTRON
     lsm = lsmtool.load('tgts.skymodel')#, beamMS=MSs.getListObj()[0])
-    lsm.remove('I<1')
+    lsm.remove('I<0.5')
     lsm.write('tgts.skymodel', clobber=True)
     os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
 
@@ -151,35 +150,32 @@ for c in range(100):
     ####################################################
     # 1: Solving
 
-    #if doamp:
-    #    # Smooth DATA -> SMOOTHED_DATA
-    #    #logger.info('BL-based smoothing...')
-    #    #MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
-    #
-    #    # solve G - group*_TC.MS:SMOOTHED_DATA
-    #    logger.info('Solving 1...')
-    #    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calG1.h5 sol.mode=diagonal \
-    #            sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
-    #            log='$nameMS_solG1-c'+str(c)+'.log', commandType="DPPP")
-    #    lib_util.run_losoto(s, 'G1-c'+str(c), [ms+'/calG1.h5' for ms in MSs.getListStr()], \
-    #                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])#, parset_dir+'/losoto-fr.parset'])
+    if doamp:
+    
+        # solve G - group*_TC.MS:DATA
+        logger.info('Solving 1...')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calG1.h5 sol.mode=diagonal \
+                sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
+                log='$nameMS_solG1-c'+str(c)+'.log', commandType="DPPP")
+        lib_util.run_losoto(s, 'G1-c'+str(c), [ms+'/calG1.h5' for ms in MSs.getListStr()], \
+                        [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
 
     # Convert to linear DATA -> CORRECTED_DATA
-    #logger.info('Converting to linear...')
-    #MSs.run('mslin2circ.py -r -i $pathMS:DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+    logger.info('Converting to linear...')
+    MSs.run('mslin2circ.py -r -i $pathMS:DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
     
-    #if doamp:
-    #    # Correct CORRECTED_DATA -> CORRECTED_DATA
-    #    logger.info('Correction FR...')
-    #    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
-    #        log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
+    if doamp:
+        # Correct CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('Correction FR...')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+            log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
     # Re-do calibration after faradayrotation removal
     # solve G - group*_TC.MS:DATA
     #sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \ # rimosso per test su phaseup
     logger.info('Solving...')
     solint = max(4-c,1)
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calGp.h5 sol.mode=diagonal sol.solint='+str(solint)+' sol.smoothnessconstraint=0.5e6', \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calGp.h5 sol.mode=diagonal sol.solint='+str(solint)+' sol.smoothnessconstraint=0.5e6', \
             log='$nameMS_solGp-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'Gp-c'+str(c), [ms+'/calGp.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
