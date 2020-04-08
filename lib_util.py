@@ -2,7 +2,10 @@ import os, sys, re, time, pickle, random, shutil, glob
 
 from casacore import tables
 import numpy as np
-import multiprocessing
+import multiprocessing, subprocess
+from threading import Thread
+from queue import Queue
+import gc
 
 if (sys.version_info > (3, 0)):
     from configparser import ConfigParser
@@ -241,6 +244,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4' )
     if 'use_idg' in kwargs.keys() and s.get_cluster() == 'Hamburg_fat':
         wsc_parms.append( '-idg-mode hybrid' )
+        wsc_parms.append( '-mem 10' )
     else:
         wsc_parms.append( '-idg-mode cpu' )
 
@@ -433,13 +437,6 @@ class Scheduler():
         If 'check' is True, a check is done on every log in 'self.log_list'.
         If max_thread != None, then it overrides the global values, useful for special commands that need a lower number of threads.
         """
-        from threading import Thread
-        if (sys.version_info > (3, 0)):
-            from queue import Queue
-        else:
-            from Queue import Queue
-        import subprocess
-        import gc
 
         def worker(queue):
             for cmd in iter(queue.get, None):
@@ -486,7 +483,6 @@ class Scheduler():
         Produce a warning if a command didn't close the log properly i.e. it crashed
         NOTE: grep, -L inverse match, -l return only filename
         """
-        import subprocess
 
         if (not os.path.exists(log)):
             logger.warning("No log file found to check results: " + log)

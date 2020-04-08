@@ -1,5 +1,5 @@
 msin =
-msin.datacolumn = SMOOTHED_DATA
+msin.datacolumn = DATA
 msout = .
 
 steps = [sol]

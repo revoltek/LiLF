@@ -222,7 +222,7 @@ for c in range(maxniter):
     if w.todo('solve-c%02i' % c):
         # Calibration - ms:SMOOTHED_DATA
         logger.info('Gain calibration...')
-        solint = max(8-c,2)
+        solint = max(8-c,1)
         MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.solint='+str(solint)+'\
                 sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5', \
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
