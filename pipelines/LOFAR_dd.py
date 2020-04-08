@@ -369,6 +369,7 @@ for c in range(maxniter):
         for i, d in enumerate(directions):
 
             #if d.name != 'Isl_patch_103': continue # TEST!
+            #print(d.name,d.position_facet,d.size)
         
             if w.todo('facet-%s-c%02i' % (d.name,c)):
             # skip if a patch has been already done
@@ -431,7 +432,7 @@ for c in range(maxniter):
     
                 w.done('facet-%s-c%02i' % (d.name,c))
             ### DONE
-    
+
         ##############################################################
         # Mosaiching
     
