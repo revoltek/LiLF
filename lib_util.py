@@ -244,6 +244,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4' )
     if 'use_idg' in kwargs.keys() and s.get_cluster() == 'Hamburg_fat':
         wsc_parms.append( '-idg-mode hybrid' )
+        wsc_parms.append( '-mem 10' )
     else:
         wsc_parms.append( '-idg-mode cpu' )
 

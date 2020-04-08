@@ -154,8 +154,7 @@ for c in range(100):
     
         # solve G - group*_TC.MS:DATA
         logger.info('Solving 1...')
-        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calG1.h5 sol.mode=diagonal \
-                sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \
+        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calG1.h5 sol.mode=diagonal', \
                 log='$nameMS_solG1-c'+str(c)+'.log', commandType="DPPP")
         lib_util.run_losoto(s, 'G1-c'+str(c), [ms+'/calG1.h5' for ms in MSs.getListStr()], \
                         [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
@@ -169,26 +168,30 @@ for c in range(100):
         logger.info('Correction FR...')
         MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
             log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
+        colin = 'CORRECTED_DATA'
+    else:
+        colin = 'DATA'
 
     # Re-do calibration after faradayrotation removal
-    # solve G - group*_TC.MS:DATA
-    #sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]', \ # rimosso per test su phaseup
+    # solve G - group*_TC.MS:(CORRECTED_)DATA
     logger.info('Solving...')
     solint = max(4-c,1)
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/calGp.h5 sol.mode=diagonal sol.solint='+str(solint)+' sol.smoothnessconstraint=0.5e6', \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn='+colin+' sol.h5parm=$pathMS/calGp.h5 sol.mode=diagonal \
+            sol.solint='+str(solint)+' sol.smoothnessconstraint=0.5e6', \
             log='$nameMS_solGp-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'Gp-c'+str(c), [ms+'/calGp.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
 
-    # Correct DATA -> CORRECTED_DATA
+    # Correct (CORRECTED_)DATA -> CORRECTED_DATA
     logger.info('Correction PH...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-Gp-c'+str(c)+'.h5 cor.correction=phase000', \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn='+colin+' cor.parmdb=cal-Gp-c'+str(c)+'.h5 cor.correction=phase000', \
             log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
 
     if doamp:
         # solve G - group*_TC.MS:CORRECTED_DATA
         logger.info('Solving AMP...')
-        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGa.h5 sol.mode=diagonal sol.solint=50 sol.smoothnessconstraint=1e6', \
+        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGa.h5 sol.mode=diagonal \
+                sol.solint=50 sol.smoothnessconstraint=1e6', \
             log='$nameMS_solGa-c'+str(c)+'.log', commandType="DPPP")
         lib_util.run_losoto(s, 'Ga-c'+str(c), [ms+'/calGa.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-amp.parset'])
@@ -200,7 +203,8 @@ for c in range(100):
 
         # solve G - group*_TC.MS:CORRECTED_DATA
         logger.info('Solving AMP2...')
-        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGa2.h5 sol.mode=diagonal sol.solint=150 sol.nchan=0', \
+        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGa2.h5 sol.mode=diagonal \
+                sol.solint=150 sol.nchan=0', \
             log='$nameMS_solGa2-c'+str(c)+'.log', commandType="DPPP")
 
         lib_util.run_losoto(s, 'Ga2-c'+str(c), [ms+'/calGa2.h5' for ms in MSs.getListStr()], \
