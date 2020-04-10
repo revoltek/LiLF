@@ -1,0 +1,19 @@
+Ncpu = 0
+
+[bkp]
+operation = DUPLICATE
+soltab = sol000/amplitude000
+soltabOut = amplitudeBKP
+
+[smooth]
+operation = SMOOTH
+soltab = sol000/amplitude000
+mode = runningmedian
+axesToSmooth = [time,freq]
+size = [100,30]
+
+[norm]
+operation = NORM
+soltab = sol000/amplitude000
+normVal = 1.
+axesToNorm = [time,freq,ant]

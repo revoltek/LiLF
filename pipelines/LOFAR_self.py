@@ -290,7 +290,7 @@ for c in range(2):
             logger.info('Cleaning low resolution...')
             imagename_lr = 'img/wide-lr'
             lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, parallel_gridding=4, temp_dir='./', size=imgsizepix, scale='30arcsec', \
-                    weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=5000, mgain=0.85, \
+                    weight='briggs 0.', niter=50000, no_update_model_required='', minuv_l=30, taper_gaussian='200arcsec', mgain=0.85, \
                     parallel_deconvolution=512, baseline_averaging=5, local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits', \
                     join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
     

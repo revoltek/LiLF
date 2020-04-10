@@ -1,0 +1,19 @@
+msin = 
+msin.datacolumn = SMOOTHED_DATA
+msout = .
+
+steps=[sol]
+
+sol.type = ddecal
+sol.uvmmin = 100
+#sol.sourcedb =
+sol.usemodelcolumn = True
+sol.h5parm = 
+sol.maxiter = 300
+sol.tolerance = 1e-3
+sol.solint = 
+sol.nchan = 1
+sol.mode = complexgain # diagonal, scalarcomplexgain, tec
+sol.propagatesolutions = True
+sol.smoothnessconstraint = 5e6
+sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]

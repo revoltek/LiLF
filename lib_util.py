@@ -61,6 +61,9 @@ def getParset(parsetFile='../lilf.config'):
     # dd
     add_default('LOFAR_dd', 'maxniter', '10')
     add_default('LOFAR_dd', 'calFlux', '2.0')
+    # dd-serial
+    add_default('LOFAR_dd-serial', 'maxniter', '10')
+    add_default('LOFAR_dd-serial', 'calFlux', '2.0')
     # ddfacet
     add_default('LOFAR_ddfacet', 'maxniter', '10')
     add_default('LOFAR_ddfacet', 'calFlux', '2.0')
@@ -242,11 +245,12 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
 
     # basic parms
     wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4' )
-    if 'use_idg' in kwargs.keys() and s.get_cluster() == 'Hamburg_fat':
-        wsc_parms.append( '-idg-mode hybrid' )
-        wsc_parms.append( '-mem 10' )
-    else:
-        wsc_parms.append( '-idg-mode cpu' )
+    if 'use_idg' in kwargs.keys():
+        if s.get_cluster() == 'Hamburg_fat':
+            wsc_parms.append( '-idg-mode hybrid' )
+            wsc_parms.append( '-mem 10' )
+        else:
+            wsc_parms.append( '-idg-mode cpu' )
 
     # other stanrdard parms
     wsc_parms.append( '-clean-border 1' )

@@ -154,7 +154,8 @@ for c in range(100):
     
         # solve G - group*_TC.MS:DATA
         logger.info('Solving 1...')
-        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calG1.h5 sol.mode=diagonal', \
+        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calG1.h5 sol.mode=diagonal \
+                sol.solint=10 sol.smoothnessconstraint=0.5e6', \
                 log='$nameMS_solG1-c'+str(c)+'.log', commandType="DPPP")
         lib_util.run_losoto(s, 'G1-c'+str(c), [ms+'/calG1.h5' for ms in MSs.getListStr()], \
                         [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
@@ -221,36 +222,39 @@ for c in range(100):
 
     # special for extended sources:
     if target in extended_targets:
-        kwargs1 = {'weight':'briggs -0.3', 'auto_mask':4}
-        kwargs2 = {'weight':'briggs -0.3', 'auto_mask':1}
+        kwargs1 = {'weight':'briggs -0.1', 'auto_mask':4}
+        kwargs2 = {'weight':'briggs -0.1', 'auto_mask':1}
     else:
-        kwargs1 = {'weight':'briggs -1', 'auto_mask':4}
-        kwargs2 = {'weight':'briggs -1', 'auto_mask':2}
+        kwargs1 = {'weight':'briggs -0.75', 'auto_mask':4}
+        kwargs2 = {'weight':'briggs -0.75', 'auto_mask':2}
    
-    logger.info('Cleaning I (cycle: '+str(c)+')...')
+
     imagename = 'img/imgM-%02i' % c
-    # if next is a "cont" then I need the do_predict
-    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, parallel_gridding=4, size=2500, scale='1.5arcsec', \
-            niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
-            auto_threshold=3, local_rms='', \
-            join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1 )
 
     # check if hand-made mask is available
     if os.path.exists('../masks/%s.fits' % target):
         maskfits = '../masks/%s.fits' % target
     else:
+        logger.info('Cleaning shallow (cycle: '+str(c)+')...')
+        # if next is a "cont" then I need the do_predict
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, \
+            parallel_gridding=4, baseline_averaging=5, size=2500, scale='1.5arcsec', \
+            niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
+            auto_threshold=3, local_rms='', \
+            join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1 )
+
         im = lib_img.Image(imagename+'-MFS-image.fits')
         im.makeMask( threshisl=5, rmsbox=(500,30), atrous_do=True )
         maskfits = imagename+'-mask.fits'
 
-    logger.info('Cleaning II (cycle: '+str(c)+')...')
-    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, parallel_gridding=4, size=2500, scale='1.5arcsec', \
+    logger.info('Cleaning full (cycle: '+str(c)+')...')
+    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, \
+            parallel_gridding=4, size=2500, scale='1.5arcsec', \
             niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0, \
             auto_threshold=0.5, local_rms='', fits_mask=maskfits, \
             multiscale='', multiscale_scale_bias=0.8, multiscale_scales='0,10,20,40,80,160', \
             join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2 )
     os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
-
 
 #    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=2000, scale='1arcsec', \
 #            weight='briggs -1', niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
@@ -274,7 +278,7 @@ for c in range(100):
     #MSs.run('DPPP '+parset_dir+'/DPPP-flagres.parset msin=$pathMS', log='$nameMS_flagres-c'+str(c)+'.log', commandType='DPPP')
 
     im = lib_img.Image(imagename+'-MFS-image.fits')
-    im.makeMask( threshisl=3, rmsbox=(1000,100), atrous_do=False )
+    im.makeMask( threshisl=5, rmsbox=(500,30), atrous_do=False )
     rms_noise = im.getNoise()
     logger.info('RMS noise: %f' % rms_noise)
     if rms_noise > 0.98*rms_noise_pre:
@@ -282,5 +286,16 @@ for c in range(100):
     if doamp and rms_noise > 0.98*rms_noise_pre and c > 10:
         break # if already doing amp and not getting better, quit
     rms_noise_pre = rms_noise
+
+# Low res image
+logger.info('Cleaning low-res...')
+imagename = 'img/imgM-low'
+lib_util.run_wsclean(s, 'wsclean-lr.log', MSs.getStrWsclean(), name=imagename, \
+        parallel_gridding=4, size=2500, scale='3arcsec', weight='briggs 0', taper_gaussian='30arcsec', \
+        niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0, \
+        auto_threshold=0.5, auto_mask=1, local_rms='', fits_mask=maskfits, \
+        multiscale='', multiscale_scale_bias=0.8, multiscale_scales='0,10,20,40,80,160', \
+        join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2 )
+os.system('cat logs/wsclean-lr.log | grep "background noise"')
 
 logger.info("Done.")
