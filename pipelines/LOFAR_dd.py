@@ -272,7 +272,7 @@ for c in range(maxniter):
     
     logger.debug("Islands' info:")
     for i, d in enumerate(directions):
-        logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
+        logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size_facet) ) )
 
     ################################################################
     # Calibrate
@@ -369,7 +369,7 @@ for c in range(maxniter):
         for i, d in enumerate(directions):
 
             #if d.name != 'Isl_patch_103': continue # TEST!
-            #print(d.name,d.position_facet,d.size)
+            #print(d.name,d.position_facet,d.size_facet)
         
             if w.todo('facet-%s-c%02i' % (d.name,c)):
             # skip if a patch has been already done
@@ -412,12 +412,12 @@ for c in range(maxniter):
                         log='$nameMS_shift-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
                 
                 logger.info('Patch '+d.name+': imaging...')
-                clean(d.name, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size, apply_beam = c==maxniter )
+                clean(d.name, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size_facet, apply_beam = c==maxniter )
         
                 # TEST: if one wants to make a low-res patch
                 if c>=0:
                     logger.info('Patch '+d.name+': imaging high-res...')
-                    clean(d.name+'-high', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size, res='high')
+                    clean(d.name+'-high', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size_facet, res='high')
                     logger.info('Patch '+d.name+': predict high-res...')
                     # predict - ms:MODEL_DATA
                     s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % \
@@ -428,7 +428,7 @@ for c in range(maxniter):
                     logger.info('Patch '+d.name+': subtract high-res...')
                     MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
                     logger.info('Patch '+d.name+': imaging low-res...')
-                    clean(d.name+'-low', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size, res='low', apply_beam = c==maxniter )
+                    clean(d.name+'-low', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size_facet, res='low', apply_beam = c==maxniter )
     
                 w.done('facet-%s-c%02i' % (d.name,c))
             ### DONE

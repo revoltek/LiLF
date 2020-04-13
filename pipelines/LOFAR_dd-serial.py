@@ -21,7 +21,7 @@ parset_dir = parset.get('LOFAR_dd-serial','parset_dir')
 userReg = parset.get('model','userReg')
 aterm_imaging = False
 
-def clean(p, MSs, res='normal'):
+def clean(p, MSs, res='normal', size=[1,1]):
     """
     p = patch name
     mss = list of mss to clean
@@ -36,13 +36,11 @@ def clean(p, MSs, res='normal'):
     elif res == 'low':
         pass # no change
 
-    imsize = [512,512]
-    #imsize[0] = int(size[0]*1.1/(pixscale/3600.)) # add 10%
-    #imsize[1] = int(size[1]*1.1/(pixscale/3600.)) # add 10%
-    #imsize[0] += imsize[0] % 2
-    #imsize[1] += imsize[1] % 2
-    if imsize[0] < 64: imsize[0] == 64
-    if imsize[1] < 64: imsize[1] == 64
+    imsize = [int(size[0]*1.5/(pixscale/3600.)), int(size[1]*1.5/(pixscale/3600.))] # add 50%
+    imsize[0] += imsize[0] % 2
+    imsize[1] += imsize[1] % 2
+    if imsize[0] < 256: imsize[0] = 256
+    if imsize[1] < 256: imsize[1] = 256
 
     logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
 
@@ -55,6 +53,9 @@ def clean(p, MSs, res='normal'):
     elif res == 'low':
         weight = 'briggs 0'
         maxuv_l = 3500
+    else:
+        logger.error('Wrong "res": %s.' % str(res))
+        sys.exit()
 
     # clean 1
     logger.info('Cleaning ('+str(p)+')...')
@@ -154,7 +155,7 @@ for C in range(2):
         x = lsm.getColValues('RA',aggregate='wmean')
         y = lsm.getColValues('Dec',aggregate='wmean')
         flux = lsm.getColValues('I',aggregate='sum')
-        grouper = lib_dd.Grouper(list(zip(x,y)), flux, look_distance=0.3, kernel_size=0.1, grouping_distance=0.03)
+        grouper = lib_dd.Grouper(list(zip(x,y)), flux, look_distance=0.2, kernel_size=0.1, grouping_distance=0.03)
         grouper.run()
         clusters = grouper.grouping()
         grouper.plot()
@@ -164,21 +165,21 @@ for C in range(2):
         logger.info('Merging nearby sources...')
         for cluster in clusters:
             patches = patchNames[cluster]
-            #print ('merging:', cluster, patches)
             if len(patches) > 1:
                 lsm.merge(patches.tolist())
-    
-        #lsm.select('I >= %f Jy' % calFlux, aggregate='sum')
     
         # keep track of CC names used for calibrators so not to subtract them afterwards
         cal_names = lsm.getColValues('Name')
     
         lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
-        for name, flux in zip(lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum')):
+        positions = lsm.getPatchPositions()
+        for name, flux, size in \
+                zip( lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum'), lsm.getPatchSizes(units='deg') ):
             direction = lib_dd.Direction(name)
-            position = [ lsm.getPatchPositions()[name][0].deg, lsm.getPatchPositions()[name][1].deg ]
+            position = [positions[name][0].deg, positions[name][1].deg ]
             direction.set_position( position, cal=True )
             direction.set_flux(flux, cal=True)
+            direction.set_size([size,size], cal=True)
             directions.append(direction)
         directions = [x for _,x in sorted(zip([d.flux_cal for d in directions],directions))][::-1] # reorder with flux
 
@@ -247,7 +248,7 @@ for C in range(2):
     #    logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
 
     for d in directions:
-        logger.info('Working on direction: %s (%f Jy)' % (d.name, d.flux_cal))
+        logger.info('Working on direction: %s (%f Jy - %f deg)' % (d.name, d.flux_cal, d.size_cal[0]))
 
         if w.todo('%s-subtract' % d.name):
             logger.info('%s: Subtraction rest_field...' % d.name)
@@ -302,7 +303,19 @@ for C in range(2):
             w.done('%s-predict' % d.name)
         ### DONE
 
-        rms_noise_pre = np.inf
+        if w.todo('%s-preimage' % d.name):
+
+            logger.info('%s: pre-imaging...' % d.name)
+            clean('%s-pre' % d.name, MSs_dir, res='normal', size=d.size_cal)
+
+            w.done('%s-preimage' % d.name)
+        ### DONE
+        
+        # get initial noise
+        image = lib_img.Image('img/ddcalM-%s-pre-MFS-image.fits' % d.name)
+        rms_noise_pre = image.getNoise()
+        logger.info('RMS noise: %f' % rms_noise_pre)
+
         for c in range(10):
 
             logger.info('%s: Starting cycle: %02i' % (d.name, c))
@@ -315,7 +328,8 @@ for C in range(2):
 
                 # Calibration - ms:SMOOTHED_DATA
                 logger.info('Gain calibration...')
-                solint = 10-c
+                try: solint = [20,10,5,2][c]
+                except: solint = 1
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
                     sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5 sol.solint='+str(solint), \
                     log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
@@ -327,14 +341,15 @@ for C in range(2):
                 os.system('mv cal-g-c'+str(c)+'.h5 ddcal/solutions')
 
                 # correct G - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
-                logger.info('Correct...')
+                logger.info('Correct ph...')
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS \
                              cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
                              log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
-                #if c>0:
-                #    MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS \
-                #        cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
-                #        log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
+                if c>3:
+                    logger.info('Correct amp...')
+                    MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS \
+                        cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
+                        log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
 
                 w.done('calibrate-%s-c%02i' % (d.name, c))
             ### DONE
@@ -342,7 +357,7 @@ for C in range(2):
             if w.todo('image-%s-c%02i' % (d.name, c)):
 
                 logger.info('%s: imaging...' % d.name)
-                clean('%s-c%02i' % (d.name, c), MSs_dir)
+                clean('%s-c%02i' % (d.name, c), MSs_dir, res='normal', size=d.size_cal)
 
                 w.done('image-%s-c%02i' % (d.name, c))
             ### DONE

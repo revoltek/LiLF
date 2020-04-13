@@ -1,5 +1,12 @@
 Ncpu = 0
 
+[plotAdir]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/ampOrig_
+
 [bkp]
 operation = DUPLICATE
 soltab = sol000/amplitude000

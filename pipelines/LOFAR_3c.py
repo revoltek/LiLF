@@ -169,23 +169,20 @@ for c in range(100):
         logger.info('Correction FR...')
         MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-G1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
             log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
-        colin = 'CORRECTED_DATA'
-    else:
-        colin = 'DATA'
 
     # Re-do calibration after faradayrotation removal
-    # solve G - group*_TC.MS:(CORRECTED_)DATA
+    # solve G - group*_TC.MS:CORRECTED_DATA
     logger.info('Solving...')
     solint = max(4-c,1)
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn='+colin+' sol.h5parm=$pathMS/calGp.h5 sol.mode=diagonal \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGp.h5 sol.mode=diagonal \
             sol.solint='+str(solint)+' sol.smoothnessconstraint=0.5e6', \
             log='$nameMS_solGp-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'Gp-c'+str(c), [ms+'/calGp.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
 
-    # Correct (CORRECTED_)DATA -> CORRECTED_DATA
+    # Correct CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Correction PH...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn='+colin+' cor.parmdb=cal-Gp-c'+str(c)+'.h5 cor.correction=phase000', \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gp-c'+str(c)+'.h5 cor.correction=phase000', \
             log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
 
     if doamp:
@@ -225,32 +222,32 @@ for c in range(100):
         kwargs1 = {'weight':'briggs -0.1', 'auto_mask':4}
         kwargs2 = {'weight':'briggs -0.1', 'auto_mask':1}
     else:
-        kwargs1 = {'weight':'briggs -0.75', 'auto_mask':4}
-        kwargs2 = {'weight':'briggs -0.75', 'auto_mask':2}
+        kwargs1 = {'weight':'briggs -0.7', 'auto_mask':4}
+        kwargs2 = {'weight':'briggs -0.7', 'auto_mask':2}
    
 
     imagename = 'img/imgM-%02i' % c
+
+    # if next is a "cont" then I need the do_predict
+    logger.info('Cleaning shallow (cycle: '+str(c)+')...')
+    lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, \
+            parallel_gridding=4, baseline_averaging=5, size=2500, scale='2.5arcsec', beam_shape='10asec 10asec 0deg', \
+            niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
+            auto_threshold=3, local_rms='', \
+            join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1 )
 
     # check if hand-made mask is available
     if os.path.exists('../masks/%s.fits' % target):
         maskfits = '../masks/%s.fits' % target
     else:
-        logger.info('Cleaning shallow (cycle: '+str(c)+')...')
-        # if next is a "cont" then I need the do_predict
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, \
-            parallel_gridding=4, baseline_averaging=5, size=2500, scale='1.5arcsec', \
-            niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
-            auto_threshold=3, local_rms='', \
-            join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1 )
-
         im = lib_img.Image(imagename+'-MFS-image.fits')
         im.makeMask( threshisl=5, rmsbox=(500,30), atrous_do=True )
         maskfits = imagename+'-mask.fits'
 
     logger.info('Cleaning full (cycle: '+str(c)+')...')
     lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, \
-            parallel_gridding=4, size=2500, scale='1.5arcsec', \
-            niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0, \
+            parallel_gridding=4, baseline_averaging=5, size=2500, scale='2.5arcsec', beam_shape='10asec 10asec 0deg', \
+            niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.7, nmiter=0, \
             auto_threshold=0.5, local_rms='', fits_mask=maskfits, \
             multiscale='', multiscale_scale_bias=0.8, multiscale_scales='0,10,20,40,80,160', \
             join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2 )
@@ -293,9 +290,9 @@ imagename = 'img/imgM-low'
 lib_util.run_wsclean(s, 'wsclean-lr.log', MSs.getStrWsclean(), name=imagename, \
         parallel_gridding=4, size=2500, scale='3arcsec', weight='briggs 0', taper_gaussian='30arcsec', \
         niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0, \
-        auto_threshold=0.5, auto_mask=1, local_rms='', fits_mask=maskfits, \
+        auto_threshold=0.5, auto_mask=1, local_rms='', \
         multiscale='', multiscale_scale_bias=0.8, multiscale_scales='0,10,20,40,80,160', \
-        join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2 )
+        join_channels='', fit_spectral_pol=2, channels_out=2 )
 os.system('cat logs/wsclean-lr.log | grep "background noise"')
 
 logger.info("Done.")

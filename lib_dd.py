@@ -30,7 +30,8 @@ class Direction(object):
         self.flux_cal = None # Jy
         self.flux_facet = None # Jy
         self.region_facet = None
-        self.size = None # [deg, deg]
+        self.size_cal = None # [deg, deg]
+        self.size_facet = None # [deg, deg]
         self.cal_has_facet = None # Bool that tells if the cal is within the mask_voro
         # lib_img.Image objects:
         self.image = None
@@ -62,6 +63,15 @@ class Direction(object):
         else:
             self.flux_facet = flux
 
+    def set_size(self, size, cal=True):
+        """
+        size: [deg,deg]
+        """
+        if cal:
+            self.size_cal = size
+        else:
+            self.size_facet = size
+
     def add_mask_voro(self, mask_voro):
         """
         """
@@ -82,7 +92,7 @@ class Direction(object):
             # calculate size
             size_ra = (np.max(coord[0])-np.min(coord[0]))*pixsize_ra
             size_dec = (np.max(coord[1])-np.min(coord[1]))*pixsize_dec
-            self.size = [size_ra, size_dec]
+            self.size_facet = [size_ra, size_dec]
             # calculate position 
             dir_x = np.mean([ np.max(coord[0]), np.min(coord[0]) ])
             dir_y = np.mean([ np.max(coord[1]), np.min(coord[1]) ])
