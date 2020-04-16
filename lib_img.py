@@ -179,17 +179,17 @@ def flatten(f, channel = 0, freqaxis = 0):
         if (r):
             header[k] = r
 
-    slice = []
+    slicing = []
     for i in range(naxis,0,-1):
         if (i <= 2):
-            slice.append(np.s_[:],)
+            slicing.append(np.s_[:],)
         elif (i == freqaxis):
-            slice.append(channel)
+            slicing.append(channel)
         else:
-            slice.append(0)
+            slicing.append(0)
 
     # slice=(0,)*(naxis-2)+(np.s_[:],)*2
-    return header, f[0].data[slice]
+    return header, f[0].data[tuple(slicing)]
 
 
 def blank_image_fits(filename, maskname, outfile = None, inverse = False, blankval = 0.):

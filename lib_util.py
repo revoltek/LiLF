@@ -507,6 +507,7 @@ class Scheduler():
         elif (commandType == "wsclean"):
             out = subprocess.check_output('grep -l "exception occurred" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Segmentation fault" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "Aborted" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "python"):

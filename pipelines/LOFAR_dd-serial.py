@@ -45,7 +45,7 @@ def clean(p, MSs, res='normal', size=[1,1]):
     logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
 
     if res == 'normal':
-        weight = 'briggs -0.1'
+        weight = 'briggs -0.3'
         maxuv_l = None
     elif res == 'high':
         weight = 'briggs -0.6'
@@ -67,7 +67,7 @@ def clean(p, MSs, res='normal', size=[1,1]):
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 3)
+    im.makeMask(threshisl = 5)
 
     # clean 2
     logger.info('Cleaning w/ mask ('+str(p)+')...')
@@ -133,7 +133,7 @@ for C in range(2):
 
         if not os.path.exists('ddcal/masks/regions-c%02i' % C): os.makedirs('ddcal/masks/regions-c%02i' % C)
         if not os.path.exists('ddcal/images/c%02i' % C): os.makedirs('ddcal/images/c%02i' % C)
-        mask_voro = 'ddcal/masks/facets%02i.fits' % C
+        #mask_voro = 'ddcal/masks/facets%02i.fits' % C
     
         ### TTESTTESTTEST: DIE image
         #if c == 0:
@@ -148,9 +148,10 @@ for C in range(2):
             mosaic_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=0.001, maskname=mask_cl, only_beam=True)
         
         lsm = lsmtool.load(mosaic_image.skymodel_cut)
-        lsm.group(mask_cl, root='Isl')
+        #lsm.group(mask_cl, root='Isl')
+        lsm.group('tessellate', targetFlux=0.1, root='Isl') # test to keep all sources
         # this removes all sources not in the mask-cl
-        lsm.select('Patch = Isl.*', useRegEx=True)
+        #lsm.select('Patch = Isl.*', useRegEx=True)
         # this regroup sources
         x = lsm.getColValues('RA',aggregate='wmean')
         y = lsm.getColValues('Dec',aggregate='wmean')
@@ -165,6 +166,7 @@ for C in range(2):
         logger.info('Merging nearby sources...')
         for cluster in clusters:
             patches = patchNames[cluster]
+            print('Merging:', patches)
             if len(patches) > 1:
                 lsm.merge(patches.tolist())
     
@@ -238,14 +240,6 @@ for C in range(2):
 
     else:
         directions = pickle.load( open( picklefile, "rb" ) )
-
-    #logger.info("Created %i bright sources" % len(directions))
-    #tot_flux = np.sum([d.flux_cal for d in directions])
-    #logger.info("Total flux of bright sources %i Jy" % tot_flux)
-    
-    #logger.debug("Islands' info:")
-    #for i, d in enumerate(directions):
-    #    logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size) ) )
 
     for d in directions:
         logger.info('Working on direction: %s (%f Jy - %f deg)' % (d.name, d.flux_cal, d.size_cal[0]))
@@ -331,25 +325,25 @@ for C in range(2):
                 try: solint = [20,10,5,2][c]
                 except: solint = 1
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
-                    sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5 sol.solint='+str(solint), \
-                    log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+                    sol.h5parm=$pathMS/cal-g.h5 sol.solint='+str(solint), \
+                    log='$nameMS_solG-'+d.name+'-c'+str(c)+'.log', commandType='DPPP')
     
                 # Plot solutions
-                lib_util.run_losoto(s, 'g-c'+str(c), [ms+'/cal-g-c'+str(c)+'.h5' for ms in MSs_dir.getListStr()], \
+                lib_util.run_losoto(s, 'g', [ms+'/cal-g.h5' for ms in MSs_dir.getListStr()], \
                     [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
-                os.system('mv plots-g-c'+str(c)+' ddcal/plots')
-                os.system('mv cal-g-c'+str(c)+'.h5 ddcal/solutions')
+                os.system('mv plots-g ddcal/plots/plots-g-%s-c%i' % (d.name, c))
+                os.system('mv cal-g.h5 ddcal/solutions/cal-g-%s-c%i.h5' % (d.name, c))
 
                 # correct G - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
                 logger.info('Correct ph...')
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS \
-                             cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
-                             log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+                             cor.parmdb=ddcal/solutions/cal-g-'+d.name+'-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
+                             log='$nameMS_correct-'+d.name+'-c'+str(c)+'.log', commandType='DPPP')
                 if c>3:
                     logger.info('Correct amp...')
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS \
-                        cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
-                        log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
+                        cor.parmdb=ddcal/solutions/cal-g-'+d.name+'c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
+                        log='$nameMS_correct-'+d.name+'-c'+str(c)+'.log', commandType='DPPP') 
 
                 w.done('calibrate-%s-c%02i' % (d.name, c))
             ### DONE

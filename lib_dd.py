@@ -23,7 +23,7 @@ class Direction(object):
 
     def __init__(self, name):
         self.name = name 
-        self.isl_num = int(name[10:])
+        self.isl_num = int(name.split('_')[-1])
         self.mask_voro = None
         self.position_facet = None # [deg, deg]
         self.position_cal = None # [deg, deg]

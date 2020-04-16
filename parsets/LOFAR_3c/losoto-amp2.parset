@@ -4,3 +4,9 @@ Ncpu = 0
 operation = DUPLICATE
 soltab = sol000/amplitude000
 soltabOut = amplitudeSmooth
+
+[norm]
+operation = NORM
+soltab = sol000/amplitudeSmooth
+normVal = 1.
+axesToNorm = [time,ant]
