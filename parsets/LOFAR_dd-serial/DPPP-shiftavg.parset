@@ -13,4 +13,4 @@ shift.phasecenter =
 
 avg.type = averager
 avg.freqstep = 8
-avg.timestep = 1
+avg.timestep = 5

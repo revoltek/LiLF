@@ -47,7 +47,7 @@ for timestamp in set([ os.path.basename(ms).split('_')[1][1:] for ms in MSs.getL
 
     if os.path.exists(MS_concat_bkp): 
         logger.info('Restoring bkp data...')
-        os.system('rm -r %s' % MS_concat)
+        lib_util.check_rm(MS_concat)
         os.system('cp -r %s %s' % (MS_concat_bkp, MS_concat) )
 
     else:
@@ -107,6 +107,7 @@ MSs_orig = lib_ms.AllMSs( glob.glob('*concat.MS'), s, check_flags=False )
 lib_util.check_rm('*MS-phaseup')
 logger.info('Phase up superterp DATA -> DATA...')
 MSs_orig.run('DPPP '+parset_dir+'/DPPP-phaseup.parset msin=$pathMS msout=$pathMS-phaseup', log='$nameMS_phaseup.log', commandType='DPPP')
+os.system('rm -r *concat.MS')
 
 MSs = lib_ms.AllMSs( glob.glob('*concat.MS-phaseup'), s, check_flags=False )
 MSs.plot_HAcov('HAcov.png')
@@ -219,11 +220,11 @@ for c in range(100):
 
     # special for extended sources:
     if target in extended_targets:
-        kwargs1 = {'weight':'briggs -0.5', 'auto_mask':4, 'taper_gaussian':'25arcsec'}
-        kwargs2 = {'weight':'briggs -0.5', 'auto_mask':2, 'taper_gaussian':'25arcsec'}
+        kwargs1 = {'weight':'briggs -0.7', 'taper_gaussian':'25arcsec'}
+        kwargs2 = {'weight':'briggs -0.7', 'taper_gaussian':'25arcsec'}
     else:
-        kwargs1 = {'weight':'briggs -0.7', 'auto_mask':4}
-        kwargs2 = {'weight':'briggs -0.7', 'auto_mask':2}
+        kwargs1 = {'weight':'briggs -0.7'}
+        kwargs2 = {'weight':'briggs -0.7'}
    
 
     imagename = 'img/imgM-%02i' % c
@@ -232,13 +233,13 @@ for c in range(100):
     logger.info('Cleaning shallow (cycle: '+str(c)+')...')
     lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, name=imagename, \
             parallel_gridding=4, baseline_averaging=5, size=2500, scale='2.5arcsec', \
-            niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.2, nmiter=0, \
-            auto_threshold=3, local_rms='', \
+            niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0, \
+            auto_threshold=3, auto_mask=4, local_rms='', \
             join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1 )
 
     # check if hand-made mask is available
     im = lib_img.Image(imagename+'-MFS-image.fits')
-    im.makeMask( threshisl=5, rmsbox=(500,30), atrous_do=True )
+    im.makeMask( threshisl=5, rmsbox=(50,5), atrous_do=True )
     maskfits = imagename+'-mask.fits'
     region = '%s/regions/%s.reg' % (parset_dir,target)
     if os.path.exists( region ):
@@ -249,7 +250,7 @@ for c in range(100):
     lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, \
             parallel_gridding=4, size=2500, scale='2.5arcsec', \
             niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.7, nmiter=0, \
-            auto_threshold=0.5, local_rms='', fits_mask=maskfits, \
+            auto_threshold=0.5, auto_mask=2, local_rms='', fits_mask=maskfits, \
             multiscale='', multiscale_scale_bias=0.8, multiscale_scales='0,10,20,40,80,160', \
             join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2 )
     os.system('cat logs/wsclean-c%02i.log | grep "background noise"' % c)
