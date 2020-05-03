@@ -190,7 +190,7 @@ def check_rm(regexp):
             os.system("rm -r " + f)
 
 
-def run_losoto(s, c, h5s, parsets):
+def run_losoto(s, c, h5s, parsets, plots_dir=None):
     """
     s : scheduler
     c : cycle name, e.g. "final"
@@ -228,8 +228,13 @@ def run_losoto(s, c, h5s, parsets):
         s.add('losoto -V '+h5out+' '+parset, log='losoto-'+c+'.log', logAppend=True, commandType="python", processors='max')
         s.run(check = True)
 
-    check_rm('plots-' + c)
-    os.system('mv plots plots-' + c)
+    if plots_dir is None:
+        check_rm('plots-' + c)
+        os.system('mv plots plots-' + c)
+    else:
+        if not os.path.exists(plots_dir): os.system('mkdir '+plots_dir)
+        os.system('mv plots/* '+plots_dir)
+        check_rm('plots')
 
 
 def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
@@ -505,7 +510,7 @@ class Scheduler():
             out += subprocess.check_output('grep -l "\*\*\* Error \*\*\*" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "wsclean"):
-            out = subprocess.check_output('grep -l "exception occurred" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output('grep -l "exception occur" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Segmentation fault" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Aborted" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
@@ -514,6 +519,7 @@ class Scheduler():
             out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "ERROR" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "singularity"):
             out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)

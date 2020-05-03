@@ -21,7 +21,7 @@ def make_mask(image_name, mask_name=None, threshisl=5, atrous_do=False, rmsbox=(
     # WRITE THE MASK FITS
     if mask_name == None: mask_name = image_name+'.newmask'
     if os.path.exists(mask_name): os.system('rm -r ' + mask_name)
-    img.export_image(img_type='island_mask', img_format='fits', outfile=mask_name)
+    img.export_image(img_type='island_mask', img_format='fits', outfile=mask_name, clobber=True)
 
     # WRITE CATALOGUE
     if write_srl:

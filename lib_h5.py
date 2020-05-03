@@ -9,6 +9,7 @@ def repoint(h5parmFile, dirname):
     """
     
     logger.info('%s: update dir name "pointing" -> "%s".' % (h5parm, dirname))
+    dirname = '%s' % dirname
 
     # open h5parm
     h5 = h5parm(h5parmFile, readonly=False)

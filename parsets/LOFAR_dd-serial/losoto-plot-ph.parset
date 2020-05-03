@@ -9,12 +9,22 @@ prefix = plots/ph_
 refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]
 
-[plotPdirD]
+[plotPdir2]
 operation = PLOT
 soltab = sol000/phase000
-axesInPlot = [time,freq]
+freq.minmaxstep = [55e6,100e6,1000]
+axesInPlot = [time]
 axisInTable = ant
-axisDiff = pol
-prefix = plots/ph-dif
+prefix = plots/ph_
 refAnt = 'CS002LBA'
-minmax = [-1,+1]
+minmax = [-3.14,3.14]
+
+#[plotPdirD]
+#operation = PLOT
+#soltab = sol000/phase000
+#axesInPlot = [time,freq]
+#axisInTable = ant
+#axisDiff = pol
+#prefix = plots/ph-dif
+#refAnt = 'CS002LBA'
+#minmax = [-1,+1]

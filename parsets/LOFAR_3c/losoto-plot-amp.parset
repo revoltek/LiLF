@@ -22,10 +22,10 @@ figSize = [20,20]
 #plotFlag = True
 #prefix = plots/amp_
 
-[plotA3]
-operation = PLOT
-soltab = sol000/amplitude000
-axesInPlot = [time,freq]
-axisInTable = ant
-plotFlag = True
-prefix = plots/amp_
+#[plotA3]
+#operation = PLOT
+#soltab = sol000/amplitude000
+#axesInPlot = [time,freq]
+#axisInTable = ant
+#plotFlag = True
+#prefix = plots/amp_
