@@ -141,6 +141,7 @@ MSs.run('BLsmooth.py -r -i DATA -o DATA $pathMS', log='$nameMS_smooth1.log', com
 ###############################################################
 # Selfcal
 rms_noise_pre = np.inf; doamp = False
+solint_ph = lib_util.Sol_iterator([10,5,2,1])
 for c in range(100):
 
     logger.info('== Start cycle: %s ==' % c)
@@ -151,39 +152,40 @@ for c in range(100):
     ####################################################
     # 1: Solving
 
-    if doamp:
-    
-        # solve G - group*_TC.MS:DATA
-        logger.info('Solving 1...')
-        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calGfr.h5 sol.mode=diagonal \
-                sol.solint=10 sol.smoothnessconstraint=0.5e6', \
-                log='$nameMS_solGfr-c'+str(c)+'.log', commandType="DPPP")
-        lib_util.run_losoto(s, 'Gfr-c'+str(c), [ms+'/calGfr.h5' for ms in MSs.getListStr()], \
-                        [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
-
-    # Convert to linear DATA -> CORRECTED_DATA
-    logger.info('Converting to linear...')
-    MSs.run('mslin2circ.py -r -i $pathMS:DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
-    
-    if doamp:
-        # Correct CORRECTED_DATA -> CORRECTED_DATA
-        logger.info('Correction FR...')
-        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gfr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
-            log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
+#    if doamp:
+#    
+#        # solve G - group*_TC.MS:DATA
+#        logger.info('Solving 1...')
+#        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calGfr.h5 sol.mode=diagonal \
+#                sol.solint=10 sol.smoothnessconstraint=0.5e6', \
+#                log='$nameMS_solGfr-c'+str(c)+'.log', commandType="DPPP")
+#        lib_util.run_losoto(s, 'Gfr-c'+str(c), [ms+'/calGfr.h5' for ms in MSs.getListStr()], \
+#                        [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
+#
+#    # Convert to linear DATA -> CORRECTED_DATA
+#    logger.info('Converting to linear...')
+#    MSs.run('mslin2circ.py -r -i $pathMS:DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+#    
+#    if doamp:
+#        # Correct CORRECTED_DATA -> CORRECTED_DATA
+#        logger.info('Correction FR...')
+#        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gfr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+#            log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
     # Re-do calibration after faradayrotation removal
     # solve G - group*_TC.MS:CORRECTED_DATA
+    # TODO: do scalar? No as it corrects for FR now
     logger.info('Solving...')
-    solint = max(4-c,1)
-    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGp.h5 sol.mode=diagonal \
-            sol.solint='+str(solint)+' sol.smoothnessconstraint=0.5e6', \
+    solint = next(solint_ph)
+    MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calGp.h5 sol.mode=scalarcomplexgain \
+            sol.solint='+str(solint)+' sol.smoothnessconstraint=1e6', \
             log='$nameMS_solGp-c'+str(c)+'.log', commandType="DPPP")
     lib_util.run_losoto(s, 'Gp-c'+str(c), [ms+'/calGp.h5' for ms in MSs.getListStr()], \
-                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset'])
+                    [parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot.parset'])
 
-    # Correct CORRECTED_DATA -> CORRECTED_DATA
+    # Correct DATA -> CORRECTED_DATA
     logger.info('Correction PH...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gp-c'+str(c)+'.h5 cor.correction=phase000', \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-Gp-c'+str(c)+'.h5 cor.correction=phase000', \
             log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
 
     if doamp:
@@ -193,7 +195,7 @@ for c in range(100):
                 sol.solint=50 sol.smoothnessconstraint=1e6', \
             log='$nameMS_solGa-c'+str(c)+'.log', commandType="DPPP")
         lib_util.run_losoto(s, 'Ga-c'+str(c), [ms+'/calGa.h5' for ms in MSs.getListStr()], \
-                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-amp.parset'])
+                    [parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot2d-pol.parset', parset_dir+'/losoto-plot-pol.parset', parset_dir+'/losoto-amp.parset'])
 
         # Correct CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Correction AMP...')
@@ -201,18 +203,21 @@ for c in range(100):
             log='$nameMS_corAMP-c'+str(c)+'.log', commandType='DPPP')
 
         # solve G - group*_TC.MS:CORRECTED_DATA
-        logger.info('Solving AMP2...')
-        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGa2.h5 sol.mode=diagonal \
+        logger.info('Solving BP...')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGbp.h5 sol.mode=diagonal \
                 sol.solint=150 sol.nchan=0', \
-            log='$nameMS_solGa2-c'+str(c)+'.log', commandType="DPPP")
+            log='$nameMS_solGbp-c'+str(c)+'.log', commandType="DPPP")
 
-        lib_util.run_losoto(s, 'Ga2-c'+str(c), [ms+'/calGa2.h5' for ms in MSs.getListStr()], \
-                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-amp2.parset'])
+        lib_util.run_losoto(s, 'Gbp-c'+str(c), [ms+'/calGbp.h5' for ms in MSs.getListStr()], \
+                    [parset_dir+'/losoto-plot-pol.parset', parset_dir+'/losoto-ampnorm.parset'])
 
         # Correct CORRECTED_DATA -> CORRECTED_DATA
-        logger.info('Correction AMP...')
-        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Ga2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
-            log='$nameMS_corAMP2-c'+str(c)+'.log', commandType='DPPP')
+        logger.info('Correction BP...')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gbp-c'+str(c)+'.h5 cor.correction=amplitude000', \
+            log='$nameMS_corBP-c'+str(c)+'.log', commandType='DPPP')
+        # TODO: corr slow phase
+        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gbp-c'+str(c)+'.h5 cor.correction=phase000', \
+            log='$nameMS_corBP-c'+str(c)+'.log', commandType='DPPP')
 
 
     #################################################
@@ -234,7 +239,7 @@ for c in range(100):
     lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, name=imagename, \
             parallel_gridding=4, baseline_averaging=5, size=2500, scale='2.5arcsec', \
             niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0, \
-            auto_threshold=3, auto_mask=4, local_rms='', \
+            auto_threshold=3, auto_mask=4, local_rms='', local_rms_method='rms-with-min', \
             join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1 )
 
     # check if hand-made mask is available
@@ -250,7 +255,7 @@ for c in range(100):
     lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, \
             parallel_gridding=4, size=2500, scale='2.5arcsec', \
             niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.7, nmiter=0, \
-            auto_threshold=0.5, auto_mask=2, local_rms='', fits_mask=maskfits, \
+            auto_threshold=0.5, auto_mask=2., local_rms='', local_rms_method='rms-with-min', fits_mask=maskfits, \
             multiscale='', multiscale_scale_bias=0.8, multiscale_scales='0,10,20,40,80,160', \
             join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2 )
     os.system('cat logs/wsclean-c%02i.log | grep "background noise"' % c)
@@ -267,17 +272,17 @@ for c in range(100):
     im.makeMask( threshisl=5, rmsbox=(500,30), atrous_do=False )
     rms_noise = im.getNoise()
     logger.info('RMS noise: %f' % rms_noise)
-    if rms_noise > 0.98*rms_noise_pre:
-        doamp = True
     if doamp and rms_noise > 0.98*rms_noise_pre and c > 5:
         break # if already doing amp and not getting better, quit
+    if rms_noise > 0.98*rms_noise_pre:
+        doamp = True
     rms_noise_pre = rms_noise
 
 # Low res image
 logger.info('Cleaning low-res...')
 imagename = 'img/imgM-low'
 lib_util.run_wsclean(s, 'wsclean-lr.log', MSs.getStrWsclean(), name=imagename, \
-        parallel_gridding=4, size=2500, scale='3arcsec', weight='briggs 0', taper_gaussian='30arcsec', \
+        parallel_gridding=4, size=1500, scale='10arcsec', weight='briggs -0.7', taper_gaussian='60arcsec', \
         niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0, \
         auto_threshold=0.5, auto_mask=1, local_rms='', \
         multiscale='', multiscale_scale_bias=0.8, multiscale_scales='0,10,20,40,80,160', \

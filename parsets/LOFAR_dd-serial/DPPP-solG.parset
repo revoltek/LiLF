@@ -5,7 +5,7 @@ msout = .
 steps=[sol]
 
 sol.type = ddecal
-sol.uvmmin = 300
+sol.uvmmin = 100
 #sol.sourcedb =
 sol.usemodelcolumn = True
 sol.h5parm = 

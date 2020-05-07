@@ -16,7 +16,7 @@ figSize = [20,20]
 [plotA2]
 operation = PLOT
 soltab = sol000/amplitude000
-time.minmaxstep = [0,1e20,500]
+time.minmaxstep = [0,1e20,1000]
 axesInPlot = freq
 axisInTable = ant
 axisInCol = pol

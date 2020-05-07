@@ -190,6 +190,28 @@ def check_rm(regexp):
             os.system("rm -r " + f)
 
 
+class Sol_iterator(object):
+    """
+    Iterator on a list that keeps on returing
+    the last element when the list is over
+    """
+
+    def __init__(self, vals=[]):
+        self.vals = vals
+        self.pos = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.pos < len(self.vals):
+            val = self.vals[self.pos]
+            self.pos += 1
+            return val
+        else:
+            return self.vals[-1]
+
+
 def run_losoto(s, c, h5s, parsets, plots_dir=None):
     """
     s : scheduler
@@ -519,6 +541,7 @@ class Scheduler():
             out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "Segmentation fault" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "ERROR" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "singularity"):

@@ -86,7 +86,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False):
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, do_predict=True, \
                 size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', \
                 weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
-                multiscale='', multiscale_scale_bias=0.75, multiscale_scales='0,10,20,40,80', 
+                multiscale='', multiscale_scale_bias=0.65, multiscale_scales='0,10,20,40,80', 
                 baseline_averaging=5, parallel_deconvolution=512, local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=im.maskname, \
                 join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
@@ -177,6 +177,8 @@ for cmaj in range(2):
         positions = lsm.getPatchPositions()
         for name, flux, size in \
                 zip( lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum'), lsm.getPatchSizes(units='deg') ):
+            if flux < 0:
+                logger.warning('Flux for source "%s" is negative: %f' % (name, flux))
             direction = lib_dd.Direction(name)
             position = [positions[name][0].deg, positions[name][1].deg ]
             direction.set_position( position, cal=True )
@@ -184,6 +186,10 @@ for cmaj in range(2):
             direction.set_size([size*1.2,size*1.2], cal=True) # size increased by 20%
             directions.append(direction)
         directions = [x for _,x in sorted(zip([d.flux_cal for d in directions],directions))][::-1] # reorder with flux
+
+        #test a851
+        for d in directions:
+            print(d.name+': '+str(d.flux_cal))
 
         # write file
         lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
@@ -238,7 +244,8 @@ for cmaj in range(2):
         s.run(check=True)
 
         ### TTESTTESTTEST: empty image
-        clean('c'+str(cmaj)+'-'+d.name, MSs, size=(fwhm,fwhm), res='normal', empty=True)
+        if not os.path.exists('img/empty-c'+str(cmaj)+'-'+d.name+'-MFS-image.fits'):
+            clean('c'+str(cmaj)+'-'+d.name, MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
         if w.todo('c%02i-%s-shift' % (cmaj,d.name)):
@@ -293,7 +300,10 @@ for cmaj in range(2):
         # get initial noise
         image = lib_img.Image('img/ddcalM-%s-pre-MFS-image.fits' % (d.name))
         rms_noise_pre = image.getNoise()
+        rms_noise_init = rms_noise_pre
         doamp = False
+        iter_ph_solint = lib_util.Sol_iterator([4,2,1])
+        iter_amp_solint = lib_util.Sol_iterator([60,30,20]) # usually there are 3600/2/6=300 timesteps, try to use multiple numbers
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
 
         for cdd in range(20):
@@ -302,16 +312,16 @@ for cmaj in range(2):
 
             ################################################################
             # Calibrate
+            solint_ph = next(iter_ph_solint)
+            if doamp: solint_amp = next(iter_amp_solint)
    
             if w.todo('c%02i-%s-cdd%02i-calibrate' % (cmaj,d.name,cdd)):
                 logger.info('%s (cdd: %02i): Calibrate...' % (d.name,cdd))
 
                 # Calibration - ms:SMOOTHED_DATA
                 logger.info('Gain phase calibration...')
-                try: solint = [4,2][cdd]
-                except: solint = 1
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
-                    sol.h5parm=$pathMS/cal-ph.h5 sol.solint='+str(solint), \
+                    sol.h5parm=$pathMS/cal-ph.h5 sol.solint='+str(solint_ph), \
                     log='$nameMS_solGph-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.log', commandType='DPPP')
                 lib_util.run_losoto(s, 'ph', [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset'], plots_dir='ddcal/plots/plots-c%i-%s-cdd%i' % (cmaj, d.name, cdd))
@@ -327,7 +337,7 @@ for cmaj in range(2):
                 if doamp:
                     logger.info('Gain amp calibration...')
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                        sol.h5parm=$pathMS/cal-amp.h5 sol.solint=20', \
+                        sol.h5parm=$pathMS/cal-amp.h5 sol.solint='+str(solint_amp), \
                         log='$nameMS_solGamp-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.log', commandType='DPPP')
                     lib_util.run_losoto(s, 'amp', [ms+'/cal-amp.h5' for ms in MSs_dir.getListStr()], \
                         [parset_dir+'/losoto-plot-amp.parset'], plots_dir='ddcal/plots/plots-c%i-%s-cdd%i' % (cmaj, d.name, cdd))
@@ -357,6 +367,11 @@ for cmaj in range(2):
             if rms_noise > .95*rms_noise_pre and cdd >= 3 and doamp: break
             if rms_noise > .95*rms_noise_pre and cdd >= 2 and not doamp: doamp = True
             rms_noise_pre = rms_noise
+
+        # if divergency, don't subtract
+        if rms_noise > rms_noise_init:
+            logger.warning('%s: noise did not decresed (%f -> %f), do not subtract source.' % (d.name, rms_noise_init, rms_noise))
+            continue
 
         # remove the DD-cal from original dataset using new solutions
         if w.todo('c%02i-%s-subtract' % (cmaj,d.name)):
@@ -439,7 +454,7 @@ for cmaj in range(2):
     imagename = 'img/final-c'+str(cmaj)
     lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, size='7000 7000', save_source_list='', scale='5arcsec', \
                 weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-                multiscale='', multiscale_scale_bias=0.75, multiscale_scales='0,10,20,40,80',
+                multiscale='', multiscale_scale_bias=0.65, multiscale_scales='0,10,20,40,80',
                 parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1.5, \
                 join_channels='', fit_spectral_pol=3, channels_out=122, deconvolution_channels=3, \
                 temp_dir='./', pol='I', use_idg='', aterm_config=aterm_config_file, aterm_kernel_size=32, nmiter=4 )
