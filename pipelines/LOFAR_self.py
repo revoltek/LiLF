@@ -263,7 +263,7 @@ for c in range(2):
                 weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=4500, mgain=0.85, \
                 parallel_deconvolution=512, local_rms='', auto_threshold=1.5, \
                 multiscale='', multiscale_scale_bias=0.6, \
-                join_channels='', fit_spectral_pol=5, channels_out=9, deconvolution_channels=5, **kwargs)
+                join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=5, **kwargs)
 
         os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
  

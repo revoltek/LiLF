@@ -39,6 +39,10 @@ class Direction(object):
         self.image_low = None
         self.image_high = None
 
+        self.h5parms = {}
+        self.skymodel = None
+        self.skydb = None
+
     def is_in_bean(self):
         """
         Return true if the direction is in the beam or an outsider

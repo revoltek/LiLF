@@ -114,6 +114,7 @@ MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
 # make beam
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
+low_freq = 30e6
 phase_center = MSs.getListObj()[0].getPhaseCentre()
 logger.info('Add columns...')
 
@@ -182,6 +183,15 @@ for cmaj in range(maxIter):
                 zip( lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum'), lsm.getPatchSizes(units='deg') ):
             if flux < 0:
                 logger.warning('Flux for source "%s" is negative: %f' % (name, flux))
+
+            idx = s.getRowIndex(name)
+            fluxes = lsm.getColValues('I')[idx]
+            spidx_coeff = lsm.getColValues('SpectralIndex')[idx]
+            ref_freq = lsm.getColValues('ReferenceFrequency')[idx]
+            for i, term in enumerate(spidx_coeff[0]):
+                fluxes += spidx_coeff[:,i] * (low_freq/ref_freq)**(i+1)
+            print('Flux orig: %f - Flux at 30 MHz: %f' % (flux,np.sum(fluxes)))
+
             direction = lib_dd.Direction(name)
             position = [positions[name][0].deg, positions[name][1].deg ]
             direction.set_position( position, cal=True )
@@ -190,9 +200,8 @@ for cmaj in range(maxIter):
             directions.append(direction)
         directions = [x for _,x in sorted(zip([abs(d.flux_cal) for d in directions],directions))][::-1] # reorder with flux
 
-        #test a851
-        for d in directions:
-            print(d.name+': '+str(d.flux_cal))
+        #for d in directions:
+        #    print(d.name+': '+str(d.flux_cal))
 
         # write file
         lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
@@ -296,7 +305,8 @@ for cmaj in range(maxIter):
         rms_noise_init = rms_noise_pre
         doamp = False
         iter_ph_solint = lib_util.Sol_iterator([4,2,1])
-        iter_amp_solint = lib_util.Sol_iterator([60,30,20]) # usually there are 3600/2/6=300 timesteps, try to use multiple numbers
+        iter_amp_solint = lib_util.Sol_iterator([30,20,10]) # usually there are 3600/2/6=300 timesteps, try to use multiple numbers
+        iter_amp2_solint = lib_util.Sol_iterator([60,30,20]) # usually there are 3600/2/6=300 timesteps, try to use multiple numbers
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
 
         for cdd in range(20):
@@ -306,7 +316,9 @@ for cmaj in range(maxIter):
             ################################################################
             # Calibrate
             solint_ph = next(iter_ph_solint)
-            if doamp: solint_amp = next(iter_amp_solint)
+            if doamp:
+                solint_amp = next(iter_amp_solint)
+                solint_amp2 = next(iter_amp2_solint)
    
             if w.todo('c%02i-%s-cdd%02i-calibrate' % (cmaj,d.name,cdd)):
 
@@ -338,19 +350,38 @@ for cmaj in range(maxIter):
                     MSs_dir.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', \
                         log='$nameMS_smooth-c'+str(cmaj)+'-'+d.name+'.log', commandType='python')    
 
-                    logger.info('Gain amp calibration...')
+                    logger.info('Gain amp calibration 1...')
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.mode=diagonal \
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]] \
-                        sol.h5parm=$pathMS/cal-amp.h5 sol.uvmmin=300 sol.smoothnessconstraint=2e6 sol.solint='+str(solint_amp), \
-                        log='$nameMS_solGamp-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.log', commandType='DPPP')
-                    lib_util.run_losoto(s, 'amp', [ms+'/cal-amp.h5' for ms in MSs_dir.getListStr()], \
+                        sol.h5parm=$pathMS/cal-amp1.h5 sol.uvmmin=300 sol.smoothnessconstraint=1e6 sol.solint='+str(solint_amp), \
+                        log='$nameMS_solGamp1-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.log', commandType='DPPP')
+                    lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], \
                         [parset_dir+'/losoto-plot2.parset'], plots_dir='ddcal/plots/plots-c%i-%s-cdd%i' % (cmaj, d.name, cdd))
-                    lib_util.check_rm('ddcal/solutions/cal-amp-c%i-%s-cdd%i.h5' % (cmaj, d.name, cdd))
-                    os.system('mv cal-amp.h5 ddcal/solutions/cal-amp-c%i-%s-cdd%i.h5' % (cmaj, d.name, cdd))
+                    lib_util.check_rm('ddcal/solutions/cal-amp1-c%i-%s-cdd%i.h5' % (cmaj, d.name, cdd))
+                    os.system('mv cal-amp1.h5 ddcal/solutions/cal-amp1-c%i-%s-cdd%i.h5' % (cmaj, d.name, cdd))
 
-                    logger.info('Correct amp...')
+                    logger.info('Correct amp 1...')
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-                        cor.parmdb=ddcal/solutions/cal-amp-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.h5 cor.correction=amplitude000', \
+                        cor.parmdb=ddcal/solutions/cal-amp1-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.h5 cor.correction=amplitude000', \
+                        log='$nameMS_correct-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.log', commandType='DPPP') 
+
+                    logger.info('BL-based smoothing...')
+                    # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
+                    MSs_dir.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', \
+                        log='$nameMS_smooth-c'+str(cmaj)+'-'+d.name+'.log', commandType='python')    
+
+                    logger.info('Gain amp calibration 2...')
+                    MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.mode=diagonal \
+                        sol.h5parm=$pathMS/cal-amp2.h5 sol.uvmmin=300 sol.smoothnessconstraint=10e6 sol.solint='+str(solint_amp2), \
+                        log='$nameMS_solGamp2-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.log', commandType='DPPP')
+                    lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], \
+                        [parset_dir+'/losoto-plot2.parset'], plots_dir='ddcal/plots/plots-c%i-%s-cdd%i' % (cmaj, d.name, cdd))
+                    lib_util.check_rm('ddcal/solutions/cal-amp2-c%i-%s-cdd%i.h5' % (cmaj, d.name, cdd))
+                    os.system('mv cal-amp2.h5 ddcal/solutions/cal-amp2-c%i-%s-cdd%i.h5' % (cmaj, d.name, cdd))
+
+                    logger.info('Correct amp 2...')
+                    MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                        cor.parmdb=ddcal/solutions/cal-amp2-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.h5 cor.correction=amplitude000', \
                         log='$nameMS_correct-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.log', commandType='DPPP') 
 
                 w.done('c%02i-%s-cdd%02i-calibrate' % (cmaj,d.name,cdd))
@@ -373,9 +404,17 @@ for cmaj in range(maxIter):
             rms_noise_pre = rms_noise
 
         # if divergency, don't subtract
-        if rms_noise > rms_noise_init:
-            logger.warning('%s: noise did not decresed (%f -> %f), do not subtract source.' % (d.name, rms_noise_init, rms_noise))
+        if rms_noise_pre > rms_noise_init:
+            logger.warning('%s: noise did not decresed (%f -> %f), do not subtract source.' % (d.name, rms_noise_init, rms_noise_pre))
             continue
+        
+        # save best solutions
+        # TODO: revert to best noise solutions
+        d.h5parm['ph'] = 'ddcal/solutions/cal-ph-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd-1)+'.h5'
+        d.h5parm['amp1'] = 'ddcal/solutions/cal-amp1-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd-1)+'.h5'
+        d.h5parm['amp2'] = 'ddcal/solutions/cal-amp2-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd-1)+'.h5'
+        d.skymodel = 'img/ddcalM-%s-cdd%02i-sources.txt' % (d.name, cdd-1)
+        d.skydb = 'img/ddcalM-%s-cdd%02i-sources.skydb' % (d.name, cdd-1)
 
         # remove the DD-cal from original dataset using new solutions
         if w.todo('c%02i-%s-subtract' % (cmaj,d.name)):
@@ -387,36 +426,36 @@ for cmaj in range(maxIter):
                     log='$nameMS_add-c'+str(cmaj)+'-'+d.name+'.log', commandType='DPPP')
 
             # Predict new model - ms:MODEL_DATA
-            # TODO: find out the best solution among all obtained in the selfcal
-            ddcal_skymodel = 'img/ddcalM-%s-cdd%02i-sources.txt' % (d.name, cdd)
-            ddcal_skydb = 'img/ddcalM-%s-cdd%02i-sources.skydb' % (d.name, cdd)
-            lib_util.check_rm(ddcal_skydb)
+            lib_util.check_rm(d.skydb)
             # remove CCs that are outsie the d.size_cal region
-            lsm = lsmtool.load(ddcal_skymodel)
-            # select all sources within a sqare of patch size
+            lsm = lsmtool.load(d.skymodel)
             lsm.select('Ra > %f'  % (d.position_cal[0]-(d.size_cal[0]/2)/np.cos(d.position_cal[1]* np.pi / 180.)))
             lsm.select('Ra < %f'  % (d.position_cal[0]+(d.size_cal[0]/2)/np.cos(d.position_cal[1]* np.pi / 180.)))
             lsm.select('Dec > %f' % (d.position_cal[1]-(d.size_cal[1]/2)))
             lsm.select('Dec < %f' % (d.position_cal[1]+(d.size_cal[1]/2)))
-            lsm.write(ddcal_skymodel, format='makesourcedb', clobber=True)
-            s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (ddcal_skymodel, ddcal_skydb), \
+            lsm.write(d.skymodel, format='makesourcedb', clobber=True)
+            s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (d.skymodel, d.skydb), \
                     log='makesourcedb_'+d.name+'.log', commandType='general' )
             s.run(check=True)
 
             logger.info('Predict new DD-cal model in MODEL_DATA...')
             MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=MODEL_DATA \
-                    pre.sourcedb='+ddcal_skydb, \
+                    pre.sourcedb='+d.skydb, \
                     log='$nameMS_prenew-c'+str(cmaj)+'-'+d.name+'.log', commandType='DPPP')
 
             # Corrput now model - ms:MODEL_DATA -> MODEL_DATA
             logger.info('Corrupt ph...')
             MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                        cor.invert=False cor.parmdb=ddcal/solutions/cal-ph-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
+                        cor.invert=False cor.parmdb='+d.h5parm['ph']+' cor.correction=phase000 cor.direction=['+d.name+']', \
                         log='$nameMS_correct-c'+str(cmaj)+'-'+d.name+'.log', commandType='DPPP')
-            logger.info('Corrupt amp...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                   cor.invert=False cor.parmdb=ddcal/solutions/cal-amp-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
-                   log='$nameMS_correct-c'+str(cmaj)+'-'+d.name+'.log', commandType='DPPP') 
+            if os.path.exists(d.h5parm['amp1']):
+                logger.info('Corrupt amp...')
+                MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                       cor.invert=False cor.parmdb='+d.h5parm['amp1']+' cor.correction=amplitude000 cor.direction=['+d.name+']', \
+                       log='$nameMS_correct-c'+str(cmaj)+'-'+d.name+'.log', commandType='DPPP') 
+                MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                       cor.invert=False cor.parmdb='+d.h5parm['amp2']+' cor.correction=amplitude000 cor.direction=['+d.name+']', \
+                       log='$nameMS_correct-c'+str(cmaj)+'-'+d.name+'.log', commandType='DPPP') 
 
             # Remove the ddcal again
             logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA...')
@@ -436,7 +475,7 @@ for cmaj in range(maxIter):
 
     # combine the h5parms
     combined_h5parm = 'ddcal/solutions/combined.h5'
-    all_h5parms = ...
+    all_h5parms = [d.h5parm['ph'] for d in directions] # phase solutions TODO: add amp
     for h5parmFile in all_h5parms:
         dirname = h5parmFile.split('-')[3]
         lib_h5.repoint(h5parmFile, dirname)

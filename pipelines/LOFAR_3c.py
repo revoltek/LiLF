@@ -205,22 +205,22 @@ for c in range(100):
         MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=phase000', \
             log='$nameMS_corPHslow-c'+str(c)+'.log', commandType='DPPP')
 
-#        # solve G - group*_TC.MS:CORRECTED_DATA
-#        logger.info('Solving BP...')
-#        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGbp.h5 sol.mode=diagonal \
-#                sol.solint=150 sol.nchan=0', \
-#            log='$nameMS_solGbp-c'+str(c)+'.log', commandType="DPPP")
-#
-#        lib_util.run_losoto(s, 'Gbp-c'+str(c), [ms+'/calGbp.h5' for ms in MSs.getListStr()], \
-#                    [parset_dir+'/losoto-plot-pol.parset', parset_dir+'/losoto-ampnorm.parset'])
-#
-#        # Correct CORRECTED_DATA -> CORRECTED_DATA
-#        logger.info('Correction BP...')
-#        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gbp-c'+str(c)+'.h5 cor.correction=amplitude000', \
-#            log='$nameMS_corBP-c'+str(c)+'.log', commandType='DPPP')
-#        # TODO: corr slow phase
-#        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gbp-c'+str(c)+'.h5 cor.correction=phase000', \
-#            log='$nameMS_corBP-c'+str(c)+'.log', commandType='DPPP')
+        # solve G - group*_TC.MS:CORRECTED_DATA
+        logger.info('Solving BP...')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGbp.h5 sol.mode=diagonal \
+                sol.solint=150 sol.nchan=0', \
+            log='$nameMS_solGbp-c'+str(c)+'.log', commandType="DPPP")
+
+        lib_util.run_losoto(s, 'Gbp-c'+str(c), [ms+'/calGbp.h5' for ms in MSs.getListStr()], \
+                    [parset_dir+'/losoto-plot-pol.parset', parset_dir+'/losoto-ampnorm.parset'])
+
+        # Correct CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('Correction BP...')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gbp-c'+str(c)+'.h5 cor.correction=amplitude000', \
+            log='$nameMS_corBP-c'+str(c)+'.log', commandType='DPPP')
+        # TODO: corr slow phase
+        #MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gbp-c'+str(c)+'.h5 cor.correction=phase000', \
+        #    log='$nameMS_corBP-c'+str(c)+'.log', commandType='DPPP')
 
 
     #################################################
