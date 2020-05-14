@@ -289,7 +289,7 @@ for c in range(maxniter):
         
         # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
         logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
+        MSs.run('BLsmooth.py -c 8 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')    
     
         # Calibration - ms:SMOOTHED_DATA
         logger.info('Gain calibration...')

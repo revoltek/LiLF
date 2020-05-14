@@ -62,8 +62,9 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_dd', 'maxniter', '10')
     add_default('LOFAR_dd', 'calFlux', '2.0')
     # dd-serial
-    add_default('LOFAR_dd-serial', 'maxniter', '10')
-    add_default('LOFAR_dd-serial', 'calFlux', '2.0')
+    add_default('LOFAR_dd-serial', 'maxIter', '2')
+    add_default('LOFAR_dd-serial', 'minCalFlux', '1.5')
+    add_default('LOFAR_dd-serial', 'removeExtendedCutoff', '0.0001')
     # ddfacet
     add_default('LOFAR_ddfacet', 'maxniter', '10')
     add_default('LOFAR_ddfacet', 'calFlux', '2.0')
@@ -271,7 +272,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     reordering_processors = np.min([len(MSs_files),s.max_processors])
 
     # basic parms
-    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4' )
+    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4 -fit-beam -weighting-rank-filter 3 ' )
     if 'use_idg' in kwargs.keys():
         if s.get_cluster() == 'Hamburg_fat':
             wsc_parms.append( '-idg-mode hybrid' )
@@ -301,7 +302,6 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     command_string = 'wsclean '+' '.join(wsc_parms)
     s.add(command_string, log=logfile, commandType='wsclean', processors='max')
     s.run(check=True)
-    #logger.debug('Running wsclean: %s' % command_string)
 
     # Predict in case update_model_required cannot be used
     if do_predict == True:
@@ -316,10 +316,9 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
         # files
         wsc_parms.append( MSs_files )
 
-        command_string = 'wsclean -predict '+' '.join(wsc_parms)
+        command_string = 'wsclean -predict -j '+str(s.max_processors)+' '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean', processors='max')
         s.run(check=True)
-        #logger.debug('Running wsclean: %s' % command_string)
 
 
 class Walker():

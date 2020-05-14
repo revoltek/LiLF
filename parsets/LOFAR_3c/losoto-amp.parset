@@ -12,7 +12,7 @@ prefix = plots/amp_
 operation = CLIP
 soltab = sol000/amplitude000
 mode = below
-clipLevel = 0.5
+clipLevel = 0.1
 
 [copy]
 operation = DUPLICATE

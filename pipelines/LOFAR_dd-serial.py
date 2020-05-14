@@ -19,6 +19,9 @@ w = lib_util.Walker('pipeline-dd-serial.walker')
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_dd-serial','parset_dir')
 userReg = parset.get('model','userReg')
+maxIter = parset.getint('LOFAR_dd-serial','maxIter')
+minCalFlux = parset.getfloat('LOFAR_dd-serial','minCalFlux')
+removeExtendedCutoff = parset.getfloat('LOFAR_dd-serial','removeExtendedCutoff')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False):
     """
@@ -122,7 +125,7 @@ MSs.getListObj()[0].makeBeamReg('ddcal/beam.reg', freq='mid')
 beamReg = 'ddcal/beam.reg'
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
 
-for cmaj in range(2):
+for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
     
     if w.todo('c%02i-delimg' % cmaj):
@@ -147,7 +150,7 @@ for cmaj in range(2):
         # this mask is with no user region, done to isolate only bight compact sources
         if not os.path.exists(mosaic_image.skymodel_cut): 
             mosaic_image.beamReg = 'ddcal/beam.reg'
-            mosaic_image.makeMask(threshisl=4, atrous_do=False, remove_extended_cutoff=0.0001, only_beam=False, maskname=mask_cl)
+            mosaic_image.makeMask(threshisl=4, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff, only_beam=False, maskname=mask_cl)
             mosaic_image.selectCC(checkBeam=False, maskname=mask_cl)
         
         lsm = lsmtool.load(mosaic_image.skymodel_cut)
@@ -185,7 +188,7 @@ for cmaj in range(2):
             direction.set_flux(flux, cal=True)
             direction.set_size([size*1.2,size*1.2], cal=True) # size increased by 20%
             directions.append(direction)
-        directions = [x for _,x in sorted(zip([d.flux_cal for d in directions],directions))][::-1] # reorder with flux
+        directions = [x for _,x in sorted(zip([abs(d.flux_cal) for d in directions],directions))][::-1] # reorder with flux
 
         #test a851
         for d in directions:
@@ -219,16 +222,21 @@ for cmaj in range(2):
 
         w.done('c%02i-fullsub' % cmaj)
     ### DONE
+
+    ### TTESTTESTTEST: empty image
+    if not os.path.exists('img/empty-init-c'+str(cmaj)+'-MFS-image.fits'):
+        clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+    ###
  
-    for d in directions:
+    for dnum, d in enumerate(directions):
         # arrive down to calibrators of flux = 1 Jy
-        if d.flux_cal < 1: break
+        if abs(d.flux_cal) < minCalFlux: break
 
         logger.info('c%02i - Working on direction: %s (%f Jy - %f deg)' % (cmaj, d.name, d.flux_cal, d.size_cal[0]))
 
         # Prepare the skymodel:
         # Load full skymodel and extract sources in the square around the calibrator of the given size
-        if d.size_cal[0] > 0.5 or d.size_cal[1] > 0.5: logger.warning('Patch size too large: [%f - %f]' % (d.size_cal[0], d.size_cal[1]))
+        if d.size_cal[0] > 0.5 or d.size_cal[1] > 0.5: logger.warning('Patch size large: [%f - %f]' % (d.size_cal[0], d.size_cal[1]))
         dir_skymodel = 'ddcal/skymodels/%s.skymodel' % d.name
         dir_skydb = 'ddcal/skymodels/%s.skydb' % d.name
         lsm = lsmtool.load(mosaic_image.skymodel_cut)
@@ -242,11 +250,6 @@ for cmaj in range(2):
         lib_util.check_rm(dir_skydb)
         s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (dir_skymodel, dir_skydb), log='makesourcedb_cl.log', commandType='general' )
         s.run(check=True)
-
-        ### TTESTTESTTEST: empty image
-        if not os.path.exists('img/empty-c'+str(cmaj)+'-'+d.name+'-MFS-image.fits'):
-            clean('c'+str(cmaj)+'-'+d.name, MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
-        ###
 
         if w.todo('c%02i-%s-shift' % (cmaj,d.name)):
             logger.info('Phase shift and avg...')
@@ -279,16 +282,6 @@ for cmaj in range(2):
             w.done('c%02i-%s-predict' % (cmaj,d.name))
         ### DONE
 
-        if w.todo('c%02i-%s-smooth' % (cmaj,d.name)):
-            logger.info('BL-based smoothing...')
-
-            # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
-            MSs_dir.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', \
-                    log='$nameMS_smooth-c'+str(cmaj)+'-'+d.name+'.log', commandType='python')    
- 
-            w.done('c%02i-%s-smooth' % (cmaj,d.name))
-        ### DONE
-
         if w.todo('c%02i-%s-preimage' % (cmaj,d.name)):
 
             logger.info('Pre-imaging...')
@@ -316,15 +309,20 @@ for cmaj in range(2):
             if doamp: solint_amp = next(iter_amp_solint)
    
             if w.todo('c%02i-%s-cdd%02i-calibrate' % (cmaj,d.name,cdd)):
-                logger.info('%s (cdd: %02i): Calibrate...' % (d.name,cdd))
 
+                logger.info('BL-based smoothing...')
+                # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
+                MSs_dir.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', \
+                    log='$nameMS_smooth-c'+str(cmaj)+'-'+d.name+'.log', commandType='python')    
+ 
                 # Calibration - ms:SMOOTHED_DATA
                 logger.info('Gain phase calibration...')
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
-                    sol.h5parm=$pathMS/cal-ph.h5 sol.solint='+str(solint_ph), \
+                    sol.h5parm=$pathMS/cal-ph.h5 sol.solint='+str(solint_ph)+'  \
+                    sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]', \
                     log='$nameMS_solGph-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.log', commandType='DPPP')
                 lib_util.run_losoto(s, 'ph', [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()], \
-                    [parset_dir+'/losoto-plot-ph.parset'], plots_dir='ddcal/plots/plots-c%i-%s-cdd%i' % (cmaj, d.name, cdd))
+                    [parset_dir+'/losoto-plot1.parset'], plots_dir='ddcal/plots/plots-c%i-%s-cdd%i' % (cmaj, d.name, cdd))
                 lib_util.check_rm('ddcal/solutions/cal-ph-c%i-%s-cdd%i.h5' % (cmaj, d.name, cdd))
                 os.system('mv cal-ph.h5 ddcal/solutions/cal-ph-c%i-%s-cdd%i.h5' % (cmaj, d.name, cdd))
 
@@ -335,12 +333,18 @@ for cmaj in range(2):
                              log='$nameMS_correct-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.log', commandType='DPPP')
 
                 if doamp:
+                    logger.info('BL-based smoothing...')
+                    # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
+                    MSs_dir.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', \
+                        log='$nameMS_smooth-c'+str(cmaj)+'-'+d.name+'.log', commandType='python')    
+
                     logger.info('Gain amp calibration...')
-                    MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                        sol.h5parm=$pathMS/cal-amp.h5 sol.solint='+str(solint_amp), \
+                    MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.mode=diagonal \
+                        sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]] \
+                        sol.h5parm=$pathMS/cal-amp.h5 sol.uvmmin=300 sol.smoothnessconstraint=2e6 sol.solint='+str(solint_amp), \
                         log='$nameMS_solGamp-c'+str(cmaj)+'-'+d.name+'-cdd'+str(cdd)+'.log', commandType='DPPP')
                     lib_util.run_losoto(s, 'amp', [ms+'/cal-amp.h5' for ms in MSs_dir.getListStr()], \
-                        [parset_dir+'/losoto-plot-amp.parset'], plots_dir='ddcal/plots/plots-c%i-%s-cdd%i' % (cmaj, d.name, cdd))
+                        [parset_dir+'/losoto-plot2.parset'], plots_dir='ddcal/plots/plots-c%i-%s-cdd%i' % (cmaj, d.name, cdd))
                     lib_util.check_rm('ddcal/solutions/cal-amp-c%i-%s-cdd%i.h5' % (cmaj, d.name, cdd))
                     os.system('mv cal-amp.h5 ddcal/solutions/cal-amp-c%i-%s-cdd%i.h5' % (cmaj, d.name, cdd))
 
@@ -360,12 +364,12 @@ for cmaj in range(2):
                 w.done('c%02i-%s-cdd%02i-image' % (cmaj,d.name,cdd))
             ### DONE
         
-            # get noise, if larger than 95% of prev cycle: break
+            # get noise, if larger than prev cycle: break
             image = lib_img.Image('img/ddcalM-%s-cdd%02i-MFS-image.fits' % (d.name, cdd))
             rms_noise = image.getNoise()
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
-            if rms_noise > .95*rms_noise_pre and cdd >= 3 and doamp: break
-            if rms_noise > .95*rms_noise_pre and cdd >= 2 and not doamp: doamp = True
+            if rms_noise > rms_noise_pre and cdd >= 3 and doamp: break
+            if rms_noise > rms_noise_pre and cdd >= 2 and not doamp: doamp = True
             rms_noise_pre = rms_noise
 
         # if divergency, don't subtract
@@ -390,10 +394,10 @@ for cmaj in range(2):
             # remove CCs that are outsie the d.size_cal region
             lsm = lsmtool.load(ddcal_skymodel)
             # select all sources within a sqare of patch size
-            lsm.select('Ra > %f' % (d.position_cal[0]-(d.size_cal[0]/2)/np.cos(d.position_cal[1]* np.pi / 180.)))
-            lsm.select('Ra < %f' % (d.position_cal[0]+(d.size_cal[0]/2)/np.cos(d.position_cal[1]* np.pi / 180.)))
-            lsm.select('Dec > %f' % (d.position_cal[1]-d.size_cal[1]/2))
-            lsm.select('Dec < %f' % (d.position_cal[1]+d.size_cal[1]/2))
+            lsm.select('Ra > %f'  % (d.position_cal[0]-(d.size_cal[0]/2)/np.cos(d.position_cal[1]* np.pi / 180.)))
+            lsm.select('Ra < %f'  % (d.position_cal[0]+(d.size_cal[0]/2)/np.cos(d.position_cal[1]* np.pi / 180.)))
+            lsm.select('Dec > %f' % (d.position_cal[1]-(d.size_cal[1]/2)))
+            lsm.select('Dec < %f' % (d.position_cal[1]+(d.size_cal[1]/2)))
             lsm.write(ddcal_skymodel, format='makesourcedb', clobber=True)
             s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (ddcal_skymodel, ddcal_skydb), \
                     log='makesourcedb_'+d.name+'.log', commandType='general' )
@@ -422,6 +426,11 @@ for cmaj in range(2):
             w.done('c%02i-%s-subtract' % (cmaj,d.name))
         ### DONE
 
+        ### TTESTTESTTEST: empty image
+        if not os.path.exists('img/empty-%02i-c%i-%s-MFS-image.fits' % (dnum, cmaj, d.name)):
+            clean('%02i-c%i-%s' % (dnum, cmaj, d.name), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        ###
+
     ######################################################
     # full imaging
 
@@ -448,16 +457,17 @@ for cmaj in range(2):
     with open(aterm_config_file, 'w') as file:  # Use file to refer to the file object
         file.write('aterms = [diagonal, beam]')
         file.write('diagonal.images = ['+' '.join(glob.glob('ddcal/aterm/aterm_t*fits'))+']')
+        file.write('diagonal.window = tukey\n diagonal.update_interval  = 48.066724')
         file.write('beam.differential = true\n beam.update_interval = 120\n beam.usechannelfreq = true')
 
     # run the imager
     imagename = 'img/final-c'+str(cmaj)
-    lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, size='7000 7000', save_source_list='', scale='5arcsec', \
-                weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+    lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, size='6000 6000', save_source_list='', scale='5arcsec', \
+                weight='briggs -0.3', niter=2000, no_update_model_required='', minuv_l=30, mgain=0.85, \
                 multiscale='', multiscale_scale_bias=0.65, multiscale_scales='0,10,20,40,80',
                 parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1.5, \
-                join_channels='', fit_spectral_pol=3, channels_out=122, deconvolution_channels=3, \
-                temp_dir='./', pol='I', use_idg='', aterm_config=aterm_config_file, aterm_kernel_size=32, nmiter=4 )
+                join_channels='', fit_spectral_pol=3, channels_out=12, deconvolution_channels=3, \
+                temp_dir='./', pol='I', use_idg='', aterm_config=aterm_config_file, aterm_kernel_size=45, nmiter=4 )
     #wsclean -scale 0.0004166666666666667 -aterm-config ddcal/aterm/aterm.config -multiscale-scales 0 -size 1500 1500 -deconvolution-channels 4 -fits-mask /beegfs/rafferty/Data/LOFAR/Screens/Factor_sim/pipelines/image_1/sector_3/chunk9.ms.premask -auto-mask 3.6 -idg-mode hybrid -channels-out 12 -local-rms-window 50 -mgain 0.5 -minuv-l 80.0 -fit-spectral-pol 3 -maxuv-l 1000000.0 -weighting-rank-filter 3 -aterm-kernel-size 32 -temp-dir /tmp -name /beegfs/rafferty/Data/LOFAR/Screens/Factor_sim/pipelines/image_1/sector_3/chunk9.ms.image -padding 1.2 -pol I -multiscale-shape gaussian -auto-threshold 1.0 -local-rms-method rms-with-min -weight briggs -0.5 -niter 13635 -no-update-model-required -multiscale -fit-beam -reorder -save-source-list -local-rms -join-channels -use-idg -apply-primary-beam -nmiter 4
 
     mosaic_image = lib_img.Image(imagename+'-MFS-image.fits', userReg = userReg)

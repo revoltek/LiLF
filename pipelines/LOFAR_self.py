@@ -132,7 +132,7 @@ for c in range(2):
     if w.todo('solve_tec1_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+        MSs.run('BLsmooth.py -c 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
     
         # solve TEC - ms:SMOOTHED_DATA
         logger.info('Solving TEC1...')
@@ -162,7 +162,7 @@ for c in range(2):
     if w.todo('solve_tec2_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+        MSs.run('BLsmooth.py -c 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
     
         # solve TEC - ms:SMOOTHED_DATA
         logger.info('Solving TEC2...')
@@ -194,7 +194,7 @@ for c in range(2):
         if w.todo('solve_fr_c%02i' % c):
             # Smooth MODEL_DATA -> MODEL_DATA
             logger.info('BL-based smoothing...')
-            MSs.run('BLsmooth.py -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+            MSs.run('BLsmooth.py -c 8 -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
     
             # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Converting to circular...')
@@ -263,7 +263,7 @@ for c in range(2):
                 weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=4500, mgain=0.85, \
                 parallel_deconvolution=512, local_rms='', auto_threshold=1.5, \
                 multiscale='', multiscale_scale_bias=0.6, \
-                join_channels='', fit_spectral_pol=5, channels_out=10, deconvolution_channels=5, **kwargs)
+                join_channels='', fit_spectral_pol=5, channels_out=9, deconvolution_channels=5, **kwargs)
 
         os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
  
