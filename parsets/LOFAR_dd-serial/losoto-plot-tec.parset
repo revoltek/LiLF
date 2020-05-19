@@ -1,0 +1,18 @@
+Ncpu = 0
+
+[plotP]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time]
+axisInTable = ant
+prefix = plots/scph_
+refAnt = 'CS002LBA'
+minmax = [-3.14,3.14]
+
+[plotTEC]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = [time]
+axisInTable = ant
+prefix = plots/tec_
+refAnt = 'CS002LBA'

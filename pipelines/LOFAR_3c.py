@@ -141,7 +141,7 @@ MSs.run('BLsmooth.py -r -s 0.8 -i DATA -o DATA $pathMS', log='$nameMS_smooth1.lo
 ###############################################################
 # Selfcal
 rms_noise_pre = np.inf; doamp = False
-solint_ph = lib_util.Sol_iterator([10,5,2,1])
+solint_ph = lib_util.Sol_iterator([10,3,1])
 for c in range(100):
 
     logger.info('== Start cycle: %s ==' % c)
@@ -152,27 +152,6 @@ for c in range(100):
     ####################################################
     # 1: Solving
 
-#    if doamp:
-#    
-#        # solve G - group*_TC.MS:DATA
-#        logger.info('Solving 1...')
-#        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calGfr.h5 sol.mode=diagonal \
-#                sol.solint=10 sol.smoothnessconstraint=0.5e6', \
-#                log='$nameMS_solGfr-c'+str(c)+'.log', commandType="DPPP")
-#        lib_util.run_losoto(s, 'Gfr-c'+str(c), [ms+'/calGfr.h5' for ms in MSs.getListStr()], \
-#                        [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
-#
-#    # Convert to linear DATA -> CORRECTED_DATA
-#    logger.info('Converting to linear...')
-#    MSs.run('mslin2circ.py -r -i $pathMS:DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
-#    
-#    if doamp:
-#        # Correct CORRECTED_DATA -> CORRECTED_DATA
-#        logger.info('Correction FR...')
-#        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gfr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
-#            log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
-
-    # Re-do calibration after faradayrotation removal
     # solve G - group*_TC.MS:CORRECTED_DATA
     logger.info('Solving fast...')
     solint = next(solint_ph)
@@ -191,24 +170,25 @@ for c in range(100):
         # solve G - group*_TC.MS:CORRECTED_DATA
         logger.info('Solving slow...')
         MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGa.h5 sol.mode=diagonal \
-                sol.solint=50 sol.smoothnessconstraint=1e6', \
+                sol.solint=20 sol.smoothnessconstraint=0.5e6 \
+                sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
             log='$nameMS_solGa-c'+str(c)+'.log', commandType="DPPP")
         lib_util.run_losoto(s, 'Ga-c'+str(c), [ms+'/calGa.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot2d-pol.parset', parset_dir+'/losoto-plot-pol.parset', parset_dir+'/losoto-amp.parset'])
 
-        # Correct CORRECTED_DATA -> CORRECTED_DATA
-        logger.info('Correction slow AMP...')
-        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
-            log='$nameMS_corAMPslow-c'+str(c)+'.log', commandType='DPPP')
+        ## Correct CORRECTED_DATA -> CORRECTED_DATA
+        #logger.info('Correction slow AMP...')
+        #MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=amplitude000', \
+        #    log='$nameMS_corAMPslow-c'+str(c)+'.log', commandType='DPPP')
         # TODO: corr slow phase
-        logger.info('Correction slow PH...')
-        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=phase000', \
-            log='$nameMS_corPHslow-c'+str(c)+'.log', commandType='DPPP')
+        #logger.info('Correction slow PH...')
+        #MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=phase000', \
+        #    log='$nameMS_corPHslow-c'+str(c)+'.log', commandType='DPPP')
 
         # solve G - group*_TC.MS:CORRECTED_DATA
         logger.info('Solving BP...')
         MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGbp.h5 sol.mode=diagonal \
-                sol.solint=150 sol.nchan=0', \
+                sol.solint=50 sol.smoothnessconstraint=1e6', \
             log='$nameMS_solGbp-c'+str(c)+'.log', commandType="DPPP")
 
         lib_util.run_losoto(s, 'Gbp-c'+str(c), [ms+'/calGbp.h5' for ms in MSs.getListStr()], \
@@ -219,8 +199,8 @@ for c in range(100):
         MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gbp-c'+str(c)+'.h5 cor.correction=amplitude000', \
             log='$nameMS_corBP-c'+str(c)+'.log', commandType='DPPP')
         # TODO: corr slow phase
-        #MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gbp-c'+str(c)+'.h5 cor.correction=phase000', \
-        #    log='$nameMS_corBP-c'+str(c)+'.log', commandType='DPPP')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gbp-c'+str(c)+'.h5 cor.correction=phase000', \
+            log='$nameMS_corBP-c'+str(c)+'.log', commandType='DPPP')
 
 
     #################################################
@@ -275,7 +255,7 @@ for c in range(100):
     im.makeMask( threshisl=5, rmsbox=(500,30), atrous_do=False )
     rms_noise = im.getNoise()
     logger.info('RMS noise: %f' % rms_noise)
-    if doamp and rms_noise > 0.98*rms_noise_pre and c > 5:
+    if doamp and rms_noise > 0.98*rms_noise_pre and c > 4:
         break # if already doing amp and not getting better, quit
     if rms_noise > 0.98*rms_noise_pre:
         doamp = True

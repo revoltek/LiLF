@@ -59,11 +59,11 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_timesplit', 'initc', '0')
     # self
     # dd
-    add_default('LOFAR_dd', 'maxniter', '10')
-    add_default('LOFAR_dd', 'calFlux', '2.0')
+    add_default('LOFAR_dd-parallel', 'maxniter', '10')
+    add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
     # dd-serial
     add_default('LOFAR_dd-serial', 'maxIter', '2')
-    add_default('LOFAR_dd-serial', 'minCalFlux', '1.5')
+    add_default('LOFAR_dd-serial', 'minCalFlux60', '2')
     add_default('LOFAR_dd-serial', 'removeExtendedCutoff', '0.0001')
     # ddfacet
     add_default('LOFAR_ddfacet', 'maxniter', '10')

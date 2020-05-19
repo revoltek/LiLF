@@ -9,7 +9,7 @@ import pyrap.tables as pt
 import lsmtool
 
 #######################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd
+from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd_parallel
 logger_obj = lib_log.Logger('pipeline-dd.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
@@ -17,9 +17,9 @@ w = lib_util.Walker('pipeline-dd.walker')
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('LOFAR_dd','parset_dir')
-maxniter = parset.getint('LOFAR_dd','maxniter')
-calFlux = parset.getfloat('LOFAR_dd','calFlux')
+parset_dir = parset.get('LOFAR_dd-parallel','parset_dir')
+maxniter = parset.getint('LOFAR_dd-parallel','maxniter')
+calFlux = parset.getfloat('LOFAR_dd-parallel','calFlux')
 userReg = parset.get('model','userReg')
 aterm_imaging = False
 
@@ -182,7 +182,7 @@ for c in range(maxniter):
         x = lsm.getColValues('RA',aggregate='wmean')
         y = lsm.getColValues('Dec',aggregate='wmean')
         flux = lsm.getColValues('I',aggregate='sum')
-        grouper = lib_dd.Grouper(list(zip(x,y)),flux,look_distance=0.3,kernel_size=0.1,grouping_distance=0.05)
+        grouper = lib_dd_parallel.Grouper(list(zip(x,y)),flux,look_distance=0.3,kernel_size=0.1,grouping_distance=0.05)
         grouper.run()
         clusters = grouper.grouping()
         grouper.plot()
@@ -203,7 +203,7 @@ for c in range(maxniter):
     
         lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
         for name, flux in zip(lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum')):
-            direction = lib_dd.Direction(name)
+            direction = lib_dd_parallel.Direction(name)
             position = [ lsm.getPatchPositions()[name][0].deg, lsm.getPatchPositions()[name][1].deg ]
             direction.set_position( position, cal=True )
             direction.set_flux(flux, cal=True)
@@ -243,7 +243,7 @@ for c in range(maxniter):
         ### create regions (using cluster directions)
         logger.info("Create regions.")
         lsm = lsmtool.load(mosaic_image.skymodel_cut)
-        lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, \
+        lib_dd_parallel.make_voronoi_reg(directions, mosaic_image.maskname, \
                 outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
         lsm.group('facet', facet=mask_voro, root='Isl_patch')
         [ d.add_mask_voro(mask_voro) for d in directions ]

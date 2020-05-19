@@ -1,12 +1,12 @@
 Ncpu = 0
 
-[plotA]
-operation = PLOT
-soltab = sol000/amplitude000
-axesInPlot = [time,freq]
-axisInTable = ant
-plotFlag = True
-prefix = plots/amp_
+#[plotA]
+#operation = PLOT
+#soltab = sol000/amplitude000
+#axesInPlot = [time,freq]
+#axisInTable = ant
+#plotFlag = True
+#prefix = plots/amp_
 
 [clip]
 operation = CLIP
@@ -14,43 +14,43 @@ soltab = sol000/amplitude000
 mode = below
 clipLevel = 0.1
 
-[copy]
-operation = DUPLICATE
-soltab = sol000/amplitude000
-soltabOut = amplitudeSmooth
-
-[smooth]
-operation = SMOOTH
-soltab = sol000/amplitudeSmooth
-ant.regexp = CS*
-axesToSmooth = [ant]
-mode = median
-
-[plotAsmooth1]
-operation = PLOT
-soltab = sol000/amplitudeSmooth
-axesInPlot = [time,freq]
-axisInTable = ant
-plotFlag = True
-prefix = plots/ampSmooth1_
-
-[replicate]
-operation = REPLICATEONAXIS
-soltab = sol000/amplitudeSmooth
-axisReplicate = ant
-fromCell = CS001LBA
-updateWeights = False
+#[copy]
+#operation = DUPLICATE
+#soltab = sol000/amplitude000
+#soltabOut = amplitudeSmooth
+#
+#[smooth]
+#operation = SMOOTH
+#soltab = sol000/amplitudeSmooth
+#ant.regexp = CS*
+#axesToSmooth = [ant]
+#mode = median
+#
+#[plotAsmooth1]
+#operation = PLOT
+#soltab = sol000/amplitudeSmooth
+#axesInPlot = [time,freq]
+#axisInTable = ant
+#plotFlag = True
+#prefix = plots/ampSmooth1_
+#
+#[replicate]
+#operation = REPLICATEONAXIS
+#soltab = sol000/amplitudeSmooth
+#axisReplicate = ant
+#fromCell = CS001LBA
+#updateWeights = False
 
 [norm]
 operation = NORM
-soltab = sol000/amplitudeSmooth
+soltab = sol000/amplitude000
 normVal = 1.
-axesToNorm = [time,freq]
+axesToNorm = [ant,time,freq]
 
-[plotAsmooth2]
+[plotA]
 operation = PLOT
-soltab = sol000/amplitudeSmooth
+soltab = sol000/amplitude000
 axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
-prefix = plots/ampSmooth2_
+prefix = plots/ampClip_
