@@ -1,23 +1,9 @@
 import os, sys, itertools
 import numpy as np
-from astropy.table import Table
-from astropy.coordinates import SkyCoord
-from astropy.io import fits as pyfits
-from astropy import wcs as pywcs
-import astropy.units as u
-import pyregion
-from pyregion.parser_helper import Shape
-from matplotlib.path import Path
-from scipy.ndimage import binary_dilation, generate_binary_structure
-from scipy.ndimage.measurements import label, center_of_mass
-try:
-    from scipy.spatial import Voronoi, voronoi_plot_2d
-except:
-    logger.error("Load latest scipy with 'use Pythonlibs'")
-    sys.exit(1)
 
 from LiLF.lib_log import logger
-from LiLF import lib_img
+from LiLF import lib_img, lib_util
+import lsmtool
 
 class Direction(object):
 
@@ -28,17 +14,78 @@ class Direction(object):
         self.fluxes = None # Jy
         self.spidx_coeffs = None
         self.ref_freq = None
+        self.converged = None
 
         # lib_img.Image objects:
         self.image = None
         self.image_res = None
         self.image_low = None
         self.image_high = None
-        self.skymodel = None
-        self.skydb = None
 
-        # associated h5parm
-        self.h5parms = {}
+        self.clean()
+
+    def clean(self):
+
+        # skymodels
+        self.skymodel = []
+        self.skydb = []
+
+        # associated h5parms
+        self.h5parms = {'ph':[],'amp1':[],'amp2':[]}
+
+
+    def set_h5parm(self, typ='', h5parmFile=''):
+        """
+        typ can be 'ph', 'amp1', or 'amp2'
+        h5parmFile: filename
+        """
+        assert (typ == 'ph' or typ == 'amp1' or typ == 'amp2')
+        self.h5parms[typ].append(h5parmFile)
+
+
+    def get_h5parm(self, typ='', pos=-1):
+        """
+        typ can be 'ph', 'amp1', or 'amp2'
+        pos: the cycle from 0 to last added, negative numbers to search backwards, if non exists returns None
+        """
+        assert (typ == 'ph' or typ == 'amp1' or typ == 'amp2')
+        l = self.h5parms[typ]
+        try:
+            return l[pos]
+        except:
+            return None
+
+    def set_skymodel(self, skymodel, doskydb=False, restrict=False):
+        """
+        skymodel: filename
+        """
+        if restrict:
+            lsm = lsmtool.load(skymodel)
+            # select all sources within a sqare of patch size
+            lsm.select('Ra > %f' % (self.position[0]-(self.size[0]/2)/np.cos(self.position[1]* np.pi / 180.)))
+            lsm.select('Ra < %f' % (self.position[0]+(self.size[0]/2)/np.cos(self.position[1]* np.pi / 180.)))
+            lsm.select('Dec > %f' % (self.position[1]-self.size[1]/2))
+            lsm.select('Dec < %f' % (self.position[1]+self.size[1]/2))
+            regionfile = skymodel.replace('.txt','.reg').replace('.skymodel','.reg')
+            lsm.write(regionfile, format='ds9', clobber=True)
+            lsm.write(skymodel, format='makesourcedb', clobber=True)
+
+        if doskydb:
+            skydb = skymodel.replace('.txt','.skydb').replace('.skymodel','.skydb')
+            lib_util.check_rm(skydb)
+            os.system('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel,skydb))
+            self.skydb.append( skydb )
+
+        self.skymodel.append( skymodel )
+
+    def get_skydb(self, pos=-1):
+        """
+        pos: the cycle from 0 to last added, negative numbers to search backwards, if non exists returns None
+        """
+        try:
+            return self.skydb[pos]
+        except:
+            return None
 
 
     def is_in_beam(self):
