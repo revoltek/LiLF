@@ -1,0 +1,14 @@
+Ncpu = 0
+
+[clip]
+operation = CLIP
+soltab = sol000/amplitude000
+mode = below
+clipLevel = 0.5
+
+[clip2]
+operation = CLIP
+soltab = sol000/amplitude000
+mode = above
+clipLevel = 1.5
+
