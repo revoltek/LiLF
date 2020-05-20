@@ -14,7 +14,8 @@ class Image(object):
         BeamReg: ds9 region file of the beam
         """
         if 'MFS' in imagename: suffix = 'MFS-image.fits'
-        else: suffix = 'image.fits'
+        elif 'image.fits' in imagename: suffix = 'image.fits'
+        else: suffix = '.fits'
         if userReg == '': userReg = None
         if beamReg == '': beamReg = None
 
@@ -52,7 +53,7 @@ class Image(object):
             fits.close()
 
 
-    def makeMask(self, threshisl=5, atrous_do=True, rmsbox=(100,30), remove_extended_cutoff=0., only_beam=False, maskname=None):
+    def makeMask(self, threshisl=5, atrous_do=True, rmsbox=(100,10), remove_extended_cutoff=0., only_beam=False, maskname=None):
         """
         Create a mask of the image where only believable flux is
 
@@ -66,7 +67,7 @@ class Image(object):
         if maskname is None: maskname = self.maskname
 
         if not os.path.exists(maskname):
-            logger.info('%s: Making mask...' % self.imagename)
+            logger.info('%s: Making mask (%s)...' % (self.imagename, maskname))
             make_mask.make_mask(image_name=self.imagename, mask_name=maskname, threshisl=threshisl, atrous_do=atrous_do, rmsbox=rmsbox)
         if self.userReg is not None:
             logger.info('%s: Adding user mask (%s)...' % (self.imagename, self.userReg))
@@ -100,22 +101,28 @@ class Image(object):
                 fits.writeto(maskname, overwrite=True)
 
 
-    def selectCC(self, keepInBeam=True):
+    def selectCC(self, checkBeam=True, keepInBeam=True, maskname=None):
         """
         remove cc from a skymodel according to masks
+        checkBeam: remove according to beam (see keepInBeam)
         keepInBeam: if beamReg is present and is True: remove sources outside beam
                     if beamReg is present and is False: remove source inside beam
+        maskname: a possible mask, otherwise try to use standard
         """
-        self.makeMask()
+        if maskname is None: mask = self.maskname
+        if not os.path.exists(maskname):
+            raise("Missing mask in selectCC: %s." % maskname)
 
-        if self.beamReg is not None:
+        if checkBeam:
+            if self.beamReg is None:
+                raise('Missing beam in selectCC.')
             logger.info('Predict (apply beam reg %s)...' % self.beamReg)
-            blank_image_reg(self.maskname, self.beamReg, inverse=keepInBeam, blankval=0) # if keep_in_beam set to 0 everything outside beam.reg
+            blank_image_reg(maskname, self.beamReg, inverse=keepInBeam, blankval=0) # if keep_in_beam set to 0 everything outside beam.reg
 
         # apply mask
-        logger.info('%s: Apply mask on skymodel...' % self.imagename)
+        logger.info('%s: Apply mask (%s) on skymodel...' % (self.imagename,maskname))
         lsm = lsmtool.load(self.skymodel)
-        lsm.select('%s == True' % self.maskname)
+        lsm.select('%s == True' % maskname)
         lsm.group('single') # group to 1 patch
         lsm.write(self.skymodel_cut, format = 'makesourcedb', clobber=True)
         del lsm
@@ -178,17 +185,17 @@ def flatten(f, channel = 0, freqaxis = 0):
         if (r):
             header[k] = r
 
-    slice = []
+    slicing = []
     for i in range(naxis,0,-1):
         if (i <= 2):
-            slice.append(np.s_[:],)
+            slicing.append(np.s_[:],)
         elif (i == freqaxis):
-            slice.append(channel)
+            slicing.append(channel)
         else:
-            slice.append(0)
+            slicing.append(0)
 
     # slice=(0,)*(naxis-2)+(np.s_[:],)*2
-    return header, f[0].data[slice]
+    return header, f[0].data[tuple(slicing)]
 
 
 def blank_image_fits(filename, maskname, outfile = None, inverse = False, blankval = 0.):

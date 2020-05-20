@@ -2,7 +2,7 @@
 
 # create a mask using bdsm of an image
 
-def make_mask(image_name, mask_name=None, threshisl=5, atrous_do=False, rmsbox=(100,30), mask_combine=None):
+def make_mask(image_name, mask_name=None, threshisl=5, atrous_do=False, rmsbox=(100,10), adaptive_thresh=50, mask_combine=None, write_srl=False):
 
     import sys, os
     import numpy as np
@@ -10,18 +10,23 @@ def make_mask(image_name, mask_name=None, threshisl=5, atrous_do=False, rmsbox=(
     import bdsf
 
     # wavelets are required to fit gaussians
-    if atrous_do: stop_at = None
+    if atrous_do or write_srl: stop_at = None
     else: stop_at = 'isl'
 
     # DO THE SOURCE DETECTION
     img = bdsf.process_image(image_name, rms_box=rmsbox, frequency=54e6, \
-        thresh_isl=float(threshisl), thresh_pix=float(threshisl*3./5), atrous_do=atrous_do, atrous_jmax=3, \
-        adaptive_rms_box=True, adaptive_thresh=100, rms_box_bright=(30,10), stop_at=stop_at, quiet=True, debug=False)
+        thresh_isl=float(threshisl), thresh_pix=float(threshisl*3/5.), rms_map=True, mean_map='zero', atrous_do=atrous_do, atrous_jmax=3, \
+        adaptive_rms_box=True, adaptive_thresh=adaptive_thresh, rms_box_bright=(30,5), stop_at=stop_at, quiet=True, debug=False)
 
     # WRITE THE MASK FITS
     if mask_name == None: mask_name = image_name+'.newmask'
     if os.path.exists(mask_name): os.system('rm -r ' + mask_name)
-    img.export_image(img_type='island_mask', img_format='fits', outfile=mask_name)
+    img.export_image(img_type='island_mask', img_format='fits', outfile=mask_name, clobber=True)
+
+    # WRITE CATALOGUE
+    if write_srl:
+        img.write_catalog(format='fits', catalog_type='srl', clobber=True)
+
     del img
 
     # do an pixel-by-pixel "OR" operation with a given mask
@@ -45,7 +50,7 @@ if __name__=='__main__':
     opt.add_option('-t', '--atrous_do', help='BDSM extended source detection (default=False)', action='store_true', default=False)
     opt.add_option('-m', '--newmask', help='Mask name (default=imagename with mask in place of image)', default=None)
     opt.add_option('-c', '--combinemask', help='Mask name of a mask to add to the found one (default=None)', default=None)
-    opt.add_option('-r', '--rmsbox', help='rms box size (default=55,12)', default='55,12')
+    opt.add_option('-r', '--rmsbox', help='rms box size (default=100,10)', default='100,10')
     (options, args) = opt.parse_args()
     
     rmsbox = (int(options.rmsbox.split(',')[0]),int(options.rmsbox.split(',')[1]))

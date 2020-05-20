@@ -2,7 +2,10 @@ import os, sys, re, time, pickle, random, shutil, glob
 
 from casacore import tables
 import numpy as np
-import multiprocessing
+import multiprocessing, subprocess
+from threading import Thread
+from queue import Queue
+import gc
 
 if (sys.version_info > (3, 0)):
     from configparser import ConfigParser
@@ -56,8 +59,15 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_timesplit', 'initc', '0')
     # self
     # dd
-    add_default('LOFAR_dd', 'maxniter', '10')
-    add_default('LOFAR_dd', 'calFlux', '2.0')
+    add_default('LOFAR_dd-parallel', 'maxniter', '10')
+    add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
+    # dd-serial
+    add_default('LOFAR_dd-serial', 'maxIter', '2')
+    add_default('LOFAR_dd-serial', 'minCalFlux60', '2')
+    add_default('LOFAR_dd-serial', 'removeExtendedCutoff', '0.0001')
+    # ddfacet
+    add_default('LOFAR_ddfacet', 'maxniter', '10')
+    add_default('LOFAR_ddfacet', 'calFlux', '2.0')
     # facet_self
     add_default('LOFAR_facet_self', 'maxniter', '10')
 
@@ -181,7 +191,29 @@ def check_rm(regexp):
             os.system("rm -r " + f)
 
 
-def run_losoto(s, c, h5s, parsets):
+class Sol_iterator(object):
+    """
+    Iterator on a list that keeps on returing
+    the last element when the list is over
+    """
+
+    def __init__(self, vals=[]):
+        self.vals = vals
+        self.pos = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.pos < len(self.vals):
+            val = self.vals[self.pos]
+            self.pos += 1
+            return val
+        else:
+            return self.vals[-1]
+
+
+def run_losoto(s, c, h5s, parsets, plots_dir=None):
     """
     s : scheduler
     c : cycle name, e.g. "final"
@@ -191,28 +223,41 @@ def run_losoto(s, c, h5s, parsets):
 
     logger.info("Running LoSoTo...")
 
-    h5 = 'cal-'+c+'.h5'
+    h5out = 'cal-'+c+'.h5'
 
     if type(h5s) is str: h5s = [h5s]
 
+    # convert from killMS
+    for i, h5 in enumerate(h5s):
+        if h5[-3:] == 'npz':
+            newh5 = h5.replace('.npz','.h5')
+            s.add('killMS2H5parm.py -V --nofulljones %s %s ' % (newh5, h5), log='losoto-'+c+'.log', commandType="python", processors='max')
+            s.run(check = True)
+            h5s[i] = newh5
+
     # concat/move
     if len(h5s) > 1:
-        check_rm("cal-" + c + ".h5")
-        s.add('H5parm_collector.py -V -s sol000 -o '+h5+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
+        check_rm(h5out)
+        s.add('H5parm_collector.py -V -s sol000 -o '+h5out+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
         s.run(check = True)
     else:
-        os.system('cp -r %s %s' % (h5s[0], h5) )
+        os.system('cp -r %s %s' % (h5s[0], h5out) )
 
     check_rm('plots')
     os.makedirs('plots')
 
     for parset in parsets:
         logger.debug('-- executing '+parset+'...')
-        s.add('losoto -V '+h5+' '+parset, log='losoto-'+c+'.log', logAppend=True, commandType="python", processors='max')
+        s.add('losoto -V '+h5out+' '+parset, log='losoto-'+c+'.log', logAppend=True, commandType="python", processors='max')
         s.run(check = True)
 
-    check_rm('plots-' + c)
-    os.system('mv plots plots-' + c)
+    if plots_dir is None:
+        check_rm('plots-' + c)
+        os.system('mv plots plots-' + c)
+    else:
+        if not os.path.exists(plots_dir): os.system('mkdir '+plots_dir)
+        os.system('mv plots/* '+plots_dir)
+        check_rm('plots')
 
 
 def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
@@ -227,9 +272,13 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     reordering_processors = np.min([len(MSs_files),s.max_processors])
 
     # basic parms
-    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4' )
-    if 'use_idg' in kwargs.keys() and s.get_cluster() == 'Hamburg_fat':
-        wsc_parms.append( '-idg-mode cpu' ) # TODO: move to hybrid when fixed
+    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4 -fit-beam -weighting-rank-filter 3 ' )
+    if 'use_idg' in kwargs.keys():
+        if s.get_cluster() == 'Hamburg_fat':
+            wsc_parms.append( '-idg-mode hybrid' )
+            wsc_parms.append( '-mem 10' )
+        else:
+            wsc_parms.append( '-idg-mode cpu' )
 
     # other stanrdard parms
     wsc_parms.append( '-clean-border 1' )
@@ -253,7 +302,6 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     command_string = 'wsclean '+' '.join(wsc_parms)
     s.add(command_string, log=logfile, commandType='wsclean', processors='max')
     s.run(check=True)
-    #logger.debug('Running wsclean: %s' % command_string)
 
     # Predict in case update_model_required cannot be used
     if do_predict == True:
@@ -268,10 +316,30 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
         # files
         wsc_parms.append( MSs_files )
 
-        command_string = 'wsclean -predict '+' '.join(wsc_parms)
+        command_string = 'wsclean -predict -j '+str(s.max_processors)+' '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean', processors='max')
         s.run(check=True)
-        #logger.debug('Running wsclean: %s' % command_string)
+
+
+class Walker():
+    def __init__(self, filename):
+        open(filename, 'a').close() # create the file if doesn't exists
+        self.filename = filename
+
+    def done(self, stepname):
+        with open(self.filename, "a") as f:
+            f.write(stepname+'\n')
+
+    def todo(self, stepname):
+        """
+        Return false if stepname has been already done
+        """
+        with open(self.filename, "r") as f:
+            for stepname_done in f:
+                if stepname == stepname_done.rstrip():
+                    logger.warning('SKIP: %s' % stepname)
+                    return False
+        return True
 
 
 class Scheduler():
@@ -366,6 +434,9 @@ class Scheduler():
             logger.debug('Running wsclean: %s' % cmd)
         elif commandType == 'DPPP':
             logger.debug('Running DPPP: %s' % cmd)
+        elif commandType == 'singularity':
+            cmd = 'SINGULARITY_TMPDIR=/dev/shm singularity exec -B /tmp,/dev/shm,/localwork,/localwork.ssd,/home /home/fdg/node31/opt/src/lofar_sksp_ddf.simg ' + cmd
+            logger.debug('Running singularity: %s' % cmd)
         elif commandType == 'python':
             logger.debug('Running python: %s' % cmd)
 
@@ -396,13 +467,6 @@ class Scheduler():
         If 'check' is True, a check is done on every log in 'self.log_list'.
         If max_thread != None, then it overrides the global values, useful for special commands that need a lower number of threads.
         """
-        from threading import Thread
-        if (sys.version_info > (3, 0)):
-            from queue import Queue
-        else:
-            from Queue import Queue
-        import subprocess
-        import gc
 
         def worker(queue):
             for cmd in iter(queue.get, None):
@@ -449,7 +513,6 @@ class Scheduler():
         Produce a warning if a command didn't close the log properly i.e. it crashed
         NOTE: grep, -L inverse match, -l return only filename
         """
-        import subprocess
 
         if (not os.path.exists(log)):
             logger.warning("No log file found to check results: " + log)
@@ -468,11 +531,19 @@ class Scheduler():
             out += subprocess.check_output('grep -l "\*\*\* Error \*\*\*" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "wsclean"):
-            out = subprocess.check_output('grep -l "exception occured" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output('grep -l "exception occur" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Segmentation fault" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "Aborted" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "python"):
+            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "Segmentation fault" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "ERROR" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+
+        elif (commandType == "singularity"):
             out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)

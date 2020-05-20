@@ -15,7 +15,7 @@ import stager_access as stager
 #project = 'LC9_017' # 3c first part
 #project = 'LC10_020' # 3c second part
 #project = 'LC4_012' # Lazio planet
-project = 'LC12_017' # LBAsurvey
+project = 'LC12_006'
 # The class of data to query
 cls = CorrelatedDataProduct
 

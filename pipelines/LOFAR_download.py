@@ -131,9 +131,9 @@ if renameavg:
             timeint = MS.getTimeInt()
 
             if nchan % 4 == 0 and nchan != 1:
-                avg_factor_f = nchan / 4 # to 4 ch/SB
+                avg_factor_f = int(nchan / 4) # to 4 ch/SB
             elif nchan % 5 == 0 and nchan != 1:
-                avg_factor_f = nchan / 5 # to 5 ch/SB
+                avg_factor_f = int(nchan / 5) # to 5 ch/SB
             else:
                 logger.error('Channels should be a multiple of 4 or 5.')
                 sys.exit(1)

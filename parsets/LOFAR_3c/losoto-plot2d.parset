@@ -1,0 +1,20 @@
+Ncpu = 0
+
+[plotA]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/amp_
+
+[plotP]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ph_
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
+minmax = [-3.14,3.14]

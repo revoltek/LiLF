@@ -1,0 +1,13 @@
+Ncpu = 0
+
+[plotPd]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
+plotFlag = True
+prefix = plots/ph-dif
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
+minmax = [-1,+1]
