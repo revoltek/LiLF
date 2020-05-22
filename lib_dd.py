@@ -1,40 +1,85 @@
-import os, sys, itertools
+import os, sys, glob
 import numpy as np
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+import pyregion
+from pyregion.parser_helper import Shape
+import lsmtool
 
 from LiLF.lib_log import logger
 from LiLF import lib_img, lib_util
-import lsmtool
+
 
 class Direction(object):
 
     def __init__(self, name):
         self.name = name 
         self.position = None # [deg, deg]
-        self.size = None # [deg, deg]
+        self.size = None # deg
         self.fluxes = None # Jy
         self.spidx_coeffs = None
         self.ref_freq = None
         self.converged = None
+        self.peel_off = None
+        self.region_file = None
 
-        # lib_img.Image objects:
-        self.image = None
-        self.image_res = None
-        self.image_low = None
-        self.image_high = None
-
-        self.clean()
+        self.model = {}
+        self.h5parms = {'ph':[],'amp1':[],'amp2':[]}
 
     def clean(self):
-
-        # skymodels
-        self.skymodel = []
-        self.skydb = []
+        # TODO: remove files?
 
         # associated h5parms
         self.h5parms = {'ph':[],'amp1':[],'amp2':[]}
 
+    def set_region(self, loc):
+        """
+        Creates a ds9 regionfile that covers the DD-cal model
+        """
+        assert self.size is not None and self.position is not None # we need this to be already set
 
-    def set_h5parm(self, typ='', h5parmFile=''):
+        self.region_file = loc+'/'+self.name+'.reg'
+        s = Shape('circle', None)
+        s.coord_format = 'fk5'
+        s.coord_list = [ self.position[0], self.position[1], self.size ] # ra, dec, radius
+        s.coord_format = 'fk5'
+        s.attr = ([], {'width': '2', 'point': 'cross',
+                       'font': '"helvetica 16 normal roman"'})
+        s.comment = 'color=red text="%s"' % self.name
+
+        regions = pyregion.ShapeList([s])
+        lib_util.check_rm(self.region_file)
+        regions.write(self.region_file)
+
+    def get_region(self):
+        if self.region_file is None:
+            raise "Missing region file."
+
+        return self.region_file
+
+    def set_model(self, root, typ, apply_region=True):
+        """
+        apply_region: Isolate the clean components of a model fits file to those under self.region
+        typ = init / best / regrid / ...
+        """
+
+        if apply_region:
+            region_file = self.get_region()
+            for model_file in glob.glob(root+'*[0-9]-model.fits'):
+                lib_img.blank_image_reg(model_file, region_file, model_file, inverse=True, blankval=0.)
+
+        self.model[typ] = root
+
+    def get_model(self, typ):
+        """
+        Return the root name for the modelfile
+        """
+        try:
+            return self.model[typ]
+        except:
+            raise "Model '%s' not set." % typ
+
+    def add_h5parm(self, typ, h5parmFile):
         """
         typ can be 'ph', 'amp1', or 'amp2'
         h5parmFile: filename
@@ -43,7 +88,7 @@ class Direction(object):
         self.h5parms[typ].append(h5parmFile)
 
 
-    def get_h5parm(self, typ='', pos=-1):
+    def get_h5parm(self, typ, pos=-1):
         """
         typ can be 'ph', 'amp1', or 'amp2'
         pos: the cycle from 0 to last added, negative numbers to search backwards, if non exists returns None
@@ -53,51 +98,20 @@ class Direction(object):
         try:
             return l[pos]
         except:
-            return None
+            raise "Missing h5parm (type: %s) in pos: %i." % (typ,pos)
 
-    def set_skymodel(self, skymodel, doskydb=False, restrict=False):
+    def set_position(self, position, beam_fwhm, phase_center):
         """
-        skymodel: filename
-        """
-        if restrict:
-            lsm = lsmtool.load(skymodel)
-            # select all sources within a sqare of patch size
-            lsm.select('Ra > %f' % (self.position[0]-(self.size[0]/2)/np.cos(self.position[1]* np.pi / 180.)))
-            lsm.select('Ra < %f' % (self.position[0]+(self.size[0]/2)/np.cos(self.position[1]* np.pi / 180.)))
-            lsm.select('Dec > %f' % (self.position[1]-self.size[1]/2))
-            lsm.select('Dec < %f' % (self.position[1]+self.size[1]/2))
-            regionfile = skymodel.replace('.txt','.reg').replace('.skymodel','.reg')
-            lsm.write(regionfile, format='ds9', clobber=True)
-            lsm.write(skymodel, format='makesourcedb', clobber=True)
-
-        if doskydb:
-            skydb = skymodel.replace('.txt','.skydb').replace('.skymodel','.skydb')
-            lib_util.check_rm(skydb)
-            os.system('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (skymodel,skydb))
-            self.skydb.append( skydb )
-
-        self.skymodel.append( skymodel )
-
-    def get_skydb(self, pos=-1):
-        """
-        pos: the cycle from 0 to last added, negative numbers to search backwards, if non exists returns None
-        """
-        try:
-            return self.skydb[pos]
-        except:
-            return None
-
-
-    def is_in_beam(self):
-        """
-        Return true if the direction is in the beam or an outsider
-        """
-        pass
-
-    def set_position(self, position):
-        """
+        beam_fwhm: in deg, used to decide if the source is to peel_off
+        phase_center: in deg
         """
         self.position = position
+        c1 = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
+        c2 = SkyCoord(phase_center[0]*u.deg, phase_center[1]*u.deg, frame='fk5')
+        if c1.separation(c2).deg > beam_fwhm:
+            self.peel_off = True
+        else:
+            self.peel_off = False
 
     def set_flux(self, fluxes, spidx_coeffs=None, ref_freq=None, freq='mid'):
         """
@@ -120,7 +134,7 @@ class Direction(object):
 
     def set_size(self, size):
         """
-        size: [deg,deg]
+        size: deg
         """
         self.size = size
 
@@ -275,10 +289,10 @@ def cut_skymodel(skymodel_in, skymodel_out, d, do_skydb=True, do_regions=False):
     """
     lsm = lsmtool.load(skymodel_in)
     # select all sources within a sqare of patch size
-    lsm.select('Ra > %f' % (d.position[0]-(d.size[0]/2)/np.cos(d.position[1]* np.pi / 180.)))
-    lsm.select('Ra < %f' % (d.position[0]+(d.size[0]/2)/np.cos(d.position[1]* np.pi / 180.)))
-    lsm.select('Dec > %f' % (d.position[1]-d.size[1]/2))
-    lsm.select('Dec < %f' % (d.position[1]+d.size[1]/2))
+    lsm.select('Ra > %f' % (d.position[0]-(d.size/2)/np.cos(d.position[1]* np.pi / 180.)))
+    lsm.select('Ra < %f' % (d.position[0]+(d.size/2)/np.cos(d.position[1]* np.pi / 180.)))
+    lsm.select('Dec > %f' % (d.position[1]-d.size/2))
+    lsm.select('Dec < %f' % (d.position[1]+d.size/2))
     if do_regions: lsm.write('ddcal/masks/regions-c%02i/%s.reg' % (cmaj,d.name), format='ds9', clobber=True)
     lsm.write(dir_skymodel, format='makesourcedb', clobber=True)
     lib_util.check_rm(dir_skydb)

@@ -288,6 +288,10 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     # user defined parms
     for parm, value in list(kwargs.items()):
         if value is None: continue
+        if parm == 'baseline_averaging' and value == '':
+            scale = float(kwargs['scale'].replace('arcsec','')) # arcsec
+            value = 1.87e3*60000.*2.*np.pi*scale/(24.*60.*60*np.max(kwargs['size'])) # the np.max() is OK with both float and arrays
+            if value > 10: value=10
         if parm == 'cont': 
             parm = 'continue'
             value = ''

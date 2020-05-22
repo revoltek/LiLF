@@ -81,6 +81,13 @@ class AllMSs(object):
         freqs = self.getFreqs()
         return max(freqs) - min(freqs)
 
+    def getChout(self, size=4.e6):
+        """
+        Returns the channels-out parameter for wsclean
+        size: size of each out channel in Hz
+        """
+        return int(round(self.getBandwidth()/(size)))
+
 
     def run(self, command, log, commandType='', maxThreads=None):
         """

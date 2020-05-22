@@ -279,7 +279,7 @@ if imaging:
     imagename = 'img/cal'
     lib_util.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
             weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=512, \
+            baseline_averaging='', parallel_deconvolution=512, \
             auto_threshold=20, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     # make mask
@@ -289,7 +289,7 @@ if imaging:
     logger.info('Cleaning w/ mask...')
     lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
             weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=512, \
+            baseline_averaging='', parallel_deconvolution=512, \
             auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
     os.system('cat logs/wscleanA.log logs/wscleanB.log | grep "background noise"')
 

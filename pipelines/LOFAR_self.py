@@ -256,14 +256,14 @@ for c in range(2):
         # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
         logger.info('Cleaning (cycle: '+str(c)+')...')
         imagename = 'img/wideM-'+str(c)
-        if c==0: kwargs = {'do_predict':True,'baseline_averaging':5,'parallel_gridding':2, 'auto_mask':2.5}
+        if c==0: kwargs = {'do_predict':True,'baseline_averaging':'','parallel_gridding':2, 'auto_mask':2.5}
         else: kwargs = {'temp_dir':'./', 'pol':'I', 'use_idg':'', 'grid_with_beam':'', 'use_differential_lofar_beam':'', 'beam_aterm_update':600, 'auto_mask':2.0}
 
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
                 weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=4500, mgain=0.85, \
                 parallel_deconvolution=512, local_rms='', auto_threshold=1.5, \
                 multiscale='', multiscale_scale_bias=0.6, \
-                join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=5, **kwargs)
+                join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, **kwargs)
 
         os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
  
@@ -294,8 +294,8 @@ for c in range(2):
             lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, \
                     parallel_gridding=4, temp_dir='./', size=imgsizepix, scale='30arcsec', \
                     weight='briggs -1', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000, taper_gaussian='200arcsec', mgain=0.85, \
-                    parallel_deconvolution=512, baseline_averaging=5, local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits', \
-                    join_channels='', fit_spectral_pol=5, channels_out=10, deconvolution_channels=5)
+                    parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits', \
+                    join_channels='', fit_spectral_pol=5, channels_out=MSs.getChout(2.e6), deconvolution_channels=5)
     
             w.done('lowres_imaging_c%02i' % c)
         ### DONE
@@ -350,7 +350,7 @@ for c in range(2):
         if w.todo('lowres_predict_c%02i' % c):
             # Recreate MODEL_DATA
             logger.info('Predict model...')
-            s.add('wsclean -predict -name img/wideM-'+str(c)+' -j '+str(s.max_processors)+' -channels-out 9 '+MSs.getStrWsclean(), \
+            s.add('wsclean -predict -name img/wideM-'+str(c)+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(4e6))+' '+MSs.getStrWsclean(), \
                    log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
             s.run(check=True)
 
@@ -361,6 +361,7 @@ for c in range(2):
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits self/images') for c in range(2) ]
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits self/images') for c in range(2) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(2) ]
+os.system('mv img/wideM-1-*-model.fits self/images')
 os.system('mv img/wide-lr-MFS-image.fits self/images')
 os.system('makepb.py -o img/avgbeam.fits -i img/wideM-1')
 os.system('mv img/avgbeam.fits self/images')

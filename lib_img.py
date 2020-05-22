@@ -13,18 +13,18 @@ class Image(object):
         userMask: keep this region when making masks
         BeamReg: ds9 region file of the beam
         """
-        if 'MFS' in imagename: suffix = 'MFS-image.fits'
-        elif 'image.fits' in imagename: suffix = 'image.fits'
+        if 'MFS' in imagename: suffix = '-MFS-image.fits'
+        elif 'image.fits' in imagename: suffix = '-image.fits'
         else: suffix = '.fits'
         if userReg == '': userReg = None
         if beamReg == '': beamReg = None
 
         self.imagename    = imagename
         self.root         = imagename.replace(suffix, '')
-        self.maskname     = imagename.replace(suffix, 'mask.fits')
-        self.skymodel     = imagename.replace(suffix, 'sources.txt')
-        self.skymodel_cut = imagename.replace(suffix, 'sources-cut.txt')
-        self.skydb        = imagename.replace(suffix, 'sources-cut.skydb')
+        self.maskname     = imagename.replace(suffix, '-mask.fits')
+        self.skymodel     = imagename.replace(suffix, '-sources.txt')
+        self.skymodel_cut = imagename.replace(suffix, '-sources-cut.txt')
+        self.skydb        = imagename.replace(suffix, '-sources-cut.skydb')
         self.userReg      = userReg
         self.beamReg      = beamReg
 
@@ -280,3 +280,25 @@ def make_fits(filename, shape, fill_value=1):
     hdu = pyfits.PrimaryHDU(data)
     hdul = pyfits.HDUList([hdu])
     hdul.writeto(filename, overwrite=True)
+
+
+def regrid(image_in, header_from, image_out):
+    """
+    Regrid 'image_in' to the header of 'header_from' and write it in 'image_out'
+    """
+    from astropy.io import fits
+    from reproject import reproject_interp, reproject_exact
+    reproj = reproject_exact
+
+    # get input and header for regridding
+    header_rep, data_rep = flatten(fits.open(header_from))
+    header_in, data_in = flatten(fits.open(image_in))
+
+    # do the regrid
+    logging.info('Regridding %s->%s' % (image_in, image_out))
+    data_out, footprint = reproj((data_in, header_in), header_rep, parallel=True)
+
+    # write output
+    header_rep =  fits.open(header_from)[0].header
+    hdu = fits.PrimaryHDU(header=header_rep, data=[[data_out]])
+    hdu.writeto(image_out, overwrite=True)
