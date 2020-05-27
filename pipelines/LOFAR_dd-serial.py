@@ -23,7 +23,7 @@ maxIter = parset.getint('LOFAR_dd-serial','maxIter')
 min_cal_flux = parset.getfloat('LOFAR_dd-serial','minCalFlux60')
 removeExtendedCutoff = parset.getfloat('LOFAR_dd-serial','removeExtendedCutoff')
 
-def clean(p, MSs, res='normal', size=[1,1], empty=False):
+def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
     """
     p = patch name
     mss = list of mss to clean
@@ -86,8 +86,13 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False):
         except:
             logger.warning('Fail to create mask for %s.' % imagename+'-MFS-image.fits')
             return
+
+        # restrict to inside the dd-region
+        if imagereg is not None:
+            lib_img.blank_image_reg(im.maskname, imagereg, inverse=True, blankval=0.,)
     
         # clean 2
+        # TODO: add deconvolution_channels when bug fixed
         logger.info('Cleaning w/ mask ('+str(p)+')...')
         imagename = 'img/ddcalM-'+str(p)
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, do_predict=True, \
@@ -95,7 +100,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False):
                 weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
                 multiscale='', multiscale_scale_bias=0.65, multiscale_scales='0,10,20,40,80', 
                 baseline_averaging='', parallel_deconvolution=512, local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=im.maskname, \
-                join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
+                join_channels='', fit_spectral_pol=3, channels_out=ch_out) #, deconvolution_channels=3)
 
         os.system('cat logs/wscleanA-'+str(p)+'.log logs/wscleanB-'+str(p)+'.log | grep "background noise"')
 
@@ -110,8 +115,19 @@ if w.todo('cleaning'):
 ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+timeint = MSs.getListObj()[0].getTimeInt()
 
-# make beam
+# goes down to 8 seconds/4 chans
+if not os.path.exists('mss-avg'):
+    avgtimeint = int(8/timeint)
+    os.makedirs('mss-avg')
+    logger.info('Averaging in time (%is -> 8s)' % timeint)
+    MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-avg/$nameMS.MS msin.datacolumn=CORRECTED_DATA \
+            avg.timestep='+str(avgtimeint)+' avg.freqstep=1', \
+            log='$nameMS_initavg.log', commandType='DPPP')
+
+MSs = lib_ms.AllMSs( glob.glob('mss-avg/TC*[0-9].MS'), s )
+
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 freq_min = np.min(MSs.getListObj()[0].getFreqs())
 freq_mid = np.mean(MSs.getListObj()[0].getFreqs())
@@ -154,11 +170,16 @@ for cmaj in range(maxIter):
         directions = []
 
         ### group into patches corresponding to the mask islands
+        # the txt skymodel is used only to find directions
         mask_cl = full_image.imagename.replace('image.fits', 'mask-cl.fits')
+        mask_ext = full_image.imagename.replace('image.fits', 'mask-ext.fits')
+        full_image.beamReg = 'ddcal/beam.reg'
         # this mask is with no user region, done to isolate only bight compact sources
-        if not os.path.exists(full_image.skymodel_cut): 
-            full_image.beamReg = 'ddcal/beam.reg'
+        if not os.path.exists(mask_cl): 
             full_image.makeMask(threshisl=4, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff, only_beam=False, maskname=mask_cl)
+        if not os.path.exists(mask_ext): 
+            full_image.makeMask(threshisl=4, atrous_do=True, remove_extended_cutoff=0, only_beam=False, maskname=mask_ext)
+        if not os.path.exists(full_image.skymodel_cut): 
             full_image.selectCC(checkBeam=False, maskname=mask_cl)
         
         lsm = lsmtool.load(full_image.skymodel_cut)
@@ -179,6 +200,11 @@ for cmaj in range(maxIter):
             patches = patchNames[cluster]
             if len(patches) > 1:
                 lsm.merge(patches.tolist())
+
+        # cleanup model
+        for model_file in glob.glob(full_image.root+'*model.fits'):
+            logger.info('Cleanup model...')
+            lib_img.blank_image_fits(model_file, mask_ext, model_file, inverse=True, blankval=0.)
     
         lsm.setPatchPositions(method='mid')
         for name, flux, size, ra, dec in \
@@ -207,12 +233,18 @@ for cmaj in range(maxIter):
             
         # order directions from the fluxiest
         directions = [x for _,x in sorted(zip([d.get_flux(freq_min) for d in directions],directions))][::-1] # reorder with flux
-        # TEST for NEST
-        #d=directions[0]
-        #directions.insert(len(directions),d)
-        #directions.pop(0)
+
+        # TODO: just a test for NEST
+        if 'NEST' in os.getcwd():
+            d=directions[0]
+            directions.insert(len(directions),d)
+            directions.pop(0)
+
         for d in directions:
-            logger.info( '%s: min: %.2f Jy; mid: %.2f Jy' % (d.name, d.get_flux(freq_min), d.get_flux(freq_mid)) )
+            if not d.peel_off:
+                logger.info( '%s: min: %.2f Jy; mid: %.2f Jy' % (d.name, d.get_flux(freq_min), d.get_flux(freq_mid)) )
+            else:
+                logger.info( '%s: min: %.2f Jy; mid: %.2f Jy (peel off)' % (d.name, d.get_flux(freq_min), d.get_flux(freq_mid)) )
 
         # write file
         skymodel_cl = 'ddcal/c%02i/skymodels/cluster.skymodel' % cmaj
@@ -220,11 +252,7 @@ for cmaj in range(maxIter):
         lsm.setColValues('name', [x.split('_')[-1] for x in lsm.getColValues('patch')]) # just for the region - this makes this lsm useless
         lsm.write('ddcal/c%02i/skymodels/cluster.reg' % cmaj, format='ds9', clobber=True)
         del lsm
-
-        # cleanup model
-        for model_file in glob.glob(full_image.root+'*model.fits'):
-            lib_img.blank_image_fits(model_file, mask_cl, model_file, inverse=True, blankval=0.)
-    
+   
         pickle.dump( directions, open( picklefile, "wb" ) )
     else:
         directions = pickle.load( open( picklefile, "rb" ) )
@@ -249,9 +277,9 @@ for cmaj in range(maxIter):
     ### DONE
 
     if w.todo('c%02i-fullsub' % cmaj):
-        # subtract - ms:SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA
-        logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
+        # subtract - ms:SUBTRACTED_DATA = DATA - MODEL_DATA
+        logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', \
                     log='$nameMS_taql.log', commandType='general')
 
         w.done('c%02i-fullsub' % cmaj)
@@ -261,7 +289,7 @@ for cmaj in range(maxIter):
     if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
         clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     ###
- 
+
     for dnum, d in enumerate(directions):
         # arrive down to calibrators of flux = 1 Jy
         if d.get_flux(freq_min) < min_cal_flux: break
@@ -269,7 +297,7 @@ for cmaj in range(maxIter):
         logger.info('c%02i - Working on direction: %s (%f Jy - %f deg)' % (cmaj, d.name, d.get_flux(freq_min), d.size))
         if d.size > 0.5: logger.warning('Patch size large: %f' % d.size)
         logstring = 'c%02i-%s' % (cmaj,d.name)
-    
+
         if w.todo('%s-predict' % logstring):
 
             # Predict - ms:MODEL_DATA
@@ -281,26 +309,6 @@ for cmaj in range(maxIter):
 
             # TODO: after first cycle need to corrupt
 
-            # if this is not the first time the direction is iterated
-            #if d.skydb_init != 0:
-            #    # Corrput now model - ms:MODEL_DATA -> MODEL_DATA
-            #    logger.info('Corrupt ph...')
-            #    MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-            #                cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=phase000', \
-            #                log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP')
-            #    #MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-            #    #            cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=tec000', \
-            #    #            log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP')
-    
-            #    if not d.get_h5parm('amp1',-2) is None:
-            #        logger.info('Corrupt amp...')
-            #        MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-            #               cor.invert=False cor.parmdb='+d.get_h5parm('amp1',-2)+' cor.correction=amplitude000', \
-            #               log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP') 
-            #        MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-            #               cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000', \
-            #               log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP') 
-
             # Add back the model previously subtracted for this dd-cal
             logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA...')
             MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA"', \
@@ -311,7 +319,7 @@ for cmaj in range(maxIter):
 
         if w.todo('%s-shift' % logstring):
             logger.info('Phase shift and avg...')
-            
+
             lib_util.check_rm('mss-dir')
             os.makedirs('mss-dir')
 
@@ -335,13 +343,17 @@ for cmaj in range(maxIter):
         ### DONE
 
         # Correct for beam in that direction
-        if w.todo('%s-beamcorr' % logstring):
-            logger.info('Correcting beam...')
-            MSs_dir.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA', \
-                    log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
-
-            w.done('%s-beamcorr' % logstring)
-        ### DONE
+        if not d.peel_off:
+            if w.todo('%s-beamcorr' % logstring):
+                logger.info('Correcting beam...')
+                # Convince DPPP that DATA is corrected for the beam in the phase centre
+                [MS.putBeamInfo(col='DATA', mode='Full', direction=phase_center) for MS in MSs_dir.getListObj()]
+                MSs_dir.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
+                        corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=True', \
+                        log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
+    
+                w.done('%s-beamcorr' % logstring)
+            ### DONE
 
         if w.todo('%s-preimage' % logstring):
             logger.info('Pre-imaging...')
@@ -408,10 +420,10 @@ for cmaj in range(maxIter):
                     # Calibration - ms:CORRECTED_DATA
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.mode=diagonal \
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]] \
-                        sol.h5parm=$pathMS/cal-amp1.h5 sol.uvmmin=300 sol.smoothnessconstraint=4e6 sol.solint='+str(solint_amp), \
+                        sol.h5parm=$pathMS/cal-amp1.h5 sol.uvmmin=200 sol.smoothnessconstraint=4e6 sol.solint='+str(solint_amp), \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DPPP')
                     lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], \
-                        [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-plot2.parset'], \
+                        [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset'], \
                         plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp1.h5 %s' % d.get_h5parm('amp1'))
 
@@ -424,10 +436,10 @@ for cmaj in range(maxIter):
                     logger.info('Gain amp calibration 2...')
                     # Calibration - ms:SMOOTHED_DATA
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.mode=diagonal \
-                        sol.h5parm=$pathMS/cal-amp2.h5 sol.uvmmin=300 sol.smoothnessconstraint=10e6 sol.solint='+str(solint_amp2), \
+                        sol.h5parm=$pathMS/cal-amp2.h5 sol.uvmmin=200 sol.smoothnessconstraint=5e6 sol.solint='+str(solint_amp2), \
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DPPP')
                     lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], \
-                        [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-plot3.parset'], \
+                        [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset'], \
                         plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp2.h5 %s' % d.get_h5parm('amp2'))
 
@@ -445,7 +457,7 @@ for cmaj in range(maxIter):
             if w.todo('%s-image' % logstringcal):
 
                 logger.info('%s (cdd: %02i): imaging...' % (d.name, cdd))
-                clean('%s' % logstringcal, MSs_dir, res='normal', size=[d.size,d.size])
+                clean('%s' % logstringcal, MSs_dir, res='normal', size=[d.size,d.size], imagereg=d.get_region())
 
                 w.done('%s-image' % logstringcal)
             ### DONE
@@ -473,7 +485,10 @@ for cmaj in range(maxIter):
             d.converged = True
             # copy in the ddcal dir the best model
             model_skymodel = 'ddcal/c%02i/skymodels/%s-best-source.txt' % (cmaj, d.name)
+            model_skydb = 'ddcal/c%02i/skymodels/%s-best-source.skydb' % (cmaj, d.name)
             os.system('cp %s %s' % (d.get_model('best')+'-sources.txt', model_skymodel))
+            s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (model_skymodel, model_skydb), log='makesourcedb_cl.log', commandType='general' )
+            s.run()
             #model_root = 'ddcal/c%02i/skymodels/%s-best' % (cmaj, d.name)
             #for model_file in glob.glob(d.get_model('best')+'*[0-9]-model.fits'):
             #    os.system('cp %s %s' % (model_file, model_file.replace(d.get_model('best'), model_root)))
@@ -482,23 +497,9 @@ for cmaj in range(maxIter):
         # remove the DD-cal from original dataset using new solutions
         if w.todo('%s-subtract' % logstring):
 
-            # SUBTRACTED_DATA are already with the old model in it,
-            # now just need to ft() the new one, corrupt and subtract
-            #for image_to_regrid in glob.glob(d.get_model('best')+'*'):
-            #    header_from = image_to_regrid.replace(d.get_model('best'),d.get_model('init'))
-            #    image_out = image_to_regrid.replace(d.get_model('best'),d.get_model('best').replace('best','regrid'))
-            #    if not os.path.exists(image_out): lib_img.regrid(image_to_regrid, header_from, image_out)
-            #d.set_model( d.get_model('best').replace('best','regrid'), typ='regrid', apply_region=False )
-
-            ## Predict - ms:MODEL_DATA
-            #logger.info('Predict model...')
-            #s.add('wsclean -predict -name '+d.get_model('regrid')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' '+MSs.getStrWsclean(), \
-            #        log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
-            #s.run(check=True)
-            
             # Predict - ms:MODEL_DATA
             logger.info('Add best model to MODEL_DATA...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+model_skymodel, \
+            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+model_skydb, \
                     log='$nameMS_pre-'+logstring+'.log', commandType='DPPP')
 
             # Store of FLAGS
@@ -531,11 +532,14 @@ for cmaj in range(maxIter):
             MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"', \
                     log='$nameMS_taql.log', commandType='general')
 
-            # Corrupt for the beam
-            logger.info('Corrupting beam...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                   corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=False', \
-                   log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
+            if not d.peel_off:
+                # Corrupt for the beam
+                logger.info('Corrupting beam...')
+                # Convince DPPP that MODELDATA is corrected for the beam in the dd-cal direction, so I can corrupt
+                [MS.copyBeamInfo(col='MODEL_DATA', from_ms=MSs_dir.getListStr()[0], from_ms_col='DATA') for MS in MSs.getListObj()]
+                MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                       corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=False', \
+                       log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
 
             # Remove the ddcal again
             logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA...')
@@ -556,14 +560,14 @@ for cmaj in range(maxIter):
     # combine the h5parms
     all_h5parms = []
     for d in direcions:
+        # only those who converged
         if d.peel_off or not d.converged: continue
-        try:
-            all_h5parms.append(d.get_h5parm('amp1',-2))
-            all_h5parms.append(d.get_h5parm('amp2',-2))
-            all_h5parms.append(d.get_h5parm('ph',-2))
-        except:
-            # for missing amp table
-            pass
+        # only those who arrievd to amp
+        if not d.get_h5parm('amp1',-2) is None: continue
+
+        all_h5parms.append(d.get_h5parm('amp1',-2))
+        all_h5parms.append(d.get_h5parm('amp2',-2))
+        all_h5parms.append(d.get_h5parm('ph',-2))
 
     # rename direction
     for h5parmFile in all_h5parms:

@@ -41,7 +41,7 @@ class Direction(object):
         self.region_file = loc+'/'+self.name+'.reg'
         s = Shape('circle', None)
         s.coord_format = 'fk5'
-        s.coord_list = [ self.position[0], self.position[1], self.size ] # ra, dec, radius
+        s.coord_list = [ self.position[0], self.position[1], self.size/2. ] # ra, dec, radius
         s.coord_format = 'fk5'
         s.attr = ([], {'width': '2', 'point': 'cross',
                        'font': '"helvetica 16 normal roman"'})
@@ -98,17 +98,17 @@ class Direction(object):
         try:
             return l[pos]
         except:
-            raise "Missing h5parm (type: %s) in pos: %i." % (typ,pos)
+            return None
 
     def set_position(self, position, beam_fwhm, phase_center):
         """
         beam_fwhm: in deg, used to decide if the source is to peel_off
         phase_center: in deg
         """
-        self.position = position
+        self.position = [round(position[0],5),round(position[1],5)]
         c1 = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
         c2 = SkyCoord(phase_center[0]*u.deg, phase_center[1]*u.deg, frame='fk5')
-        if c1.separation(c2).deg > beam_fwhm:
+        if c1.separation(c2).deg > beam_fwhm/2.:
             self.peel_off = True
         else:
             self.peel_off = False

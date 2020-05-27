@@ -7,7 +7,7 @@ msout.datacolumn = DATA
 steps = [corrbeam]
 
 corrbeam.type = applybeam
-corrbeam.beammode = default
+corrbeam.beammode = default # default
 corrbeam.invert = True # True=correct
-corrbeam.usechannelfreq = False
+corrbeam.usechannelfreq = True
 corrbeam.updateweights = False

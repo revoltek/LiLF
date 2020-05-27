@@ -90,7 +90,7 @@ for MS in MSs.getListStr():
 if w.todo('init_model'):
 
     logger.info('Creating CORRECTED_DATA...')
-    MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+    MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA,CORRECTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
     
     logger.info('Add model to MODEL_DATA...')
     if apparent:
@@ -133,6 +133,8 @@ for c in range(2):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
         MSs.run('BLsmooth.py -c 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+        # TODO: This was only before slow g, I think it's better here!
+        MSs.run('BLsmooth.py -c 8 -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
     
         # solve TEC - ms:SMOOTHED_DATA
         logger.info('Solving TEC1...')
@@ -192,10 +194,6 @@ for c in range(2):
     if c == 0:
 
         if w.todo('solve_fr_c%02i' % c):
-            # Smooth MODEL_DATA -> MODEL_DATA
-            logger.info('BL-based smoothing...')
-            MSs.run('BLsmooth.py -c 8 -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
-    
             # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Converting to circular...')
             MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=2)
