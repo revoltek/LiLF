@@ -109,7 +109,7 @@ class Image(object):
                     if beamReg is present and is False: remove source inside beam
         maskname: a possible mask, otherwise try to use standard
         """
-        if maskname is None: mask = self.maskname
+        if maskname is None: maskname = self.maskname
         if not os.path.exists(maskname):
             raise("Missing mask in selectCC: %s." % maskname)
 
