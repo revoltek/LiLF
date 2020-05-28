@@ -1,0 +1,13 @@
+msin = 
+msin.datacolumn = CORRECTED_DATA
+#do not copy aucorr as they have too weird weights for dysco
+msin.baseline = [CR]S*&
+msout = 
+msout.writefullresflag = False
+msout.storagemanager = dysco
+
+steps = [avg,count]
+
+avg.type = averager
+avg.freqstep = 2 # avg t and f factor 2
+avg.timestep = 2

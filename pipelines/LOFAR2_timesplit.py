@@ -137,13 +137,12 @@ if w.todo('flag'):
     
     logger.info('Remove bad timestamps...')
     MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
-    w.done('flag')
-
-if w.todo('weights'):
+    
     logger.info('Plot weights...')
     MSs.run('reweight.py $pathMS -v -p -a CS001LBA', log='$nameMS_weights.log', commandType='python')
     os.system('mkdir plots-weights; mv *png plots-weights')
-    w.done('weights')
+
+    w.done('flag')
 ### DONE
 
 #sys.exit() # for DDFacet

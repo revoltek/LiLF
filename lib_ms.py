@@ -359,8 +359,9 @@ class MS(object):
         if self.getTelescope() == 'LOFAR':
 
             # Following numbers are based at 60 MHz (old.astron.nl/radio-observatory/astronomers/lofar-imaging-capabilities-sensitivity/lofar-imaging-capabilities/lofa)
-            scale = 60e6/beamfreq 
-
+            scale = 60e6/beamfreq
+            logger.warning('CARE! THIS HAS BEEN MODIFIED FOR LOFAR2.0!')
+            return 3.88*scale
             if 'OUTER' in self.getAntennaSet():
                 return 3.88*scale
             elif 'SPARSE' in self.getAntennaSet():
