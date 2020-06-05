@@ -262,7 +262,6 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None):
 
 def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     """
-    Use only for imaging - not for predict
     s : scheduler
     args : parameters for wsclean, "_" are replaced with "-", any parms=None is ignored.
            To pass a parameter with no values use e.g. " no_update_model_required='' "
@@ -323,6 +322,35 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
         command_string = 'wsclean -predict -j '+str(s.max_processors)+' '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean', processors='max')
         s.run(check=True)
+
+def run_DDF(s, logfile, **kwargs):
+    """
+    s : scheduler
+    args : parameters for ddfacet, "_" are replaced with "-", any parms=None is ignored.
+           To pass a parameter with no values use e.g. " no_update_model_required='' "
+    """
+    
+    ddf_parms = []
+
+    # basic parms
+    ddf_parms.append( '--Debug-Pdb=never --Parallel-NCPU=%i ' % (s.max_processors) )
+
+    # cache dir
+    if not 'Cache_Dir' in list(kwargs.keys()):
+        ddf_parms.append( '--Cache-Dir .' )
+
+    # user defined parms
+    for parm, value in list(kwargs.items()):
+        if value is None: continue
+        ddf_parms.append( '--%s %s' % (parm.replace('_','-'), str(value)) )
+
+    # files
+    #wsc_parms.append( MSs_files )
+
+    # create command string
+    command_string = 'DDF.py '+' '.join(ddf_parms)
+    s.add(command_string, log=logfile, commandType='python', processors='max')
+    s.run(check=True)
 
 
 class Walker():
@@ -546,6 +574,7 @@ class Scheduler():
             out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Segmentation fault" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "ERROR" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "singularity"):
             out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)

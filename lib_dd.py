@@ -100,15 +100,15 @@ class Direction(object):
         except:
             return None
 
-    def set_position(self, position, beam_fwhm, phase_center):
+    def set_position(self, position, distance_peeloff, phase_center):
         """
-        beam_fwhm: in deg, used to decide if the source is to peel_off
+        distance_peeloff: in deg, used to decide if the source is to peel_off
         phase_center: in deg
         """
         self.position = [round(position[0],5),round(position[1],5)]
         c1 = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
         c2 = SkyCoord(phase_center[0]*u.deg, phase_center[1]*u.deg, frame='fk5')
-        if c1.separation(c2).deg > beam_fwhm/2.:
+        if c1.separation(c2).deg > distance_peeloff:
             self.peel_off = True
         else:
             self.peel_off = False

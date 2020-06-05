@@ -89,8 +89,9 @@ for MS in MSs.getListStr():
 
 if w.todo('init_model'):
 
+    # note: do not add MODEL_DATA or the beam is transported from DATA, while we want it without beam applied
     logger.info('Creating CORRECTED_DATA...')
-    MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA,CORRECTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+    MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
     
     logger.info('Add model to MODEL_DATA...')
     if apparent:
@@ -133,7 +134,6 @@ for c in range(2):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
         MSs.run('BLsmooth.py -c 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
-        # TODO: This was only before slow g, I think it's better here!
         MSs.run('BLsmooth.py -c 8 -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
     
         # solve TEC - ms:SMOOTHED_DATA
@@ -141,7 +141,7 @@ for c in range(2):
         MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 \
                 msin.baseline="[CR]*&&;!RS208LBA;!RS210LBA;!RS307LBA;!RS310LBA;!RS406LBA;!RS407LBA;!RS409LBA;!RS508LBA;!RS509LBA" \
                 sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
-           	    sol.solint=15 sol.nchan=8', \
+           	sol.solint=15 sol.nchan=8', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
     
         lib_util.run_losoto(s, 'tec1-c'+str(c), [ms+'/tec1.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-resetremote.parset', parset_dir+'/losoto-plot-tec.parset'])
