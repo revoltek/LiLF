@@ -3,3 +3,8 @@ Ncpu = 0
 [reset]
 operation = RESET
 soltab = sol000/phase000
+
+[reweight]
+operation = REWEIGHT
+soltab = sol000/phase000
+weightVal = 1.

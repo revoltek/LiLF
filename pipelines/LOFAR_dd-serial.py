@@ -119,13 +119,11 @@ if not os.path.exists('mss-avg'):
     MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
     timeint = MSs.getListObj()[0].getTimeInt()
     avgtimeint = int(round(10/timeint))
-    nchan_init = len(MSs.getFreqs())
+    nchan_init = MSs.getListObj()[0].getNchan()
     # avg (x8) sol (x6) - we need a multiple of 8x6=48, the largest that is <nchan
     # survey after avg (x8): 60, final number of sol 10
     # pointed after avg (x8): 120, final number of sol 20
-    nchan = nchan_init - nchan%48
-    # TODO remove excess of few seconds above 3600
-
+    nchan = nchan_init - nchan_init%48
     os.makedirs('mss-avg')
     logger.info('Averaging in time (%is -> 10s - %ich -> %ich)' % (timeint,nachn_init,nchan))
     MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-avg/$nameMS.MS msin.datacolumn=CORRECTED_DATA msin.nchan='+str(nchan)+' \
@@ -252,11 +250,11 @@ for cmaj in range(maxIter):
         # order directions from the fluxiest
         directions = [x for _,x in sorted(zip([d.get_flux(freq_min) for d in directions],directions))][::-1] # reorder with flux
 
-        # TODO: just a test for NEST
-        #if 'NEST' in os.getcwd():
-        #    d=directions[0]
-        #    directions.insert(len(directions),d)
-        #    directions.pop(0)
+        # TODO: just a test for NEST/coma
+        if 'coma' in os.getcwd():
+            d=directions[0]
+            directions.insert(len(directions),d)
+            directions.pop(0)
 
         for d in directions:
             if not d.peel_off:
@@ -419,9 +417,10 @@ for cmaj in range(maxIter):
                     log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')    
  
                 # Calibration - ms:SMOOTHED_DATA
+                # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                 logger.info('Gain phase calibration...')
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
-                    sol.mode=scalarcomplexgain sol.solint='+str(solint_ph)+' sol.nchan=6 sol.smoothnessconstraint=5e6 \
+                    sol.mode=scalarcomplexgain sol.solint='+str(solint_ph)+' sol.nchan=1 sol.smoothnessconstraint=5e6 \
                     sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]', \
                     log='$nameMS_solGph-'+logstringcal+'.log', commandType='DPPP')
                 lib_util.run_losoto(s, 'ph', [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()], \
@@ -442,8 +441,9 @@ for cmaj in range(maxIter):
                     logger.info('Gain amp calibration 1...')
                     # Calibration - ms:CORRECTED_DATA
                     # sol.smoothnessconstraint=4e6
+                    # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp)+' sol.nchan=6 sol.uvmmin=200 \
+                        sol.mode=diagonal sol.solint='+str(solint_amp)+' sol.nchan=1 sol.uvmmin=200 \
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DPPP')
                     lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], \
@@ -457,6 +457,7 @@ for cmaj in range(maxIter):
                         cor.parmdb='+d.get_h5parm('amp1')+' cor.correction=amplitude000', \
                         log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP') 
 
+                    # TODO: add this only on the second round
                     logger.info('Gain amp calibration 2...')
                     # Calibration - ms:SMOOTHED_DATA
                     # sol.smoothnessconstraint=10e6
@@ -502,7 +503,7 @@ for cmaj in range(maxIter):
         ##################################
 
         # if divergency, don't subtract
-        if rms_noise_pre > 2*rms_noise_init:
+        if rms_noise_pre > 1.5*rms_noise_init:
             d.converged = False
             logger.warning('%s: noise did not decresed (%f -> %f), do not subtract source.' % (d.name, rms_noise_init, rms_noise_pre))
             d.clean()
@@ -542,6 +543,7 @@ for cmaj in range(maxIter):
                 MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                        cor.invert=False cor.parmdb='+d.get_h5parm('amp1',-1)+' cor.correction=amplitude000', \
                        log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP') 
+            if not d.get_h5parm('amp2',-1) is None:
                 MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                        cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-1)+' cor.correction=amplitude000', \
                        log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP') 
@@ -586,9 +588,6 @@ for cmaj in range(maxIter):
          #   clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
-    # TODO: remove peeled source from the data
-    # create an ad-hoc column and subtract only peeled sources, then use that for final imaging
-
     ######################################################
     # full imaging
 
@@ -620,6 +619,9 @@ for cmaj in range(maxIter):
                 # reset high-res amplitudes in ph-solve
                 s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetamp.parset ', log='h5parm_collector.log', commandType='python' )
                 s.run()
+                # reference phases to best station
+                s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-refph.parset ', log='h5parm_collector.log', commandType='python' )
+                s.run()
 
             if typ == 'amp1' or typ == 'amp2':
                 s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetph.parset ', log='h5parm_collector.log', commandType='python' )
@@ -633,7 +635,9 @@ for cmaj in range(maxIter):
     if idg:
 
         for i, MS in enumerate(MSs.getStrObj()):
-            s.add('/home/fdg/scripts/LiLF/scripts/make_gain_screen.py -m '+MS.path+' -p '+interp_h5parm+' -o ddcal/c%02i/aterm/TC%02i' % (cmaj, i), log='h5parm_interpolator.log', commandType='python')
+            s.add('/home/fdg/scripts/LiLF/scripts/make_gain_screen.py \
+                    -m '+MS.path+' -p '+interp_h5parm+' -o ddcal/c%02i/aterm/TC%02i' % (cmaj, i), \
+                    log='h5parm_interpolator.log', commandType='python')
             s.run()
  
         # create aterm config file
@@ -696,7 +700,7 @@ for cmaj in range(maxIter):
         Cache_Reset=1,
         RIME_ForwardMode='BDA-degrid',
         Predict_ColName='MODEL_DATA',
-        Selection_UVRange='\[0.1,2000.\]',
+        #Selection_UVRange='\[0.1,2000.\]',
         Output_RestoringBeam=15.,
         Mask_SigTh=5.0,
         #Predict_InitDicoModel='A1758_Round3_25facet_newamps.DicoModel',
