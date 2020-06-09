@@ -1,5 +1,7 @@
 msin = 
 msin.datacolumn = DATA
+msin.missingdata = True
+msin.orderms = False
 #do not copy aucorr as they have too weird weights for dysco
 msin.baseline = [CR]S*&
 msout = 

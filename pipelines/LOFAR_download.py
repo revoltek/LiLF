@@ -49,7 +49,7 @@ def getName(ms):
         with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
             code = t.getcell('LOFAR_TARGET',0)[0]
     
-    code = code.lower()
+    code = code.lower().replace(' ','_')
 
     # get freq
     with pt.table(ms+'/SPECTRAL_WINDOW', readonly=True, ack=False) as t:
@@ -70,7 +70,7 @@ def getName(ms):
         if not os.path.exists('mss/'+code): os.makedirs('mss/'+code)
         return 'mss/'+code+'/'+code+'_t'+time+'_SB'+str(nu2num(freq/1.e6))+'.MS'
 
-#########################################
+########################################
 if not download_file is None:
    with open(download_file,'r') as df:
         logger.info('Downloading...')
@@ -94,7 +94,7 @@ if len(MSs.getListStr()) == 0:
     logger.info('Done.')
     sys.exit(0)
 
-######################################
+#######################################
 with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
     t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
     time = np.int(t.iso.replace('-','')[0:8])
@@ -134,6 +134,8 @@ if renameavg:
                 avg_factor_f = int(nchan / 4) # to 4 ch/SB
             elif nchan % 5 == 0 and nchan != 1:
                 avg_factor_f = int(nchan / 5) # to 5 ch/SB
+            elif nchan == 1:
+                avg_factor_f = 1
             else:
                 logger.error('Channels should be a multiple of 4 or 5.')
                 sys.exit(1)

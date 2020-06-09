@@ -137,7 +137,8 @@ ramin = np.min(lsm.getColValues('RA')[lsm.getColValues('Patch')=='Isl_patch_0'])
 ramax = np.max(lsm.getColValues('RA')[lsm.getColValues('Patch')=='Isl_patch_0'])
 decmin = np.min(lsm.getColValues('Dec')[lsm.getColValues('Patch')=='Isl_patch_0'])
 decmax = np.max(lsm.getColValues('Dec')[lsm.getColValues('Patch')=='Isl_patch_0'])
-size = [abs(ramax-ramin),abs(decmax-decmin)]
+#size = [abs(ramax-ramin),abs(decmax-decmin)]
+size = [1,1]
 
 # write skymodel
 lsm.write('facet/skymodel_init.txt', format='makesourcedb', clobber=True)
