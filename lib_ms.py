@@ -283,7 +283,7 @@ class MS(object):
             nchan = t.getcol("NUM_CHAN")
         assert (nchan[0] == nchan).all() # all SpWs have same channels?
 
-        logger.debug("%s: channel number: %i", self.pathMS, nchan[0])
+        #logger.debug("%s: channel number: %i", self.pathMS, nchan[0])
         return nchan[0]
 
 
@@ -295,8 +295,24 @@ class MS(object):
             chan_w = t.getcol("CHAN_WIDTH")[0]
         assert all(x == chan_w[0] for x in chan_w) # all chans have same width
 
-        logger.debug("%s: channel width (MHz): %f", self.pathMS, chan_w[0] / 1.e6)
+        #logger.debug("%s: channel width (MHz): %f", self.pathMS, chan_w[0] / 1.e6)
         return chan_w[0]
+
+
+    def getTimeRange(self):
+        """
+        Return the time interval of this observation
+        """
+        with tables.table(self.pathMS, ack = False) as t:
+            return ( t.getcol("TIME")[0], t.getcol("TIME")[-1] )
+
+
+    def getNtime(self):
+        """
+        Returns the numer of time slits in this MS
+        """
+        with tables.table(self.pathMS, ack = False) as t:
+            return len(t.getcol("TIME"))
 
 
     def getTimeInt(self):
@@ -308,16 +324,8 @@ class MS(object):
         t_init, t_end = self.getTimeRange()
         deltaT = (t_end - t_init) / nTimes
 
-        logger.debug("%s: time interval (seconds): %f", self.pathMS, deltaT)
+        #logger.debug("%s: time interval (seconds): %f", self.pathMS, deltaT)
         return deltaT
-
-
-    def getTimeRange(self):
-        """
-        Return the time interval of this observation
-        """
-        with tables.table(self.pathMS, ack = False) as t:
-            return ( t.getcol("TIME")[0], t.getcol("TIME")[-1] )
 
 
     def getPhaseCentre(self):
