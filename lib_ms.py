@@ -65,13 +65,19 @@ class AllMSs(object):
         """
         return ' '.join(self.mssListStr)
 
+    def getStrDDF(self):
+        """
+        Return a string with all MS paths, useful for DDF
+        """
+        return ','.join(self.mssListStr)
+
 
     def getFreqs(self):
         """
         Return a list of freqs per chan per SB
         """
         freqs = [ list(ms.getFreqs()) for ms in self.mssListObj ]
-        return [item for sublist in freqs for item in sublist] # flatten
+        return list(set([item for sublist in freqs for item in sublist])) # flatten
 
 
     def getBandwidth(self):
@@ -80,6 +86,13 @@ class AllMSs(object):
         """
         freqs = self.getFreqs()
         return max(freqs) - min(freqs)
+
+    def getChout(self, size=4.e6):
+        """
+        Returns the channels-out parameter for wsclean
+        size: size of each out channel in Hz
+        """
+        return int(round(self.getBandwidth()/(size)))
 
 
     def run(self, command, log, commandType='', maxThreads=None):
@@ -434,3 +447,70 @@ class MS(object):
         """
         with tables.table(self.pathMS, ack = False) as t:
             return np.all(t.getcol('FLAG'))
+
+#    def delBeamInfo(self, col=None):
+#        """
+#        Delete beam info of one column
+#        col: column name, use all if not specified
+#        """
+#
+#        with tables.table(self.pathMS, ack = False, readonly = False) as t:
+#            if col is None:
+#                cols = t.colnames()
+#            else:
+#                cols = [col]
+#
+#            for col in cols:
+#                kw = t.getcolkeywords(col)
+#                print('Old kw ('+col+'):', kw)
+#                t.putcolkeyword(col,'LOFAR_APPLIED_BEAM_MODE', 'None')
+#                kw = t.getcolkeywords(col)
+#                print('New kw ('+col+'):', kw)
+#
+#
+#    def putBeamInfo(self, mode, direction, col=None):
+#        """
+#        Modify beam infor of one column
+#        col: column name, use all if not specified
+#        mode: None, Full, ArrayFactor, Element
+#        direction: [deg,deg]
+#        """
+#        assert mode == 'None' or mode == 'Full' or mode == 'ArrayFactor' or mode == 'Element'
+#
+#        beam_dir={'type': 'direction',
+#                'refer': 'J2000',
+#                'm0': {'value': direction[0]*np.pi/180, 'unit': 'rad'},
+#                'm1': {'value': direction[1]*np.pi/180, 'unit': 'rad'}}
+#
+#        with tables.table(self.pathMS, ack = False, readonly = False) as t:
+#            if col is None:
+#                cols = t.colnames()
+#            else:
+#                cols = [col]
+#
+#            for col in cols:
+#                kw = t.getcolkeywords(col)
+#                print('Old kw ('+col+'):', kw)
+#                t.putcolkeyword(col,'LOFAR_APPLIED_BEAM_MODE', mode)
+#                t.putcolkeyword(col,'LOFAR_APPLIED_BEAM_DIR', beam_dir)
+#                kw = t.getcolkeywords(col)
+#                print('New kw ('+col+'):', kw)
+#
+#    def copyBeamInfo(self, from_ms, from_ms_col, col=None):
+#        """
+#        from_ms: get the keywoords from another ms
+#        from_ms_col: the column to pick the values from
+#        """
+#        if col is None:
+#            cols = t.colnames()
+#        else:
+#            cols = [col]
+#        
+#        with tables.table(from_ms, ack = False, readonly = True) as t:
+#            kw = t.getcolkeywords(from_ms_col)
+#
+#        with tables.table(self.pathMS, ack = False, readonly = False) as t:
+#            for col in cols:
+#                print('set',kw)
+#                t.putcolkeywords(col, kw)
+#

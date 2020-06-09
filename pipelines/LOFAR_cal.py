@@ -45,7 +45,6 @@ if min(MSs.getFreqs()) < 35.e6:
     iono3rd = True
     logger.debug('Include iono 3rd order.')
 else: iono3rd = False
-
 ######################################################
 # flag bad stations, flags will propagate
 if w.todo('flag'):
@@ -74,7 +73,8 @@ if w.todo('predict'):
 if w.todo('cal_pa'):
     # Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType ='python', maxThreads=10)
+    MSs.run('BLsmooth.py -r -c 1 -n 8 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType
+    ='python', maxThreads=8)
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating PA...')
@@ -100,7 +100,8 @@ if w.todo('cal_fr'):
     
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2.log', commandType ='python', maxThreads=10)
+    MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2.log',
+            commandType ='python', maxThreads=8)
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating FR...')
@@ -147,7 +148,8 @@ if w.todo('cal_fr'):
 if w.todo('cal_bp'):
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python', maxThreads=10)
+    MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log',
+            commandType ='python', maxThreads=8)
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating BP...')
@@ -199,7 +201,8 @@ if w.todo('apply_all'):
 if w.todo('cal_iono'):
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log', commandType ='python', maxThreads=10)
+    MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
+            commandType ='python', maxThreads=8)
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO...')
@@ -279,7 +282,7 @@ if imaging:
     imagename = 'img/cal'
     lib_util.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
             weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=512, \
+            baseline_averaging='', parallel_deconvolution=512, \
             auto_threshold=20, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     # make mask
@@ -289,7 +292,7 @@ if imaging:
     logger.info('Cleaning w/ mask...')
     lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
             weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=512, \
+            baseline_averaging='', parallel_deconvolution=512, \
             auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
     os.system('cat logs/wscleanA.log logs/wscleanB.log | grep "background noise"')
 

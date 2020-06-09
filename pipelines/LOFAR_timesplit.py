@@ -9,7 +9,6 @@ import numpy as np
 from astropy.time import Time
 import casacore.tables as pt
 
-
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log
 logger_obj = lib_log.Logger('pipeline-timesplit.logger')
@@ -27,6 +26,8 @@ initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for mu
 bl2flag = parset.get('flag','stations')
 if 'LBAsurvey' in os.getcwd():
     data_dir = '/home/fdg/lofar1/LBAsurvey/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
+
+print(data_dir)
 
 #################################################
 # Clean

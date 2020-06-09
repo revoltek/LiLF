@@ -1,0 +1,5 @@
+Ncpu = 0
+
+[reset]
+operation = RESET
+soltab = sol000/phase000

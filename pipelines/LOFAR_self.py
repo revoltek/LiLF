@@ -89,6 +89,7 @@ for MS in MSs.getListStr():
 
 if w.todo('init_model'):
 
+    # note: do not add MODEL_DATA or the beam is transported from DATA, while we want it without beam applied
     logger.info('Creating CORRECTED_DATA...')
     MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
     
@@ -133,13 +134,14 @@ for c in range(2):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
         MSs.run('BLsmooth.py -c 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+        MSs.run('BLsmooth.py -c 8 -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
     
         # solve TEC - ms:SMOOTHED_DATA
         logger.info('Solving TEC1...')
         MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 \
                 msin.baseline="[CR]*&&;!RS208LBA;!RS210LBA;!RS307LBA;!RS310LBA;!RS406LBA;!RS407LBA;!RS409LBA;!RS508LBA;!RS509LBA" \
                 sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
-           	    sol.solint=15 sol.nchan=8', \
+           	sol.solint=15 sol.nchan=8', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
     
         lib_util.run_losoto(s, 'tec1-c'+str(c), [ms+'/tec1.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-resetremote.parset', parset_dir+'/losoto-plot-tec.parset'])
@@ -192,10 +194,6 @@ for c in range(2):
     if c == 0:
 
         if w.todo('solve_fr_c%02i' % c):
-            # Smooth MODEL_DATA -> MODEL_DATA
-            logger.info('BL-based smoothing...')
-            MSs.run('BLsmooth.py -c 8 -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
-    
             # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Converting to circular...')
             MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=2)
@@ -256,14 +254,14 @@ for c in range(2):
         # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
         logger.info('Cleaning (cycle: '+str(c)+')...')
         imagename = 'img/wideM-'+str(c)
-        if c==0: kwargs = {'do_predict':True,'baseline_averaging':5,'parallel_gridding':2, 'auto_mask':2.5}
+        if c==0: kwargs = {'do_predict':True,'baseline_averaging':'','parallel_gridding':2, 'auto_mask':2.5}
         else: kwargs = {'temp_dir':'./', 'pol':'I', 'use_idg':'', 'grid_with_beam':'', 'use_differential_lofar_beam':'', 'beam_aterm_update':600, 'auto_mask':2.0}
 
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
                 weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=4500, mgain=0.85, \
                 parallel_deconvolution=512, local_rms='', auto_threshold=1.5, \
                 multiscale='', multiscale_scale_bias=0.6, \
-                join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=5, **kwargs)
+                join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, **kwargs)
 
         os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
  
@@ -294,8 +292,8 @@ for c in range(2):
             lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, \
                     parallel_gridding=4, temp_dir='./', size=imgsizepix, scale='30arcsec', \
                     weight='briggs -1', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000, taper_gaussian='200arcsec', mgain=0.85, \
-                    parallel_deconvolution=512, baseline_averaging=5, local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits', \
-                    join_channels='', fit_spectral_pol=5, channels_out=10, deconvolution_channels=5)
+                    parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits', \
+                    join_channels='', fit_spectral_pol=5, channels_out=MSs.getChout(2.e6), deconvolution_channels=5)
     
             w.done('lowres_imaging_c%02i' % c)
         ### DONE
@@ -350,7 +348,7 @@ for c in range(2):
         if w.todo('lowres_predict_c%02i' % c):
             # Recreate MODEL_DATA
             logger.info('Predict model...')
-            s.add('wsclean -predict -name img/wideM-'+str(c)+' -j '+str(s.max_processors)+' -channels-out 9 '+MSs.getStrWsclean(), \
+            s.add('wsclean -predict -name img/wideM-'+str(c)+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(4e6))+' '+MSs.getStrWsclean(), \
                    log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
             s.run(check=True)
 
@@ -361,6 +359,7 @@ for c in range(2):
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits self/images') for c in range(2) ]
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits self/images') for c in range(2) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(2) ]
+os.system('mv img/wideM-1-*-model.fits self/images')
 os.system('mv img/wide-lr-MFS-image.fits self/images')
 os.system('makepb.py -o img/avgbeam.fits -i img/wideM-1')
 os.system('mv img/avgbeam.fits self/images')

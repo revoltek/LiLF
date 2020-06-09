@@ -7,5 +7,6 @@ msout.datacolumn = CORRECTED_DATA
 steps = [corrbeam]
 
 corrbeam.type = applybeam
+corrbeam.beammode = element # the array_factor is 1
 corrbeam.usechannelfreq = False
 corrbeam.updateweights = True # add reweight
