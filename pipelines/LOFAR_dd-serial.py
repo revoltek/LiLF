@@ -220,7 +220,6 @@ for cmaj in range(maxIter):
             # TODO: just a test for coma
             if 'coma' in os.getcwd():
                 if '540' in name: continue
-            #    print ('ADD', name)
 
             # keep track of the spidx of sources
             idx = lsm.getRowIndex(name)

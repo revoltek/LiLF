@@ -40,6 +40,9 @@ def getParset(parsetFile='../lilf.config'):
 
     ### LOFAR ###
 
+    # PiLL
+    add_default('PiLL', 'working_dir', './') # fix bug in some old observations
+
     # download
     add_default('LOFAR_download', 'fix_table', 'True') # fix bug in some old observations
     add_default('LOFAR_download', 'renameavg', 'True')
