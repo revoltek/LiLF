@@ -3,6 +3,8 @@
 
 # Pipeline for direction dependent calibration
 
+# TODO: remove regions and move to masks
+
 import sys, os, glob, re, pickle
 import numpy as np
 import pyrap.tables as pt
@@ -215,15 +217,9 @@ for cmaj in range(maxIter):
                 zip( lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum'), lsm.getPatchSizes(units='deg'), \
                      lsm.getPatchPositions(asArray=True)[0], lsm.getPatchPositions(asArray=True)[1] ):
 
-            # TODO: just a test for NEST
-            #if 'NEST' in os.getcwd():
-            #    if not '525' in name and \
-            #       not '473' in name and \
-            #       not '698' in name and \
-            #       not '368' in name and \
-            #       not '434' in name and \
-            #       not '296' in name and \
-            #       not '542' in name: continue
+            # TODO: just a test for coma
+            if 'coma' in os.getcwd():
+                if '540' in name: continue
             #    print ('ADD', name)
 
             # keep track of the spidx of sources
@@ -250,7 +246,7 @@ for cmaj in range(maxIter):
         # order directions from the fluxiest
         directions = [x for _,x in sorted(zip([d.get_flux(freq_min) for d in directions],directions))][::-1] # reorder with flux
 
-        # TODO: just a test for NEST/coma
+        # TODO: just a test for coma
         if 'coma' in os.getcwd():
             d=directions[0]
             directions.insert(len(directions),d)

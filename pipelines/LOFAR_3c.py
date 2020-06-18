@@ -171,7 +171,6 @@ for c in range(100):
         MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gfr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
             log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
-    # Re-do calibration after faradayrotation removal
     # solve G - group*_TC.MS:CORRECTED_DATA
     logger.info('Solving...')
     solint = max(4-c,1)
@@ -242,9 +241,11 @@ for c in range(100):
     im.makeMask( threshisl=5, rmsbox=(50,5), atrous_do=True )
     maskfits = imagename+'-mask.fits'
     region = '%s/regions/%s.reg' % (parset_dir,target)
-    if os.path.exists( region ):
-        lib_img.blank_image_reg(maskfits, beamReg, blankval = 0.)
-        lib_img.blank_image_reg(maskfits, region, blankval = 1.)
+
+    # TODO: add hand-drawn region
+    #if os.path.exists( region ):
+    #    lib_img.blank_image_reg(maskfits, beamReg, blankval = 0.)
+    #    lib_img.blank_image_reg(maskfits, region, blankval = 1.)
 
     logger.info('Cleaning full (cycle: '+str(c)+')...')
             #multiscale='', multiscale_scale_bias=0.8, multiscale_scales='0,10,20,40,80,160', \
