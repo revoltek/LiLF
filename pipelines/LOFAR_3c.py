@@ -247,11 +247,11 @@ for c in range(100):
         lib_img.blank_image_reg(maskfits, region, blankval = 1.)
 
     logger.info('Cleaning full (cycle: '+str(c)+')...')
+            #multiscale='', multiscale_scale_bias=0.8, multiscale_scales='0,10,20,40,80,160', \
     lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, \
             parallel_gridding=4, size=2500, scale='2.5arcsec', \
             niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.7, nmiter=0, \
             auto_threshold=0.5, auto_mask=2, local_rms='', fits_mask=maskfits, \
-            multiscale='', multiscale_scale_bias=0.8, multiscale_scales='0,10,20,40,80,160', \
             join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2 )
     os.system('cat logs/wsclean-c%02i.log | grep "background noise"' % c)
 

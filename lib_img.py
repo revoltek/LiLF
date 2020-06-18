@@ -69,12 +69,6 @@ class Image(object):
         if not os.path.exists(maskname):
             logger.info('%s: Making mask (%s)...' % (self.imagename, maskname))
             make_mask.make_mask(image_name=self.imagename, mask_name=maskname, threshisl=threshisl, atrous_do=atrous_do, rmsbox=rmsbox)
-        if self.userReg is not None:
-            logger.info('%s: Adding user mask (%s)...' % (self.imagename, self.userReg))
-            blank_image_reg(maskname, self.userReg, inverse=False, blankval=1)
-        if only_beam and self.beamReg is not None:
-            logger.info('%s: Restricting to the beam (%s)...' % (self.imagename, self.beamReg))
-            blank_image_reg(maskname, self.beamReg, inverse=True, blankval=0)
 
         if remove_extended_cutoff > 0:
 
@@ -99,6 +93,14 @@ class Image(object):
                 # write mask back
                 fits[0].data[0,0] = mask
                 fits.writeto(maskname, overwrite=True)
+
+        if self.userReg is not None:
+            logger.info('%s: Adding user mask (%s)...' % (self.imagename, self.userReg))
+            blank_image_reg(maskname, self.userReg, inverse=False, blankval=1)
+
+        if only_beam and self.beamReg is not None:
+            logger.info('%s: Restricting to the beam (%s)...' % (self.imagename, self.beamReg))
+            blank_image_reg(maskname, self.beamReg, inverse=True, blankval=0)
 
 
     def selectCC(self, checkBeam=True, keepInBeam=True, maskname=None):

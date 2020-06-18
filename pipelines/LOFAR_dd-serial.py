@@ -387,7 +387,7 @@ for cmaj in range(maxIter):
         image = lib_img.Image('img/ddcalM-%s-pre-MFS-image.fits' % logstring)
         rms_noise_pre = image.getNoise()
         rms_noise_init = rms_noise_pre
-        doamp = False
+        doamp = False; doamp2 = False
         # usually there are 3600/30=120 or 3600/15=240 timesteps, try to use multiple numbers
         iter_ph_solint = lib_util.Sol_iterator([4,1])
         iter_amp_solint = lib_util.Sol_iterator([120,60,30])
@@ -405,8 +405,9 @@ for cmaj in range(maxIter):
             d.add_h5parm('ph', 'ddcal/c%02i/solutions/cal-ph-%s.h5' % (cmaj,logstringcal) )
             if doamp:
                 solint_amp = next(iter_amp_solint)
-                solint_amp2 = next(iter_amp2_solint)
                 d.add_h5parm('amp1', 'ddcal/c%02i/solutions/cal-amp1-%s.h5' % (cmaj,logstringcal) )
+            if doamp2:
+                solint_amp2 = next(iter_amp2_solint)
                 d.add_h5parm('amp2', 'ddcal/c%02i/solutions/cal-amp2-%s.h5' % (cmaj,logstringcal) )
    
             if w.todo('%s-calibrate' % logstringcal):
@@ -440,10 +441,9 @@ for cmaj in range(maxIter):
                     
                     logger.info('Gain amp calibration 1...')
                     # Calibration - ms:CORRECTED_DATA
-                    # sol.smoothnessconstraint=4e6
                     # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp)+' sol.nchan=1 sol.uvmmin=200 \
+                        sol.mode=diagonal sol.solint='+str(solint_amp)+' sol.nchan=1 sol.uvmmin=200 sol.smoothnessconstraint=4e6 \
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DPPP')
                     lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], \
@@ -457,12 +457,11 @@ for cmaj in range(maxIter):
                         cor.parmdb='+d.get_h5parm('amp1')+' cor.correction=amplitude000', \
                         log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP') 
 
-                    # TODO: add this only on the second round
+                if doamp2:
                     logger.info('Gain amp calibration 2...')
                     # Calibration - ms:SMOOTHED_DATA
-                    # sol.smoothnessconstraint=10e6
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.nchan=6 sol.uvmmin=200', \
+                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.nchan=6 sol.uvmmin=200 sol.smoothnessconstraint=10e6', \
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DPPP')
                     lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], \
                         [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset'], \
@@ -488,14 +487,15 @@ for cmaj in range(maxIter):
                 w.done('%s-image' % logstringcal)
             ### DONE
 
-            image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % logstringcal)
+            image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % logstringcal, userReg=userReg)
             d.set_model(image.root, typ='best', apply_region=False) # currently best model
             # something went wrong during last imaging, break
             if not os.path.exists(image.imagename): break
             # get noise, if larger than prev cycle: break
             rms_noise = image.getNoise()
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
-            if rms_noise > rms_noise_pre and cdd >= 2 and doamp: break
+            if rms_noise > 0.99*rms_noise_pre and cdd >= 2: break
+            if rms_noise > 0.99*rms_noise_pre and doamp: doamp2 = True
             if rms_noise > 0.99*rms_noise_pre and cdd >= 1: doamp = True
             rms_noise_pre = rms_noise
 
@@ -532,20 +532,20 @@ for cmaj in range(maxIter):
             # Corrput now model - ms:MODEL_DATA -> MODEL_DATA
             logger.info('Corrupt ph...')
             MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                        cor.invert=False cor.parmdb='+d.get_h5parm('ph',-1)+' cor.correction=phase000', \
-                        log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP')
+                        cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=phase000', \
+                        log='$nameMS_corruping'+logstring+'.log', commandType='DPPP')
             #MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
             #            cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=tec000', \
             #            log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP')
 
-            if not d.get_h5parm('amp1',-1) is None:
+            if not d.get_h5parm('amp1',-2) is None:
                 logger.info('Corrupt amp...')
                 MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                       cor.invert=False cor.parmdb='+d.get_h5parm('amp1',-1)+' cor.correction=amplitude000', \
+                       cor.invert=False cor.parmdb='+d.get_h5parm('amp1',-2)+' cor.correction=amplitude000', \
                        log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP') 
-            if not d.get_h5parm('amp2',-1) is None:
+            if not d.get_h5parm('amp2',-2) is None:
                 MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                       cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-1)+' cor.correction=amplitude000', \
+                       cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000', \
                        log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP') 
 
             if not d.peel_off:
@@ -599,13 +599,18 @@ for cmaj in range(maxIter):
             continue
         if not d.converged:
             continue
-        # only those who arrievd to amp
-        if d.get_h5parm('amp1',-1) is None:
-            continue
 
-        h5parms['amp1'].append(d.get_h5parm('amp1',-1))
-        h5parms['amp2'].append(d.get_h5parm('amp2',-1))
-        h5parms['ph'].append(d.get_h5parm('ph',-1))
+        h5parms['ph'].append(d.get_h5parm('ph',-2))
+        if d.get_h5parm('amp1',-2) is not None:
+            h5parms['amp1'].append(d.get_h5parm('amp1',-2))
+        if d.get_h5parm('amp2',-2) is not None:
+            h5parms['amp2'].append(d.get_h5parm('amp2',-2))
+        
+        log = '%s: Phase (%s)' % (d.name, d.get_h5parm('ph',-2))
+        log += ' Amp1 (%s)' % (d.get_h5parm('amp1',-2))
+        log += ' Amp2 (%s)' % (d.get_h5parm('amp2',-2))
+        logger.info(log)
+
 
     for typ, h5parm_list in h5parms.items():
         # rename direction
@@ -628,6 +633,7 @@ for cmaj in range(maxIter):
                 s.run()
 
     lib_util.check_rm(interp_h5parm)
+    logger.info('Interpolating solutions...')
     s.add('H5parm_interpolator.py -o '+interp_h5parm+' '+' '.join(h5parms['ph']+h5parms['amp1']+h5parms['amp2']), log='h5parm_interpolator.log', commandType='python' )
     s.run()
 
@@ -660,6 +666,7 @@ for cmaj in range(maxIter):
 
         imagename = 'img/final-c%02i' % (cmaj)
 
+        logger.info('Cleaning...')
         lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log',
         Data_MS=MSs.getStrDDF(),
         Data_ColName='CORRECTED_DATA',
@@ -667,7 +674,7 @@ for cmaj in range(maxIter):
         Deconv_CycleFactor=0,
         Deconv_MaxMinorIter=1000000,
         Deconv_MaxMajorIter=3,
-        Deconv_Mode='SSD',
+        Deconv_Mode='HMP',
         Weight_Robust=-0.5,
         Image_NPix=8750,
         CF_wmax=50000,
@@ -686,7 +693,7 @@ for cmaj in range(maxIter):
         Deconv_PeakFactor=0.001,
         Deconv_FluxThreshold=0.0,
         Data_Sort=1,
-        Freq_NBand=2,
+        Freq_NBand=ch_out,
         Mask_Auto=1,
         GAClean_MinSizeInit=10,
         Facets_DiamMax=1.5,
