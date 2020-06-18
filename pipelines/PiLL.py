@@ -3,6 +3,7 @@
 import os, sys
 
 # get parameters
+# use lilf.config (this is also used by all other scripits)
 working_dir = '.'
 LiLF_dir = '/home/baq1889/scripts/LiLF/'
 
