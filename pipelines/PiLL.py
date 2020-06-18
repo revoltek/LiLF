@@ -8,6 +8,8 @@ LiLF_dir = '/home/baq1889/scripts/LiLF/'
 
 # query the database for data to process
 
+
+# setup directiories
 if not os.path.exists(working_dir):
     os.makedirs(working_dir)
 os.chdir(working_dir)
@@ -29,7 +31,7 @@ os.system(LiLF_dir+'/pipelines/LOFAR_timesplit.py')
 
 # selfcal
 os.chdir(working_dir+'/tgts')
-os.system(LiLF_dir+'/pipelines/LOFAR_selg.py')
+os.system(LiLF_dir+'/pipelines/LOFAR_self.py')
 
 # DD-cal
 os.chdir(working_dir+'/tgts')
