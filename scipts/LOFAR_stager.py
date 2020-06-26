@@ -1,21 +1,32 @@
 #!/usr/bin/env python3
-# export PYTHONPATH="$HOME/opt/lib/python3.?/site-packages/"
 # To do a second run, rename the uris.pickle
 
-import os, sys, time, glob, pickle
+import os, sys, time, glob, pickle, argparse
 from datetime import datetime
+import subprocess, multiprocessing
 from awlofar.database.Context import context
 from awlofar.main.aweimports import CorrelatedDataProduct, \
     FileObject, \
     Observation
 from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
-import subprocess, multiprocessing
 import stager_access as stager
 
 #project = 'LC9_017' # 3c first part
 #project = 'LC10_020' # 3c second part
-#project = 'LC4_012' # Lazio planet
-project = 'LC12_006'
+#project = 'LC13_011' # cluster
+
+parser = argparse.ArgumentParser(description='Stage and download MS from the LOFAR LTA.')
+parser.add_argument('--project', '-p', dest='project', help='')
+parser.add_argument('--sasID', '-o', dest='sasID', help='')
+args = parser.parse_args()
+
+project = args.project
+sasID = args.sasID
+
+if project is None and sasID is None:
+    print('ERROR: at least one between --project and --sasID needs to be specified.')
+    sys.exit()
+
 # The class of data to query
 cls = CorrelatedDataProduct
 
@@ -25,19 +36,22 @@ if os.path.exists('renamed.txt'):
         for line in flog:
             downloaded_mss.append(line[:-1]+'.MS')
 
+# first collect all uris
 if not os.path.exists('uris.pickle'):
     query_observations = Observation.select_all().project_only(project)
     uris = set() # All URIS to stage
     for observation in query_observations :
-        print("Querying ObservationID %s" % observation.observationId)
+        print("Querying ObservationID %s" % observation.observationId, end='')
         # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
         dataproduct_query = cls.observations.contains(observation)
         # isValid = 1 means there should be an associated URI
         dataproduct_query &= cls.isValid == 1
+        #dataproduct_query &= cls.pipelineName == 1
         for i, dataproduct in enumerate(dataproduct_query):
             # This DataProduct should have an associated URL
             fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
-            if fileobject :
+            print (fileobject.URI)
+            if fileobject:
                 if i%10 == 0:
                     print(".", end='')
                     sys.stdout.flush()
@@ -49,6 +63,8 @@ if not os.path.exists('uris.pickle'):
                 if not skip: uris.add(fileobject.URI)
             else :
                 print("No URI found for %s with dataProductIdentifier %d" % (dataproduct.__class__.__name__, dataproduct.dataProductIdentifier))
+        
+        print("")
             
             #if len(uris) == 1: break # TEST
         #break # TEST

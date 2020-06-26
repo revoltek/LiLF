@@ -23,23 +23,35 @@ os.makedirs('cals')
 os.makedirs('tgts-bkp')
 os.makedirs('tgts')
 
-
+##########
 # download
 os.chdir(working_dir+'/download')
+os.system(LiLF_dir+'/../scripts/LOFAR_stager.py')
+# TODO: how to be sure all MS were downloaded?
 os.system(LiLF_dir+'/pipelines/LOFAR_download.py')
 
+# TODO
+# how to download only calibrator and then only target?
+#os.system('mv *3[C|c][196|295|380]*MS ../cals-bkp/')
+
+
+
+##########
 # calibrator
 os.chdir(working_dir+'/cals')
 os.system(LiLF_dir+'/pipelines/LOFAR_cal.py')
 
+##########
 # timesplit
 os.chdir(working_dir+'/tgts')
 os.system(LiLF_dir+'/pipelines/LOFAR_timesplit.py')
 
+##########
 # selfcal
 os.chdir(working_dir+'/tgts')
 os.system(LiLF_dir+'/pipelines/LOFAR_self.py')
 
+##########
 # DD-cal
 os.chdir(working_dir+'/tgts')
 os.system(LiLF_dir+'/pipelines/LOFAR_dd-serial.py')

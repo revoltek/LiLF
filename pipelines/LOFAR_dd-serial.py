@@ -127,7 +127,7 @@ if not os.path.exists('mss-avg'):
     # pointed after avg (x8): 120, final number of sol 20
     nchan = nchan_init - nchan_init%48
     os.makedirs('mss-avg')
-    logger.info('Averaging in time (%is -> 10s - %ich -> %ich)' % (timeint,nachn_init,nchan))
+    logger.info('Averaging in time (%is -> 10s - %ich -> %ich)' % (timeint,nchan_init,nchan))
     MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-avg/$nameMS.MS msin.datacolumn=CORRECTED_DATA msin.nchan='+str(nchan)+' \
             avg.timestep='+str(avgtimeint)+' avg.freqstep=1', \
             log='$nameMS_initavg.log', commandType='DPPP')
@@ -494,6 +494,9 @@ for cmaj in range(maxIter):
             if rms_noise > 0.99*rms_noise_pre and cdd >= 1: doamp = True
             rms_noise_pre = rms_noise
 
+        # DEBUG
+        if '545' in d.name: sys.exit()
+
         # End calibration cycle
         ##################################
 
@@ -619,7 +622,6 @@ for cmaj in range(maxIter):
                 # reset high-res amplitudes in ph-solve
                 s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetamp.parset ', log='h5parm_collector.log', commandType='python' )
                 s.run()
-                # reference phases to best station
                 s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-refph.parset ', log='h5parm_collector.log', commandType='python' )
                 s.run()
 
@@ -683,7 +685,7 @@ for cmaj in range(maxIter):
         Output_Also='onNeds',
         Image_Cell=3.,
         Facets_NFacets=25,
-        Freq_NDegridBand=1,
+        Freq_NDegridBand=ch_out,
         Deconv_RMSFactor=3.0,
         Deconv_PeakFactor=0.001,
         Deconv_FluxThreshold=0.0,
