@@ -30,16 +30,19 @@ os.system(LiLF_dir+'/../scripts/LOFAR_stager.py')
 # TODO: how to be sure all MS were downloaded?
 os.system(LiLF_dir+'/pipelines/LOFAR_download.py')
 
-# TODO
-# how to download only calibrator and then only target?
-#os.system('mv *3[C|c][196|295|380]*MS ../cals-bkp/')
-
-
-
 ##########
 # calibrator
-os.chdir(working_dir+'/cals')
-os.system(LiLF_dir+'/pipelines/LOFAR_cal.py')
+if calibrator_tables_available:
+    # TODO: Download calibration tables
+
+else:
+    # TODO
+    # how to download only calibrator and then only target?
+    os.system('mv '+working_dir+'/download/*3[C|c][196|295|380]/*MS '+working_dir+'/cals-bkp/')
+    os.chdir(working_dir+'/cals')
+    os.system(LiLF_dir+'/pipelines/LOFAR_cal.py')
+
+    # TODO: Upload new calibration tables
 
 ##########
 # timesplit

@@ -45,6 +45,7 @@ if min(MSs.getFreqs()) < 35.e6:
     iono3rd = True
     logger.debug('Include iono 3rd order.')
 else: iono3rd = False
+
 ######################################################
 # flag bad stations, flags will propagate
 if w.todo('flag'):
