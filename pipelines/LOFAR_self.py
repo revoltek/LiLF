@@ -29,6 +29,7 @@ parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_self','parset_dir')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
+userReg = parset.get('model','userReg')
 
 #############################################################################
 # Clear

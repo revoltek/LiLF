@@ -37,11 +37,12 @@ def getParset(parsetFile='../lilf.config'):
     # add other sections
     if not config.has_section('flag'): config.add_section('flag')
     if not config.has_section('model'): config.add_section('model')
+    if not config.has_section('PiLL'): config.add_section('PiLL')
 
     ### LOFAR ###
 
     # PiLL
-    add_default('PiLL', 'working_dir', './') # fix bug in some old observations
+    add_default('PiLL', 'working_dir', './')
 
     # download
     add_default('LOFAR_download', 'fix_table', 'True') # fix bug in some old observations
