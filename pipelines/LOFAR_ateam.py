@@ -225,7 +225,7 @@ for c in range(100):
 
     # Solve MS:CORRECTED_DATA (only solve)
     logger.info('Solving BP...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal \
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/amp.h5 sol.mode=fulljones \
             sol.uvlambdarange='+str(nouseblrange)+' sol.smoothnessconstraint=2e6 sol.nchan=1 sol.solint=100', log='$nameMS_solAMP3.log', commandType="DPPP")
     
     lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
@@ -281,22 +281,22 @@ for c in range(100):
             rev_reg(modelfile,'/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/virgohole.reg')
 
     elif patch == 'VirA' and lofar_system == 'hba':
-        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -0.4', niter=1500, update_model_required='', mgain=0.3, \
-                fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
-                join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=30) # use cont=True
-        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -0.4', taper_gaussian='8arcsec', niter=5000000, no_update_model_required='', nmiter=50, mgain=0.7, \
-                multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80,160,320', \
-                fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
-                auto_threshold=0.5, \
-                join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=30)
-        #lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-        #        weight='briggs -0.4', taper_gaussian='10arcsec', niter=5000000, no_update_model_required='', nmiter=50, mgain=0.6, \
-        #        multiscale='', multiscale_scale_bias=0.5, multiscale_scales='0,5,10,20,40,80,160,320', \
+        #lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
+        #        weight='briggs -0.4', niter=1500, update_model_required='', mgain=0.3, \
+        #        fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
+        #        join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=30) # use cont=True
+        #lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
+        #        weight='briggs -0.4', taper_gaussian='8arcsec', niter=5000000, no_update_model_required='', nmiter=50, mgain=0.7, \
+        #        multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80,160,320', \
         #        fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
-        #        auto_threshold=0.5, baseline_averaging=10, \
+        #        auto_threshold=0.5, \
         #        join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=30)
+        #fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
+                weight='briggs -0.2', niter=5000000, no_update_model_required='', nmiter=20, mgain=0.4, \
+                multiscale='', multiscale_scale_bias=0.5, \
+                auto_threshold=0.5, baseline_averaging=10, \
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=10)
 
         #for modelfile in glob.glob(imagename+'*model*'):
         #    rev_reg(modelfile, '/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/virgoholehba.reg')
@@ -306,7 +306,7 @@ for c in range(100):
     #im.rescaleModel(f)
 
     logger.info('Predict (wsclean: %s)...' % imagename)
-    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 30 '+MSs.getStrWsclean(), \
+    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 10 '+MSs.getStrWsclean(), \
           log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
