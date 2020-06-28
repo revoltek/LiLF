@@ -43,32 +43,37 @@ def getName(ms):
     """
     Get new MS name based on obs name and time
     """
+    # get pointing name
     with pt.table(ms+'/FIELD', readonly=True, ack=False) as t:
         code = t.getcell('CODE',0)
     if code == '':
         with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
             code = t.getcell('LOFAR_TARGET',0)[0]
-    
     code = code.lower().replace(' ','_')
+    
+    # get obsid
+    with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
+        obsid = t.getcell('LOFAR_OBSERVATION_ID',0)
 
     # get freq
     with pt.table(ms+'/SPECTRAL_WINDOW', readonly=True, ack=False) as t:
         freq = t.getcell('REF_FREQUENCY',0)
 
     # get time (saved in ms as MJD in seconds)
-    with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
-        time = Time(t.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
-        time = time.iso.replace('-','').replace(' ','').replace(':','')[0:12]
+    #with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
+    #    time = Time(t.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
+    #    time = time.iso.replace('-','').replace(' ','').replace(':','')[0:12]
 
-    pattern = re.compile("^c[0-9][0-9]-.*$")
+    #pattern = re.compile("^c[0-9][0-9]-.*$")
     # is survey?
-    if pattern.match(code):
-        cycle_obs, sou = code.split('_')
-        if not os.path.exists(cycle_obs+'/'+sou): os.makedirs(cycle_obs+'/'+sou)
-        return cycle_obs+'/'+sou+'/'+sou+'_t'+time+'_SB'+str(nu2num(freq/1.e6))+'.MS'
-    else:
-        if not os.path.exists('mss/'+code): os.makedirs('mss/'+code)
-        return 'mss/'+code+'/'+code+'_t'+time+'_SB'+str(nu2num(freq/1.e6))+'.MS'
+    #if pattern.match(code):
+    #    cycle_obs, sou = code.split('_')
+    #    if not os.path.exists(cycle_obs+'/'+sou): os.makedirs(cycle_obs+'/'+sou)
+    #    return cycle_obs+'/'+sou+'/'+sou+'_t'+time+'_SB'+str(nu2num(freq/1.e6))+'.MS'
+    #else:
+    
+    if not os.path.exists('mss/id'+obsid+'_'+code): os.makedirs('mss/'+obsid+'_'+code)
+    return 'mss/id'+obsid+'_'+code+'/'+code+'_SB'+str(nu2num(freq/1.e6))+'.MS'
 
 ########################################
 if not download_file is None:
@@ -94,7 +99,7 @@ if len(MSs.getListStr()) == 0:
     logger.info('Done.')
     sys.exit(0)
 
-#######################################
+######################################
 with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
     t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
     time = np.int(t.iso.replace('-','')[0:8])

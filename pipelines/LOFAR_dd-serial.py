@@ -32,7 +32,12 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
     size = in deg of the image
     """
     # set pixscale and imsize
-    pixscale = MSs.getListObj()[0].getResolution() 
+    try:
+        pixscale = MSs.getListObj()[0].getResolution() 
+    except:
+        logger.warning('Fail evaluate pixscale, probably the MS is fully flagged.')
+        return
+
     if res == 'normal':
         pixscale = float('%.1f'%(pixscale/2.5))
     elif res == 'high':
@@ -194,7 +199,7 @@ for cmaj in range(maxIter):
         x = lsm.getColValues('RA',aggregate='wmean')
         y = lsm.getColValues('Dec',aggregate='wmean')
         flux = lsm.getColValues('I',aggregate='sum')
-        grouper = lib_dd.Grouper(list(zip(x,y)), flux, look_distance=0.2, kernel_size=0.1, grouping_distance=0.03)
+        grouper = lib_dd.Grouper(list(zip(x,y)), flux, look_distance=0.1, kernel_size=0.1, grouping_distance=0.03)
         grouper.run()
         clusters = grouper.grouping()
         grouper.plot()
@@ -483,9 +488,10 @@ for cmaj in range(maxIter):
             ### DONE
 
             image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % logstringcal, userReg=userReg)
-            d.set_model(image.root, typ='best', apply_region=False) # currently best model
             # something went wrong during last imaging, break
-            if not os.path.exists(image.imagename): break
+            if not os.path.exists(image.imagename):
+                break
+            d.set_model(image.root, typ='best', apply_region=False) # currently best model
             # get noise, if larger than prev cycle: break
             rms_noise = image.getNoise()
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
@@ -494,14 +500,16 @@ for cmaj in range(maxIter):
             if rms_noise > 0.99*rms_noise_pre and cdd >= 1: doamp = True
             rms_noise_pre = rms_noise
 
-        # DEBUG
-        if '545' in d.name: sys.exit()
-
         # End calibration cycle
         ##################################
 
-        # if divergency, don't subtract
-        if rms_noise_pre > 1.5*rms_noise_init:
+        # if divergency or died the first cycle, don't subtract
+        if cdd == 0:
+            d.converged = False
+            logger.warning('%s: something went wring during the first self-cal cycle in this direction.' % (d.name))
+            d.clean()
+            continue
+        elif rms_noise_pre > 1.5*rms_noise_init:
             d.converged = False
             logger.warning('%s: noise did not decresed (%f -> %f), do not subtract source.' % (d.name, rms_noise_init, rms_noise_pre))
             d.clean()
@@ -714,3 +722,5 @@ for cmaj in range(maxIter):
 
     full_image = lib_img.Image(imagename+'-MFS-image.fits', userReg = userReg)
     sys.exit()
+
+logger.info("Done.")

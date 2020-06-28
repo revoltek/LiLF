@@ -23,10 +23,10 @@ skymodel = parset.get('LOFAR_cal','skymodel')
 imaging = parset.getboolean('LOFAR_cal','imaging')
 bl2flag = parset.get('flag','stations')
 
-if 'LBAsurvey' in os.getcwd():
-    obs     = os.getcwd().split('/')[-2] # assumes .../c??-o??/3c196
-    calname = os.getcwd().split('/')[-1] # assumes .../c??-o??/3c196
-    data_dir = '/home/baq1889/lofar1/LBAsurvey/%s/%s' % (obs, calname)
+#if 'LBAsurvey' in os.getcwd():
+#    obs     = os.getcwd().split('/')[-2] # assumes .../c??-o??/3c196
+#    calname = os.getcwd().split('/')[-1] # assumes .../c??-o??/3c196
+#    data_dir = '/home/baq1889/lofar1/LBAsurvey/%s/%s' % (obs, calname)
 
 #############################################################
 MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags = False )
@@ -219,34 +219,35 @@ if w.todo('cal_iono'):
     w.done('cal_iono')
 ### DONE
 
-if 'LBAsurvey' in os.getcwd():
-    os.system('cp cal-pa.h5 cal-pa-full.h5')
-    os.system('mv cal-fr.h5 cal-fr-full.h5') # no need to keep orig
-    os.system('cp cal-amp.h5 cal-amp-full.h5')
-    os.system('cp cal-iono.h5 cal-iono-full.h5')
-    os.system('losoto -d sol000/amplitude000 cal-pa.h5')
-    os.system('losoto -d sol000/phase000 cal-pa.h5')
-    os.system('losoto -d sol000/phaseOrig000 cal-pa.h5')
-    os.system('h5repack cal-pa.h5 cal-pa-compressed.h5; mv cal-pa-compressed.h5 cal-pa.h5')
+logger.info('Compressing caltables...')
+os.system('cp cal-pa.h5 fullcal-pa.h5')
+os.system('mv cal-fr.h5 fullcal-fr.h5') # no need to keep orig
+os.system('cp cal-amp.h5 fullcal-amp.h5')
+os.system('cp cal-iono.h5 fullcal-iono.h5')
+os.system('losoto -d sol000/amplitude000 cal-pa.h5')
+os.system('losoto -d sol000/phase000 cal-pa.h5')
+os.system('losoto -d sol000/phaseOrig000 cal-pa.h5')
+os.system('h5repack cal-pa.h5 cal-pa-compressed.h5; mv cal-pa-compressed.h5 cal-pa.h5')
 
-    os.system('losoto -d sol000/amplitude000 cal-amp.h5')
-    os.system('losoto -d sol000/amplitudeRes cal-amp.h5')
-    os.system('losoto -d sol000/phase000 cal-amp.h5')
-    os.system('h5repack cal-amp.h5 cal-amp-compressed.h5; mv cal-amp-compressed.h5 cal-amp.h5')
+os.system('losoto -d sol000/amplitude000 cal-amp.h5')
+os.system('losoto -d sol000/amplitudeRes cal-amp.h5')
+os.system('losoto -d sol000/phase000 cal-amp.h5')
+os.system('h5repack cal-amp.h5 cal-amp-compressed.h5; mv cal-amp-compressed.h5 cal-amp.h5')
 
-#    os.system('losoto -d sol000/tec000 cal-iono.h5')
-#    os.system('losoto -d sol000/clock000 cal-iono.h5')
-    os.system('losoto -d sol000/amplitude000 cal-iono.h5')
-    os.system('losoto -d sol000/phase_offset000 cal-iono.h5')
-#    os.system('losoto -d sol000/phase000 cal-iono.h5')
-    os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
+# os.system('losoto -d sol000/tec000 cal-iono.h5')
+# os.system('losoto -d sol000/clock000 cal-iono.h5')
+os.system('losoto -d sol000/amplitude000 cal-iono.h5')
+os.system('losoto -d sol000/phase_offset000 cal-iono.h5')
+os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
 
-    logger.info('Copy survey caltable...')
-    cal = 'cal_'+os.getcwd().split('/')[-2]+'_'+calname
-    logger.info('Copy: cal*h5 -> portal_lei:/disks/paradata/fdg/LBAsurvey/%s' % cal)
-    os.system('ssh portal_lei "rm -rf /disks/paradata/fdg/LBAsurvey/%s"' % cal)
-    os.system('ssh portal_lei "mkdir /disks/paradata/fdg/LBAsurvey/%s"' % cal)
-    os.system('scp -q cal-*.h5 portal_lei:/disks/paradata/fdg/LBAsurvey/%s' % cal)
+logger.info('Save caltables and plots...')
+obsid = MSs.getListObj()[0].getObsID()
+cal = 'id'+str(obsid)+'_'+calname
+logger.info('Copy: cal*h5 -> lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
+os.system('ssh lofar.herts.ac.uk "rm -rf /beegfs/lofar/lba/calibration_solutions/%s"' % cal)
+os.system('ssh lofar.herts.ac.uk "mkdir /beegfs/lofar/lba/calibration_solutions/%s"' % cal)
+os.system('scp -q cal-*.h5 lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
+os.system('scp -q -r plots* lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
 
 # a debug image
 if imaging:

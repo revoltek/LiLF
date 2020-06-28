@@ -27,8 +27,6 @@ bl2flag = parset.get('flag','stations')
 if 'LBAsurvey' in os.getcwd():
     data_dir = '/home/fdg/lofar1/LBAsurvey/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
 
-print(data_dir)
-
 #################################################
 # Clean
 if w.todo('clean'):
@@ -54,13 +52,22 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 ##################################################
 # Find solutions to apply
-if 'LBAsurvey' in os.getcwd():
-    #cal_dir = 'portal_lei:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]+'_3C*/'
-    for cal_dir in glob.glob('../3c*'):
-        #if time of obs is between starting and ending time of cal, use it
-        timechunks = set([re.findall(r'_t\d+', ms)[0][2:] for ms in  glob.glob(cal_dir+'/*MS') ])
-        if re.findall( r'_t\d+', MSs.getListStr()[0] )[0][2:] in timechunks:
-            break
+#if 'LBAsurvey' in os.getcwd():
+#    #cal_dir = 'portal_lei:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]+'_3C*/'
+#    for cal_dir in glob.glob('../3c*'):
+#        #if time of obs is between starting and ending time of cal, use it
+#        timechunks = set([re.findall(r'_t\d+', ms)[0][2:] for ms in  glob.glob(cal_dir+'/*MS') ])
+#        if re.findall( r'_t\d+', MSs.getListStr()[0] )[0][2:] in timechunks:
+#            break
+
+if cal_dir == '':
+    obsid = MSs.getListObj()[0].getObsID()
+    # try standard location
+    cal_dir = glob.glob('../id%i_3[c|C][196|295|368]' % obsid)[0]
+    if not os.path.exists(cal_dir):
+        # try the repository
+        os.system('scp -q lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/id%i_*/cal-*h5 .' % obsid)
+           cal_dir = './'
 
 h5_pa = cal_dir+'/cal-pa.h5'
 h5_amp = cal_dir+'/cal-amp.h5'

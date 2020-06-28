@@ -50,7 +50,7 @@ if not os.path.exists('uris.pickle'):
         for i, dataproduct in enumerate(dataproduct_query):
             # This DataProduct should have an associated URL
             fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
-            print (fileobject.URI)
+            #print (fileobject.URI)
             if fileobject:
                 if i%10 == 0:
                     print(".", end='')

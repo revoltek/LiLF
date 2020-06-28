@@ -361,7 +361,14 @@ class MS(object):
 
         with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
             return t.getcell("LOFAR_ANTENNA_SET",0)
-        
+
+    def getObsID(self):
+        """
+        Return LOFAR observation ID
+        """
+        with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
+            return t.getcell("LOFAR_OBSERVATION_ID",0)
+
     def getFWHM(self, freq='mid'):
         """
         Return the expected FWHM in degree

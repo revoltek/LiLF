@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # perform self-calibration on a group of SBs concatenated in TCs.
+# they need to be in "./mss/"
 
 import sys, os, glob, re
 import numpy as np
@@ -9,14 +10,14 @@ import casacore.tables as pt
 import lsmtool
 
 # Survey
-if 'LBAsurvey' in os.getcwd():
-    obs = os.getcwd().split('/')[-1]
-    if not os.path.exists('mss'):
-        os.makedirs('mss')
-        for i, tc in enumerate(glob.glob('/home/fdg/data/LBAsurvey/c*-o*/%s/mss/*' % obs)):
-            tc_ren = 'TC%02i.MS' % i
-            print('cp -r %s mss/%s' % (tc,tc_ren))
-            os.system('cp -r %s mss/%s' % (tc,tc_ren))
+#if 'LBAsurvey' in os.getcwd():
+#    obs = os.getcwd().split('/')[-1]
+#    if not os.path.exists('mss'):
+#        os.makedirs('mss')
+#        for i, tc in enumerate(glob.glob('/home/fdg/data/LBAsurvey/c*-o*/%s/mss/*' % obs)):
+#            tc_ren = 'TC%02i.MS' % i
+#            print('cp -r %s mss/%s' % (tc,tc_ren))
+#            os.system('cp -r %s mss/%s' % (tc,tc_ren))
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
@@ -371,8 +372,9 @@ for c in range(2):
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(2) ]
 os.system('mv img/wideM-1-*-model.fits self/images')
 os.system('mv img/wide-lr-MFS-image.fits self/images')
+os.system('mv logs self')
+
 os.system('makepb.py -o img/avgbeam.fits -i img/wideM-1')
 os.system('mv img/avgbeam.fits self/images')
-os.system('mv logs self')
 
 logger.info("Done.")
