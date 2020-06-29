@@ -115,14 +115,17 @@ if fix_table:
 
 # Rescale visibilities by 1e3 if before 2014-03-19 (old correlator), and by 1e-2 otherwise
 logger.info('Rescaling flux...')
-with pt.table(ms+'/HISTORY', readonly=True, ack=False) as t:
-    hist = t.getcol('...',0)
-    if 'PiLL: Rescaling flux' not in hist:
-        if time < 20140319:
-            MSs.run('taql "update $pathMS set DATA = 1e6*DATA"', log='$nameMS_taql.log', commandType='general')
-        else:
-            MSs.run('taql "update $pathMS set DATA = 1e-4*DATA"', log='$nameMS_taql.log', commandType='general')
-        t.putcell('PiLL: Rescaling flux')
+if time < 20140319:
+    rescale_factor = 1e6
+else:
+    rescale_factor = 1e-4
+
+for MS in MSs.getListStr():
+    with pt.table(MS+'/HISTORY', readonly=True, ack=False) as hist:
+        if "Flux rescaled" not in hist.getcol('MESSAGE'):
+            s.add('taql "update '+MS+' set DATA = %f*DATA" && taql "insert into '+MS+'/HISTORY (TIME,MESSAGE) values (mjd(), \"Flux rescaled\")"' % rescale_factor, \
+                    log='$nameMS_taql.log', commandType='general')
+s.run(check=True)
 
 ######################################
 # Avg to 4 chan and 2 sec

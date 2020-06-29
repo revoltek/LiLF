@@ -219,38 +219,42 @@ if w.todo('cal_iono'):
     w.done('cal_iono')
 ### DONE
 
-logger.info('Compressing caltables...')
-os.system('cp cal-pa.h5 fullcal-pa.h5')
-#os.system('cp cal-fr.h5 fullcal-fr.h5') # no need to keep orig
-os.system('cp cal-amp.h5 fullcal-amp.h5')
-os.system('cp cal-iono.h5 fullcal-iono.h5')
-s.add('losoto -d sol000/amplitude000 cal-pa.h5', log='losoto-final.log', commandType="python")
-s.add('losoto -d sol000/phase000 cal-pa.h5', log='losoto-final.log', commandType="python")
-s.add('losoto -d sol000/phaseOrig000 cal-pa.h5', log='losoto-final.log', commandType="python")
-s.run()
-os.system('h5repack cal-pa.h5 cal-pa-compressed.h5; mv cal-pa-compressed.h5 cal-pa.h5')
+if w.todo('upload'):
+    logger.info('Compressing caltables...')
+    os.system('cp cal-pa.h5 fullcal-pa.h5')
+    #os.system('cp cal-fr.h5 fullcal-fr.h5') # no need to keep orig
+    os.system('cp cal-amp.h5 fullcal-amp.h5')
+    os.system('cp cal-iono.h5 fullcal-iono.h5')
+    s.add('losoto -d sol000/amplitude000 cal-pa.h5', log='losoto-final.log', commandType="python")
+    s.add('losoto -d sol000/phase000 cal-pa.h5', log='losoto-final.log', commandType="python")
+    s.add('losoto -d sol000/phaseOrig000 cal-pa.h5', log='losoto-final.log', commandType="python")
+    s.run()
+    os.system('h5repack cal-pa.h5 cal-pa-compressed.h5; mv cal-pa-compressed.h5 cal-pa.h5')
+    
+    s.add('losoto -d sol000/amplitude000 cal-amp.h5', log='losoto-final.log', commandType="python")
+    s.add('losoto -d sol000/amplitudeRes cal-amp.h5', log='losoto-final.log', commandType="python")
+    s.add('losoto -d sol000/phase000 cal-amp.h5', log='losoto-final.log', commandType="python")
+    s.run()
+    os.system('h5repack cal-amp.h5 cal-amp-compressed.h5; mv cal-amp-compressed.h5 cal-amp.h5')
+    
+    # s.add('losoto -d sol000/tec000 cal-iono.h5', log='losoto-final.log', commandType="python")
+    # s.add('losoto -d sol000/clock000 cal-iono.h5', log='losoto-final.log', commandType="python")
+    s.add('losoto -d sol000/amplitude000 cal-iono.h5', log='losoto-final.log', commandType="python")
+    s.add('losoto -d sol000/phase_offset000 cal-iono.h5', log='losoto-final.log', commandType="python")
+    s.run()
+    os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
+    
+    logger.info('Save caltables and plots...')
+    obsid = MSs.getListObj()[0].getObsID()
+    cal = 'id%i_%s' % (obsid, calname)
+    logger.info('Copy: cal*h5 -> lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
+    os.system('ssh lofar.herts.ac.uk "rm -rf /beegfs/lofar/lba/calibration_solutions/%s"' % cal)
+    os.system('ssh lofar.herts.ac.uk "mkdir /beegfs/lofar/lba/calibration_solutions/%s"' % cal)
+    os.system('scp -q cal-pa.h5 cal-amp.h5 cal-iono.h5 lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
+    os.system('scp -q -r plots* lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
 
-s.add('losoto -d sol000/amplitude000 cal-amp.h5', log='losoto-final.log', commandType="python")
-s.add('losoto -d sol000/amplitudeRes cal-amp.h5', log='losoto-final.log', commandType="python")
-s.add('losoto -d sol000/phase000 cal-amp.h5', log='losoto-final.log', commandType="python")
-s.run()
-os.system('h5repack cal-amp.h5 cal-amp-compressed.h5; mv cal-amp-compressed.h5 cal-amp.h5')
-
-# s.add('losoto -d sol000/tec000 cal-iono.h5', log='losoto-final.log', commandType="python")
-# s.add('losoto -d sol000/clock000 cal-iono.h5', log='losoto-final.log', commandType="python")
-s.add('losoto -d sol000/amplitude000 cal-iono.h5', log='losoto-final.log', commandType="python")
-s.add('losoto -d sol000/phase_offset000 cal-iono.h5', log='losoto-final.log', commandType="python")
-s.run()
-os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
-
-logger.info('Save caltables and plots...')
-obsid = MSs.getListObj()[0].getObsID()
-cal = 'id%i_%s' % (obsid, calname)
-logger.info('Copy: cal*h5 -> lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
-os.system('ssh lofar.herts.ac.uk "rm -rf /beegfs/lofar/lba/calibration_solutions/%s"' % cal)
-os.system('ssh lofar.herts.ac.uk "mkdir /beegfs/lofar/lba/calibration_solutions/%s"' % cal)
-os.system('scp -q cal-pa.h5 cal-amp.h5 cal-iono.h5 lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
-os.system('scp -q -r plots* lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
+    w.done('upload')
+### DONE
 
 # a debug image
 if imaging:
