@@ -72,7 +72,7 @@ def getName(ms):
     #    return cycle_obs+'/'+sou+'/'+sou+'_t'+time+'_SB'+str(nu2num(freq/1.e6))+'.MS'
     #else:
     
-    if not os.path.exists('mss/id'+obsid+'_'+code): os.makedirs('mss/'+obsid+'_'+code)
+    if not os.path.exists('mss/id'+obsid+'_'+code): os.makedirs('mss/id'+obsid+'_'+code)
     return 'mss/id'+obsid+'_'+code+'/'+code+'_SB'+str(nu2num(freq/1.e6))+'.MS'
 
 ########################################
@@ -115,10 +115,14 @@ if fix_table:
 
 # Rescale visibilities by 1e3 if before 2014-03-19 (old correlator), and by 1e-2 otherwise
 logger.info('Rescaling flux...')
-if time < 20140319:
-    MSs.run('taql "update $pathMS set DATA = 1e6*DATA"', log='$nameMS_taql.log', commandType='general')
-else:
-    MSs.run('taql "update $pathMS set DATA = 1e-4*DATA"', log='$nameMS_taql.log', commandType='general')
+with pt.table(ms+'/HISTORY', readonly=True, ack=False) as t:
+    hist = t.getcol('...',0)
+    if 'PiLL: Rescaling flux' not in hist:
+        if time < 20140319:
+            MSs.run('taql "update $pathMS set DATA = 1e6*DATA"', log='$nameMS_taql.log', commandType='general')
+        else:
+            MSs.run('taql "update $pathMS set DATA = 1e-4*DATA"', log='$nameMS_taql.log', commandType='general')
+        t.putcell('PiLL: Rescaling flux')
 
 ######################################
 # Avg to 4 chan and 2 sec
@@ -150,9 +154,9 @@ if renameavg:
             if avg_factor_t < 1 or keep_IS: avg_factor_t = 1
         
             MSout = getName(MS.pathMS)
+            flog.write(MS.nameMS+'\n')
             if avg_factor_f != 1 or avg_factor_t != 1:
-                logger.info('%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, avg_factor_f, avg_factor_t))
-                flog.write(MS.nameMS+'\n')
+                logger.info('%s->%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, avg_factor_f, avg_factor_t))
                 if keep_IS:
                     s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
@@ -162,10 +166,10 @@ if renameavg:
                         msin.baseline="[CR]S*&" \
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
                         log=MS.nameMS+'_avg.log', commandType='DPPP')
-                s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
-                #lib_util.check_rm(MS.pathMS)
+                s.run(check=True, maxThreads=1) # limit threads to prevent I/O isssues
+                lib_util.check_rm(MS.pathMS)
             else:
-                logger.info('%s: Move data - no averaging...' % MS.nameMS)
+                logger.info('%s->%s: Move data - no averaging...' % (MS.nameMS, MSout))
                 MS.move(MSout)
 
 logger.info("Done.")

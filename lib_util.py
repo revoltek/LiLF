@@ -42,7 +42,9 @@ def getParset(parsetFile='../lilf.config'):
     ### LOFAR ###
 
     # PiLL
-    add_default('PiLL', 'working_dir', './')
+    add_default('PiLL', 'working_dir', os.getcwd())
+    add_default('PiLL', 'redo_cal', 'False') # re-do the calibrator although it is in the archive
+    add_default('PiLL', 'download_file', '') # html.txt file to use instead of staging
 
     # download
     add_default('LOFAR_download', 'fix_table', 'True') # fix bug in some old observations

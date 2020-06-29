@@ -84,6 +84,8 @@ class Logger():
         logger.addHandler(handlerFile)
         logger.addHandler(handlerConsole)
 
+        logger.info('Logging initialised in %s (file: %s)' % (os.getcwd(), logfile))
+
     
 # this is used by all libraries for logging
 logger = logging.getLogger("PiLL")

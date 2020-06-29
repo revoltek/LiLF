@@ -367,7 +367,7 @@ class MS(object):
         Return LOFAR observation ID
         """
         with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
-            return t.getcell("LOFAR_OBSERVATION_ID",0)
+            return int(t.getcell("LOFAR_OBSERVATION_ID",0))
 
     def getFWHM(self, freq='mid'):
         """
