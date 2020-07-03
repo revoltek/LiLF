@@ -491,7 +491,7 @@ for cmaj in range(maxIter):
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
             logger.info('MaxMinRatio (cdd:%02i): %f' % (cdd,mm_ratio))
             if rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre and cdd >= 2: break
-            if rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre and cdd >= 1: doamp = True
+            if cdd >= 4: doamp = True
             rms_noise_pre = rms_noise
             nn_ratio_pre = mm_ratio
 
