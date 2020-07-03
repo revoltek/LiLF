@@ -5,7 +5,7 @@ operation = PLOT
 soltab = sol000/amplitude000
 axesInPlot = [time,freq]
 axisInTable = ant
-prefix = plots/ampInit_
+prefix = plots/ampPreflag_
 
 [clip]
 operation = CLIP
@@ -14,11 +14,11 @@ mode = below
 clipLevel = 0.5
 pol = XX,YY
 
-[copy]
-operation = DUPLICATE
-soltab = sol000/amplitude000
-soltabOut = amplitudeSmooth
-
+#[copy]
+#operation = DUPLICATE
+#soltab = sol000/amplitude000
+#soltabOut = amplitudeSmooth
+#
 #[smooth]
 #operation = SMOOTH
 #soltab = sol000/amplitudeSmooth

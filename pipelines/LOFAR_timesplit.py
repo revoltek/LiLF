@@ -66,10 +66,17 @@ if cal_dir == '':
     cal_dir = glob.glob('../id%i_3[c|C]196' % obsid)+glob.glob('../id%i_3[c|C]295' % obsid)+glob.glob('../id%i_3[c|C]380' % obsid)
     cal_dir = cal_dir[0]
     if not os.path.exists(cal_dir):
-        logger.info('Downloading solutions...')
-        # try the repository
-        os.system('scp -q lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/id%i_*/cal-*h5 .' % obsid)
-        cal_dir = './'
+        with SurveysDB(survey='lba',readonly=True) as sdb:
+            sdb.execute('select calibratordata from observations where id=%i' % obsid)
+            calibratordata = sdb.cur.fetchall()[0]['calibratordata']
+            if calibratordata is not None:
+                logger.info('Downloading solutions...')
+                # try the repository
+                os.system('scp -q lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s/cal-*h5 .' % calibratordata)
+                cal_dir = './'
+            else:
+                logger.error('Cannot find solutions.')
+                sys.exit()
 
 h5_pa = cal_dir+'/cal-pa.h5'
 h5_amp = cal_dir+'/cal-amp.h5'
@@ -128,7 +135,7 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
        for j in range(num_init, num_fin+1):
            msg.append(ms_name_init.replace('SB%03i' % num_init, 'SB%03i' % j))
 
-       # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected, circular)
+       # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected)
        s.add('DPPP '+parset_dir+'/DPPP-concat.parset msin="['+','.join(msg)+']"  msout='+groupname+'/'+groupname+'.MS', \
                    log=groupname+'_DPPP_concat.log', commandType='DPPP')
        s.run(check=True)
@@ -148,6 +155,7 @@ if w.todo('flag'):
     
     logger.info('Plot weights...')
     MSs.run('reweight.py $pathMS -v -p -a CS001LBA', log='$nameMS_weights.log', commandType='python')
+    lib_util.check_rm('plots-weights')
     os.system('mkdir plots-weights; mv *png plots-weights')
 
     w.done('flag')
@@ -185,25 +193,28 @@ if w.todo('timesplit'):
 
 ############################################
 # put everything together
-if w.todo('concat'):
+#if w.todo('concat'):
+#
+#    if ngroups == 1:
+#        lib_util.check_rm('mss')
+#        os.makedirs('mss')
+#        os.system('mv mss_t*/*MS mss')
+#        lib_util.check_rm('mss_t*')
+#    else:
+#        for group in range(ngroups):
+#            groupname = 'mss-%02i' % group
+#            lib_util.check_rm(groupname)
+#            os.makedirs(groupname)
+#            os.system('mv mss_t*-%02i/*MS %s' % (group, groupname))
+#        lib_util.check_rm('mss_t*')
+#    
+#    logger.info('Cleaning up...')
+#    os.system('rm -r *MS')
+#
+#    w.done('concat')
+#### DONE
 
-    if ngroups == 1:
-        lib_util.check_rm('mss')
-        os.makedirs('mss')
-        os.system('mv mss_t*/*MS mss')
-        lib_util.check_rm('mss_t*')
-    else:
-        for group in range(ngroups):
-            groupname = 'mss-%02i' % group
-            lib_util.check_rm(groupname)
-            os.makedirs(groupname)
-            os.system('mv mss_t*-%02i/*MS %s' % (group, groupname))
-        lib_util.check_rm('mss_t*')
-    
-    logger.info('Cleaning up...')
-    os.system('rm -r *MS')
-
-    w.done('concat')
-### DONE
+logger.info('Cleaning up...')
+os.system('rm -r *MS')
 
 logger.info("Done.")

@@ -135,8 +135,8 @@ for c in range(2):
     if w.todo('solve_tec1_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -c 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
-        MSs.run('BLsmooth.py -c 8 -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+        MSs.run('BLsmooth.py -c 8 -n 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+        MSs.run('BLsmooth.py -c 8 -n 8 -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
     
         # solve TEC - ms:SMOOTHED_DATA
         logger.info('Solving TEC1...')
@@ -166,7 +166,7 @@ for c in range(2):
     if w.todo('solve_tec2_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -c 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+        MSs.run('BLsmooth.py -c 8 -n 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
     
         # solve TEC - ms:SMOOTHED_DATA
         logger.info('Solving TEC2...')

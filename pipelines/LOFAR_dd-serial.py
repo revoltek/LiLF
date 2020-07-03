@@ -22,7 +22,7 @@ parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_dd-serial','parset_dir')
 userReg = parset.get('model','userReg')
 maxIter = parset.getint('LOFAR_dd-serial','maxIter')
-min_cal_flux = parset.getfloat('LOFAR_dd-serial','minCalFlux60')
+min_cal_flux60 = parset.getfloat('LOFAR_dd-serial','minCalFlux60')
 removeExtendedCutoff = parset.getfloat('LOFAR_dd-serial','removeExtendedCutoff')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
@@ -143,7 +143,6 @@ fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 detectability_dist = MSs.getListObj()[0].getFWHM(freq='max')*1.8/2. # 1.8 to go to close to the null
 freq_min = np.min(MSs.getFreqs())
 freq_mid = np.mean(MSs.getFreqs())
-min_cal_flux *= (freq_min/60.e6)**(-0.8) # rescale min flux at 60 MHz to min freq
 phase_center = MSs.getListObj()[0].getPhaseCentre()
 timeint = MSs.getListObj()[0].getTimeInt()
 ch_out = MSs.getChout(4e6) # for full band (48e6 MHz) is 12
@@ -157,7 +156,8 @@ MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log',
 
 ##############################################################
 # setup initial model
-full_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], userReg = userReg)
+os.system('cp self/images/wideM-1* ddcal/')
+full_image = lib_img.Image('ddcal/wideM-1-MFS-image.fits', userReg = userReg)
 
 for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
@@ -187,7 +187,7 @@ for cmaj in range(maxIter):
         #full_image.beamReg = 'ddcal/beam.reg'
         # this mask is with no user region, done to isolate only bight compact sources
         if not os.path.exists(mask_cl): 
-            full_image.makeMask(threshisl=4, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff, only_beam=False, maskname=mask_cl)
+            full_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff, only_beam=False, maskname=mask_cl)
         if not os.path.exists(mask_ext): 
             full_image.makeMask(threshisl=4, atrous_do=True, remove_extended_cutoff=0, only_beam=False, maskname=mask_ext)
         if not os.path.exists(full_image.skymodel_cut): 
@@ -222,10 +222,6 @@ for cmaj in range(maxIter):
                 zip( lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum'), lsm.getPatchSizes(units='deg'), \
                      lsm.getPatchPositions(asArray=True)[0], lsm.getPatchPositions(asArray=True)[1] ):
 
-            # TODO: just a test for coma
-            if 'coma' in os.getcwd():
-                if '540' in name: continue
-
             # keep track of the spidx of sources
             idx = lsm.getRowIndex(name)
             fluxes = lsm.getColValues('I')[idx]
@@ -235,7 +231,7 @@ for cmaj in range(maxIter):
             d = lib_dd.Direction(name)
             d.set_flux(fluxes, spidx_coeffs, ref_freq )
             # skip faint directions
-            if d.get_flux(freq_min) < min_cal_flux: continue
+            if d.get_flux(freq_min) < min_cal_flux60*(freq_min/60e6)**(-0.8) or d.get_flux(freq_mid) < min_cal_flux60*(freq_mid/60e6)**(-0.8): continue
 
             d.set_position( [ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center )
             d.set_size(size*1.2) # size increased by 20%
@@ -251,10 +247,10 @@ for cmaj in range(maxIter):
         directions = [x for _,x in sorted(zip([d.get_flux(freq_min) for d in directions],directions))][::-1] # reorder with flux
 
         # TODO: just a test for coma
-        if 'coma' in os.getcwd():
-            d=directions[0]
-            directions.insert(len(directions),d)
-            directions.pop(0)
+        #if 'coma' in os.getcwd():
+        #    d=directions[0]
+        #    directions.insert(len(directions),d)
+        #    directions.pop(0)
 
         for d in directions:
             if not d.peel_off:
@@ -306,13 +302,11 @@ for cmaj in range(maxIter):
     ### DONE
 
     ### TESTTESTTEST: empty image
-    #if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-    #    clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+    if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
+        clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     ###
 
     for dnum, d in enumerate(directions):
-        # arrive down to calibrators of flux = 1 Jy
-        if d.get_flux(freq_min) < min_cal_flux: break
 
         logger.info('c%02i - Working on direction: %s (%f Jy - %f deg)' % (cmaj, d.name, d.get_flux(freq_min), d.size))
         if d.size > 0.5: logger.warning('Patch size large: %f' % d.size)
@@ -378,21 +372,22 @@ for cmaj in range(maxIter):
 
         if w.todo('%s-preimage' % logstring):
             logger.info('Pre-imaging...')
-            clean('%s-pre' % logstring, MSs_dir, res='normal', size=[d.size,d.size])
+            clean('%s-pre' % logstring, MSs_dir, res='normal', size=[d.size,d.size], imagereg=d.get_region())
 
             w.done('%s-preimage' % logstring)
         ### DONE
         
         # get initial noise and set iterators for timeint solutions
         image = lib_img.Image('img/ddcalM-%s-pre-MFS-image.fits' % logstring)
-        rms_noise_pre = image.getNoise()
-        rms_noise_init = rms_noise_pre
-        doamp = False; doamp2 = False
+        rms_noise_pre = image.getNoise(); rms_noise_init = rms_noise_pre
+        mm_ratio_pre = image.getMaxMinRatio(); mm_ratio_init = mm_ratio_pre
+        doamp = False
         # usually there are 3600/30=120 or 3600/15=240 timesteps, try to use multiple numbers
         iter_ph_solint = lib_util.Sol_iterator([4,1])
         iter_amp_solint = lib_util.Sol_iterator([120,60,30])
         iter_amp2_solint = lib_util.Sol_iterator([120,60])
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
+        logger.info('MM ratio (init): %f' % (mm_ratio_pre))
 
         for cdd in range(10):
 
@@ -406,7 +401,6 @@ for cmaj in range(maxIter):
             if doamp:
                 solint_amp = next(iter_amp_solint)
                 d.add_h5parm('amp1', 'ddcal/c%02i/solutions/cal-amp1-%s.h5' % (cmaj,logstringcal) )
-            if doamp2:
                 solint_amp2 = next(iter_amp2_solint)
                 d.add_h5parm('amp2', 'ddcal/c%02i/solutions/cal-amp2-%s.h5' % (cmaj,logstringcal) )
    
@@ -457,7 +451,6 @@ for cmaj in range(maxIter):
                         cor.parmdb='+d.get_h5parm('amp1')+' cor.correction=amplitude000', \
                         log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP') 
 
-                if doamp2:
                     logger.info('Gain amp calibration 2...')
                     # Calibration - ms:SMOOTHED_DATA
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
@@ -494,11 +487,13 @@ for cmaj in range(maxIter):
             d.set_model(image.root, typ='best', apply_region=False) # currently best model
             # get noise, if larger than prev cycle: break
             rms_noise = image.getNoise()
+            mm_ratio = image.getMaxMinRatio()
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
-            if rms_noise > 0.99*rms_noise_pre and cdd >= 2: break
-            if rms_noise > 0.99*rms_noise_pre and doamp: doamp2 = True
-            if rms_noise > 0.99*rms_noise_pre and cdd >= 1: doamp = True
+            logger.info('MaxMinRatio (cdd:%02i): %f' % (cdd,mm_ratio))
+            if rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre and cdd >= 2: break
+            if rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre and cdd >= 1: doamp = True
             rms_noise_pre = rms_noise
+            nn_ratio_pre = mm_ratio
 
         # End calibration cycle
         ##################################
@@ -509,7 +504,7 @@ for cmaj in range(maxIter):
             logger.warning('%s: something went wring during the first self-cal cycle in this direction.' % (d.name))
             d.clean()
             continue
-        elif rms_noise_pre > 1.5*rms_noise_init:
+        elif rms_noise_pre > rms_noise_init:
             d.converged = False
             logger.warning('%s: noise did not decresed (%f -> %f), do not subtract source.' % (d.name, rms_noise_init, rms_noise_pre))
             d.clean()
@@ -590,8 +585,8 @@ for cmaj in range(maxIter):
         ### DONE
 
         ### TTESTTESTTEST: empty image
-        #if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
-         #   clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
+            clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
     ######################################################
@@ -714,7 +709,7 @@ for cmaj in range(maxIter):
         Predict_ColName='MODEL_DATA',
         #Selection_UVRange='\[0.1,2000.\]',
         Output_RestoringBeam=15.,
-        Mask_SigTh=5.0,
+        Mask_SigTh=3.0,
         #Predict_InitDicoModel='A1758_Round3_25facet_newamps.DicoModel',
         #Mask_External='A1758_Round1.app.restored.fits.mask.fits',
         DDESolutions_DDSols=interp_h5parm+':sol000/phase000+amplitude000'
@@ -722,5 +717,7 @@ for cmaj in range(maxIter):
 
     full_image = lib_img.Image(imagename+'-MFS-image.fits', userReg = userReg)
     sys.exit()
+
+#                run("DDF.py --Output-Name=image_full_ampphase_di_m.NS_SUB --Data-ChunkHours=" + str(args['chunkhours']) + " --Data-MS=" + args['mslist'] + " --Deconv-PeakFactor 0.001000 --Data-ColName " + args['column'] + " --Parallel-NCPU="+str(ncpu) + " --Facets-CatNodes=" + clustercat + " --Beam-CenterNorm=1 --Deconv-Mode SSD --Beam-Model=LOFAR --Beam-LOFARBeamMode=A --Weight-Robust " + str(robust) +" --Image-NPix=" + str(imagenpix) + " --CF-wmax 50000 --CF-Nw 100 --Output-Also onNeds --Image-Cell "+ str(imagecell) + " --Facets-NFacets=11 --SSDClean-NEnlargeData 0 --Freq-NDegridBand 1 --Beam-NBand 1 --Facets-DiamMax 1.5 --Facets-DiamMin 0.1 --Deconv-RMSFactor=3.000000 --SSDClean-ConvFFTSwitch 10000 --Data-Sort 1 --Cache-Dir=. --Log-Memory 1 --Cache-Weight=reset --Output-Mode=Predict --Output-RestoringBeam 6.000000 --Freq-NBand=2 --RIME-DecorrMode=FT --SSDClean-SSDSolvePars [S,Alpha] --SSDClean-BICFactor 0 --Mask-Auto=1 --Mask-SigTh=5.00 --Mask-External=" + outmask + " --DDESolutions-GlobalNorm=None --DDESolutions-DDModeGrid=AP --DDESolutions-DDModeDeGrid=AP --DDESolutions-DDSols=[" + ddsolstr + "] --Predict-InitDicoModel=" + outdico + " --Selection-UVRangeKm=" + uvsel + " --GAClean-MinSizeInit=10 --Cache-Reset 1 --Beam-Smooth=1 --Predict-ColName='PREDICT_SUB' --DDESolutions-SolsDir=SOLSDIR")
 
 logger.info("Done.")

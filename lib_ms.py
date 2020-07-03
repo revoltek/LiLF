@@ -22,6 +22,7 @@ class AllMSs(object):
 
         # sort them, useful for some concatenating steps
         if len(pathsMS) == 0:
+            logger.error('Cannot find MS files.')
             raise('Cannot find MS files.')
 
         self.mssListObj = []

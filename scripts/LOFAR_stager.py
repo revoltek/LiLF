@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # To do a second run, rename the uris.pickle
 
-import os, sys, time, glob, pickle, argparse
+import os, sys, time, glob, pickle, argparse, re
 from datetime import datetime
 import subprocess, multiprocessing
 from awlofar.database.Context import context
@@ -16,64 +16,79 @@ import stager_access as stager
 #project = 'LC13_011' # cluster
 
 parser = argparse.ArgumentParser(description='Stage and download MS from the LOFAR LTA.')
-parser.add_argument('--project', '-p', dest='project', help='')
-parser.add_argument('--sasID', '-o', dest='sasID', help='')
+parser.add_argument('--projects', '-p', dest='project', help='Comma separated list of project names')
+parser.add_argument('--obsID', '-o', dest='obsID', type=int, help='')
+parser.add_argument('--target', '-t', dest='target', help='')
+parser.add_argument('--calonly', '-c', dest='calonly', action='store_true', help='')
+parser.add_argument('--nocal', '-n', dest='nocal', action='store_true', help='')
 args = parser.parse_args()
 
-project = args.project
-sasID = args.sasID
+projects = args.project.split(',')
+obsID = args.obsID
+target = args.target
+calonly = args.calonly
+nocal = args.nocal
 
-if project is None and sasID is None:
-    print('ERROR: at least one between --project and --sasID needs to be specified.')
+if projects is None:
+    print('ERROR: --project needs to be specified.')
     sys.exit()
 
 # The class of data to query
 cls = CorrelatedDataProduct
+re_cal = re.compile('3[c|C](196|295|380)')
 
+# first collect all uris
+if not os.path.exists('uris.pickle'):
+    uris = set() # All URIS to stage
+    for project in projects:
+        print("Quering project: %s" % project)
+        query_observations = Observation.select_all().project_only(project)
+        for observation in query_observations :
+            if obsID is not None:
+                if obsID != observation.observationId:
+                    continue
+            print("Querying ObservationID %s" % observation.observationId, end='')
+            # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
+            dataproduct_query = cls.observations.contains(observation)
+            # isValid = 1 means there should be an associated URI
+            dataproduct_query &= cls.isValid == 1
+            if target is not None: dataproduct_query &= CorrelatedDataProduct.subArrayPointing.targetName == target
+
+            for i, dataproduct in enumerate(dataproduct_query):
+                # apply selections
+                name = dataproduct.subArrayPointing.targetName
+                if re_cal.match(name) and nocal: continue
+                if not re_cal.match(name) and calonly: continue
+
+                # This DataProduct should have an associated URL
+                fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
+                if fileobject:
+                    uris.add(fileobject.URI)
+                    if i%10 == 0:
+                        print(".", end='')
+                        sys.stdout.flush()
+                else :
+                    print("No URI found for %s with dataProductIdentifier %d" % (dataproduct.__class__.__name__, dataproduct.dataProductIdentifier))
+            
+            print("")
+                
+                #if len(uris) == 1: break # TEST
+            #break # TEST
+     
+        pickle.dump(uris, open('uris.pickle', 'wb'))
+else:
+    uris = pickle.load(open('uris.pickle','rb'))
+
+# remove files already downloaded/renamed
 downloaded_mss = glob.glob('*MS')
 if os.path.exists('renamed.txt'):
     with open('renamed.txt','r') as flog:
         for line in flog:
             downloaded_mss.append(line[:-1]+'.MS')
 
-# first collect all uris
-if not os.path.exists('uris.pickle'):
-    query_observations = Observation.select_all().project_only(project)
-    uris = set() # All URIS to stage
-    for observation in query_observations :
-        print("Querying ObservationID %s" % observation.observationId, end='')
-        # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
-        dataproduct_query = cls.observations.contains(observation)
-        # isValid = 1 means there should be an associated URI
-        dataproduct_query &= cls.isValid == 1
-        #dataproduct_query &= cls.pipelineName == 1
-        for i, dataproduct in enumerate(dataproduct_query):
-            # This DataProduct should have an associated URL
-            fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
-            #print (fileobject.URI)
-            if fileobject:
-                if i%10 == 0:
-                    print(".", end='')
-                    sys.stdout.flush()
-                skip = False
-                for ms in downloaded_mss:
-                    if ms in fileobject.URI:
-                        print("%s: already downloaded in %s." % (fileobject.URI, ms) )
-                        skip = True
-                if not skip: uris.add(fileobject.URI)
-            else :
-                print("No URI found for %s with dataProductIdentifier %d" % (dataproduct.__class__.__name__, dataproduct.dataProductIdentifier))
-        
-        print("")
-            
-            #if len(uris) == 1: break # TEST
-        #break # TEST
- 
-    pickle.dump(uris, open('uris.pickle', 'wb'))
-else:
-    uris = pickle.load(open('uris.pickle','rb'))
-
-print(("Total URI's found %d" % len(uris)))
+len_all_uris = len(uris)
+uris = [uri for uri in uris if uri.split('/')[-1][:-13] not in downloaded_mss]
+print(("Total URI's: %i (after removal of already downloaded: %i)" % (len_all_uris,len(uris))))
  
 # Queue of data to stage
 L_toStage = multiprocessing.Manager().list() # list of surls to download
@@ -82,10 +97,11 @@ L_inStage = multiprocessing.Manager().list() # list of sids of active staging pr
 # Queue of data to download
 L_toDownload = multiprocessing.Manager().list() # list of surls ready to download
 L_inDownload = multiprocessing.Manager().list() # list of surls being downloaded
+L_Downloaded = multiprocessing.Manager().list() # list of surls downlaoded
 
 class Worker(multiprocessing.Process):
 
-    def __init__(self, stager, L_toStage, L_inStage, L_toDownload, L_inDownload):
+    def __init__(self, stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded):
         multiprocessing.Process.__init__(self)
         self.exit = multiprocessing.Event()
         self.stager = stager
@@ -93,6 +109,7 @@ class Worker(multiprocessing.Process):
         self.L_inStage = L_inStage
         self.L_toDownload = L_toDownload
         self.L_inDownload = L_inDownload
+        self.L_Downloaded = L_Downloaded
 
     def run(self):
         while not self.exit.is_set():
@@ -132,8 +149,11 @@ class Worker_checker(Worker):
                     print("Checker -- Failed to get status for sid %i. Continue." % sid)
 
                 for surl in surls:
-                    if not surl in self.L_toDownload and not surl in self.L_inDownload:
-                        self.L_toDownload.append(surl)
+                    if not surl in self.L_toDownload and not surl in self.L_inDownload and not surl in self.L_Downloaded:
+                        # this should always be the case, but if the process is re-started it might have collected old staging processes,
+                        # this if prevents us from downloading useless files
+                        if surl in uris:
+                            self.L_toDownload.append(surl)
 
                 # pass to download
                 if status == 'success' or status == 'partial success':
@@ -164,31 +184,32 @@ class Worker_downloader(Worker):
                     if 'sara.nl' in surl: p = subprocess.Popen('wget -nv https://lofar-download.grid.surfsara.nl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
                     os.waitpid(p.pid, 0)
                 self.L_inDownload.remove(surl)
+                self.L_Downloaded.append(surl)
 
             time.sleep(2)
 
 # start processes
-w_stager = Worker_stager(stager, L_toStage, L_inStage, L_toDownload, L_inDownload)
-w_checker = Worker_checker(stager, L_toStage, L_inStage, L_toDownload, L_inDownload)
-w_downloader1 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_inDownload)
-w_downloader2 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_inDownload)
+w_stager = Worker_stager(stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded)
+w_checker = Worker_checker(stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded)
+w_downloader1 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded)
+w_downloader2 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded)
 
 # fill the queue with uris
 [L_toStage.append(uri) for uri in uris]
 
 # add things already staged
 i=0
-try:
-    for sid, _ in stager.get_progress():
-        sid = int(sid)
-        L_inStage.append(sid) # the worker will take care of starting downloads
-        for surl in stager.get_surls_online(sid):
-            if surl in L_toStage:
-                L_toStage.remove(surl)
-                i+=1
-    print("Removed %i already staged surls." % i)
-except:
-    pass
+for sid, _ in stager.get_progress().items():
+    sid = int(sid)
+    L_inStage.append(sid) # the worker will take care of starting downloads
+    for surl in stager.get_surls_online(sid):
+        if surl in L_toStage:
+            L_toStage.remove(surl)
+            i+=1
+print("Removed %i already staged surls." % i)
+#except:
+#    print("Error recovering staged surls.")
+#    pass
 
 w_stager.start()
 w_checker.start()
@@ -196,8 +217,9 @@ w_downloader1.start()
 w_downloader2.start()
 
 while True:
-    sys.stdout.write("\r%s: To stage: %i -- In staging: %i -- To download: %i -- In downloading: %i || " % \
-            ( time.ctime(), len(L_toStage), len(L_inStage)*500, len(L_toDownload), len(L_inDownload) ) )
+    sys.stdout.write("\r%s: To stage: %i -- In staging: %i (blocks) -- To download: %i -- In downloading: %i || " % \
+            ( time.ctime(), len(L_toStage), len(L_inStage), len(L_toDownload), len(L_inDownload) ) )
+    #print(L_toStage,L_inStage,L_toDownload,L_inDownload)
     sys.stdout.flush()
     time.sleep(2)
     

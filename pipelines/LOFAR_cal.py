@@ -30,11 +30,16 @@ bl2flag = parset.get('flag','stations')
 
 #############################################################
 MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags = False )
-# copy data
-logger.info('Copy data...')
-for MS in MSs.getListObj():
-    if min(MS.getFreqs()) > 30.e6:
-        MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=False)
+
+if w.todo('copy'):
+    # copy data
+    logger.info('Copy data...')
+    for MS in MSs.getListObj():
+        if min(MS.getFreqs()) > 30.e6:
+            MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=False)
+
+    w.done('copy')
+### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s, check_flags = False )
 calname = MSs.getListObj()[0].getNameField()
@@ -252,6 +257,11 @@ if w.todo('upload'):
     os.system('ssh lofar.herts.ac.uk "mkdir /beegfs/lofar/lba/calibration_solutions/%s"' % cal)
     os.system('scp -q cal-pa.h5 cal-amp.h5 cal-iono.h5 lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
     os.system('scp -q -r plots* lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
+
+    # update the db
+    from surveys_db import SurveysDB
+    with SurveysDB(survey='lba',readonly=False) as sdb:
+        sdb.execute('INSERT INTO observations (id,calibratordata) VALUES (%i,"%s")' % (obsid,cal))
 
     w.done('upload')
 ### DONE

@@ -45,6 +45,8 @@ def getParset(parsetFile='../lilf.config'):
     add_default('PiLL', 'working_dir', os.getcwd())
     add_default('PiLL', 'redo_cal', 'False') # re-do the calibrator although it is in the archive
     add_default('PiLL', 'download_file', '') # html.txt file to use instead of staging
+    add_default('PiLL', 'project', '')
+    add_default('PiLL', 'target', '')
 
     # download
     add_default('LOFAR_download', 'fix_table', 'True') # fix bug in some old observations
@@ -70,7 +72,7 @@ def getParset(parsetFile='../lilf.config'):
     # dd-serial
     add_default('LOFAR_dd-serial', 'maxIter', '2')
     add_default('LOFAR_dd-serial', 'minCalFlux60', '1.')
-    add_default('LOFAR_dd-serial', 'removeExtendedCutoff', '0.0001')
+    add_default('LOFAR_dd-serial', 'removeExtendedCutoff', '0.0005')
     # ddfacet
     add_default('LOFAR_ddfacet', 'maxniter', '10')
     add_default('LOFAR_ddfacet', 'calFlux', '2.0')
@@ -362,7 +364,7 @@ def run_DDF(s, logfile, **kwargs):
 class Walker():
     def __init__(self, filename):
         open(filename, 'a').close() # create the file if doesn't exists
-        self.filename = filename
+        self.filename = os.path.abspath(filename)
 
     def done(self, stepname):
         with open(self.filename, "a") as f:

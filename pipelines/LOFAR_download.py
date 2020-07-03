@@ -105,8 +105,8 @@ with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as o
     time = np.int(t.iso.replace('-','')[0:8])
 
 if fix_table:
-    logger.info('Fix MS table...')
-    MSs.run('fixMS_TabRef.py $pathMS', log='$nameMS_fixms.log', commandType='python')
+    #logger.info('Fix MS table...')
+    #MSs.run('fixMS_TabRef.py $pathMS', log='$nameMS_fixms.log', commandType='python')
 
     # only ms created in range (2/2013->2/2014)
     if time > 20130200 and time < 20140300:
@@ -123,8 +123,8 @@ else:
 for MS in MSs.getListStr():
     with pt.table(MS+'/HISTORY', readonly=True, ack=False) as hist:
         if "Flux rescaled" not in hist.getcol('MESSAGE'):
-            s.add('taql "update '+MS+' set DATA = %f*DATA" && taql "insert into '+MS+'/HISTORY (TIME,MESSAGE) values (mjd(), \"Flux rescaled\")"' % rescale_factor, \
-                    log='$nameMS_taql.log', commandType='general')
+            s.add('taql "update %s set DATA = %f*DATA" && taql "insert into %s/HISTORY (TIME,MESSAGE) values (mjd(), \"Flux rescaled\")"' % (MS,rescale_factor,MS), \
+                    log='taql.log', commandType='general')
 s.run(check=True)
 
 ######################################
@@ -157,7 +157,7 @@ if renameavg:
             if avg_factor_t < 1 or keep_IS: avg_factor_t = 1
         
             MSout = getName(MS.pathMS)
-            flog.write(MS.nameMS+'\n')
+            flog.write(MS.nameMS+'.MS\n')
             if avg_factor_f != 1 or avg_factor_t != 1:
                 logger.info('%s->%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, avg_factor_f, avg_factor_t))
                 if keep_IS:
