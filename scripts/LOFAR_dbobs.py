@@ -31,9 +31,9 @@ for project in projects:
     print('project %s' % project)
     query_observations = Observation.select_all().project_only(project)
     for observation in query_observations:
-        obsID = observation.observationId
+        obsID = int(observation.observationId)
         if obsID in obs_to_skip: continue
-        print('check %s' % obsID)
+        print('check %i' % obsID)
         dataproduct_query = CorrelatedDataProduct.observations.contains(observation)
         # isValid = 1 means there should be an associated URI
         dataproduct_query &= CorrelatedDataProduct.isValid == 1
@@ -43,7 +43,10 @@ for project in projects:
             # apply selections
             name = dataproduct.subArrayPointing.targetName.split('_')[-1]
             if re_cal.match(name): continue
-            print(obsID,name)
+            print('Add to the db: %i -> %s' % (obsID, name))
+            with SurveysDB(survey='lba',readonly=False) as sdb:
+                sdb.execute('INSERT INTO field_obs (obs_id,field_id) VALUES (%i,"%s")' % (obsID, name))
+
  
 len_all_uris = len(uris)
 uris = [uri for uri in uris if uri.split('/')[-1][:-13] not in downloaded_mss]
