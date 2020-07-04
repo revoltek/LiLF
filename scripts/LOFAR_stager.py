@@ -16,22 +16,24 @@ import stager_access as stager
 #project = 'LC13_011' # cluster
 
 parser = argparse.ArgumentParser(description='Stage and download MS from the LOFAR LTA.')
-parser.add_argument('--projects', '-p', dest='project', help='Comma separated list of project names')
-parser.add_argument('--obsID', '-o', dest='obsID', type=int, help='')
+parser.add_argument('--projects', '-p', dest='projects', help='Comma separated list of project names')
+parser.add_argument('--obsID', '-o', dest='obsID', help='Comma separated list of project ids')
 parser.add_argument('--target', '-t', dest='target', help='')
 parser.add_argument('--calonly', '-c', dest='calonly', action='store_true', help='')
 parser.add_argument('--nocal', '-n', dest='nocal', action='store_true', help='')
 args = parser.parse_args()
 
-projects = args.project.split(',')
-obsID = args.obsID
+if args.projects is None:
+    print('ERROR: --project needs to be specified.')
+    sys.exit()
+projects = args.projects.split(',')
+
+if args.obsID is not None:
+    obsIDs = [int(obsID) for obsID in args.obsID.split(',')]
+
 target = args.target
 calonly = args.calonly
 nocal = args.nocal
-
-if projects is None:
-    print('ERROR: --project needs to be specified.')
-    sys.exit()
 
 # The class of data to query
 cls = CorrelatedDataProduct
@@ -44,8 +46,8 @@ if not os.path.exists('uris.pickle'):
         print("Quering project: %s" % project)
         query_observations = Observation.select_all().project_only(project)
         for observation in query_observations :
-            if obsID is not None:
-                if obsID != observation.observationId:
+            if args.obsID is not None:
+                if observation.observationId not in obsIDs:
                     continue
             print("Querying ObservationID %s" % observation.observationId, end='')
             # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried

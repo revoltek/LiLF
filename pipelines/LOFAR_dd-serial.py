@@ -194,6 +194,7 @@ for cmaj in range(maxIter):
             full_image.selectCC(checkBeam=False, maskname=mask_cl)
         
         lsm = lsmtool.load(full_image.skymodel_cut)
+        lsm.select('MajorAxis<100') # remove large (>100") gaussians
         lsm.group(mask_cl, root='Isl')
         # This regroup nearby sources
         x = lsm.getColValues('RA',aggregate='wmean')
@@ -308,7 +309,7 @@ for cmaj in range(maxIter):
 
     for dnum, d in enumerate(directions):
 
-        logger.info('c%02i - Working on direction: %s (%f Jy - %f deg)' % (cmaj, d.name, d.get_flux(freq_min), d.size))
+        logger.info('c%02i - Working on direction: %s (%f Jy - %f deg)' % (cmaj, d.name, d.get_flux(freq_mid), d.size))
         if d.size > 0.5: logger.warning('Patch size large: %f' % d.size)
         logstring = 'c%02i-%s' % (cmaj,d.name)
 
@@ -320,8 +321,6 @@ for cmaj in range(maxIter):
             s.add('wsclean -predict -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' '+MSs.getStrWsclean(), \
                     log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
             s.run(check=True)
-
-            # TODO: after first cycle need to corrupt
 
             # Add back the model previously subtracted for this dd-cal
             logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA...')
@@ -489,11 +488,18 @@ for cmaj in range(maxIter):
             rms_noise = image.getNoise()
             mm_ratio = image.getMaxMinRatio()
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
-            logger.info('MaxMinRatio (cdd:%02i): %f' % (cdd,mm_ratio))
-            if rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre and cdd >= 2: break
-            if cdd >= 4: doamp = True
+            logger.info('MM ratio (cdd:%02i): %f' % (cdd,mm_ratio))
+            if rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre:
+                if   mm_ratio < 10 and cdd >= 2: break
+                elif mm_ratio < 20 and cdd >= 3: break
+                elif mm_ratio < 30 and cdd >= 4: break
+                elif cdd >= 5: break
+
+            if cdd >= 4 and mm_ratio >= 30:
+                doamp = True
+
             rms_noise_pre = rms_noise
-            nn_ratio_pre = mm_ratio
+            mm_ratio_pre = mm_ratio
 
         # End calibration cycle
         ##################################

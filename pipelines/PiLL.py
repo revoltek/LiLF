@@ -24,7 +24,7 @@ def calibrator_tables_available(obsid):
     check if calibrator data exist in the database
     """
     with SurveysDB(survey='lba',readonly=True) as sdb:
-        sdb.execute('select * from observations where id=%f' % obsid)
+        sdb.execute('SELECT * FROM observations WHERE id=%f' % obsid)
         r = sdb.cur.fetchall()
         if len(r) == 0: return False
         if r[0]['location'] != '': return True
@@ -50,7 +50,7 @@ def local_calibrator_dirs(searchdir='', obsid=None):
 
 def update_status_db(field, status):
     with SurveysDB(survey='lba',readonly=True) as sdb:
-        r = sdb.execute('update fields set status=%s where id=%f' % (status,field))
+        r = sdb.execute('UPDATE fields SET status=%s WHERE id=%f' % (status,field))
 
 
 ####################################################################################
@@ -60,10 +60,12 @@ if download_file == '' and project == '' and target == '':
     project = survey_projects
     print('### Quering database...')
     with SurveysDB(survey='lba',readonly=True) as sdb:
-        sdb.execute('select * from fields where status="Observed" order by priority desc')
+        sdb.execute('SELECT * FROM fields WHERE status="Observed" order by priority desc')
         r = sdb.cur.fetchall()
-        target = r[0]['id']
-    print("Working on target: %s" % target)
+        sdb.execute('SELECT * FROM field_obs WHERE field_id="%s"' % r[0]['id'])
+        r = sdb.cur.fetchall()
+        obsid = ','.join([str(x['obs_id']) for x in r])
+    print("Working on target: %s (obsid: %s)" % (target,obsid))
 
 #######
 # setup
@@ -88,6 +90,8 @@ if w.todo('download'):
         cmd = LiLF_dir+'/scripts/LOFAR_stager.py --projects %s --nocal' % project
         if target != '':
             cmd += ' --target %s' % target
+        if obsid != '':
+            cmd += ' --obsID %s' % obsid
         print("### Exec:", cmd)
         os.system(cmd)
 
