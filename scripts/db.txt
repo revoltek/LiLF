@@ -1,0 +1,40 @@
++------------------+--------------+------+-----+---------+-------+
+| Field            | Type         | Null | Key | Default | Extra |
++------------------+--------------+------+-----+---------+-------+
+| id               | varchar(20)  | NO   | PRI |         |       |
+| status           | varchar(12)  | YES  |     | NULL    |       |
+| ra               | float        | YES  |     | NULL    |       |
+| decl             | float        | YES  |     | NULL    |       |
+| username         | varchar(20)  | YES  |     | NULL    |       |
+| clustername      | varchar(20)  | YES  |     | NULL    |       |
+| nodename         | varchar(20)  | YES  |     | NULL    |       |
+| location         | varchar(128) | YES  |     | NULL    |       |
+| priority         | int(11)      | YES  |     | NULL    |       |
+| start_date       | datetime     | YES  |     | NULL    |       |
+| end_date         | datetime     | YES  |     | NULL    |       |
+| gal_l            | float        | YES  |     | NULL    |       |
+| gal_b            | float        | YES  |     | NULL    |       |
+| lotss_field      | int(11)      | YES  |     | NULL    |       |
+| proprietary_date | datetime     | YES  |     | NULL    |       |
++------------------+--------------+------+-----+---------+-------+
+15 rows in set (0.01 sec)
+
+MariaDB [lba]> show columns in observations;
++----------------+--------------+------+-----+---------+-------+
+| Field          | Type         | Null | Key | Default | Extra |
++----------------+--------------+------+-----+---------+-------+
+| id             | int(11)      | NO   | PRI | 0       |       |
+| status         | varchar(12)  | YES  |     | NULL    |       |
+| location       | varchar(128) | YES  |     | NULL    |       |
+| calibratordata | varchar(128) | YES  |     | NULL    |       |
++----------------+--------------+------+-----+---------+-------+
+4 rows in set (0.00 sec)
+
+MariaDB [lba]> show columns in field_obs;
++----------+-------------+------+-----+---------+-------+
+| Field    | Type        | Null | Key | Default | Extra |
++----------+-------------+------+-----+---------+-------+
+| field_id | varchar(20) | NO   | PRI | NULL    |       |
+| obs_id   | int(11)     | NO   |     | NULL    |       |
++----------+-------------+------+-----+---------+-------+
+2 rows in set (0.00 sec)

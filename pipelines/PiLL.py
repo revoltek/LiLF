@@ -1,60 +1,186 @@
 #!/usr/bin/env python
 
-import os, sys
+import os, sys, glob
+from surveys_db import SurveysDB
 from LiLF import lib_util
 parset = lib_util.getParset(parsetFile='lilf.config')
 LiLF_dir = os.path.dirname(lib_util.__file__)
 
+w = lib_util.Walker('PiLL.walker')
+
+survey_projects = 'LT14_002,LC12_017,LC9_016,LC8_031' # list of projects related with the LBA survey
+
 # get parameters
 # use lilf.config (this is also used by all other scripits)
-working_dir = parset.get('PiLL','working_dir')
+working_dir = os.path.abspath(parset.get('PiLL','working_dir'))
+redo_cal = parset.getboolean('PiLL','redo_cal')
+project = parset.get('PiLL','project')
+target = parset.get('PiLL','target')
+download_file = parset.get('PiLL','download_file')
+if download_file != '': download_file =os.path.abspath(download_file)
+
+def calibrator_tables_available(obsid):
+    """
+    check if calibrator data exist in the database
+    """
+    with SurveysDB(survey='lba',readonly=True) as sdb:
+        sdb.execute('SELECT * FROM observations WHERE id=%f' % obsid)
+        r = sdb.cur.fetchall()
+        if len(r) == 0: return False
+        if r[0]['location'] != '': return True
+
+
+def local_calibrator_dirs(searchdir='', obsid=None):
+    """
+    Return the dirname of the calibrators
+    """
+    if searchdir != '': searchdir += '/'
+    if obsid is None:
+        calibrators = glob.glob(searchdir+'id*_3[C|c]196') + \
+                  glob.glob(searchdir+'id*_3[C|c]295') + \
+                  glob.glob(searchdir+'id*_3[C|c]380')
+    else:
+        calibrators = glob.glob(searchdir+'/id%i_3[C|c]196' % obsid) + \
+                  glob.glob(searchdir+'id%i_3[C|c]295' % obsid) + \
+                  glob.glob(searchdir+'id%i_3[C|c]380' % obsid)
+
+    if len(calibrators) == 0: return None
+    else: return calibrators
+
+
+def update_status_db(field, status):
+    with SurveysDB(survey='lba',readonly=True) as sdb:
+        r = sdb.execute('UPDATE fields SET status=%s WHERE id=%f' % (status,field))
+
+
+####################################################################################
 
 # query the database for data to process
-# TODO
+if download_file == '' and project == '' and target == '':
+    project = survey_projects
+    print('### Quering database...')
+    with SurveysDB(survey='lba',readonly=True) as sdb:
+        sdb.execute('SELECT * FROM fields WHERE status="Observed" order by priority desc')
+        r = sdb.cur.fetchall()
+        sdb.execute('SELECT * FROM field_obs WHERE field_id="%s"' % r[0]['id'])
+        r = sdb.cur.fetchall()
+        obsid = ','.join([str(x['obs_id']) for x in r])
+    print("Working on target: %s (obsid: %s)" % (target,obsid))
 
-# setup directiories
+#######
+# setup
 if not os.path.exists(working_dir):
     os.makedirs(working_dir)
+if os.path.exists('lilf.config') and os.getcwd() != working_dir: 
+    os.system('cp lilf.config '+working_dir)
+
 os.chdir(working_dir)
-os.system('cp lilf.config '+working_dir)
-os.makedirs('download')
-os.makedirs('cals-bkp')
-os.makedirs('cals')
-os.makedirs('tgts-bkp')
-os.makedirs('tgts')
+if not os.path.exists('download'):
+    os.makedirs('download')
+
+if download_file != '':
+    os.system('cp %s download/html.txt' % download_file)
 
 ##########
-# download
-os.chdir(working_dir+'/download')
-os.system(LiLF_dir+'/../scripts/LOFAR_stager.py')
-# TODO: how to be sure all MS were downloaded?
-os.system(LiLF_dir+'/pipelines/LOFAR_download.py')
+# data download
+if w.todo('download'):
+    os.chdir(working_dir+'/download')
 
-# TODO
-# how to download only calibrator and then only target?
-#os.system('mv *3[C|c][196|295|380]*MS ../cals-bkp/')
+    if download_file == '':
+        cmd = LiLF_dir+'/scripts/LOFAR_stager.py --projects %s --nocal' % project
+        if target != '':
+            cmd += ' --target %s' % target
+        if obsid != '':
+            cmd += ' --obsID %s' % obsid
+        print("### Exec:", cmd)
+        os.system(cmd)
 
+    # TODO: how to be sure all MS were downloaded?
+    os.system(LiLF_dir+'/pipelines/LOFAR_download.py')
 
+    os.chdir(working_dir)
+    os.system('mv download/mss/* ./')
+    
+    w.done('download')
+### DONE
 
-##########
-# calibrator
-os.chdir(working_dir+'/cals')
-os.system(LiLF_dir+'/pipelines/LOFAR_cal.py')
+calibrators = local_calibrator_dirs()
+targets = [t for t in glob.glob('id*') if t not in calibrators]
+print ('CALIBRATORS:', calibrators)
+print ('TARGET:', targets)
 
-##########
-# timesplit
-os.chdir(working_dir+'/tgts')
-os.system(LiLF_dir+'/pipelines/LOFAR_timesplit.py')
+for target in targets:
+    
+    ##########
+    # calibrator
+    obsid = int(target.split('_')[0][2:])
+    if w.todo('cal_id%i' % obsid):
+        if redo_cal or not calibrator_tables_available(obsid):
+            # if calibrator not downaloaded, do it
+            cal_dir = local_calibrator_dirs(working_dir, obsid)
+        
+            if cal_dir is None:
+                os.chdir(working_dir+'/download')
+                os.system(LiLF_dir+'/scripts/LOFAR_stager.py --cal --projects %s --obsid %i' % (project, obsid))
+                os.system(LiLF_dir+'/pipelines/LOFAR_download.py')
+    
+                calibrator = local_calibrator_dirs('./mss/', obsid)[0]
+                os.system('mv '+calibrator+' '+working_dir)
 
-##########
-# selfcal
-os.chdir(working_dir+'/tgts')
-os.system(LiLF_dir+'/pipelines/LOFAR_self.py')
+            os.chdir(local_calibrator_dirs(working_dir, obsid)[0])
+            if not os.path.exists('data-bkp'):
+                os.makedirs('data-bkp')
+                os.system('mv *MS data-bkp')
+            os.system(LiLF_dir+'/pipelines/LOFAR_cal.py')
+    
+        w.done('cal_id%i' % obsid)
+    ### DONE
 
-##########
-# DD-cal
-os.chdir(working_dir+'/tgts')
-os.system(LiLF_dir+'/pipelines/LOFAR_dd-serial.py')
+    ##########
+    # timesplit
+    if w.todo('timesplit_%s' % target):
+        os.chdir(working_dir+'/'+target)
+        if not os.path.exists('data-bkp'):
+            os.makedirs('data-bkp')
+            os.system('mv *MS data-bkp')
 
-# update the database
-# TODO
+        os.system(LiLF_dir+'/pipelines/LOFAR_timesplit.py')
+
+        w.done('timesplit_%s' % target)
+    ### DONE
+
+# group targets with same name, assuming they are different pointings of the same dir
+grouped_targets = set([t.split('_')[1] for t in targets])
+
+for grouped_target in grouped_targets:
+    if not os.path.exists(working_dir+'/'+grouped_target):
+        os.makedirs(working_dir+'/'+grouped_target)
+    os.chdir(working_dir+'/'+grouped_target)
+    
+    # collet mss
+    if not os.path.exists('mss'):
+        os.makedirs('mss')
+        for i, tc in enumerate(glob.glob('../id*_'+grouped_target+'/mss/TC*MS')):
+            tc_ren = 'TC%02i.MS' % i
+            print('mv %s mss/%s' % (tc,tc_ren))
+            os.system('mv %s mss/%s' % (tc,tc_ren))
+
+    ##########
+    # selfcal
+    if w.todo('self_%s' % grouped_target):
+        update_status_db(grouped_target, 'Self')
+        os.system(LiLF_dir+'/pipelines/LOFAR_self.py')
+        w.done('self_%s' % grouped_target)
+    ### DONE
+
+    ##########
+    # DD-cal
+    if w.todo('dd_%s' % grouped_target):
+        update_status_db(grouped_target, 'Ddcal')
+        os.system(LiLF_dir+'/pipelines/LOFAR_dd-serial.py')
+        w.done('dd_%s' % grouped_target)
+    ### DONE
+
+    # TODO: add error status
+    update_status_db(grouped_target, 'Done')
+

@@ -22,6 +22,7 @@ class AllMSs(object):
 
         # sort them, useful for some concatenating steps
         if len(pathsMS) == 0:
+            logger.error('Cannot find MS files.')
             raise('Cannot find MS files.')
 
         self.mssListObj = []
@@ -361,7 +362,14 @@ class MS(object):
 
         with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
             return t.getcell("LOFAR_ANTENNA_SET",0)
-        
+
+    def getObsID(self):
+        """
+        Return LOFAR observation ID
+        """
+        with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
+            return int(t.getcell("LOFAR_OBSERVATION_ID",0))
+
     def getFWHM(self, freq='mid'):
         """
         Return the expected FWHM in degree

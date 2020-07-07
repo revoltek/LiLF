@@ -5,7 +5,7 @@ operation = PLOT
 soltab = sol000/amplitude000
 axesInPlot = [time,freq]
 axisInTable = ant
-prefix = plots/ampInit_
+prefix = plots/ampPreflag_
 
 [clip]
 operation = CLIP
@@ -14,45 +14,38 @@ mode = below
 clipLevel = 0.5
 pol = XX,YY
 
-[copy]
-operation = DUPLICATE
-soltab = sol000/amplitude000
-soltabOut = amplitudeSmooth
-
-[smooth]
-operation = SMOOTH
-soltab = sol000/amplitudeSmooth
-ant.regexp = CS*
-axesToSmooth = [ant]
-mode = median
-log = True
-
-[plotAsmooth1]
-operation = PLOT
-soltab = sol000/amplitudeSmooth
-axesInPlot = [time,freq]
-axisInTable = ant
-plotFlag = True
-prefix = plots/ampSmooth1_
-
-[replicate]
-operation = REPLICATEONAXIS
-soltab = sol000/amplitudeSmooth
-axisReplicate = ant
-fromCell = CS001LBA
-updateWeights = False
-
-[norm]
-operation = NORM
-soltab = sol000/amplitudeSmooth
-normVal = 1.
-axesToNorm = [time,freq]
-log = True
-
-[plotAsmooth2]
-operation = PLOT
-soltab = sol000/amplitudeSmooth
-axesInPlot = [time,freq]
-axisInTable = ant
-plotFlag = True
-prefix = plots/ampSmooth2_
+#[copy]
+#operation = DUPLICATE
+#soltab = sol000/amplitude000
+#soltabOut = amplitudeSmooth
+#
+#[smooth]
+#operation = SMOOTH
+#soltab = sol000/amplitudeSmooth
+#ant.regexp = CS*
+#axesToSmooth = [ant]
+#mode = median
+#log = True
+#
+#[plotAsmooth1]
+#operation = PLOT
+#soltab = sol000/amplitudeSmooth
+#axesInPlot = [time,freq]
+#axisInTable = ant
+#plotFlag = True
+#prefix = plots/ampSmooth1_
+#
+#[replicate]
+#operation = REPLICATEONAXIS
+#soltab = sol000/amplitudeSmooth
+#axisReplicate = ant
+#fromCell = CS001LBA
+#updateWeights = False
+#
+#[plotAsmooth2]
+#operation = PLOT
+#soltab = sol000/amplitudeSmooth
+#axesInPlot = [time,freq]
+#axisInTable = ant
+#plotFlag = True
+#prefix = plots/ampSmooth2_

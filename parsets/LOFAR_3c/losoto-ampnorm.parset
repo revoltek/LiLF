@@ -1,0 +1,9 @@
+Ncpu = 0
+
+[norm]
+operation = NORM
+soltab = sol000/amplitude000
+normVal = 1.
+axesToNorm = [time,ant,pol]
+log = True
+pol = XX,YY

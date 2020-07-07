@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # perform self-calibration on a group of SBs concatenated in TCs.
+# they need to be in "./mss/"
 
 import sys, os, glob, re
 import numpy as np
@@ -9,14 +10,14 @@ import casacore.tables as pt
 import lsmtool
 
 # Survey
-if 'LBAsurvey' in os.getcwd():
-    obs = os.getcwd().split('/')[-1]
-    if not os.path.exists('mss'):
-        os.makedirs('mss')
-        for i, tc in enumerate(glob.glob('/home/fdg/data/LBAsurvey/c*-o*/%s/mss/*' % obs)):
-            tc_ren = 'TC%02i.MS' % i
-            print('cp -r %s mss/%s' % (tc,tc_ren))
-            os.system('cp -r %s mss/%s' % (tc,tc_ren))
+#if 'LBAsurvey' in os.getcwd():
+#    obs = os.getcwd().split('/')[-1]
+#    if not os.path.exists('mss'):
+#        os.makedirs('mss')
+#        for i, tc in enumerate(glob.glob('/home/fdg/data/LBAsurvey/c*-o*/%s/mss/*' % obs)):
+#            tc_ren = 'TC%02i.MS' % i
+#            print('cp -r %s mss/%s' % (tc,tc_ren))
+#            os.system('cp -r %s mss/%s' % (tc,tc_ren))
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
@@ -134,8 +135,8 @@ for c in range(2):
     if w.todo('solve_tec1_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -c 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
-        MSs.run('BLsmooth.py -c 8 -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+        MSs.run('BLsmooth.py -c 8 -n 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+        MSs.run('BLsmooth.py -c 8 -n 8 -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
     
         # solve TEC - ms:SMOOTHED_DATA
         logger.info('Solving TEC1...')
@@ -165,7 +166,7 @@ for c in range(2):
     if w.todo('solve_tec2_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -c 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+        MSs.run('BLsmooth.py -c 8 -n 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
     
         # solve TEC - ms:SMOOTHED_DATA
         logger.info('Solving TEC2...')
@@ -255,9 +256,12 @@ for c in range(2):
     if w.todo('imaging_c%02i' % c):
         # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
         logger.info('Cleaning (cycle: '+str(c)+')...')
-        if c==0: kwargs = {'do_predict':True,'baseline_averaging':'','parallel_gridding':2, 'auto_mask':2.5}
-        else: kwargs = {'temp_dir':'./', 'pol':'I', 'fits_mask':maskname, \
-                        'use_idg':'', 'grid_with_beam':'', 'use_differential_lofar_beam':'', 'beam_aterm_update':600, 'auto_mask':2.0}
+        if c==0:
+            kwargs = {'do_predict':True, 'baseline_averaging':'', 'parallel_gridding':2, 'auto_mask':2.5}
+        else: 
+            kwargs = {'baseline_averaging':'', 'parallel_gridding':2, 'auto_mask':2.0, 'fits_mask':maskname}
+            #kwargs = {'temp_dir':'./', 'pol':'I', 'fits_mask':maskname, \
+            #           'use_idg':'', 'grid_with_beam':'', 'use_differential_lofar_beam':'', 'beam_aterm_update':600, 'auto_mask':2.0}
 
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
                 weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=4500, mgain=0.85, \
@@ -270,13 +274,13 @@ for c in range(2):
         w.done('imaging_c%02i' % c)
     ### DONE
 
-    # make a mask for next cycle
-    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 5)
-    maskname = imagename+'-mask.fits'
-
-    # add model and remove first sidelobe
     if c == 0:
+
+        # make a mask for next cycle
+        im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
+        im.makeMask(threshisl = 5)
+        maskname = imagename+'-mask.fits'
+
 
         if w.todo('lowres_setdata_c%02i' % c):
             # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
@@ -368,8 +372,9 @@ for c in range(2):
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(2) ]
 os.system('mv img/wideM-1-*-model.fits self/images')
 os.system('mv img/wide-lr-MFS-image.fits self/images')
+os.system('mv logs self')
+
 os.system('makepb.py -o img/avgbeam.fits -i img/wideM-1')
 os.system('mv img/avgbeam.fits self/images')
-os.system('mv logs self')
 
 logger.info("Done.")

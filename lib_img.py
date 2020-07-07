@@ -154,6 +154,16 @@ class Image(object):
                 return np.nanstd(data[mask==0])
 
 
+    def getMaxMinRatio(self):
+        """
+        Return the ratio of the max over min in the image
+        """   
+        with pyfits.open(self.imagename) as fits:
+            data = np.squeeze(fits[0].data)
+            return np.abs(np.max(data)/np.min(data))
+
+
+
 
 def flatten(f, channel = 0, freqaxis = 0):
     """

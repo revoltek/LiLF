@@ -27,8 +27,6 @@ bl2flag = parset.get('flag','stations')
 if 'LBAsurvey' in os.getcwd():
     data_dir = '/home/fdg/lofar1/LBAsurvey/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
 
-print(data_dir)
-
 #################################################
 # Clean
 if w.todo('clean'):
@@ -54,13 +52,31 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 ##################################################
 # Find solutions to apply
-if 'LBAsurvey' in os.getcwd():
-    #cal_dir = 'portal_lei:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]+'_3C*/'
-    for cal_dir in glob.glob('../3c*'):
-        #if time of obs is between starting and ending time of cal, use it
-        timechunks = set([re.findall(r'_t\d+', ms)[0][2:] for ms in  glob.glob(cal_dir+'/*MS') ])
-        if re.findall( r'_t\d+', MSs.getListStr()[0] )[0][2:] in timechunks:
-            break
+#if 'LBAsurvey' in os.getcwd():
+#    #cal_dir = 'portal_lei:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]+'_3C*/'
+#    for cal_dir in glob.glob('../3c*'):
+#        #if time of obs is between starting and ending time of cal, use it
+#        timechunks = set([re.findall(r'_t\d+', ms)[0][2:] for ms in  glob.glob(cal_dir+'/*MS') ])
+#        if re.findall( r'_t\d+', MSs.getListStr()[0] )[0][2:] in timechunks:
+#            break
+
+if cal_dir == '':
+    obsid = MSs.getListObj()[0].getObsID()
+    # try standard location
+    cal_dir = glob.glob('../id%i_3[c|C]196' % obsid)+glob.glob('../id%i_3[c|C]295' % obsid)+glob.glob('../id%i_3[c|C]380' % obsid)
+    cal_dir = cal_dir[0]
+    if not os.path.exists(cal_dir):
+        with SurveysDB(survey='lba',readonly=True) as sdb:
+            sdb.execute('select calibratordata from observations where id=%i' % obsid)
+            calibratordata = sdb.cur.fetchall()[0]['calibratordata']
+            if calibratordata is not None:
+                logger.info('Downloading solutions...')
+                # try the repository
+                os.system('scp -q lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s/cal-*h5 .' % calibratordata)
+                cal_dir = './'
+            else:
+                logger.error('Cannot find solutions.')
+                sys.exit()
 
 h5_pa = cal_dir+'/cal-pa.h5'
 h5_amp = cal_dir+'/cal-amp.h5'
@@ -100,33 +116,31 @@ if w.todo('apply'):
 # to be understood if calibration/imaging gain anything from using only the central group or all of them
 groupnames = []
 logger.info('Concatenating in frequency...')
-timechunks = sorted(set([re.findall(r'_t\d+', ms)[0][2:] for ms in MSs.getListStr() ]))
-for timechunk in timechunks:
-    for i, msg in enumerate(np.array_split(sorted(glob.glob('*_t'+timechunk+'_*MS')), ngroups)):
-        if ngroups == 1:
-            groupname = 'mss_t%s' % timechunk
-        else:
-            groupname = 'mss_t%s-%02i' % (timechunk, i)
-        groupnames.append(groupname)
+for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
+   if ngroups == 1:
+       groupname = 'mss'
+   else:
+       groupname = 'mss-%02i' % i
+   groupnames.append(groupname)
 
-        # skip if already done
-        if not os.path.exists(groupname):
-            os.makedirs(groupname)
-    
-            # add missing SB with a fake name not to leave frequency holes
-            num_init = int(re.findall(r'\d+', msg[0])[-1])
-            num_fin = int(re.findall(r'\d+', msg[-1])[-1])
-            ms_name_init = msg[0]
-            msg = []
-            for j in range(num_init, num_fin+1):
-                msg.append(ms_name_init.replace('SB%03i' % num_init, 'SB%03i' % j))
-    
-            # prepare concatenated time chunks (TC) - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected, circular)
-            s.add('DPPP '+parset_dir+'/DPPP-concat.parset msin="['+','.join(msg)+']"  msout='+groupname+'/'+groupname+'.MS', \
-                        log=groupname+'_DPPP_concat.log', commandType='DPPP')
-    s.run(check=True)
+   # skip if already done
+   if not os.path.exists(groupname):
+       os.makedirs(groupname)
 
-MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
+       # add missing SB with a fake name not to leave frequency holes
+       num_init = int(re.findall(r'\d+', msg[0])[-1])
+       num_fin = int(re.findall(r'\d+', msg[-1])[-1])
+       ms_name_init = msg[0]
+       msg = []
+       for j in range(num_init, num_fin+1):
+           msg.append(ms_name_init.replace('SB%03i' % num_init, 'SB%03i' % j))
+
+       # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected)
+       s.add('DPPP '+parset_dir+'/DPPP-concat.parset msin="['+','.join(msg)+']"  msout='+groupname+'/'+groupname+'.MS', \
+                   log=groupname+'_DPPP_concat.log', commandType='DPPP')
+       s.run(check=True)
+
+MSs = lib_ms.AllMSs( glob.glob('mss*/*MS'), s )
 
 #############################################################
 # Flagging on concatenated dataset - also flag low-elevation
@@ -141,12 +155,11 @@ if w.todo('flag'):
     
     logger.info('Plot weights...')
     MSs.run('reweight.py $pathMS -v -p -a CS001LBA', log='$nameMS_weights.log', commandType='python')
+    lib_util.check_rm('plots-weights')
     os.system('mkdir plots-weights; mv *png plots-weights')
 
     w.done('flag')
 ### DONE
-
-#sys.exit() # for DDFacet
 
 #####################################
 # Create time-chunks
@@ -180,25 +193,28 @@ if w.todo('timesplit'):
 
 ############################################
 # put everything together
-if w.todo('concat'):
+#if w.todo('concat'):
+#
+#    if ngroups == 1:
+#        lib_util.check_rm('mss')
+#        os.makedirs('mss')
+#        os.system('mv mss_t*/*MS mss')
+#        lib_util.check_rm('mss_t*')
+#    else:
+#        for group in range(ngroups):
+#            groupname = 'mss-%02i' % group
+#            lib_util.check_rm(groupname)
+#            os.makedirs(groupname)
+#            os.system('mv mss_t*-%02i/*MS %s' % (group, groupname))
+#        lib_util.check_rm('mss_t*')
+#    
+#    logger.info('Cleaning up...')
+#    os.system('rm -r *MS')
+#
+#    w.done('concat')
+#### DONE
 
-    if ngroups == 1:
-        lib_util.check_rm('mss')
-        os.makedirs('mss')
-        os.system('mv mss_t*/*MS mss')
-        lib_util.check_rm('mss_t*')
-    else:
-        for group in range(ngroups):
-            groupname = 'mss-%02i' % group
-            lib_util.check_rm(groupname)
-            os.makedirs(groupname)
-            os.system('mv mss_t*-%02i/*MS %s' % (group, groupname))
-        lib_util.check_rm('mss_t*')
-    
-    logger.info('Cleaning up...')
-    os.system('rm -r *MS')
-
-    w.done('concat')
-### DONE
+logger.info('Cleaning up...')
+os.system('rm -r *MS')
 
 logger.info("Done.")

@@ -42,7 +42,11 @@ def getParset(parsetFile='../lilf.config'):
     ### LOFAR ###
 
     # PiLL
-    add_default('PiLL', 'working_dir', './')
+    add_default('PiLL', 'working_dir', os.getcwd())
+    add_default('PiLL', 'redo_cal', 'False') # re-do the calibrator although it is in the archive
+    add_default('PiLL', 'download_file', '') # html.txt file to use instead of staging
+    add_default('PiLL', 'project', '')
+    add_default('PiLL', 'target', '')
 
     # download
     add_default('LOFAR_download', 'fix_table', 'True') # fix bug in some old observations
@@ -51,24 +55,24 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_download', 'keep_IS', 'False')
     # demix
     add_default('LOFAR_demix', 'data_dir', '../cals-bkp/')
-    add_default('LOFAR_demix', 'demix_model', '/home/fdg/scripts/model/demix_all.skydb')
+    add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/models/demix_all.skydb')
     # cal
-    add_default('LOFAR_cal', 'imaging', 'False')
+    add_default('LOFAR_cal', 'data_dir', './data-bkp/')
     add_default('LOFAR_cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
-    add_default('LOFAR_cal', 'data_dir', '../cals-bkp/')
+    add_default('LOFAR_cal', 'imaging', 'False')
     # timesplit
-    add_default('LOFAR_timesplit', 'data_dir', '../tgts-bkp/')
-    add_default('LOFAR_timesplit', 'cal_dir', '../cals/')
+    add_default('LOFAR_timesplit', 'data_dir', './data-bkp/')
+    add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
     # self
-    # dd
+    # dd-parallel
     add_default('LOFAR_dd-parallel', 'maxniter', '10')
     add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
     # dd-serial
     add_default('LOFAR_dd-serial', 'maxIter', '2')
-    add_default('LOFAR_dd-serial', 'minCalFlux60', '1.5')
-    add_default('LOFAR_dd-serial', 'removeExtendedCutoff', '0.0001')
+    add_default('LOFAR_dd-serial', 'minCalFlux60', '1.')
+    add_default('LOFAR_dd-serial', 'removeExtendedCutoff', '0.0005')
     # ddfacet
     add_default('LOFAR_ddfacet', 'maxniter', '10')
     add_default('LOFAR_ddfacet', 'calFlux', '2.0')
@@ -360,7 +364,7 @@ def run_DDF(s, logfile, **kwargs):
 class Walker():
     def __init__(self, filename):
         open(filename, 'a').close() # create the file if doesn't exists
-        self.filename = filename
+        self.filename = os.path.abspath(filename)
 
     def done(self, stepname):
         with open(self.filename, "a") as f:

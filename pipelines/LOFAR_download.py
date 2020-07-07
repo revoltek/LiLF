@@ -43,32 +43,37 @@ def getName(ms):
     """
     Get new MS name based on obs name and time
     """
+    # get pointing name
     with pt.table(ms+'/FIELD', readonly=True, ack=False) as t:
         code = t.getcell('CODE',0)
     if code == '':
         with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
             code = t.getcell('LOFAR_TARGET',0)[0]
-    
     code = code.lower().replace(' ','_')
+    
+    # get obsid
+    with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
+        obsid = t.getcell('LOFAR_OBSERVATION_ID',0)
 
     # get freq
     with pt.table(ms+'/SPECTRAL_WINDOW', readonly=True, ack=False) as t:
         freq = t.getcell('REF_FREQUENCY',0)
 
     # get time (saved in ms as MJD in seconds)
-    with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
-        time = Time(t.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
-        time = time.iso.replace('-','').replace(' ','').replace(':','')[0:12]
+    #with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
+    #    time = Time(t.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
+    #    time = time.iso.replace('-','').replace(' ','').replace(':','')[0:12]
 
-    pattern = re.compile("^c[0-9][0-9]-.*$")
+    #pattern = re.compile("^c[0-9][0-9]-.*$")
     # is survey?
-    if pattern.match(code):
-        cycle_obs, sou = code.split('_')
-        if not os.path.exists(cycle_obs+'/'+sou): os.makedirs(cycle_obs+'/'+sou)
-        return cycle_obs+'/'+sou+'/'+sou+'_t'+time+'_SB'+str(nu2num(freq/1.e6))+'.MS'
-    else:
-        if not os.path.exists('mss/'+code): os.makedirs('mss/'+code)
-        return 'mss/'+code+'/'+code+'_t'+time+'_SB'+str(nu2num(freq/1.e6))+'.MS'
+    #if pattern.match(code):
+    #    cycle_obs, sou = code.split('_')
+    #    if not os.path.exists(cycle_obs+'/'+sou): os.makedirs(cycle_obs+'/'+sou)
+    #    return cycle_obs+'/'+sou+'/'+sou+'_t'+time+'_SB'+str(nu2num(freq/1.e6))+'.MS'
+    #else:
+    
+    if not os.path.exists('mss/id'+obsid+'_'+code): os.makedirs('mss/id'+obsid+'_'+code)
+    return 'mss/id'+obsid+'_'+code+'/'+code+'_SB'+str(nu2num(freq/1.e6))+'.MS'
 
 ########################################
 if not download_file is None:
@@ -94,14 +99,14 @@ if len(MSs.getListStr()) == 0:
     logger.info('Done.')
     sys.exit(0)
 
-#######################################
+######################################
 with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
     t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
     time = np.int(t.iso.replace('-','')[0:8])
 
 if fix_table:
-    logger.info('Fix MS table...')
-    MSs.run('fixMS_TabRef.py $pathMS', log='$nameMS_fixms.log', commandType='python')
+    #logger.info('Fix MS table...')
+    #MSs.run('fixMS_TabRef.py $pathMS', log='$nameMS_fixms.log', commandType='python')
 
     # only ms created in range (2/2013->2/2014)
     if time > 20130200 and time < 20140300:
@@ -111,9 +116,16 @@ if fix_table:
 # Rescale visibilities by 1e3 if before 2014-03-19 (old correlator), and by 1e-2 otherwise
 logger.info('Rescaling flux...')
 if time < 20140319:
-    MSs.run('taql "update $pathMS set DATA = 1e6*DATA"', log='$nameMS_taql.log', commandType='general')
+    rescale_factor = 1e6
 else:
-    MSs.run('taql "update $pathMS set DATA = 1e-4*DATA"', log='$nameMS_taql.log', commandType='general')
+    rescale_factor = 1e-4
+
+for MS in MSs.getListStr():
+    with pt.table(MS+'/HISTORY', readonly=True, ack=False) as hist:
+        if "Flux rescaled" not in hist.getcol('MESSAGE'):
+            s.add('taql "update %s set DATA = %f*DATA" && taql "insert into %s/HISTORY (TIME,MESSAGE) values (mjd(), \"Flux rescaled\")"' % (MS,rescale_factor,MS), \
+                    log='taql.log', commandType='general')
+s.run(check=True)
 
 ######################################
 # Avg to 4 chan and 2 sec
@@ -145,9 +157,9 @@ if renameavg:
             if avg_factor_t < 1 or keep_IS: avg_factor_t = 1
         
             MSout = getName(MS.pathMS)
+            flog.write(MS.nameMS+'.MS\n')
             if avg_factor_f != 1 or avg_factor_t != 1:
-                logger.info('%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, avg_factor_f, avg_factor_t))
-                flog.write(MS.nameMS+'\n')
+                logger.info('%s->%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, avg_factor_f, avg_factor_t))
                 if keep_IS:
                     s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
@@ -157,10 +169,10 @@ if renameavg:
                         msin.baseline="[CR]S*&" \
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
                         log=MS.nameMS+'_avg.log', commandType='DPPP')
-                s.run(check=True, maxThreads=20) # limit threads to prevent I/O isssues
-                #lib_util.check_rm(MS.pathMS)
+                s.run(check=True, maxThreads=1) # limit threads to prevent I/O isssues
+                lib_util.check_rm(MS.pathMS)
             else:
-                logger.info('%s: Move data - no averaging...' % MS.nameMS)
+                logger.info('%s->%s: Move data - no averaging...' % (MS.nameMS, MSout))
                 MS.move(MSout)
 
 logger.info("Done.")
