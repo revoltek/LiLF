@@ -2,7 +2,6 @@
 # To do a second run, rename the uris.pickle
 
 import os, sys, time, glob, pickle, argparse, re
-from datetime import datetime
 import subprocess, multiprocessing
 from awlofar.database.Context import context
 from awlofar.main.aweimports import CorrelatedDataProduct, \
@@ -46,21 +45,23 @@ if not os.path.exists('uris.pickle'):
         print("Quering project: %s" % project)
         query_observations = Observation.select_all().project_only(project)
         for observation in query_observations :
+            obsID = int(observation.observationId)
             if args.obsID is not None:
-                if observation.observationId not in obsIDs:
+                if obsID not in obsIDs:
                     continue
-            print("Querying ObservationID %s" % observation.observationId, end='')
+            print("Querying ObservationID %i" % obsID, end='')
             # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
             dataproduct_query = cls.observations.contains(observation)
             # isValid = 1 means there should be an associated URI
             dataproduct_query &= cls.isValid == 1
-            if target is not None: dataproduct_query &= CorrelatedDataProduct.subArrayPointing.targetName == target
+            #if target is not None: dataproduct_query &= CorrelatedDataProduct.subArrayPointing.targetName == target
 
             for i, dataproduct in enumerate(dataproduct_query):
                 # apply selections
                 name = dataproduct.subArrayPointing.targetName
                 if re_cal.match(name) and nocal: continue
                 if not re_cal.match(name) and calonly: continue
+                if target is not None and not target in name: continue
 
                 # This DataProduct should have an associated URL
                 fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
@@ -201,17 +202,18 @@ w_downloader2 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_
 
 # add things already staged
 i=0
-for sid, _ in stager.get_progress().items():
-    sid = int(sid)
-    L_inStage.append(sid) # the worker will take care of starting downloads
-    for surl in stager.get_surls_online(sid):
-        if surl in L_toStage:
-            L_toStage.remove(surl)
-            i+=1
-print("Removed %i already staged surls." % i)
-#except:
-#    print("Error recovering staged surls.")
-#    pass
+try:
+    for sid, _ in stager.get_progress().items():
+        sid = int(sid)
+        L_inStage.append(sid) # the worker will take care of starting downloads
+        for surl in stager.get_surls_online(sid):
+            if surl in L_toStage:
+                L_toStage.remove(surl)
+                i+=1
+    print("Removed %i already staged surls." % i)
+except:
+    print("Error recovering staged surls.")
+    pass
 
 w_stager.start()
 w_checker.start()

@@ -182,8 +182,8 @@ for cmaj in range(maxIter):
 
         ### group into patches corresponding to the mask islands
         # the txt skymodel is used only to find directions
-        mask_cl = full_image.imagename.replace('image.fits', 'mask-cl.fits')
-        mask_ext = full_image.imagename.replace('image.fits', 'mask-ext.fits')
+        mask_cl = full_image.imagename.replace('.fits', '_mask-cl.fits')
+        mask_ext = full_image.imagename.replace('.fits', '_mask-ext.fits')
         #full_image.beamReg = 'ddcal/beam.reg'
         # this mask is with no user region, done to isolate only bight compact sources
         if not os.path.exists(mask_cl): 
@@ -194,7 +194,7 @@ for cmaj in range(maxIter):
             full_image.selectCC(checkBeam=False, maskname=mask_cl)
         
         lsm = lsmtool.load(full_image.skymodel_cut)
-        lsm.select('MajorAxis<100') # remove large (>100") gaussians
+        #lsm.select('MajorAxis<100') # remove large (>100") gaussians
         lsm.group(mask_cl, root='Isl')
         # This regroup nearby sources
         x = lsm.getColValues('RA',aggregate='wmean')
@@ -228,6 +228,10 @@ for cmaj in range(maxIter):
             fluxes = lsm.getColValues('I')[idx]
             spidx_coeffs = lsm.getColValues('SpectralIndex')[idx]
             ref_freq = lsm.getColValues('ReferenceFrequency')[idx]
+            gauss_sigma = lsm.getColValues('MajorAxis')[idx]/45 # in beam (assuming beam=45")
+            for i in range(len(idx)):
+                if gauss_sigma[i] != 0:
+                    fluxes[i] /= (2*np.pi*gauss_sigma[i]**2) # reduce the fluxes for gaussians to the peak value
 
             d = lib_dd.Direction(name)
             d.set_flux(fluxes, spidx_coeffs, ref_freq )
@@ -270,42 +274,36 @@ for cmaj in range(maxIter):
     else:
         directions = pickle.load( open( picklefile, "rb" ) )
 
-    if w.todo('c%02i-fullpredict' % cmaj):
-        # wsclean predict
-        logger.info('Predict full model...')
-        if cmaj == 0:
-            #temp_ch_out = len(glob.glob(full_image.root+'*[0-9]-model.fits')) # TODO: move to standard vals?
-            s.add('wsclean -predict -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
-                    -reorder -parallel-reordering 4 '+MSs.getStrWsclean(), \
-                    log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
-            s.run(check=True)
-        else:
-            s.add('wsclean -predict -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out_idg)+' \
-                    -use-idg -idg-mode hybrid -aterm-kernel-size 24 -aterm-config '+aterm_config_file+' \
-                    -reorder -parallel-reordering 4 -pol i '+MSs.getStrWsclean(), \
-                    log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
-            s.run(check=True)
+    if cmaj == 0:
+        if w.todo('c%02i-fullpredict' % cmaj):
+            # wsclean predict
+            logger.info('Predict full model...')
+            if cmaj == 0:
+                s.add('wsclean -predict -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+                        -reorder -parallel-reordering 4 '+MSs.getStrWsclean(), \
+                        log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
+                s.run(check=True)
+    
+            w.done('c%02i-fullpredict' % cmaj)
+        ### DONE
+    
+        if w.todo('c%02i-fullsub' % cmaj):
+            # subtract - ms:SUBTRACTED_DATA = DATA - MODEL_DATA
+            logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', \
+                        log='$nameMS_taql.log', commandType='general')
+            # reset - ms:CORRECTED_DATA = DATA
+            logger.info('Set CORRECTED_DATA = DATA...')
+            MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', \
+                        log='$nameMS_taql.log', commandType='general')
+    
+            w.done('c%02i-fullsub' % cmaj)
+        ### DONE
 
-        w.done('c%02i-fullpredict' % cmaj)
-    ### DONE
-
-    if w.todo('c%02i-fullsub' % cmaj):
-        # subtract - ms:SUBTRACTED_DATA = DATA - MODEL_DATA
-        logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', \
-                    log='$nameMS_taql.log', commandType='general')
-        # reset - ms:CORRECTED_DATA = DATA
-        logger.info('Set CORRECTED_DATA = DATA...')
-        MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', \
-                    log='$nameMS_taql.log', commandType='general')
-
-        w.done('c%02i-fullsub' % cmaj)
-    ### DONE
-
-    ### TESTTESTTEST: empty image
-    if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-        clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
-    ###
+        ### TESTTESTTEST: empty image
+        if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
+            clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        ###
 
     for dnum, d in enumerate(directions):
 
@@ -315,19 +313,29 @@ for cmaj in range(maxIter):
 
         if w.todo('%s-predict' % logstring):
 
-            # Predict - ms:MODEL_DATA
-            logger.info('Predict model...')
-            #temp_ch_out = len(glob.glob(d.get_model('init')+'*[0-9]-model.fits')) # TODO: move to standard vals?
-            s.add('wsclean -predict -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' '+MSs.getStrWsclean(), \
-                    log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
-            s.run(check=True)
-
-            # Add back the model previously subtracted for this dd-cal
-            logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA...')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA"', \
-                    log='$nameMS_taql.log', commandType='general')
-
+            if cmaj == 0:
+                # Predict - ms:MODEL_DATA
+                logger.info('Predict model...')
+                s.add('wsclean -predict -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' '+MSs.getStrWsclean(), \
+                        log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
+                s.run(check=True)
+    
+                # Add back the model previously subtracted for this dd-cal
+                logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA...')
+                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA"', \
+                        log='$nameMS_taql.log', commandType='general')
+    
+            else:
+                # TODO DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
+                os.system('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask,indico,outdico) )
+                
+                # Remove corrupted data from DATA
+                logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
+                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', \
+                        log='$nameMS_taql.log', commandType='general')
+    
             w.done('%s-predict' % logstring)
+ 
         ### DONE
 
         if w.todo('%s-shift' % logstring):
@@ -405,10 +413,11 @@ for cmaj in range(maxIter):
    
             if w.todo('%s-calibrate' % logstringcal):
 
-                logger.info('BL-based smoothing...')
-                # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
-                MSs_dir.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', \
-                    log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')    
+                if cdd == 0:
+                    logger.info('BL-based smoothing...')
+                    # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
+                    MSs_dir.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', \
+                        log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')    
  
                 # Calibration - ms:SMOOTHED_DATA
                 # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
@@ -597,129 +606,146 @@ for cmaj in range(maxIter):
 
     ######################################################
     # full imaging
-
-    # combine the h5parms
-    h5parms = {'ph':[], 'amp1':[], 'amp2':[]}
-    for d in directions:
-        # only those who converged
-        if d.peel_off:
-            continue
-        if not d.converged:
-            continue
-
-        h5parms['ph'].append(d.get_h5parm('ph',-2))
-        if d.get_h5parm('amp1',-2) is not None:
-            h5parms['amp1'].append(d.get_h5parm('amp1',-2))
-        if d.get_h5parm('amp2',-2) is not None:
-            h5parms['amp2'].append(d.get_h5parm('amp2',-2))
-        
-        log = '%s: Phase (%s)' % (d.name, d.get_h5parm('ph',-2))
-        log += ' Amp1 (%s)' % (d.get_h5parm('amp1',-2))
-        log += ' Amp2 (%s)' % (d.get_h5parm('amp2',-2))
-        logger.info(log)
-
-
-    for typ, h5parm_list in h5parms.items():
-        # rename direction
-        for h5parmFile in h5parm_list:
-            dirname = h5parmFile.split('-')[3]
-            lib_h5.repoint(h5parmFile, dirname)
-
-            if typ == 'ph':
-                lib_h5.addpol(h5parmFile, 'phase000')
-                lib_h5.addpol(h5parmFile, 'amplitude000')
-                # reset high-res amplitudes in ph-solve
-                s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetamp.parset ', log='h5parm_collector.log', commandType='python' )
-                s.run()
-                s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-refph.parset ', log='h5parm_collector.log', commandType='python' )
-                s.run()
-
-            if typ == 'amp1' or typ == 'amp2':
-                s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetph.parset ', log='h5parm_collector.log', commandType='python' )
-                s.run()
-
-    lib_util.check_rm(interp_h5parm)
-    logger.info('Interpolating solutions...')
-    s.add('H5parm_interpolator.py -o '+interp_h5parm+' '+' '.join(h5parms['ph']+h5parms['amp1']+h5parms['amp2']), log='h5parm_interpolator.log', commandType='python' )
-    s.run()
-
-    idg = False
-    if idg:
-
-        for i, MS in enumerate(MSs.getStrObj()):
-            s.add('/home/fdg/scripts/LiLF/scripts/make_gain_screen.py \
-                    -m '+MS.path+' -p '+interp_h5parm+' -o ddcal/c%02i/aterm/TC%02i' % (cmaj, i), \
-                    log='h5parm_interpolator.log', commandType='python')
-            s.run()
- 
-        # create aterm config file
-        with open(aterm_config_file, 'w') as file:  # Use file to refer to the file object
-            file.write('aterms = [diagonal, beam]')
-            file.write('diagonal.images = ['+' '.join(sorted(glob.glob('ddcal/c%02i/aterm/TC*fits' % cmaj)))+']')
-            file.write('diagonal.window = tukey\n diagonal.update_interval  = 48.066724')
-            file.write('beam.differential = true\n beam.update_interval = 120\n beam.usechannelfreq = true')
     
-        # run the imager
-        imagename = 'img/final-c%02i' % (cmaj)
-        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, size='6000 6000', save_source_list='', scale='5arcsec', \
-                    weight='briggs -0.3', niter=2000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-                    multiscale='', multiscale_scale_bias=0.65, multiscale_scales='0,10,20,40,80',
-                    parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1.5, \
-                    join_channels='', fit_spectral_pol=3, channels_out=ch_out_idg, deconvolution_channels=3, \
-                    temp_dir='./', pol='I', use_idg='', aterm_config=aterm_config_file, aterm_kernel_size=45, nmiter=4 )
+    imagename = 'img/final-c%02i' % (cmaj)
 
-    else:
+    if w.todo('c%02i-imaging' % cmaj):
 
-        imagename = 'img/final-c%02i' % (cmaj)
-
-        logger.info('Cleaning...')
-        lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log',
-        Data_MS=MSs.getStrDDF(),
-        Data_ColName='CORRECTED_DATA',
-        Output_Mode='Clean',
-        Deconv_CycleFactor=0,
-        Deconv_MaxMinorIter=1000000,
-        Deconv_MaxMajorIter=3,
-        Deconv_Mode='HMP',
-        Weight_Robust=-0.5,
-        Image_NPix=8750,
-        CF_wmax=50000,
-        CF_Nw=100,
-        Beam_CenterNorm=1,
-        Beam_Smooth=1,
-        Beam_Model='LOFAR',
-        Beam_LOFARBeamMode='A',
-        Beam_NBand=1,
-        Beam_DtBeamMin=5,
-        Output_Also='onNeds',
-        Image_Cell=3.,
-        Facets_NFacets=25,
-        Freq_NDegridBand=ch_out,
-        Deconv_RMSFactor=3.0,
-        Deconv_PeakFactor=0.001,
-        Deconv_FluxThreshold=0.0,
-        Data_Sort=1,
-        Freq_NBand=ch_out,
-        Mask_Auto=1,
-        GAClean_MinSizeInit=10,
-        Facets_DiamMax=1.5,
-        Facets_DiamMin=0.1,
-        Cache_Dirty='auto',
-        Weight_ColName='WEIGHT_SPECTRUM',
-        Output_Name=imagename,
-        Comp_BDAMode=1,
-        DDESolutions_DDModeGrid='AP',
-        DDESolutions_DDModeDeGrid='AP',
-        Cache_Reset=1,
-        RIME_ForwardMode='BDA-degrid',
-        Predict_ColName='MODEL_DATA',
-        #Selection_UVRange='\[0.1,2000.\]',
-        Output_RestoringBeam=15.,
-        Mask_SigTh=3.0,
-        #Predict_InitDicoModel='A1758_Round3_25facet_newamps.DicoModel',
-        #Mask_External='A1758_Round1.app.restored.fits.mask.fits',
-        DDESolutions_DDSols=interp_h5parm+':sol000/phase000+amplitude000'
-        )
+        # combine the h5parms
+        h5parms = {'ph':[], 'amp1':[], 'amp2':[]}
+        for d in directions:
+            # only those who converged
+            if d.peel_off:
+                continue
+            if not d.converged:
+                continue
+    
+            h5parms['ph'].append(d.get_h5parm('ph',-2))
+            if d.get_h5parm('amp1',-2) is not None:
+                h5parms['amp1'].append(d.get_h5parm('amp1',-2))
+            if d.get_h5parm('amp2',-2) is not None:
+                h5parms['amp2'].append(d.get_h5parm('amp2',-2))
+            
+            log = '%s: Phase (%s)' % (d.name, d.get_h5parm('ph',-2))
+            log += ' Amp1 (%s)' % (d.get_h5parm('amp1',-2))
+            log += ' Amp2 (%s)' % (d.get_h5parm('amp2',-2))
+            logger.info(log)
+    
+    
+        for typ, h5parm_list in h5parms.items():
+            # rename direction
+            for h5parmFile in h5parm_list:
+                dirname = h5parmFile.split('-')[3]
+                lib_h5.repoint(h5parmFile, dirname)
+    
+                if typ == 'ph':
+                    lib_h5.addpol(h5parmFile, 'phase000')
+                    lib_h5.addpol(h5parmFile, 'amplitude000')
+                    # reset high-res amplitudes in ph-solve
+                    s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetamp.parset ', log='h5parm_collector.log', commandType='python' )
+                    s.run()
+                    s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-refph.parset ', log='h5parm_collector.log', commandType='python' )
+                    s.run()
+    
+                if typ == 'amp1' or typ == 'amp2':
+                    s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetph.parset ', log='h5parm_collector.log', commandType='python' )
+                    s.run()
+    
+        lib_util.check_rm(interp_h5parm)
+        logger.info('Interpolating solutions...')
+        s.add('H5parm_interpolator.py -o '+interp_h5parm+' '+' '.join(h5parms['ph']+h5parms['amp1']+h5parms['amp2']), log='h5parm_interpolator.log', commandType='python' )
+        s.run()
+    
+        idg = False
+        if idg:
+    
+            for i, MS in enumerate(MSs.getStrObj()):
+                s.add('/home/fdg/scripts/LiLF/scripts/make_gain_screen.py \
+                        -m '+MS.path+' -p '+interp_h5parm+' -o ddcal/c%02i/aterm/TC%02i' % (cmaj, i), \
+                        log='h5parm_interpolator.log', commandType='python')
+                s.run()
+     
+            # create aterm config file
+            with open(aterm_config_file, 'w') as file:  # Use file to refer to the file object
+                file.write('aterms = [diagonal, beam]')
+                file.write('diagonal.images = ['+' '.join(sorted(glob.glob('ddcal/c%02i/aterm/TC*fits' % cmaj)))+']')
+                file.write('diagonal.window = tukey\n diagonal.update_interval  = 48.066724')
+                file.write('beam.differential = true\n beam.update_interval = 120\n beam.usechannelfreq = true')
+        
+            # run the imager
+            lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, size='6000 6000', save_source_list='', scale='5arcsec', \
+                        weight='briggs -0.3', niter=2000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+                        multiscale='', multiscale_scale_bias=0.65, multiscale_scales='0,10,20,40,80',
+                        parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1.5, \
+                        join_channels='', fit_spectral_pol=3, channels_out=ch_out_idg, deconvolution_channels=3, \
+                        temp_dir='./', pol='I', use_idg='', aterm_config=aterm_config_file, aterm_kernel_size=45, nmiter=4 )
+    
+        else:
+    
+            ddf_params = {
+                    'Data_MS':MSs.getStrDDF(),
+                    'Data_ColName':'CORRECTED_DATA',
+                    'Output_Mode':'Clean',
+                    'Deconv_CycleFactor':0,
+                    'Deconv_MaxMinorIter':1000000,
+                    'Deconv_Mode':'HMP',
+                    'Weight_Robust':-0.5,
+                    'Image_NPix':8750,
+                    'CF_wmax':50000,
+                    'CF_Nw':100,
+                    'Beam_CenterNorm':1,
+                    'Beam_Smooth':1,
+                    'Beam_Model':'LOFAR',
+                    'Beam_LOFARBeamMode':'A',
+                    'Beam_NBand':1,
+                    'Beam_DtBeamMin':5,
+                    'Output_Also':'onNeds',
+                    'Image_Cell':3.,
+                    'Facets_NFacets':25,
+                    'Freq_NDegridBand':ch_out,
+                    'Deconv_RMSFactor':3.0,
+                    'Deconv_PeakFactor':0.005,
+                    'Deconv_FluxThreshold':0.0,
+                    'Data_Sort':1,
+                    'Freq_NBand':ch_out,
+                    'Mask_Auto':1,
+                    'Mask_SigTh':5.0,
+                    'GAClean_MinSizeInit':10,
+                    'Facets_DiamMax':1.5,
+                    'Facets_DiamMin':0.1,
+                    'Weight_ColName':'WEIGHT_SPECTRUM',
+                    'Output_Name':imagename,
+                    'Comp_BDAMode':1,
+                    'DDESolutions_DDModeGrid':'AP',
+                    'DDESolutions_DDModeDeGrid':'AP',
+                    'RIME_ForwardMode':'BDA-degrid',
+                    'Output_RestoringBeam':15.,
+                    'DDESolutions_DDSols':interp_h5parm+':sol000/phase000+amplitude000'
+                    }
+            
+            logger.info('Cleaning 1...')
+            lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
+                    Deconv_MaxMajorIter=1,
+                    Cache_Reset=1
+                    )
+    
+            # make mask
+            im = lib_img.Image(imagename+'.app.restored.fits', userReg=userReg)
+            im.makeMask(threshisl = 3, rmsbox=(70,5))
+    
+            logger.info('Cleaning 2...')
+            lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
+                    Cache_Reset=0,
+                    Cache_Dirty='forcedirty',
+                    Cache_PSF='force',
+                    Cache_SmoothBeam=1,
+                    Deconv_MaxMajorIter=3,
+                    Predict_InitDicoModel=,
+                    Mask_External=imagename.maskname
+                    )
+ 
+        w.done('%s-subtract' % logstring)
+    ### DONE
 
     full_image = lib_img.Image(imagename+'-MFS-image.fits', userReg = userReg)
     sys.exit()

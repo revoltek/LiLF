@@ -121,9 +121,9 @@ else:
     rescale_factor = 1e-4
 
 for MS in MSs.getListStr():
-    with pt.table(MS+'/HISTORY', readonly=True, ack=False) as hist:
+    with pt.table(MS+'/HISTORY', readonly=False, ack=False) as hist:
         if "Flux rescaled" not in hist.getcol('MESSAGE'):
-            s.add('taql "update %s set DATA = %f*DATA" && taql "insert into %s/HISTORY (TIME,MESSAGE) values (mjd(), \"Flux rescaled\")"' % (MS,rescale_factor,MS), \
+            s.add('taql "update %s set DATA = %f*DATA" && taql "insert into %s/HISTORY (TIME,MESSAGE) values (mjd(), \'Flux rescaled\')"' % (MS,rescale_factor,MS), \
                     log='taql.log', commandType='general')
 s.run(check=True)
 

@@ -62,10 +62,12 @@ if download_file == '' and project == '' and target == '':
     with SurveysDB(survey='lba',readonly=True) as sdb:
         sdb.execute('SELECT * FROM fields WHERE status="Observed" order by priority desc')
         r = sdb.cur.fetchall()
-        sdb.execute('SELECT * FROM field_obs WHERE field_id="%s"' % r[0]['id'])
+        target = r[0]['id']
+        sdb.execute('SELECT * FROM field_obs WHERE field_id="%s"' % target)
         r = sdb.cur.fetchall()
         obsid = ','.join([str(x['obs_id']) for x in r])
-    print("Working on target: %s (obsid: %s)" % (target,obsid))
+    print("Working on target: %s (obsid: %s)" % (target, obsid))
+    #update_status_db(target, 'Started') # TODO: add other info, like cluster, node, user...
 
 #######
 # setup

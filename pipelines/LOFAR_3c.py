@@ -148,7 +148,7 @@ if w.todo('predict'):
 
 ###############################################################
 # Selfcal
-rms_noise_pre = np.inf; doamp = False
+rms_noise_pre = np.inf; mm_ratio_pre = 0; doamp = False
 solint_ph = lib_util.Sol_iterator([10,3,1])
 solint_amp = lib_util.Sol_iterator([200,100,50])
 for c in range(100):
@@ -276,13 +276,13 @@ for c in range(100):
 
     im = lib_img.Image(imagename+'-MFS-image.fits')
     im.makeMask( threshisl=5, rmsbox=(500,30), atrous_do=False )
-    rms_noise = im.getNoise()
-    logger.info('RMS noise: %f' % rms_noise)
-    if doamp and rms_noise > 0.98*rms_noise_pre and c > 6:
+    rms_noise = im.getNoise(); mm_ratio = im.getMaxMinRatio()
+    logger.info('RMS noise: %f - MM ratio: %f' % (rms_noise, mm_ratio))
+    if doamp and rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre and c > 6:
         break # if already doing amp and not getting better, quit
-    if rms_noise > 0.98*rms_noise_pre:
+    if rms_noise > 0.95*rms_noise_pre and mm_ratio < 1.05*mm_ratio_pre:
         doamp = True
-    rms_noise_pre = rms_noise
+    rms_noise_pre = rms_noise; mm_ratio_pre = mm_ratio
 
 # Low res image
 logger.info('Cleaning low-res...')

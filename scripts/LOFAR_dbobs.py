@@ -18,10 +18,13 @@ from surveys_db import SurveysDB
 survey_projects = 'LT14_002,LC12_017,LC9_016,LC8_031' # list of projects related with the LBA survey
 
 parser = argparse.ArgumentParser(description='Stage and download MS from the LOFAR LTA.')
-parser.add_argument('--projects', '-p', dest='project', help='Comma separated list of project names', default=survey_projects)
+parser.add_argument('--projects', '-p', dest='project', help='Comma separated list of project names.', default=survey_projects)
+parser.add_argument('--skip', '-s', action="store_true", help='Skip observations already present in field_obs, \
+        this is faster but might miss some target to update as "Observed" in the field table.')
 args = parser.parse_args()
 
 projects = args.project.split(',')
+skip_obs = args.skip
 re_cal = re.compile('3[c|C](196|295|380)')
 
 if projects is None:
@@ -29,11 +32,11 @@ if projects is None:
     sys.exit()
 
 # get obs_id already done
-with SurveysDB(survey='lba',readonly=True) as sdb:
-    sdb.execute('select obs_id from field_obs')
-    obs_to_skip = [ x['obs_id'] for x in sdb.cur.fetchall() ]
-
-print('Skip the following obs:', obs_to_skip)
+if skip_obs:
+    with SurveysDB(survey='lba',readonly=True) as sdb:
+        sdb.execute('select obs_id from field_obs')
+        obs_to_skip = [ x['obs_id'] for x in sdb.cur.fetchall() ]
+    print('Skip the following obs:', obs_to_skip)
 
 id_all={}
 with SurveysDB(survey='lba',readonly=False) as sdb:
@@ -43,7 +46,7 @@ with SurveysDB(survey='lba',readonly=False) as sdb:
         for observation in query_observations:
             obs_id = int(observation.observationId)
             id_all[obs_id]=[]
-            if obs_id in obs_to_skip: continue
+            if skip_obs and obs_id in obs_to_skip: continue
             print('Checking obs_id: %i' % obs_id)
             dataproduct_query = CorrelatedDataProduct.observations.contains(observation)
             # isValid = 1 means there should be an associated URI
