@@ -225,20 +225,22 @@ for c in range(100):
 
     # Solve MS:CORRECTED_DATA (only solve)
     logger.info('Solving BP...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/amp.h5 sol.mode=fulljones \
-            sol.uvlambdarange='+str(nouseblrange)+' sol.smoothnessconstraint=2e6 sol.nchan=1 sol.solint=100', log='$nameMS_solAMP3.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/bp.h5 sol.mode=fulljones \
+            sol.uvlambdarange='+str(nouseblrange)+' sol.smoothnessconstraint=2e6 sol.nchan=1 sol.solint=50', log='$nameMS_solBP3.log', commandType="DPPP")
     
-    lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
-            [parset_dir+'/losoto-plot-amp.parset'])
+    lib_util.run_losoto(s, 'bp-c'+str(c), [ms+'/bp.h5' for ms in MSs.getListStr()], \
+            [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
+
 
     # Correct BP CORRECTED_DATA -> CORRECTED_DATA
     logger.info('BP correction...')
     if c == 0 and lofar_system == 'lba':
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitude000', \
-                log='$nameMS_corAMP3.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-bp-c'+str(c)+'.h5 cor.correction=amplitude000', \
+                log='$nameMS_corBP3.log', commandType='DPPP')
     else:
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-amp-c'+str(c)+'.h5 cor.correction=amplitude000', \
-               log='$nameMS_corAMP3.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-bp-c'+str(c)+'.h5 cor.correction=fulljones \
+               cor.soltab=\[amplitude000,phase000\]', \
+               log='$nameMS_corBP3.log', commandType='DPPP')
 
     logger.info('Cleaning (cycle %02i)...' % c)
     imagename = 'img/img-c%02i' % c
@@ -296,7 +298,9 @@ for c in range(100):
                 weight='briggs -0.2', niter=5000000, no_update_model_required='', nmiter=20, mgain=0.4, \
                 multiscale='', multiscale_scale_bias=0.5, \
                 auto_threshold=0.5, baseline_averaging=10, \
+                fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
                 join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=10)
+        if c == 1: sys.exit()
 
         #for modelfile in glob.glob(imagename+'*model*'):
         #    rev_reg(modelfile, '/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/virgoholehba.reg')
