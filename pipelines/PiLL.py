@@ -2,16 +2,22 @@
 
 import os, sys, glob, getpass, socket
 from surveys_db import SurveysDB
-parset = lib_util.getParset(parsetFile='lilf.config')
-LiLF_dir = os.path.dirname(lib_util.__file__)
-
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 logger_obj = lib_log.Logger('PiLL.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('PiLL.walker')
 
+LiLF_dir = os.path.dirname(lib_util.__file__)
+parset = lib_util.getParset(parsetFile='lilf.config')
+
 survey_projects = 'LT14_002,LC12_017,LC9_016,LC8_031' # list of projects related with the LBA survey
+
+
+################## RESET #####################
+with SurveysDB(survey='lba',readonly=False) as sdb:  
+    sdb.execute('UPDATE fields SET status="Observed" where status!="Not started"')  
+###############################################
 
 # get parameters
 # use lilf.config (this is also used by all other scripits)
@@ -53,8 +59,19 @@ def local_calibrator_dirs(searchdir='', obsid=None):
 
 def update_status_db(field, status):
     with SurveysDB(survey='lba',readonly=False) as sdb:
-        r = sdb.execute('UPDATE fields SET status=%s WHERE id=%s' % (status,field))
+        r = sdb.execute('UPDATE fields SET status="%s" WHERE id="%s"' % (status,field))
 
+
+def check_done(logfile):
+    """
+    check if "Done" is written in the last line of the log file, otherwise quit with error.
+    """
+    with open(logfile, 'r') as f:
+        last_line = f_read.readlines()[-1]
+    if not "Done" in last_line:
+        if survey: update_status_db(target, 'Error') 
+        logger.error('Something went wrong in the last pipeline call.')
+        sys.exit()
 
 ####################################################################################
 
@@ -78,9 +95,9 @@ if download_file == '' and project == '' and target == '':
     clustername = s.cluster
     nodename = socket.gethostname()
     with SurveysDB(survey='lba',readonly=False) as sdb:
-        r = sdb.execute('UPDATE fields SET username=%s WHERE id=%s' % (username, target))
-        r = sdb.execute('UPDATE fields SET clustername=%s WHERE id=%s' % (clustername, target))
-        r = sdb.execute('UPDATE fields SET nodename=%s WHERE id=%s' % (nodename, target))
+        r = sdb.execute('UPDATE fields SET username="%s" WHERE id="%s"' % (username, target))
+        r = sdb.execute('UPDATE fields SET clustername="%s" WHERE id="%s"' % (clustername, target))
+        r = sdb.execute('UPDATE fields SET nodename="%s" WHERE id="%s"' % (nodename, target))
 
     update_status_db(target, 'Download') 
 
@@ -111,7 +128,7 @@ if w.todo('download'):
             cmd += ' --target %s' % target
         if obsid != '':
             cmd += ' --obsID %s' % obsid
-        logger.debug("### Exec:", cmd)
+        logger.debug("Exec: %s" % cmd)
         os.system(cmd)
 
     # TODO: how to be sure all MS were downloaded?
@@ -126,8 +143,8 @@ if w.todo('download'):
 if survey: update_status_db(target, 'Calibrator')
 calibrators = local_calibrator_dirs()
 targets = [t for t in glob.glob('id*') if t not in calibrators]
-logger.debug('CALIBRATORS:', calibrators)
-logger.debug('TARGET:', targets)
+logger.debug('CALIBRATORS: %s' % ( ','.join(calibrators) ) )
+logger.debug('TARGET: %s' % (','.join(targets) ) )
 
 for target in targets:
     
@@ -146,6 +163,7 @@ for target in targets:
                 os.chdir(working_dir+'/download')
                 os.system(LiLF_dir+'/scripts/LOFAR_stager.py --cal --projects %s --obsid %i' % (project, obsid))
                 os.system(LiLF_dir+'/pipelines/LOFAR_download.py')
+                check_done('pipeline-download.logger')
     
                 calibrator = local_calibrator_dirs('./mss/', obsid)[0]
                 os.system('mv '+calibrator+' '+working_dir)
@@ -155,6 +173,7 @@ for target in targets:
                 os.makedirs('data-bkp')
                 os.system('mv *MS data-bkp')
             os.system(LiLF_dir+'/pipelines/LOFAR_cal.py')
+            check_done('pipeline-download.logger')
     
         w.done('cal_id%i' % obsid)
     ### DONE
@@ -170,6 +189,7 @@ for target in targets:
             os.system('mv *MS data-bkp')
 
         os.system(LiLF_dir+'/pipelines/LOFAR_timesplit.py')
+        check_done('pipeline-timesplit.logger')
 
         w.done('timesplit_%s' % target)
     ### DONE
@@ -195,6 +215,7 @@ for grouped_target in grouped_targets:
         if survey: update_status_db(grouped_target, 'Self')
         logger.info('### %s: Starting selfcal #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_self.py')
+        check_done('pipeline-self.logger')
         w.done('self_%s' % grouped_target)
     ### DONE
 
@@ -203,9 +224,9 @@ for grouped_target in grouped_targets:
         if survey: update_status_db(grouped_target, 'Ddcal')
         logger.info('### %s: Starting ddcal #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_dd-serial.py')
+        check_done('pipeline-dd-serial.logger')
         w.done('dd_%s' % grouped_target)
     ### DONE
 
-    # TODO: add error status
     if survey: update_status_db(grouped_target, 'Done')
     logger.info('### %s: Done. #####################################' % grouped_target)

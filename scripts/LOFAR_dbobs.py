@@ -7,6 +7,10 @@
 #   sdb.execute('DELETE FROM field_obs') 
 #   sdb.execute('UPDATE fields SET status="Not started"') 
 
+# To reset all runs:
+#with SurveysDB(survey='lba',readonly=False) as sdb: 
+#   sdb.execute('UPDATE fields SET status="Observed" where status!="Not started"') 
+
 import os, sys, argparse, re
 from awlofar.database.Context import context
 from awlofar.main.aweimports import CorrelatedDataProduct, \
