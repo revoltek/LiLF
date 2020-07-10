@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
-import os, sys, glob
+import os, sys, glob, getpass, socket
 from surveys_db import SurveysDB
-from LiLF import lib_util
 parset = lib_util.getParset(parsetFile='lilf.config')
 LiLF_dir = os.path.dirname(lib_util.__file__)
 
+from LiLF import lib_ms, lib_img, lib_util, lib_log
+logger_obj = lib_log.Logger('PiLL.logger')
+logger = lib_log.logger
+s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('PiLL.walker')
 
 survey_projects = 'LT14_002,LC12_017,LC9_016,LC8_031' # list of projects related with the LBA survey
@@ -49,16 +52,18 @@ def local_calibrator_dirs(searchdir='', obsid=None):
 
 
 def update_status_db(field, status):
-    with SurveysDB(survey='lba',readonly=True) as sdb:
-        r = sdb.execute('UPDATE fields SET status=%s WHERE id=%f' % (status,field))
+    with SurveysDB(survey='lba',readonly=False) as sdb:
+        r = sdb.execute('UPDATE fields SET status=%s WHERE id=%s' % (status,field))
 
 
 ####################################################################################
 
 # query the database for data to process
+survey = False
 if download_file == '' and project == '' and target == '':
+    survey = True
     project = survey_projects
-    print('### Quering database...')
+    logger.info('### Quering database...')
     with SurveysDB(survey='lba',readonly=True) as sdb:
         sdb.execute('SELECT * FROM fields WHERE status="Observed" order by priority desc')
         r = sdb.cur.fetchall()
@@ -66,8 +71,18 @@ if download_file == '' and project == '' and target == '':
         sdb.execute('SELECT * FROM field_obs WHERE field_id="%s"' % target)
         r = sdb.cur.fetchall()
         obsid = ','.join([str(x['obs_id']) for x in r])
-    print("Working on target: %s (obsid: %s)" % (target, obsid))
-    #update_status_db(target, 'Started') # TODO: add other info, like cluster, node, user...
+
+    logger.info("### Working on target: %s (obsid: %s)" % (target, obsid))
+    # add other info, like cluster, node, user...
+    username = getpass.getuser()
+    clustername = s.cluster
+    nodename = socket.gethostname()
+    with SurveysDB(survey='lba',readonly=False) as sdb:
+        r = sdb.execute('UPDATE fields SET username=%s WHERE id=%s' % (username, target))
+        r = sdb.execute('UPDATE fields SET clustername=%s WHERE id=%s' % (clustername, target))
+        r = sdb.execute('UPDATE fields SET nodename=%s WHERE id=%s' % (nodename, target))
+
+    update_status_db(target, 'Download') 
 
 #######
 # setup
@@ -85,7 +100,9 @@ if download_file != '':
 
 ##########
 # data download
+# here the pipeline downloads only the target, not the calibrator
 if w.todo('download'):
+    logger.info('### Starting download... #####################################')
     os.chdir(working_dir+'/download')
 
     if download_file == '':
@@ -94,7 +111,7 @@ if w.todo('download'):
             cmd += ' --target %s' % target
         if obsid != '':
             cmd += ' --obsID %s' % obsid
-        print("### Exec:", cmd)
+        logger.debug("### Exec:", cmd)
         os.system(cmd)
 
     # TODO: how to be sure all MS were downloaded?
@@ -106,18 +123,22 @@ if w.todo('download'):
     w.done('download')
 ### DONE
 
+if survey: update_status_db(target, 'Calibrator')
 calibrators = local_calibrator_dirs()
 targets = [t for t in glob.glob('id*') if t not in calibrators]
-print ('CALIBRATORS:', calibrators)
-print ('TARGET:', targets)
+logger.debug('CALIBRATORS:', calibrators)
+logger.debug('TARGET:', targets)
 
 for target in targets:
     
     ##########
     # calibrator
+    # here the pipeline checks if the calibrator is available online, otherwise it downloads it
+    # then it also runs the calibrator pipeline
     obsid = int(target.split('_')[0][2:])
     if w.todo('cal_id%i' % obsid):
         if redo_cal or not calibrator_tables_available(obsid):
+            logger.info('### %s: Starting calibrator... #####################################' % target)
             # if calibrator not downaloaded, do it
             cal_dir = local_calibrator_dirs(working_dir, obsid)
         
@@ -140,7 +161,9 @@ for target in targets:
 
     ##########
     # timesplit
+    # each target of each observation is then timesplit
     if w.todo('timesplit_%s' % target):
+        logger.info('### %s: Starting timesplit... #####################################' % target)
         os.chdir(working_dir+'/'+target)
         if not os.path.exists('data-bkp'):
             os.makedirs('data-bkp')
@@ -159,30 +182,30 @@ for grouped_target in grouped_targets:
         os.makedirs(working_dir+'/'+grouped_target)
     os.chdir(working_dir+'/'+grouped_target)
     
-    # collet mss
+    # collet mss for this grouped_target
     if not os.path.exists('mss'):
         os.makedirs('mss')
         for i, tc in enumerate(glob.glob('../id*_'+grouped_target+'/mss/TC*MS')):
             tc_ren = 'TC%02i.MS' % i
-            print('mv %s mss/%s' % (tc,tc_ren))
+            logger.debug('mv %s mss/%s' % (tc,tc_ren))
             os.system('mv %s mss/%s' % (tc,tc_ren))
 
-    ##########
     # selfcal
     if w.todo('self_%s' % grouped_target):
-        update_status_db(grouped_target, 'Self')
+        if survey: update_status_db(grouped_target, 'Self')
+        logger.info('### %s: Starting selfcal #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_self.py')
         w.done('self_%s' % grouped_target)
     ### DONE
 
-    ##########
     # DD-cal
     if w.todo('dd_%s' % grouped_target):
-        update_status_db(grouped_target, 'Ddcal')
+        if survey: update_status_db(grouped_target, 'Ddcal')
+        logger.info('### %s: Starting ddcal #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_dd-serial.py')
         w.done('dd_%s' % grouped_target)
     ### DONE
 
     # TODO: add error status
-    update_status_db(grouped_target, 'Done')
-
+    if survey: update_status_db(grouped_target, 'Done')
+    logger.info('### %s: Done. #####################################' % grouped_target)

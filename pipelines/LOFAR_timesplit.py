@@ -52,14 +52,6 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 ##################################################
 # Find solutions to apply
-#if 'LBAsurvey' in os.getcwd():
-#    #cal_dir = 'portal_lei:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]+'_3C*/'
-#    for cal_dir in glob.glob('../3c*'):
-#        #if time of obs is between starting and ending time of cal, use it
-#        timechunks = set([re.findall(r'_t\d+', ms)[0][2:] for ms in  glob.glob(cal_dir+'/*MS') ])
-#        if re.findall( r'_t\d+', MSs.getListStr()[0] )[0][2:] in timechunks:
-#            break
-
 if cal_dir == '':
     obsid = MSs.getListObj()[0].getObsID()
     # try standard location
@@ -69,14 +61,14 @@ if cal_dir == '':
         with SurveysDB(survey='lba',readonly=True) as sdb:
             sdb.execute('select calibratordata from observations where id=%i' % obsid)
             calibratordata = sdb.cur.fetchall()[0]['calibratordata']
-            if calibratordata is not None:
-                logger.info('Downloading solutions...')
-                # try the repository
-                os.system('scp -q lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s/cal-*h5 .' % calibratordata)
-                cal_dir = './'
-            else:
-                logger.error('Cannot find solutions.')
-                sys.exit()
+        if calibratordata is not None:
+            logger.info('Downloading solutions...')
+            # try the repository
+            os.system('scp -q lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s/cal-*h5 .' % calibratordata)
+            cal_dir = './'
+        else:
+            logger.error('Cannot find solutions.')
+            sys.exit()
 
 h5_pa = cal_dir+'/cal-pa.h5'
 h5_amp = cal_dir+'/cal-amp.h5'

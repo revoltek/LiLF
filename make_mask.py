@@ -25,7 +25,7 @@ def make_mask(image_name, mask_name=None, threshisl=5, atrous_do=False, rmsbox=(
 
     # WRITE CATALOGUE
     if write_srl:
-        img.write_catalog(format='fits', catalog_type='srl', clobber=True)
+        img.write_catalog(format='bbs', catalog_type='gaul', outfile=maks_name.replace('fits','skymodel'), clobber=True)
 
     del img
 

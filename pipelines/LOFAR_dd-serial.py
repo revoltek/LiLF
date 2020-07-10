@@ -116,7 +116,9 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
 if w.todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('ddcal')
-    os.makedirs('ddcal')
+    os.makedirs('ddcal/init')
+    lib_util.check_rm('img')
+    os.makedirs('img')
 
     w.done('cleaning')
 ### DONE
@@ -156,8 +158,8 @@ MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log',
 
 ##############################################################
 # setup initial model
-os.system('cp self/images/wideM-1* ddcal/')
-full_image = lib_img.Image('ddcal/wideM-1-MFS-image.fits', userReg = userReg)
+os.system('cp self/images/wideM-1* ddcal/init/')
+full_image = lib_img.Image('ddcal/init/wideM-1-MFS-image.fits', userReg = userReg)
 
 for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
@@ -166,41 +168,42 @@ for cmaj in range(maxIter):
     picklefile = 'ddcal/directions-c%02i.pickle' % cmaj
     interp_h5parm = 'ddcal/c%02i/solutions/interp.h5' % cmaj
     aterm_config_file = 'ddcal/c%02i/aterm/aterm.config' % cmaj
+    mask_cl = full_image.imagename.replace('.fits', '_mask-cl.fits')
+    mask_ext = full_image.imagename.replace('.fits', '_mask-ext.fits')
     
-    if w.todo('c%02i-delimg' % cmaj):
-        lib_util.check_rm('img')
-        os.makedirs('img')
-        w.done('c%02i-delimg' % cmaj)
-    ### DONE
-
     if not os.path.exists('ddcal/c%02i' % cmaj): os.makedirs('ddcal/c%02i' % cmaj)
-    for subdir in ['plots','images','solutions','skymodels','aterms']:
+    for subdir in ['plots','images','solutions','skymodels']:
         if not os.path.exists('ddcal/c%02i/%s' % (cmaj, subdir)): os.makedirs('ddcal/c%02i/%s' % (cmaj, subdir))
 
     if not os.path.exists(picklefile):
         directions = []
 
         ### group into patches corresponding to the mask islands
-        # the txt skymodel is used only to find directions
-        mask_cl = full_image.imagename.replace('.fits', '_mask-cl.fits')
-        mask_ext = full_image.imagename.replace('.fits', '_mask-ext.fits')
-        #full_image.beamReg = 'ddcal/beam.reg'
-        # this mask is with no user region, done to isolate only bight compact sources
         if not os.path.exists(mask_cl): 
-            full_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff, only_beam=False, maskname=mask_cl)
-        if not os.path.exists(mask_ext): 
+            full_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff, only_beam=False, maskname=mask_cl, write_srl=True)
+        if not os.path.exists(mask_ext) and cmaj == 0: 
             full_image.makeMask(threshisl=4, atrous_do=True, remove_extended_cutoff=0, only_beam=False, maskname=mask_ext)
-        if not os.path.exists(full_image.skymodel_cut): 
+
+        # the txt skymodel is used only to find directions
+        if cmaj > 0:
+            full_image.skymodel_cut = mask_cl.replace('fits','skymodel')
+        elif not os.path.exists(full_image.skymodel_cut): 
             full_image.selectCC(checkBeam=False, maskname=mask_cl)
+
+        # cleanup model
+        if cmaj == 0:
+            logger.info('Cleanup model...')
+            for model_file in glob.glob(full_image.root+'*model.fits'):
+                lib_img.blank_image_fits(model_file, mask_ext, model_file, inverse=True, blankval=0.)
         
+        # locating DD-calibrators
         lsm = lsmtool.load(full_image.skymodel_cut)
-        #lsm.select('MajorAxis<100') # remove large (>100") gaussians
         lsm.group(mask_cl, root='Isl')
         # This regroup nearby sources
         x = lsm.getColValues('RA',aggregate='wmean')
         y = lsm.getColValues('Dec',aggregate='wmean')
         flux = lsm.getColValues('I',aggregate='sum')
-        grouper = lib_dd.Grouper(list(zip(x,y)), flux, look_distance=0.1, kernel_size=0.1, grouping_distance=0.03)
+        grouper = lib_dd.Grouper(list(zip(x,y)), flux, look_distance=0.07, kernel_size=0.05, grouping_distance=0.03)
         grouper.run()
         clusters = grouper.grouping()
         grouper.plot()
@@ -212,15 +215,11 @@ for cmaj in range(maxIter):
             patches = patchNames[cluster]
             if len(patches) > 1:
                 lsm.merge(patches.tolist())
-
-        # cleanup model
-        for model_file in glob.glob(full_image.root+'*model.fits'):
-            logger.info('Cleanup model...')
-            lib_img.blank_image_fits(model_file, mask_ext, model_file, inverse=True, blankval=0.)
-    
+   
         lsm.setPatchPositions(method='mid')
-        for name, flux, size, ra, dec in \
-                zip( lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum'), lsm.getPatchSizes(units='deg'), \
+        img_beam = full_image.getBeam()
+        for name, size, ra, dec in \
+                zip( lsm.getPatchNames(), lsm.getPatchSizes(units='deg'), \
                      lsm.getPatchPositions(asArray=True)[0], lsm.getPatchPositions(asArray=True)[1] ):
 
             # keep track of the spidx of sources
@@ -228,15 +227,19 @@ for cmaj in range(maxIter):
             fluxes = lsm.getColValues('I')[idx]
             spidx_coeffs = lsm.getColValues('SpectralIndex')[idx]
             ref_freq = lsm.getColValues('ReferenceFrequency')[idx]
-            gauss_sigma = lsm.getColValues('MajorAxis')[idx]/45 # in beam (assuming beam=45")
+            gauss_area = (lsm.getColValues('MajorAxis')[idx]*lsm.getColValues('MinorAxis')[idx])/(img_beam[0]*img_beam[1]) # in beams
             for i in range(len(idx)):
-                if gauss_sigma[i] != 0:
-                    fluxes[i] /= (2*np.pi*gauss_sigma[i]**2) # reduce the fluxes for gaussians to the peak value
+                if gauss_area[i] > 1:
+                    fluxes[i] /= gauss_area[i] # reduce the fluxes for gaussians to the peak value
 
             d = lib_dd.Direction(name)
             d.set_flux(fluxes, spidx_coeffs, ref_freq )
             # skip faint directions
             if d.get_flux(freq_min) < min_cal_flux60*(freq_min/60e6)**(-0.8) or d.get_flux(freq_mid) < min_cal_flux60*(freq_mid/60e6)**(-0.8): continue
+            if size < 2*img_beam[0]/3600:
+                size = 4*img_beam[0]/3600
+
+            #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,ref_freq,size,img_beam,lsm.getColValues('MajorAxis')[idx])
 
             d.set_position( [ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center )
             d.set_size(size*1.2) # size increased by 20%
@@ -247,15 +250,9 @@ for cmaj in range(maxIter):
             d.set_model(model_root, typ='init', apply_region=True)
 
             directions.append(d)
-            
+
         # order directions from the fluxiest
         directions = [x for _,x in sorted(zip([d.get_flux(freq_min) for d in directions],directions))][::-1] # reorder with flux
-
-        # TODO: just a test for coma
-        #if 'coma' in os.getcwd():
-        #    d=directions[0]
-        #    directions.insert(len(directions),d)
-        #    directions.pop(0)
 
         for d in directions:
             if not d.peel_off:
@@ -301,8 +298,8 @@ for cmaj in range(maxIter):
         ### DONE
 
         ### TESTTESTTEST: empty image
-        if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-            clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        #if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
+        #    clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
     for dnum, d in enumerate(directions):
@@ -326,13 +323,75 @@ for cmaj in range(maxIter):
                         log='$nameMS_taql.log', commandType='general')
     
             else:
-                # TODO DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
-                os.system('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask,indico,outdico) )
-                
-                # Remove corrupted data from DATA
-                logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
-                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', \
+
+                # these dd-cal are not in the data anymore
+                if d.peel_off:
+                    logger.info('This sources has been peeled, skip.')
+                    continue
+
+                # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
+                indico = full_image.root+'.DicoModel'
+                outdico = indico+'-'+d.name
+                outmask = outdico+'.mask'
+                lib_img.blank_image_reg(mask_ext, d.get_region(), outfile=outmask, inverse=False, blankval = 0.)
+                s.add('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask, indico, outdico), \
+                       log='MaskDicoModel-'+logstring+'.log', commandType='python', processors='max')
+                s.run(check=True)
+
+                ddf_parms = {
+                    'Data_MS':MSs.getStrDDF(),
+                    'Data_ColName':'CORRECTED_DATA',
+                    'Data_Sort':1,
+                    'Output_Mode':'Predict',
+                    'Predict_InitDicoModel':outdico,
+                    'Predict_ColName':'MODEL_DATA',
+                    'Deconv_Mode':'HMP',
+                    #'Deconv_CycleFactor':0,
+                    #'Deconv_MaxMinorIter':1000000,
+                    #'Deconv_RMSFactor':3.0,
+                    #'Deconv_PeakFactor':0.005,
+                    #'Deconv_FluxThreshold':0.0,
+                    #'Weight_Robust':-0.5,
+                    'Image_NPix':8750,
+                    'CF_wmax':50000,
+                    'CF_Nw':100,
+                    'Beam_CenterNorm':1,
+                    'Beam_Smooth':1,
+                    'Beam_Model':'LOFAR',
+                    'Beam_LOFARBeamMode':'A',
+                    'Beam_NBand':1,
+                    'Beam_DtBeamMin':5,
+                    'Output_Also':'onNeds',
+                    'Image_Cell':3.,
+                    'Freq_NDegridBand':ch_out,
+                    'Freq_NBand':ch_out,
+                    #'Mask_Auto':1,
+                    #'Mask_SigTh':5.0,
+                    'GAClean_MinSizeInit':10,
+                    'Facets_DiamMax':1.5,
+                    'Facets_DiamMin':0.1,
+                    'Weight_ColName':'WEIGHT_SPECTRUM',
+                    #'Output_Name':imagename,
+                    'Comp_BDAMode':1,
+                    'DDESolutions_DDModeGrid':'AP',
+                    'DDESolutions_DDModeDeGrid':'AP',
+                    'RIME_ForwardMode':'BDA-degrid',
+                    #'Output_RestoringBeam':15.,
+                    'DDESolutions_DDSols':interp_h5parm.replace('c%02i' % cmaj, 'c%02i' % (cmaj-1))+':sol000/phase000+amplitude000'
+                    }
+                logger.info('Predict corrupted rest-of-the-sky...')
+                lib_util.run_DDF(s, 'ddfacet-pre-'+logstring+'.log', **ddf_parms, Cache_Reset=1)
+
+                #                run("DDF.py --Output-Name=image_full_ampphase_di_m.NS_SUB --Data-ChunkHours=" + str(args['chunkhours']) + " --Data-MS=" + args['mslist'] + " --Deconv-PeakFactor 0.001000 --Data-ColName " + args['column'] + " --Parallel-NCPU="+str(ncpu) + " --Facets-CatNodes=" + clustercat + " --Beam-CenterNorm=1 --Deconv-Mode SSD --Beam-Model=LOFAR --Beam-LOFARBeamMode=A --Weight-Robust " + str(robust) +" --Image-NPix=" + str(imagenpix) + " --CF-wmax 50000 --CF-Nw 100 --Output-Also onNeds --Image-Cell "+ str(imagecell) + " --Facets-NFacets=11 --SSDClean-NEnlargeData 0 --Freq-NDegridBand 1 --Beam-NBand 1 --Facets-DiamMax 1.5 --Facets-DiamMin 0.1 --Deconv-RMSFactor=3.000000 --SSDClean-ConvFFTSwitch 10000 --Data-Sort 1 --Cache-Dir=. --Log-Memory 1 --Cache-Weight=reset --Output-Mode=Predict --Output-RestoringBeam 6.000000 --Freq-NBand=2 --RIME-DecorrMode=FT --SSDClean-SSDSolvePars [S,Alpha] --SSDClean-BICFactor 0 --Mask-Auto=1 --Mask-SigTh=5.00 --Mask-External=" + outmask + " --DDESolutions-GlobalNorm=None --DDESolutions-DDModeGrid=AP --DDESolutions-DDModeDeGrid=AP --DDESolutions-DDSols=[" + ddsolstr + "] --Predict-InitDicoModel=" + outdico + " --Selection-UVRangeKm=" + uvsel + " --GAClean-MinSizeInit=10 --Cache-Reset 1 --Beam-Smooth=1 --Predict-ColName='PREDICT_SUB' --DDESolutions-SolsDir=SOLSDIR")
+
+                # Remove corrupted data from CORRECTED_DATA
+                logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
+                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
                         log='$nameMS_taql.log', commandType='general')
+
+                ### TTESTTESTTEST: empty image
+                if not os.path.exists('img/almostempty-%02i-%s-image.fits' % (dnum, logstring)):
+                    clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
             w.done('%s-predict' % logstring)
  
@@ -368,7 +427,6 @@ for cmaj in range(maxIter):
             if w.todo('%s-beamcorr' % logstring):
                 logger.info('Correcting beam...')
                 # Convince DPPP that DATA is corrected for the beam in the phase centre
-                #[MS.putBeamInfo(col='DATA', mode='Full', direction=phase_center) for MS in MSs_dir.getListObj()]
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
                         setbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] \
                         corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=True', \
@@ -541,7 +599,7 @@ for cmaj in range(maxIter):
             MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+model_skydb, \
                     log='$nameMS_pre-'+logstring+'.log', commandType='DPPP')
 
-            # Store of FLAGS
+            # Store FLAGS
             MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"', \
                     log='$nameMS_taql.log', commandType='general')
 
@@ -607,7 +665,7 @@ for cmaj in range(maxIter):
     ######################################################
     # full imaging
     
-    imagename = 'img/final-c%02i' % (cmaj)
+    imagename = 'img/wideDD-c%02i' % (cmaj)
 
     if w.todo('c%02i-imaging' % cmaj):
 
@@ -679,16 +737,22 @@ for cmaj in range(maxIter):
                         parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1.5, \
                         join_channels='', fit_spectral_pol=3, channels_out=ch_out_idg, deconvolution_channels=3, \
                         temp_dir='./', pol='I', use_idg='', aterm_config=aterm_config_file, aterm_kernel_size=45, nmiter=4 )
+
+            sys.exit('Not implemente further on...')
     
         else:
     
-            ddf_params = {
+            ddf_parms = {
                     'Data_MS':MSs.getStrDDF(),
                     'Data_ColName':'CORRECTED_DATA',
+                    'Data_Sort':1,
                     'Output_Mode':'Clean',
                     'Deconv_CycleFactor':0,
                     'Deconv_MaxMinorIter':1000000,
                     'Deconv_Mode':'HMP',
+                    'Deconv_RMSFactor':3.0,
+                    'Deconv_PeakFactor':0.005,
+                    'Deconv_FluxThreshold':0.0,
                     'Weight_Robust':-0.5,
                     'Image_NPix':8750,
                     'CF_wmax':50000,
@@ -701,12 +765,8 @@ for cmaj in range(maxIter):
                     'Beam_DtBeamMin':5,
                     'Output_Also':'onNeds',
                     'Image_Cell':3.,
-                    'Facets_NFacets':25,
+                    #'Facets_NFacets':25,
                     'Freq_NDegridBand':ch_out,
-                    'Deconv_RMSFactor':3.0,
-                    'Deconv_PeakFactor':0.005,
-                    'Deconv_FluxThreshold':0.0,
-                    'Data_Sort':1,
                     'Freq_NBand':ch_out,
                     'Mask_Auto':1,
                     'Mask_SigTh':5.0,
@@ -738,18 +798,17 @@ for cmaj in range(maxIter):
                     Cache_Reset=0,
                     Cache_Dirty='forcedirty',
                     Cache_PSF='force',
-                    Cache_SmoothBeam=1,
+                    Cache_SmoothBeam='force',
                     Deconv_MaxMajorIter=3,
-                    Predict_InitDicoModel=,
-                    Mask_External=imagename.maskname
+                    Predict_InitDicoModel=imagename+'.DicoModel',
+                    Mask_External=im.maskname
                     )
  
-        w.done('%s-subtract' % logstring)
+            os.system('mv %s* ddcal/c%02i/images' % (imagename, cmaj))
+        w.done('c%02i-imaging' % cmaj)
     ### DONE
 
-    full_image = lib_img.Image(imagename+'-MFS-image.fits', userReg = userReg)
-    sys.exit()
-
-#                run("DDF.py --Output-Name=image_full_ampphase_di_m.NS_SUB --Data-ChunkHours=" + str(args['chunkhours']) + " --Data-MS=" + args['mslist'] + " --Deconv-PeakFactor 0.001000 --Data-ColName " + args['column'] + " --Parallel-NCPU="+str(ncpu) + " --Facets-CatNodes=" + clustercat + " --Beam-CenterNorm=1 --Deconv-Mode SSD --Beam-Model=LOFAR --Beam-LOFARBeamMode=A --Weight-Robust " + str(robust) +" --Image-NPix=" + str(imagenpix) + " --CF-wmax 50000 --CF-Nw 100 --Output-Also onNeds --Image-Cell "+ str(imagecell) + " --Facets-NFacets=11 --SSDClean-NEnlargeData 0 --Freq-NDegridBand 1 --Beam-NBand 1 --Facets-DiamMax 1.5 --Facets-DiamMin 0.1 --Deconv-RMSFactor=3.000000 --SSDClean-ConvFFTSwitch 10000 --Data-Sort 1 --Cache-Dir=. --Log-Memory 1 --Cache-Weight=reset --Output-Mode=Predict --Output-RestoringBeam 6.000000 --Freq-NBand=2 --RIME-DecorrMode=FT --SSDClean-SSDSolvePars [S,Alpha] --SSDClean-BICFactor 0 --Mask-Auto=1 --Mask-SigTh=5.00 --Mask-External=" + outmask + " --DDESolutions-GlobalNorm=None --DDESolutions-DDModeGrid=AP --DDESolutions-DDModeDeGrid=AP --DDESolutions-DDSols=[" + ddsolstr + "] --Predict-InitDicoModel=" + outdico + " --Selection-UVRangeKm=" + uvsel + " --GAClean-MinSizeInit=10 --Cache-Reset 1 --Beam-Smooth=1 --Predict-ColName='PREDICT_SUB' --DDESolutions-SolsDir=SOLSDIR")
+    full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj,imagename.split('/')[-1]), userReg = userReg)
+    min_cal_flux60 *= 0.8 # go a bit deeper
 
 logger.info("Done.")

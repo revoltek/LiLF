@@ -1,18 +1,15 @@
-#!/sw/env/cuda-10.2.89_gcc-8.3.0_openmpi-4.0.2/pkgsrc/2019Q4/bin/python3
-from __future__ import division, absolute_import, print_function
+#!/usr/bin/env python
 
 import optparse
 import pickle
 import numpy as np
-from SkyModel.Other import MyLogger
-log=MyLogger.getLogger("MaskDicoModel")
 
 try:
-    from DDFacet.Imager.ModModelMachine import GiveModelMachine
+    from DDFacet.Imager.ModModelMachine import GiveModelMachine as ClassModModelMachine
 except:
     from DDFacet.Imager.ModModelMachine import ClassModModelMachine
-from DDFacet.Imager import ClassCasaImage
-from pyrap.images import image
+
+#from DDFacet.Imager import ClassCasaImage
 
 SaveName="last_MaskDicoModel.obj"
 
@@ -25,9 +22,9 @@ def read_options():
     group.add_option('--InDicoModel',help='Input DicoModel name [no default]',default='')
     group.add_option('--OutDicoModel',help='Output DicoModel name, default is %default',default=None)
     group.add_option('--MaskName',help='Name of the fits mask, default is %default',default=None)
-    group.add_option('--NPixOut',help='Name of the fits mask, default is %default',default=None)
-    group.add_option('--InvertMask',help='Name of the fits mask, default is %default',default=0)
-    group.add_option('--FilterNegComp',help='Name of the fits mask, default is %default',type="int",default=0)
+    group.add_option('--NPixOut',help='Change pixel size of the output image, default is %default',default=None)
+#    group.add_option('--InvertMask',help='Invert the mask, default is False',action="store_true")
+    group.add_option('--FilterNegComp',help='Remove negative components, default is False',action="store_true")
     opt.add_option_group(group)
 
     options, arguments = opt.parse_args()
@@ -45,7 +42,7 @@ def main(options=None):
     ModConstructor = ClassModModelMachine()
     MM=ModConstructor.GiveInitialisedMMFromFile(options.InDicoModel)
     if options.MaskName:
-        MM.CleanMaskedComponants(options.MaskName,InvertMask=options.InvertMask)
+        MM.CleanMaskedComponants(options.MaskName)#,InvertMask=options.InvertMask)
 
     if options.FilterNegComp:
         MM.RemoveNegComponants()

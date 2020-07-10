@@ -1,6 +1,8 @@
 import os, sys, glob
 import numpy as np
 import astropy.io.fits as pyfits
+import casacore.images as pim
+from casacore import quanta
 import lsmtool
 import pyregion
 from scipy.ndimage.measurements import label
@@ -15,6 +17,7 @@ class Image(object):
         """
         if 'MFS' in imagename: suffix = '-MFS-image.fits'
         elif 'image.fits' in imagename: suffix = '-image.fits'
+        elif 'restored.fits' in imagename: suffix = '.app.restored.fits'
         else: suffix = '.fits'
         if userReg == '': userReg = None
         if beamReg == '': beamReg = None
@@ -53,7 +56,7 @@ class Image(object):
             fits.close()
 
 
-    def makeMask(self, threshisl=5, atrous_do=True, rmsbox=(100,10), remove_extended_cutoff=0., only_beam=False, maskname=None):
+    def makeMask(self, threshisl=5, atrous_do=True, rmsbox=(100,10), remove_extended_cutoff=0., only_beam=False, maskname=None, write_srl=False):
         """
         Create a mask of the image where only believable flux is
 
@@ -68,7 +71,7 @@ class Image(object):
 
         if not os.path.exists(maskname):
             logger.info('%s: Making mask (%s)...' % (self.imagename, maskname))
-            make_mask.make_mask(image_name=self.imagename, mask_name=maskname, threshisl=threshisl, atrous_do=atrous_do, rmsbox=rmsbox)
+            make_mask.make_mask(image_name=self.imagename, mask_name=maskname, threshisl=threshisl, atrous_do=atrous_do, rmsbox=rmsbox, write_srl=write_srl)
 
         if remove_extended_cutoff > 0:
 
@@ -162,7 +165,18 @@ class Image(object):
             data = np.squeeze(fits[0].data)
             return np.abs(np.max(data)/np.min(data))
 
-
+    def getBeam(self):
+        """
+        Return the beam size of the image
+        """
+        this_pim = pim.image(self.imagename)
+        info_dict = this_pim.info()['imageinfo']['restoringbeam']
+        # get beam info
+        bpar_ma = quanta.quantity(info_dict['major']).get_value('arcsec')
+        bpar_mi = quanta.quantity(info_dict['minor']).get_value('arcsec')
+        bpar_pa = quanta.quantity(info_dict['positionangle']).get_value('deg')
+        #print('\n{0} - Beam: maj {1:0.3f} (arcsec), min {2:2.3f} (arcsec), pa {3:0.2f} (deg)'.format(img, bpar_ma, bpar_mi,bpar_pa))
+        return (bpar_ma,bpar_mi,bpar_pa)
 
 
 def flatten(f, channel = 0, freqaxis = 0):
