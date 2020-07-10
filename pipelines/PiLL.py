@@ -26,7 +26,7 @@ redo_cal = parset.getboolean('PiLL','redo_cal')
 project = parset.get('PiLL','project')
 target = parset.get('PiLL','target')
 download_file = parset.get('PiLL','download_file')
-if download_file != '': download_file =os.path.abspath(download_file)
+if download_file != '': download_file = os.path.abspath(download_file)
 
 def calibrator_tables_available(obsid):
     """
