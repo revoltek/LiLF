@@ -1,0 +1,7 @@
+msin=
+msin.datacolumn = CORRECTED_DATA
+msout=.
+
+steps=[aoflagger, count]
+aoflagger.strategy=/home/fdg/scripts/LiLF/parsets/LOFAR_self/LBAdefaultwideband.rfis
+aoflagger.memoryperc=6

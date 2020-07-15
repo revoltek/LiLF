@@ -57,6 +57,11 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_timesplit', 'cal_dir', '../cals/')
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
+    # timesplit
+    add_default('LOFAR2_timesplit', 'data_dir', '../tgts-bkp/')
+    add_default('LOFAR2_timesplit', 'cal_dir', '../cals/')
+    add_default('LOFAR2_timesplit', 'ngroups', '1')
+    add_default('LOFAR2_timesplit', 'initc', '0')
     # self
     # dd
     add_default('LOFAR_dd-parallel', 'maxniter', '10')

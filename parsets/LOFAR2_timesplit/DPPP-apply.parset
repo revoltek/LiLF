@@ -1,0 +1,17 @@
+msin =
+msin.datacolumn = DATA
+msout = .
+msout.datacolumn = CORRECTED_DATA
+
+steps = [cor, corrbeam]
+
+cor.type = correct
+cor.steps = [pa, amp]
+cor.pa.correction = polalign
+
+cor.amp.updateweights = True
+cor.amp.correction = amplitudeSmooth
+
+corrbeam.type = applybeam
+corrbeam.usechannelfreq = False
+corrbeam.updateweights = True # add reweight

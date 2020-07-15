@@ -152,8 +152,8 @@ if w.todo('apply_all'):
 ### DONE
 
 #################################################
-# 4: find iono
-
+# # 4: find iono
+#
 # if w.todo('cal_iono'):
 #     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
 #     logger.info('BL-smooth...')
@@ -169,54 +169,54 @@ if w.todo('apply_all'):
 #
 #     w.done('cal_iono')
 # ### DONE
-
-# a debug image
-if imaging:
-    logger.info("Imaging section:")
-
-    # Correct all CORRECTED_DATA (PA, beam, FR, BP corrected) -> CORRECTED_DATA
-    logger.info('IONO correction...')
-    MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono.h5 cor.amp.parmdb=cal-iono.h5 \
-        cor.ph.correction=phaseOrig000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corIONO.log', commandType="DPPP")
-
-    logger.info('Subtract model...')
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType ='general')
-
-    logger.info('Flag...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-flag2.parset msin=$pathMS', log='$nameMS_flag2.log', commandType='DPPP')
-
-    lib_util.check_rm('img')
-    os.makedirs('img')
-
-    imgsizepix =  MSs.getListObj()[0].getFWHM()*3600/5
-
-    logger.info('Cleaning low-res...')
-    imagename = 'img/calLR'
-    lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix/5, scale='60arcsec', \
-            weight='briggs 0.', taper_gaussian='240arcsec', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
-            use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-            parallel_deconvolution=512, \
-            auto_mask=10, auto_threshold=1, pol='IQUV', join_polarizations='', join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
-
-    logger.info('Cleaning normal...')
-    imagename = 'img/cal'
-    lib_util.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
-            weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=512, \
-            auto_threshold=20, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
-
-    # make mask
-    im = lib_img.Image(imagename+'-MFS-image.fits')
-    im.makeMask(threshisl = 3)
-
-    logger.info('Cleaning w/ mask...')
-    lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
-            weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=512, \
-            auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
-    os.system('cat logs/wscleanA.log logs/wscleanB.log | grep "background noise"')
-
-    # make new mask
-    im.makeMask(threshisl = 5)
+#
+# # a debug image
+# if imaging:
+#     logger.info("Imaging section:")
+#
+#     # Correct all CORRECTED_DATA (PA, beam, FR, BP corrected) -> CORRECTED_DATA
+#     logger.info('IONO correction...')
+#     MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono.h5 cor.amp.parmdb=cal-iono.h5 \
+#         cor.ph.correction=phaseOrig000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corIONO.log', commandType="DPPP")
+#
+#     logger.info('Subtract model...')
+#     MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType ='general')
+#
+#     logger.info('Flag...')
+#     MSs.run('DPPP '+parset_dir+'/DPPP-flag2.parset msin=$pathMS', log='$nameMS_flag2.log', commandType='DPPP')
+#
+#     lib_util.check_rm('img')
+#     os.makedirs('img')
+#
+#     imgsizepix =  MSs.getListObj()[0].getFWHM()*3600/5
+#
+#     logger.info('Cleaning low-res...')
+#     imagename = 'img/calLR'
+#     lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix/5, scale='60arcsec', \
+#             weight='briggs 0.', taper_gaussian='240arcsec', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
+#             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
+#             parallel_deconvolution=512, \
+#             auto_mask=10, auto_threshold=1, pol='IQUV', join_polarizations='', join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+#
+#     logger.info('Cleaning normal...')
+#     imagename = 'img/cal'
+#     lib_util.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
+#             weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+#             baseline_averaging=5, parallel_deconvolution=512, \
+#             auto_threshold=20, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+#
+#     # make mask
+#     im = lib_img.Image(imagename+'-MFS-image.fits')
+#     im.makeMask(threshisl = 3)
+#
+#     logger.info('Cleaning w/ mask...')
+#     lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
+#             weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+#             baseline_averaging=5, parallel_deconvolution=512, \
+#             auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+#     os.system('cat logs/wscleanA.log logs/wscleanB.log | grep "background noise"')
+#
+#     # make new mask
+#     im.makeMask(threshisl = 5)
 
 logger.info("Done.")

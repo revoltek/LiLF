@@ -8,15 +8,6 @@ import numpy as np
 import casacore.tables as pt
 import lsmtool
 
-# Survey
-if 'LBAsurvey' in os.getcwd():
-    obs = os.getcwd().split('/')[-1]
-    if not os.path.exists('mss'):
-        os.makedirs('mss')
-        for i, tc in enumerate(glob.glob('/home/fdg/data/LBAsurvey/c*-o*/%s/mss/*' % obs)):
-            tc_ren = 'TC%02i.MS' % i
-            print('cp -r %s mss/%s' % (tc,tc_ren))
-            os.system('cp -r %s mss/%s' % (tc,tc_ren))
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
@@ -26,7 +17,7 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-self.walker')
 
 parset = lib_util.getParset()
-parset_dir = parset.get('LOFAR_self','parset_dir')
+parset_dir = parset.get('LOFAR2_self_lba','parset_dir')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 
@@ -63,20 +54,20 @@ if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 
 #################################################################
 # Get online model
-if sourcedb == '':
-    if not os.path.exists('tgts.skydb'):
-        fwhm = MSs.getListObj()[0].getFWHM(freq='min')
-        radeg = phasecentre[0]
-        decdeg = phasecentre[1]
-        # get model the size of the image (radius=fwhm/2)
-        os.system('wget -O tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (radeg, decdeg, fwhm/2.)) # ASTRON
-        lsm = lsmtool.load('tgts.skymodel')#, beamMS=MSs.getListObj()[0])
-        lsm.remove('I<1')
-        lsm.write('tgts.skymodel', clobber=True)
-        os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
-        apparent = False
-
-    sourcedb = 'tgts.skydb'
+# if sourcedb == '':
+#     if not os.path.exists('tgts.skydb'):
+#         fwhm = MSs.getListObj()[0].getFWHM(freq='min')
+#         radeg = phasecentre[0]
+#         decdeg = phasecentre[1]
+#         # get model the size of the image (radius=fwhm/2)
+#         os.system('wget -O tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (radeg, decdeg, fwhm/2.)) # ASTRON
+#         lsm = lsmtool.load('tgts.skymodel')#, beamMS=MSs.getListObj()[0])
+#         lsm.remove('I<1')
+#         lsm.write('tgts.skymodel', clobber=True)
+#         os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
+#         apparent = False
+#
+#     sourcedb = 'tgts.skydb'
 
 #################################################################################################
 # Add model to MODEL_DATA
@@ -130,6 +121,7 @@ for c in range(2):
         ### DONE
 
     if w.todo('solve_tec1_c%02i' % c):
+
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
         MSs.run('BLsmooth.py -c 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
@@ -137,7 +129,7 @@ for c in range(2):
         # solve TEC - ms:SMOOTHED_DATA
         logger.info('Solving TEC1...')
         MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 \
-                msin.baseline="[CR]*&&;!RS208LBA;!RS210LBA;!RS307LBA;!RS310LBA;!RS406LBA;!RS407LBA;!RS409LBA;!RS508LBA;!RS509LBA" \
+                msin.baseline="[CR]*&&;!RS208*;!RS210*;!RS307*;!RS310*;!RS406*;!RS407*;!RS409*;!RS508*;!RS509*" \
                 sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
            	    sol.solint=15 sol.nchan=8', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
@@ -167,7 +159,10 @@ for c in range(2):
         # solve TEC - ms:SMOOTHED_DATA
         logger.info('Solving TEC2...')
         MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec2.h5 \
-                sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]] \
+                sol.antennaconstraint=[[CS002LBA,'
+                                   'CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,\
+                                   CS024LBA,CS027LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,\
+                                   CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]] \
                 sol.solint=1 sol.nchan=4', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
     

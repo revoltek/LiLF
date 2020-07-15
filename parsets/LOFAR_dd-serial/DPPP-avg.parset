@@ -6,8 +6,8 @@ msout =
 msout.writefullresflag = False
 msout.storagemanager = dysco
 
-steps = [avg,count]
+steps = [avg]
 
 avg.type = averager
-avg.freqstep = 1
-avg.timestep = 2
+avg.freqstep = 
+avg.timestep = 

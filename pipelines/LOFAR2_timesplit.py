@@ -19,14 +19,12 @@ w = lib_util.Walker('pipeline-timesplit.walker')
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('LOFAR_timesplit','parset_dir')
-data_dir = parset.get('LOFAR_timesplit','data_dir')
-cal_dir = parset.get('LOFAR_timesplit','cal_dir')
-ngroups = parset.getint('LOFAR_timesplit','ngroups')
-initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
+parset_dir = parset.get('LOFAR2_timesplit','parset_dir')
+data_dir = parset.get('LOFAR2_timesplit','data_dir')
+cal_dir = parset.get('LOFAR2_timesplit','cal_dir')
+ngroups = parset.getint('LOFAR2_timesplit','ngroups')
+initc = parset.getint('LOFAR2_timesplit','initc') # initial tc num (useful for multiple observation of same target)
 bl2flag = parset.get('flag','stations')
-if 'LBAsurvey' in os.getcwd():
-    data_dir = '/home/fdg/lofar1/LBAsurvey/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
 
 #################################################
 # Clean
@@ -53,39 +51,21 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 ##################################################
 # Find solutions to apply
-if 'LBAsurvey' in os.getcwd():
-    #cal_dir = 'portal_lei:/disks/paradata/fdg/LBAsurvey/cal_'+os.getcwd().split('/')[-2]+'_3C*/'
-    for cal_dir in glob.glob('../3c*'):
-        #if time of obs is between starting and ending time of cal, use it
-        timechunks = set([re.findall(r'_t\d+', ms)[0][2:] for ms in  glob.glob(cal_dir+'/*MS') ])
-        if re.findall( r'_t\d+', MSs.getListStr()[0] )[0][2:] in timechunks:
-            break
-
 h5_pa = cal_dir+'/cal-pa.h5'
 h5_amp = cal_dir+'/cal-amp.h5'
-h5_iono = cal_dir+'/cal-iono.h5'
+
 assert os.path.exists(h5_pa)
 assert os.path.exists(h5_amp)
-assert os.path.exists(h5_iono)
 
 ####################################################
 # Correct fist for BP(diag)+TEC+Clock and then for beam
 if w.todo('apply'):
     
-    # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign corrected)
-    logger.info('Apply solutions (pa)...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS \
-            cor.parmdb='+h5_pa+' cor.correction=polalign', log='$nameMS_cor1.log', commandType='DPPP')
+    # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign, amp, beam corrected)
+    logger.info('Apply solutions (pa,amp,beam)...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-apply.parset msin=$pathMS \
+            cor.pa.parmdb='+h5_pa+' cor.amp.parmdb='+h5_amp, log='$nameMS_apply.log', commandType='DPPP')
     
-    # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, calibrator corrected+reweight, beam corrected+reweight)
-    logger.info('Apply solutions (amp/ph)...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
-            cor.amp.parmdb='+h5_amp+' cor.amp.correction=amplitudeSmooth cor.amp.updateweights=True\
-            cor.ph.parmdb='+h5_iono+' cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DPPP')
-    
-    # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
-    logger.info('Beam correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DPPP')
 
     w.done('apply')
 ### DONE
@@ -99,9 +79,11 @@ if w.todo('apply'):
 # to be understood if calibration/imaging gain anything from using only the central group or all of them
 groupnames = []
 logger.info('Concatenating in frequency...')
-timechunks = sorted(set([re.findall(r'_t\d+', ms)[0][2:] for ms in MSs.getListStr() ]))
+timechunks = sorted(set([re.findall(r'_t[0-9]+', ms)[0][2:] for ms in MSs.getListStr() ]))
+
 for timechunk in timechunks:
-    for i, msg in enumerate(np.array_split(sorted(glob.glob('*_t'+timechunk+'_*MS')), ngroups)):
+    for i, msg in enumerate(np.array_split(sorted(glob.glob('*_t'+timechunk+'_*.MS')), ngroups)):
+        logger.info(i, msg)
         if ngroups == 1:
             groupname = 'mss_t%s' % timechunk
         else:
@@ -132,8 +114,8 @@ MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
 if w.todo('flag'):
 
     logger.info('Flagging...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\"', \
-                    log='$nameMS_DPPP_flag.log', commandType='DPPP')
+    # MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\"', \
+    #                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
     
     logger.info('Remove bad timestamps...')
     MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')

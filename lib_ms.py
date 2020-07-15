@@ -359,15 +359,19 @@ class MS(object):
         if self.getTelescope() == 'LOFAR':
 
             # Following numbers are based at 60 MHz (old.astron.nl/radio-observatory/astronomers/lofar-imaging-capabilities-sensitivity/lofar-imaging-capabilities/lofa)
-            scale = 60e6/beamfreq
-            logger.warning('CARE! THIS HAS BEEN MODIFIED FOR LOFAR2.0!')
-            return 3.88*scale
-            if 'OUTER' in self.getAntennaSet():
-                return 3.88*scale
-            elif 'SPARSE' in self.getAntennaSet():
-                return 4.85*scale
-            elif 'INNER' in self.getAntennaSet():
-                return 9.77*scale
+            if 'LBA' in self.getAntennaSet():
+                scale = 60e6/beamfreq
+                if 'OUTER' in self.getAntennaSet():
+                    return 3.88*scale
+                elif ('SPARSE' in self.getAntennaSet()) or ('ALL' in self.getAntennaSet()):
+                    return 4.85*scale
+                elif 'INNER' in self.getAntennaSet():
+                    return 9.77*scale
+            elif 'HBA' in self.getAntennaSet():
+                scale = 150e6/beamfreq
+                return 3.8*scale
+            else:
+                raise('LOFAR ANTENNASET UNKNOWN')
                 
         elif self.getTelescope() == 'GMRT':
             # equation from http://gmrt.ncra.tifr.res.in/gmrt_hpage/Users/doc/manual/Manual_2013/manual_20Sep2013.pdf    

@@ -129,7 +129,7 @@ MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log
 MSs.getListObj()[0].makeBeamReg('ddcal/beam.reg', freq='mid')
 beamReg = 'ddcal/beam.reg'
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], beamReg=beamReg, userReg = userReg)
-# mosaic_image.makeMask()
+mosaic_image.makeMask()
 mosaic_image.selectCC()
 
 rms_noise_pre = np.inf
@@ -175,7 +175,8 @@ for c in [0]:
         x = lsm.getColValues('RA',aggregate='wmean')
         y = lsm.getColValues('Dec',aggregate='wmean')
         flux = lsm.getColValues('I',aggregate='sum')
-        grouper = lib_dd.Grouper(list(zip(x,y)),flux,look_distance=0.3,kernel_size=0.1,grouping_distance=0.05)
+        # grouper = lib_dd.Grouper(list(zip(x,y)),flux,look_distance=0.3,kernel_size=0.1,grouping_distance=0.05)
+        grouper = lib_dd.Grouper(list(zip(x,y)),flux,look_distance=0.5,kernel_size=0.2,grouping_distance=0.1)
         grouper.run()
         clusters = grouper.grouping()
         grouper.plot()
@@ -185,10 +186,9 @@ for c in [0]:
         logger.info('Merging nearby sources...')
         for cluster in clusters:
             patches = patchNames[cluster]
-            #print ('merging:', cluster, patches)
+            # print('merging:', cluster, patches)
             if len(patches) > 1:
                 lsm.merge(patches.tolist())
-    
         lsm.select('I >= %f Jy' % calFlux, aggregate='sum')
     
         # keep track of CC names used for calibrators so not to subtract them afterwards
@@ -289,7 +289,19 @@ for c in [0]:
                 sol.h5parm=$pathMS/cal-tec-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
 
+        # logger.info('Gain calibration...')
+        # MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS \
+        #         sol.h5parm=$pathMS/cal-g-c' + str(c) + '.h5 sol.sourcedb=' + skymodel_cl_skydb, \
+        #         log='$nameMS_solG-c' + str(c) + '.log', commandType='DPPP')
+
         # Plot solutions
+        # lib_util.run_losoto(s, 'g-c' + str(c), [ms + '/cal-g-c' + str(c) + '.h5' for ms in MSs.getListStr()], \
+        #                     [parset_dir + '/losoto-amp.parset', parset_dir + '/losoto-plot-amp.parset',
+        #                      parset_dir + '/losoto-plot-ph.parset'])
+        # os.system('mv plots-g-c' + str(c) + ' ddcal/plots')
+        # os.system('mv cal-g-c' + str(c) + '.h5 ddcal/solutions')
+
+        # # Plot solutions
         lib_util.run_losoto(s, 'tec-c'+str(c), [ms+'/cal-tec-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-tec.parset'])
         os.system('mv plots-tec-c'+str(c)+' ddcal/plots')
