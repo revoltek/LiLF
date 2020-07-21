@@ -209,7 +209,6 @@ for c in range(maxniter):
             direction.set_flux(flux, cal=True)
             directions.append(direction)
 
-
         # write file
         lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
         skymodel_cl_plot = 'ddcal/masks/skymodel%02i_cluster.png' % c

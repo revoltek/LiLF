@@ -87,11 +87,14 @@ downloaded_mss = glob.glob('*MS')
 if os.path.exists('renamed.txt'):
     with open('renamed.txt','r') as flog:
         for line in flog:
-            downloaded_mss.append(line[:-1]+'.MS')
-
+            downloaded_mss.append(line[:-1])
+            
 len_all_uris = len(uris)
 uris = [uri for uri in uris if uri.split('/')[-1][:-13] not in downloaded_mss]
 print(("Total URI's: %i (after removal of already downloaded: %i)" % (len_all_uris,len(uris))))
+if len(uris) == 0:
+    print("Done.")
+    sys.exit()
  
 # Queue of data to stage
 L_toStage = multiprocessing.Manager().list() # list of surls to download
@@ -129,10 +132,13 @@ class Worker_stager(Worker):
             if len(self.L_inStage) < 10 and len(self.L_toStage) > 0:
                 uris = self.L_toStage[:500]
                 print("Stager -- Staging %i uris" % len(uris))
-                sids = self.stager.stage(uris)
-                self.L_inStage.append( sids )
-                for uri in uris:
-                    self.L_toStage.remove(uri)
+                try:
+                    sids = self.stager.stage(uris)
+                    self.L_inStage.append( sids )
+                    for uri in uris:
+                        self.L_toStage.remove(uri)
+                except Exception as e:
+                    print("Error at staging...", e)
     
             time.sleep(60)
     
@@ -184,7 +190,11 @@ class Worker_downloader(Worker):
                 self.L_inDownload.append(surl)
                 with open("wgetout.txt","wb") as out, open("wgeterr.txt","wb") as err:
                     if 'psnc.pl' in surl: p = subprocess.Popen('wget -nv https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
-                    if 'sara.nl' in surl: p = subprocess.Popen('wget -nv https://lofar-download.grid.surfsara.nl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
+                    elif 'sara.nl' in surl: p = subprocess.Popen('wget -nv https://lofar-download.grid.surfsara.nl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
+                    elif 'juelich.de' in surl: p = subprocess.Popen('wget -nv https://lofar-download.fz-juelich.de/webserver-lofar/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
+                    else:
+                        print('ERROR: unknown archive for %s...' % surl)
+                        sys.exit()
                     os.waitpid(p.pid, 0)
                 self.L_inDownload.remove(surl)
                 self.L_Downloaded.append(surl)
@@ -211,8 +221,8 @@ try:
                 L_toStage.remove(surl)
                 i+=1
     print("Removed %i already staged surls." % i)
-except:
-    print("Error recovering staged surls.")
+except Exception as e:
+    print("Error recovering staged surls...", e)
     pass
 
 w_stager.start()

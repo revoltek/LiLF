@@ -7,6 +7,8 @@
 
 import sys, os, glob, re, pickle
 import numpy as np
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 import pyrap.tables as pt
 import lsmtool
 
@@ -24,6 +26,7 @@ userReg = parset.get('model','userReg')
 maxIter = parset.getint('LOFAR_dd-serial','maxIter')
 min_cal_flux60 = parset.getfloat('LOFAR_dd-serial','minCalFlux60')
 removeExtendedCutoff = parset.getfloat('LOFAR_dd-serial','removeExtendedCutoff')
+target_dir = parset.get('LOFAR_dd-serial','target_dir')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
     """
@@ -127,14 +130,14 @@ if w.todo('cleaning'):
 if not os.path.exists('mss-avg'):
     MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
     timeint = MSs.getListObj()[0].getTimeInt()
-    avgtimeint = int(round(10/timeint))
+    avgtimeint = int(round(8/timeint))
     nchan_init = MSs.getListObj()[0].getNchan()
     # avg (x8) sol (x6) - we need a multiple of 8x6=48, the largest that is <nchan
     # survey after avg (x8): 60, final number of sol 10
     # pointed after avg (x8): 120, final number of sol 20
     nchan = nchan_init - nchan_init%48
     os.makedirs('mss-avg')
-    logger.info('Averaging in time (%is -> 10s - %ich -> %ich)' % (timeint,nchan_init,nchan))
+    logger.info('Averaging in time (%is -> %is), channels: %ich -> %ich)' % (timeint,timeint*avgtimeint,nchan_init,nchan))
     MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-avg/$nameMS.MS msin.datacolumn=CORRECTED_DATA msin.nchan='+str(nchan)+' \
             avg.timestep='+str(avgtimeint)+' avg.freqstep=1', \
             log='$nameMS_initavg.log', commandType='DPPP')
@@ -203,7 +206,7 @@ for cmaj in range(maxIter):
         x = lsm.getColValues('RA',aggregate='wmean')
         y = lsm.getColValues('Dec',aggregate='wmean')
         flux = lsm.getColValues('I',aggregate='sum')
-        grouper = lib_dd.Grouper(list(zip(x,y)), flux, look_distance=0.07, kernel_size=0.05, grouping_distance=0.03)
+        grouper = lib_dd.Grouper(list(zip(x,y)), flux, look_distance=0.1, kernel_size=0.07, grouping_distance=0.03)
         grouper.run()
         clusters = grouper.grouping()
         grouper.plot()
@@ -253,6 +256,21 @@ for cmaj in range(maxIter):
 
         # order directions from the fluxiest
         directions = [x for _,x in sorted(zip([d.get_flux(freq_min) for d in directions],directions))][::-1] # reorder with flux
+
+        # If there's a preferential direciotn, get the closer direction to the final target and put it to the end
+        if target_dir != '':
+            ra_t, dec_t = [float(x) for x in target_dir.split(',')]
+            sep_min = np.inf
+            for i, d in enumerate(directions):
+                ra, dec = d.position
+                sep = SkyCoord( ra*u.deg, dec*u.deg, frame='fk5' ).separation( SkyCoord(ra_t*u.deg, dec_t*u.deg, frame='fk5') ).deg
+                #print ("%s: %f", (d.name,sep))
+                if sep < sep_min:
+                    sep_min = float(sep)
+                    target_idx = i
+            logger.info('Move "%s" to the end of the target list...' % directions[target_idx].name)
+            d = directions.pop(target_idx)
+            directions.insert(len(directions),d)
 
         for d in directions:
             if not d.peel_off:
@@ -332,8 +350,9 @@ for cmaj in range(maxIter):
                 # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
                 indico = full_image.root+'.DicoModel'
                 outdico = indico+'-'+d.name
+                inmask = sorted(glob.glob(full_image.root+'.mask*.fits'))[-1]
                 outmask = outdico+'.mask'
-                lib_img.blank_image_reg(mask_ext, d.get_region(), outfile=outmask, inverse=False, blankval = 0.)
+                lib_img.blank_image_reg(inmask, d.get_region(), outfile=outmask, inverse=False, blankval = 0.)
                 s.add('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask, indico, outdico), \
                        log='MaskDicoModel-'+logstring+'.log', commandType='python', processors='max')
                 s.run(check=True)
@@ -367,7 +386,7 @@ for cmaj in range(maxIter):
                     'Freq_NBand':ch_out,
                     #'Mask_Auto':1,
                     #'Mask_SigTh':5.0,
-                    'GAClean_MinSizeInit':10,
+                    #'GAClean_MinSizeInit':10,
                     'Facets_DiamMax':1.5,
                     'Facets_DiamMin':0.1,
                     'Weight_ColName':'WEIGHT_SPECTRUM',
@@ -390,8 +409,8 @@ for cmaj in range(maxIter):
                         log='$nameMS_taql.log', commandType='general')
 
                 ### TTESTTESTTEST: empty image
-                if not os.path.exists('img/almostempty-%02i-%s-image.fits' % (dnum, logstring)):
-                    clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+                if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
+                    clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
             w.done('%s-predict' % logstring)
  
@@ -443,18 +462,18 @@ for cmaj in range(maxIter):
         ### DONE
         
         # get initial noise and set iterators for timeint solutions
-        image = lib_img.Image('img/ddcalM-%s-pre-MFS-image.fits' % logstring)
+        image = lib_img.Image('img/ddcalM-%s-pre-MFS-image.fits' % logstring, userReg=userReg)
         rms_noise_pre = image.getNoise(); rms_noise_init = rms_noise_pre
         mm_ratio_pre = image.getMaxMinRatio(); mm_ratio_init = mm_ratio_pre
         doamp = False
         # usually there are 3600/30=120 or 3600/15=240 timesteps, try to use multiple numbers
         iter_ph_solint = lib_util.Sol_iterator([4,1])
-        iter_amp_solint = lib_util.Sol_iterator([120,60,30])
-        iter_amp2_solint = lib_util.Sol_iterator([120,60])
+        iter_amp_solint = lib_util.Sol_iterator([120,60,30,10])
+        iter_amp2_solint = lib_util.Sol_iterator([120,60,30])
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
         logger.info('MM ratio (init): %f' % (mm_ratio_pre))
 
-        for cdd in range(10):
+        for cdd in range(20):
 
             logger.info('c%02i - %s: Starting dd cycle: %02i' % (cmaj, d.name, cdd))
             logstringcal = logstring+'-cdd%02i' % cdd
@@ -562,7 +581,7 @@ for cmaj in range(maxIter):
                 elif mm_ratio < 30 and cdd >= 4: break
                 elif cdd >= 5: break
 
-            if cdd >= 4 and mm_ratio >= 30:
+            if cdd >= 4 and (mm_ratio >= 30 or d.get_flux(freq_mid) > 10):
                 doamp = True
 
             rms_noise_pre = rms_noise
@@ -581,6 +600,9 @@ for cmaj in range(maxIter):
             d.converged = False
             logger.warning('%s: noise did not decresed (%f -> %f), do not subtract source.' % (d.name, rms_noise_init, rms_noise_pre))
             d.clean()
+            continue
+        # second cycle, no peeling
+        elif cmaj >= 1:
             continue
         else:
             d.converged = True
@@ -658,8 +680,8 @@ for cmaj in range(maxIter):
         ### DONE
 
         ### TTESTTESTTEST: empty image
-        if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
-            clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        #if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
+        #    clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
     ######################################################
@@ -751,7 +773,6 @@ for cmaj in range(maxIter):
                     'Deconv_MaxMinorIter':1000000,
                     'Deconv_Mode':'HMP',
                     'Deconv_RMSFactor':3.0,
-                    'Deconv_PeakFactor':0.005,
                     'Deconv_FluxThreshold':0.0,
                     'Weight_Robust':-0.5,
                     'Image_NPix':8750,
@@ -771,6 +792,7 @@ for cmaj in range(maxIter):
                     'Mask_Auto':1,
                     'Mask_SigTh':5.0,
                     'GAClean_MinSizeInit':10,
+                    'GAClean_MaxMinorIterInitHMP':100000,
                     'Facets_DiamMax':1.5,
                     'Facets_DiamMin':0.1,
                     'Weight_ColName':'WEIGHT_SPECTRUM',
@@ -786,6 +808,7 @@ for cmaj in range(maxIter):
             logger.info('Cleaning 1...')
             lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
                     Deconv_MaxMajorIter=1,
+                    Deconv_PeakFactor=0.005,
                     Cache_Reset=1
                     )
     
@@ -800,15 +823,16 @@ for cmaj in range(maxIter):
                     Cache_PSF='force',
                     Cache_SmoothBeam='force',
                     Deconv_MaxMajorIter=3,
+                    Deconv_PeakFactor=0.001,
                     Predict_InitDicoModel=imagename+'.DicoModel',
                     Mask_External=im.maskname
                     )
  
-            os.system('mv %s* ddcal/c%02i/images' % (imagename, cmaj))
+            os.system('mv %s.continue* ddcal/c%02i/images' % (imagename, cmaj))
         w.done('c%02i-imaging' % cmaj)
     ### DONE
 
-    full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj,imagename.split('/')[-1]), userReg = userReg)
+    full_image = lib_img.Image('ddcal/c%02i/images/%s.continue.app.restored.fits' % (cmaj,imagename.split('/')[-1]), userReg = userReg)
     min_cal_flux60 *= 0.8 # go a bit deeper
 
 if w.todo('upload'):
@@ -818,8 +842,8 @@ if w.todo('upload'):
     logger.info('Copy: ddcal/c0*/images/img/wideDD-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % targetname)
     os.system('ssh lofar.herts.ac.uk "rm -rf /beegfs/lofar/lba/products/%s"' % targetname)
     os.system('ssh lofar.herts.ac.uk "mkdir /beegfs/lofar/lba/products/%s"' % targetname)
-    os.system('scp -q ddcal/c0*/images/img/wideDD-c*.app.restored.fits lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % targetname)
-    os.system('scp -q ddcal/c0*/images/img/wideDD-c*.int.restored.fits lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % targetname)
+    os.system('scp -q ddcal/c0*/images/wideDD-c*.continue.app.restored.fits lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % targetname)
+    os.system('scp -q ddcal/c0*/images/wideDD-c*.continue.int.restored.fits lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % targetname)
     
     w.done('upload')
 ### DONE

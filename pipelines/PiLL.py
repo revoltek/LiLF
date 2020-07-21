@@ -16,6 +16,7 @@ survey_projects = 'LT14_002,LC12_017,LC9_016,LC8_031' # list of projects related
 
 ################## RESET #####################
 with SurveysDB(survey='lba',readonly=False) as sdb:  
+    print("WARNING: RESET ALL POINTINGS")
     sdb.execute('UPDATE fields SET status="Observed" where status!="Not started"')  
 ###############################################
 
@@ -35,8 +36,8 @@ def calibrator_tables_available(obsid):
     with SurveysDB(survey='lba',readonly=True) as sdb:
         sdb.execute('SELECT * FROM observations WHERE id=%f' % obsid)
         r = sdb.cur.fetchall()
-        if len(r) == 0: return False
-        if r[0]['location'] != '': return True
+        if len(r) != 0 and r[0]['location'] != '': return True
+        return False
 
 
 def local_calibrator_dirs(searchdir='', obsid=None):
@@ -53,7 +54,7 @@ def local_calibrator_dirs(searchdir='', obsid=None):
                   glob.glob(searchdir+'id%i_3[C|c]295' % obsid) + \
                   glob.glob(searchdir+'id%i_3[C|c]380' % obsid)
 
-    if len(calibrators) == 0: return None
+    if len(calibrators) == 0: return []
     else: return calibrators
 
 
@@ -67,7 +68,7 @@ def check_done(logfile):
     check if "Done" is written in the last line of the log file, otherwise quit with error.
     """
     with open(logfile, 'r') as f:
-        last_line = f_read.readlines()[-1]
+        last_line = f.readlines()[-1]
     if not "Done" in last_line:
         if survey: update_status_db(target, 'Error') 
         logger.error('Something went wrong in the last pipeline call.')
@@ -133,13 +134,12 @@ if w.todo('download'):
 
     # TODO: how to be sure all MS were downloaded?
     os.system(LiLF_dir+'/pipelines/LOFAR_download.py')
-
-    os.chdir(working_dir)
-    os.system('mv download/mss/* ./')
+    os.system('mv mss/* ../')
     
     w.done('download')
 ### DONE
 
+os.chdir(working_dir)
 if survey: update_status_db(target, 'Calibrator')
 calibrators = local_calibrator_dirs()
 targets = [t for t in glob.glob('id*') if t not in calibrators]
@@ -155,25 +155,25 @@ for target in targets:
     obsid = int(target.split('_')[0][2:])
     if w.todo('cal_id%i' % obsid):
         if redo_cal or not calibrator_tables_available(obsid):
+
             logger.info('### %s: Starting calibrator... #####################################' % target)
             # if calibrator not downaloaded, do it
             cal_dir = local_calibrator_dirs(working_dir, obsid)
-        
-            if cal_dir is None:
-                os.chdir(working_dir+'/download')
-                os.system(LiLF_dir+'/scripts/LOFAR_stager.py --cal --projects %s --obsid %i' % (project, obsid))
+            if len(cal_dir) == 0:
+                if not os.path.exists('download-cal_id%i' % obsid):
+                    os.makedirs('download-cal_id%i' % obsid)
+                os.chdir(working_dir+'/download-cal_id%i' % obsid)
+                os.system(LiLF_dir+'/scripts/LOFAR_stager.py --cal --projects %s --obsID %i' % (project, obsid))
                 os.system(LiLF_dir+'/pipelines/LOFAR_download.py')
                 check_done('pipeline-download.logger')
-    
-                calibrator = local_calibrator_dirs('./mss/', obsid)[0]
-                os.system('mv '+calibrator+' '+working_dir)
+                os.system('mv mss/* ../')
 
             os.chdir(local_calibrator_dirs(working_dir, obsid)[0])
             if not os.path.exists('data-bkp'):
                 os.makedirs('data-bkp')
                 os.system('mv *MS data-bkp')
             os.system(LiLF_dir+'/pipelines/LOFAR_cal.py')
-            check_done('pipeline-download.logger')
+            check_done('pipeline-cal.logger')
     
         w.done('cal_id%i' % obsid)
     ### DONE
