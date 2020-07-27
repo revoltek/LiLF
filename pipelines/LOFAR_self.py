@@ -374,7 +374,7 @@ os.system('mv img/wideM-1-*-model.fits self/images')
 os.system('mv img/wide-lr-MFS-image.fits self/images')
 os.system('mv logs self')
 
-os.system('makepb.py -o img/avgbeam.fits -i img/wideM-1')
-os.system('mv img/avgbeam.fits self/images')
+#os.system('makepb.py -o img/avgbeam.fits -i img/wideM-1')
+#os.system('mv img/avgbeam.fits self/images')
 
 logger.info("Done.")
