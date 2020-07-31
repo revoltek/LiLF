@@ -185,7 +185,7 @@ for c in range(100):
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Solving FR...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=diagonal \
-             sol.smoothnessconstraint=1e6 sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solFR.log', commandType="DPPP")
+             sol.smoothnessconstraint=1e6 sol.solint=3 sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solFR.log', commandType="DPPP")
     
     lib_util.run_losoto(s, 'fr-c'+str(c), [ms+'/fr.h5' for ms in MSs.getListStr()], \
             [parset_dir + '/losoto-fr.parset'])
@@ -195,7 +195,7 @@ for c in range(100):
 
     # Beam correction DATA -> CORRECTED_DATA
     logger.info('PA correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c0.h5 cor.correction=polalign', \
             log='$nameMS_corPA3.log', commandType="DPPP")
 
     # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
@@ -235,7 +235,8 @@ for c in range(100):
     # Correct BP CORRECTED_DATA -> CORRECTED_DATA
     logger.info('BP correction...')
     if c == 0 and lofar_system == 'lba':
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-bp-c'+str(c)+'.h5 cor.correction=amplitude000', \
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-bp-c'+str(c)+'.h5 cor.correction=fulljones \
+                cor.soltab=\[amplitude000,phase000\]', \
                 log='$nameMS_corBP3.log', commandType='DPPP')
     else:
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-bp-c'+str(c)+'.h5 cor.correction=fulljones \
@@ -283,27 +284,25 @@ for c in range(100):
             rev_reg(modelfile,'/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/virgohole.reg')
 
     elif patch == 'VirA' and lofar_system == 'hba':
-        #lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-        #        weight='briggs -0.4', niter=1500, update_model_required='', mgain=0.3, \
-        #        fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
-        #        join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=30) # use cont=True
-        #lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
-        #        weight='briggs -0.4', taper_gaussian='8arcsec', niter=5000000, no_update_model_required='', nmiter=50, mgain=0.7, \
-        #        multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80,160,320', \
-        #        fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
-        #        auto_threshold=0.5, \
-        #        join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=30)
-        #fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
-                weight='briggs -0.2', niter=5000000, no_update_model_required='', nmiter=20, mgain=0.4, \
-                multiscale='', multiscale_scale_bias=0.5, \
-                auto_threshold=0.5, baseline_averaging=10, \
+        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
+                weight='briggs -0.2', niter=400, update_model_required='', mgain=0.5, \
+                fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=10) # use cont=True
+        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=1000, scale='2arcsec', \
+                weight='briggs -0.2', niter=5000000, no_update_model_required='', nmiter=100, mgain=0.4, \
+                multiscale='', multiscale_scale_bias=0.7, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
+                auto_threshold=1, \
                 join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=10)
-        if c == 1: sys.exit()
 
-        #for modelfile in glob.glob(imagename+'*model*'):
-        #    rev_reg(modelfile, '/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/virgoholehba.reg')
+        #fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
+        #lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
+        #        weight='briggs -0.2', niter=5000000, no_update_model_required='', nmiter=20, mgain=0.4, \
+        #        multiscale='', multiscale_scale_bias=0.5, \
+        #        auto_threshold=0.5, baseline_averaging=10, \
+        #        fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
+        #        join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=10)
+        #if c == 1: sys.exit()
 
     # TEST: rescale model
     #im = lib_img.Image(imagename+'-MFS-image.fits')
