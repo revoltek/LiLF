@@ -568,6 +568,7 @@ for cmaj in range(maxIter):
             image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % logstringcal, userReg=userReg)
             # something went wrong during last imaging, break
             if not os.path.exists(image.imagename):
+                logger.warning('Breaking because the imaging diverged...')
                 break
             d.set_model(image.root, typ='best', apply_region=False) # currently best model
             # get noise, if larger than prev cycle: break
@@ -576,10 +577,10 @@ for cmaj in range(maxIter):
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
             logger.info('MM ratio (cdd:%02i): %f' % (cdd,mm_ratio))
             if rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre:
-                if   mm_ratio < 10 and cdd >= 2: break
-                elif mm_ratio < 20 and cdd >= 3: break
-                elif mm_ratio < 30 and cdd >= 4: break
-                elif cdd >= 5: break
+                if   (mm_ratio < 10 and cdd >= 2) or \
+                     (mm_ratio < 20 and cdd >= 3) or \
+                     (mm_ratio < 30 and cdd >= 4) or \
+                     (cdd >= 5): break
 
             if cdd >= 4 and (mm_ratio >= 30 or d.get_flux(freq_mid) > 10):
                 doamp = True
@@ -603,6 +604,7 @@ for cmaj in range(maxIter):
             continue
         # second cycle, no peeling
         elif cmaj >= 1:
+            d.converged = True
             continue
         else:
             d.converged = True
@@ -711,7 +713,7 @@ for cmaj in range(maxIter):
             log += ' Amp2 (%s)' % (d.get_h5parm('amp2',-2))
             logger.info(log)
     
-    
+        print (h5parms)
         for typ, h5parm_list in h5parms.items():
             # rename direction
             for h5parmFile in h5parm_list:

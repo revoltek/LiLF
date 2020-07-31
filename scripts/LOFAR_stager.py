@@ -131,6 +131,7 @@ class Worker_stager(Worker):
             # if there's space add a block of 500
             if len(self.L_inStage) < 10 and len(self.L_toStage) > 0:
                 uris = self.L_toStage[:500]
+                #uris = [self.L_toStage[0]] # debug to stage 1 uri at a time
                 print("Stager -- Staging %i uris" % len(uris))
                 try:
                     sids = self.stager.stage(uris)
@@ -169,7 +170,7 @@ class Worker_checker(Worker):
                     print("Checker -- Sid %i completed." % sid)
                     self.L_inStage.remove(sid)
 
-                elif status == 'in progress' or status == 'new' or status == 'scheduled':
+                elif status == 'in progress' or status == 'new' or status == 'scheduled' or status == '!':
                     continue
     
                 # reschedule

@@ -110,8 +110,8 @@ if os.path.exists('lilf.config') and os.getcwd() != working_dir:
     os.system('cp lilf.config '+working_dir)
 
 os.chdir(working_dir)
-if not os.path.exists('download'):
-    os.makedirs('download')
+if not os.path.exists(working_dir+'/download'):
+    os.makedirs(working_dir+'/download')
 
 if download_file != '':
     os.system('cp %s download/html.txt' % download_file)
@@ -160,8 +160,8 @@ for target in targets:
             # if calibrator not downaloaded, do it
             cal_dir = local_calibrator_dirs(working_dir, obsid)
             if len(cal_dir) == 0:
-                if not os.path.exists('download-cal_id%i' % obsid):
-                    os.makedirs('download-cal_id%i' % obsid)
+                if not os.path.exists(working_dir+'/download-cal_id%i' % obsid):
+                    os.makedirs(working_dir+'/download-cal_id%i' % obsid)
                 os.chdir(working_dir+'/download-cal_id%i' % obsid)
                 os.system(LiLF_dir+'/scripts/LOFAR_stager.py --cal --projects %s --obsID %i' % (project, obsid))
                 os.system(LiLF_dir+'/pipelines/LOFAR_download.py')
