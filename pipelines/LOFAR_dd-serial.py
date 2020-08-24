@@ -401,16 +401,14 @@ for cmaj in range(maxIter):
                 logger.info('Predict corrupted rest-of-the-sky...')
                 lib_util.run_DDF(s, 'ddfacet-pre-'+logstring+'.log', **ddf_parms, Cache_Reset=1)
 
-                #                run("DDF.py --Output-Name=image_full_ampphase_di_m.NS_SUB --Data-ChunkHours=" + str(args['chunkhours']) + " --Data-MS=" + args['mslist'] + " --Deconv-PeakFactor 0.001000 --Data-ColName " + args['column'] + " --Parallel-NCPU="+str(ncpu) + " --Facets-CatNodes=" + clustercat + " --Beam-CenterNorm=1 --Deconv-Mode SSD --Beam-Model=LOFAR --Beam-LOFARBeamMode=A --Weight-Robust " + str(robust) +" --Image-NPix=" + str(imagenpix) + " --CF-wmax 50000 --CF-Nw 100 --Output-Also onNeds --Image-Cell "+ str(imagecell) + " --Facets-NFacets=11 --SSDClean-NEnlargeData 0 --Freq-NDegridBand 1 --Beam-NBand 1 --Facets-DiamMax 1.5 --Facets-DiamMin 0.1 --Deconv-RMSFactor=3.000000 --SSDClean-ConvFFTSwitch 10000 --Data-Sort 1 --Cache-Dir=. --Log-Memory 1 --Cache-Weight=reset --Output-Mode=Predict --Output-RestoringBeam 6.000000 --Freq-NBand=2 --RIME-DecorrMode=FT --SSDClean-SSDSolvePars [S,Alpha] --SSDClean-BICFactor 0 --Mask-Auto=1 --Mask-SigTh=5.00 --Mask-External=" + outmask + " --DDESolutions-GlobalNorm=None --DDESolutions-DDModeGrid=AP --DDESolutions-DDModeDeGrid=AP --DDESolutions-DDSols=[" + ddsolstr + "] --Predict-InitDicoModel=" + outdico + " --Selection-UVRangeKm=" + uvsel + " --GAClean-MinSizeInit=10 --Cache-Reset 1 --Beam-Smooth=1 --Predict-ColName='PREDICT_SUB' --DDESolutions-SolsDir=SOLSDIR")
-
                 # Remove corrupted data from CORRECTED_DATA
                 logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
                 MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
                         log='$nameMS_taql.log', commandType='general')
 
                 ### TTESTTESTTEST: empty image
-                if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
-                    clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+                #if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
+                #    clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
             w.done('%s-predict' % logstring)
  
@@ -512,9 +510,6 @@ for cmaj in range(maxIter):
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
                              cor.parmdb='+d.get_h5parm('ph')+' cor.correction=phase000', \
                              log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP')
-                #MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-                #             cor.parmdb=ddcal/solutions/cal-ph-'+logstringcal+'.h5 cor.correction=tec000', \
-                #             log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP')
 
                 if doamp:
                     
@@ -525,8 +520,12 @@ for cmaj in range(maxIter):
                         sol.mode=diagonal sol.solint='+str(solint_amp)+' sol.nchan=1 sol.uvmmin=200 sol.smoothnessconstraint=4e6 \
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DPPP')
-                    lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], \
-                        [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset'], \
+
+                    if d.peel_off:
+                        losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset']
+                    else:
+                        losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset']
+                    lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], losoto_parsets, \
                         plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp1.h5 %s' % d.get_h5parm('amp1'))
 
@@ -541,8 +540,12 @@ for cmaj in range(maxIter):
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
                         sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.nchan=6 sol.uvmmin=200 sol.smoothnessconstraint=10e6', \
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DPPP')
-                    lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], \
-                        [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset'], \
+
+                    if d.peel_off:
+                        losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset']
+                    else:
+                        losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset']
+                    lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], losoto_parsets, \
                         plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp2.h5 %s' % d.get_h5parm('amp2'))
 
@@ -632,9 +635,6 @@ for cmaj in range(maxIter):
             MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                         cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=phase000', \
                         log='$nameMS_corruping'+logstring+'.log', commandType='DPPP')
-            #MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-            #            cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=tec000', \
-            #            log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP')
 
             if not d.get_h5parm('amp1',-2) is None:
                 logger.info('Corrupt amp...')

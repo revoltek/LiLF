@@ -13,11 +13,10 @@ parset = lib_util.getParset(parsetFile='lilf.config')
 
 survey_projects = 'LT14_002,LC12_017,LC9_016,LC8_031' # list of projects related with the LBA survey
 
-
 ################## RESET #####################
-with SurveysDB(survey='lba',readonly=False) as sdb:  
-    print("WARNING: RESET ALL POINTINGS")
-    sdb.execute('UPDATE fields SET status="Observed" where status!="Not started"')  
+#with SurveysDB(survey='lba',readonly=False) as sdb:  
+#    print("WARNING: RESET ALL POINTINGS")
+#    sdb.execute('UPDATE fields SET status="Observed" where status!="Not started"')  
 ###############################################
 
 # get parameters

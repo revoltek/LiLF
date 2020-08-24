@@ -9,6 +9,7 @@ from awlofar.main.aweimports import CorrelatedDataProduct, \
     Observation
 from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
 import stager_access as stager
+from casacore import tables
 
 #project = 'LC9_017' # 3c first part
 #project = 'LC10_020' # 3c second part
@@ -170,12 +171,13 @@ class Worker_checker(Worker):
                     print("Checker -- Sid %i completed." % sid)
                     self.L_inStage.remove(sid)
 
-                elif status == 'in progress' or status == 'new' or status == 'scheduled' or status == '!':
+                elif status == 'in progress' or status == 'new' or status == 'scheduled' or status == '':
+                    print("Checker -- WARNING: Sid %i status is: '%s'" % (sid, status) )
                     continue
     
                 # reschedule
                 else:
-                    print("Checker -- ERROR: Sid %i status is %s!" % (sid, status) )
+                    print("Checker -- ERROR: Sid %i status is: '%s'" % (sid, status) )
                     self.stager.reschedule(sid)
     
             time.sleep(60)
@@ -189,14 +191,28 @@ class Worker_downloader(Worker):
                 surl = self.L_toDownload.pop()
                 print("Downloader -- Download: "+surl.split('/')[-1])
                 self.L_inDownload.append(surl)
-                with open("wgetout.txt","wb") as out, open("wgeterr.txt","wb") as err:
-                    if 'psnc.pl' in surl: p = subprocess.Popen('wget -nv https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
-                    elif 'sara.nl' in surl: p = subprocess.Popen('wget -nv https://lofar-download.grid.surfsara.nl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
-                    elif 'juelich.de' in surl: p = subprocess.Popen('wget -nv https://lofar-download.fz-juelich.de/webserver-lofar/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
-                    else:
-                        print('ERROR: unknown archive for %s...' % surl)
-                        sys.exit()
-                    os.waitpid(p.pid, 0)
+                # loop untile the sanity check on the downloaded MS is ok
+                while True:
+                    with open("wgetout.txt","wb") as out, open("wgeterr.txt","wb") as err:
+                        if 'psnc.pl' in surl: 
+                            p = subprocess.Popen('wget -nv https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
+                        elif 'sara.nl' in surl: 
+                            p = subprocess.Popen('wget -nv https://lofar-download.grid.surfsara.nl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
+                        elif 'juelich.de' in surl: 
+                            p = subprocess.Popen('wget -nv https://lofar-download.fz-juelich.de/webserver-lofar/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
+                        else:
+                            print('ERROR: unknown archive for %s...' % surl)
+                            sys.exit()
+
+                        os.waitpid(p.pid, 0)
+                        ms_file = surl.split('/')[-1].split('.MS')[0]+'.MS' # e.g. .../L769079_SB020_uv.MS_daf24388.tar
+                        try:
+                            t = tables.table(ms_file, ack=False)
+                            break
+                        except:
+                            print('ERROR opening %s, probably corrupted - redownload it' % ms_file)
+                            os.system('rm -r %s' % ms_file)
+    
                 self.L_inDownload.remove(surl)
                 self.L_Downloaded.append(surl)
 
@@ -216,10 +232,12 @@ i=0
 try:
     for sid, _ in stager.get_progress().items():
         sid = int(sid)
-        L_inStage.append(sid) # the worker will take care of starting downloads
+        print("Found an active staging process: %i" % sid)
         for surl in stager.get_surls_online(sid):
             if surl in L_toStage:
                 L_toStage.remove(surl)
+                if sid not in L_inStage:
+                    L_inStage.append(sid) # the worker will take care of starting downloads
                 i+=1
     print("Removed %i already staged surls." % i)
 except Exception as e:

@@ -23,11 +23,6 @@ skymodel = parset.get('LOFAR_cal','skymodel')
 imaging = parset.getboolean('LOFAR_cal','imaging')
 bl2flag = parset.get('flag','stations')
 
-#if 'LBAsurvey' in os.getcwd():
-#    obs     = os.getcwd().split('/')[-2] # assumes .../c??-o??/3c196
-#    calname = os.getcwd().split('/')[-1] # assumes .../c??-o??/3c196
-#    data_dir = '/home/baq1889/lofar1/LBAsurvey/%s/%s' % (obs, calname)
-
 #############################################################
 MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags = False )
 
@@ -35,8 +30,7 @@ if w.todo('copy'):
     # copy data
     logger.info('Copy data...')
     for MS in MSs.getListObj():
-        if min(MS.getFreqs()) > 30.e6:
-            MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=False)
+        MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=False)
 
     w.done('copy')
 ### DONE

@@ -6,6 +6,7 @@ steps = [sol]
 
 sol.type = ddecal
 sol.uvlambdamin = 100
+sol.minvisratio = 0.5
 sol.mode = rotation+diagonal
 sol.maxiter = 500
 sol.tolerance = 1e-3

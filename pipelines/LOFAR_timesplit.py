@@ -41,9 +41,9 @@ if w.todo('copy'):
 
     logger.info('Copy data...')
     for MS in MSs.getListObj():
-        if min(MS.getFreqs()) > 30.e6:
-            # overwrite=True to prevent updating the weights twice
-            MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=True)
+        #if min(MS.getFreqs()) > 30.e6:
+        # overwrite=True to prevent updating the weights twice
+        MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=True)
 
     w.done('copy')
 ### DONE
@@ -56,8 +56,10 @@ if cal_dir == '':
     obsid = MSs.getListObj()[0].getObsID()
     # try standard location
     cal_dir = glob.glob('../id%i_3[c|C]196' % obsid)+glob.glob('../id%i_3[c|C]295' % obsid)+glob.glob('../id%i_3[c|C]380' % obsid)
-    cal_dir = cal_dir[0]
-    if not os.path.exists(cal_dir):
+    if len(cal_dir) > 0:
+        cal_dir = cal_dir[0]
+    else:
+        from surveys_db import SurveysDB
         with SurveysDB(survey='lba',readonly=True) as sdb:
             sdb.execute('select calibratordata from observations where id=%i' % obsid)
             calibratordata = sdb.cur.fetchall()[0]['calibratordata']
