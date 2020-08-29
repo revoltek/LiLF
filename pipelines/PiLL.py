@@ -59,7 +59,7 @@ def local_calibrator_dirs(searchdir='', obsid=None):
 
 def update_status_db(field, status):
     with SurveysDB(survey='lba',readonly=False) as sdb:
-        r = sdb.execute('UPDATE fields SET status="%s" WHERE id="%s"' % (status,field))
+        r = sdb.execute('UPDATE fields SET status="%s" WHERE id="%s"' % (status,field.upper()))
 
 
 def check_done(logfile):
@@ -80,11 +80,20 @@ survey = False
 if download_file == '' and project == '' and target == '':
     survey = True
     project = survey_projects
-    logger.info('### Quering database...')
+    if os.path.exists('target.txt'):
+        with open('target.txt', 'r') as file:
+                target = file.read().replace('\n', '')
+    else:
+        logger.info('### Quering database...')
+        with SurveysDB(survey='lba',readonly=True) as sdb:
+            sdb.execute('SELECT * FROM fields WHERE status="Observed" order by priority desc')
+            r = sdb.cur.fetchall()
+            target = r[0]['id']
+        # save target name
+        with open("target.txt", "w") as file:
+                print(target, file=file)
+
     with SurveysDB(survey='lba',readonly=True) as sdb:
-        sdb.execute('SELECT * FROM fields WHERE status="Observed" order by priority desc')
-        r = sdb.cur.fetchall()
-        target = r[0]['id']
         sdb.execute('SELECT * FROM field_obs WHERE field_id="%s"' % target)
         r = sdb.cur.fetchall()
         obsid = ','.join([str(x['obs_id']) for x in r])

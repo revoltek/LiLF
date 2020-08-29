@@ -26,22 +26,37 @@ parser.add_argument('--projects', '-p', dest='project', help='Comma separated li
 parser.add_argument('--skip', '-s', action="store_true", help='Skip observations already present in field_obs, \
         this is faster but might miss some target to update as "Observed" in the field table.')
 parser.add_argument('--showdb', '-d', action="store_true", help='Print db status and exit.')
-parser.add_argument('--reset', '-r', action="store_true", help='Reset the db to "Not started" for all fields prior to anything else.')
+parser.add_argument('--reset', '-r', action="store_true", help='Reset the db to "Not started" for all fields.')
+parser.add_argument('--incompletereset', '-i', action="store_true", help='Reset the fields that are not "Done"/"Not started" to "Observed".')
 args = parser.parse_args()
 
 if args.showdb:
     with SurveysDB(survey='lba',readonly=False) as sdb:
         sdb.execute('SELECT * FROM fields WHERE status="Observed" order by priority desc')
         r = sdb.cur.fetchall()
-    for i, entry in enumerate(r):
-        print('%03i) ID: %s (%s)' % (i, entry['id'], entry['status']))
+        for i, entry in enumerate(r):
+            print('%03i) ID: %s (%s)' % (i, entry['id'], entry['status']))
+        print("############################")
+        sdb.execute('SELECT * FROM fields WHERE status!="Observed" and status!="Not started"')
+        r = sdb.cur.fetchall()
+        for i, entry in enumerate(r):
+            print('%03i) ID: %s (%s)' % (i, entry['id'], entry['status']))
     sys.exit()
 
 if args.reset:
     with SurveysDB(survey='lba',readonly=False) as sdb:  
         print("WARNING: RESET ALL POINTINGS to \"Not started\"")
+        input("Press Enter to continue...")
         sdb.execute('UPDATE fields SET status="Not started"')
         sdb.execute('DELETE from field_obs')
+        sys.exit()
+
+if args.incompletereset:
+    with SurveysDB(survey='lba',readonly=False) as sdb:  
+        print("WARNING: RESET INCOMPLETE POINTINGS to \"Observed\"")
+        input("Press Enter to continue...")
+        sdb.execute('UPDATE fields SET status="Observed" where status!="Done" and status!="Not started"')
+        sys.exit()
 
 projects = args.project.split(',')
 skip_obs = args.skip
