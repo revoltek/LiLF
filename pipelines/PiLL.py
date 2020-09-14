@@ -45,13 +45,13 @@ def local_calibrator_dirs(searchdir='', obsid=None):
     """
     if searchdir != '': searchdir += '/'
     if obsid is None:
-        calibrators = glob.glob(searchdir+'id*_3[C|c]196') + \
-                  glob.glob(searchdir+'id*_3[C|c]295') + \
-                  glob.glob(searchdir+'id*_3[C|c]380')
+        calibrators = glob.glob(searchdir+'id*_*3[C|c]196*') + \
+                  glob.glob(searchdir+'id*_*3[C|c]295*') + \
+                  glob.glob(searchdir+'id*_*3[C|c]380*')
     else:
-        calibrators = glob.glob(searchdir+'/id%i_3[C|c]196' % obsid) + \
-                  glob.glob(searchdir+'id%i_3[C|c]295' % obsid) + \
-                  glob.glob(searchdir+'id%i_3[C|c]380' % obsid)
+        calibrators = glob.glob(searchdir+'/id%i_*3[C|c]196*' % obsid) + \
+                  glob.glob(searchdir+'id%i_*3[C|c]295*' % obsid) + \
+                  glob.glob(searchdir+'id%i_*3[C|c]380*' % obsid)
 
     if len(calibrators) == 0: return []
     else: return calibrators
@@ -203,7 +203,7 @@ for target in targets:
     ### DONE
 
 # group targets with same name, assuming they are different pointings of the same dir
-grouped_targets = set([t.split('_')[1] for t in targets])
+grouped_targets = set([t.split('_',1)[1] for t in targets])
 
 for grouped_target in grouped_targets:
     if not os.path.exists(working_dir+'/'+grouped_target):

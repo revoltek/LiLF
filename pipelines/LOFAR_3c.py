@@ -18,7 +18,8 @@ parset_dir = parset.get('LOFAR_3c','parset_dir')
 bl2flag = parset.get('flag','stations')
 target = os.getcwd().split('/')[-1]
 data_dir = '/home/fdg/lofar5/3Csurvey/%s' % target
-extended_targets = ['3c31','3c33','3c35','3c84','3c223','3c231','3c236','3c264','3c284','3c274','3c285','3c293','3c296','3c310','3c315','3c326','3c382','3c386','3c442a']
+extended_targets = ['3c31','3c33','3c35','3c84','3c223','3c231','3c236','3c264','3c284','3c274','3c285','3c293','3c296','3c310','3c315','3c326','3c382','3c386','3c442a','3c449','3c465']
+very_extended_targets = ['3c138','da240']
 
 def get_cal_dir(timestamp):
     """
@@ -113,8 +114,8 @@ if w.todo('setup'):
     w.done('setup')
 ### DONE
 
-MSs = lib_ms.AllMSs( glob.glob('*concat.MS-phaseup'), s, check_flags=False )
-MSs.plot_HAcov('HAcov.png')
+MSs = lib_ms.AllMSs( glob.glob('*concat.MS-phaseup'), s, check_flags=False, check_sun=True )
+MSs.print_HAcov('plotHAelev.png')
 MSs.getListObj()[0].makeBeamReg('beam02.reg', freq='mid', pb_cut=0.2)
 beamReg = 'beam02.reg'
 
@@ -169,7 +170,7 @@ for c in range(100):
                 sol.solint='+str(solint)+' sol.smoothnessconstraint=5e6', \
                 log='$nameMS_solGp-c'+str(c)+'.log', commandType="DPPP")
         lib_util.run_losoto(s, 'Gp-c'+str(c), [ms+'/calGp.h5' for ms in MSs.getListStr()], \
-                        [parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot.parset'])
+                        [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot.parset'])
     
         # Correct DATA -> CORRECTED_DATA
         logger.info('Correction PH...')
@@ -190,7 +191,7 @@ for c in range(100):
                     sol.solint='+str(solint)+' sol.smoothnessconstraint=2e6', \
                     log='$nameMS_solGa-c'+str(c)+'.log', commandType="DPPP")
             lib_util.run_losoto(s, 'Ga-c'+str(c), [ms+'/calGa.h5' for ms in MSs.getListStr()], \
-                        [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot2d-pol.parset', parset_dir+'/losoto-plot-pol.parset'])
+                        [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot2d-pol.parset', parset_dir+'/losoto-plot-pol.parset'])
                         #, parset_dir+'/losoto-ampnorm.parset'])
     
             ## Correct CORRECTED_DATA -> CORRECTED_DATA
@@ -230,12 +231,15 @@ for c in range(100):
 
     if w.todo('image-c%02i' % c):
         # special for extended sources:
-        if target in extended_targets:
+        if target in very_extended_targets:
+            kwargs1 = {'weight':'briggs -0.5', 'taper_gaussian':'75arcsec'}
+            kwargs2 = {'weight':'briggs -0.5', 'taper_gaussian':'75arcsec', 'multiscale_scales':'0,30,60,120,340'}
+        elif target in extended_targets:
             kwargs1 = {'weight':'briggs -0.7', 'taper_gaussian':'25arcsec'}
-            kwargs2 = {'weight':'briggs -0.7', 'taper_gaussian':'25arcsec'}
+            kwargs2 = {'weight':'briggs -0.7', 'taper_gaussian':'25arcsec', 'multiscale_scales':'0,15,30,60,120,240'}
         else:
             kwargs1 = {'weight':'briggs -0.8'}
-            kwargs2 = {'weight':'briggs -0.8'}
+            kwargs2 = {'weight':'briggs -0.8', 'multiscale_scales':'0,10,20,40,80,160'}
    
         # if next is a "cont" then I need the do_predict
         logger.info('Cleaning shallow (cycle: '+str(c)+')...')
@@ -259,7 +263,7 @@ for c in range(100):
                 parallel_gridding=4, size=2500, scale='2.5arcsec', \
                 niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0, \
                 auto_threshold=0.5, auto_mask=2., local_rms='', local_rms_method='rms-with-min', fits_mask=maskfits, \
-                multiscale='', multiscale_scale_bias=0.8, multiscale_scales='0,10,20,40,80,160', \
+                multiscale='', multiscale_scale_bias=0.8, \
                 join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2 )
         os.system('cat logs/wsclean-c%02i.log | grep "background noise"' % c)
 

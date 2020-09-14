@@ -14,6 +14,13 @@ mode = below
 clipLevel = 0.5
 pol = XX,YY
 
+[clip2]
+operation = CLIP
+soltab = sol000/amplitude000
+mode = above
+clipLevel = 2.0
+pol = XX,YY
+
 #[copy]
 #operation = DUPLICATE
 #soltab = sol000/amplitude000

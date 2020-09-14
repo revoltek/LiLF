@@ -37,7 +37,7 @@ nocal = args.nocal
 
 # The class of data to query
 cls = CorrelatedDataProduct
-re_cal = re.compile('3[c|C](196|295|380)')
+re_cal = re.compile('.*3[c|C](196|295|380).*')
 
 # first collect all uris
 if not os.path.exists('uris.pickle'):
@@ -177,7 +177,7 @@ class Worker_checker(Worker):
     
                 # reschedule
                 else:
-                    print("Checker -- ERROR: Sid %i status is: '%s'" % (sid, status) )
+                    print("Checker -- ERROR: Sid %i status is: '%s' (reschedule submitted)" % (sid, status) )
                     self.stager.reschedule(sid)
     
             time.sleep(60)

@@ -50,7 +50,7 @@ if w.todo('cleaning'):
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 try:
-    MSs.plot_HAcov('HAcov.png')
+    MSs.print_HAcov()
 except:
     logger.error('Problem with HAcov, continue anyway.')
 

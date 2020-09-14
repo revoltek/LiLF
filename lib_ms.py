@@ -8,15 +8,25 @@ import pyregion
 from pyregion.parser_helper import Shape
 from LiLF import lib_util
 
+from astropy.coordinates import get_sun, SkyCoord, EarthLocation, AltAz
+from astropy.time import Time
+from astropy import units as u
+
 from LiLF.lib_log import logger
+
+# remove ires warning
+from astropy.utils import iers
+iers.conf.auto_download = False  
 
 class AllMSs(object):
 
-    def __init__(self, pathsMS, scheduler, check_flags=True):
+    def __init__(self, pathsMS, scheduler, check_flags=True, check_sun=False, min_sun_dist=10):
         """
         pathsMS:    list of MS paths
         scheduler:  scheduler object
         check_flag: if true ignore fully flagged ms
+        check_sun: if true check sun distance
+        min_sun_dist: if check_sun and distance from the sun < than this deg, skip
         """
         self.scheduler = scheduler
 
@@ -30,6 +40,8 @@ class AllMSs(object):
             ms = MS(pathMS)
             if check_flags and ms.isAllFlagged(): 
                 logger.warning('Skip fully flagged ms: %s' % pathMS)
+            elif check_sun and ms.sun_dist.deg < min_sun_dist:
+                logger.warning('Skip too close to sun (%.0f deg) ms: %s' % (ms.sun_dist.deg, pathMS))
             else:
                 self.mssListObj.append(MS(pathMS))
 
@@ -121,14 +133,10 @@ class AllMSs(object):
 
         self.scheduler.run(check = True, maxThreads = maxThreads)
 
-    def plot_HAcov(self, plotname='HAcov.png'):
+    def print_HAcov(self, png=None):
         """
-        Show the coverage in HA
+        some info on the MSs
         """
-        from astropy.coordinates import get_sun, SkyCoord, EarthLocation, AltAz
-        from astropy.time import Time
-        from astropy import units as u
-
         telescope = self.mssListObj[0].getTelescope()
         if telescope == 'LOFAR':
             telescope_coords = EarthLocation(lat=52.90889*u.deg, lon=6.86889*u.deg, height=0*u.m)
@@ -137,18 +145,24 @@ class AllMSs(object):
         else:
             raise('Unknown Telescope.')
         
+        has = []; elevs = []
         for ms in self.mssListObj:
             time = np.mean(ms.getTimeRange())
             time = Time( time/86400, format='mjd')
             time.delta_ut1_utc = 0. # no need to download precise table for leap seconds
-            coord_sun = get_sun(time)
-            ra, dec = ms.getPhaseCentre()
-            coord = SkyCoord(ra*u.deg, dec*u.deg)
-            elev = coord.transform_to(AltAz(obstime=time,location=telescope_coords)).alt
-            sun_dist = coord.separation(coord_sun)
-            lst = time.sidereal_time('mean', telescope_coords.lon)
-            ha = lst - coord.ra # hour angle
-            logger.info('%s (%s): Hour angle: %.1f hrs - Elev: %.2f (Sun distance: %.0f)' % (ms.nameMS,time.iso,ha.deg/15.,elev.deg,sun_dist.deg))
+            logger.info('%s (%s): Hour angle: %.1f hrs - Elev: %.2f (Sun distance: %.0f)' % (ms.nameMS,time.iso,ms.ha.deg/15.,ms.elev.deg,ms.sun_dist.deg))
+            has.append(ms.ha.deg/15.)
+            elevs.append(ms.elev.deg)
+
+        if png is not None:
+            import matplotlib.pyplot as pl
+            pl.figure(figsize=(6,6))
+            ax1 = pl.gca()
+            ax1.plot(has, elevs, 'ko')
+            ax1.set_xlabel('HA [hrs]')
+            ax1.set_ylabel('elevs [deg]')
+            logger.debug('Save plot: %s' % png)
+            pl.savefig(png)
 
 
 class MS(object):
@@ -175,6 +189,25 @@ class MS(object):
                 #                nameFieldNew + "'...")
                 self.setNameField(nameFieldNew)
 
+        telescope = self.getTelescope()
+        if telescope == 'LOFAR':
+            telescope_coords = EarthLocation(lat=52.90889*u.deg, lon=6.86889*u.deg, height=0*u.m)
+        elif telescope == 'GMRT':
+            telescope_coords = EarthLocation(lat=19.0948*u.deg, lon=74.0493*u.deg, height=0*u.m)
+        else:
+            raise('Unknown Telescope.')
+ 
+        time = np.mean(self.getTimeRange())
+        time = Time( time/86400, format='mjd')
+        time.delta_ut1_utc = 0. # no need to download precise table for leap seconds
+        coord_sun = get_sun(time)
+        coord_sun = SkyCoord(ra=coord_sun.ra,dec=coord_sun.dec) # fix transformation issue
+        ra, dec = self.getPhaseCentre()
+        coord = SkyCoord(ra*u.deg, dec*u.deg)
+        self.elev = coord.transform_to(AltAz(obstime=time,location=telescope_coords)).alt
+        self.sun_dist = coord.separation(coord_sun)
+        lst = time.sidereal_time('mean', telescope_coords.lon)
+        self.ha = lst - coord.ra # hour angle
 
     def setPathVariables(self, pathMS):
         """
