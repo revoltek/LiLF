@@ -254,6 +254,9 @@ for cmaj in range(maxIter):
 
             directions.append(d)
 
+        # create a concat region for debugging
+        os.system('cat ddcal/c%02i/skymodels/Isl*reg > ddcal/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj,cmaj))
+
         # order directions from the fluxiest
         directions = [x for _,x in sorted(zip([d.get_flux(freq_min) for d in directions],directions))][::-1] # reorder with flux
 
@@ -816,7 +819,7 @@ for cmaj in range(maxIter):
     
             # make mask
             im = lib_img.Image(imagename+'.app.restored.fits', userReg=userReg)
-            im.makeMask(threshisl = 3, rmsbox=(70,5))
+            im.makeMask(threshisl = 4, rmsbox=(150,15), atrous_do=True)
     
             logger.info('Cleaning 2...')
             lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,

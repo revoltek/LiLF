@@ -18,7 +18,7 @@ parset_dir = parset.get('LOFAR_3c','parset_dir')
 bl2flag = parset.get('flag','stations')
 target = os.getcwd().split('/')[-1]
 data_dir = '/home/fdg/lofar5/3Csurvey/%s' % target
-extended_targets = ['3c31','3c33','3c35','3c84','3c223','3c231','3c236','3c264','3c284','3c274','3c285','3c293','3c296','3c310','3c315','3c326','3c382','3c386','3c442a','3c449','3c465']
+extended_targets = ['3c31','3c33','3c35','3c84','3c223','3c231','3c236','3c264','3c284','3c274','3c285','3c293','3c296','3c310','3c326','3c382','3c386','3c442a','3c449','3c465']
 very_extended_targets = ['3c138','da240']
 
 def get_cal_dir(timestamp):
@@ -170,7 +170,7 @@ for c in range(100):
                 sol.solint='+str(solint)+' sol.smoothnessconstraint=5e6', \
                 log='$nameMS_solGp-c'+str(c)+'.log', commandType="DPPP")
         lib_util.run_losoto(s, 'Gp-c'+str(c), [ms+'/calGp.h5' for ms in MSs.getListStr()], \
-                        [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot.parset'])
+                        [parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot.parset'])
     
         # Correct DATA -> CORRECTED_DATA
         logger.info('Correction PH...')
@@ -244,9 +244,9 @@ for c in range(100):
         # if next is a "cont" then I need the do_predict
         logger.info('Cleaning shallow (cycle: '+str(c)+')...')
         lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, name=imagename, \
-                parallel_gridding=4, baseline_averaging='', size=2500, scale='2.5arcsec', \
-                niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0, \
-                auto_threshold=3, auto_mask=4, local_rms='', local_rms_method='rms-with-min', \
+                parallel_gridding=4, baseline_averaging='', size=5000, scale='2.5arcsec', \
+                niter=1000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0, \
+                auto_threshold=5, local_rms='', local_rms_method='rms-with-min', \
                 join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1 )
 
         # check if hand-made mask is available
@@ -260,7 +260,7 @@ for c in range(100):
 
         logger.info('Cleaning full (cycle: '+str(c)+')...')
         lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, \
-                parallel_gridding=4, size=2500, scale='2.5arcsec', \
+                parallel_gridding=4, size=5000, scale='2.5arcsec', \
                 niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0, \
                 auto_threshold=0.5, auto_mask=2., local_rms='', local_rms_method='rms-with-min', fits_mask=maskfits, \
                 multiscale='', multiscale_scale_bias=0.8, \
