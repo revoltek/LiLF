@@ -72,8 +72,8 @@ def getName(ms):
     #    return cycle_obs+'/'+sou+'/'+sou+'_t'+time+'_SB'+str(nu2num(freq/1.e6))+'.MS'
     #else:
     
-    if not os.path.exists('mss/id'+obsid+'_'+code): os.makedirs('mss/id'+obsid+'_'+code)
-    return 'mss/id'+obsid+'_'+code+'/'+code+'_SB%03i.MS' % nu2num(freq/1.e6)
+    if not os.path.exists('mss/id'+obsid+'_-_'+code): os.makedirs('mss/id'+obsid+'_-_'+code)
+    return 'mss/id'+obsid+'_-_'+code+'/'+code+'_SB%03i.MS' % nu2num(freq/1.e6)
 
 ########################################
 if not download_file is None:

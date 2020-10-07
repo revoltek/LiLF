@@ -18,7 +18,7 @@ parset_dir = parset.get('LOFAR_3c','parset_dir')
 bl2flag = parset.get('flag','stations')
 target = os.getcwd().split('/')[-1]
 data_dir = '/home/fdg/lofar5/3Csurvey/%s' % target
-extended_targets = ['3c31','3c33','3c35','3c84','3c223','3c231','3c236','3c264','3c284','3c274','3c285','3c293','3c296','3c310','3c315','3c326','3c382','3c386','3c442a','3c449','3c465']
+extended_targets = ['3c223','3c231','3c236','3c264','3c274','3c284','3c285','3c293','3c296','3c31','3c310','3c326','3c33','3c35','3c382','3c386','3c442a','3c449','3c465','3c84']
 very_extended_targets = ['3c138','da240']
 
 def get_cal_dir(timestamp):
@@ -170,7 +170,7 @@ for c in range(100):
                 sol.solint='+str(solint)+' sol.smoothnessconstraint=5e6', \
                 log='$nameMS_solGp-c'+str(c)+'.log', commandType="DPPP")
         lib_util.run_losoto(s, 'Gp-c'+str(c), [ms+'/calGp.h5' for ms in MSs.getListStr()], \
-                        [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot.parset'])
+                        [parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot.parset'])
     
         # Correct DATA -> CORRECTED_DATA
         logger.info('Correction PH...')
@@ -194,33 +194,12 @@ for c in range(100):
                         [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot2d-pol.parset', parset_dir+'/losoto-plot-pol.parset'])
                         #, parset_dir+'/losoto-ampnorm.parset'])
     
-            ## Correct CORRECTED_DATA -> CORRECTED_DATA
+            # Correct CORRECTED_DATA -> CORRECTED_DATA
+            # TEST: clup at 25% - it was at 50%
             logger.info('Correction slow AMP+PH...')
             MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
                     cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=\[amplitude000,phase000\]', \
                     log='$nameMS_corAMPPHslow-c'+str(c)+'.log', commandType='DPPP')
-            #logger.info('Correction slow AMP...')
-            #MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
-            #    log='$nameMS_corAMPslow-c'+str(c)+'.log', commandType='DPPP')
-            ##logger.info('Correction slow PH...')
-            #MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=phase000', \
-            #    log='$nameMS_corPHslow-c'+str(c)+'.log', commandType='DPPP')
-    
-            # solve G - group*_TC.MS:CORRECTED_DATA
-            #logger.info('Solving BP...')
-            #MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGbp.h5 sol.mode=diagonal \
-            #        sol.solint=150 sol.nchan=0', \
-            #    log='$nameMS_solGbp-c'+str(c)+'.log', commandType="DPPP")
-    
-            #lib_util.run_losoto(s, 'Gbp-c'+str(c), [ms+'/calGbp.h5' for ms in MSs.getListStr()], \
-            #            [parset_dir+'/losoto-plot.parset', parset_dir+'/losoto-plot-pol.parset', parset_dir+'/losoto-ampnorm.parset'])
-    
-            ## Correct CORRECTED_DATA -> CORRECTED_DATA
-            #logger.info('Correction BP...')
-            #MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gbp-c'+str(c)+'.h5 cor.correction=phase000', \
-            #    log='$nameMS_corBP-c'+str(c)+'.log', commandType='DPPP')
-            #MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-Gbp-c'+str(c)+'.h5 cor.correction=amplitude000', \
-            #    log='$nameMS_corBP-c'+str(c)+'.log', commandType='DPPP')
 
             w.done('calib-amp-c%02i' % c)
         ### DONE
@@ -232,7 +211,7 @@ for c in range(100):
     if w.todo('image-c%02i' % c):
         # special for extended sources:
         if target in very_extended_targets:
-            kwargs1 = {'weight':'briggs -0.5', 'taper_gaussian':'75arcsec'}
+            kwargs1 = {'weight':'briggs -0.5', 'taper_gaussian':'75arcsec', 'multiscale':'', 'multiscale_scale_bias':0.5, 'multiscale_scales':'0,30,60,120,340'}
             kwargs2 = {'weight':'briggs -0.5', 'taper_gaussian':'75arcsec', 'multiscale_scales':'0,30,60,120,340'}
         elif target in extended_targets:
             kwargs1 = {'weight':'briggs -0.7', 'taper_gaussian':'25arcsec'}
@@ -245,8 +224,8 @@ for c in range(100):
         logger.info('Cleaning shallow (cycle: '+str(c)+')...')
         lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, name=imagename, \
                 parallel_gridding=4, baseline_averaging='', size=2500, scale='2.5arcsec', \
-                niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0, \
-                auto_threshold=3, auto_mask=4, local_rms='', local_rms_method='rms-with-min', \
+                niter=1000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0, \
+                auto_threshold=5, local_rms='', local_rms_method='rms-with-min', \
                 join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1 )
 
         # check if hand-made mask is available
