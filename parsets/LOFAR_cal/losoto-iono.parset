@@ -68,6 +68,26 @@ plotFlag = False
 refAnt = 'CS001LBA'
 #refAnt = 'CS002LBA'
 
+[smoothClock]
+operation = SMOOTH
+soltab = sol000/clock000
+axesToSmooth = [time]
+mode = savitzky-golay
+size = [225]
+degree = 2
+refAnt = 'CS001LBA'
+
+[plotClockSmooth]
+operation = PLOT
+soltab = sol000/clock000
+axesInPlot = [time]
+axisInTable = ant
+prefix = plots/clockSmooth
+#minmax = [-2e-7,2e-7]
+plotFlag = False
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
+
 [residuals]
 operation = RESIDUALS
 soltab = sol000/phase000

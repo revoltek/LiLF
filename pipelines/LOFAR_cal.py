@@ -17,16 +17,11 @@ w = lib_util.Walker('pipeline-cal.walker')
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('LOFAR_cal','parset_dir')
-data_dir = parset.get('LOFAR_cal','data_dir')
-skymodel = parset.get('LOFAR_cal','skymodel')
-imaging = parset.getboolean('LOFAR_cal','imaging')
+parset_dir = parset.get('LOFAR2_cal','parset_dir')
+data_dir = parset.get('LOFAR2_cal','data_dir')
+skymodel = parset.get('LOFAR2_cal','skymodel')
+imaging = parset.getboolean('LOFAR2_cal','imaging')
 bl2flag = parset.get('flag','stations')
-
-if 'LBAsurvey' in os.getcwd():
-    obs     = os.getcwd().split('/')[-2] # assumes .../c??-o??/3c196
-    calname = os.getcwd().split('/')[-1] # assumes .../c??-o??/3c196
-    data_dir = '/home/baq1889/lofar1/LBAsurvey/%s/%s' % (obs, calname)
 
 #############################################################
 MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags = False )
@@ -41,10 +36,6 @@ calname = MSs.getListObj()[0].getNameField()
 for MS in MSs.getListObj():
     os.system('cp -r %s %s' % (skymodel, MS.pathMS))
 
-if min(MSs.getFreqs()) < 35.e6:
-    iono3rd = True
-    logger.debug('Include iono 3rd order.')
-else: iono3rd = False
 ######################################################
 # flag bad stations, flags will propagate
 if w.todo('flag'):
@@ -118,31 +109,6 @@ if w.todo('cal_fr'):
 ### DONE
 
 #######################################################
-## 3: find leak
-#
-## Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-#logger.info('BL-smooth...')
-#MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python', maxThreads=10)
-#
-## Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-#logger.info('Calibrating LEAK...')
-#MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/leak-old.h5 sol.mode=fulljones sol.sourcedb=calib-simple.skydb',\
-#        log='$nameMS_solLEAK.log', commandType="DPPP")
-#
-#lib_util.run_losoto(s, 'leak', [ms+'/leak.h5' for ms in MSs.getListStr()], \
-#        [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-leak.parset'])
-#
-#### TODO: fix for DPPP to apply fulljones
-###os.system('losoto -d sol000/amplitude000 cal-leak.h5')
-###os.system('losoto -V cal-leak.h5 ~/scripts/LiLF/parsets/LOFAR_cal/losoto-leakfix.parset')
-#
-## Correct amp LEAK CORRECTED_DATA -> CORRECTED_DATA
-#logger.info('Amp/ph Leak correction...')
-#MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  cor.parmdb=cal-leak.h5 \
-#        cor.correction=fulljones cor.soltab=[amplitudeD,phaseD]', log='$nameMS_corLEAK.log', commandType="DPPP")
-#sys.exit()
-
-######################################################
 # 4: find BP
 
 if w.todo('cal_bp'):
@@ -162,7 +128,7 @@ if w.todo('cal_bp'):
 ### DONE
 
 ####################################################
-# Re-do correcitons in right order
+# Re-do corrections in right order
 
 if w.todo('apply_all'):
     # Pol align correction DATA -> CORRECTED_DATA
@@ -178,125 +144,79 @@ if w.todo('apply_all'):
     logger.info('Beam correction...')
     MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam2.log', commandType="DPPP")
     
-    # Correct LEAK CORRECTED_DATA -> CORRECTED_DATA
-    #logger.info('LEAK correction...')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  cor.parmdb=cal-leak.h5 \
-    #        cor.correction=fulljones cor.soltab=[amplitudeD,phaseD]', log='$nameMS_corLEAK2.log', commandType="DPPP")
-    
-    # Correct FR CORRECTED_DATA -> CORRECTED_DATA
+    # # Correct FR CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DPPP")
     
-    # Correct abs FR CORRECTED_DATA -> CORRECTED_DATA
-    #logger.info('Absolute Faraday rotation correction...')
-    #MSs.run('createRMh5parm.py $pathMS $pathMS/rme.h5', log='$nameMS_RME.log', commandType="general", maxThreads=1)
-    #MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/rme.h5 cor.correction=RMextract', log='$nameMS_corRME.log', commandType="DPPP")
-
     w.done('apply_all')
 ### DONE
 
 #################################################
-# 4: find iono
+ # 4: find iono
 
 if w.todo('cal_iono'):
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
     MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
             commandType ='python', maxThreads=8)
-    
+
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_solIONO.log', commandType="DPPP")
-    
-    if iono3rd:
-        lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
-                [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono3rd.parset'])
-    else:
-        lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
-                [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono.parset'])
+
+    lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
+            [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono.parset'])
 
     w.done('cal_iono')
-### DONE
-
-if 'LBAsurvey' in os.getcwd():
-    os.system('cp cal-pa.h5 cal-pa-full.h5')
-    os.system('mv cal-fr.h5 cal-fr-full.h5') # no need to keep orig
-    os.system('cp cal-amp.h5 cal-amp-full.h5')
-    os.system('cp cal-iono.h5 cal-iono-full.h5')
-    os.system('losoto -d sol000/amplitude000 cal-pa.h5')
-    os.system('losoto -d sol000/phase000 cal-pa.h5')
-    os.system('losoto -d sol000/phaseOrig000 cal-pa.h5')
-    os.system('h5repack cal-pa.h5 cal-pa-compressed.h5; mv cal-pa-compressed.h5 cal-pa.h5')
-
-    os.system('losoto -d sol000/amplitude000 cal-amp.h5')
-    os.system('losoto -d sol000/amplitudeRes cal-amp.h5')
-    os.system('losoto -d sol000/phase000 cal-amp.h5')
-    os.system('h5repack cal-amp.h5 cal-amp-compressed.h5; mv cal-amp-compressed.h5 cal-amp.h5')
-
-#    os.system('losoto -d sol000/tec000 cal-iono.h5')
-#    os.system('losoto -d sol000/clock000 cal-iono.h5')
-    os.system('losoto -d sol000/amplitude000 cal-iono.h5')
-    os.system('losoto -d sol000/phase_offset000 cal-iono.h5')
-#    os.system('losoto -d sol000/phase000 cal-iono.h5')
-    os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
-
-    logger.info('Copy survey caltable...')
-    cal = 'cal_'+os.getcwd().split('/')[-2]+'_'+calname
-    logger.info('Copy: cal*h5 -> portal_lei:/disks/paradata/fdg/LBAsurvey/%s' % cal)
-    os.system('ssh portal_lei "rm -rf /disks/paradata/fdg/LBAsurvey/%s"' % cal)
-    os.system('ssh portal_lei "mkdir /disks/paradata/fdg/LBAsurvey/%s"' % cal)
-    os.system('scp -q cal-*.h5 portal_lei:/disks/paradata/fdg/LBAsurvey/%s' % cal)
-
-# a debug image
-if imaging:
-    logger.info("Imaging section:")
-
-    if iono3rd:
-        MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[int(len(glob.glob('./*MS'))/2.):], s, check_flags = False ) # keep only upper band
-
-    # Correct all CORRECTED_DATA (PA, beam, FR, BP corrected) -> CORRECTED_DATA
-    logger.info('IONO correction...')
-    MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono.h5 cor.amp.parmdb=cal-iono.h5 \
-        cor.ph.correction=phaseOrig000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corIONO.log', commandType="DPPP")
-
-    logger.info('Subtract model...')
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType ='general')
-
-    logger.info('Flag...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-flag2.parset msin=$pathMS', log='$nameMS_flag2.log', commandType='DPPP')
-
-    lib_util.check_rm('img')
-    os.makedirs('img')
-
-    imgsizepix =  MSs.getListObj()[0].getFWHM()*3600/5
-
-    logger.info('Cleaning low-res...')
-    imagename = 'img/calLR'
-    lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix/5, scale='60arcsec', \
-            weight='briggs 0.', taper_gaussian='240arcsec', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
-            use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-            parallel_deconvolution=512, \
-            auto_mask=10, auto_threshold=1, pol='IQUV', join_polarizations='', join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
-
-    logger.info('Cleaning normal...')
-    imagename = 'img/cal'
-    lib_util.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
-            weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=512, \
-            auto_threshold=20, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
-
-    # make mask
-    im = lib_img.Image(imagename+'-MFS-image.fits')
-    im.makeMask(threshisl = 3)
-
-    logger.info('Cleaning w/ mask...')
-    lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
-            weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=512, \
-            auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
-    os.system('cat logs/wscleanA.log logs/wscleanB.log | grep "background noise"')
-
-    # make new mask
-    im.makeMask(threshisl = 5)
+ ### DONE
+#
+# # a debug image
+# if imaging:
+#     logger.info("Imaging section:")
+#
+#     # Correct all CORRECTED_DATA (PA, beam, FR, BP corrected) -> CORRECTED_DATA
+#     logger.info('IONO correction...')
+#     MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono.h5 cor.amp.parmdb=cal-iono.h5 \
+#         cor.ph.correction=phaseOrig000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corIONO.log', commandType="DPPP")
+#
+#     logger.info('Subtract model...')
+#     MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType ='general')
+#
+#     logger.info('Flag...')
+#     MSs.run('DPPP '+parset_dir+'/DPPP-flag2.parset msin=$pathMS', log='$nameMS_flag2.log', commandType='DPPP')
+#
+#     lib_util.check_rm('img')
+#     os.makedirs('img')
+#
+#     imgsizepix =  MSs.getListObj()[0].getFWHM()*3600/5
+#
+#     logger.info('Cleaning low-res...')
+#     imagename = 'img/calLR'
+#     lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix/5, scale='60arcsec', \
+#             weight='briggs 0.', taper_gaussian='240arcsec', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
+#             use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
+#             parallel_deconvolution=512, \
+#             auto_mask=10, auto_threshold=1, pol='IQUV', join_polarizations='', join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+#
+#     logger.info('Cleaning normal...')
+#     imagename = 'img/cal'
+#     lib_util.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
+#             weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+#             baseline_averaging=5, parallel_deconvolution=512, \
+#             auto_threshold=20, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+#
+#     # make mask
+#     im = lib_img.Image(imagename+'-MFS-image.fits')
+#     im.makeMask(threshisl = 3)
+#
+#     logger.info('Cleaning w/ mask...')
+#     lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
+#             weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
+#             baseline_averaging=5, parallel_deconvolution=512, \
+#             auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+#     os.system('cat logs/wscleanA.log logs/wscleanB.log | grep "background noise"')
+#
+#     # make new mask
+#     im.makeMask(threshisl = 5)
 
 logger.info("Done.")
