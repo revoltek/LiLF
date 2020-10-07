@@ -1,0 +1,26 @@
+msin = 
+msin.datacolumn = SMOOTHED_DATA
+msout = .
+
+steps=[sol]
+
+sol.type = ddecal
+sol.uvlambdamin = 100
+sol.sourcedb =
+sol.h5parm = 
+sol.maxiter = 300
+sol.tolerance = 1e-3
+sol.mode = tec # phaseonly, complexgain, tec, tecandphase
+
+sol.propagatesolutions = True
+
+# approximate
+sol.maxapproxiter = 250
+sol.approximatetec = True # Uses an approximation stage in which the phases are constrained with the piece-wise fitter, to solve local minima problems.
+sol.approxtolerance = 1e-3
+
+#sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA]]
+#sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]
+sol.solint = 8 # 15*8 = 2 minutes
+sol.nchan = 1 # chanwidth 0.097MHz
+sol.stepsize = 0.2

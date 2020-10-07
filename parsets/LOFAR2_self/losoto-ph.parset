@@ -1,0 +1,70 @@
+Ncpu = 0
+
+[plotph]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ph_
+# refAnt = 'CS001LBA'
+minmax = [-3.14,3.14]
+
+[ct]
+operation = CLOCKTEC
+soltab = sol000/phase000
+CombinePol = False
+FlagBadChannels = False
+Fit3rdOrder = False
+Circular = False
+removePhaseWraps = False
+chi2cut = 1e9
+
+[plotClock]
+operation = PLOT
+soltab = sol000/clock000
+axesInPlot = [time]
+axisInTable = ant
+prefix = plots/clock
+# refAnt = 'CS001LBA'
+
+[plotTEC]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = time
+axisInTable = ant
+plotFlag = True
+minmax = [-0.5,0.5]
+prefix = plots/tec
+# refAnt = 'CS001LBA'
+
+[smoothClock]
+operation = SMOOTH
+soltab = sol000/clock000
+axesToSmooth = [time]
+mode = median
+
+[removeFlags]
+operation = REWEIGHT
+soltab = sol000/clock000
+weightVal = 1.
+
+[dublicateR]
+operation = DUPLICATE
+soltab = sol000/phase000
+soltabOut = phaseRes
+
+[residuals]
+operation = RESIDUALS
+soltab = sol000/phaseRes
+soltabsToSub = [clock000,tec000]
+
+[plotphRes]
+operation = PLOT
+soltab = sol000/phaseRes
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/phRes_
+# refAnt = 'CS001LBA'
+minmax = [-3.14,3.14]

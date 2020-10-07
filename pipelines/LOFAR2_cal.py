@@ -17,10 +17,10 @@ w = lib_util.Walker('pipeline-cal.walker')
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('LOFAR_cal','parset_dir')
-data_dir = parset.get('LOFAR_cal','data_dir')
-skymodel = parset.get('LOFAR_cal','skymodel')
-imaging = parset.getboolean('LOFAR_cal','imaging')
+parset_dir = parset.get('LOFAR2_cal','parset_dir')
+data_dir = parset.get('LOFAR2_cal','data_dir')
+skymodel = parset.get('LOFAR2_cal','skymodel')
+imaging = parset.getboolean('LOFAR2_cal','imaging')
 bl2flag = parset.get('flag','stations')
 
 #############################################################
@@ -145,30 +145,30 @@ if w.todo('apply_all'):
     MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam2.log', commandType="DPPP")
     
     # # Correct FR CORRECTED_DATA -> CORRECTED_DATA
-    # logger.info('Faraday rotation correction...')
-    # MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DPPP")
+    logger.info('Faraday rotation correction...')
+    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DPPP")
     
     w.done('apply_all')
 ### DONE
 
 #################################################
-# # 4: find iono
-#
-# if w.todo('cal_iono'):
-#     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-#     logger.info('BL-smooth...')
-#     MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
-#             commandType ='python', maxThreads=8)
-#
-#     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-#     logger.info('Calibrating IONO...')
-#     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_solIONO.log', commandType="DPPP")
-#
-#     lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
-#             [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono.parset'])
-#
-#     w.done('cal_iono')
-# ### DONE
+ # 4: find iono
+
+if w.todo('cal_iono'):
+    # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+    logger.info('BL-smooth...')
+    MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
+            commandType ='python', maxThreads=8)
+
+    # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+    logger.info('Calibrating IONO...')
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_solIONO.log', commandType="DPPP")
+
+    lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
+            [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono.parset'])
+
+    w.done('cal_iono')
+ ### DONE
 #
 # # a debug image
 # if imaging:

@@ -1,0 +1,87 @@
+Ncpu = 0
+
+[duplicateS]
+operation = DUPLICATE
+soltab = sol000/amplitude000
+soltabOut = amplitudeSmooth
+
+[smooth1]
+operation = SMOOTH
+soltab = sol000/amplitudeSmooth
+pol = XX, YY
+axesToSmooth = [time]
+mode = median
+
+[plotAs]
+operation = PLOT
+soltab = sol000/amplitudeSmooth
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ampSmooth_
+#minmax = [100,300]
+
+[plotAs2]
+operation = PLOT
+soltab = sol000/amplitudeSmooth
+axesInPlot = freq
+time.minmaxstep = [0,1e30,10000000]
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ampSmooth_
+
+[dublicateR]
+operation = DUPLICATE
+soltab = sol000/amplitude000
+soltabOut = amplitudeRes
+
+[residual]
+operation = RESIDUALS
+soltab = sol000/amplitudeRes
+soltabsToSub = amplitudeSmooth
+ratio = True
+
+[plotAr1]
+operation = PLOT
+soltab = sol000/amplitudeRes
+freq.minmaxstep = [0,300e6,100]
+axesInPlot = time
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ampSmoothRes_
+NColFig = 4
+figSize = [20,20]
+minmax = [-1,1]
+
+[plotAr2]
+operation = PLOT
+soltab = sol000/amplitudeRes
+time.minmaxstep = [0,1e20,500]
+axesInPlot = freq
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ampSmoothRes_
+minmax = [-1,1]
+
+[plotAr3]
+operation = PLOT
+soltab = sol000/amplitudeRes
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ampSmoothRes_
+minmax = [-0.5,0.5]
+
+#[plotAm]
+#operation = PLOT
+#soltab = sol000/amplitudeRes
+#axesInPlot = freq
+#axisInTable = ant
+#axisInCol = pol
+#plotFlag = True
+#prefix = plots/ampMovie_
+#MinMax = [-40e-2,40e-2]
+#makeMovie = True

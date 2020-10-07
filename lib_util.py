@@ -52,6 +52,12 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_cal', 'imaging', 'False')
     add_default('LOFAR_cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
     add_default('LOFAR_cal', 'data_dir', '../cals-bkp/')
+    # cal2
+    add_default('LOFAR2_cal', 'imaging', 'False')
+    add_default('LOFAR2_cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
+    add_default('LOFAR2_cal', 'data_dir', '../cals-bkp/')
+    # self2
+    add_default('LOFAR2_self', 'subtract_outside', 'True')
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', '../tgts-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '../cals/')
@@ -62,10 +68,11 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR2_timesplit', 'cal_dir', '../cals/')
     add_default('LOFAR2_timesplit', 'ngroups', '1')
     add_default('LOFAR2_timesplit', 'initc', '0')
+    add_default('LOFAR2_timesplit', 'apply_clock', 'False')
     # self
-    # dd
-    add_default('LOFAR_dd-parallel', 'maxniter', '10')
-    add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
+    # dd2
+    add_default('LOFAR2_dd', 'maxniter', '10')
+    add_default('LOFAR2_dd', 'calFlux', '1.5')
     # dd-serial
     add_default('LOFAR_dd-serial', 'maxIter', '2')
     add_default('LOFAR_dd-serial', 'minCalFlux60', '2')
@@ -293,6 +300,10 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     # user defined parms
     for parm, value in list(kwargs.items()):
         if value is None: continue
+        if parm == 'baseline_averaging' and value == '':
+            scale = float(kwargs['scale'].replace('arcsec','')) # arcsec (what does this line do)?
+            value = 1.87e3*60000.*2.*np.pi/(24.*60.*60*np.max(kwargs['size'])) # the np.max() is OK with both float and arrays
+            if value > 10: value=10
         if parm == 'cont': 
             parm = 'continue'
             value = ''

@@ -24,6 +24,7 @@ data_dir = parset.get('LOFAR2_timesplit','data_dir')
 cal_dir = parset.get('LOFAR2_timesplit','cal_dir')
 ngroups = parset.getint('LOFAR2_timesplit','ngroups')
 initc = parset.getint('LOFAR2_timesplit','initc') # initial tc num (useful for multiple observation of same target)
+apply_clock = parset.getboolean('LOFAR2_timesplit', 'apply_clock')
 bl2flag = parset.get('flag','stations')
 
 #################################################
@@ -52,20 +53,27 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 ##################################################
 # Find solutions to apply
 h5_pa = cal_dir+'/cal-pa.h5'
+h5_iono = cal_dir+'/cal-iono.h5'
 h5_amp = cal_dir+'/cal-amp.h5'
 
 assert os.path.exists(h5_pa)
+if apply_clock:
+    assert os.path.exists(h5_iono)
 assert os.path.exists(h5_amp)
 
 ####################################################
 # Correct fist for BP(diag)+TEC+Clock and then for beam
 if w.todo('apply'):
     
-    # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign, amp, beam corrected)
-    logger.info('Apply solutions (pa,amp,beam)...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-apply.parset msin=$pathMS \
-            cor.pa.parmdb='+h5_pa+' cor.amp.parmdb='+h5_amp, log='$nameMS_apply.log', commandType='DPPP')
-    
+    # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign, clockSmooth, ampSmooth, beam corrected)
+    if apply_clock:
+        logger.info('Apply solutions (pa,clock,amp,beam)...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-apply.parset msin=$pathMS \
+                cor.pa.parmdb='+h5_pa+' cor.clock.parmdb='+h5_iono+' cor.amp.parmdb='+h5_amp, log='$nameMS_apply.log', commandType='DPPP')
+    else:
+        logger.info('Apply solutions (pa,amp,beam)...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-apply.parset msin=$pathMS \
+                cor.pa.parmdb='+h5_pa+' cor.amp.parmdb='+h5_amp, log='$nameMS_apply.log', commandType='DPPP')
 
     w.done('apply')
 ### DONE
@@ -83,7 +91,7 @@ timechunks = sorted(set([re.findall(r'_t[0-9]+', ms)[0][2:] for ms in MSs.getLis
 
 for timechunk in timechunks:
     for i, msg in enumerate(np.array_split(sorted(glob.glob('*_t'+timechunk+'_*.MS')), ngroups)):
-        logger.info(i, msg)
+        logger.info(str(i), msg)
         if ngroups == 1:
             groupname = 'mss_t%s' % timechunk
         else:
@@ -113,7 +121,7 @@ MSs = lib_ms.AllMSs( glob.glob('mss_t*/*MS'), s )
 # Flagging on concatenated dataset - also flag low-elevation
 if w.todo('flag'):
 
-    logger.info('Flagging...')
+    # logger.info('Flagging...')
     # MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\"', \
     #                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
     
