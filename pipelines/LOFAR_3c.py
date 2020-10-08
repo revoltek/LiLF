@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys, os, glob, re
+import sys, os, glob
 import numpy as np
 import lsmtool
 
@@ -14,8 +14,8 @@ w = lib_util.Walker('pipeline-3c.walker')
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('LOFAR_3c','parset_dir')
-bl2flag = parset.get('flag','stations')
+parset_dir = parset.get('LOFAR_3c', 'parset_dir')
+bl2flag = parset.get('flag', 'stations')
 target = os.getcwd().split('/')[-1]
 data_dir = '/home/fdg/lofar5/3Csurvey/%s' % target
 extended_targets = ['3c223','3c231','3c236','3c264','3c274','3c284','3c285','3c293','3c296','3c31','3c310','3c326','3c33','3c35','3c382','3c386','3c442a','3c449','3c465','3c84']
@@ -167,9 +167,9 @@ for c in range(100):
         logger.info('Solving fast...')
         solint = next(solint_ph)
         MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calGp.h5 sol.mode=scalarcomplexgain \
-                sol.solint='+str(solint)+' sol.smoothnessconstraint=5e6', \
+                sol.solint='+str(solint)+' sol.smoothnessconstraint=5e6',
                 log='$nameMS_solGp-c'+str(c)+'.log', commandType="DPPP")
-        lib_util.run_losoto(s, 'Gp-c'+str(c), [ms+'/calGp.h5' for ms in MSs.getListStr()], \
+        lib_util.run_losoto(s, 'Gp-c'+str(c), [ms+'/calGp.h5' for ms in MSs.getListStr()],
                         [parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot.parset'])
     
         # Correct DATA -> CORRECTED_DATA
@@ -210,22 +210,22 @@ for c in range(100):
     if w.todo('image-c%02i' % c):
         # special for extended sources:
         if target in very_extended_targets:
-            kwargs1 = {'weight':'briggs -0.5', 'taper_gaussian':'75arcsec', 'multiscale':'', 'multiscale_scale_bias':0.5, 'multiscale_scales':'0,30,60,120,340'}
-            kwargs2 = {'weight':'briggs -0.5', 'taper_gaussian':'75arcsec', 'multiscale_scales':'0,30,60,120,340'}
+            kwargs1 = {'weight': 'briggs -0.5', 'taper_gaussian': '75arcsec', 'multiscale': '', 'multiscale_scale_bias':0.5, 'multiscale_scales':'0,30,60,120,340'}
+            kwargs2 = {'weight': 'briggs -0.5', 'taper_gaussian': '75arcsec', 'multiscale_scales': '0,30,60,120,340'}
         elif target in extended_targets:
-            kwargs1 = {'weight':'briggs -0.7', 'taper_gaussian':'25arcsec'}
-            kwargs2 = {'weight':'briggs -0.7', 'taper_gaussian':'25arcsec', 'multiscale_scales':'0,15,30,60,120,240'}
+            kwargs1 = {'weight': 'briggs -0.7', 'taper_gaussian': '25arcsec'}
+            kwargs2 = {'weight': 'briggs -0.7', 'taper_gaussian': '25arcsec', 'multiscale_scales': '0,15,30,60,120,240'}
         else:
-            kwargs1 = {'weight':'briggs -0.8'}
-            kwargs2 = {'weight':'briggs -0.8', 'multiscale_scales':'0,10,20,40,80,160'}
+            kwargs1 = {'weight': 'briggs -0.8'}
+            kwargs2 = {'weight': 'briggs -0.8', 'multiscale_scales': '0,10,20,40,80,160'}
    
         # if next is a "cont" then I need the do_predict
         logger.info('Cleaning shallow (cycle: '+str(c)+')...')
-        lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, name=imagename, \
-                parallel_gridding=4, baseline_averaging='', size=2500, scale='2.5arcsec', \
-                niter=1000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0, \
-                auto_threshold=5, local_rms='', local_rms_method='rms-with-min', \
-                join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1 )
+        lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, name=imagename,
+                parallel_gridding=4, baseline_averaging='', size=2500, scale='2.5arcsec',
+                niter=1000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0,
+                auto_threshold=5, local_rms='', local_rms_method='rms-with-min',
+                join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1)
 
         # check if hand-made mask is available
         im = lib_img.Image(imagename+'-MFS-image.fits')
