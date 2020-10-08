@@ -222,7 +222,7 @@ class Sol_iterator(object):
             return self.vals[-1]
 
 
-def run_losoto(s, c, h5s, parsets, plots_dir=None):
+def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
     """
     s : scheduler
     c : cycle name, e.g. "final"
