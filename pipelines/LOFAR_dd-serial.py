@@ -92,7 +92,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
         # make mask
         im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
         try:
-            im.makeMask(threshisl = 7, rmsbox=(70,5))
+            im.makeMask(threshisl = 10, rmsbox=(70,5))
         except:
             logger.warning('Fail to create mask for %s.' % imagename+'-MFS-image.fits')
             return
@@ -409,9 +409,9 @@ for cmaj in range(maxIter):
                 MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
                         log='$nameMS_taql.log', commandType='general')
 
-                ### TTESTTESTTEST: empty image
-                #if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
-                #    clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+            ### TTESTTESTTEST: empty image
+            if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
+                clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
             w.done('%s-predict' % logstring)
  
@@ -685,8 +685,8 @@ for cmaj in range(maxIter):
         ### DONE
 
         ### TTESTTESTTEST: empty image
-        #if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
-        #    clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
+            clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
     ######################################################

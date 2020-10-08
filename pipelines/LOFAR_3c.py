@@ -49,7 +49,7 @@ if w.todo('setup'):
         MS_concat_bkp = target+'_t'+timestamp+'_concat.MS-bkp'
     
         if os.path.exists(MS_concat_bkp): 
-            logger.info('Restoring bkp data...')
+            logger.info('Restoring bkp data: %s...' % MS_concat_bkp)
             lib_util.check_rm(MS_concat)
             os.system('cp -r %s %s' % (MS_concat_bkp, MS_concat) )
     
@@ -130,7 +130,7 @@ if w.todo('predict'):
         radeg = phasecentre[0]
         decdeg = phasecentre[1]
         # get model the size of the image (radius=fwhm/2)
-        os.system('wget -O tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (radeg, decdeg, fwhm/2.)) # ASTRON
+        os.system('wget -O tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (radeg, decdeg, fwhm)) # ASTRON
         lsm = lsmtool.load('tgts.skymodel')#, beamMS=MSs.getListObj()[0])
         lsm.remove('I<0.5')
         lsm.write('tgts.skymodel', clobber=True)
@@ -222,7 +222,7 @@ for c in range(100):
         # if next is a "cont" then I need the do_predict
         logger.info('Cleaning shallow (cycle: '+str(c)+')...')
         lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, name=imagename,
-                parallel_gridding=4, baseline_averaging='', size=2500, scale='2.5arcsec',
+                parallel_gridding=4, baseline_averaging='', size=3500, scale='2.5arcsec',
                 niter=1000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0,
                 auto_threshold=5, local_rms='', local_rms_method='rms-with-min',
                 join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1)
@@ -238,7 +238,7 @@ for c in range(100):
 
         logger.info('Cleaning full (cycle: '+str(c)+')...')
         lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, \
-                parallel_gridding=4, size=2500, scale='2.5arcsec', \
+                parallel_gridding=4, size=3500, scale='2.5arcsec', \
                 niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0, \
                 auto_threshold=0.5, auto_mask=2., local_rms='', local_rms_method='rms-with-min', fits_mask=maskfits, \
                 multiscale='', multiscale_scale_bias=0.8, \
