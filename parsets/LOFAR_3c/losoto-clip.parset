@@ -11,14 +11,14 @@ prefix = plots/ampPreflag_
 operation = CLIP
 soltab = sol000/amplitude000
 mode = below
-clipLevel = 0.75
+clipLevel = 0.50
 pol = XX,YY
 
 [clip2]
 operation = CLIP
 soltab = sol000/amplitude000
 mode = above
-clipLevel = 1.5
+clipLevel = 2.0
 pol = XX,YY
 
 [copyFlags]

@@ -195,7 +195,6 @@ for c in range(100):
                         #, parset_dir+'/losoto-ampnorm.parset'])
     
             # Correct CORRECTED_DATA -> CORRECTED_DATA
-            # TEST: clup at 25% - it was at 50%
             logger.info('Correction slow AMP+PH...')
             MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
                     cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=\[amplitude000,phase000\]', \
