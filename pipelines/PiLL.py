@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os, sys, glob, getpass, socket, re
-from surveys_db import SurveysDB
+from LiLF.surveys_db import SurveysDB
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 logger_obj = lib_log.Logger('PiLL.logger')
 logger = lib_log.logger

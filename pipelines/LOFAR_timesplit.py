@@ -59,7 +59,7 @@ if cal_dir == '':
     if len(cal_dir) > 0:
         cal_dir = cal_dir[0]
     else:
-        from surveys_db import SurveysDB
+        from LiLF.surveys_db import SurveysDB
         with SurveysDB(survey='lba',readonly=True) as sdb:
             sdb.execute('select calibratordata from observations where id=%i' % obsid)
             calibratordata = sdb.cur.fetchall()[0]['calibratordata']

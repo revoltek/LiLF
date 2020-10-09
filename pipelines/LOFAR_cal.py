@@ -253,7 +253,7 @@ if w.todo('upload'):
     os.system('scp -q -r plots* lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
 
     # update the db
-    from surveys_db import SurveysDB
+    from LiLF.surveys_db import SurveysDB
     with SurveysDB(survey='lba',readonly=False) as sdb:
         sdb.execute('INSERT INTO observations (id,calibratordata) VALUES (%i,"%s")' % (obsid,cal))
 
