@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" promptOnRemoteOverwrite="CHECK_CONTENT" serverName="LOFAR" createEmptyFolders="true" traceLevel="BRIEF" notifyRemoteChanges="true">
+    <serverData>
+      <paths name="Hamburg">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/fdg/LiLF" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/fdg/scripts" local="$USER_HOME$/scripts" web="/" />
+            <mapping deploy="/home/fdg/losoto" local="$PROJECT_DIR$/../losoto" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>

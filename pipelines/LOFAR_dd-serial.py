@@ -143,7 +143,7 @@ if not os.path.exists('mss-avg'):
             log='$nameMS_initavg.log', commandType='DPPP')
 
 MSs = lib_ms.AllMSs( glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False )
-
+#test
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 detectability_dist = MSs.getListObj()[0].getFWHM(freq='max')*1.8/2. # 1.8 to go to close to the null
 freq_min = np.min(MSs.getFreqs())
