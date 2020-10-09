@@ -57,20 +57,20 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_demix', 'data_dir', './data-bkp/')
     add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/models/demix_all.skydb')
     # cal
-    add_default('LOFAR_cal', 'imaging', 'False')
+    add_default('LOFAR_cal', 'data_dir', './data-bkp/')
     add_default('LOFAR_cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
-    add_default('LOFAR_cal', 'data_dir', '../cals-bkp/')
+    add_default('LOFAR_cal', 'imaging', 'False')
     # timesplit
-    add_default('LOFAR_timesplit', 'data_dir', '../tgts-bkp/')
-    add_default('LOFAR_timesplit', 'cal_dir', '../cals/')
+    add_default('LOFAR_timesplit', 'data_dir', './data-bkp/')
+    add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
     add_default('LOFAR_timesplit', 'apply_clock', 'False')
     # self
     add_default('LOFAR_self', 'subtract_outside', 'True')
-    # dd2
-    add_default('LOFAR2_dd', 'maxniter', '10')
-    add_default('LOFAR2_dd', 'calFlux', '1.5')
+    # dd-parallel
+    add_default('LOFAR_dd-parallel', 'maxniter', '10')
+    add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
     # dd-serial
     add_default('LOFAR_dd-serial', 'maxIter', '2')
     add_default('LOFAR_dd-serial', 'minCalFlux60', '1.')
@@ -224,7 +224,7 @@ class Sol_iterator(object):
             return self.vals[-1]
 
 
-def run_losoto(s, c, h5s, parsets, plots_dir=None):
+def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
     """
     s : scheduler
     c : cycle name, e.g. "final"
@@ -273,6 +273,7 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None):
 
 def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     """
+    Use only for imaging - not for predict
     s : scheduler
     args : parameters for wsclean, "_" are replaced with "-", any parms=None is ignored.
            To pass a parameter with no values use e.g. " no_update_model_required='' "
@@ -302,7 +303,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
             scale = float(kwargs['scale'].replace('arcsec','')) # arcsec (what does this line do)?
             value = 1.87e3*60000.*2.*np.pi/(24.*60.*60*np.max(kwargs['size'])) # the np.max() is OK with both float and arrays
             if value > 10: value=10
-        if parm == 'cont': 
+        if parm == 'cont':
             parm = 'continue'
             value = ''
         if parm == 'size' and type(value) is int: value = '%i %i' % (value, value)

@@ -3,6 +3,7 @@ operation = NORM
 soltab = sol000/amplitude000
 normVal = 1.
 axesToNorm = [time,freq,pol]
+log = True
 
 [plotA3]
 operation = PLOT

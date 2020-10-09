@@ -16,6 +16,7 @@ operation = NORM
 soltab = sol000/amplitudeSmooth
 normVal = 1.
 axesToNorm = [time,freq,ant]
+log = True
 
 [plotAsmooth]
 operation = PLOT

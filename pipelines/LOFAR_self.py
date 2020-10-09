@@ -5,8 +5,8 @@
 # they need to be in "./mss/"
 
 import sys, os, glob, re
-import lsmtool
 import numpy as np
+import lsmtool
 
 # Survey
 #if 'LBAsurvey' in os.getcwd():
@@ -402,7 +402,7 @@ for c in range(2):
         if w.todo('lowres_flag_c%02i' % c):
             ##############################################
             # Flag on empty dataset
-
+    
             # Subtract low-res model - CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA
             logger.info('Subtracting low-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
             MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"',
@@ -471,11 +471,14 @@ for c in range(2):
             #DONE
 
 # Copy images
-[os.system('mv img/wideM-' + str(c) + '-MFS-image*.fits self/images') for c in range(2)]
-[os.system('mv img/wideM-' + str(c) + '-MFS-residual*.fits self/images') for c in range(2)]
-[os.system('mv img/wideM-' + str(c) + '-sources*.txt self/images') for c in range(2)]
+[ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits self/images') for c in range(2) ]
+[ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits self/images') for c in range(2) ]
+[ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(2) ]
+os.system('mv img/wideM-1-*-model.fits self/images')
+os.system('mv img/wide-lr-MFS-image.fits self/images')
 os.system('mv logs self')
-# os.system('makepb.py -o img/avgbeam.fits -i img/wideM-1')
-# os.system('mv img/avgbeam.fits self/images')
+
+#os.system('makepb.py -o img/avgbeam.fits -i img/wideM-1')
+#os.system('mv img/avgbeam.fits self/images')
 
 logger.info("Done.")

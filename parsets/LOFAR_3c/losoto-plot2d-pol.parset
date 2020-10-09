@@ -11,3 +11,4 @@ prefix = plots/ph-dif
 refAnt = 'CS001LBA'
 #refAnt = 'CS002LBA'
 minmax = [-1,+1]
+pol = XX,YY

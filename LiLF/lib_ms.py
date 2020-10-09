@@ -224,6 +224,44 @@ class MS(object):
         self.sun_dist = coord.separation(coord_sun)
         lst = time.sidereal_time('mean', telescope_coords.lon)
         self.ha = lst - coord.ra # hour angle
+        telescope = self.getTelescope()
+        if telescope == 'LOFAR':
+            telescope_coords = EarthLocation(lat=52.90889*u.deg, lon=6.86889*u.deg, height=0*u.m)
+        elif telescope == 'GMRT':
+            telescope_coords = EarthLocation(lat=19.0948*u.deg, lon=74.0493*u.deg, height=0*u.m)
+        else:
+            raise('Unknown Telescope.')
+
+        time = np.mean(self.getTimeRange())
+        time = Time( time/86400, format='mjd')
+        time.delta_ut1_utc = 0. # no need to download precise table for leap seconds
+        coord_sun = get_sun(time)
+        coord_sun = SkyCoord(ra=coord_sun.ra,dec=coord_sun.dec) # fix transformation issue
+        ra, dec = self.getPhaseCentre()
+        coord = SkyCoord(ra*u.deg, dec*u.deg)
+        self.elev = coord.transform_to(AltAz(obstime=time,location=telescope_coords)).alt
+        self.sun_dist = coord.separation(coord_sun)
+        lst = time.sidereal_time('mean', telescope_coords.lon)
+        self.ha = lst - coord.ra # hour angle
+
+    def distBrightSource(self, name):
+        """
+        Get the distance in deg from some bright sources
+        """
+        ateam={'CygA':{'ra':299.8679167,'dec':40.7338889},\
+                'CasA':{'ra':350.8583333,'dec':58.8000000},\
+                'TauA':{'ra':83.6333333,'dec':22.0144444},\
+                'VirA':{'ra':187.7058333,'dec':12.3911111}\
+        }
+
+        if name not in ateam.keys():
+            logger.error('Unknown source for distance: %s' % name)
+            logger.error('Use: '+' '.join(ateam.keys()))
+            raise
+
+        coord_bright = SkyCoord(ra=ateam[name]['ra']*u.deg, dec=ateam[name]['dec']*u.deg)
+        ra, dec = self.getPhaseCentre()
+        return coord_bright.separation(SkyCoord(ra*u.deg, dec*u.deg)).deg
 
     def setPathVariables(self, pathMS):
         """

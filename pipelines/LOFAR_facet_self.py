@@ -84,7 +84,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     imagename = 'img/facet-'+str(p)
     lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
             weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
-            baseline_averaging=5, parallel_deconvolution=512, auto_threshold=5, \
+            baseline_averaging='', parallel_deconvolution=512, auto_threshold=5, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     # make mask
@@ -108,13 +108,13 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
             multiscale='', multiscale_scale_bias=0.75, multiscale_scales='0,10,20,40', \
-            baseline_averaging=5, parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1., fits_mask=im.maskname, \
+            baseline_averaging='', parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1., fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
         lib_util.run_wsclean(s, 'wscleanBlow-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename+'-low', size=imsize, scale=str(pixscale)+'arcsec', \
             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, taper_gaussian='30asec', mgain=0.85, \
             multiscale='', multiscale_scale_bias=0.75, multiscale_scales='0,10,20,40', \
-            baseline_averaging=5, parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1., fits_mask=im.maskname, \
+            baseline_averaging='', parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1., fits_mask=im.maskname, \
             join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     os.system('cat logs/wscleanB-'+str(p)+'.log | grep "background noise"')
@@ -137,7 +137,8 @@ ramin = np.min(lsm.getColValues('RA')[lsm.getColValues('Patch')=='Isl_patch_0'])
 ramax = np.max(lsm.getColValues('RA')[lsm.getColValues('Patch')=='Isl_patch_0'])
 decmin = np.min(lsm.getColValues('Dec')[lsm.getColValues('Patch')=='Isl_patch_0'])
 decmax = np.max(lsm.getColValues('Dec')[lsm.getColValues('Patch')=='Isl_patch_0'])
-size = [abs(ramax-ramin),abs(decmax-decmin)]
+#size = [abs(ramax-ramin),abs(decmax-decmin)]
+size = [1,1]
 
 # write skymodel
 lsm.write('facet/skymodel_init.txt', format='makesourcedb', clobber=True)

@@ -68,20 +68,30 @@ data_dir = '../tgts-bkp/'
 
 ##########################################################
 logger.info('Cleaning...')
-lib_util.check_rm('cal*h5')
+#lib_util.check_rm('cal*h5')
 lib_util.check_rm('plots*')
 lib_util.check_rm('img')
 os.makedirs('img')
 MSs = lib_ms.AllMSs( sorted(glob.glob(data_dir+'/*MS')), s )
 
 # copy data (avg to 1ch/sb and 10 sec)
-nchan = int(MSs.getListObj()[0].getNchan()) # add /4. to have more channels
+nchan = int(MSs.getListObj()[0].getNchan()) # average 4 chans
 timeint = MSs.getListObj()[0].getTimeInt()
-avg_time = int(np.rint(10./timeint)) # change 10. to a lower number to have more times
+avg_time = int(np.rint(30./timeint)) # average to 30 s
 
 logger.info('Copy data...')
 for obs in set([ os.path.basename(ms).split('_')[0] for ms in MSs.getListStr() ]):
-    mss_toconcat = glob.glob(data_dir+'/'+obs+'*MS')
+
+    mss_toconcat = sorted(glob.glob(data_dir+'/'+obs+'*MS'))
+
+    # add missing SB with a fake name not to leave frequency holes
+    num_init = int(re.findall(r'\d+', mss_toconcat[0])[-1])
+    num_fin = int(re.findall(r'\d+', mss_toconcat[-1])[-1])
+    ms_name_init = mss_toconcat[0]
+    mss_toconcat = []
+    for j in range(num_init, num_fin+1):
+        mss_toconcat.append(ms_name_init.replace('SB%03i' % num_init, 'SB%03i' % j))
+
     MS_concat = obs+'_concat.MS'
     MS_concat_bkp = obs+'_concat.MS-bkp'
     if os.path.exists(MS_concat_bkp): 
@@ -133,25 +143,27 @@ else:
 
 # TESTTESTTEST
 # BL Smooth DATA -> DATA
-#logger.info('BL-based smoothing...')
-#MSs.run('BLsmooth.py -r -i DATA -o DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
+if lofar_system == 'hba':
+    logger.info('BL-based smoothing...')
+    MSs.run('BLsmooth.py -r -s 0.7 -i DATA -o DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
 
 for c in range(100):
 
     logger.info('== Start cycle: %s ==' % c)
 
     #logger.info('Remove bad timestamps...')
-    #MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+    MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
     ####################################################
     # 1: find PA and remove it
 
     # Solve cal_SB.MS:DATA (only solve)
-    logger.info('Solving PA...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
+    if not os.path.exists('cal-pa-c0.h5'):
+        logger.info('Solving PA...')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
             sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solPA.log', commandType="DPPP")
 
-    lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
+        lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
 
     #################################################
@@ -159,7 +171,7 @@ for c in range(100):
     
     # Beam correction DATA -> CORRECTED_DATA
     logger.info('PA correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c0.h5 cor.correction=polalign', \
             log='$nameMS_corPA2.log', commandType="DPPP")
 
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA
@@ -173,7 +185,7 @@ for c in range(100):
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Solving FR...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=diagonal \
-            sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solFR.log', commandType="DPPP")
+             sol.smoothnessconstraint=1e6 sol.solint=3 sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solFR.log', commandType="DPPP")
     
     lib_util.run_losoto(s, 'fr-c'+str(c), [ms+'/fr.h5' for ms in MSs.getListStr()], \
             [parset_dir + '/losoto-fr.parset'])
@@ -182,8 +194,8 @@ for c in range(100):
    # 3: find BANDPASS/IONO
 
     # Beam correction DATA -> CORRECTED_DATA
-    logger.info('Polalign correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c'+str(c)+'.h5 cor.correction=polalign', \
+    logger.info('PA correction...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c0.h5 cor.correction=polalign', \
             log='$nameMS_corPA3.log', commandType="DPPP")
 
     # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
@@ -200,8 +212,8 @@ for c in range(100):
 
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Solving IONO...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal \
-                                    sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solIONO3.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=scalarcomplexgain \
+                                    sol.smoothnessconstraint=1e6 sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solIONO3.log', commandType="DPPP")
 
     lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
                         [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
@@ -213,42 +225,26 @@ for c in range(100):
 
     # Solve MS:CORRECTED_DATA (only solve)
     logger.info('Solving BP...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal sol.flagunconverged=False \
-            sol.uvlambdarange='+str(nouseblrange)+' sol.nchan=4 sol.solint=10', log='$nameMS_solAMP3.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/bp.h5 sol.mode=fulljones \
+            sol.uvlambdarange='+str(nouseblrange)+' sol.smoothnessconstraint=2e6 sol.nchan=1 sol.solint=50', log='$nameMS_solBP3.log', commandType="DPPP")
     
-    lib_util.run_losoto(s, 'amp-c'+str(c), [ms+'/amp.h5' for ms in MSs.getListStr()], \
-            [parset_dir+'/losoto-plot-amp.parset'])
+    lib_util.run_losoto(s, 'bp-c'+str(c), [ms+'/bp.h5' for ms in MSs.getListStr()], \
+            [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
+
 
     # Correct BP CORRECTED_DATA -> CORRECTED_DATA
     logger.info('BP correction...')
     if c == 0 and lofar_system == 'lba':
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=amplitude000', \
-                log='$nameMS_corAMP3.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-bp-c'+str(c)+'.h5 cor.correction=fulljones \
+                cor.soltab=\[amplitude000,phase000\]', \
+                log='$nameMS_corBP3.log', commandType='DPPP')
     else:
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=amplitude000', \
-               log='$nameMS_corAMP3.log', commandType='DPPP')
+        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-bp-c'+str(c)+'.h5 cor.correction=fulljones \
+               cor.soltab=\[amplitude000,phase000\]', \
+               log='$nameMS_corBP3.log', commandType='DPPP')
 
-#    # Solve MS:DATA (only solve)
-#    logger.info('Solving all...')
-#    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=fulljones', \
-#            log='$nameMS_solFJ-c'+str(c)+'.log', commandType="DPPP")
-#    
-#    lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
-#            [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
-#    
-#    # Correct all DATA -> CORRECTED_DATA
-#    logger.info('IONO correction...')
-#    if c == 0 and lofar_system == 'lba':
-#        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.updateweights=True cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000]', \
-#                log='$nameMS_cor-c'+str(c)+'.log', commandType='DPPP')
-#    else:
-#        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.updateweights=False cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000]', \
-#                log='$nameMS_cor-c'+str(c)+'.log', commandType='DPPP')
-
-       
     logger.info('Cleaning (cycle %02i)...' % c)
     imagename = 'img/img-c%02i' % c
-    #use_weights_as_taper='',\
     if patch == 'CygA':
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1000, scale='1.5arcsec', \
                 weight='briggs -1.4', niter=50000, no_update_model_required='', nmiter=50, mgain=0.5, \
@@ -258,7 +254,6 @@ for c in range(100):
                 join_channels='', deconvolution_channels=8, fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'CasA':
-        #RMS per scale: {0: 16.87 mJy, 13: 13.81 mJy, 27: 11.81 mJy, 53: 9.35 mJy, 106: 6.34 mJy, 212: 2.96 mJy, 425: 1.4 mJy}
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1300, scale='2arcsec', \
                 weight='briggs -1.2', niter=75000, no_update_model_required='', nmiter=50, mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80', \
@@ -279,10 +274,6 @@ for c in range(100):
                 join_channels='', deconvolution_channels=8, fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'lba':
-        #lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1500, scale='2arcsec', \
-        #        weight='briggs -1.5', niter=500, update_model_required='', mgain=0.2, \
-        #        multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10', \
-        #        join_channels='', deconvolution_channels=5, fit_spectral_pol=2, channels_out=61) # use cont=True
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1500, scale='2arcsec', \
                 weight='briggs -1.0', niter=50000, no_update_model_required='', nmiter=50, mgain=0.4, \
                 multiscale='', multiscale_scale_bias=0.6, multiscale_scales='0,5,10,20,40,80,160', \
@@ -292,32 +283,34 @@ for c in range(100):
         for modelfile in glob.glob(imagename+'*model*'):
             rev_reg(modelfile,'/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/virgohole.reg')
 
-        # to do the minihalo
-        #lib_util.run_wsclean(s, 'wscleanLR-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename+'LR', size=1000, scale='15arcsec', \
-        #        weight='briggs 0.', taper_gaussian='50arcsec', niter=30000, no_update_model_required='', mgain=0.85, \
-        #        baseline_averaging=5, auto_threshold=1, \
-        #        join_channels='', deconvolution_channels=5, fit_spectral_pol=3, channels_out=61)
-
     elif patch == 'VirA' and lofar_system == 'hba':
-        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -0.7', niter=1000, update_model_required='', mgain=0.3, \
+        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
+                weight='briggs -0.2', niter=350, update_model_required='', mgain=0.5, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
-                join_channels='', deconvolution_channels=5, fit_spectral_pol=3, channels_out=61) # use cont=True
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=2500, scale='1arcsec', \
-                weight='briggs -0.7', niter=50000, no_update_model_required='', nmiter=50, mgain=0.3, \
-                multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80,160', \
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=10) # use cont=True
+        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=1000, scale='2arcsec', \
+                weight='briggs -0.2', niter=5000000, no_update_model_required='', nmiter=100, mgain=0.4, \
+                multiscale='', multiscale_scale_bias=0.7, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
                 auto_threshold=1, \
-                join_channels='', deconvolution_channels=5, fit_spectral_pol=3, channels_out=61)
-        for modelfile in glob.glob(imagename+'*model*'):
-            rev_reg(modelfile,'/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/virgoholehba.reg')
+                join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=10)
+        sys.exit()
+
+        #fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
+        #lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
+        #        weight='briggs -0.2', niter=5000000, no_update_model_required='', nmiter=20, mgain=0.4, \
+        #        multiscale='', multiscale_scale_bias=0.5, \
+        #        auto_threshold=0.5, baseline_averaging=10, \
+        #        fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
+        #        join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=10)
+        #if c == 1: sys.exit()
 
     # TEST: rescale model
-    im = lib_img.Image(imagename+'-MFS-image.fits')
-    im.rescaleModel(f)
+    #im = lib_img.Image(imagename+'-MFS-image.fits')
+    #im.rescaleModel(f)
 
     logger.info('Predict (wsclean: %s)...' % imagename)
-    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 61 '+MSs.getStrWsclean(), \
+    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 10 '+MSs.getStrWsclean(), \
           log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
     s.run(check=True)
 
@@ -325,25 +318,25 @@ for c in range(100):
     #MSs.run('reweight.py -v -p -d CORRECTED_DATA -m residual $pathMS', log='$nameMS_weight.log', commandType='general')
     #os.system('mkdir weights-c'+str(c)+'; mv *png weights-c'+str(c))
         
-    # every 5 cycles: sub model and rescale model
-    if c%5 == 0 and c != 0:
-
-        logger.info('Sub model...')
-        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
-
-        logger.info('Cleaning wide (cycle %i)...' % c)
-        imagename = 'img/imgsub-c'+str(c)
-        lib_util.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
-                weight='briggs 0.4', taper_gaussian='100arcsec', niter=10000, no_update_model_required='', mgain=0.85, \
-                baseline_averaging=5, deconvolution_channels=4, \
-                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16)
- 
-        #logger.info('Predict wide (wsclean)...')
-        #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 32 '+MSs.getStrWsclean(), \
-        #      log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-        #s.run(check = True)
-
-        #logger.info('Sub low-res model...')
-        #MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType='general')
+#    # every 5 cycles: sub model and rescale model
+#    if c%5 == 0 and c != 0:
+#
+#        logger.info('Sub model...')
+#        MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql1.log', commandType='general')
+#
+#        logger.info('Cleaning wide (cycle %i)...' % c)
+#        imagename = 'img/imgsub-c'+str(c)
+#        lib_util.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
+#                weight='briggs 0.4', taper_gaussian='100arcsec', niter=10000, no_update_model_required='', mgain=0.85, \
+#                baseline_averaging=5, deconvolution_channels=4, \
+#                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16)
+# 
+#        #logger.info('Predict wide (wsclean)...')
+#        #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 32 '+MSs.getStrWsclean(), \
+#        #      log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+#        #s.run(check = True)
+#
+#        #logger.info('Sub low-res model...')
+#        #MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType='general')
 
 logger.info("Done.")

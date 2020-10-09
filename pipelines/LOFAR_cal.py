@@ -29,7 +29,7 @@ MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags = False )
 if w.todo('copy'):
     # copy data
     logger.info('Copy data...')
-    for MS in MSs.getListObj():
+    for MS in MSs:
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=False)
 
     w.done('copy')
@@ -182,7 +182,7 @@ if w.todo('apply_all'):
     #logger.info('LEAK correction...')
     #MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  cor.parmdb=cal-leak.h5 \
     #        cor.correction=fulljones cor.soltab=[amplitudeD,phaseD]', log='$nameMS_corLEAK2.log', commandType="DPPP")
-
+    
     # Correct FR CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DPPP")
@@ -203,11 +203,11 @@ if w.todo('cal_iono'):
     logger.info('BL-smooth...')
     MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
             commandType ='python', maxThreads=8)
-
+    
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_solIONO.log', commandType="DPPP")
-
+    
     if iono3rd:
         lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
                 [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono3rd.parset'])
@@ -253,7 +253,7 @@ if w.todo('upload'):
     os.system('scp -q -r plots* lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
 
     # update the db
-    from surveys_db import SurveysDB
+    from LiLF.surveys_db import SurveysDB
     with SurveysDB(survey='lba',readonly=False) as sdb:
         sdb.execute('INSERT INTO observations (id,calibratordata) VALUES (%i,"%s")' % (obsid,cal))
 

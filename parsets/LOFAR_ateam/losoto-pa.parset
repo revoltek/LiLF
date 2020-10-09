@@ -12,7 +12,7 @@ soltabOut = polalign
 average = True
 replace = True
 fitOffset = True
-refAnt = 'CS002LBA'
+refAnt = CS002HBA0
 maxResidual = 1.5
 
 [plotAlign]
@@ -23,7 +23,7 @@ axisInTable = ant
 axisDiff = pol
 plotFlag = True
 prefix = plots/ph-align
-refAnt = 'CS002LBA'
+refAnt = CS002HBA0
 minmax = [-1,+1]
 
 [residual]
@@ -39,7 +39,7 @@ axisInTable = ant
 axisDiff = pol
 plotFlag = True
 prefix = plots/ph-res
-refAnt = 'CS002LBA'
+refAnt = CS002HBA0
 minmax = [-1,+1]
 
 [plotPr2]
@@ -51,5 +51,5 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/ph-res_
-refAnt = 'CS002LBA'
+refAnt = CS002HBA0
 minmax = [-3.14,+3.14]

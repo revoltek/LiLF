@@ -9,7 +9,6 @@ import numpy as np
 from astropy.time import Time
 import casacore.tables as pt
 
-
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log
 logger_obj = lib_log.Logger('pipeline-timesplit.logger')
@@ -61,7 +60,7 @@ if cal_dir == '':
     if len(cal_dir) > 0:
         cal_dir = cal_dir[0]
     else:
-        from surveys_db import SurveysDB
+        from LiLF.surveys_db import SurveysDB
         with SurveysDB(survey='lba',readonly=True) as sdb:
             sdb.execute('select calibratordata from observations where id=%i' % obsid)
             calibratordata = sdb.cur.fetchall()[0]['calibratordata']
@@ -139,9 +138,9 @@ MSs = lib_ms.AllMSs( glob.glob('mss*/*MS'), s )
 # Flagging on concatenated dataset - also flag low-elevation
 if w.todo('flag'):
 
-    # logger.info('Flagging...')
-    # MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\"', \
-    #                 log='$nameMS_DPPP_flag.log', commandType='DPPP')
+    logger.info('Flagging...')
+    MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\"', \
+                    log='$nameMS_DPPP_flag.log', commandType='DPPP')
     
     logger.info('Remove bad timestamps...')
     MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
@@ -153,8 +152,6 @@ if w.todo('flag'):
 
     w.done('flag')
 ### DONE
-
-#sys.exit() # for DDFacet
 
 #####################################
 # Create time-chunks

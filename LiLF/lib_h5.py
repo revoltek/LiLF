@@ -7,8 +7,7 @@ def repoint(h5parmFile, dirname, solsetname='sol000'):
     """
     rename the pointing direction of an h5parm from 'pointing' to 'dirname'
     """
-    
-    logger.info('%s: update dir name "pointing" -> "%s".' % (h5parmFile, dirname))
+
     dirname = '%s' % dirname
 
     # open h5parm

@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 # demix of a set of SBs from a given dir, output is in the local dir
 
 import sys, os, glob
@@ -26,7 +27,7 @@ for MS in MSs.getListStr():
     os.system('cp -r '+skydb+' '+os.path.basename(MS)+'_'+os.path.basename(skydb))
 
 logger.info('Demixing...')
-MSs.run('DPPP '+parset_dir+'/DPPP_demix.parset msin=$pathMS msout=$nameMS demixer.skymodel=$nameMS.MS_'+os.path.basename(skydb)+' demixer.instrumentmodel=$nameMS/instrument_demix', \
-        log='$nameMS_demix.log', commandType='DPPP')
+MSs.run('DPPP '+parset_dir+'/DPPP_demix.parset msin=$pathMS msout=$nameMS.MS demixer.skymodel=$nameMS.MS_'+os.path.basename(skydb)+
+        ' demixer.instrumentmodel=$nameMS/instrument_demix', log='$nameMS_demix.log', commandType='DPPP')
 
 logger.info("Done.")

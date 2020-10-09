@@ -1,6 +1,8 @@
 import os, sys, glob
 import numpy as np
 import astropy.io.fits as pyfits
+import casacore.images as pim
+from casacore import quanta
 import lsmtool
 import pyregion
 from scipy.ndimage.measurements import label
@@ -158,7 +160,7 @@ class Image(object):
     def getMaxMinRatio(self):
         """
         Return the ratio of the max over min in the image
-        """
+        """   
         with pyfits.open(self.imagename) as fits:
             data = np.squeeze(fits[0].data)
             return np.abs(np.max(data)/np.min(data))
