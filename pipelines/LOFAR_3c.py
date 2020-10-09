@@ -15,7 +15,9 @@ w = lib_util.Walker('pipeline-3c.walker')
 # parse parset
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_3c', 'parset_dir')
+skydb_demix = parset.get('LOFAR_demix','demix_model')
 bl2flag = parset.get('flag', 'stations')
+
 target = os.getcwd().split('/')[-1]
 data_dir = '/home/fdg/lofar5/3Csurvey/%s' % target
 extended_targets = ['3c223','3c231','3c236','3c264','3c274','3c284','3c285','3c293','3c296','3c31','3c310','3c326','3c33','3c35','3c382','3c386','3c442a','3c449','3c465','3c84']
@@ -106,16 +108,17 @@ if w.todo('setup'):
     MSs_orig = lib_ms.AllMSs( glob.glob('*concat.MS'), s, check_flags=False )
 
     for ateam in ['VirA', 'TauA']:
-        sep = MSs_orig.getListObj()[0].distBrightSource(ateam)
+        sep = MSs.getListObj()[0].distBrightSource(ateam)
         if sep < 15:
-            logger.warning('Demix of %s (sep: %.0f deg)' % (ateam,sep))
+            logger.warning('Demix of %s (sep: %.0f deg)' % (ateam, sep))
+            for MS in MSs.getListStr():
+                lib_util.check_rm(MS+'/'+os.path.basename(skydb_demix))
+                os.system('cp -r '+skydb+' '+MS+'/'+os.path.basename(skydb_demix))
 
-            # make a single patch for source skymodel
-
-            # combine atema skymodel and source skymodel
-
-            # do demix
-
+            # TODO make a single patch for source skymodel and use that in the demix?
+            logger.info('Demixing...')
+            MSs.run('DPPP '+parset_dir+'/DPPP_demix.parset msin=$pathMS msout=$pathMS demixer.skymodel=$pathMS/'+os.path.basename(skydb_demix)+
+                    ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources = ['+ateam+']', log='$nameMS_demix.log', commandType='DPPP')
 
     # Phase up stations DATA -> DATA
     lib_util.check_rm('*MS-phaseup')
