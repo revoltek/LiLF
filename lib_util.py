@@ -37,8 +37,16 @@ def getParset(parsetFile='../lilf.config'):
     # add other sections
     if not config.has_section('flag'): config.add_section('flag')
     if not config.has_section('model'): config.add_section('model')
+    if not config.has_section('PiLL'): config.add_section('PiLL')
 
     ### LOFAR ###
+
+    # PiLL
+    add_default('PiLL', 'working_dir', os.getcwd())
+    add_default('PiLL', 'redo_cal', 'False') # re-do the calibrator although it is in the archive
+    add_default('PiLL', 'download_file', '') # html.txt file to use instead of staging
+    add_default('PiLL', 'project', '')
+    add_default('PiLL', 'target', '')
 
     # download
     add_default('LOFAR_download', 'fix_table', 'True') # fix bug in some old observations
@@ -46,37 +54,28 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_download', 'flag_elev', 'True')
     add_default('LOFAR_download', 'keep_IS', 'False')
     # demix
-    add_default('LOFAR_demix', 'data_dir', '../cals-bkp/')
-    add_default('LOFAR_demix', 'demix_model', '/home/fdg/scripts/model/demix_all.skydb')
+    add_default('LOFAR_demix', 'data_dir', './data-bkp/')
+    add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/models/demix_all.skydb')
     # cal
     add_default('LOFAR_cal', 'imaging', 'False')
     add_default('LOFAR_cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
     add_default('LOFAR_cal', 'data_dir', '../cals-bkp/')
-    # cal2
-    add_default('LOFAR2_cal', 'imaging', 'False')
-    add_default('LOFAR2_cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
-    add_default('LOFAR2_cal', 'data_dir', '../cals-bkp/')
-    # self2
-    add_default('LOFAR2_self', 'subtract_outside', 'True')
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', '../tgts-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '../cals/')
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
-    # timesplit
-    add_default('LOFAR2_timesplit', 'data_dir', '../tgts-bkp/')
-    add_default('LOFAR2_timesplit', 'cal_dir', '../cals/')
-    add_default('LOFAR2_timesplit', 'ngroups', '1')
-    add_default('LOFAR2_timesplit', 'initc', '0')
-    add_default('LOFAR2_timesplit', 'apply_clock', 'False')
+    add_default('LOFAR_timesplit', 'apply_clock', 'False')
     # self
+    add_default('LOFAR_self', 'subtract_outside', 'True')
     # dd2
     add_default('LOFAR2_dd', 'maxniter', '10')
     add_default('LOFAR2_dd', 'calFlux', '1.5')
     # dd-serial
     add_default('LOFAR_dd-serial', 'maxIter', '2')
-    add_default('LOFAR_dd-serial', 'minCalFlux60', '2')
-    add_default('LOFAR_dd-serial', 'removeExtendedCutoff', '0.0001')
+    add_default('LOFAR_dd-serial', 'minCalFlux60', '1.')
+    add_default('LOFAR_dd-serial', 'removeExtendedCutoff', '0.0005')
+    add_default('LOFAR_dd-serial', 'target_dir', '') # ra,dec
     # ddfacet
     add_default('LOFAR_ddfacet', 'maxniter', '10')
     add_default('LOFAR_ddfacet', 'calFlux', '2.0')
@@ -274,7 +273,6 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None):
 
 def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     """
-    Use only for imaging - not for predict
     s : scheduler
     args : parameters for wsclean, "_" are replaced with "-", any parms=None is ignored.
            To pass a parameter with no values use e.g. " no_update_model_required='' "
@@ -336,15 +334,63 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
         s.add(command_string, log=logfile, commandType='wsclean', processors='max')
         s.run(check=True)
 
+def run_DDF(s, logfile, **kwargs):
+    """
+    s : scheduler
+    args : parameters for ddfacet, "_" are replaced with "-", any parms=None is ignored.
+           To pass a parameter with no values use e.g. " no_update_model_required='' "
+    """
 
-class Walker():
+    ddf_parms = []
+
+    # basic parms
+    ddf_parms.append( '--Debug-Pdb=never --Parallel-NCPU=%i ' % (s.max_processors) )
+
+    # cache dir
+    if not 'Cache_Dir' in list(kwargs.keys()):
+        ddf_parms.append( '--Cache-Dir .' )
+
+    # user defined parms
+    for parm, value in list(kwargs.items()):
+        if value is None: continue
+        ddf_parms.append( '--%s %s' % (parm.replace('_','-'), str(value)) )
+
+    # files
+    #wsc_parms.append( MSs_files )
+
+    # create command string
+    command_string = 'DDF.py '+' '.join(ddf_parms)
+    s.add(command_string, log=logfile, commandType='python', processors='max')
+    s.run(check=True)
+
+
+# class Skip(Exception):
+#     pass
+
+class Walker(object):
     def __init__(self, filename):
         open(filename, 'a').close() # create the file if doesn't exists
-        self.filename = filename
+        self.filename = os.path.abspath(filename)
 
-    def done(self, stepname):
-        with open(self.filename, "a") as f:
-            f.write(stepname+'\n')
+    # def __enter__(self):
+    #     raise Skip()
+    #     return self
+    #
+    # def __exit__(self, exc_type, exc_val, exc_tb):
+    #     with open(self.filename, "a") as f:
+    #         f.write(stepname + '\n')
+    #
+    # def __call__(self, stepname):
+    #     """
+    #     Return false if stepname has been already done
+    #     """
+    #     return True
+    #     # with open(self.filename, "r") as f:
+    #     #     for stepname_done in f:
+    #     #         if stepname == stepname_done.rstrip():
+    #     #             logger.warning('SKIP: %s' % stepname)
+    #     #             break
+    #     # return True
 
     def todo(self, stepname):
         """
@@ -356,6 +402,11 @@ class Walker():
                     logger.warning('SKIP: %s' % stepname)
                     return False
         return True
+
+    def done(self, stepname):
+        with open(self.filename, "a") as f:
+            f.write(stepname+'\n')
+
 
 
 class Scheduler():
@@ -536,7 +587,7 @@ class Scheduler():
 
         if (commandType == "DPPP"):
             out = subprocess.check_output('grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -i -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "**** uncaught exception ****" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "misspelled" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
@@ -558,6 +609,7 @@ class Scheduler():
             out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Segmentation fault" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "ERROR" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "singularity"):
             out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)

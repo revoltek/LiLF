@@ -23,7 +23,7 @@ prefix = plots/fr
 #operation = RESIDUALS
 #soltab = sol000/phase000
 #soltabsToSub = rotationmeasure000
-
+#
 #[plotRES]
 #operation = PLOT
 #soltab = sol000/phase000

@@ -8,39 +8,68 @@ import pyregion
 from pyregion.parser_helper import Shape
 from LiLF import lib_util
 
+from astropy.coordinates import get_sun, SkyCoord, EarthLocation, AltAz
+from astropy.time import Time
+from astropy import units as u
+
 from LiLF.lib_log import logger
+
+# remove ires warning
+from astropy.utils import iers
+iers.conf.auto_download = False
 
 class AllMSs(object):
 
-    def __init__(self, pathsMS, scheduler, check_flags=True):
+    def __init__(self, pathsMS, scheduler, check_flags=True, check_sun=False, min_sun_dist=10):
         """
         pathsMS:    list of MS paths
         scheduler:  scheduler object
         check_flag: if true ignore fully flagged ms
+        check_sun: if true check sun distance
+        min_sun_dist: if check_sun and distance from the sun < than this deg, skip
         """
         self.scheduler = scheduler
 
         # sort them, useful for some concatenating steps
         if len(pathsMS) == 0:
+            logger.error('Cannot find MS files.')
             raise('Cannot find MS files.')
 
         self.mssListObj = []
         for pathMS in sorted(pathsMS):
             ms = MS(pathMS)
-            if check_flags and ms.isAllFlagged(): 
+            if check_flags and ms.isAllFlagged():
                 logger.warning('Skip fully flagged ms: %s' % pathMS)
+            elif check_sun and ms.sun_dist.deg < min_sun_dist:
+                logger.warning('Skip too close to sun (%.0f deg) ms: %s' % (ms.sun_dist.deg, pathMS))
             else:
                 self.mssListObj.append(MS(pathMS))
 
         if len(self.mssListObj) == 0:
             raise('ALL MS files flagged.')
 
-        self.mssListStr = [ms.pathMS for ms in self.mssListObj]
+        self.mssListStr = [ms.pathMS for ms in self]
 
+        self.isLBA = all(['LBA' in ms.getAntennaSet() for ms in self])
+        self.isHBA = all(['HBA' in ms.getAntennaSet() for ms in self])
+
+    def __getitem__(self, index):
+        """
+        Return a list of MS objects.
+        """
+        return self.mssListObj[index]
+
+    def __len__(self):
+        """
+        Return int - number of MS files in AllMSs.
+        """
+        return len(self.mssListObj)
 
     def getListObj(self):
         """
+        depcrecated
         """
+        logger.warning('AllMSs.getListObj() is deprecated.')
         return self.mssListObj
 
 
@@ -65,13 +94,19 @@ class AllMSs(object):
         """
         return ' '.join(self.mssListStr)
 
+    def getStrDDF(self):
+        """
+        Return a string with all MS paths, useful for DDF
+        """
+        return ','.join(self.mssListStr)
+
 
     def getFreqs(self):
         """
         Return a list of freqs per chan per SB
         """
         freqs = [ list(ms.getFreqs()) for ms in self.mssListObj ]
-        return [item for sublist in freqs for item in sublist] # flatten
+        return list(set([item for sublist in freqs for item in sublist])) # flatten
 
 
     def getBandwidth(self):
@@ -80,6 +115,13 @@ class AllMSs(object):
         """
         freqs = self.getFreqs()
         return max(freqs) - min(freqs)
+
+    def getChout(self, size=4.e6):
+        """
+        Returns the channels-out parameter for wsclean
+        size: size of each out channel in Hz
+        """
+        return int(round(self.getBandwidth()/(size)))
 
 
     def run(self, command, log, commandType='', maxThreads=None):
@@ -107,14 +149,10 @@ class AllMSs(object):
 
         self.scheduler.run(check = True, maxThreads = maxThreads)
 
-    def plot_HAcov(self, plotname='HAcov.png'):
+    def print_HAcov(self, png=None):
         """
         Show the coverage in HA
         """
-        from astropy.coordinates import get_sun, SkyCoord, EarthLocation, AltAz
-        from astropy.time import Time
-        from astropy import units as u
-
         telescope = self.mssListObj[0].getTelescope()
         if telescope == 'LOFAR':
             telescope_coords = EarthLocation(lat=52.90889*u.deg, lon=6.86889*u.deg, height=0*u.m)
@@ -123,18 +161,24 @@ class AllMSs(object):
         else:
             raise('Unknown Telescope.')
         
+        has = []; elevs = []
         for ms in self.mssListObj:
             time = np.mean(ms.getTimeRange())
             time = Time( time/86400, format='mjd')
             time.delta_ut1_utc = 0. # no need to download precise table for leap seconds
-            coord_sun = get_sun(time)
-            ra, dec = ms.getPhaseCentre()
-            coord = SkyCoord(ra*u.deg, dec*u.deg)
-            elev = coord.transform_to(AltAz(obstime=time,location=telescope_coords)).alt
-            sun_dist = coord.separation(coord_sun)
-            lst = time.sidereal_time('mean', telescope_coords.lon)
-            ha = lst - coord.ra # hour angle
-            logger.info('%s (%s): Hour angle: %.1f hrs - Elev: %.2f (Sun distance: %.0f)' % (ms.nameMS,time.iso,ha.deg/15.,elev.deg,sun_dist.deg))
+            logger.info('%s (%s): Hour angle: %.1f hrs - Elev: %.2f (Sun distance: %.0f)' % (ms.nameMS,time.iso,ms.ha.deg/15.,ms.elev.deg,ms.sun_dist.deg))
+            has.append(ms.ha.deg/15.)
+            elevs.append(ms.elev.deg)
+
+        if png is not None:
+            import matplotlib.pyplot as pl
+            pl.figure(figsize=(6,6))
+            ax1 = pl.gca()
+            ax1.plot(has, elevs, 'ko')
+            ax1.set_xlabel('HA [hrs]')
+            ax1.set_ylabel('elevs [deg]')
+            logger.debug('Save plot: %s' % png)
+            pl.savefig(png)
 
 
 class MS(object):
@@ -161,6 +205,25 @@ class MS(object):
                 #                nameFieldNew + "'...")
                 self.setNameField(nameFieldNew)
 
+        telescope = self.getTelescope()
+        if telescope == 'LOFAR':
+            telescope_coords = EarthLocation(lat=52.90889*u.deg, lon=6.86889*u.deg, height=0*u.m)
+        elif telescope == 'GMRT':
+            telescope_coords = EarthLocation(lat=19.0948*u.deg, lon=74.0493*u.deg, height=0*u.m)
+        else:
+            raise('Unknown Telescope.')
+
+        time = np.mean(self.getTimeRange())
+        time = Time( time/86400, format='mjd')
+        time.delta_ut1_utc = 0. # no need to download precise table for leap seconds
+        coord_sun = get_sun(time)
+        coord_sun = SkyCoord(ra=coord_sun.ra,dec=coord_sun.dec) # fix transformation issue
+        ra, dec = self.getPhaseCentre()
+        coord = SkyCoord(ra*u.deg, dec*u.deg)
+        self.elev = coord.transform_to(AltAz(obstime=time,location=telescope_coords)).alt
+        self.sun_dist = coord.separation(coord_sun)
+        lst = time.sidereal_time('mean', telescope_coords.lon)
+        self.ha = lst - coord.ra # hour angle
 
     def setPathVariables(self, pathMS):
         """
@@ -270,7 +333,7 @@ class MS(object):
             nchan = t.getcol("NUM_CHAN")
         assert (nchan[0] == nchan).all() # all SpWs have same channels?
 
-        logger.debug("%s: channel number: %i", self.pathMS, nchan[0])
+        #logger.debug("%s: channel number: %i", self.pathMS, nchan[0])
         return nchan[0]
 
 
@@ -282,8 +345,24 @@ class MS(object):
             chan_w = t.getcol("CHAN_WIDTH")[0]
         assert all(x == chan_w[0] for x in chan_w) # all chans have same width
 
-        logger.debug("%s: channel width (MHz): %f", self.pathMS, chan_w[0] / 1.e6)
+        #logger.debug("%s: channel width (MHz): %f", self.pathMS, chan_w[0] / 1.e6)
         return chan_w[0]
+
+
+    def getTimeRange(self):
+        """
+        Return the time interval of this observation
+        """
+        with tables.table(self.pathMS, ack = False) as t:
+            return ( t.getcol("TIME")[0], t.getcol("TIME")[-1] )
+
+
+    def getNtime(self):
+        """
+        Returns the numer of time slits in this MS
+        """
+        with tables.table(self.pathMS, ack = False) as t:
+            return len(t.getcol("TIME"))
 
 
     def getTimeInt(self):
@@ -297,14 +376,6 @@ class MS(object):
 
         logger.debug("%s: time interval (seconds): %f", self.pathMS, deltaT)
         return deltaT
-
-
-    def getTimeRange(self):
-        """
-        Return the time interval of this observation
-        """
-        with tables.table(self.pathMS, ack = False) as t:
-            return ( t.getcol("TIME")[0], t.getcol("TIME")[-1] )
 
 
     def getPhaseCentre(self):
@@ -340,7 +411,14 @@ class MS(object):
 
         with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
             return t.getcell("LOFAR_ANTENNA_SET",0)
-        
+
+    def getObsID(self):
+        """
+        Return LOFAR observation ID
+        """
+        with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
+            return int(t.getcell("LOFAR_OBSERVATION_ID",0))
+
     def getFWHM(self, freq='mid'):
         """
         Return the expected FWHM in degree
@@ -439,3 +517,70 @@ class MS(object):
         """
         with tables.table(self.pathMS, ack = False) as t:
             return np.all(t.getcol('FLAG'))
+
+#    def delBeamInfo(self, col=None):
+#        """
+#        Delete beam info of one column
+#        col: column name, use all if not specified
+#        """
+#
+#        with tables.table(self.pathMS, ack = False, readonly = False) as t:
+#            if col is None:
+#                cols = t.colnames()
+#            else:
+#                cols = [col]
+#
+#            for col in cols:
+#                kw = t.getcolkeywords(col)
+#                print('Old kw ('+col+'):', kw)
+#                t.putcolkeyword(col,'LOFAR_APPLIED_BEAM_MODE', 'None')
+#                kw = t.getcolkeywords(col)
+#                print('New kw ('+col+'):', kw)
+#
+#
+#    def putBeamInfo(self, mode, direction, col=None):
+#        """
+#        Modify beam infor of one column
+#        col: column name, use all if not specified
+#        mode: None, Full, ArrayFactor, Element
+#        direction: [deg,deg]
+#        """
+#        assert mode == 'None' or mode == 'Full' or mode == 'ArrayFactor' or mode == 'Element'
+#
+#        beam_dir={'type': 'direction',
+#                'refer': 'J2000',
+#                'm0': {'value': direction[0]*np.pi/180, 'unit': 'rad'},
+#                'm1': {'value': direction[1]*np.pi/180, 'unit': 'rad'}}
+#
+#        with tables.table(self.pathMS, ack = False, readonly = False) as t:
+#            if col is None:
+#                cols = t.colnames()
+#            else:
+#                cols = [col]
+#
+#            for col in cols:
+#                kw = t.getcolkeywords(col)
+#                print('Old kw ('+col+'):', kw)
+#                t.putcolkeyword(col,'LOFAR_APPLIED_BEAM_MODE', mode)
+#                t.putcolkeyword(col,'LOFAR_APPLIED_BEAM_DIR', beam_dir)
+#                kw = t.getcolkeywords(col)
+#                print('New kw ('+col+'):', kw)
+#
+#    def copyBeamInfo(self, from_ms, from_ms_col, col=None):
+#        """
+#        from_ms: get the keywoords from another ms
+#        from_ms_col: the column to pick the values from
+#        """
+#        if col is None:
+#            cols = t.colnames()
+#        else:
+#            cols = [col]
+#
+#        with tables.table(from_ms, ack = False, readonly = True) as t:
+#            kw = t.getcolkeywords(from_ms_col)
+#
+#        with tables.table(self.pathMS, ack = False, readonly = False) as t:
+#            for col in cols:
+#                print('set',kw)
+#                t.putcolkeywords(col, kw)
+#

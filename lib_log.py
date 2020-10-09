@@ -64,7 +64,7 @@ class Logger():
 
     def set_logger(self, logfile, log_dir):
       
-        logger = logging.getLogger("PiLL")
+        logger = logging.getLogger("LiLF")
         logger.setLevel(logging.DEBUG)
 
         # create file handler which logs even debug messages
@@ -84,6 +84,8 @@ class Logger():
         logger.addHandler(handlerFile)
         logger.addHandler(handlerConsole)
 
-    
+        logger.info('Logging initialised in %s (file: %s)' % (os.getcwd(), logfile))
+
+
 # this is used by all libraries for logging
-logger = logging.getLogger("PiLL")
+logger = logging.getLogger("LiLF")

@@ -9,24 +9,29 @@ import pyrap.tables as pt
 import lsmtool
 
 #######################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd
-logger_obj = lib_log.Logger('pipeline-dd2.logger')
+from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd_parallel
+logger_obj = lib_log.Logger('pipeline-dd.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
-w = lib_util.Walker('pipeline-dd2.walker')
+w = lib_util.Walker('pipeline-dd.walker')
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('LOFAR2_dd','parset_dir')
-calFlux = parset.get('LOFAR2_dd','calFlux')
+parset_dir = parset.get('LOFAR_dd-parallel','parset_dir')
+maxniter = parset.getint('LOFAR_dd-parallel','maxniter')
+calFlux = parset.getfloat('LOFAR_dd-parallel','calFlux')
 userReg = parset.get('model','userReg')
+aterm_imaging = False
 
 MSs_self = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
 
 # make beam
-phasecentre = MSs_self.getListObj()[0].getPhaseCentre()
-fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')
+phasecentre = MSs_self[0].getPhaseCentre()
+fwhm = MSs_self[0].getFWHM(freq='mid')
+# for frequency scaling
+freqscale = np.mean(MSs_self.getFreqs())/58.e6
+smoothfactor = 0.002 if MSs_self.isHBA else 0.01
 
 def clean(p, MSs, size, res='normal', apply_beam=False):
     """
@@ -35,7 +40,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     size = in deg of the image
     """
     # set pixscale and imsize
-    pixscale = MSs.getListObj()[0].getResolution() 
+    pixscale = MSs[0].getResolution()
     if res == 'normal':
         pixscale = float('%.1f'%(pixscale/2.5))
     elif res == 'high':
@@ -61,26 +66,26 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
         maxuv_l = None
     elif res == 'low':
         weight = 'briggs 0'
-        maxuv_l = 3500
+        maxuv_l = 3500*freqscale
 
     # CLEAN
     logger.info('Cleaning ('+str(p)+')...')
     imagename = 'img/ddcalM-'+str(p)
     if apply_beam:
-        # IDG CANNOT BE USED FOR RECTANGULAR IMAGES!
+        # idg cannot be used for rectangular images.
         # multiscale:
         lib_util.run_wsclean(s, 'wsclean-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', \
                              weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.8, \
                              apply_primary_beam='', use_differential_lofar_beam='', \
                              multiscale='', multiscale_scales='0,10,20,40,80', \
-                             baseline_averaging=5, parallel_deconvolution=512, local_rms='', auto_threshold=2.0, auto_mask=3.5, \
+                             baseline_averaging='', parallel_deconvolution=512, local_rms='', auto_threshold=2.0, auto_mask=3, \
                              join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
     else:
         lib_util.run_wsclean(s, 'wsclean-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale=str(pixscale) + 'arcsec', \
                              weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.8, \
-                             baseline_averaging=5, parallel_deconvolution=512, local_rms='', auto_threshold=2.0,
+                             baseline_averaging='', parallel_deconvolution=512, local_rms='', auto_threshold=2.0,
                              multiscale='', multiscale_scales='0,10,20,40,80', \
-                             auto_mask=3.5, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+                             auto_mask=3, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
 
     os.system('cat logs/wsclean-'+str(p)+'.log| grep "background noise"')
 
@@ -100,13 +105,11 @@ if w.todo('cleaning'):
 
 ############################################################
 # use SUBTRACTED_DATA (no pre-correction - subtraction would not work) or CORRECTED_DATA (DIE iono correction)?
-if w.todo('copy'):
-    logger.info('Copy data...')
-    if not os.path.exists('mss-dd'):
-        os.makedirs('mss-dd')
-        MSs_self.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=CORRECTED_DATA avg.freqstep=2 avg.timestep=2', \
-                    log='$nameMS_avg.log', commandType='DPPP')
-    w.done('copy')
+logger.info('Copy data...')
+if not os.path.exists('mss-dd'):
+    os.makedirs('mss-dd')
+    MSs_self.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=CORRECTED_DATA avg.freqstep=1 avg.timestep=1', \
+                log='$nameMS_avg.log', commandType='DPPP')
 MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9].MS'), s )
        
 logger.info('Add columns...')
@@ -116,22 +119,22 @@ if w.todo('addcol'):
 
 ##############################################################
 # setup initial model
-MSs.getListObj()[0].makeBeamReg('ddcal/beam.reg', freq='mid')
+MSs[0].makeBeamReg('ddcal/beam.reg', freq='mid')
 
-if 'LBA' in MSs.getListObj()[0].getAntennaSet():
+if MSs.isLBA: # For LOFAR2.0 sim use larger beam for HBA
     beamReg = 'ddcal/beam.reg'
-elif 'HBA' in MSs.getListObj()[0].getAntennaSet():
+elif MSs.isHBA:
     beamReg = 'ddcal/lbabeam.reg'
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], beamReg=beamReg, userReg = userReg)
 mosaic_image.makeMask()
 mosaic_image.selectCC()
 lsm = lsmtool.load(mosaic_image.skymodel_cut)
-print(lsm.info())
 
 rms_noise_pre = np.inf
 
-for c in [0]:
+for c in range(maxniter):
     logger.info('Starting cycle: %i' % c)
+    if c>=1: directions_old = directions
 
     if w.todo('delimg-c%02i' % c):
         lib_util.check_rm('img')
@@ -160,9 +163,9 @@ for c in [0]:
         # this mask is with no user region, done to isolate only bight compact sources
         if not os.path.exists(mask_cl): 
             mosaic_image.beamReg = 'ddcal/beam.reg'
-            if 'LBA' in MSs.getListObj()[0].getAntennaSet():
+            if MSs.isLBA:
                 mosaic_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=0.001, maskname=mask_cl, only_beam=True)
-            elif 'HBA' in MSs.getListObj()[0].getAntennaSet():
+            elif MSs.isHBA:
                 mosaic_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=0.0001, maskname=mask_cl, only_beam=True)
             else:
                 logger.error('No LBA or HBA.')
@@ -177,11 +180,11 @@ for c in [0]:
         x = lsm.getColValues('RA',aggregate='wmean')
         y = lsm.getColValues('Dec',aggregate='wmean')
         flux = lsm.getColValues('I',aggregate='sum')
-        if 'LBA' in MSs.getListObj()[0].getAntennaSet():
+        if MSs.isLBA:
             # grouper = lib_dd.Grouper(list(zip(x,y)),flux,look_distance=0.3,kernel_size=0.1,grouping_distance=0.05)
-            grouper = lib_dd.Grouper(list(zip(x,y)),flux,look_distance=0.5,kernel_size=0.3,grouping_distance=0.2)
-        elif 'HBA' in MSs.getListObj()[0].getAntennaSet():
-            grouper = lib_dd.Grouper(list(zip(x, y)), flux, look_distance=0.3, kernel_size=0.2, grouping_distance=0.1)
+            grouper = lib_dd_parallel.Grouper(list(zip(x,y)),flux,look_distance=0.5,kernel_size=0.3,grouping_distance=0.2)
+        elif MSs.isHBA:
+            grouper = lib_dd_parallel.Grouper(list(zip(x, y)), flux, look_distance=0.3, kernel_size=0.2, grouping_distance=0.1)
         grouper.run()
         clusters = grouper.grouping()
         grouper.plot()
@@ -205,10 +208,10 @@ for c in [0]:
     
         lsm.setPatchPositions(method='wmean') # calculate patch weighted centre for tassellation
         for name, flux in zip(lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum')):
-            direction = lib_dd.Direction(name)
+            direction = lib_dd_parallel.Direction(name)
             position = [ lsm.getPatchPositions()[name][0].deg, lsm.getPatchPositions()[name][1].deg ]
-            direction.set_position(position)#, cal=True )
-            direction.set_flux(flux)#, cal=True)
+            direction.set_position( position, cal=True )
+            direction.set_flux(flux, cal=True)
             directions.append(direction)
 
 
@@ -246,7 +249,7 @@ for c in [0]:
         logger.info("Create regions.")
         lsm = lsmtool.load(mosaic_image.skymodel_cut)
         print(len(directions))
-        lib_dd.make_voronoi_reg(directions, mosaic_image.maskname, \
+        lib_dd_parallel.make_voronoi_reg(directions, mosaic_image.maskname, \
                 outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
         lsm.group('facet', facet=mask_voro, root='Isl_patch')
         [ d.add_mask_voro(mask_voro) for d in directions ]
@@ -292,13 +295,8 @@ for c in [0]:
 
         # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
         logger.info('BL-based smoothing...')
-        if 'LBA' in MSs.getListObj()[0].getAntennaSet():
-            MSs.run('BLsmooth.py -c 8 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
-        elif 'HBA' in MSs.getListObj()[0].getAntennaSet():
-            MSs.run('BLsmooth.py -c 8 -f 0.002 -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
-        else:
-            logger.error('No LOFAR observation.')
-            sys.exit()
+        MSs.run('BLsmooth.py -c 8 -f {} -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS'.format(smoothfactor),
+                log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
 
         # Calibration - ms:SMOOTHED_DATA
         logger.info('TEC calibration...')
@@ -362,6 +360,24 @@ for c in [0]:
             os.system('mv cal-tec-c' + str(c) + '.h5 ddcal/solutions')
         w.done('calibrate-c%02i' % c)
     ### DONE
+
+    ###########################################################
+    # use idg and A-term to correct the data, single image
+    if aterm_imaging:
+
+        #wsclean -mem 90.0 -scale 0.0004166666666666667 -aterm-config /beegfs/rafferty/Data/LOFAR/Screens/Factor_sim/pipelines/image_1/sector_3/chunk9.ms.make_aterm_config -multiscale-scales 0 -size 1500 1500 -deconvolution-channels 4 -fits-mask /beegfs/rafferty/Data/LOFAR/Screens/Factor_sim/pipelines/image_1/sector_3/chunk9.ms.premask -j 6 -auto-mask 3.6 -idg-mode hybrid -channels-out 12 -local-rms-window 50 -mgain 0.5 -minuv-l 80.0 -fit-spectral-pol 3 -maxuv-l 1000000.0 -weighting-rank-filter 3 -aterm-kernel-size 32 -temp-dir /tmp -name /beegfs/rafferty/Data/LOFAR/Screens/Factor_sim/pipelines/image_1/sector_3/chunk9.ms.image -padding 1.2 -pol I -multiscale-shape gaussian -auto-threshold 1.0 -local-rms-method rms-with-min -weight briggs -0.5 -niter 13635 -no-update-model-required -multiscale -fit-beam -reorder -save-source-list -local-rms -join-channels -use-idg -apply-primary-beam -nmiter 4
+        lib_util.run_wsclean(s, 'wscleanDD-c%02i.log' %c, MSs.getStrWsclean(), name='img/wideDD-c%02i' %c, save_source_list='', size=imsize, scale=str(pixscale)+'arcsec', \
+            weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
+            use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
+            multiscale='', multiscale_scales='0,10,20,40,80', \
+            parallel_deconvolution=512, local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=im.maskname, \
+            join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+
+        # TODO: put proper names
+        os.system('cp img/wideDD-c%02i.MFS-image.fits ddcal/images/c%02i' % (c,c) )
+        mosaic_image = lib_img.Image('ddcal/images/c%02i/mos-MFS-image.fits' % c, userReg = userReg)
+
+    ###########################################################
     # facet imaging
     ###########################################################
     # Subtraction

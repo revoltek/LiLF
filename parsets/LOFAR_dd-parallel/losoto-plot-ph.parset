@@ -7,6 +7,7 @@ axesInPlot = [time,freq]
 axisInTable = dir
 prefix = plots/ph_
 refAnt = 'CS002LBA'
+refDir = 'center'
 minmax = [-3.14,3.14]
 
 [plotPant]
@@ -16,6 +17,7 @@ axesInPlot = [time,freq]
 axisInTable = ant
 prefix = plots/ph_
 refAnt = 'CS002LBA'
+refDir = 'center'
 minmax = [-3.14,3.14]
 
 [plotPdirD]
@@ -26,4 +28,5 @@ axisInTable = ant
 axisDiff = pol
 prefix = plots/ph-dif
 refAnt = 'CS002LBA'
+refDir = 'center'
 minmax = [-1,+1]

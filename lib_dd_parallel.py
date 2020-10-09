@@ -22,7 +22,7 @@ from LiLF import lib_img
 class Direction(object):
 
     def __init__(self, name):
-        self.name = name 
+        self.name = name
         self.isl_num = int(name.split('_')[-1])
         self.mask_voro = None
         self.position_facet = None # [deg, deg]
@@ -101,7 +101,7 @@ class Direction(object):
             size_ra = (np.max(coord[0])-np.min(coord[0]))*pixsize_ra
             size_dec = (np.max(coord[1])-np.min(coord[1]))*pixsize_dec
             self.size_facet = [size_ra, size_dec]
-            # calculate position 
+            # calculate position
             dir_x = np.mean([ np.max(coord[0]), np.min(coord[0]) ])
             dir_y = np.mean([ np.max(coord[1]), np.min(coord[1]) ])
             ra, dec =  w.all_pix2world(dir_x, dir_y, 0, ra_dec_order=True)
@@ -168,7 +168,7 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     # create fits mask (each region one number)
     x, y = np.meshgrid(np.arange(x2), np.arange(y2)) # make a canvas with coordinates
     x, y = x.flatten(), y.flatten()
-    pixels = np.vstack((x,y)).T 
+    pixels = np.vstack((x,y)).T
     data_facet = np.zeros(shape=data.shape)
     for num, poly in zip(nums,impoly):
         p = Path(poly)
@@ -396,7 +396,7 @@ class Grouper( object ):
         Simple ditance from coord to all coords
         """
         return np.sqrt(np.sum((coord - coords)**2, axis=1))
-    
+
     def neighbourhood_points(self, centroid, coords, max_distance):
         """
         Find close points, this reduces the load
@@ -404,12 +404,12 @@ class Grouper( object ):
         distances = self.euclid_distance(centroid, coords)
         #print('Evaluating: [%s vs %s] yield dist=%.2f' % (x, x_centroid, distance_between))
         return np.where(distances < max_distance)
-    
+
     def gaussian_kernel(self, distance):
         """
         """
         return (1/(self.kernel_size*np.sqrt(2*np.pi))) * np.exp(-0.5*((distance / self.kernel_size))**2)
-    
+
     def run(self):
         """
         Run the algorithm
@@ -420,7 +420,7 @@ class Grouper( object ):
             for i, x in enumerate(self.coords):
                 ### Step 1. For each datapoint x in X, find the neighbouring points N(x) of x.
                 idx_neighbours = self.neighbourhood_points(x, self.coords, max_distance = self.look_distance)
-                
+
                 ### Step 2. For each datapoint x in X, calculate the mean shift m(x).
                 distances = self.euclid_distance(self.coords[idx_neighbours], x)
                 weights = self.gaussian_kernel(distances)
@@ -428,23 +428,23 @@ class Grouper( object ):
                 numerator = np.sum(weights[:,np.newaxis] * self.coords[idx_neighbours], axis=0)
                 denominator = np.sum(weights)
                 new_x = numerator / denominator
-                
+
                 ### Step 3. For each datapoint x in X, update x <- m(x).
                 self.coords[i] = new_x
 
             self.past_coords.append(np.copy(self.coords))
 
-            #if it>1: 
+            #if it>1:
             #    print (np.max(self.euclid_distance(self.coords,self.past_coords[-2])))
 
             # if things changes little, brak
-            if it>1 and np.max(self.euclid_distance(self.coords, self.past_coords[-2])) < self.grouping_distance/2.: 
+            if it>1 and np.max(self.euclid_distance(self.coords, self.past_coords[-2])) < self.grouping_distance/2.:
                 break
-            
+
 
     def grouping(self):
         """
-        Take the last coords set and group sources nearby, then return a list of lists. 
+        Take the last coords set and group sources nearby, then return a list of lists.
         Each list has the index of one cluster.
         """
         coords_to_check = np.copy(self.coords)
@@ -471,7 +471,7 @@ class Grouper( object ):
         import matplotlib as mpl
         mpl.use("Agg")
         import matplotlib.pyplot as plt
-       
+
         # decent colors
         import cycler, random
         color_idx = np.linspace(0, 1, len(self.clusters))
@@ -511,3 +511,19 @@ class Grouper( object ):
 
         logger.info('Plotting: grouping_clusters.png')
         fig.savefig('grouping_clusters.png', bbox_inches='tight')
+
+def cut_skymodel(skymodel_in, skymodel_out, d, do_skydb=True, do_regions=False):
+    """
+    Load full skymodel and extract sources in the square around the calibrator of the given size
+    """
+    lsm = lsmtool.load(skymodel_in)
+    # select all sources within a sqare of patch size
+    lsm.select('Ra > %f' % (d.position[0]-(d.size/2)/np.cos(d.position[1]* np.pi / 180.)))
+    lsm.select('Ra < %f' % (d.position[0]+(d.size/2)/np.cos(d.position[1]* np.pi / 180.)))
+    lsm.select('Dec > %f' % (d.position[1]-d.size/2))
+    lsm.select('Dec < %f' % (d.position[1]+d.size/2))
+    if do_regions: lsm.write('ddcal/masks/regions-c%02i/%s.reg' % (cmaj,d.name), format='ds9', clobber=True)
+    lsm.write(dir_skymodel, format='makesourcedb', clobber=True)
+    lib_util.check_rm(dir_skydb)
+    s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (dir_skymodel, dir_skydb), log='makesourcedb_cl.log', commandType='general' )
+    s.run(check=True)

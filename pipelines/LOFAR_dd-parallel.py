@@ -25,6 +25,7 @@ aterm_imaging = False
 
 MSs_self = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
+
 # make beam
 phasecentre = MSs_self.getListObj()[0].getPhaseCentre()
 fwhm = MSs_self.getListObj()[0].getFWHM(freq='mid')

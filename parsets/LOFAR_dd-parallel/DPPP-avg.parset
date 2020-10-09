@@ -10,4 +10,4 @@ steps = [avg,count]
 
 avg.type = averager
 avg.freqstep = 1
-avg.timestep = 1
+avg.timestep = 2
