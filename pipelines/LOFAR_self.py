@@ -28,6 +28,7 @@ w = lib_util.Walker('pipeline-self.walker')
 
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_self','parset_dir')
+skydb = parset.get('LOFAR_self','demix_model')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
@@ -102,6 +103,24 @@ if w.todo('init_model'):
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
 
     w.done('init_model')
+### DONE
+
+########################################################
+### Demix?
+if w.todo('demix'):
+    for ateam in ['VirA', 'TauA']:
+        sep = MSs.getListObj()[0].distBrightSource(ateam)
+        if sep < 15:
+            logger.warning('Demix of %s (sep: %.0f deg)' % (ateam, sep))
+            for MS in MSs.getListStr():
+                lib_util.check_rm(MS+'/'+os.path.basename(skydb))
+                os.system('cp -r '+skydb+' '+MS+'/'+os.path.basename(skydb))
+
+            logger.info('Demixing...')
+            MSs.run('DPPP '+parset_dir+'/DPPP_demix.parset msin=$pathMS msout=$pathMS demixer.skymodel=$pathMS/'+os.path.basename(skydb)+
+                ' demixer.instrumentmodel=$pathMS/instrument_demix', log='$nameMS_demix.log', commandType='DPPP')
+
+    w.done('demix')
 ### DONE
 
 #####################################################################################################

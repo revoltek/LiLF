@@ -820,28 +820,28 @@ for cmaj in range(maxIter):
                     Cache_Reset=1
                     )
     
-            # make mask
-            im = lib_img.Image(imagename+'.app.restored.fits', userReg=userReg)
-            im.makeMask(threshisl = 4, rmsbox=(150,15), atrous_do=True)
-    
-            logger.info('Cleaning 2...')
-            lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
-                    Cache_Reset=0,
-                    Cache_Dirty='forcedirty',
-                    Cache_PSF='force',
-                    Cache_SmoothBeam='force',
-                    Deconv_MaxMajorIter=3,
-                    Deconv_PeakFactor=0.001,
-                    Predict_InitDicoModel=imagename+'.DicoModel',
-                    Mask_External=im.maskname
-                    )
+#            # make mask
+#            im = lib_img.Image(imagename+'.app.restored.fits', userReg=userReg)
+#            im.makeMask(threshisl = 4, rmsbox=(150,15), atrous_do=True)
+#
+#            logger.info('Cleaning 2...')
+#            lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
+#                    Cache_Reset=0,
+#                    Cache_Dirty='forcedirty',
+#                    Cache_PSF='force',
+#                    Cache_SmoothBeam='force',
+#                    Deconv_MaxMajorIter=3,
+#                    Deconv_PeakFactor=0.001,
+#                    Predict_InitDicoModel=imagename+'.DicoModel',
+#                    Mask_External=im.maskname
+#                    )
  
-            os.system('mv %s.continue* ddcal/c%02i/images' % (imagename, cmaj))
+            os.system('mv %s.* ddcal/c%02i/images' % (imagename, cmaj))
         w.done('c%02i-imaging' % cmaj)
     ### DONE
 
-    full_image = lib_img.Image('ddcal/c%02i/images/%s.continue.app.restored.fits' % (cmaj,imagename.split('/')[-1]), userReg = userReg)
-    min_cal_flux60 *= 0.8 # go a bit deeper
+    full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj,imagename.split('/')[-1]), userReg = userReg)
+    min_cal_flux60 *= 0.8  # go a bit deeper
 
 if w.todo('upload'):
     

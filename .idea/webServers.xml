@@ -3,14 +3,14 @@
   <component name="WebServers">
     <option name="servers">
       <webServer id="341f180c-b6c5-4379-9e2a-7f08812e1b40" name="Hamburg">
-        <fileTransfer accessType="SFTP" host="lgc2.rrz.uni-hamburg.de" port="22" sshConfigId="231cfdf6-3a44-4ab1-becc-87c6feeaa4a8" sshConfig="baq1889@lgc2.rrz.uni-hamburg.de:22 key" keyPair="true">
+        <fileTransfer accessType="SFTP" host="lgc2.rrz.uni-hamburg.de" port="22" sshConfigId="7b981f4a-5597-4676-b66e-31c72fcffc0b" sshConfig="baq1889@lgc2.rrz.uni-hamburg.de:22 key" keyPair="true">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>
         </fileTransfer>
       </webServer>
       <webServer id="a35bb927-26af-40a7-868a-e942751209c7" name="Leiden">
-        <fileTransfer accessType="SFTP" host="ssh.strw.leidenuniv.nl" port="22" sshConfigId="fca0a5e0-a2b1-49f6-85cb-946ab6e76206" sshConfig="fdg@ssh.strw.leidenuniv.nl:22 key" keyPair="true">
+        <fileTransfer accessType="SFTP" sshConfigId="fca0a5e0-a2b1-49f6-85cb-946ab6e76206" sshConfig="fdg@ssh.strw.leidenuniv.nl:22 key">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>
