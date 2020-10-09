@@ -9,12 +9,20 @@
           </advancedOptions>
         </fileTransfer>
       </webServer>
+      <webServer id="a35bb927-26af-40a7-868a-e942751209c7" name="Leiden">
+        <fileTransfer accessType="SFTP" host="ssh.strw.leidenuniv.nl" port="22" sshConfigId="fca0a5e0-a2b1-49f6-85cb-946ab6e76206" sshConfig="fdg@ssh.strw.leidenuniv.nl:22 key" keyPair="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
     </option>
     <groups>
       <group>
         <name>LOFAR</name>
         <servers>
           <name value="Hamburg" />
+          <name value="Leiden" />
         </servers>
       </group>
     </groups>

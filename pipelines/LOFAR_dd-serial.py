@@ -143,7 +143,7 @@ if not os.path.exists('mss-avg'):
             log='$nameMS_initavg.log', commandType='DPPP')
 
 MSs = lib_ms.AllMSs( glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False )
-#test
+
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 detectability_dist = MSs.getListObj()[0].getFWHM(freq='max')*1.8/2. # 1.8 to go to close to the null
 freq_min = np.min(MSs.getFreqs())
@@ -319,8 +319,8 @@ for cmaj in range(maxIter):
         ### DONE
 
         ### TESTTESTTEST: empty image
-        #if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-        #    clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
+            clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
     for dnum, d in enumerate(directions):
@@ -576,7 +576,7 @@ for cmaj in range(maxIter):
             if not os.path.exists(image.imagename):
                 logger.warning('Breaking because the imaging diverged...')
                 break
-            d.set_model(image.root, typ='best', apply_region=False) # currently best model
+
             # get noise, if larger than prev cycle: break
             rms_noise = image.getNoise()
             mm_ratio = image.getMaxMinRatio()
@@ -591,6 +591,7 @@ for cmaj in range(maxIter):
             if cdd >= 4 and (mm_ratio >= 30 or d.get_flux(freq_mid) > 10):
                 doamp = True
 
+            d.set_model(image.root, typ='best', apply_region=False) # currently best model
             rms_noise_pre = rms_noise
             mm_ratio_pre = mm_ratio
 
@@ -610,9 +611,11 @@ for cmaj in range(maxIter):
             continue
         # second cycle, no peeling
         elif cmaj >= 1:
+            logger.info('%s: converged.')
             d.converged = True
             continue
         else:
+            logger.info('%s: converged.')
             d.converged = True
             # copy in the ddcal dir the best model
             model_skymodel = 'ddcal/c%02i/skymodels/%s-best-source.txt' % (cmaj, d.name)

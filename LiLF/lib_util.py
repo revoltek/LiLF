@@ -29,11 +29,11 @@ def getParset(parsetFile='../lilf.config'):
     config.read(parsetFile)
     
     # add pipeline sections and defaul parset dir:
-    for pipeline in glob.glob(os.path.dirname(__file__)+'/parsets/*'):
+    for pipeline in glob.glob(os.path.dirname(__file__)+'/../parsets/*'):
         pipeline = os.path.basename(pipeline)
         if not config.has_section(pipeline): config.add_section(pipeline)
         if not config.has_option(pipeline, 'parset_dir'):
-                config.set(pipeline, 'parset_dir', os.path.dirname(__file__)+'/parsets/'+pipeline)
+                config.set(pipeline, 'parset_dir', os.path.dirname(__file__)+'/../parsets/'+pipeline)
     # add other sections
     if not config.has_section('flag'): config.add_section('flag')
     if not config.has_section('model'): config.add_section('model')
@@ -55,10 +55,10 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_download', 'keep_IS', 'False')
     # demix
     add_default('LOFAR_demix', 'data_dir', './data-bkp/')
-    add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/models/demix_all.skydb')
+    add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skydb')
     # cal
     add_default('LOFAR_cal', 'data_dir', './data-bkp/')
-    add_default('LOFAR_cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
+    add_default('LOFAR_cal', 'skymodel', os.path.dirname(__file__)+'/../models/calib-simple.skydb')
     add_default('LOFAR_cal', 'imaging', 'False')
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', './data-bkp/')
@@ -85,7 +85,7 @@ def getParset(parsetFile='../lilf.config'):
     # init
     add_default('uGMRT_init', 'data_dir', './datadir')
     # cal
-    add_default('uGMRT_cal', 'skymodel', os.path.dirname(__file__)+'/models/calib-simple.skydb')
+    add_default('uGMRT_cal', 'skymodel', os.path.dirname(__file__)+'/../models/calib-simple.skydb')
 
     ### General ###
 
