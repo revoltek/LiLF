@@ -209,6 +209,25 @@ class MS(object):
         lst = time.sidereal_time('mean', telescope_coords.lon)
         self.ha = lst - coord.ra # hour angle
 
+    def distBrightSource(self, name):
+        """
+        Get the distance in deg from some bright sources
+        """
+        ateam={'CygA':{'ra':299.8679167,'dec':40.7338889},\
+                'CasA':{'ra':350.8583333,'dec':58.8000000},\
+                'TauA':{'ra':83.6333333,'dec':22.0144444},\
+                'VirA':{'ra':187.7058333,'dec':12.3911111}\
+        }
+        
+        if name not in ateam.keys():
+            logger.error('Unknown source for distance: %s' % name)
+            logger.error('Use: '+' '.join(ateam.keys()))
+            raise
+
+        coord_bright = SkyCoord(ra=ateam[name]['ra']*u.deg, dec=ateam[name]['dec']*u.deg)
+        ra, dec = self.getPhaseCentre()
+        return coord_bright.separation(SkyCoord(ra*u.deg, dec*u.deg)).deg
+
     def setPathVariables(self, pathMS):
         """
         Set logistical variables.

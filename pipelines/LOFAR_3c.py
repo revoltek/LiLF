@@ -104,7 +104,19 @@ if w.todo('setup'):
             os.system('cp -r %s %s' % (MS_concat, MS_concat_bkp) ) # do not use MS.move here as it resets the MS path to the moved one
 
     MSs_orig = lib_ms.AllMSs( glob.glob('*concat.MS'), s, check_flags=False )
-    
+
+    for ateam in ['VirA', 'TauA']:
+        sep = MSs_orig.getListObj()[0].distBrightSource(ateam)
+        if sep < 15:
+            logger.warning('Demix of %s (sep: %.0f deg)' % (ateam,sep))
+
+            # make a single patch for source skymodel
+
+            # combine atema skymodel and source skymodel
+
+            # do demix
+
+
     # Phase up stations DATA -> DATA
     lib_util.check_rm('*MS-phaseup')
     logger.info('Phase up superterp DATA -> DATA...')
