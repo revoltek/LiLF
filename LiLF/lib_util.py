@@ -29,11 +29,11 @@ def getParset(parsetFile='../lilf.config'):
     config.read(parsetFile)
     
     # add pipeline sections and defaul parset dir:
-    for pipeline in glob.glob(os.path.dirname(__file__)+'/parsets/*'):
+    for pipeline in glob.glob(os.path.dirname(__file__)+'/../parsets/*'):
         pipeline = os.path.basename(pipeline)
         if not config.has_section(pipeline): config.add_section(pipeline)
         if not config.has_option(pipeline, 'parset_dir'):
-                config.set(pipeline, 'parset_dir', os.path.dirname(__file__)+'/parsets/'+pipeline)
+                config.set(pipeline, 'parset_dir', os.path.dirname(__file__)+'/../parsets/'+pipeline)
     # add other sections
     if not config.has_section('flag'): config.add_section('flag')
     if not config.has_section('model'): config.add_section('model')
@@ -65,9 +65,10 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
-    add_default('LOFAR_timesplit', 'apply_clock', 'False')
+    add_default('LOFAR_timesplit', 'apply_clock', 'True')
     # self
     add_default('LOFAR_self', 'subtract_outside', 'True')
+    add_default('LOFAR_self', 'solve_gain', 'True')
     # dd-parallel
     add_default('LOFAR_dd-parallel', 'maxniter', '10')
     add_default('LOFAR_dd-parallel', 'calFlux', '1.5')

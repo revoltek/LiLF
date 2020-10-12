@@ -28,6 +28,7 @@ w = lib_util.Walker('pipeline-self.walker')
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_self','parset_dir')
 subtract_outside = parset.getboolean('LOFAR_self','subtract_outside')
+solve_gain = parset.getboolean('LOFAR_self','solve_gain')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
@@ -116,19 +117,20 @@ for c in range(2):
 
     logger.info('Start selfcal cycle: '+str(c))
 
-    if c == 0:
-        if w.todo('set_corrected_data'):
+    if c == 0 or not subtract_outside:
+        if w.todo('set_corrected_data_c%02i' % c):
             logger.info('Set CORRECTED_DATA = DATA...')
             MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-            w.done('set_corrected_data')
+            w.done('set_corrected_data_c%02i' % c)
         ### DONE
     else:
 
         if w.todo('init_apply_c%02i' % c):
-            # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-            logger.info('Correcting G...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g2-c0.h5 cor.correction=amplitudeSmooth', \
-                    log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
+            if solve_gain:
+                # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
+                logger.info('Correcting G...')
+                MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g2-c0.h5 cor.correction=amplitudeSmooth', \
+                        log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
 
             # correct FR - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
             logger.info('Correcting FR...')
@@ -151,7 +153,7 @@ for c in range(2):
             MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 \
                     msin.baseline="[CR]*&&;!RS208*;!RS210*;!RS307*;!RS310*;!RS406*;!RS407*;!RS409*;!RS508*;!RS509*" \
                     sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
-                    sol.uvlambdamin = {} sol.uvmmax = {} sol.solint=15 sol.nchan=8'.format(100*freqscale,80e3*freqscale),
+                    sol.uvlambdamin = {} sol.solint=15 sol.nchan=8'.format(int(100*freqscale)),
                     log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
             lib_util.run_losoto(s, 'tec1-c' + str(c), [ms + '/tec1.h5' for ms in MSs.getListStr()],
                                         [parset_dir + '/losoto-resetremote-lba.parset', parset_dir + '/losoto-plot-tec.parset'])
@@ -159,7 +161,7 @@ for c in range(2):
             MSs.run('DPPP ' + parset_dir + '/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 \
                     msin.baseline="[CR]*&&;!RS208*;!RS210*;!RS307*;!RS310*;!RS406*;!RS407*;!RS409*;!RS508*;!RS509*" \
                     sol.antennaconstraint=[[CS002HBA0,CS002HBA1,CS003HBA0,CS003HBA1,CS004HBA0,CS004HBA1,CS005HBA0,CS005HBA1,CS006HBA0,CS006HBA1,CS007HBA0,CS007HBA1]] \
-                    sol.uvlambdamin = {} sol.uvmmax = {} sol.solint=15 sol.nchan=8'.format(100*freqscale, 80e3*freqscale), \
+                    sol.uvlambdamin = {} sol.solint=15 sol.nchan=8'.format(int(100*freqscale)), \
                     log='$nameMS_solTEC-c' + str(c) + '.log', commandType='DPPP')
             lib_util.run_losoto(s, 'tec1-c' + str(c), [ms + '/tec1.h5' for ms in MSs.getListStr()],
                                 [parset_dir + '/losoto-resetremote-hba.parset', parset_dir + '/losoto-plot-tec.parset'])
@@ -183,7 +185,6 @@ for c in range(2):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
         MSs.run('BLsmooth.py -c 8 -n 8 -f {} -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS'.format(smoothfactor), log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
-        MSs.run('BLsmooth.py -c 8 -n 8 -f {} -r -i MODEL_DATA -o MODEL_DATA $pathMS'.format(smoothfactor), log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
 
         # solve TEC - ms:SMOOTHED_DATA
         logger.info('Solving TEC2...')
@@ -192,8 +193,7 @@ for c in range(2):
                     sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,'
                                        'CS021LBA,CS024LBA,CS026LBA,CS027LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,'
                                        'CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]] \
-                    sol.solint=1 sol.nchan=4 sol.uvlambdamin = {} sol.uvmmax = {} sol.solint=15 sol.nchan=8'.format(
-                    100*freqscale, 80e3*freqscale), log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
+                    sol.solint=1 sol.nchan=4 sol.uvlambdamin = {} '.format(int(100*freqscale)), log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
     
         elif MSs.isHBA:
             MSs.run('DPPP ' + parset_dir + '/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec2.h5 \
@@ -225,8 +225,8 @@ for c in range(2):
                                            'RS305HBA,'
                                            'RS306HBA,'
                                            'RS503HBA]] \
-                    sol.solint=1 sol.nchan=4 sol.uvlambdamin = {} sol.uvmmax = {}'.format(
-                    100*freqscale, 80e3*freqscale), log='$nameMS_solTEC-c' + str(c) + '.log', commandType='DPPP')
+                    sol.solint=1 sol.nchan=4 sol.uvlambdamin = {}'.format(int(100*freqscale)),
+                    log='$nameMS_solTEC-c' + str(c) + '.log', commandType='DPPP')
 
         lib_util.run_losoto(s, 'tec2-c' + str(c), [ms + '/tec2.h5' for ms in MSs.getListStr()],
                                 [parset_dir + '/losoto-plot-tec.parset'])
@@ -312,7 +312,7 @@ for c in range(2):
             w.done('cor_fr_c%02i' % c)
         ### DONE
 
-        if w.todo('solve_g_c%02i' % c):
+        if w.todo('solve_g_c%02i' % c) and solve_gain:
             # DIE Calibration - ms:CORRECTED_DATA
             logger.info('Solving slow G2...')
             MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/g2.h5 sol.uvlambdamin = {}'
@@ -326,7 +326,7 @@ for c in range(2):
             w.done('solve_g_c%02i' % c)
         ### DONE
 
-        if w.todo('cor_g_c%02i' % c):
+        if w.todo('cor_g_c%02i' % c) and solve_gain:
             # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
             logger.info('Correcting G...')
             MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
@@ -346,11 +346,14 @@ for c in range(2):
         if c == 0:
             kwargs = {'do_predict': True, 'baseline_averaging': '', 'parallel_gridding': 2, 'auto_mask': 2.5}
         else:
-            kwargs = {'baseline_averaging': '', 'parallel_gridding': 2, 'auto_mask': 2.0, 'fits_mask':maskname}
+            # kwargs = {'baseline_averaging': '', 'parallel_gridding': 2, 'auto_mask': 2.0, 'fits_mask':maskname}
+            kwargs = {'parallel_gridding': 2, 'auto_mask': 2.0, 'fits_mask': maskname,
+                      'use_idg': '', 'grid_with_beam': '', 'use_differential_lofar_beam': ''}
         if MSs.isLBA:
             kwargs.update({'minuv_l': 30, 'maxuv_l': 4500, 'parallel_deconvolution': 512, 'parallel_gridding': 2, 'channels_out': MSs.getChout(4.e6)})
         elif MSs.isHBA:
-            kwargs.update({'minuv_l': 80, 'maxuv_l': 12000, 'parallel_gridding': 1, 'channels_out': MSs.getChout(8.e6)}) # 'parallel_deconvolution': 2024,
+            # kwargs.update({'minuv_l': 80, 'maxuv_l': 12000, 'parallel_gridding': 1, 'channels_out': MSs.getChout(8.e6)}) # 'parallel_deconvolution': 2024,
+            kwargs.update({'minuv_l': 80, 'maxuv_l': 12000, 'parallel_gridding': 2, 'parallel_deconvolution': 1024, 'channels_out': MSs.getChout(8.e6)}) # 'parallel_deconvolution': 2024,
 
         lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSs.getStrWsclean(), name=imagename, save_source_list='',
                          size=imgsizepix, scale='{}arcsec'.format(pixscale), \
@@ -387,7 +390,8 @@ for c in range(2):
             if MSs.isLBA:
                 kwargs = {'minuv_l': 30, 'parallel_deconvolution': 512, 'channels_out': MSs.getChout(2.e6), 'parallel_gridding': 4}
             elif MSs.isHBA:
-                kwargs = {'minuv_l': 80,  'parallel_deconvolution': 2024, 'channels_out': MSs.getChout(4.e6), 'parallel_gridding': 2}
+                # kwargs = {'minuv_l': 80,  'parallel_deconvolution': 2048, 'channels_out': MSs.getChout(4.e6), 'parallel_gridding': 2} this worked memory-wise.
+                  kwargs = {'minuv_l': 80,  'parallel_deconvolution': 1024, 'channels_out': MSs.getChout(4.e6), 'parallel_gridding': 4}
             lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, \
                                  temp_dir='./', size=imgsizepix, scale='{}arcsec'.format(3*pixscale), \
                                  weight='briggs -1', niter=50000, no_update_model_required='',
@@ -434,11 +438,12 @@ for c in range(2):
                     cor.parmdb=self/solutions/cal-g1-c' + str(
                 c) + '.h5 cor.correction=rotationmeasure000 cor.invert=False', \
                     log='$nameMS_corrupt.log', commandType='DPPP')
-            logger.info('Corrupt low-res model: G...')
-            MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                    cor.parmdb=self/solutions/cal-g2-c' + str(
-                c) + '.h5 cor.correction=amplitudeSmooth cor.invert=False', \
-                    log='$nameMS_corrupt.log', commandType='DPPP')
+            if solve_gain:
+                logger.info('Corrupt low-res model: G...')
+                MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                        cor.parmdb=self/solutions/cal-g2-c' + str(
+                    c) + '.h5 cor.correction=amplitudeSmooth cor.invert=False', \
+                        log='$nameMS_corrupt.log', commandType='DPPP')
 
             w.done('lowres_corrupt_c%02i' % c)
         ### DONE

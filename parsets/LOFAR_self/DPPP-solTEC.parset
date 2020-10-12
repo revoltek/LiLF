@@ -11,6 +11,7 @@ sol.tolerance = 5e-4
 sol.solint = 1
 sol.nchan = 1
 sol.stepsize = 0.2
+sol.uvmmax = 80e3
 
 sol.mode = tec # phaseonly, complexgain, tec, tecandphase
 sol.propagatesolutions = True

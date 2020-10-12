@@ -41,7 +41,7 @@ if w.todo('copy'):
     MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
 
     logger.info('Copy data...')
-    for MS in MSs.getListObj():
+    for MS in MSs:
         #if min(MS.getFreqs()) > 30.e6:
         # overwrite=True to prevent updating the weights twice
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=True)
@@ -54,13 +54,13 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 ##################################################
 # Find solutions to apply
 if cal_dir == '':
-    obsid = MSs.getListObj()[0].getObsID()
+    obsid = MSs[0].getObsID()
     # try standard location
     cal_dir = glob.glob('../id%i_3[c|C]196' % obsid)+glob.glob('../id%i_3[c|C]295' % obsid)+glob.glob('../id%i_3[c|C]380' % obsid)
     if len(cal_dir) > 0:
         cal_dir = cal_dir[0]
     else:
-        from LiLF.surveys_db import SurveysDB
+    from LiLF.surveys_db import SurveysDB
         with SurveysDB(survey='lba',readonly=True) as sdb:
             sdb.execute('select calibratordata from observations where id=%i' % obsid)
             calibratordata = sdb.cur.fetchall()[0]['calibratordata']
@@ -89,7 +89,7 @@ if w.todo('apply'):
     # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign, clockSmooth, ampSmooth, beam corrected)
     if apply_clock:
         logger.info('Apply solutions (pa,clock,amp,beam)...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-apply.parset msin=$pathMS \
+        MSs.run('DPPP '+parset_dir+'/DPPP-apply-useclock.parset msin=$pathMS \
                 cor.pa.parmdb='+h5_pa+' cor.clock.parmdb='+h5_iono+' cor.amp.parmdb='+h5_amp, log='$nameMS_apply.log', commandType='DPPP')
     else:
         logger.info('Apply solutions (pa,amp,beam)...')
@@ -146,7 +146,10 @@ if w.todo('flag'):
     MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
     
     logger.info('Plot weights...')
-    MSs.run('reweight.py $pathMS -v -p -a CS001LBA', log='$nameMS_weights.log', commandType='python')
+    if MSs.isLBA:
+        MSs.run('reweight.py $pathMS -v -p -a CS001LBA', log='$nameMS_weights.log', commandType='python')
+    elif MSs.isHBA:
+        MSs.run('reweight.py $pathMS -v -p -a CS001HBA0', log='$nameMS_weights.log', commandType='python')
     lib_util.check_rm('plots-weights')
     os.system('mkdir plots-weights; mv *png plots-weights')
 

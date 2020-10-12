@@ -15,5 +15,6 @@ cor.amp.updateweights = True
 cor.amp.correction = amplitudeSmooth
 
 corrbeam.type = applybeam
+corrbeam.beammode = element
 corrbeam.usechannelfreq = False
 corrbeam.updateweights = True # add reweight
