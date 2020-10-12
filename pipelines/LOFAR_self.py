@@ -81,46 +81,58 @@ if sourcedb == '':
 
     sourcedb = 'tgts.skydb'
 
+########################################################
+### Demix?
+if w.todo('demix'):
+    ateams = ['VirA', 'TauA']
+    for ateam in ateams:
+        sep = MSs.getListObj()[0].distBrightSource(ateam)
+        if sep > 15:
+            ateams.remove(ateam)
+
+    # TODO: how not to fuck up the MS the second run?
+    if len(ateams) > 0:
+        logger.warning('Demix of %s (sep: %.0f deg)' % (','.join(ateams), sep))
+        for MS in MSs.getListStr():
+            lib_util.check_rm(MS+'/'+os.path.basename(skydb_demix))
+            os.system('cp -r '+skydb_demix+' '+MS+'/'+os.path.basename(skydb_demix))
+
+        logger.info('Demixing...')
+        MSs.run('DPPP '+parset_dir+'/DPPP_demix.parset msin=$pathMS msout=$pathMS demixer.skymodel=$pathMS/'+os.path.basename(skydb_demix)+
+            ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources = ['+','.join(ateams)+']',
+            log='$nameMS_demix.log', commandType='DPPP', maxThreads=2)
+
+        MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+
+    w.done('demix')
+### DONE
+
 #################################################################################################
 # Add model to MODEL_DATA
 # copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
 sourcedb_basename = sourcedb.split('/')[-1]
 for MS in MSs.getListStr():
-    lib_util.check_rm(MS+'/'+sourcedb_basename)
-    logger.debug('Copy: '+sourcedb+' -> '+MS)
-    os.system('cp -r '+sourcedb+' '+MS)
+    lib_util.check_rm(MS + '/' + sourcedb_basename)
+    logger.debug('Copy: ' + sourcedb + ' -> ' + MS)
+    os.system('cp -r ' + sourcedb + ' ' + MS)
 
 if w.todo('init_model'):
 
     # note: do not add MODEL_DATA or the beam is transported from DATA, while we want it without beam applied
     logger.info('Creating CORRECTED_DATA...')
     MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
-    
+
     logger.info('Add model to MODEL_DATA...')
     if apparent:
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+        MSs.run(
+            'DPPP ' + parset_dir + '/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/' + sourcedb_basename,
+            log='$nameMS_pre.log', commandType='DPPP')
     else:
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+        MSs.run(
+            'DPPP ' + parset_dir + '/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/' + sourcedb_basename,
+            log='$nameMS_pre.log', commandType='DPPP')
 
     w.done('init_model')
-### DONE
-
-########################################################
-### Demix?
-if w.todo('demix'):
-    for ateam in ['VirA', 'TauA']:
-        sep = MSs.getListObj()[0].distBrightSource(ateam)
-        if sep < 15:
-            logger.warning('Demix of %s (sep: %.0f deg)' % (ateam, sep))
-            for MS in MSs.getListStr():
-                lib_util.check_rm(MS+'/'+os.path.basename(skydb_demix))
-                os.system('cp -r '+skydb+' '+MS+'/'+os.path.basename(skydb_demix))
-
-            logger.info('Demixing...')
-            MSs.run('DPPP '+parset_dir+'/DPPP_demix.parset msin=$pathMS msout=$pathMS demixer.skymodel=$pathMS/'+os.path.basename(skydb_demix)+
-                ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources = ['+ateam+']', log='$nameMS_demix.log', commandType='DPPP')
-
-    w.done('demix')
 ### DONE
 
 #####################################################################################################
