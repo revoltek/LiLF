@@ -696,6 +696,7 @@ for cmaj in range(maxIter):
     # full imaging
     
     imagename = 'img/wideDD-c%02i' % (cmaj)
+    imagenameM = 'img/wideDDM-c%02i' % (cmaj)
 
     if w.todo('c%02i-imaging' % cmaj):
 
@@ -804,7 +805,6 @@ for cmaj in range(maxIter):
                     'Facets_DiamMax':1.5,
                     'Facets_DiamMin':0.1,
                     'Weight_ColName':'WEIGHT_SPECTRUM',
-                    'Output_Name':imagename,
                     'Comp_BDAMode':1,
                     'DDESolutions_DDModeGrid':'AP',
                     'DDESolutions_DDModeDeGrid':'AP',
@@ -815,43 +815,45 @@ for cmaj in range(maxIter):
             
             logger.info('Cleaning 1...')
             lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
+                    Output_Name=imagename,
                     Deconv_MaxMajorIter=1,
                     Deconv_PeakFactor=0.005,
                     Cache_Reset=1
                     )
     
-#            # make mask
-#            im = lib_img.Image(imagename+'.app.restored.fits', userReg=userReg)
-#            im.makeMask(threshisl = 4, rmsbox=(150,15), atrous_do=True)
-#
-#            logger.info('Cleaning 2...')
-#            lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
-#                    Cache_Reset=0,
-#                    Cache_Dirty='forcedirty',
-#                    Cache_PSF='force',
-#                    Cache_SmoothBeam='force',
-#                    Deconv_MaxMajorIter=3,
-#                    Deconv_PeakFactor=0.001,
-#                    Predict_InitDicoModel=imagename+'.DicoModel',
-#                    Mask_External=im.maskname
-#                    )
+            # make mask
+            im = lib_img.Image(imagename+'.app.restored.fits', userReg=userReg)
+            im.makeMask(threshisl = 4, rmsbox=(150,15), atrous_do=True)
+
+            logger.info('Cleaning 2...')
+            lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **ddf_parms,
+                    Output_Name=imagenameM,
+                    #Cache_Reset=0,
+                    #Cache_Dirty='forcedirty',
+                    #Cache_PSF='force',
+                    #Cache_SmoothBeam='force',
+                    Deconv_MaxMajorIter=3,
+                    Deconv_PeakFactor=0.001,
+                    #Predict_InitDicoModel=imagename+'.DicoModel',
+                    Mask_External=im.maskname
+                    )
  
-            os.system('mv %s.* ddcal/c%02i/images' % (imagename, cmaj))
+            os.system('mv %s.* ddcal/c%02i/images' % (imagenameM, cmaj))
         w.done('c%02i-imaging' % cmaj)
     ### DONE
 
-    full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj,imagename.split('/')[-1]), userReg = userReg)
+    full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj,imagenameM.split('/')[-1]), userReg = userReg)
     min_cal_flux60 *= 0.8  # go a bit deeper
 
 if w.todo('upload'):
     
     logger.info('Save final images...')
     targetname = os.getcwd().split('/')[-1]
-    logger.info('Copy: ddcal/c0*/images/img/wideDD-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % targetname)
-    os.system('ssh lofar.herts.ac.uk "rm -rf /beegfs/lofar/lba/products/%s"' % targetname)
-    os.system('ssh lofar.herts.ac.uk "mkdir /beegfs/lofar/lba/products/%s"' % targetname)
-    os.system('scp -q ddcal/c0*/images/wideDD-c*.continue.app.restored.fits lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % targetname)
-    os.system('scp -q ddcal/c0*/images/wideDD-c*.continue.int.restored.fits lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % targetname)
+    logger.info('Copy: ddcal/c0*/images/img/wideDDM-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % targetname)
+    os.system('ssh herts "rm -rf /beegfs/lofar/lba/products/%s"' % targetname)
+    os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s"' % targetname)
+    os.system('scp -q ddcal/c0*/images/wideDDM-c*.app.restored.fits herts:/beegfs/lofar/lba/products/%s' % targetname)
+    os.system('scp -q ddcal/c0*/images/wideDDM-c*.int.restored.fits herts:/beegfs/lofar/lba/products/%s' % targetname)
     
     w.done('upload')
 ### DONE

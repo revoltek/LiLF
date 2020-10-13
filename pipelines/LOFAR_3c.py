@@ -108,9 +108,10 @@ if w.todo('setup'):
     MSs_orig = lib_ms.AllMSs( glob.glob('*concat.MS'), s, check_flags=False )
 
     # Demix
-    for ateam in ['VirA', 'TauA']:
+    for ateam in ['VirA', 'TauA', 'CygA', 'CasA']:
         sep = MSs_orig.getListObj()[0].distBrightSource(ateam)
-        if sep < 15:
+        logger.info('%s - sep: %.0f deg' % (ateam, sep))
+        if sep < 25 and ateam == 'VirA':
             logger.warning('Demix of %s (sep: %.0f deg)' % (ateam, sep))
             for MS in MSs_orig.getListStr():
                 lib_util.check_rm(MS + '/' + os.path.basename(skydb_demix))
@@ -187,7 +188,7 @@ for c in range(100):
                 sol.solint='+str(solint)+' sol.smoothnessconstraint=5e6',
                 log='$nameMS_solGp-c'+str(c)+'.log', commandType="DPPP")
         lib_util.run_losoto(s, 'Gp-c'+str(c), [ms+'/calGp.h5' for ms in MSs.getListStr()],
-                        [parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot.parset'])
+                        [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot.parset'])
     
         # Correct DATA -> CORRECTED_DATA
         logger.info('Correction PH...')
