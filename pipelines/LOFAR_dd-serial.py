@@ -319,8 +319,8 @@ for cmaj in range(maxIter):
         ### DONE
 
         ### TESTTESTTEST: empty image
-        if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-            clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        #if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
+        #    clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
     for dnum, d in enumerate(directions):
@@ -410,8 +410,8 @@ for cmaj in range(maxIter):
                         log='$nameMS_taql.log', commandType='general')
 
             ### TTESTTESTTEST: empty image
-            if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
-                clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+            #if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
+            #    clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
             w.done('%s-predict' % logstring)
  
@@ -698,6 +698,7 @@ for cmaj in range(maxIter):
     imagename = 'img/wideDD-c%02i' % (cmaj)
 
     if w.todo('c%02i-imaging' % cmaj):
+        logger.info("Imaging - preparing solutions:")
 
         # combine the h5parms
         h5parms = {'ph':[], 'amp1':[], 'amp2':[]}
@@ -773,7 +774,6 @@ for cmaj in range(maxIter):
         else:
     
             ddf_parms = {
-                    'Output_Name':imagename,
                     'Data_MS':MSs.getStrDDF(),
                     'Data_ColName':'CORRECTED_DATA',
                     'Data_Sort':1,
@@ -805,6 +805,7 @@ for cmaj in range(maxIter):
                     'Facets_DiamMax':1.5,
                     'Facets_DiamMin':0.1,
                     'Weight_ColName':'WEIGHT_SPECTRUM',
+                    'Output_Name':imagename,
                     'Comp_BDAMode':1,
                     'DDESolutions_DDModeGrid':'AP',
                     'DDESolutions_DDModeDeGrid':'AP',
@@ -826,10 +827,10 @@ for cmaj in range(maxIter):
 
             logger.info('Cleaning 2...')
             lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **ddf_parms,
-                    Deconv_MaxMajorIter=3,
+                    Deconv_MaxMajorIter=5,
                     Deconv_PeakFactor=0.001,
-                    Mask_External=im.maskname
-                    Cache_Reset=0,
+                    Mask_External=im.maskname,
+                    Cache_Reset=0
                     )
  
             os.system('mv %s.* ddcal/c%02i/images' % (imagename, cmaj))
