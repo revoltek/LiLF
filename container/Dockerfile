@@ -7,7 +7,8 @@ RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update -y
 RUN apt-get install -y libcfitsio-dev libpng-dev git cmake python3-dev libxml2-dev python3-pip
-RUN apt-get install -y wget libarmadillo-dev libboost-all-dev liblua5.3-dev libfftw3-dev python3-pybind11
+RUN apt-get install -y wget libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11
+RUN apt-get install -y libboost-dev libboost-tools-dev libboost-atomic-dev libboost-chrono-dev libboost-container-dev libboost-context-dev libboost-coroutine-dev libboost-date-time-dev libboost-exception-dev libboost-filesystem-dev libboost-iostreams-dev libboost-locale-dev libboost-log-dev libboost-math-dev libboost-numpy-dev libboost-program-options-dev libboost-python-dev libboost-random-dev libboost-regex-dev libboost-serialization-dev libboost-stacktrace-dev libboost-system-dev libboost-test-dev libboost-thread-dev libboost-timer-dev
 RUN pip3 install pyregion 
 RUN pip3 install astropy --upgrade
 
@@ -172,4 +173,6 @@ RUN chmod 777 /home
 RUN rm /usr/bin/python
 RUN ln -s /usr/bin/python3.6 /usr/bin/python
 #USER lofar
+ENV OMP_NUM_THREADS 1
+RUN ulimit -n 4000
 ENV CONTAINER_NAME='LOFAR-LBA-pipeline'
