@@ -91,18 +91,20 @@ if w.todo('demix'):
             logger.warning('Demix of %s (sep: %.0f deg)' % (','.join(ateams), sep))
             ateams.remove(ateam)
 
-    # TODO: how not to fuck up the MS the second run?
     if len(ateams) > 0:
-        if not os.path.exists('mss-predemix'):
+        if os.path.exists('mss-predemix'):
+            lib_util.check_rm('mss')
+            os.system('cp -r mss-predemix mss')
+        else:
             os.system('cp -r mss mss-predemix')
 
-            for MS in MSs.getListStr():
-                lib_util.check_rm(MS+'/'+os.path.basename(skydb_demix))
-                os.system('cp -r '+skydb_demix+' '+MS+'/'+os.path.basename(skydb_demix))
+        for MS in MSs.getListStr():
+            lib_util.check_rm(MS+'/'+os.path.basename(skydb_demix))
+            os.system('cp -r '+skydb_demix+' '+MS+'/'+os.path.basename(skydb_demix))
 
-            logger.info('Demixing...')
-            MSs.run('DPPP '+parset_dir+'/DPPP_demix.parset msin=$pathMS msout=$pathMS demixer.skymodel=$pathMS/'+os.path.basename(skydb_demix)+
-                ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources = ['+','.join(ateams)+']',
+        logger.info('Demixing...')
+        MSs.run('DPPP '+parset_dir+'/DPPP_demix.parset msin=$pathMS msout=$pathMS demixer.skymodel=$pathMS/'+os.path.basename(skydb_demix)+
+                ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources=['+','.join(ateams)+']',
                 log='$nameMS_demix.log', commandType='DPPP', maxThreads=2)
 
     w.done('demix')
