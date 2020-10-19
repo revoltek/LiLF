@@ -35,24 +35,24 @@ RUN chown lofar:lofar /home/lofar
 ####################################################################
 ## CASACORE
 ###################################################################
-RUN cd /tmp && git clone https://github.com/casacore/casacore.git
-RUN cd /tmp/casacore && git checkout tags/v3.3.0
-RUN cd /tmp/casacore && mkdir data && cd data && wget --retry-connrefused ftp://anonymous@ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar
-RUN cd /tmp/casacore && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=${INSTALLDIR}/casacore/data -DBUILD_PYTHON=True -DUSE_OPENMP=True -DUSE_FFTW3=TRUE -DUSE_HDF5=True -DBUILD_PYTHON:BOOL=False -DBUILD_PYTHON3:BOOL=True .. && make -j 64 && make install
+RUN cd /opt && git clone https://github.com/casacore/casacore.git
+RUN cd /opt/casacore && git checkout tags/v3.3.0
+RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused ftp://anonymous@ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar
+RUN cd /opt/casacore && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=True -DUSE_OPENMP=True -DUSE_FFTW3=TRUE -DUSE_HDF5=True -DBUILD_PYTHON:BOOL=False -DBUILD_PYTHON3:BOOL=True .. && make -j 64 && make install
 
 #####################################################################
 ## CASACORE-python
 #####################################################################
-RUN cd /tmp && git clone https://github.com/casacore/python-casacore.git
-RUN cd /tmp/python-casacore && git checkout tags/v3.3.1
-RUN cd /tmp/python-casacore && pip3 install .
+RUN cd /opt && git clone https://github.com/casacore/python-casacore.git
+RUN cd /opt/python-casacore && git checkout tags/v3.3.1
+RUN cd /opt/python-casacore && pip3 install .
 
 #####################################################################
 ## LOFARBeam
 #####################################################################
-RUN cd /tmp && git clone https://github.com/lofar-astron/LOFARBeam.git
-RUN cd /tmp/LOFARBeam && git checkout 5b5d80ff308784adbf00985293257b16afff86b2
-RUN cd /tmp/LOFARBeam && mkdir build && cd build \
+RUN cd /opt && git clone https://github.com/lofar-astron/LOFARBeam.git
+RUN cd /opt/LOFARBeam && git checkout 5b5d80ff308784adbf00985293257b16afff86b2
+RUN cd /opt/LOFARBeam && mkdir build && cd build \
     && cmake .. \
     && make -j 64 && make install
 ENV PYTHONPATH /usr/local/lib/python3.8/site-packages/:$PYTHONPATH
@@ -61,55 +61,55 @@ ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
 #####################################################################
 ## idg
 #####################################################################
-RUN cd /tmp &&  git clone https://gitlab.com/astron-idg/idg.git
-RUN cd /tmp/idg && git checkout f4020d47a9e20f85d9e79356ca98d3bdc9ef6ade
-RUN cd /tmp/idg && mkdir build && cd build \
+RUN cd /opt &&  git clone https://gitlab.com/astron-idg/idg.git
+RUN cd /opt/idg && git checkout f4020d47a9e20f85d9e79356ca98d3bdc9ef6ade
+RUN cd /opt/idg && mkdir build && cd build \
     && cmake -DCMAKE_INSTALL_PREFIX:PATH=/ .. \
     && make -j 64 && make install
 
 #####################################################################
 ## AOFlagger v2.15.0
 #####################################################################
-#RUN cd /tmp && git clone https://gitlab.com/aroffringa/aoflagger.git
-RUN cd /tmp && git clone git://git.code.sf.net/p/aoflagger/code aoflagger
-RUN cd /tmp/aoflagger && git checkout 58c25d
-RUN cd /tmp/aoflagger && mkdir build && cd build && mkdir install \
+#RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git
+RUN cd /opt && git clone git://git.code.sf.net/p/aoflagger/code aoflagger
+RUN cd /opt/aoflagger && git checkout 58c25d
+RUN cd /opt/aoflagger && mkdir build && cd build && mkdir install \
     && cmake .. \
     && make -j 64 && make install
 
 #####################################################################
 ## Dysco
 #####################################################################
-RUN cd /tmp && git clone https://github.com/aroffringa/dysco.git
-RUN cd /tmp/dysco && git checkout 7ef0f4716b6772b78b39b09d72821a84f6471a21
-RUN cd /tmp/dysco && mkdir build && cd build \
+RUN cd /opt && git clone https://github.com/aroffringa/dysco.git
+RUN cd /opt/dysco && git checkout 7ef0f4716b6772b78b39b09d72821a84f6471a21
+RUN cd /opt/dysco && mkdir build && cd build \
     && cmake .. \
     && make -j 64 && make install
 
 #####################################################################
 ## Wsclean
 #####################################################################
-RUN cd /tmp && git clone https://gitlab.com/aroffringa/wsclean.git
-RUN cd /tmp/wsclean && git checkout 6567e489
-RUN cd /tmp/wsclean && mkdir build && cd build \
+RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git
+RUN cd /opt/wsclean && git checkout 6567e489
+RUN cd /opt/wsclean && mkdir build && cd build \
     && cmake .. \
     && make -j 64 && make install
 
 #####################################################################
 ## Dp3
 #####################################################################
-RUN cd /tmp && git clone https://github.com/lofar-astron/DP3.git
-RUN cd /tmp/DP3 && git checkout tags/v4.2
-RUN cd /tmp/DP3 && mkdir build && cd build \
+RUN cd /opt && git clone https://github.com/lofar-astron/DP3.git
+RUN cd /opt/DP3 && git checkout tags/v4.2
+RUN cd /opt/DP3 && mkdir build && cd build \
     && cmake .. \
     && make -j 64 && make install
 
 #####################################################################
 ## Pybdsf
 #####################################################################
-RUN cd /tmp && git clone https://github.com/lofar-astron/PyBDSF.git
-RUN cd /tmp/PyBDSF; git checkout 99573ee3799c8ce657d959c3bb2fdf6a61623b2c
-RUN cd /tmp/PyBDSF; pip3 install .
+RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git
+RUN cd /opt/PyBDSF; git checkout 99573ee3799c8ce657d959c3bb2fdf6a61623b2c
+RUN cd /opt/PyBDSF; pip3 install .
 
 #####################################################################
 ## LiLF
@@ -132,7 +132,6 @@ RUN cd /opt/LSMTool; pip3 install .
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git
 RUN cd /opt/losoto && git checkout 921f807fa5220bf5c2daeb5c68c3e1e0e66f9c66
 RUN cd /opt/losoto; pip3 install .
-#ENV PYTHONPATH /opt/losoto:$PYTHONPATH
 
 #####################################################################
 ## BUILD DDF FROM SOURCE
@@ -166,3 +165,8 @@ RUN cd /opt/DDFacet/ && python3 setup.py build
 # Set MeqTrees Cattery path to installation directory
 ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
 ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
+
+RUN ln -s /usr/bin/python3 /usr/bin/python
+RUN ln -s /usr/bin/ipython3 /usr/bin/ipython
+ENV OMP_NUM_THREADS 1
+RUN ulimit -n 4000
