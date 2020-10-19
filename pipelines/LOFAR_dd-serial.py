@@ -142,7 +142,11 @@ if not os.path.exists('mss-avg'):
             avg.timestep='+str(avgtimeint)+' avg.freqstep=1',
             log='$nameMS_initavg.log', commandType='DPPP')
 
+<<<<<<< HEAD
 MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False)
+=======
+MSs = lib_ms.AllMSs( glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False )
+>>>>>>> e847f6cec740416f2525c18eab1aaead8d332514
 
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 detectability_dist = MSs.getListObj()[0].getFWHM(freq='max')*1.8/2.  # 1.8 to go to close to the null
@@ -324,7 +328,11 @@ for cmaj in range(maxIter):
 
         ### TESTTESTTEST: empty image
         if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
+<<<<<<< HEAD
             clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
+=======
+            clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+>>>>>>> e847f6cec740416f2525c18eab1aaead8d332514
         ###
 
     for dnum, d in enumerate(directions):
@@ -615,11 +623,19 @@ for cmaj in range(maxIter):
             continue
         # second cycle, no peeling
         elif cmaj >= 1:
+<<<<<<< HEAD
             logger.info('%s: converged.' % d.name)
             d.converged = True
             continue
         else:
             logger.info('%s: converged.' % d.name)
+=======
+            logger.info('%s: converged.')
+            d.converged = True
+            continue
+        else:
+            logger.info('%s: converged.')
+>>>>>>> e847f6cec740416f2525c18eab1aaead8d332514
             d.converged = True
             # copy in the ddcal dir the best model
             model_skymodel = 'ddcal/c%02i/skymodels/%s-best-source.txt' % (cmaj, d.name)
