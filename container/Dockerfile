@@ -79,6 +79,7 @@ RUN cd /tmp/aoflagger && mkdir build && cd build && mkdir install \
 ## Dysco
 #####################################################################
 RUN cd /tmp && git clone https://github.com/aroffringa/dysco.git
+RUN cd /tmp/dysco && git checkout 7ef0f4716b6772b78b39b09d72821a84f6471a21
 RUN cd /tmp/dysco && mkdir build && cd build \
     && cmake .. \
     && make -j 64 && make install
@@ -155,10 +156,9 @@ RUN cp -a /tmp/DDFacet/DDFacet /opt/DDFacet/DDFacet && \
 # Finally install DDFacet
 RUN rm -rf /opt/DDFacet/DDFacet/cbuild
 #RUN pip3 install -U pip setuptools wheel
-RUN python3 -m pip install tensorflow
-RUN python3 -m pip install tensorflow-gpu
+RUN python3 -m pip install tensorflow-cpu
 
-RUN python3 -m pip install -U "/opt/DDFacet/[dft-support,moresane-support,testing-requirements,fits-beam-support]"
+RUN python3 -m pip install -U "/opt/DDFacet/[moresane-support,testing-requirements,fits-beam-support]"
 RUN cd /opt/DDFacet/ && python3 setup.py build
 
 # Set MeqTrees Cattery path to installation directory
