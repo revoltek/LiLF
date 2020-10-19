@@ -213,10 +213,11 @@ class MS(object):
         """
         Get the distance in deg from some bright sources
         """
-        ateam={'CygA':{'ra':299.8679167,'dec':40.7338889},\
-                'CasA':{'ra':350.8583333,'dec':58.8000000},\
-                'TauA':{'ra':83.6333333,'dec':22.0144444},\
-                'VirA':{'ra':187.7058333,'dec':12.3911111}\
+        ateam={'CygA':{'ra':299.8679167, 'dec':40.7338889},
+                'CasA':{'ra':350.8583333, 'dec':58.8000000},
+                'TauA':{'ra':83.6333333, 'dec':22.0144444},
+                'VirA':{'ra':187.7058333, 'dec':12.3911111},
+                '3C338':{'ra':247.160333, 'dec':39.551556}
         }
         
         if name not in ateam.keys():

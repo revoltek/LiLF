@@ -105,12 +105,12 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
         # TODO: add deconvolution_channels when bug fixed
         logger.info('Cleaning w/ mask ('+str(p)+')...')
         imagename = 'img/ddcalM-'+str(p)
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, do_predict=True, \
-                size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', \
-                weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
+        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, do_predict=True,
+                size=imsize, save_source_list='', scale=str(pixscale)+'arcsec',
+                weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', 
-                baseline_averaging='', parallel_deconvolution=512, local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=im.maskname, \
-                join_channels='', fit_spectral_pol=3, channels_out=ch_out) #, deconvolution_channels=3)
+                baseline_averaging='', parallel_deconvolution=512, local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=im.maskname,
+                join_channels='', fit_spectral_pol=3, channels_out=ch_out)  #, deconvolution_channels=3)
 
         os.system('cat logs/wscleanA-'+str(p)+'.log logs/wscleanB-'+str(p)+'.log | grep "background noise"')
 
@@ -139,19 +139,19 @@ if not os.path.exists('mss-avg'):
     os.makedirs('mss-avg')
     logger.info('Averaging in time (%is -> %is), channels: %ich -> %ich)' % (timeint,timeint*avgtimeint,nchan_init,nchan))
     MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-avg/$nameMS.MS msin.datacolumn=CORRECTED_DATA msin.nchan='+str(nchan)+' \
-            avg.timestep='+str(avgtimeint)+' avg.freqstep=1', \
+            avg.timestep='+str(avgtimeint)+' avg.freqstep=1',
             log='$nameMS_initavg.log', commandType='DPPP')
 
-MSs = lib_ms.AllMSs( glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False )
-#test
+MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False)
+
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
-detectability_dist = MSs.getListObj()[0].getFWHM(freq='max')*1.8/2. # 1.8 to go to close to the null
+detectability_dist = MSs.getListObj()[0].getFWHM(freq='max')*1.8/2.  # 1.8 to go to close to the null
 freq_min = np.min(MSs.getFreqs())
 freq_mid = np.mean(MSs.getFreqs())
 phase_center = MSs.getListObj()[0].getPhaseCentre()
 timeint = MSs.getListObj()[0].getTimeInt()
-ch_out = MSs.getChout(4e6) # for full band (48e6 MHz) is 12
-ch_out_idg = 12 # better 24, but slow
+ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
+ch_out_idg = 12  # better 24, but slow
 #MSs.getListObj()[0].makeBeamReg('ddcal/beam.reg', freq='mid')
 #beamReg = 'ddcal/beam.reg'
 
@@ -162,7 +162,7 @@ MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log',
 ##############################################################
 # setup initial model
 os.system('cp self/images/wideM-1* ddcal/init/')
-full_image = lib_img.Image('ddcal/init/wideM-1-MFS-image.fits', userReg = userReg)
+full_image = lib_img.Image('ddcal/init/wideM-1-MFS-image.fits', userReg=userReg)
 
 for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
@@ -171,8 +171,8 @@ for cmaj in range(maxIter):
     picklefile = 'ddcal/directions-c%02i.pickle' % cmaj
     interp_h5parm = 'ddcal/c%02i/solutions/interp.h5' % cmaj
     aterm_config_file = 'ddcal/c%02i/aterm/aterm.config' % cmaj
-    mask_cl = full_image.imagename.replace('.fits', '_mask-cl.fits')
-    mask_ext = full_image.imagename.replace('.fits', '_mask-ext.fits')
+    mask_cl = full_image.imagename.replace('.fits', '_mask-cl.fits')  # this is used to find calibrators
+    mask_ext = full_image.imagename.replace('.fits', '_mask-ext.fits')  # this is used for the initial subtract
     
     if not os.path.exists('ddcal/c%02i' % cmaj): os.makedirs('ddcal/c%02i' % cmaj)
     for subdir in ['plots','images','solutions','skymodels']:
@@ -189,18 +189,19 @@ for cmaj in range(maxIter):
 
         # the txt skymodel is used only to find directions
         if cmaj > 0:
-            full_image.skymodel_cut = mask_cl.replace('fits','skymodel')
+            full_image.skymodel_cut = mask_cl.replace('fits', 'skymodel')
         elif not os.path.exists(full_image.skymodel_cut): 
             full_image.selectCC(checkBeam=False, maskname=mask_cl)
 
         # cleanup model
         if cmaj == 0:
-            logger.info('Cleanup model...')
+            logger.info('Cleanup model images...')
             for model_file in glob.glob(full_image.root+'*model.fits'):
                 lib_img.blank_image_fits(model_file, mask_ext, model_file, inverse=True, blankval=0.)
         
         # locating DD-calibrators
         lsm = lsmtool.load(full_image.skymodel_cut)
+        lsm.select('%s == True' % mask_cl)
         lsm.group(mask_cl, root='Isl')
         # This regroup nearby sources
         x = lsm.getColValues('RA',aggregate='wmean')
@@ -236,11 +237,14 @@ for cmaj in range(maxIter):
                     fluxes[i] /= gauss_area[i] # reduce the fluxes for gaussians to the peak value
 
             d = lib_dd.Direction(name)
-            d.set_flux(fluxes, spidx_coeffs, ref_freq )
+            d.set_flux(fluxes, spidx_coeffs, ref_freq)
             # skip faint directions
             if d.get_flux(freq_min) < min_cal_flux60*(freq_min/60e6)**(-0.8) or d.get_flux(freq_mid) < min_cal_flux60*(freq_mid/60e6)**(-0.8): continue
-            if size < 2*img_beam[0]/3600:
+            if size < 4*img_beam[0]/3600:
                 size = 4*img_beam[0]/3600
+            # for complex sources force a larger region
+            if len(idx) > 1 and size < 10*img_beam[0]/3600:
+                size = 10*img_beam[0]/3600
 
             #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,ref_freq,size,img_beam,lsm.getColValues('MajorAxis')[idx])
 
@@ -258,7 +262,7 @@ for cmaj in range(maxIter):
         os.system('cat ddcal/c%02i/skymodels/Isl*reg > ddcal/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj,cmaj))
 
         # order directions from the fluxiest
-        directions = [x for _,x in sorted(zip([d.get_flux(freq_min) for d in directions],directions))][::-1] # reorder with flux
+        directions = [x for _, x in sorted(zip([d.get_flux(freq_min) for d in directions],directions))][::-1] # reorder with flux
 
         # If there's a preferential direciotn, get the closer direction to the final target and put it to the end
         if target_dir != '':
@@ -277,9 +281,9 @@ for cmaj in range(maxIter):
 
         for d in directions:
             if not d.peel_off:
-                logger.info( '%s: min: %.2f Jy; mid: %.2f Jy' % (d.name, d.get_flux(freq_min), d.get_flux(freq_mid)) )
+                logger.info('%s: min: %.2f Jy; mid: %.2f Jy' % (d.name, d.get_flux(freq_min), d.get_flux(freq_mid)))
             else:
-                logger.info( '%s: min: %.2f Jy; mid: %.2f Jy (peel off)' % (d.name, d.get_flux(freq_min), d.get_flux(freq_mid)) )
+                logger.info('%s: min: %.2f Jy; mid: %.2f Jy (peel off)' % (d.name, d.get_flux(freq_min), d.get_flux(freq_mid)))
 
         # write file
         skymodel_cl = 'ddcal/c%02i/skymodels/cluster.skymodel' % cmaj
@@ -298,7 +302,7 @@ for cmaj in range(maxIter):
             logger.info('Predict full model...')
             if cmaj == 0:
                 s.add('wsclean -predict -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
-                        -reorder -parallel-reordering 4 '+MSs.getStrWsclean(), \
+                        -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                         log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
                 s.run(check=True)
     
@@ -308,26 +312,26 @@ for cmaj in range(maxIter):
         if w.todo('c%02i-fullsub' % cmaj):
             # subtract - ms:SUBTRACTED_DATA = DATA - MODEL_DATA
             logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', \
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"',
                         log='$nameMS_taql.log', commandType='general')
             # reset - ms:CORRECTED_DATA = DATA
             logger.info('Set CORRECTED_DATA = DATA...')
-            MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', \
+            MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"',
                         log='$nameMS_taql.log', commandType='general')
     
             w.done('c%02i-fullsub' % cmaj)
         ### DONE
 
         ### TESTTESTTEST: empty image
-        #if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-        #    clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
+            clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
         ###
 
     for dnum, d in enumerate(directions):
 
         logger.info('c%02i - Working on direction: %s (%f Jy - %f deg)' % (cmaj, d.name, d.get_flux(freq_mid), d.size))
         if d.size > 0.5: logger.warning('Patch size large: %f' % d.size)
-        logstring = 'c%02i-%s' % (cmaj,d.name)
+        logstring = 'c%02i-%s' % (cmaj, d.name)
 
         if w.todo('%s-predict' % logstring):
 
@@ -340,7 +344,7 @@ for cmaj in range(maxIter):
     
                 # Add back the model previously subtracted for this dd-cal
                 logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA...')
-                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA"', \
+                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA"',
                         log='$nameMS_taql.log', commandType='general')
     
             else:
@@ -356,7 +360,7 @@ for cmaj in range(maxIter):
                 inmask = sorted(glob.glob(full_image.root+'.mask*.fits'))[-1]
                 outmask = outdico+'.mask'
                 lib_img.blank_image_reg(inmask, d.get_region(), outfile=outmask, inverse=False, blankval = 0.)
-                s.add('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask, indico, outdico), \
+                s.add('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask, indico, outdico),
                        log='MaskDicoModel-'+logstring+'.log', commandType='python', processors='max')
                 s.run(check=True)
 
@@ -406,12 +410,12 @@ for cmaj in range(maxIter):
 
                 # Remove corrupted data from CORRECTED_DATA
                 logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
-                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
+                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
                         log='$nameMS_taql.log', commandType='general')
 
             ### TTESTTESTTEST: empty image
-            if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
-                clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+            #if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
+            #    clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
             w.done('%s-predict' % logstring)
  
@@ -449,7 +453,7 @@ for cmaj in range(maxIter):
                 # Convince DPPP that DATA is corrected for the beam in the phase centre
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
                         setbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] \
-                        corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=True', \
+                        corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=True',
                         log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
     
                 w.done('%s-beamcorr' % logstring)
@@ -494,7 +498,7 @@ for cmaj in range(maxIter):
                 if cdd == 0:
                     logger.info('BL-based smoothing...')
                     # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
-                    MSs_dir.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', \
+                    MSs_dir.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS',
                         log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')    
  
                 # Calibration - ms:SMOOTHED_DATA
@@ -504,14 +508,14 @@ for cmaj in range(maxIter):
                     sol.mode=scalarcomplexgain sol.solint='+str(solint_ph)+' sol.nchan=1 sol.smoothnessconstraint=5e6 \
                     sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]', \
                     log='$nameMS_solGph-'+logstringcal+'.log', commandType='DPPP')
-                lib_util.run_losoto(s, 'ph', [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()], \
+                lib_util.run_losoto(s, 'ph', [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()],
                     [parset_dir+'/losoto-plot1.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                 os.system('mv cal-ph.h5 %s' % d.get_h5parm('ph'))
 
                 # correct ph - ms:DATA -> ms:CORRECTED_DATA
                 logger.info('Correct ph...')
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
-                             cor.parmdb='+d.get_h5parm('ph')+' cor.correction=phase000', \
+                             cor.parmdb='+d.get_h5parm('ph')+' cor.correction=phase000',
                              log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP')
 
                 if doamp:
@@ -528,14 +532,14 @@ for cmaj in range(maxIter):
                         losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset']
                     else:
                         losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset']
-                    lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], losoto_parsets, \
+                    lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
                         plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp1.h5 %s' % d.get_h5parm('amp1'))
 
                     logger.info('Correct amp 1...')
                     # correct amp - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-                        cor.parmdb='+d.get_h5parm('amp1')+' cor.correction=amplitude000', \
+                        cor.parmdb='+d.get_h5parm('amp1')+' cor.correction=amplitude000',
                         log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP') 
 
                     logger.info('Gain amp calibration 2...')
@@ -548,14 +552,14 @@ for cmaj in range(maxIter):
                         losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset']
                     else:
                         losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset']
-                    lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], losoto_parsets, \
+                    lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
                         plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp2.h5 %s' % d.get_h5parm('amp2'))
 
                     logger.info('Correct amp 2...')
                     # correct amp2 - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-                        cor.parmdb='+d.get_h5parm('amp2')+' cor.correction=amplitude000', \
+                        cor.parmdb='+d.get_h5parm('amp2')+' cor.correction=amplitude000',
                         log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP') 
 
                 w.done('%s-calibrate' % logstringcal)
@@ -576,7 +580,7 @@ for cmaj in range(maxIter):
             if not os.path.exists(image.imagename):
                 logger.warning('Breaking because the imaging diverged...')
                 break
-            d.set_model(image.root, typ='best', apply_region=False) # currently best model
+
             # get noise, if larger than prev cycle: break
             rms_noise = image.getNoise()
             mm_ratio = image.getMaxMinRatio()
@@ -591,6 +595,7 @@ for cmaj in range(maxIter):
             if cdd >= 4 and (mm_ratio >= 30 or d.get_flux(freq_mid) > 10):
                 doamp = True
 
+            d.set_model(image.root, typ='best', apply_region=False) # currently best model
             rms_noise_pre = rms_noise
             mm_ratio_pre = mm_ratio
 
@@ -610,9 +615,11 @@ for cmaj in range(maxIter):
             continue
         # second cycle, no peeling
         elif cmaj >= 1:
+            logger.info('%s: converged.' % d.name)
             d.converged = True
             continue
         else:
+            logger.info('%s: converged.' % d.name)
             d.converged = True
             # copy in the ddcal dir the best model
             model_skymodel = 'ddcal/c%02i/skymodels/%s-best-source.txt' % (cmaj, d.name)
@@ -626,17 +633,17 @@ for cmaj in range(maxIter):
 
             # Predict - ms:MODEL_DATA
             logger.info('Add best model to MODEL_DATA...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+model_skydb, \
+            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+model_skydb,
                     log='$nameMS_pre-'+logstring+'.log', commandType='DPPP')
 
             # Store FLAGS
-            MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"', \
+            MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"',
                     log='$nameMS_taql.log', commandType='general')
 
             # Corrput now model - ms:MODEL_DATA -> MODEL_DATA
             logger.info('Corrupt ph...')
             MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                        cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=phase000', \
+                        cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=phase000',
                         log='$nameMS_corruping'+logstring+'.log', commandType='DPPP')
 
             if not d.get_h5parm('amp1',-2) is None:
@@ -695,6 +702,7 @@ for cmaj in range(maxIter):
     imagename = 'img/wideDD-c%02i' % (cmaj)
 
     if w.todo('c%02i-imaging' % cmaj):
+        logger.info("Imaging - preparing solutions:")
 
         # combine the h5parms
         h5parms = {'ph':[], 'amp1':[], 'amp2':[]}
@@ -820,35 +828,31 @@ for cmaj in range(maxIter):
             # make mask
             im = lib_img.Image(imagename+'.app.restored.fits', userReg=userReg)
             im.makeMask(threshisl = 4, rmsbox=(150,15), atrous_do=True)
-    
+
             logger.info('Cleaning 2...')
-            lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
-                    Cache_Reset=0,
-                    Cache_Dirty='forcedirty',
-                    Cache_PSF='force',
-                    Cache_SmoothBeam='force',
-                    Deconv_MaxMajorIter=3,
+            lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **ddf_parms,
+                    Deconv_MaxMajorIter=5,
                     Deconv_PeakFactor=0.001,
-                    Predict_InitDicoModel=imagename+'.DicoModel',
-                    Mask_External=im.maskname
+                    Mask_External=im.maskname,
+                    Cache_Reset=0
                     )
  
-            os.system('mv %s.continue* ddcal/c%02i/images' % (imagename, cmaj))
+            os.system('mv %s.* ddcal/c%02i/images' % (imagename, cmaj))
         w.done('c%02i-imaging' % cmaj)
     ### DONE
 
-    full_image = lib_img.Image('ddcal/c%02i/images/%s.continue.app.restored.fits' % (cmaj,imagename.split('/')[-1]), userReg = userReg)
-    min_cal_flux60 *= 0.8 # go a bit deeper
+    full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj,imagename.split('/')[-1]), userReg = userReg)
+    min_cal_flux60 *= 0.8  # go a bit deeper
 
 if w.todo('upload'):
     
     logger.info('Save final images...')
     targetname = os.getcwd().split('/')[-1]
     logger.info('Copy: ddcal/c0*/images/img/wideDD-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % targetname)
-    os.system('ssh lofar.herts.ac.uk "rm -rf /beegfs/lofar/lba/products/%s"' % targetname)
-    os.system('ssh lofar.herts.ac.uk "mkdir /beegfs/lofar/lba/products/%s"' % targetname)
-    os.system('scp -q ddcal/c0*/images/wideDD-c*.continue.app.restored.fits lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % targetname)
-    os.system('scp -q ddcal/c0*/images/wideDD-c*.continue.int.restored.fits lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % targetname)
+    os.system('ssh herts "rm -rf /beegfs/lofar/lba/products/%s"' % targetname)
+    os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s"' % targetname)
+    os.system('scp -q ddcal/c0*/images/wideDD-c*.app.restored.fits herts:/beegfs/lofar/lba/products/%s' % targetname)
+    os.system('scp -q ddcal/c0*/images/wideDD-c*.int.restored.fits herts:/beegfs/lofar/lba/products/%s' % targetname)
     
     w.done('upload')
 ### DONE
