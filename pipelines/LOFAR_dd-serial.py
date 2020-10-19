@@ -319,8 +319,8 @@ for cmaj in range(maxIter):
         ### DONE
 
         ### TESTTESTTEST: empty image
-        #if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-        #    clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
+            clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
     for dnum, d in enumerate(directions):
@@ -611,11 +611,11 @@ for cmaj in range(maxIter):
             continue
         # second cycle, no peeling
         elif cmaj >= 1:
-            logger.info('%s: converged.')
+            logger.info('%s: converged.' % d.name)
             d.converged = True
             continue
         else:
-            logger.info('%s: converged.')
+            logger.info('%s: converged.' % d.name)
             d.converged = True
             # copy in the ddcal dir the best model
             model_skymodel = 'ddcal/c%02i/skymodels/%s-best-source.txt' % (cmaj, d.name)
@@ -688,8 +688,8 @@ for cmaj in range(maxIter):
         ### DONE
 
         ### TTESTTESTTEST: empty image
-        #if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
-        #    clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
+            clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
     ######################################################

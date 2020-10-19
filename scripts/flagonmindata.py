@@ -24,8 +24,6 @@ import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 
-from lib_timer import Timer
-
 class MShandler():
     def __init__(self, ms_file):
         """
