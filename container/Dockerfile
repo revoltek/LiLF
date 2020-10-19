@@ -9,13 +9,14 @@ USER root
 RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
-RUN apt-get install -y g++ gfortran cmake git wget flex bison vim \
-    python3-dev python3-ipython python3-pip python3-setuptools \
+RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim \
+    python3-dev python3-ipython python3-pip python3-setuptools python3-astropy python3-pyregion \
     libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
-RUN pip3 install pyregion
-RUN pip3 install astropy --upgrade
+# Some python packages
+#RUN pip3 install pyregion
+#RUN pip3 install astropy --upgrade
 
 # Add group. We chose GID 65527 to try avoiding conflicts.
 RUN groupadd -g 65527 lofar
@@ -112,18 +113,10 @@ RUN cd /opt/PyBDSF; git checkout 99573ee3799c8ce657d959c3bb2fdf6a61623b2c
 RUN cd /opt/PyBDSF; pip3 install .
 
 #####################################################################
-## LiLF
-#####################################################################
-RUN cd /opt && git clone https://github.com/revoltek/LiLF.git
-RUN cd /opt/LiLF && git checkout LBAdevel
-ENV PYTHONPATH /opt/LiLF:$PYTHONPATH
-ENV PATH /opt/LiLF/scripts:$PATH
-
-#####################################################################
 ## LSMtool
 #####################################################################
 RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git
-RUN cd /opt/LSMTool && git checkout 8730aaffd455cdd3071c68a1d56299ac1bece90c
+RUN cd /opt/LSMTool
 RUN cd /opt/LSMTool; pip3 install .
 
 ####################################################################
@@ -157,7 +150,7 @@ RUN cp -a /tmp/DDFacet/DDFacet /opt/DDFacet/DDFacet && \
 # Finally install DDFacet
 RUN rm -rf /opt/DDFacet/DDFacet/cbuild
 #RUN pip3 install -U pip setuptools wheel
-RUN python3 -m pip install tensorflow-cpu
+#RUN python3 -m pip install tensorflow-cpu
 
 RUN python3 -m pip install -U "/opt/DDFacet/[moresane-support,testing-requirements,fits-beam-support]"
 RUN cd /opt/DDFacet/ && python3 setup.py build
@@ -165,6 +158,16 @@ RUN cd /opt/DDFacet/ && python3 setup.py build
 # Set MeqTrees Cattery path to installation directory
 ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
 ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
+
+#####################################################################
+## LiLF
+#####################################################################
+RUN cd /opt && git clone https://github.com/revoltek/LiLF.git
+RUN cd /opt/LiLF && git checkout LBAdevel
+ENV PYTHONPATH /opt/LiLF:$PYTHONPATH
+ENV PATH /opt/LiLF/scripts:$PATH
+
+#####################################################################
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN ln -s /usr/bin/ipython3 /usr/bin/ipython
