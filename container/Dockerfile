@@ -55,6 +55,8 @@ RUN cd /tmp/LOFARBeam && git checkout 5b5d80ff308784adbf00985293257b16afff86b2
 RUN cd /tmp/LOFARBeam && mkdir build && cd build \
     && cmake .. \
     && make -j 64 && make install
+ENV PYTHONPATH /usr/local/lib/python3.8/site-packages/:$PYTHONPATH
+ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
 
 #####################################################################
 ## idg
@@ -62,7 +64,7 @@ RUN cd /tmp/LOFARBeam && mkdir build && cd build \
 RUN cd /tmp &&  git clone https://gitlab.com/astron-idg/idg.git
 RUN cd /tmp/idg && git checkout f4020d47a9e20f85d9e79356ca98d3bdc9ef6ade
 RUN cd /tmp/idg && mkdir build && cd build \
-    && cmake .. \
+    && cmake -DCMAKE_INSTALL_PREFIX:PATH=/ .. \
     && make -j 64 && make install
 
 #####################################################################
