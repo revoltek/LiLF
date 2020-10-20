@@ -108,18 +108,18 @@ if w.todo('setup'):
     MSs_orig = lib_ms.AllMSs( glob.glob('*concat.MS'), s, check_flags=False )
 
     # Demix
-    for ateam in ['VirA', 'TauA', 'CygA', 'CasA']:
+    for ateam in ['VirA', 'TauA', 'CygA', 'CasA', '3C338']:
         sep = MSs_orig.getListObj()[0].distBrightSource(ateam)
         logger.info('%s - sep: %.0f deg' % (ateam, sep))
-        if sep < 25 and ateam == 'VirA':
-            logger.warning('Demix of %s (sep: %.0f deg)' % (ateam, sep))
+        if sep > 2 and sep < 25 and (ateam != 'CasA' and ateam != 'CygA'):
+            logger.warning('Demix of %s (sep: %.1f deg)' % (ateam, sep))
             for MS in MSs_orig.getListStr():
                 lib_util.check_rm(MS + '/' + os.path.basename(skydb_demix))
                 os.system('cp -r ' + skydb_demix + ' ' + MS + '/' + os.path.basename(skydb_demix))
 
             # TODO make a single patch for source skymodel and use that in the demix?
             logger.info('Demixing...')
-            MSs_orig.run('DPPP ' + parset_dir + '/DPPP_demix.parset msin=$pathMS msout=$pathMS demixer.skymodel=$pathMS/' + os.path.basename(skydb_demix) +
+            MSs_orig.run('DPPP ' + parset_dir + '/DPPP-demix.parset msin=$pathMS msout=$pathMS demixer.skymodel=$pathMS/' + os.path.basename(skydb_demix) +
                 ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources=[' + ateam + ']',
                 log='$nameMS_demix.log', commandType='DPPP')
 
@@ -240,7 +240,7 @@ for c in range(100):
         # if next is a "cont" then I need the do_predict
         logger.info('Cleaning shallow (cycle: '+str(c)+')...')
         lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, name=imagename,
-                parallel_gridding=4, baseline_averaging='', size=4000, scale='2.5arcsec',
+                parallel_gridding=4, baseline_averaging='', size=2500, scale='2.5arcsec',
                 niter=1000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0,
                 auto_threshold=5, local_rms='', local_rms_method='rms-with-min',
                 join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1)
@@ -256,7 +256,7 @@ for c in range(100):
 
         logger.info('Cleaning full (cycle: '+str(c)+')...')
         lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, \
-                parallel_gridding=4, size=4000, scale='2.5arcsec', \
+                parallel_gridding=4, size=2500, scale='2.5arcsec', \
                 niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0, \
                 auto_threshold=0.5, auto_mask=2., local_rms='', local_rms_method='rms-with-min', fits_mask=maskfits, \
                 multiscale='', multiscale_scale_bias=0.8, \
@@ -283,6 +283,12 @@ for c in range(100):
     if rms_noise > 0.95*rms_noise_pre and mm_ratio < 1.05*mm_ratio_pre:
         doamp = True
     rms_noise_pre = rms_noise; mm_ratio_pre = mm_ratio
+
+# subtract everything outside .5 deg
+
+# recal
+
+# image
 
 # Low res image
 logger.info('Cleaning low-res...')

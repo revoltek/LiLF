@@ -7,8 +7,8 @@ steps = [demixer]
 
 demixer.type = demixer 
 #demixer.baseline = [CR]S*&
-demixer.demixfreqstep = 8 # 16 if possible
-demixer.demixtimestep = 10
+demixer.demixfreqstep = 16 # 16 if possible
+demixer.demixtimestep = 20
 #demixer.elevationcutoff = 0.0deg # not-working
 demixer.ignoretarget = F
 #demixer.targetsource = 

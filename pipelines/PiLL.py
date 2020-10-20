@@ -8,7 +8,7 @@ logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('PiLL.walker')
 
-LiLF_dir = os.path.dirname(lib_util.__file__)
+LiLF_dir = os.path.dirname(lib_util.__file__).split('/')[:-1]
 parset = lib_util.getParset(parsetFile='lilf.config')
 
 survey_projects = 'LT14_002,LC12_017,LC9_016,LC8_031' # list of projects related with the LBA survey
