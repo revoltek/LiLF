@@ -87,7 +87,7 @@ if w.todo('demix'):
     ateams = ['VirA', 'TauA']
     for ateam in ateams:
         sep = MSs.getListObj()[0].distBrightSource(ateam)
-        if sep > 15:
+        if sep < 15:
             logger.warning('Demix of %s (sep: %.0f deg)' % (','.join(ateams), sep))
             ateams.remove(ateam)
 
