@@ -28,6 +28,7 @@ w = lib_util.Walker('pipeline-self.walker')
 
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_self','parset_dir')
+skydb_demix = parset.get('LOFAR_self','demix_model')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
@@ -80,26 +81,59 @@ if sourcedb == '':
 
     sourcedb = 'tgts.skydb'
 
+########################################################
+### Demix?
+if w.todo('demix'):
+    ateams = ['VirA', 'TauA']
+    for ateam in ateams:
+        sep = MSs.getListObj()[0].distBrightSource(ateam)
+        if sep > 15:
+            logger.warning('Demix of %s (sep: %.0f deg)' % (','.join(ateams), sep))
+            ateams.remove(ateam)
+
+    if len(ateams) > 0:
+        if os.path.exists('mss-predemix'):
+            lib_util.check_rm('mss')
+            os.system('cp -r mss-predemix mss')
+        else:
+            os.system('cp -r mss mss-predemix')
+
+        for MS in MSs.getListStr():
+            lib_util.check_rm(MS+'/'+os.path.basename(skydb_demix))
+            os.system('cp -r '+skydb_demix+' '+MS+'/'+os.path.basename(skydb_demix))
+
+        logger.info('Demixing...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-demix.parset msin=$pathMS msout=$pathMS demixer.skymodel=$pathMS/'+os.path.basename(skydb_demix)+
+                ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources=['+','.join(ateams)+']',
+                log='$nameMS_demix.log', commandType='DPPP', maxThreads=2)
+
+    w.done('demix')
+### DONE
+
 #################################################################################################
 # Add model to MODEL_DATA
 # copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
 sourcedb_basename = sourcedb.split('/')[-1]
 for MS in MSs.getListStr():
-    lib_util.check_rm(MS+'/'+sourcedb_basename)
-    logger.debug('Copy: '+sourcedb+' -> '+MS)
-    os.system('cp -r '+sourcedb+' '+MS)
+    lib_util.check_rm(MS + '/' + sourcedb_basename)
+    logger.debug('Copy: ' + sourcedb + ' -> ' + MS)
+    os.system('cp -r ' + sourcedb + ' ' + MS)
 
 if w.todo('init_model'):
 
     # note: do not add MODEL_DATA or the beam is transported from DATA, while we want it without beam applied
     logger.info('Creating CORRECTED_DATA...')
     MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
-    
+
     logger.info('Add model to MODEL_DATA...')
     if apparent:
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+        MSs.run(
+            'DPPP ' + parset_dir + '/DPPP-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/' + sourcedb_basename,
+            log='$nameMS_pre.log', commandType='DPPP')
     else:
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+        MSs.run(
+            'DPPP ' + parset_dir + '/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/' + sourcedb_basename,
+            log='$nameMS_pre.log', commandType='DPPP')
 
     w.done('init_model')
 ### DONE

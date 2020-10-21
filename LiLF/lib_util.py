@@ -66,6 +66,7 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
     # self
+    add_default('LOFAR_self', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skydb')
     # dd-parallel
     add_default('LOFAR_dd-parallel', 'maxniter', '10')
     add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
@@ -600,6 +601,6 @@ class Scheduler():
         if out != b'':
             out = out.split(b'\n')[0].decode()
             logger.error(commandType+' run problem on:\n'+out)
-            return 1
+            raise
 
         return 0

@@ -49,6 +49,7 @@ class AllMSs(object):
             raise('ALL MS files flagged.')
 
         self.mssListStr = [ms.pathMS for ms in self.mssListObj]
+        self.resolution = self.mssListObj[0].getResolution(check_flags=False)
 
 
     def getListObj(self):
@@ -213,10 +214,12 @@ class MS(object):
         """
         Get the distance in deg from some bright sources
         """
-        ateam={'CygA':{'ra':299.8679167,'dec':40.7338889},\
-                'CasA':{'ra':350.8583333,'dec':58.8000000},\
-                'TauA':{'ra':83.6333333,'dec':22.0144444},\
-                'VirA':{'ra':187.7058333,'dec':12.3911111}\
+        ateam={'CygA':{'ra':299.8679167, 'dec':40.7338889},
+                'CasA':{'ra':350.8583333, 'dec':58.8000000},
+                'TauA':{'ra':83.6333333, 'dec':22.0144444},
+                'VirA':{'ra':187.7058333, 'dec':12.3911111},
+                '3C338':{'ra':247.160333, 'dec':39.551556},
+                '3C380':{'ra':277.382420,'dec':48.746156}
         }
         
         if name not in ateam.keys():
@@ -362,7 +365,7 @@ class MS(object):
 
     def getNtime(self):
         """
-        Returns the numer of time slits in this MS
+        Returns the number of time slots in this MS
         """
         with tables.table(self.pathMS, ack = False) as t:
             return len(t.getcol("TIME"))
@@ -490,15 +493,19 @@ class MS(object):
         lib_util.check_rm(outfile)
         regions.write(outfile)
 
-    def getResolution(self):
+    def getResolution(self, check_flags=True):
         """
         Return the expected resolution (in arcsec) of the MS
         Completely flagged lines are removed
         """
         c = 299792458. # in metres per second
 
-        with tables.table(self.pathMS, ack = False).query('not all(FLAG)') as t:
-            col = t.getcol('UVW')
+        if check_flags:
+            with tables.table(self.pathMS, ack = False).query('not all(FLAG)') as t:
+                col = t.getcol('UVW')
+        else:
+            with tables.table(self.pathMS, ack = False) as t:
+                col = t.getcol('UVW')
 
         with tables.table(self.pathMS+'/SPECTRAL_WINDOW', ack = False) as t:
             wavelength = c / t.getcol('REF_FREQUENCY')[0]             # in metres
