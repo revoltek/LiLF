@@ -1,0 +1,20 @@
+msin = 
+msin.datacolumn = DATA
+msin.baseline = [CR]S*&
+msout =
+
+steps = [demixer] 
+
+demixer.type = demixer 
+#demixer.baseline = [CR]S*&
+demixer.demixfreqstep = 16 # 16 if possible
+demixer.demixtimestep = 20
+#demixer.elevationcutoff = 0.0deg # not-working
+demixer.ignoretarget = F
+#demixer.targetsource = 
+demixer.subtractsources =
+demixer.ntimechunk = 0
+demixer.skymodel =
+demixer.freqstep = 1
+demixer.timestep = 1
+demixer.instrumentmodel =
