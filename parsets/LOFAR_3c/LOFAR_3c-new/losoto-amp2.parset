@@ -1,7 +1,0 @@
-Ncpu = 0
-
-[bkp]
-operation = DUPLICATE
-soltab = sol000/amplitude000
-soltabOut = amplitudeSmooth
-

@@ -10,8 +10,8 @@ RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
 RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim \
-    python3-dev python3-ipython python3-pip python3-setuptools python3-astropy python3-pyregion \
-    libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
+    python3-dev python3-ipython python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql \
+    libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
 # Some python packages
@@ -122,8 +122,9 @@ RUN cd /opt/LSMTool; pip3 install .
 ####################################################################
 ## LoSoTo
 ###################################################################
+RUN cd /
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git
-RUN cd /opt/losoto && git checkout 921f807fa5220bf5c2daeb5c68c3e1e0e66f9c66
+RUN cd /opt/losoto && git checkout bbea0b8b7f755f577b80de418922393fa91db32b
 RUN cd /opt/losoto; pip3 install .
 
 #####################################################################
@@ -158,6 +159,15 @@ RUN cd /opt/DDFacet/ && python3 setup.py build
 # Set MeqTrees Cattery path to installation directory
 ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
 ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
+
+#####################################################################
+## LTA
+#####################################################################
+
+RUN cd /opt && wget https://lta.lofar.eu/software/lofar_lta-2.7.1.tar.gz && tar xf lofar_lta-2.7.1.tar.gz && rm lofar_lta-2.7.1.tar.gz
+RUN cd /opt/lofar_lta-2.7.1 && python3 setup.py install_oracle
+RUN cd /opt/lofar_lta-2.7.1 && python3 setup.py install
+ENV LD_LIBRARY_PATH /usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 
 #####################################################################
 ## LiLF
