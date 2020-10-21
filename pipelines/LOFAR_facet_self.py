@@ -51,7 +51,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     size = in deg of the image
     """
     # set pixscale and imsize
-    pixscale = MSs.getListObj()[0].getResolution() 
+    pixscale = MSs.resolution
     if res == 'normal':
         pixscale = float('%.1f'%(pixscale/2.5))
     elif res == 'high':
