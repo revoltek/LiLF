@@ -108,10 +108,10 @@ if w.todo('setup'):
     MSs_orig = lib_ms.AllMSs( glob.glob('*concat.MS'), s, check_flags=False )
 
     # Demix
-    for ateam in ['VirA', 'TauA', 'CygA', 'CasA', '3C338']:
+    for ateam in ['VirA', 'TauA', 'CygA', 'CasA', '3C338', '3C380']:
         sep = MSs_orig.getListObj()[0].distBrightSource(ateam)
         logger.info('%s - sep: %.0f deg' % (ateam, sep))
-        if sep > 2 and sep < 25 and (ateam != 'CasA' and ateam != 'CygA'):
+        if sep > 1 and sep < 25 and (ateam != 'CasA' and ateam != 'CygA'):
             logger.warning('Demix of %s (sep: %.1f deg)' % (ateam, sep))
             for MS in MSs_orig.getListStr():
                 lib_util.check_rm(MS + '/' + os.path.basename(skydb_demix))
