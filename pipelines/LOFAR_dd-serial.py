@@ -35,11 +35,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
     size = in deg of the image
     """
     # set pixscale and imsize
-    try:
-        pixscale = MSs.getListObj()[0].getResolution() 
-    except:
-        logger.warning('Fail evaluate pixscale, probably the MS is fully flagged.')
-        return
+    pixscale = MSs.resolution
 
     if res == 'normal':
         pixscale = float('%.1f'%(pixscale/2.5))
@@ -142,11 +138,7 @@ if not os.path.exists('mss-avg'):
             avg.timestep='+str(avgtimeint)+' avg.freqstep=1',
             log='$nameMS_initavg.log', commandType='DPPP')
 
-<<<<<<< HEAD
 MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False)
-=======
-MSs = lib_ms.AllMSs( glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False )
->>>>>>> e847f6cec740416f2525c18eab1aaead8d332514
 
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 detectability_dist = MSs.getListObj()[0].getFWHM(freq='max')*1.8/2.  # 1.8 to go to close to the null
@@ -328,11 +320,7 @@ for cmaj in range(maxIter):
 
         ### TESTTESTTEST: empty image
         if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-<<<<<<< HEAD
             clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
-=======
-            clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
->>>>>>> e847f6cec740416f2525c18eab1aaead8d332514
         ###
 
     for dnum, d in enumerate(directions):
@@ -528,11 +516,11 @@ for cmaj in range(maxIter):
 
                 if doamp:
                     
-                    logger.info('Gain amp calibration 1...')
+                    logger.info('Gain amp calibration 1 (solint: %i)...' % solint_amp)
                     # Calibration - ms:CORRECTED_DATA
                     # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp)+' sol.nchan=1 sol.uvmmin=200 sol.smoothnessconstraint=4e6 \
+                        sol.mode=diagonal sol.solint='+str(solint_amp)+' sol.nchan=1 sol.uvmmin=100 sol.smoothnessconstraint=4e6 sol.minvisratio=0.25\
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DPPP')
 
@@ -550,10 +538,10 @@ for cmaj in range(maxIter):
                         cor.parmdb='+d.get_h5parm('amp1')+' cor.correction=amplitude000',
                         log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP') 
 
-                    logger.info('Gain amp calibration 2...')
+                    logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
                     # Calibration - ms:SMOOTHED_DATA
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.nchan=6 sol.uvmmin=200 sol.smoothnessconstraint=10e6', \
+                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.nchan=6 sol.uvmmin=100 sol.smoothnessconstraint=10e6 sol.minvisratio=0.25', \
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DPPP')
 
                     if d.peel_off:
@@ -623,19 +611,11 @@ for cmaj in range(maxIter):
             continue
         # second cycle, no peeling
         elif cmaj >= 1:
-<<<<<<< HEAD
             logger.info('%s: converged.' % d.name)
             d.converged = True
             continue
         else:
             logger.info('%s: converged.' % d.name)
-=======
-            logger.info('%s: converged.')
-            d.converged = True
-            continue
-        else:
-            logger.info('%s: converged.')
->>>>>>> e847f6cec740416f2525c18eab1aaead8d332514
             d.converged = True
             # copy in the ddcal dir the best model
             model_skymodel = 'ddcal/c%02i/skymodels/%s-best-source.txt' % (cmaj, d.name)
@@ -652,9 +632,10 @@ for cmaj in range(maxIter):
             MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+model_skydb,
                     log='$nameMS_pre-'+logstring+'.log', commandType='DPPP')
 
-            # Store FLAGS
-            MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"',
-                    log='$nameMS_taql.log', commandType='general')
+            # Store FLAGS - just for sources to peel as they might be visible only for a fraction of the band
+            if d.peel_off:
+                MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"',
+                         log='$nameMS_taql.log', commandType='general')
 
             # Corrput now model - ms:MODEL_DATA -> MODEL_DATA
             logger.info('Corrupt ph...')
@@ -685,17 +666,18 @@ for cmaj in range(maxIter):
                        corrbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] corrbeam.beammode=element corrbeam.invert=True', \
                        log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
 
-            # Set MODEL_DATA = 0 where data are flagged, then unflag everything
-            MSs.run('taql "update $pathMS set MODEL_DATA[FLAG] = 0"', \
-                    log='$nameMS_taql.log', commandType='general')
+            if d.peel_off:
+                # Set MODEL_DATA = 0 where data are flagged, then unflag everything
+                MSs.run('taql "update $pathMS set MODEL_DATA[FLAG] = 0"',
+                        log='$nameMS_taql.log', commandType='general')
 
-            # Restore of FLAGS
-            MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"', \
-                    log='$nameMS_taql.log', commandType='general')
+                # Restore of FLAGS
+                MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"',
+                        log='$nameMS_taql.log', commandType='general')
 
             # Remove the ddcal again
             logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', \
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
                     log='$nameMS_taql.log', commandType='general')
 
             # if it's a source to peel, remove it from the data column used for imaging

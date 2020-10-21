@@ -11,7 +11,7 @@ __version__ = "1.3"
 
 import datetime
 from os.path import expanduser
-from astropy.utils.compat.futures import process
+#from astropy.utils.compat.futures import process
 
 # Python2/3 dependent stuff
 from sys import version_info

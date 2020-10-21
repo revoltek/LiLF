@@ -108,18 +108,18 @@ if w.todo('setup'):
     MSs_orig = lib_ms.AllMSs( glob.glob('*concat.MS'), s, check_flags=False )
 
     # Demix
-    for ateam in ['VirA', 'TauA', 'CygA', 'CasA', '3C338']:
+    for ateam in ['VirA', 'TauA', 'CygA', 'CasA', '3C338', '3C380']:
         sep = MSs_orig.getListObj()[0].distBrightSource(ateam)
         logger.info('%s - sep: %.0f deg' % (ateam, sep))
-        if sep < 25 and (ateam != 'CasA' and ateam != 'CygA'):
-            logger.warning('Demix of %s (sep: %.0f deg)' % (ateam, sep))
+        if sep > 1 and sep < 25 and (ateam != 'CasA' and ateam != 'CygA'):
+            logger.warning('Demix of %s (sep: %.1f deg)' % (ateam, sep))
             for MS in MSs_orig.getListStr():
                 lib_util.check_rm(MS + '/' + os.path.basename(skydb_demix))
                 os.system('cp -r ' + skydb_demix + ' ' + MS + '/' + os.path.basename(skydb_demix))
 
             # TODO make a single patch for source skymodel and use that in the demix?
             logger.info('Demixing...')
-            MSs_orig.run('DPPP ' + parset_dir + '/DPPP_demix.parset msin=$pathMS msout=$pathMS demixer.skymodel=$pathMS/' + os.path.basename(skydb_demix) +
+            MSs_orig.run('DPPP ' + parset_dir + '/DPPP-demix.parset msin=$pathMS msout=$pathMS demixer.skymodel=$pathMS/' + os.path.basename(skydb_demix) +
                 ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources=[' + ateam + ']',
                 log='$nameMS_demix.log', commandType='DPPP')
 
@@ -283,6 +283,12 @@ for c in range(100):
     if rms_noise > 0.95*rms_noise_pre and mm_ratio < 1.05*mm_ratio_pre:
         doamp = True
     rms_noise_pre = rms_noise; mm_ratio_pre = mm_ratio
+
+# subtract everything outside .5 deg
+
+# recal
+
+# image
 
 # Low res image
 logger.info('Cleaning low-res...')
