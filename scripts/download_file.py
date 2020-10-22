@@ -1,10 +1,11 @@
 #!/usr/bin/python
 # Generic file download with retry and check for length
+
 import os
 from time import sleep
 import requests
 
-def download_file(url,filename):
+def download_file(url, filename, login=None, password=None):
 
     downloaded=False
     while not downloaded:
@@ -12,16 +13,12 @@ def download_file(url,filename):
         while not connected:
             try:
                 print('Opening connection')
-                response = requests.get(url, stream=True, verify=True, timeout=60)
-                if response.status_code==401:
-                    # try to access with login pass from .wgetrc
-                    file_wgetrc = os.path.expanduser('~')+'/.wgetrc'
-                    if os.path.exists(file_wgetrc):
-                        with open(file_wgetrc) as f:
-                            login =
-                            password =
+                if (login is not None) and (password is not None):
                     response = requests.get(url, stream=True, verify=True, timeout=60,
                                             auth=(login, password))
+                else:
+                    response = requests.get(url, stream=True, verify=True, timeout=60)
+
                 if response.status_code!=200:
                     print(response.headers)
                     raise RuntimeError('Code was %i' % response.status_code)
