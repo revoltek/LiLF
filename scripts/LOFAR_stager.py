@@ -212,11 +212,11 @@ class Worker_downloader(Worker):
                 ms_file = surl.split('/')[-1].split('.MS')[0]+'.MS'  # e.g. .../L769079_SB020_uv.MS
 
                 if 'psnc.pl' in surl:
-                        url = 'https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s' % surl
+                    url = 'https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s' % surl
                 elif 'sara.nl' in surl:
-                        url = 'https://lofar-download.grid.surfsara.nl/lofigrid/SRMFifoGet.py?surl=%s' % surl
+                    url = 'https://lofar-download.grid.surfsara.nl/lofigrid/SRMFifoGet.py?surl=%s' % surl
                 elif 'juelich.de' in surl:
-                        url = 'https://lofar-download.fz-juelich.de/webserver-lofar/SRMFifoGet.py?surl=%s' % surl
+                    url = 'https://lofar-download.fz-juelich.de/webserver-lofar/SRMFifoGet.py?surl=%s' % surl
                 else:
                     print('ERROR: unknown archive for %s...' % surl)
                     sys.exit()
