@@ -10,6 +10,7 @@ from awlofar.main.aweimports import CorrelatedDataProduct, \
 from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
 import stager_access as stager
 from casacore import tables
+from download_file import download_file
 
 #project = 'LC9_017' # 3c first part
 #project = 'LC10_020' # 3c second part
@@ -34,6 +35,21 @@ if args.obsID is not None:
 target = args.target
 calonly = args.calonly
 nocal = args.nocal
+
+# Login/Passwd for LTA
+login = None
+password = None
+file_wgetrc = os.path.expanduser('~')+'/.wgetrc'
+if os.path.exists(file_wgetrc):
+    with open(file_wgetrc, 'r') as f:
+        for line in f.readline():
+            if 'login' in line:
+                login = line.split('=')[-1].strip(' \t\n\r')
+            elif 'password' in line:
+                password = line.split('=')[-1].strip(' \t\n\r')
+            else:
+                print('Unknown content of .wgetrc: %s' % line)
+                sys.exit()
 
 # The class of data to query
 cls = CorrelatedDataProduct
@@ -191,28 +207,32 @@ class Worker_downloader(Worker):
                 surl = self.L_toDownload.pop()
                 print("Downloader -- Download: "+surl.split('/')[-1])
                 self.L_inDownload.append(surl)
-                # loop untile the sanity check on the downloaded MS is ok
-                while True:
-                    with open("wgetout.txt","wb") as out, open("wgeterr.txt","wb") as err:
-                        if 'psnc.pl' in surl: 
-                            p = subprocess.Popen('wget -nv https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
-                        elif 'sara.nl' in surl: 
-                            p = subprocess.Popen('wget -nv https://lofar-download.grid.surfsara.nl/lofigrid/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
-                        elif 'juelich.de' in surl: 
-                            p = subprocess.Popen('wget -nv https://lofar-download.fz-juelich.de/webserver-lofar/SRMFifoGet.py?surl=%s -O - | tar -x' % surl, shell=True,stdout=out,stderr=err)
-                        else:
-                            print('ERROR: unknown archive for %s...' % surl)
-                            sys.exit()
 
-                        os.waitpid(p.pid, 0)
-                        ms_file = surl.split('/')[-1].split('.MS')[0]+'.MS' # e.g. .../L769079_SB020_uv.MS_daf24388.tar
-                        try:
-                            t = tables.table(ms_file, ack=False)
-                            break
-                        except:
-                            print('ERROR opening %s, probably corrupted - redownload it' % ms_file)
-                            os.system('rm -r %s' % ms_file)
-    
+                tar_file = surl.split('/')[-1]  # e.g. .../L769079_SB020_uv.MS_daf24388.tar
+                ms_file = surl.split('/')[-1].split('.MS')[0]+'.MS'  # e.g. .../L769079_SB020_uv.MS
+
+                if 'psnc.pl' in surl:
+                    url = 'https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s' % surl
+                elif 'sara.nl' in surl:
+                    url = 'https://lofar-download.grid.surfsara.nl/lofigrid/SRMFifoGet.py?surl=%s' % surl
+                elif 'juelich.de' in surl:
+                    url = 'https://lofar-download.fz-juelich.de/webserver-lofar/SRMFifoGet.py?surl=%s' % surl
+                else:
+                    print('ERROR: unknown archive for %s...' % surl)
+                    sys.exit()
+
+                # loop until the sanity check on the downloaded MS is ok
+                while True:
+                    download_file(url, tar_file, login, password)
+                    os.system('tar xf %s' % tar_file)
+                    try:
+                        t = tables.table(ms_file, ack=False)
+                        break
+                    except:
+                        print('ERROR opening %s, probably corrupted - redownload it' % ms_file)
+                        os.system('rm -r %s %s' % (tar_file, ms_file))
+                os.system('rm -r %s' % tar_file)
+
                 self.L_inDownload.remove(surl)
                 self.L_Downloaded.append(surl)
 
