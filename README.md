@@ -8,8 +8,8 @@ LOFAR: http://lofar.org/
 uGMRT: http://www.ncra.tifr.res.in/ncra/gmrt
 
 ### Files:
-- .wgetrc >> with the login and pass for LTA archive
-- .surveys >> with the pass for the surveydb
+- ~/.stagingrc >> with the login and pass for LTA archive
+- ~/.surveys >> with the pass for the surveydb
 
 # lilf.config specifications:
 

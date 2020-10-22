@@ -158,7 +158,6 @@ class SurveysDB(object):
                 self.usetunnel=True
 
             if self.usetunnel:
-                print(self.ssh_user, home+'/.ssh/%s'%self.ssh_key)
                 self.tunnel=sshtunnel.SSHTunnelForwarder('lofar.herts.ac.uk',
                                                          ssh_username=self.ssh_user,
                                                          ssh_pkey=home+'/.ssh/%s'%self.ssh_key,

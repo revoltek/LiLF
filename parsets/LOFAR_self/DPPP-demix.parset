@@ -6,7 +6,7 @@ msout =
 steps = [demixer] 
 
 demixer.type = demixer 
-demixer.demixfreqstep = 16
+demixer.demixfreqstep = 20
 demixer.demixtimestep = 20
 demixer.ignoretarget = F
 #demixer.targetsource = 

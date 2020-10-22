@@ -39,11 +39,11 @@ nocal = args.nocal
 # Login/Passwd for LTA
 login = None
 password = None
-file_wgetrc = os.path.expanduser('~')+'/.wgetrc'
-if os.path.exists(file_wgetrc):
-    with open(file_wgetrc, 'r') as f:
+file_rc = os.path.expanduser('~/.stagingrc')
+if os.path.exists(file_rc):
+    with open(file_rc, 'r') as f:
         for line in f.readline():
-            if 'login' in line:
+            if 'user' in line:
                 login = line.split('=')[-1].strip(' \t\n\r')
             elif 'password' in line:
                 password = line.split('=')[-1].strip(' \t\n\r')

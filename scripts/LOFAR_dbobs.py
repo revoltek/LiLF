@@ -113,3 +113,7 @@ with SurveysDB(survey='lba',readonly=False) as sdb:
         if nobs >= 3:
             print("Set %s as observed (%i)" % (field_id, nobs))
             sdb.execute('UPDATE fields SET status="Observed" WHERE id="%s"' % (field_id))
+            if nobs == 8:
+                sdb.execute('UPDATE fields SET priority=2 WHERE id="%s"' % (field_id))
+            else:
+                sdb.execute('UPDATE fields SET priority=1 WHERE id="%s"' % (field_id))
