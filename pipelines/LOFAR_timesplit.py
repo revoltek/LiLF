@@ -42,8 +42,6 @@ with w.if_todo('copy'):
         #if min(MS.getFreqs()) > 30.e6:
         # overwrite=True to prevent updating the weights twice
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=True)
-
-
 ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
@@ -53,7 +51,7 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 if cal_dir == '':
     obsid = MSs.getListObj()[0].getObsID()
     # try standard location
-    cal_dir = glob.glob('../id%i_3[c|C]196' % obsid)+glob.glob('../id%i_3[c|C]295' % obsid)+glob.glob('../id%i_3[c|C]380' % obsid)
+    cal_dir = glob.glob('../id%i_-_3[c|C]196' % obsid)+glob.glob('../id%i_-_3[c|C]295' % obsid)+glob.glob('../id%i_-_3[c|C]380' % obsid)
     if len(cal_dir) > 0:
         cal_dir = cal_dir[0]
     else:
