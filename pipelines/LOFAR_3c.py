@@ -261,7 +261,6 @@ for c in range(100):
                 join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2 )
         os.system('cat logs/wsclean-c%02i.log | grep "background noise"' % c)
 
-
     ### DONE
 
     # Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA
