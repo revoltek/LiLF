@@ -26,13 +26,12 @@ bl2flag = parset.get('flag','stations')
 #############################################################
 MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags = False )
 
-if w.todo('copy'):
+with w.if_todo('copy'):
     # copy data
     logger.info('Copy data...')
     for MS in MSs.getListObj():
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=False)
 
-    w.done('copy')
 ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s, check_flags = False )
@@ -47,7 +46,7 @@ else: iono3rd = False
 
 ######################################################
 # flag bad stations, flags will propagate
-if w.todo('flag'):
+with w.if_todo('flag'):
     logger.info("Flagging...")
     MSs.run("DPPP " + parset_dir + "/DPPP-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DPPP")
     
@@ -55,22 +54,20 @@ if w.todo('flag'):
     logger.info('Remove bad time/freq stamps...')
     MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
-    w.done('flag')
 ### DONE
 
-if w.todo('predict'):
+with w.if_todo('predict'):
     # predict to save time ms:MODEL_DATA
     logger.info('Add model to MODEL_DATA (%s)...' % calname)
     MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=$pathMS/" + os.path.basename(skymodel) + " pre.sources=" + calname, \
             log="$nameMS_pre.log", commandType="DPPP", maxThreads=30)
     
-    w.done('predict')
 ### DONE
 
 ###################################################
 # 1: find PA
 
-if w.todo('cal_pa'):
+with w.if_todo('cal_pa'):
     # Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
     MSs.run('BLsmooth.py -r -c 1 -n 8 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType
@@ -87,13 +84,12 @@ if w.todo('cal_pa'):
     logger.info('Polalign correction...')
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DPPP")
 
-    w.done('cal_pa')
 ### DONE
 
 ########################################################
 # 2: find FR
 
-if w.todo('cal_fr'):
+with w.if_todo('cal_fr'):
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
     MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType="DPPP")
@@ -114,7 +110,6 @@ if w.todo('cal_fr'):
     logger.info('Faraday rotation correction...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DPPP")
 
-    w.done('cal_fr')
 ### DONE
 
 #######################################################
@@ -145,7 +140,7 @@ if w.todo('cal_fr'):
 ######################################################
 # 4: find BP
 
-if w.todo('cal_bp'):
+with w.if_todo('cal_bp'):
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
     MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log',
@@ -158,13 +153,12 @@ if w.todo('cal_bp'):
     lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()], \
             [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-bp.parset'])
 
-    w.done('cal_bp')
 ### DONE
 
 ####################################################
 # Re-do correcitons in right order
 
-if w.todo('apply_all'):
+with w.if_todo('apply_all'):
     # Pol align correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA2.log', commandType="DPPP")
@@ -192,13 +186,12 @@ if w.todo('apply_all'):
     #MSs.run('createRMh5parm.py $pathMS $pathMS/rme.h5', log='$nameMS_RME.log', commandType="general", maxThreads=1)
     #MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/rme.h5 cor.correction=RMextract', log='$nameMS_corRME.log', commandType="DPPP")
 
-    w.done('apply_all')
 ### DONE
 
 #################################################
 # 4: find iono
 
-if w.todo('cal_iono'):
+with w.if_todo('cal_iono'):
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
     MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
@@ -215,10 +208,9 @@ if w.todo('cal_iono'):
         lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
                 [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono.parset'])
 
-    w.done('cal_iono')
 ### DONE
 
-if w.todo('upload'):
+with w.if_todo('upload'):
     logger.info('Compressing caltables...')
     os.system('cp cal-pa.h5 fullcal-pa.h5')
     #os.system('cp cal-fr.h5 fullcal-fr.h5') # no need to keep orig
@@ -257,7 +249,6 @@ if w.todo('upload'):
     with SurveysDB(survey='lba',readonly=False) as sdb:
         sdb.execute('INSERT INTO observations (id,calibratordata) VALUES (%i,"%s")' % (obsid,cal))
 
-    w.done('upload')
 ### DONE
 
 # a debug image

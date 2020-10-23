@@ -27,7 +27,7 @@ userReg = parset.get('model','userReg')
 mosaic_image = lib_img.Image('ddcal/images/c%02i/mos-MFS-image.fits' % lastcycle)
 
 ############################
-if w.todo('cleaning'):
+with w.if_todo('cleaning'):
 
     logger.info('Cleaning...')
     lib_util.check_rm('plot*')
@@ -39,7 +39,7 @@ if w.todo('cleaning'):
     lib_util.check_rm('mss-facet')
     if not os.path.exists('mss-facet'): os.system('cp -r mss-dd mss-facet')
     
-    w.done('cleaning')
+
 ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('mss-facet/*MS'), s )
@@ -149,7 +149,7 @@ s.run(check=True)
 
 del lsm
 
-if w.todo('prepare_col'):
+with w.if_todo('prepare_col'):
     logger.info('Subtraction...')
     # Copy DATA -> SUBTRACTED_DATA
     logger.info('Add columns...')
@@ -157,11 +157,11 @@ if w.todo('prepare_col'):
     logger.info('Set SUBTRACTED_DATA = DATA...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA"', log='$nameMS_taql.log', commandType='general')
 
-    w.done('prepare_col')
+
 ### DONE
 
 # subtract all sources outside the region of interest
-if w.todo('subtract'):
+with w.if_todo('subtract'):
     for d in directions:
         if d == 'Isl_patch_0':
             # this is the target of interest
@@ -184,43 +184,43 @@ if w.todo('subtract'):
         logger.info('Patch '+d+': subtract...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-'+d+'.log', commandType='general')
  
-    w.done('subtract')
+
 ### DONE
 
 # Phase shift in the target location
-if w.todo('phaseshift'):
+with w.if_todo('phaseshift'):
 
     logger.info('Phase shift and avg...')
     lib_util.check_rm('mss-facet/*MS-small')
     MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-facet/$nameMS.MS-small msin.datacolumn=SUBTRACTED_DATA \
             shift.phasecenter=['+str(coord[0])+'deg,'+str(coord[1])+'deg\]', \
             log='$nameMS_avgshift.log', commandType='DPPP')
-    w.done('phaseshift')
+
 ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('mss-facet/*MS-small'), s )
 
 # initial imaging to get the model in the MODEL_DATA
-if w.todo('image_init'):
+with w.if_todo('image_init'):
     logger.info('Initial imaging...')
     clean('init', MSs, size=size )
 
-    w.done('image_init')
+
 ### DONE
 
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
-if w.todo('smooth'):
+with w.if_todo('smooth'):
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
 
-    w.done('smooth')
+
 ### DONE
 
 rms_noise_pre = np.inf
 for c in range(maxniter):
     logger.info('Starting cycle: %i' % c)
 
-    if w.todo('solve-c%02i' % c):
+    with w.if_todo('solve-c%02i' % c):
         # Calibration - ms:SMOOTHED_DATA
         logger.info('Gain calibration...')
         solint = max(8-c,1)
@@ -233,10 +233,10 @@ for c in range(maxniter):
                     [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
         os.system('mv plots-g-c%i facet' % c)
     
-        w.done('solve-c%02i' % c)
+
     ### DONE
 
-    if w.todo('cor-c%02i' % c):
+    with w.if_todo('cor-c%02i' % c):
         # correct G - ms:DATA -> ms:CORRECTED_DATA
         logger.info('Ph correct...')
         MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS \
@@ -248,14 +248,14 @@ for c in range(maxniter):
                     cor.parmdb=cal-g-c'+str(c)+'.h5 cor.correction=amplitude000', \
                     log='$nameMS_correctAMP-c'+str(c)+'.log', commandType='DPPP') 
     
-        w.done('cor-c%02i' % c)
+
     ### DONE
 
-    if w.todo('image-c%02i' % c):
+    with w.if_todo('image-c%02i' % c):
         logger.info('Imaging...')
         clean('c%02i' % c, MSs, size=size, apply_beam = c==maxniter )
 
-        w.done('image-c%02i' % c)
+
     ### DONE
 
     # get noise, if larger than 95% of prev cycle: break

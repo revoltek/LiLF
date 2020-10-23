@@ -35,7 +35,7 @@ userReg = parset.get('model','userReg')
 
 #############################################################################
 # Clear
-if w.todo('cleaning'):
+with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('img')
     os.makedirs('img')
@@ -46,7 +46,6 @@ if w.todo('cleaning'):
     if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
     if not os.path.exists('self/plots'): os.makedirs('self/plots')
 
-    w.done('cleaning')
 ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
@@ -83,7 +82,7 @@ if sourcedb == '':
 
 ########################################################
 ### Demix?
-if w.todo('demix'):
+with w.if_todo('demix'):
     ateams = ['VirA', 'TauA']
     for ateam in ateams:
         sep = MSs.getListObj()[0].distBrightSource(ateam)
@@ -107,7 +106,7 @@ if w.todo('demix'):
                 ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources=['+','.join(ateams)+']',
                 log='$nameMS_demix.log', commandType='DPPP', maxThreads=2)
 
-    w.done('demix')
+
 ### DONE
 
 #################################################################################################
@@ -119,7 +118,7 @@ for MS in MSs.getListStr():
     logger.debug('Copy: ' + sourcedb + ' -> ' + MS)
     os.system('cp -r ' + sourcedb + ' ' + MS)
 
-if w.todo('init_model'):
+with w.if_todo('init_model'):
 
     # note: do not add MODEL_DATA or the beam is transported from DATA, while we want it without beam applied
     logger.info('Creating CORRECTED_DATA...')
@@ -135,7 +134,7 @@ if w.todo('init_model'):
             'DPPP ' + parset_dir + '/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/' + sourcedb_basename,
             log='$nameMS_pre.log', commandType='DPPP')
 
-    w.done('init_model')
+
 ### DONE
 
 #####################################################################################################
@@ -145,14 +144,14 @@ for c in range(2):
     logger.info('Start selfcal cycle: '+str(c))
 
     if c == 0:
-        if w.todo('set_corrected_data'):
+        with w.if_todo('set_corrected_data'):
             logger.info('Set CORRECTED_DATA = DATA...')
             MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-            w.done('set_corrected_data')
+
         ### DONE
     else:
         
-        if w.todo('init_apply_c%02i' % c):
+        with w.if_todo('init_apply_c%02i' % c):
             # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
             logger.info('Correcting G...')
             MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g2-c0.h5 cor.correction=amplitudeSmooth', \
@@ -163,10 +162,10 @@ for c in range(2):
             MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g1-c0.h5 cor.correction=rotationmeasure000', \
                     log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
 
-            w.done('init_apply_c%02i' % c)
+
         ### DONE
 
-    if w.todo('solve_tec1_c%02i' % c):
+    with w.if_todo('solve_tec1_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
         MSs.run('BLsmooth.py -c 8 -n 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
@@ -184,20 +183,20 @@ for c in range(2):
         os.system('mv cal-tec1-c'+str(c)+'.h5 self/solutions/')
         os.system('mv plots-tec1-c'+str(c)+' self/plots/')
 
-        w.done('solve_tec1_c%02i' % c)
+
     ### DONE
     
-    if w.todo('cor_tec1_c%02i' % c):
+    with w.if_todo('cor_tec1_c%02i' % c):
         # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting TEC1...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
                 cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000', \
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
-        w.done('cor_tec1_c%02i' % c)
+
     ### DONE
 
-    if w.todo('solve_tec2_c%02i' % c):
+    with w.if_todo('solve_tec2_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
         MSs.run('BLsmooth.py -c 8 -n 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
@@ -213,23 +212,23 @@ for c in range(2):
         os.system('mv cal-tec2-c'+str(c)+'.h5 self/solutions/')
         os.system('mv plots-tec2-c'+str(c)+' self/plots/')
 
-        w.done('solve_tec2_c%02i' % c)
+
     ### DONE
 
-    if w.todo('cor_tec2_c%02i' % c):
+    with w.if_todo('cor_tec2_c%02i' % c):
         # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting TEC2...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
                 cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000', \
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
 
-        w.done('cor_tec2_c%02i' % c)
+
     ### DONE
 
     # AMP+FR DIE correction
     if c == 0:
 
-        if w.todo('solve_fr_c%02i' % c):
+        with w.if_todo('solve_fr_c%02i' % c):
             # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Converting to circular...')
             MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=2)
@@ -247,20 +246,20 @@ for c in range(2):
             logger.info('Converting to linear...')
             MSs.run('mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=2)
 
-            w.done('solve_fr_c%02i' % c)
+
         ### DONE
 
-        if w.todo('cor_fr_c%02i' % c):
+        with w.if_todo('cor_fr_c%02i' % c):
             # Correct FR - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
             logger.info('Correcting FR...')
             MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
                     cor.parmdb=self/solutions/cal-g1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
                     log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
     
-            w.done('cor_fr_c%02i' % c)
+
         ### DONE
 
-        if w.todo('solve_g_c%02i' % c):
+        with w.if_todo('solve_g_c%02i' % c):
             # DIE Calibration - ms:CORRECTED_DATA
             logger.info('Solving slow G2...')
             MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/g2.h5', \
@@ -270,24 +269,24 @@ for c in range(2):
             os.system('mv plots-g2-c'+str(c)+' self/plots/')
             os.system('mv cal-g2-c'+str(c)+'.h5 self/solutions/')
     
-            w.done('solve_g_c%02i' % c)
+
         ### DONE
 
-        if w.todo('cor_g_c%02i' % c):
+        with w.if_todo('cor_g_c%02i' % c):
             # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
             logger.info('Correcting G...')
             MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
                     cor.parmdb=self/solutions/cal-g2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
                     log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
 
-            w.done('cor_g_c%02i' % c)
+
         ### DONE
 
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA
 
     imagename = 'img/wideM-'+str(c)
-    if w.todo('imaging_c%02i' % c):
+    with w.if_todo('imaging_c%02i' % c):
         # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
         logger.info('Cleaning (cycle: '+str(c)+')...')
         if c==0:
@@ -305,7 +304,7 @@ for c in range(2):
 
         os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
  
-        w.done('imaging_c%02i' % c)
+
     ### DONE
 
     if c == 0:
@@ -316,15 +315,15 @@ for c in range(2):
         maskname = imagename+'-mask.fits'
 
 
-        if w.todo('lowres_setdata_c%02i' % c):
+        with w.if_todo('lowres_setdata_c%02i' % c):
             # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
             logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
             MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
 
-            w.done('lowres_setdata_c%02i' % c)
+
         ### DONE
     
-        if w.todo('lowres_imaging_c%02i' % c):
+        with w.if_todo('lowres_imaging_c%02i' % c):
             # Making beam mask
             lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name='img/tmp', size=imgsizepix, scale='30arcsec')
             os.system('mv img/tmp-image.fits img/wide-lr-mask.fits')
@@ -340,10 +339,10 @@ for c in range(2):
                     parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits', \
                     join_channels='', fit_spectral_pol=5, channels_out=MSs.getChout(2.e6), deconvolution_channels=5)
     
-            w.done('lowres_imaging_c%02i' % c)
+
         ### DONE
 
-        if w.todo('lowres_flag_c%02i' % c):
+        with w.if_todo('lowres_flag_c%02i' % c):
             ##############################################
             # Flag on empty dataset
     
@@ -355,10 +354,10 @@ for c in range(2):
             logger.info('Flagging residuals...')
             MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS', log='$nameMS_flag-c'+str(c)+'.log', commandType='DPPP')
     
-            w.done('lowres_flag_c%02i' % c)
+
         ### DONE
 
-        if w.todo('lowres_corrupt_c%02i' % c):
+        with w.if_todo('lowres_corrupt_c%02i' % c):
             ##############################################
             # Prepare SUBTRACTED_DATA
     
@@ -379,25 +378,25 @@ for c in range(2):
                     cor.parmdb=self/solutions/cal-g2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth cor.invert=False', \
                     log='$nameMS_corrupt.log', commandType='DPPP')
         
-            w.done('lowres_corrupt_c%02i' % c)
+
         ### DONE
 
-        if w.todo('lowres_subtract_c%02i' % c):
+        with w.if_todo('lowres_subtract_c%02i' % c):
             # Subtract low-res model - CORRECTED_DATA = DATA - MODEL_DATA
             logger.info('Subtracting low-res model (CORRECTED_DATA = DATA - MODEL_DATA)...')
             MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
     
-            w.done('lowres_subtract_c%02i' % c)
+
         ### DONE
 
-        if w.todo('lowres_predict_c%02i' % c):
+        with w.if_todo('lowres_predict_c%02i' % c):
             # Recreate MODEL_DATA
             logger.info('Predict model...')
             s.add('wsclean -predict -name img/wideM-'+str(c)+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(4e6))+' '+MSs.getStrWsclean(), \
                    log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
             s.run(check=True)
 
-            w.done('lowres_predict_c%02i' % c)
+
         ### DONE
 
 # Copy images
