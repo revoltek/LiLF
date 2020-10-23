@@ -12,7 +12,7 @@ def download_file(url, filename, login=None, password=None):
         connected=False
         while not connected:
             try:
-                print('Opening connection')
+                #print('Opening connection')
                 if (login is not None) and (password is not None):
                     response = requests.get(url, stream=True, verify=True, timeout=60,
                                             auth=(login, password))
@@ -24,28 +24,28 @@ def download_file(url, filename, login=None, password=None):
                     raise RuntimeError('Code was %i' % response.status_code)
                 esize=int(response.headers['Content-Length'])
             except requests.exceptions.ConnectionError:
-                print('Connection error! sleeping 30 seconds before retry...')
+                print('Downloader -- Connection error! sleeping 30 seconds before retry...')
                 sleep(30)
             except (requests.exceptions.Timeout,requests.exceptions.ReadTimeout):
-                print('Timeout! sleeping 30 seconds before retry...')
+                print('Downloader -- Timeout! sleeping 30 seconds before retry...')
                 sleep(30)
             else:
                 connected=True
         try:
-            print('Downloading %i bytes' % esize)
+            #print('Downloading %i bytes' % esize)
             with open(filename, 'wb') as fd:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
                         fd.write(chunk)
             fsize=os.path.getsize(filename)
             if esize!=fsize:
-                print('Download incomplete (expected %i, got %i)! Retrying' % (esize, fsize))
+                print('Downloader -- Download incomplete (expected %i, got %i)! Retrying' % (esize, fsize))
             else:
-                print('Download successful, %i of %i bytes received' % (fsize, esize))
+                print('Downloader -- Download successful, %i of %i bytes received' % (fsize, esize))
                 downloaded=True
 
         except (requests.exceptions.ConnectionError,requests.exceptions.Timeout,requests.exceptions.ChunkedEncodingError):
-            print('Connection error! sleeping 30 seconds before retry...')
+            print('Downloader -- Connection error! sleeping 30 seconds before retry...')
             sleep(30) # back to the connection
 
     del response

@@ -218,7 +218,7 @@ if w.todo('cal_iono'):
     w.done('cal_iono')
 ### DONE
 
-if w.todo('upload'):
+if w.todo('compressing_h5'):
     logger.info('Compressing caltables...')
     os.system('cp cal-pa.h5 fullcal-pa.h5')
     #os.system('cp cal-fr.h5 fullcal-fr.h5') # no need to keep orig
@@ -242,22 +242,8 @@ if w.todo('upload'):
     s.add('losoto -d sol000/phase_offset000 cal-iono.h5', log='losoto-final.log', commandType="python")
     s.run()
     os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
-    
-    logger.info('Save caltables and plots...')
-    obsid = MSs.getListObj()[0].getObsID()
-    cal = 'id%i_%s' % (obsid, calname)
-    logger.info('Copy: cal*h5 -> lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
-    os.system('ssh lofar.herts.ac.uk "rm -rf /beegfs/lofar/lba/calibration_solutions/%s"' % cal)
-    os.system('ssh lofar.herts.ac.uk "mkdir /beegfs/lofar/lba/calibration_solutions/%s"' % cal)
-    os.system('scp -q cal-pa.h5 cal-amp.h5 cal-iono.h5 lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
-    os.system('scp -q -r plots* lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
 
-    # update the db
-    from LiLF.surveys_db import SurveysDB
-    with SurveysDB(survey='lba',readonly=False) as sdb:
-        sdb.execute('INSERT INTO observations (id,calibratordata) VALUES (%i,"%s")' % (obsid,cal))
-
-    w.done('upload')
+    w.done('compressing_h5')
 ### DONE
 
 # a debug image

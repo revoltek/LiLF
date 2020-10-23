@@ -66,7 +66,7 @@ if cal_dir == '':
         if calibratordata is not None:
             logger.info('Downloading solutions...')
             # try the repository
-            os.system('scp -q lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s/cal-*h5 .' % calibratordata)
+            os.system('scp -q herts:/beegfs/lofar/lba/calibration_solutions/%s/cal-*h5 .' % calibratordata)
             cal_dir = './'
         else:
             logger.error('Cannot find solutions.')
@@ -187,26 +187,26 @@ if w.todo('timesplit'):
 
 ############################################
 # put everything together
-#if w.todo('concat'):
-#
-#    if ngroups == 1:
-#        lib_util.check_rm('mss')
-#        os.makedirs('mss')
-#        os.system('mv mss_t*/*MS mss')
-#        lib_util.check_rm('mss_t*')
-#    else:
-#        for group in range(ngroups):
-#            groupname = 'mss-%02i' % group
-#            lib_util.check_rm(groupname)
-#            os.makedirs(groupname)
-#            os.system('mv mss_t*-%02i/*MS %s' % (group, groupname))
-#        lib_util.check_rm('mss_t*')
-#    
-#    logger.info('Cleaning up...')
-#    os.system('rm -r *MS')
-#
-#    w.done('concat')
-#### DONE
+if w.todo('concat'):
+
+    if ngroups == 1:
+        lib_util.check_rm('mss')
+        os.makedirs('mss')
+        os.system('mv mss_t*/*MS mss')
+        lib_util.check_rm('mss_t*')
+    else:
+        for group in range(ngroups):
+            groupname = 'mss-%02i' % group
+            lib_util.check_rm(groupname)
+            os.makedirs(groupname)
+            os.system('mv mss_t*-%02i/*MS %s' % (group, groupname))
+        lib_util.check_rm('mss_t*')
+
+    logger.info('Cleaning up...')
+    os.system('rm -r *MS')
+
+    w.done('concat')
+### DONE
 
 logger.info('Cleaning up...')
 os.system('rm -r *MS')

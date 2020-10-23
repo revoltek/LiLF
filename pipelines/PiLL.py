@@ -73,6 +73,13 @@ def check_done(logfile):
         logger.error('Something went wrong in the last pipeline call.')
         sys.exit()
 
+def fix_dir_format(working_dir):
+    # fix for c##-o##_p##### format
+    pattern = re.compile("^id[0-9]*_-_c[0-9][0-9]-o[0-9][0-9]_.*$")
+    for dir in glob.glob(working_dir+'/id*'):
+        if pattern.match(dir):
+            os.system('mv '+dir+' '+dir.split('_-_')[0]+'_-_'+dir.split('_')[-1])
+
 ####################################################################################
 
 # query the database for data to process
@@ -148,16 +155,9 @@ if w.todo('download'):
 ### DONE
 
 os.chdir(working_dir)
+fix_dir_format(working_dir)
 if survey: update_status_db(target, 'Calibrator')
 calibrators = local_calibrator_dirs()
-targets = [t for t in glob.glob('id*') if t not in calibrators]
-
-# fix for c##-o##_p##### format
-pattern = re.compile("^id[0-9]*_-_c[0-9][0-9]-o[0-9][0-9]_.*$")
-for target in targets:
-    if pattern.match(target):
-        os.system('mv '+target+' '+target.split('_-_')[0]+'_-_'+target.split('_')[-1])
-
 targets = [t for t in glob.glob('id*') if t not in calibrators]
 logger.debug('CALIBRATORS: %s' % ( ','.join(calibrators) ) )
 logger.debug('TARGET: %s' % (','.join(targets) ) )
@@ -184,12 +184,24 @@ for target in targets:
                 check_done('pipeline-download.logger')
                 os.system('mv mss/* ../')
 
+            fix_dir_format(working_dir)
             os.chdir(local_calibrator_dirs(working_dir, obsid)[0])
             if not os.path.exists('data-bkp'):
                 os.makedirs('data-bkp')
                 os.system('mv *MS data-bkp')
             os.system(LiLF_dir+'/pipelines/LOFAR_cal.py')
             check_done('pipeline-cal.logger')
+
+            # copy solutions in the repository
+            logger.info('Copy: cal*h5 -> herts:/beegfs/lofar/lba/calibration_solutions/%s' % cal_dir)
+            os.system('ssh herts "rm -rf /beegfs/lofar/lba/calibration_solutions/%s"' % cal_dir)
+            os.system('ssh herts "mkdir /beegfs/lofar/lba/calibration_solutions/%s"' % cal_dir)
+            os.system('scp -q cal-pa.h5 cal-amp.h5 cal-iono.h5 herts:/beegfs/lofar/lba/calibration_solutions/%s' % cal_dir)
+            os.system('scp -q -r plots* herts:/beegfs/lofar/lba/calibration_solutions/%s' % cal_dir)
+
+            # update the db
+            with SurveysDB(survey='lba',readonly=False) as sdb:
+                sdb.execute('INSERT INTO observations (id,calibratordata) VALUES (%i,"%s")' % (obsid, cal_dir))
     
         w.done('cal_id%i' % obsid)
     ### DONE
@@ -241,8 +253,15 @@ for grouped_target in grouped_targets:
         logger.info('### %s: Starting ddcal #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_dd-serial.py')
         check_done('pipeline-dd-serial.logger')
-        w.done('dd_%s' % grouped_target)
-    ### DONE
+
+        logger.info('Copy: ddcal/c0*/images/img/wideDD-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % grouped_target)
+        os.system('ssh herts "rm -rf /beegfs/lofar/lba/products/%s"' % grouped_target)
+        os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s"' % grouped_target)
+        os.system('scp -q ddcal/c0*/images/wideDD-c*.app.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+        os.system('scp -q ddcal/c0*/images/wideDD-c*.int.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+
+    w.done('dd_%s' % grouped_target)
+### DONE
 
     if survey: update_status_db(grouped_target, 'Done')
     logger.info('### %s: Done. #####################################' % grouped_target)

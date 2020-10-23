@@ -42,7 +42,7 @@ password = None
 file_rc = os.path.expanduser('~/.stagingrc')
 if os.path.exists(file_rc):
     with open(file_rc, 'r') as f:
-        for line in f.readline():
+        for line in f:
             if 'user' in line:
                 login = line.split('=')[-1].strip(' \t\n\r')
             elif 'password' in line:

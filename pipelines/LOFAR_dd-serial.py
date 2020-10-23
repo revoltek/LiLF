@@ -842,17 +842,4 @@ for cmaj in range(maxIter):
     full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj,imagename.split('/')[-1]), userReg = userReg)
     min_cal_flux60 *= 0.8  # go a bit deeper
 
-if w.todo('upload'):
-    
-    logger.info('Save final images...')
-    targetname = os.getcwd().split('/')[-1]
-    logger.info('Copy: ddcal/c0*/images/img/wideDD-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % targetname)
-    os.system('ssh herts "rm -rf /beegfs/lofar/lba/products/%s"' % targetname)
-    os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s"' % targetname)
-    os.system('scp -q ddcal/c0*/images/wideDD-c*.app.restored.fits herts:/beegfs/lofar/lba/products/%s' % targetname)
-    os.system('scp -q ddcal/c0*/images/wideDD-c*.int.restored.fits herts:/beegfs/lofar/lba/products/%s' % targetname)
-    
-    w.done('upload')
-### DONE
-
 logger.info("Done.")
