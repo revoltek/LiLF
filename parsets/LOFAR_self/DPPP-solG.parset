@@ -7,6 +7,7 @@ steps = [sol]
 sol.type = ddecal
 sol.minvisratio = 0.5
 sol.mode = diagonal
+sol.uvmmax = 80e3
 sol.tolerance = 1e-3
 sol.maxiter = 500
 sol.nchan = 16

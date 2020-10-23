@@ -181,10 +181,7 @@ for c in range(maxniter):
         y = lsm.getColValues('Dec',aggregate='wmean')
         flux = lsm.getColValues('I',aggregate='sum')
         if MSs.isLBA:
-            if c == 0:
-                grouper = lib_dd_parallel.Grouper(list(zip(x,y)),flux,look_distance=0.4,kernel_size=0.3,grouping_distance=0.1)
-            else:
-                grouper = lib_dd_parallel.Grouper(list(zip(x, y)), flux, look_distance=0.3, kernel_size=0.1, grouping_distance=0.05)  # for non-simulated images...
+            grouper = lib_dd_parallel.Grouper(list(zip(x,y)),flux,look_distance=0.4,kernel_size=0.3,grouping_distance=0.1)
         elif MSs.isHBA:
             grouper = lib_dd_parallel.Grouper(list(zip(x, y)), flux, look_distance=0.3, kernel_size=0.2, grouping_distance=0.1)
         grouper.run()
@@ -300,20 +297,21 @@ for c in range(maxniter):
                 log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
 
         # Calibration - ms:SMOOTHED_DATA
-        logger.info('TEC calibration...')
+        logger.info('Phase calibration...')
         if MSs.isLBA:
-            MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS \
-                    sol.h5parm=$pathMS/cal-tec-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb \
+            MSs.run('DPPP ' + parset_dir + '/DPPP-solPh.parset msin=$pathMS \
+                     sol.h5parm=$pathMS/cal-ph-c' + str(c) + '.h5 sol.sourcedb=' + skymodel_cl_skydb \
                     +' sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,'
                      'CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,'
                      'CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] '
                      'sol.uvlambdamin={} '.format(100*freqscale),
-            log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
-            lib_util.run_losoto(s, 'tec-c'+str(c), [ms+'/cal-tec-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
-                                [parset_dir+'/losoto-plot-tec-lba.parset'])
+                    log='$nameMS_solPh-c' + str(c) + '.log', commandType='DPPP')
+
+            lib_util.run_losoto(s, 'tec-c'+str(c), [ms+'/cal-ph-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
+                                [parset_dir+'/losoto-plot-ph-lba.parset'])
         elif MSs.isHBA:
-            MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS \
-                    sol.h5parm=$pathMS/cal-tec-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb
+            MSs.run('DPPP '+parset_dir+'/DPPP-solPh.parset msin=$pathMS \
+                    sol.h5parm=$pathMS/cal-ph-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb
                     +' sol.antennaconstraint=[[CS001HBA0,CS001HBA1,'
                                              'CS002HBA0,CS002HBA1,'
                                              'CS003HBA0,CS003HBA1,'
@@ -339,18 +337,15 @@ for c in range(maxniter):
                                              'CS401HBA0,CS401HBA1,'
                                              'CS501HBA0,CS501HBA1]]'
                                              'sol.uvlambdamin={} '.format(100*freqscale),
-                                             log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
-            lib_util.run_losoto(s, 'tec-c' + str(c), [ms + '/cal-tec-c' + str(c) + '.h5' for ms in MSs.getListStr()], \
-                                [parset_dir + '/losoto-plot-tec-hba.parset'])
-        # logger.info('Gain calibration...')
-        # MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS \
-        #         sol.h5parm=$pathMS/cal-g-c' + str(c) + '.h5 sol.sourcedb=' + skymodel_cl_skydb, \
-        #         log='$nameMS_solG-c' + str(c) + '.log', commandType='DPPP')
+                                             log='$nameMS_solPh-c'+str(c)+'.log', commandType='DPPP')
+            lib_util.run_losoto(s, 'tec-c' + str(c), [ms + '/cal-ph-c' + str(c) + '.h5' for ms in MSs.getListStr()], \
+                                [parset_dir + '/losoto-plot-ph-hba.parset'])
 
         # Plot solutions
-        os.system('mv plots-tec-c' + str(c) + ' ddcal/plots')
-        os.system('mv cal-tec-c' + str(c) + '.h5 ddcal/solutions')
+        os.system('mv plots-ph-c' + str(c) + ' ddcal/plots')
+        os.system('mv cal-ph-c' + str(c) + '.h5 ddcal/solutions')
     ### DONE
+    sys.exit()
 
     ###########################################################
     # use idg and A-term to correct the data, single image

@@ -1,0 +1,16 @@
+msin = 
+msin.datacolumn = SMOOTHED_DATA
+msout = .
+
+steps=[sol]
+
+sol.type = ddecal
+sol.sourcedb =
+sol.h5parm = 
+sol.maxiter = 300
+sol.tolerance = 1e-3
+sol.solint = 8
+sol.nchan = 8
+sol.mode = scalarphase
+sol.propagatesolutions = True
+sol.smoothnessconstraint = 5e6

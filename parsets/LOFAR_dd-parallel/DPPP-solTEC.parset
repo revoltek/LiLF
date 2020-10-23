@@ -5,7 +5,6 @@ msout = .
 steps=[sol]
 
 sol.type = ddecal
-sol.uvlambdamin = 100
 sol.sourcedb =
 sol.h5parm = 
 sol.maxiter = 300
