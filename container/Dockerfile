@@ -9,8 +9,8 @@ USER root
 RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
-RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim \
-    python3-dev python3-ipython python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql \
+RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools \
+    python3-dev python3-ipython python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql python3-requests \
     libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
@@ -172,6 +172,7 @@ ENV LD_LIBRARY_PATH /usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 #####################################################################
 ## LiLF
 #####################################################################
+RUN cd /
 RUN cd /opt && git clone https://github.com/revoltek/LiLF.git
 RUN cd /opt/LiLF && git checkout LBAdevel
 ENV PYTHONPATH /opt/LiLF:$PYTHONPATH
