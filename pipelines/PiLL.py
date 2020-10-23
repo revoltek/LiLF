@@ -134,7 +134,7 @@ if download_file != '':
 ##########
 # data download
 # here the pipeline downloads only the target, not the calibrator
-if w.todo('download'):
+with w.if_todo('download'):
     logger.info('### Starting download... #####################################')
     os.chdir(working_dir+'/download')
 
@@ -151,7 +151,7 @@ if w.todo('download'):
     os.system(LiLF_dir+'/pipelines/LOFAR_download.py')
     os.system('mv mss/* ../')
     
-    w.done('download')
+
 ### DONE
 
 os.chdir(working_dir)
@@ -169,7 +169,7 @@ for target in targets:
     # here the pipeline checks if the calibrator is available online, otherwise it downloads it
     # then it also runs the calibrator pipeline
     obsid = int(target.split('_-_')[0][2:])
-    if w.todo('cal_id%i' % obsid):
+    with w.if_todo('cal_id%i' % obsid):
         if redo_cal or not calibrator_tables_available(obsid):
 
             logger.info('### %s: Starting calibrator... #####################################' % target)
@@ -202,14 +202,14 @@ for target in targets:
             # update the db
             with SurveysDB(survey='lba',readonly=False) as sdb:
                 sdb.execute('INSERT INTO observations (id,calibratordata) VALUES (%i,"%s")' % (obsid, cal_dir))
-    
-        w.done('cal_id%i' % obsid)
+
+
     ### DONE
 
     ##########
     # timesplit
     # each target of each observation is then timesplit
-    if w.todo('timesplit_%s' % target):
+    with w.if_todo('timesplit_%s' % target):
         logger.info('### %s: Starting timesplit... #####################################' % target)
         os.chdir(working_dir+'/'+target)
         if not os.path.exists('data-bkp'):
@@ -219,7 +219,7 @@ for target in targets:
         os.system(LiLF_dir+'/pipelines/LOFAR_timesplit.py')
         check_done('pipeline-timesplit.logger')
 
-        w.done('timesplit_%s' % target)
+
     ### DONE
 
 # group targets with same name, assuming they are different pointings of the same dir
@@ -239,16 +239,16 @@ for grouped_target in grouped_targets:
             os.system('mv %s mss/%s' % (tc,tc_ren))
 
     # selfcal
-    if w.todo('self_%s' % grouped_target):
+    with w.if_todo('self_%s' % grouped_target):
         if survey: update_status_db(grouped_target, 'Self')
         logger.info('### %s: Starting selfcal #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_self.py')
         check_done('pipeline-self.logger')
-        w.done('self_%s' % grouped_target)
+
     ### DONE
 
     # DD-cal
-    if w.todo('dd_%s' % grouped_target):
+    with w.if_todo('dd_%s' % grouped_target):
         if survey: update_status_db(grouped_target, 'Ddcal')
         logger.info('### %s: Starting ddcal #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_dd-serial.py')
@@ -260,7 +260,6 @@ for grouped_target in grouped_targets:
         os.system('scp -q ddcal/c0*/images/wideDD-c*.app.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
         os.system('scp -q ddcal/c0*/images/wideDD-c*.int.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
 
-    w.done('dd_%s' % grouped_target)
 ### DONE
 
     if survey: update_status_db(grouped_target, 'Done')

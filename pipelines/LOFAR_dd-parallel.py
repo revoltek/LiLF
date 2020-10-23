@@ -100,7 +100,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 
 
 #############################################################
-if w.todo('cleaning'):
+with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('ddcal')
     os.makedirs('ddcal/masks')
@@ -109,7 +109,7 @@ if w.todo('cleaning'):
     os.makedirs('ddcal/solutions')
     os.makedirs('ddcal/skymodels')
 
-    w.done('cleaning')
+
 ### DONE
 
 ############################################################
@@ -140,10 +140,10 @@ for c in range(maxniter):
     logger.info('Starting cycle: %i' % c)
     if c>=1: directions_old = directions
     
-    if w.todo('delimg-c%02i' % c):
+    with w.if_todo('delimg-c%02i' % c):
         lib_util.check_rm('img')
         os.makedirs('img')
-        w.done('delimg-c%02i' % c)
+
     ### DONE
 
     skymodel_cl = 'ddcal/skymodels/skymodel%02i_cluster.txt' % c
@@ -275,7 +275,7 @@ for c in range(maxniter):
 
     ################################################################
     # Calibrate
-    if w.todo('calibrate-c%02i' % c):
+    with w.if_todo('calibrate-c%02i' % c):
         logger.info('Subtraction rest_field...')
     
         # Predict - ms:MODEL_DATA
@@ -302,7 +302,7 @@ for c in range(maxniter):
         os.system('mv plots-g-c'+str(c)+' ddcal/plots')
         os.system('mv cal-g-c'+str(c)+'.h5 ddcal/solutions')
 
-        w.done('calibrate-c%02i' % c)
+
     ### DONE
 
     ###########################################################
@@ -327,7 +327,7 @@ for c in range(maxniter):
 
         ###########################################################
         # Subtraction
-        if w.todo('empty-c%02i' % c):
+        with w.if_todo('empty-c%02i' % c):
             logger.info('Subtraction...')
 
             # Copy DATA -> SUBTRACTED_DATA
@@ -354,7 +354,7 @@ for c in range(maxniter):
                 logger.info('Patch '+d.name+': subtract...')
                 MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
     
-            w.done('empty-c%02i' % c)
+
         ### DONE
         
         ### TESTTESTTEST: empty image
@@ -370,7 +370,7 @@ for c in range(maxniter):
             #if d.name != 'Isl_patch_103': continue # TEST!
             #print(d.name,d.position_facet,d.size_facet)
         
-            if w.todo('facet-%s-c%02i' % (d.name,c)):
+            with w.if_todo('facet-%s-c%02i' % (d.name,c)):
             # skip if a patch has been already done
             #if os.path.exists('img/ddcal-'+str(d.name)+'-MFS-image.fits'): continue
     
@@ -429,13 +429,13 @@ for c in range(maxniter):
                     logger.info('Patch '+d.name+': imaging low-res...')
                     clean(d.name+'-low', lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size_facet, res='low', apply_beam = c==maxniter )
     
-                w.done('facet-%s-c%02i' % (d.name,c))
+
             ### DONE
 
         ##############################################################
         # Mosaiching
     
-        if w.todo('mosaic-c%02i' % c):
+        with w.if_todo('mosaic-c%02i' % c):
             # reorder in increasing isl_num order
             isl_nums = [d.isl_num for d in directions]
             directions = [d for _, d in sorted(zip(isl_nums,directions))]
@@ -496,7 +496,7 @@ for c in range(maxniter):
         
             os.system('cp img/*M*MFS-image.fits img/mos*.fits ddcal/images/c%02i' % c )
     
-            w.done('mosaic-c%02i' % c)
+
         ### DONE
     
         mosaic_image = lib_img.Image('ddcal/images/c%02i/mos-MFS-image.fits' % c, userReg = userReg)

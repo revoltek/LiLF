@@ -112,14 +112,14 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
 
 
 #############################################################
-if w.todo('cleaning'):
+with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('ddcal')
     os.makedirs('ddcal/init')
     lib_util.check_rm('img')
     os.makedirs('img')
 
-    w.done('cleaning')
+
 ### DONE
 
 # goes down to 8 seconds/4 chans
@@ -293,7 +293,7 @@ for cmaj in range(maxIter):
         directions = pickle.load( open( picklefile, "rb" ) )
 
     if cmaj == 0:
-        if w.todo('c%02i-fullpredict' % cmaj):
+        with w.if_todo('c%02i-fullpredict' % cmaj):
             # wsclean predict
             logger.info('Predict full model...')
             if cmaj == 0:
@@ -302,10 +302,10 @@ for cmaj in range(maxIter):
                         log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
                 s.run(check=True)
     
-            w.done('c%02i-fullpredict' % cmaj)
+
         ### DONE
     
-        if w.todo('c%02i-fullsub' % cmaj):
+        with w.if_todo('c%02i-fullsub' % cmaj):
             # subtract - ms:SUBTRACTED_DATA = DATA - MODEL_DATA
             logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
             MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"',
@@ -315,7 +315,7 @@ for cmaj in range(maxIter):
             MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"',
                         log='$nameMS_taql.log', commandType='general')
     
-            w.done('c%02i-fullsub' % cmaj)
+
         ### DONE
 
         ### TESTTESTTEST: empty image
@@ -329,7 +329,7 @@ for cmaj in range(maxIter):
         if d.size > 0.5: logger.warning('Patch size large: %f' % d.size)
         logstring = 'c%02i-%s' % (cmaj, d.name)
 
-        if w.todo('%s-predict' % logstring):
+        with w.if_todo('%s-predict' % logstring):
 
             if cmaj == 0:
                 # Predict - ms:MODEL_DATA
@@ -413,11 +413,11 @@ for cmaj in range(maxIter):
             #if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
             #    clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
-            w.done('%s-predict' % logstring)
+
  
         ### DONE
 
-        if w.todo('%s-shift' % logstring):
+        with w.if_todo('%s-shift' % logstring):
             logger.info('Phase shift and avg...')
 
             lib_util.check_rm('mss-dir')
@@ -430,21 +430,21 @@ for cmaj in range(maxIter):
                     avg.timestep='+str(avgtimeint)+' avg.freqstep=8 shift.phasecenter=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\]', \
                     log='$nameMS_shift-'+logstring+'.log', commandType='DPPP')
 
-            w.done('%s-shift' % logstring)
+
         ### DONE
 
         MSs_dir = lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s, check_flags=False )
 
-        if w.todo('%s-flag' % logstring):
+        with w.if_todo('%s-flag' % logstring):
             logger.info('Flag on mindata...')
             MSs_dir.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
-            w.done('%s-flag' % logstring)
+
         ### DONE
 
         # Correct for beam in that direction
         if not d.peel_off:
-            if w.todo('%s-beamcorr' % logstring):
+            with w.if_todo('%s-beamcorr' % logstring):
                 logger.info('Correcting beam...')
                 # Convince DPPP that DATA is corrected for the beam in the phase centre
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
@@ -452,14 +452,14 @@ for cmaj in range(maxIter):
                         corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=True',
                         log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
     
-                w.done('%s-beamcorr' % logstring)
+
             ### DONE
 
-        if w.todo('%s-preimage' % logstring):
+        with w.if_todo('%s-preimage' % logstring):
             logger.info('Pre-imaging...')
             clean('%s-pre' % logstring, MSs_dir, res='normal', size=[d.size,d.size], imagereg=d.get_region())
 
-            w.done('%s-preimage' % logstring)
+
         ### DONE
         
         # get initial noise and set iterators for timeint solutions
@@ -489,7 +489,7 @@ for cmaj in range(maxIter):
                 solint_amp2 = next(iter_amp2_solint)
                 d.add_h5parm('amp2', 'ddcal/c%02i/solutions/cal-amp2-%s.h5' % (cmaj,logstringcal) )
    
-            if w.todo('%s-calibrate' % logstringcal):
+            with w.if_todo('%s-calibrate' % logstringcal):
 
                 if cdd == 0:
                     logger.info('BL-based smoothing...')
@@ -558,17 +558,17 @@ for cmaj in range(maxIter):
                         cor.parmdb='+d.get_h5parm('amp2')+' cor.correction=amplitude000',
                         log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP') 
 
-                w.done('%s-calibrate' % logstringcal)
+
             ### DONE
 
             ###########################################################################
             # Imaging
-            if w.todo('%s-image' % logstringcal):
+            with w.if_todo('%s-image' % logstringcal):
 
                 logger.info('%s (cdd: %02i): imaging...' % (d.name, cdd))
                 clean('%s' % logstringcal, MSs_dir, res='normal', size=[d.size,d.size], imagereg=d.get_region())
 
-                w.done('%s-image' % logstringcal)
+
             ### DONE
 
             image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % logstringcal, userReg=userReg)
@@ -625,7 +625,7 @@ for cmaj in range(maxIter):
             s.run()
         
         # remove the DD-cal from original dataset using new solutions
-        if w.todo('%s-subtract' % logstring):
+        with w.if_todo('%s-subtract' % logstring):
 
             # Predict - ms:MODEL_DATA
             logger.info('Add best model to MODEL_DATA...')
@@ -686,7 +686,7 @@ for cmaj in range(maxIter):
                 MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
                         log='$nameMS_taql.log', commandType='general')
 
-            w.done('%s-subtract' % logstring)
+
         ### DONE
 
         ### TTESTTESTTEST: empty image
@@ -699,7 +699,7 @@ for cmaj in range(maxIter):
     
     imagename = 'img/wideDD-c%02i' % (cmaj)
 
-    if w.todo('c%02i-imaging' % cmaj):
+    with w.if_todo('c%02i-imaging' % cmaj):
         logger.info("Imaging - preparing solutions:")
 
         # combine the h5parms
@@ -836,7 +836,6 @@ for cmaj in range(maxIter):
                     )
  
             os.system('mv %s.* ddcal/c%02i/images' % (imagename, cmaj))
-        w.done('c%02i-imaging' % cmaj)
     ### DONE
 
     full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj,imagename.split('/')[-1]), userReg = userReg)

@@ -37,7 +37,7 @@ def get_cal_dir(timestamp):
     sys.exit()
 
 ##########################################################
-if w.todo('setup'):
+with w.if_todo('setup'):
     logger.info('Cleaning...')
     lib_util.check_rm('cal*h5')
     lib_util.check_rm('plots*')
@@ -129,7 +129,6 @@ if w.todo('setup'):
     MSs_orig.run('DPPP '+parset_dir+'/DPPP-phaseup.parset msin=$pathMS msout=$pathMS-phaseup', log='$nameMS_phaseup.log', commandType='DPPP')
     os.system('rm -r *concat.MS')
 
-    w.done('setup')
 ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('*concat.MS-phaseup'), s, check_flags=False, check_sun=True )
@@ -139,7 +138,7 @@ beamReg = 'beam02.reg'
 
 #####################################################
 # Model
-if w.todo('predict'):
+with w.if_todo('predict'):
     logger.info('Preparing model...')
     sourcedb = 'tgts.skydb'
     if not os.path.exists(sourcedb):
@@ -162,7 +161,6 @@ if w.todo('predict'):
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -s 0.8 -i DATA -o DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
 
-    w.done('predict')
 ### DONE
 
 ###############################################################
@@ -180,7 +178,7 @@ for c in range(100):
     ####################################################
     # 1: Solving
 
-    if w.todo('calib-ph-c%02i' % c):
+    with w.if_todo('calib-ph-c%02i' % c):
         # solve G - group*_TC.MS:CORRECTED_DATA
         logger.info('Solving fast...')
         solint = next(solint_ph)
@@ -195,11 +193,11 @@ for c in range(100):
         MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-Gp-c'+str(c)+'.h5 cor.correction=phase000', \
                 log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
         
-        w.done('calib-ph-c%02i' % c)
+
     ### DONE
 
     if doamp:
-        if w.todo('calib-amp-c%02i' % c):
+        with w.if_todo('calib-amp-c%02i' % c):
             # solve G - group*_TC.MS:CORRECTED_DATA
 
             logger.info('Solving slow...')
@@ -218,14 +216,14 @@ for c in range(100):
                     cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=\[amplitude000,phase000\]', \
                     log='$nameMS_corAMPPHslow-c'+str(c)+'.log', commandType='DPPP')
 
-            w.done('calib-amp-c%02i' % c)
+
         ### DONE
 
     #################################################
     # 2: Cleaning
     imagename = 'img/imgM-%02i' % c
 
-    if w.todo('image-c%02i' % c):
+    with w.if_todo('image-c%02i' % c):
         # special for extended sources:
         if target in very_extended_targets:
             kwargs1 = {'weight': 'briggs -0.5', 'taper_gaussian': '75arcsec', 'multiscale': '', 'multiscale_scale_bias':0.5, 'multiscale_scales':'0,30,60,120,340'}
@@ -263,7 +261,7 @@ for c in range(100):
                 join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2 )
         os.system('cat logs/wsclean-c%02i.log | grep "background noise"' % c)
 
-        w.done('image-c%02i' % c)
+
     ### DONE
 
     # Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA

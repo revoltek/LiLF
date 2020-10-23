@@ -27,14 +27,14 @@ bl2flag = parset.get('flag','stations')
 
 #################################################
 # Clean
-if w.todo('clean'):
+with w.if_todo('clean'):
     logger.info('Cleaning...')
     lib_util.check_rm('mss*')
 
-    w.done('clean')
+
 ### DONE
 
-if w.todo('copy'):
+with w.if_todo('copy'):
     MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
 
     logger.info('Copy data...')
@@ -43,7 +43,7 @@ if w.todo('copy'):
         # overwrite=True to prevent updating the weights twice
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=True)
 
-    w.done('copy')
+
 ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
@@ -79,7 +79,7 @@ assert os.path.exists(h5_iono)
 
 ####################################################
 # Correct fist for BP(diag)+TEC+Clock and then for beam
-if w.todo('apply'):
+with w.if_todo('apply'):
     
     # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign corrected)
     logger.info('Apply solutions (pa)...')
@@ -96,7 +96,7 @@ if w.todo('apply'):
     logger.info('Beam correction...')
     MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DPPP')
 
-    w.done('apply')
+
 ### DONE
 
 ###################################################################################################
@@ -136,7 +136,7 @@ MSs = lib_ms.AllMSs( glob.glob('mss*/*MS'), s )
 
 #############################################################
 # Flagging on concatenated dataset - also flag low-elevation
-if w.todo('flag'):
+with w.if_todo('flag'):
 
     logger.info('Flagging...')
     MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\"', \
@@ -150,12 +150,12 @@ if w.todo('flag'):
     lib_util.check_rm('plots-weights')
     os.system('mkdir plots-weights; mv *png plots-weights')
 
-    w.done('flag')
+
 ### DONE
 
 #####################################
 # Create time-chunks
-if w.todo('timesplit'):
+with w.if_todo('timesplit'):
 
     logger.info('Splitting in time...')
     tc = initc
@@ -180,12 +180,12 @@ if w.todo('timesplit'):
     
         lib_util.check_rm(ms) # remove not-timesplitted file
 
-    w.done('timesplit')
+
 ### DONE
 
 ############################################
 # put everything together
-if w.todo('concat'):
+if w.if_todo('concat'):
 
     if ngroups == 1:
         lib_util.check_rm('mss')
@@ -203,7 +203,6 @@ if w.todo('concat'):
     logger.info('Cleaning up...')
     os.system('rm -r *MS')
 
-    w.done('concat')
 ### DONE
 
 logger.info('Cleaning up...')
