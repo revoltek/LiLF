@@ -804,6 +804,7 @@ for cmaj in range(maxIter):
                     'Mask_SigTh':5.0,
                     'GAClean_MinSizeInit':10,
                     'GAClean_MaxMinorIterInitHMP':100000,
+                    'HMP_AllowResidIncrease':1.0,
                     'Facets_DiamMax':1.5,
                     'Facets_DiamMin':0.1,
                     'Weight_ColName':'WEIGHT_SPECTRUM',
@@ -819,7 +820,7 @@ for cmaj in range(maxIter):
             logger.info('Cleaning 1...')
             lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
                     Deconv_MaxMajorIter=1,
-                    Deconv_PeakFactor=0.005,
+                    Deconv_PeakFactor=0.01,
                     Cache_Reset=1
                     )
     
@@ -830,12 +831,12 @@ for cmaj in range(maxIter):
             logger.info('Cleaning 2...')
             lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **ddf_parms,
                     Deconv_MaxMajorIter=5,
-                    Deconv_PeakFactor=0.001,
+                    Deconv_PeakFactor=0.005,
                     Mask_External=im.maskname,
                     Cache_Reset=0
                     )
  
-            os.system('mv %s.* ddcal/c%02i/images' % (imagename, cmaj))
+            os.system('mv %s* ddcal/c%02i/images' % (imagename, cmaj))
     ### DONE
 
     full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj,imagename.split('/')[-1]), userReg = userReg)
