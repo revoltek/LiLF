@@ -186,6 +186,7 @@ for target in targets:
             check_done('pipeline-cal.logger')
 
             # copy solutions in the repository
+            cal_dir = os.path.basename(local_calibrator_dirs(working_dir, obsid)[0])
             logger.info('Copy: cal*h5 -> herts:/beegfs/lofar/lba/calibration_solutions/%s' % cal_dir)
             os.system('ssh herts "rm -rf /beegfs/lofar/lba/calibration_solutions/%s"' % cal_dir)
             os.system('ssh herts "mkdir /beegfs/lofar/lba/calibration_solutions/%s"' % cal_dir)
