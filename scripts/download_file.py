@@ -22,7 +22,9 @@ def download_file(url, filename, login=None, password=None):
                 if response.status_code!=200:
                     print(response.headers)
                     raise RuntimeError('Code was %i' % response.status_code)
-                esize=int(response.headers['Content-Length'])
+                if 'Content-Length' in response.headers.keys():
+                    esize = int(response.headers['Content-Length'])
+                else: esize = None
             except requests.exceptions.ConnectionError:
                 print('Downloader -- Connection error! sleeping 30 seconds before retry...')
                 sleep(30)
@@ -38,7 +40,7 @@ def download_file(url, filename, login=None, password=None):
                     if chunk:
                         fd.write(chunk)
             fsize=os.path.getsize(filename)
-            if esize!=fsize:
+            if esize!=fsize and esize is not None:
                 print('Downloader -- Download incomplete (expected %i, got %i)! Retrying' % (esize, fsize))
             else:
                 print('Downloader -- Download successful, %i of %i bytes received' % (fsize, esize))

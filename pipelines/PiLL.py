@@ -69,7 +69,7 @@ def check_done(logfile):
 
 def fix_dir_format(working_dir):
     # fix for c##-o##_p##### format
-    pattern = re.compile("^id[0-9]*_-_c[0-9][0-9]-o.*_.*$")
+    pattern = re.compile(".*id[0-9]*_-_c[0-9][0-9]-o.*_.*$")
     for dir in glob.glob(working_dir+'/id*'):
         if pattern.match(dir):
             os.system('mv '+dir+' '+dir.split('_-_')[0]+'_-_'+dir.split('_')[-1])

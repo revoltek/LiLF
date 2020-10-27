@@ -108,7 +108,7 @@ if w.if_todo('demix'):
         logger.info('Demixing...')
         MSs.run('DPPP '+parset_dir+'/DPPP-demix.parset msin=$pathMS msout=$pathMS demixer.skymodel=$pathMS/'+os.path.basename(skydb_demix)+
                 ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources=\['+','.join(ateams)+'\]',
-                log='$nameMS_demix.log', commandType='DPPP', maxThreads=2)
+                log='$nameMS_demix.log', commandType='DPPP', maxThreads=1)
 
 ### DONE
 
