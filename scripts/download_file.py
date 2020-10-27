@@ -42,8 +42,11 @@ def download_file(url, filename, login=None, password=None):
             fsize=os.path.getsize(filename)
             if esize!=fsize and esize is not None:
                 print('Downloader -- Download incomplete (expected %i, got %i)! Retrying' % (esize, fsize))
-            else:
+            elif esize is not None:
                 print('Downloader -- Download successful, %i of %i bytes received' % (fsize, esize))
+                downloaded=True
+            else:
+                print('Downloader -- Download successful, %i bytes (unknown size)' % (fsize))
                 downloaded=True
 
         except (requests.exceptions.ConnectionError,requests.exceptions.Timeout,requests.exceptions.ChunkedEncodingError):
