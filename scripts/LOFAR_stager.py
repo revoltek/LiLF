@@ -225,12 +225,13 @@ class Worker_downloader(Worker):
                 while True:
                     download_file(url, tar_file, login, password)
                     os.system('tar xf %s' % tar_file)
+                    print(tar_file)
                     try:
                         t = tables.table(ms_file, ack=False)
                         break
                     except:
                         print('ERROR opening %s, probably corrupted - redownload it' % ms_file)
-                        os.system('rm -r %s %s' % (tar_file, ms_file))
+                        #os.system('rm -r %s %s' % (tar_file, ms_file))
                 os.system('rm -r %s' % tar_file)
 
                 self.L_inDownload.remove(surl)
