@@ -1,15 +1,6 @@
 #!/usr/bin/env python3
-# This script query the LTA and populate the field_obs table
+# This script query the LTA and populate the field and field_obs table
 # At the same time set to "Observed" all fields that have at least 3 observed hours
-
-# To reset everything:
-#with SurveysDB(survey='lba',readonly=False) as sdb: 
-#   sdb.execute('DELETE FROM field_obs') 
-#   sdb.execute('UPDATE fields SET status="Not started"') 
-
-# To reset all runs:
-#with SurveysDB(survey='lba',readonly=False) as sdb: 
-#   sdb.execute('UPDATE fields SET status="Observed" where status!="Not started"') 
 
 import os, sys, argparse, re
 from awlofar.database.Context import context

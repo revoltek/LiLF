@@ -55,25 +55,15 @@ if cal_dir == '':
     if len(cal_dir) > 0:
         cal_dir = cal_dir[0]
     else:
-        from LiLF.surveys_db import SurveysDB
-        with SurveysDB(survey='lba',readonly=True) as sdb:
-            sdb.execute('select calibratordata from observations where id=%i' % obsid)
-            calibratordata = sdb.cur.fetchall()[0]['calibratordata']
-        if calibratordata is not None:
-            logger.info('Downloading solutions...')
-            # try the repository
-            os.system('scp -q herts:/beegfs/lofar/lba/calibration_solutions/%s/cal-*h5 .' % calibratordata)
-            cal_dir = './'
-        else:
-            logger.error('Cannot find solutions.')
-            sys.exit()
+        logger.error('Cannot find solutions.')
+        sys.exit()
 
 h5_pa = cal_dir+'/cal-pa.h5'
 h5_amp = cal_dir+'/cal-amp.h5'
 h5_iono = cal_dir+'/cal-iono.h5'
-assert os.path.exists(h5_pa)
-assert os.path.exists(h5_amp)
-assert os.path.exists(h5_iono)
+if not os.path.exists(h5_pa) or not os.path.exists(h5_amp) or not os.path.exists(h5_iono):
+    logger.error("Missing solutions in %s" % cal_dir)
+    sys.exit()
 
 ####################################################
 # Correct fist for BP(diag)+TEC+Clock and then for beam
