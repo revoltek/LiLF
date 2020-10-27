@@ -26,7 +26,7 @@ if args.showdb:
         sdb.execute('SELECT * FROM fields WHERE status="Observed" order by priority desc')
         r = sdb.cur.fetchall()
         for i, entry in enumerate(r):
-            print('%03i) ID: %s (%s)' % (i, entry['id'], entry['status']))
+            print('%03i) ID: %s (%s - pri: %i)' % (i, entry['id'], entry['status'], entry['priority']))
         print("############################")
         sdb.execute('SELECT * FROM fields WHERE status!="Observed" and status!="Not started"')
         r = sdb.cur.fetchall()
