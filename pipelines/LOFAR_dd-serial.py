@@ -93,7 +93,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
             logger.warning('Fail to create mask for %s.' % imagename+'-MFS-image.fits')
             return
 
-        # restrict to inside the dd-region
+        # restrict to inside the dd-region TODO: remove?
         if imagereg is not None:
             lib_img.blank_image_reg(im.maskname, imagereg, inverse=True, blankval=0.,)
     
@@ -219,7 +219,7 @@ for cmaj in range(maxIter):
         lsm.setPatchPositions(method='mid')
         img_beam = full_image.getBeam()
         for name, size, ra, dec in \
-                zip( lsm.getPatchNames(), lsm.getPatchSizes(units='deg'), \
+                zip( lsm.getPatchNames(), lsm.getPatchSizes(units='deg'),
                      lsm.getPatchPositions(asArray=True)[0], lsm.getPatchPositions(asArray=True)[1] ):
 
             # keep track of the spidx of sources
@@ -302,7 +302,6 @@ for cmaj in range(maxIter):
                         log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
                 s.run(check=True)
     
-
         ### DONE
     
         with w.if_todo('c%02i-fullsub' % cmaj):
@@ -314,7 +313,6 @@ for cmaj in range(maxIter):
             logger.info('Set CORRECTED_DATA = DATA...')
             MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"',
                         log='$nameMS_taql.log', commandType='general')
-    
 
         ### DONE
 
@@ -413,8 +411,6 @@ for cmaj in range(maxIter):
             #if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
             #    clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
-
- 
         ### DONE
 
         with w.if_todo('%s-shift' % logstring):
@@ -430,7 +426,6 @@ for cmaj in range(maxIter):
                     avg.timestep='+str(avgtimeint)+' avg.freqstep=8 shift.phasecenter=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\]', \
                     log='$nameMS_shift-'+logstring+'.log', commandType='DPPP')
 
-
         ### DONE
 
         MSs_dir = lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s, check_flags=False )
@@ -438,7 +433,6 @@ for cmaj in range(maxIter):
         with w.if_todo('%s-flag' % logstring):
             logger.info('Flag on mindata...')
             MSs_dir.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
-
 
         ### DONE
 
@@ -451,14 +445,12 @@ for cmaj in range(maxIter):
                         setbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] \
                         corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=True',
                         log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
-    
 
             ### DONE
 
         with w.if_todo('%s-preimage' % logstring):
             logger.info('Pre-imaging...')
-            clean('%s-pre' % logstring, MSs_dir, res='normal', size=[d.size,d.size], imagereg=d.get_region())
-
+            clean('%s-pre' % logstring, MSs_dir, res='normal', size=[d.size,d.size])#, imagereg=d.get_region())
 
         ### DONE
         
@@ -558,7 +550,6 @@ for cmaj in range(maxIter):
                         cor.parmdb='+d.get_h5parm('amp2')+' cor.correction=amplitude000',
                         log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP') 
 
-
             ### DONE
 
             ###########################################################################
@@ -567,7 +558,6 @@ for cmaj in range(maxIter):
 
                 logger.info('%s (cdd: %02i): imaging...' % (d.name, cdd))
                 clean('%s' % logstringcal, MSs_dir, res='normal', size=[d.size,d.size], imagereg=d.get_region())
-
 
             ### DONE
 
@@ -591,7 +581,7 @@ for cmaj in range(maxIter):
             if cdd >= 4 and (mm_ratio >= 30 or d.get_flux(freq_mid) > 10):
                 doamp = True
 
-            d.set_model(image.root, typ='best', apply_region=False) # currently best model
+            d.set_model(image.root, typ='best', apply_region=False)  # current best model
             rms_noise_pre = rms_noise
             mm_ratio_pre = mm_ratio
 
@@ -621,6 +611,15 @@ for cmaj in range(maxIter):
             model_skymodel = 'ddcal/c%02i/skymodels/%s-best-source.txt' % (cmaj, d.name)
             model_skydb = 'ddcal/c%02i/skymodels/%s-best-source.skydb' % (cmaj, d.name)
             os.system('cp %s %s' % (d.get_model('best')+'-sources.txt', model_skymodel))
+
+            #TODO restrict to initial mask
+            print('DEBUG: blanking ', d.model['best']+'-mask.fits')
+            lib_img.blank_image_reg(d.model['best']+'-mask.fits', d.get_region(),
+                                    inverse=True, blankval=0.)
+            lsm = lsmtool.load(model_skymodel)
+            lsm.select('%s == True' % d.model['best']+'-mask.fits')
+            lsm.write(model_skymodel, format='makesourcedb', clobber=True)
+
             s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (model_skymodel, model_skydb), log='makesourcedb_cl.log', commandType='general' )
             s.run()
         
@@ -685,7 +684,6 @@ for cmaj in range(maxIter):
                 logger.info('Source to peel: set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA')
                 MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
                         log='$nameMS_taql.log', commandType='general')
-
 
         ### DONE
 
