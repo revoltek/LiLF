@@ -408,8 +408,8 @@ for cmaj in range(maxIter):
                         log='$nameMS_taql.log', commandType='general')
 
             ### TTESTTESTTEST: empty image
-            #if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
-            #    clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+            if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
+                clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
         ### DONE
 

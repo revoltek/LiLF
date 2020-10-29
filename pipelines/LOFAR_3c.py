@@ -238,7 +238,7 @@ for c in range(100):
         # if next is a "cont" then I need the do_predict
         logger.info('Cleaning shallow (cycle: '+str(c)+')...')
         lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, name=imagename,
-                parallel_gridding=4, baseline_averaging='', size=4000, scale='2.5arcsec',
+                parallel_gridding=4, baseline_averaging='', size=3000, scale='2.5arcsec',
                 niter=1000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0,
                 auto_threshold=5, local_rms='', local_rms_method='rms-with-min',
                 join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1)
@@ -254,7 +254,7 @@ for c in range(100):
 
         logger.info('Cleaning full (cycle: '+str(c)+')...')
         lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, \
-                parallel_gridding=4, size=4000, scale='2.5arcsec', \
+                parallel_gridding=4, size=3000, scale='2.5arcsec', \
                 niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0, \
                 auto_threshold=0.5, auto_mask=2., local_rms='', local_rms_method='rms-with-min', fits_mask=maskfits, \
                 multiscale='', multiscale_scale_bias=0.8, \
