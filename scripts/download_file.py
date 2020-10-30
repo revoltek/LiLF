@@ -59,4 +59,3 @@ def download_file(url, filename, login=None, password=None):
 if __name__=='__main__':
     import sys
     download_file(sys.argv[1],sys.argv[2])
-    

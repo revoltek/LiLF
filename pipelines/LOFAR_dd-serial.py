@@ -178,12 +178,18 @@ for cmaj in range(maxIter):
         directions = []
 
         ### group into patches corresponding to the mask islands
-        if not os.path.exists(mask_cl): 
-            full_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff, only_beam=False, maskname=mask_cl, write_srl=True)
-        if not os.path.exists(mask_ext) and cmaj == 0: 
-            full_image.makeMask(threshisl=4, atrous_do=True, remove_extended_cutoff=0, only_beam=False, maskname=mask_ext)
+        if cmaj == 0 and not os.path.exists(mask_cl):
+            full_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff,
+                                only_beam=False, maskname=mask_cl, write_srl=True)
+        if cmaj == 1 and not os.path.exists(mask_cl):
+            full_image.makeMask(threshisl=4, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff,
+                                only_beam=False, maskname=mask_cl, write_srl=True)
+        if cmaj == 0 and not os.path.exists(mask_ext):
+            full_image.makeMask(threshisl=4, atrous_do=True, remove_extended_cutoff=0,
+                                only_beam=False, maskname=mask_ext)
 
         # the txt skymodel is used only to find directions
+        # note: at clycle 0 it's a wsclean cc-skymodel, at cycle 1 it's a pybdsf source list
         if cmaj > 0:
             full_image.skymodel_cut = mask_cl.replace('fits', 'skymodel')
         elif not os.path.exists(full_image.skymodel_cut): 
@@ -285,7 +291,7 @@ for cmaj in range(maxIter):
         skymodel_cl = 'ddcal/c%02i/skymodels/cluster.skymodel' % cmaj
         lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
         lsm.setColValues('name', [x.split('_')[-1] for x in lsm.getColValues('patch')]) # just for the region - this makes this lsm useless
-        lsm.write('ddcal/c%02i/skymodels/cluster.reg' % cmaj, format='ds9', clobber=True)
+        lsm.write('ddcal/c%02i/skymodels/cluster-c%02i.reg' % (cmaj, cmaj), format='ds9', clobber=True)
         del lsm
    
         pickle.dump( directions, open( picklefile, "wb" ) )
@@ -372,7 +378,7 @@ for cmaj in range(maxIter):
                     #'Deconv_PeakFactor':0.005,
                     #'Deconv_FluxThreshold':0.0,
                     #'Weight_Robust':-0.5,
-                    'Image_NPix':6000,
+                    'Image_NPix':7000,
                     'CF_wmax':50000,
                     'CF_Nw':100,
                     'Beam_CenterNorm':1,
@@ -596,28 +602,27 @@ for cmaj in range(maxIter):
             continue
         elif rms_noise_pre > rms_noise_init:
             d.converged = False
-            logger.warning('%s: noise did not decresed (%f -> %f), do not subtract source.' % (d.name, rms_noise_init, rms_noise_pre))
+            logger.warning('%s: noise did not decresed (%f -> %f), do not further use this source.' % (d.name, rms_noise_init, rms_noise_pre))
             d.clean()
             continue
         # second cycle, no peeling
         elif cmaj >= 1:
-            logger.info('%s: converged.' % d.name)
             d.converged = True
+            logger.info('%s: converged.' % d.name)
             continue
         else:
-            logger.info('%s: converged.' % d.name)
             d.converged = True
+            logger.info('%s: converged.' % d.name)
             # copy in the ddcal dir the best model
             model_skymodel = 'ddcal/c%02i/skymodels/%s-best-source.txt' % (cmaj, d.name)
             model_skydb = 'ddcal/c%02i/skymodels/%s-best-source.skydb' % (cmaj, d.name)
             os.system('cp %s %s' % (d.get_model('best')+'-sources.txt', model_skymodel))
 
-            #TODO restrict to initial mask
-            print('DEBUG: blanking ', d.model['best']+'-mask.fits')
+            # restrict to initial mask
             lib_img.blank_image_reg(d.model['best']+'-mask.fits', d.get_region(),
                                     inverse=True, blankval=0.)
             lsm = lsmtool.load(model_skymodel)
-            lsm.select('%s == True' % d.model['best']+'-mask.fits')
+            lsm.select('%s == True' % (d.model['best']+'-mask.fits'))
             lsm.write(model_skymodel, format='makesourcedb', clobber=True)
 
             s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (model_skymodel, model_skydb), log='makesourcedb_cl.log', commandType='general' )
@@ -784,7 +789,7 @@ for cmaj in range(maxIter):
                     'Deconv_RMSFactor':3.0,
                     'Deconv_FluxThreshold':0.0,
                     'Weight_Robust':-0.5,
-                    'Image_NPix':6000,
+                    'Image_NPix':7000,
                     'CF_wmax':50000,
                     'CF_Nw':100,
                     'Beam_CenterNorm':1,
@@ -802,7 +807,7 @@ for cmaj in range(maxIter):
                     'Mask_SigTh':5.0,
                     'GAClean_MinSizeInit':10,
                     'GAClean_MaxMinorIterInitHMP':100000,
-                    'HMP_AllowResidIncrease':1.0,
+                    'HMP_AllowResidIncrease':10.,
                     'Facets_DiamMax':1.5,
                     'Facets_DiamMin':0.1,
                     'Weight_ColName':'WEIGHT_SPECTRUM',
@@ -829,7 +834,7 @@ for cmaj in range(maxIter):
             logger.info('Cleaning 2...')
             lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **ddf_parms,
                     Deconv_MaxMajorIter=5,
-                    Deconv_PeakFactor=0.005,
+                    Deconv_PeakFactor=0.01,
                     Mask_External=im.maskname,
                     Cache_Reset=0
                     )

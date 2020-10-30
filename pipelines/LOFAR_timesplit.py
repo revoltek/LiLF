@@ -89,11 +89,6 @@ with w.if_todo('apply'):
 
 ###################################################################################################
 # Create groups
-# TODO: the creation of groups should always be:
-# - 1 group with the most sensitive region
-# - 1 group below that region
-# - 1 group above that region
-# to be understood if calibration/imaging gain anything from using only the central group or all of them
 groupnames = []
 logger.info('Concatenating in frequency...')
 for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
@@ -139,7 +134,6 @@ with w.if_todo('flag'):
     lib_util.check_rm('plots-weights')
     os.system('mkdir plots-weights; mv *png plots-weights')
 
-
 ### DONE
 
 #####################################
@@ -168,29 +162,6 @@ with w.if_todo('timesplit'):
         t.close()
     
         lib_util.check_rm(ms) # remove not-timesplitted file
-
-
-### DONE
-
-############################################
-# put everything together
-if w.if_todo('concat'):
-
-    if ngroups == 1:
-        lib_util.check_rm('mss')
-        os.makedirs('mss')
-        os.system('mv mss_t*/*MS mss')
-        lib_util.check_rm('mss_t*')
-    else:
-        for group in range(ngroups):
-            groupname = 'mss-%02i' % group
-            lib_util.check_rm(groupname)
-            os.makedirs(groupname)
-            os.system('mv mss_t*-%02i/*MS %s' % (group, groupname))
-        lib_util.check_rm('mss_t*')
-
-    logger.info('Cleaning up...')
-    os.system('rm -r *MS')
 
 ### DONE
 
