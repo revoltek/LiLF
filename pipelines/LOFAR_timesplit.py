@@ -30,8 +30,6 @@ bl2flag = parset.get('flag','stations')
 with w.if_todo('clean'):
     logger.info('Cleaning...')
     lib_util.check_rm('mss*')
-
-
 ### DONE
 
 with w.if_todo('copy'):
@@ -83,8 +81,6 @@ with w.if_todo('apply'):
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
     logger.info('Beam correction...')
     MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DPPP')
-
-
 ### DONE
 
 ###################################################################################################
@@ -133,7 +129,6 @@ with w.if_todo('flag'):
     MSs.run('reweight.py $pathMS -v -p -a CS001LBA', log='$nameMS_weights.log', commandType='python')
     lib_util.check_rm('plots-weights')
     os.system('mkdir plots-weights; mv *png plots-weights')
-
 ### DONE
 
 #####################################
@@ -162,7 +157,6 @@ with w.if_todo('timesplit'):
         t.close()
     
         lib_util.check_rm(ms) # remove not-timesplitted file
-
 ### DONE
 
 logger.info('Cleaning up...')
