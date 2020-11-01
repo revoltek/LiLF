@@ -95,7 +95,7 @@ if w.if_todo('demix'):
         if os.path.exists('mss-predemix'):
             logger.warning('Reset mss from mss-predemix...')
             lib_util.check_rm('mss')
-            os.system('cp -r mss-predemix mss')
+            os.system('cp -r mss-predemix/*MS mss')
             MSs = lib_ms.AllMSs(glob.glob('mss/TC*[0-9].MS'), s)
         else:
             logger.info('Save mss in mss-predemix...')

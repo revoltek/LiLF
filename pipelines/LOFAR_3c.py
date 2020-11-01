@@ -99,7 +99,8 @@ with w.if_todo('setup'):
     
             # Move CORRECTED_DATA -> DATA
             logger.info('Move CORRECTED_DATA -> DATA...')
-            MSs.run('taql "update $pathMS set DATA = CORRECTED_DATA"', log='$nameMS_taql.log', commandType='general')
+            MSs.run('taql "update $pathMS set DATA = CORRECTED_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
 
             # bkp
             logger.info('Making backup...')
@@ -126,15 +127,17 @@ with w.if_todo('setup'):
     # Phase up stations DATA -> DATA
     lib_util.check_rm('*MS-phaseup')
     logger.info('Phase up superterp DATA -> DATA...')
-    MSs_orig.run('DPPP '+parset_dir+'/DPPP-phaseup.parset msin=$pathMS msout=$pathMS-phaseup', log='$nameMS_phaseup.log', commandType='DPPP')
+    MSs_orig.run('DPPP '+parset_dir+'/DPPP-phaseup.parset msin=$pathMS msout=$pathMS-phaseup',
+                 log='$nameMS_phaseup.log', commandType='DPPP')
     os.system('rm -r *concat.MS')
-
 ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('*concat.MS-phaseup'), s, check_flags=False, check_sun=True )
 MSs.print_HAcov('plotHAelev.png')
 MSs.getListObj()[0].makeBeamReg('beam02.reg', freq='mid', pb_cut=0.2)
-beamReg = 'beam02.reg'
+beam02Reg = 'beam02.reg'
+MSs.getListObj()[0].makeBeamReg('beam07.reg', freq='mid', pb_cut=0.7)
+beam07reg = 'beam07.reg'
 
 #####################################################
 # Model
@@ -160,7 +163,6 @@ with w.if_todo('predict'):
     # Smooth DATA -> DATA
     logger.info('BL-based smoothing...')
     MSs.run('BLsmooth.py -r -s 0.8 -i DATA -o DATA $pathMS', log='$nameMS_smooth1.log', commandType='python')
-
 ### DONE
 
 ###############################################################
@@ -172,8 +174,8 @@ for c in range(100):
 
     logger.info('== Start cycle: %s ==' % c)
 
-    logger.info('Remove bad timestamps...')
-    MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+    #logger.info('Remove bad timestamps...')
+    #MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
     ####################################################
     # 1: Solving
@@ -186,14 +188,12 @@ for c in range(100):
                 sol.solint='+str(solint)+' sol.smoothnessconstraint=5e6',
                 log='$nameMS_solGp-c'+str(c)+'.log', commandType="DPPP")
         lib_util.run_losoto(s, 'Gp-c'+str(c), [ms+'/calGp.h5' for ms in MSs.getListStr()],
-                        [parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot.parset'])
+                        [parset_dir+'/losoto-clip-large.parset', parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot.parset'])
     
         # Correct DATA -> CORRECTED_DATA
         logger.info('Correction PH...')
         MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-Gp-c'+str(c)+'.h5 cor.correction=phase000', \
                 log='$nameMS_corPH-c'+str(c)+'.log', commandType='DPPP')
-        
-
     ### DONE
 
     if doamp:
@@ -215,13 +215,55 @@ for c in range(100):
             MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
                     cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=\[amplitude000,phase000\]', \
                     log='$nameMS_corAMPPHslow-c'+str(c)+'.log', commandType='DPPP')
-
-
         ### DONE
 
     #################################################
-    # 2: Cleaning
-    imagename = 'img/imgM-%02i' % c
+    # 2: Sub field
+    if c == 1:
+        with w.if_todo('sub-field'):
+            # Low res image
+            logger.info('Cleaning wide...')
+            imagename = 'img/img-wide'
+            lib_util.run_wsclean(s, 'wsclean-wide.log', MSs.getStrWsclean(), name=imagename,
+                             parallel_gridding=4, size=2000, scale='10arcsec', weight='briggs -0.7',
+                             taper_gaussian='30arcsec',
+                             niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0,
+                             auto_threshold=0.5, auto_mask=1, local_rms='',
+                             join_channels='', fit_spectral_pol=2, channels_out=2)
+            os.system('cat logs/wsclean-wide.log | grep "background noise"')
+
+            # blank models
+            logger.info('Cleanup model images...')
+            for model_file in glob.glob(imagename+'*model.fits'):
+                lib_img.blank_image_reg(model_file, beam07reg, blankval=0.)
+
+            # ft models
+            s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 2 \
+                  -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
+                  log='wsclean-pre.log', commandType='wsclean', processors='max')
+            s.run(check=True)
+
+            # corrupt field
+            MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                    cor.invert=False cor.parmdb=cal-Gp-c%i.h5 cor.correction=phase000' % (c),
+                    log='$nameMS_corrupt.log', commandType='DPPP')
+
+            # subtract outer field
+            logger.info('Move DATA = DATA - MODEL_DATA...')
+            MSs.run('taql "update $pathMS set DATA = DATA - MODEL_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
+
+            # re-apply correction before final imaging
+            # Correct DATA -> CORRECTED_DATA
+            logger.info('Correction PH...')
+            MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-Gp-c' +
+                    str(c) + '.h5 cor.correction=phase000', \
+                    log='$nameMS_corPH-c' + str(c) + '.log', commandType='DPPP')
+        #DONE
+
+    #################################################
+    # 3: Cleaning
+    imagename = 'img/img-%02i' % c
 
     with w.if_todo('image-c%02i' % c):
         # special for extended sources:
@@ -234,11 +276,18 @@ for c in range(100):
         else:
             kwargs1 = {'weight': 'briggs -0.8'}
             kwargs2 = {'weight': 'briggs -0.8', 'multiscale_scales': '0,10,20,40,80,160'}
-   
+
+        if c < 1:
+            kwargs1['size'] = 3500
+            kwargs2['size'] = 3500
+        else:
+            kwargs1['size'] = 2000
+            kwargs2['size'] = 2000
+
         # if next is a "cont" then I need the do_predict
         logger.info('Cleaning shallow (cycle: '+str(c)+')...')
         lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, name=imagename,
-                parallel_gridding=4, baseline_averaging='', size=3000, scale='2.5arcsec',
+                parallel_gridding=4, baseline_averaging='', scale='2.5arcsec',
                 niter=1000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0,
                 auto_threshold=5, local_rms='', local_rms_method='rms-with-min',
                 join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs1)
@@ -249,53 +298,38 @@ for c in range(100):
         maskfits = imagename+'-mask.fits'
         region = '%s/regions/%s.reg' % (parset_dir,target)
         if os.path.exists( region ):
-            lib_img.blank_image_reg(maskfits, beamReg, blankval = 0.)
+            lib_img.blank_image_reg(maskfits, beam02Reg, blankval = 0.)
             lib_img.blank_image_reg(maskfits, region, blankval = 1.)
 
         logger.info('Cleaning full (cycle: '+str(c)+')...')
-        lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename, \
-                parallel_gridding=4, size=3000, scale='2.5arcsec', \
-                niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0, \
-                auto_threshold=0.5, auto_mask=2., local_rms='', local_rms_method='rms-with-min', fits_mask=maskfits, \
-                multiscale='', multiscale_scale_bias=0.8, \
-                join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2 )
+        lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename,
+                parallel_gridding=4, scale='2.5arcsec',
+                niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0,
+                auto_threshold=0.5, auto_mask=2., local_rms='', local_rms_method='rms-with-min', fits_mask=maskfits,
+                multiscale='', multiscale_scale_bias=0.8,
+                join_channels='', fit_spectral_pol=2, channels_out=2, **kwargs2)
         os.system('cat logs/wsclean-c%02i.log | grep "background noise"' % c)
-
     ### DONE
-
-    # Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA
-    #logger.info('Set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA...')
-    #MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql.log', commandType='general')
-
-    # Flag on residuals (CORRECTED_DATA)
-    #logger.info('Flagging residuals...')
-    #MSs.run('DPPP '+parset_dir+'/DPPP-flagres.parset msin=$pathMS', log='$nameMS_flagres-c'+str(c)+'.log', commandType='DPPP')
 
     im = lib_img.Image(imagename+'-MFS-image.fits')
     im.makeMask( threshisl=5, rmsbox=(500,30), atrous_do=False )
     rms_noise = im.getNoise(); mm_ratio = im.getMaxMinRatio()
     logger.info('RMS noise: %f - MM ratio: %f' % (rms_noise, mm_ratio))
     if doamp and rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre and c > 6:
-        break # if already doing amp and not getting better, quit
+        break  # if already doing amp and not getting better, quit
     if rms_noise > 0.95*rms_noise_pre and mm_ratio < 1.05*mm_ratio_pre:
         doamp = True
     rms_noise_pre = rms_noise; mm_ratio_pre = mm_ratio
 
-# subtract everything outside .5 deg
-
-# recal
-
-# image
-
 # Low res image
 logger.info('Cleaning low-res...')
-imagename = 'img/imgM-low'
-lib_util.run_wsclean(s, 'wsclean-lr.log', MSs.getStrWsclean(), name=imagename, \
-        parallel_gridding=4, size=1500, scale='10arcsec', weight='briggs -0.7', taper_gaussian='60arcsec', \
-        niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0, \
-        auto_threshold=0.5, auto_mask=1, local_rms='', \
-        multiscale='', multiscale_scale_bias=0.8, multiscale_scales='0,10,20,40,80,160', \
-        join_channels='', fit_spectral_pol=2, channels_out=2 )
+imagename = 'img/img-low'
+lib_util.run_wsclean(s, 'wsclean-lr.log', MSs.getStrWsclean(), name=imagename,
+        parallel_gridding=4, size=500, scale='10arcsec', weight='briggs -0.7', taper_gaussian='60arcsec',
+        niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0,
+        auto_threshold=0.5, auto_mask=1, local_rms='',
+        multiscale='', multiscale_scale_bias=0.8, multiscale_scales='0,10,20,40,80,160',
+        join_channels='', fit_spectral_pol=2, channels_out=2)
 os.system('cat logs/wsclean-lr.log | grep "background noise"')
 
 logger.info("Done.")
