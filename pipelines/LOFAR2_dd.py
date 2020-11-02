@@ -118,15 +118,15 @@ with w.if_todo('addcol'):
 ##############################################################
 # setup initial model
 MSs[0].makeBeamReg('ddcal/beam.reg', freq='mid')
-
 if MSs.isLBA: # For LOFAR2.0 sim use larger beam for HBA
     beamReg = 'ddcal/beam.reg'
 elif MSs.isHBA:
     beamReg = 'ddcal/lbabeam.reg'
+
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], beamReg=beamReg, userReg = userReg)
-mosaic_image.makeMask()
-mosaic_image.selectCC()
-lsm = lsmtool.load(mosaic_image.skymodel_cut)
+# mosaic_image.makeMask()
+# mosaic_image.selectCC()
+# lsm = lsmtool.load(mosaic_image.skymodel_cut)
 
 rms_noise_pre = np.inf
 
@@ -282,32 +282,36 @@ for c in range(maxniter):
     for i, d in enumerate(directions):
         logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size_facet) ) )
     ###############################################################
-    # Calibrate
-    with w.if_todo('calibrate-c%02i' % c):
+    with w.if_todo('subtract-faint-c0{}'.format(c)):
         logger.info('Subtraction rest_field...')
 
         # Predict - ms:MODEL_DATA
         logger.info('Add rest_field to MODEL_DATA...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-predict.parset msin=$pathMS pre.sourcedb=' + skymodel_rest_skydb,
+                log='$nameMS_pre-c' + str(c) + '.log', commandType='DPPP')
 
         # Empty dataset from faint sources
         logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c' + str(c) + '.log',
+                commandType='general')
 
         # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
         logger.info('BL-based smoothing...')
         MSs.run('BLsmooth.py -c 8 -f {} -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS'.format(smoothfactor),
-                log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+                    log='$nameMS_smooth-c' + str(c) + '.log', commandType='python')
 
+    # Calibrate
+    with w.if_todo('calibrate-c%02i' % c):
         # Calibration - ms:SMOOTHED_DATA
         logger.info('TEC calibration...')
+        dirs = '[Isl_patch_12,Isl_patch_31,Isl_patch_10,Isl_patch_35]'
         if MSs.isLBA:
             MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS \
                     sol.h5parm=$pathMS/cal-tec-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb \
                     +' sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,'
                      'CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,'
                      'CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] '
-                     'sol.uvlambdamin={} '.format(100*freqscale),
+                     'sol.directions={} sol.uvlambdamin={} '.format(dirs, 100*freqscale),
             log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
             lib_util.run_losoto(s, 'tec-c'+str(c), [ms+'/cal-tec-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
                                 [parset_dir+'/losoto-plot-tec-lba.parset'])
@@ -337,8 +341,9 @@ for c in range(maxniter):
                                              'CS301HBA0,CS301HBA1,'
                                              'CS302HBA0,CS302HBA1,'
                                              'CS401HBA0,CS401HBA1,'
-                                             'CS501HBA0,CS501HBA1]]'
-                                             'sol.uvlambdamin={} '.format(100*freqscale),
+                                             'CS501HBA0,CS501HBA1]] '
+                                             'sol.directions={} '
+                                             'sol.uvlambdamin={} '.format(dirs, 100*freqscale),
                                              log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
             lib_util.run_losoto(s, 'tec-c' + str(c), [ms + '/cal-tec-c' + str(c) + '.h5' for ms in MSs.getListStr()], \
                                 [parset_dir + '/losoto-plot-tec-hba.parset'])
@@ -351,6 +356,7 @@ for c in range(maxniter):
         os.system('mv plots-tec-c' + str(c) + ' ddcal/plots')
         os.system('mv cal-tec-c' + str(c) + '.h5 ddcal/solutions')
     ### DONE
+    sys.exit()
 
     ###########################################################
     # use idg and A-term to correct the data, single image

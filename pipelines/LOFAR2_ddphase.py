@@ -124,11 +124,13 @@ if MSs.isLBA: # For LOFAR2.0 sim use larger beam for HBA
 elif MSs.isHBA:
     beamReg = 'ddcal/lbabeam.reg'
 mosaic_image = lib_img.Image(sorted(glob.glob('self/images/wideM-[0-9]-MFS-image.fits'))[-1], beamReg=beamReg, userReg = userReg)
-mosaic_image.makeMask()
-mosaic_image.selectCC()
-lsm = lsmtool.load(mosaic_image.skymodel_cut)
+logger.warning('EDITED for HBA phases')
+# mosaic_image.makeMask() # create mask of extended bright stuff wideM-0-mask.fits
+# mosaic_image.selectCC() # create wideM-o-sources-cut.skydb
+# lsm = lsmtool.load(mosaic_image.skymodel_cut)
 
 rms_noise_pre = np.inf
+dir_from_lba = True
 
 for c in range(maxniter):
     logger.info('Starting cycle: %i' % c)
@@ -147,8 +149,28 @@ for c in range(maxniter):
     skymodel_voro_skydb = skymodel_voro.replace('.txt','.skydb')
 
     picklefile = 'ddcal/directions-c%02i.pickle' % c
+    if dir_from_lba:
+        directions = []
 
-    if not os.path.exists(picklefile):
+        if not os.path.exists('ddcal/masks/regions-c%02i' % c): os.makedirs('ddcal/masks/regions-c%02i' % c)
+        if not os.path.exists('ddcal/images/c%02i' % c): os.makedirs('ddcal/images/c%02i' % c)
+        mask_voro = 'ddcal/masks/facets%02i.fits' % c
+
+        lsm = lsmtool.load(skymodel_cl)
+        for name, flux in zip(lsm.getPatchNames(), lsm.getColValues('I', aggregate='sum')):
+            direction = lib_dd_parallel.Direction(name)
+            position = [ lsm.getPatchPositions()[name][0].deg, lsm.getPatchPositions()[name][1].deg ]
+            direction.set_position( position, cal=True )
+            direction.set_flux(flux, cal=True)
+            directions.append(direction)
+
+        lib_dd_parallel.make_voronoi_reg(directions, mosaic_image.maskname, \
+                                         outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro,
+                                         png='ddcal/masks/voronoi%02i.png' % c)
+        [d.add_mask_voro(mask_voro) for d in directions]
+        pickle.dump(directions, open(picklefile, "wb"))
+
+    elif not os.path.exists(picklefile):
         directions = []
 
         if not os.path.exists('ddcal/masks/regions-c%02i' % c): os.makedirs('ddcal/masks/regions-c%02i' % c)
@@ -246,7 +268,7 @@ for c in range(maxniter):
         ### create regions (using cluster directions)
         logger.info("Create regions.")
         lsm = lsmtool.load(mosaic_image.skymodel_cut)
-        print(len(directions))
+
         lib_dd_parallel.make_voronoi_reg(directions, mosaic_image.maskname, \
                 outdir_reg='ddcal/masks/regions-c%02i' % c, out_mask=mask_voro, png='ddcal/masks/voronoi%02i.png' % c)
         lsm.group('facet', facet=mask_voro, root='Isl_patch')
@@ -279,36 +301,35 @@ for c in range(maxniter):
     for i, d in enumerate(directions):
         logger.info("%s: Flux=%f (coord: %s - size: %s deg)" % ( d.name, d.flux_cal, str(d.position_cal), str(d.size_facet) ) )
     ###############################################################
-    # Calibrate
-    with w.if_todo('calibrate-c%02i' % c):
+    with w.if_todo('subtract-faint-c0{}'.format(c)):
         logger.info('Subtraction rest_field...')
-
         # Predict - ms:MODEL_DATA
         logger.info('Add rest_field to MODEL_DATA...')
         MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
-
         # Empty dataset from faint sources
         logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-
         # Smoothing - ms:SUBTRACTED_DATA -> ms:SMOOTHED_DATA
         logger.info('BL-based smoothing...')
         MSs.run('BLsmooth.py -c 8 -f {} -r -i SUBTRACTED_DATA -o SMOOTHED_DATA $pathMS'.format(smoothfactor),
                 log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
 
+    # Calibrate
+    with w.if_todo('calibrate-c%02i' % c):
         # Calibration - ms:SMOOTHED_DATA
         logger.info('Phase calibration...')
+        dirs = '[Isl_patch_12,Isl_patch_31,Isl_patch_10,Isl_patch_35]'
         if MSs.isLBA:
             MSs.run('DPPP ' + parset_dir + '/DPPP-solPh.parset msin=$pathMS \
                      sol.h5parm=$pathMS/cal-ph-c' + str(c) + '.h5 sol.sourcedb=' + skymodel_cl_skydb \
                     +' sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,'
                      'CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,'
                      'CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] '
-                     'sol.uvlambdamin={} '.format(100*freqscale),
+                     'sol.directions={} sol.uvlambdamin={} '.format(dirs,100*freqscale),
                     log='$nameMS_solPh-c' + str(c) + '.log', commandType='DPPP')
 
-            lib_util.run_losoto(s, 'tec-c'+str(c), [ms+'/cal-ph-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
-                                [parset_dir+'/losoto-plot-ph-lba.parset'])
+            lib_util.run_losoto(s, 'ph-c'+str(c), [ms+'/cal-ph-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
+                                [parset_dir+'/losoto-plot-ph.parset'])
         elif MSs.isHBA:
             MSs.run('DPPP '+parset_dir+'/DPPP-solPh.parset msin=$pathMS \
                     sol.h5parm=$pathMS/cal-ph-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb
@@ -335,11 +356,11 @@ for c in range(maxniter):
                                              'CS301HBA0,CS301HBA1,'
                                              'CS302HBA0,CS302HBA1,'
                                              'CS401HBA0,CS401HBA1,'
-                                             'CS501HBA0,CS501HBA1]]'
-                                             'sol.uvlambdamin={} '.format(100*freqscale),
-                                             log='$nameMS_solPh-c'+str(c)+'.log', commandType='DPPP')
-            lib_util.run_losoto(s, 'tec-c' + str(c), [ms + '/cal-ph-c' + str(c) + '.h5' for ms in MSs.getListStr()], \
-                                [parset_dir + '/losoto-plot-ph-hba.parset'])
+                                             'CS501HBA0,CS501HBA1]] '
+                     'sol.directions={} sol.uvlambdamin={} '.format(dirs, 100 * freqscale),
+                    log='$nameMS_solPh-c'+str(c)+'.log', commandType='DPPP')
+            lib_util.run_losoto(s, 'ph-c' + str(c), [ms + '/cal-ph-c' + str(c) + '.h5' for ms in MSs.getListStr()], \
+                                [parset_dir + '/losoto-plot-ph.parset'])
 
         # Plot solutions
         os.system('mv plots-ph-c' + str(c) + ' ddcal/plots')
