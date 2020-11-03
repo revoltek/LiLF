@@ -200,7 +200,7 @@ for target in targets:
         else:
             # download calibrator solutions
             with SurveysDB(survey='lba',readonly=True) as sdb:
-                sdb.execute('select (location, calibratordata) from observations where id=%i' % obsid)
+                sdb.execute('select location,calibratordata from observations where id=%i' % obsid)
                 location = sdb.cur.fetchall()[0]['location']
                 calibratordata = sdb.cur.fetchall()[0]['calibratordata']
                 logger.info('Downloading solutions: %s:%s/cal-*h5' % (location,calibratordata))
