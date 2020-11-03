@@ -204,8 +204,10 @@ for target in targets:
                 r = sdb.cur.fetchall()[0]
                 location = r['location']
                 calibratordata = r['calibratordata']
+                cal_dir = calibratordata.split('/')[-1]
                 logger.info('Downloading solutions: %s:%s/cal-*h5' % (location,calibratordata))
-                os.system('scp -q %s:%s/cal-*h5 .' % (location,calibratordata))
+                os.system('mkdir %s' % cal_dir)
+                os.system('scp -q %s:%s/cal-*h5 %s' % (location,calibratordata,cal_dir))
 
     ### DONE
 
