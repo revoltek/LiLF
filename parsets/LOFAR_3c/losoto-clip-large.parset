@@ -10,13 +10,6 @@ prefix = plots/ampPreflag_
 [clip]
 operation = CLIP
 soltab = sol000/amplitude000
-mode = below
-clipLevel = 0.20
-pol = XX,YY
-
-[clip2]
-operation = CLIP
-soltab = sol000/amplitude000
 mode = above
 clipLevel = 5.0
 pol = XX,YY
