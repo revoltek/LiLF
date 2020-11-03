@@ -106,6 +106,14 @@ RUN cd /opt/DP3 && mkdir build && cd build \
     && make -j 64 && make install
 
 #####################################################################
+## LTA
+#####################################################################
+RUN cd /opt && wget https://lta.lofar.eu/software/lofar_lta-2.7.1.tar.gz && tar xf lofar_lta-2.7.1.tar.gz && rm lofar_lta-2.7.1.tar.gz
+RUN cd /opt/lofar_lta-2.7.1 && python3 setup.py install_oracle
+RUN cd /opt/lofar_lta-2.7.1 && python3 setup.py install
+ENV LD_LIBRARY_PATH /usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
+
+#####################################################################
 ## Pybdsf
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git
@@ -118,14 +126,6 @@ RUN cd /opt/PyBDSF; pip3 install .
 RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git
 RUN cd /opt/LSMTool
 RUN cd /opt/LSMTool; pip3 install .
-
-####################################################################
-## LoSoTo
-###################################################################
-RUN cd /
-RUN cd /opt && git clone https://github.com/revoltek/losoto.git
-RUN cd /opt/losoto && git checkout bbea0b8b7f755f577b80de418922393fa91db32b
-RUN cd /opt/losoto; pip3 install .
 
 #####################################################################
 ## BUILD DDF FROM SOURCE
@@ -160,23 +160,20 @@ RUN cd /opt/DDFacet/ && python3 setup.py build
 ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
 ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
 
-#####################################################################
-## LTA
-#####################################################################
-
-RUN cd /opt && wget https://lta.lofar.eu/software/lofar_lta-2.7.1.tar.gz && tar xf lofar_lta-2.7.1.tar.gz && rm lofar_lta-2.7.1.tar.gz
-RUN cd /opt/lofar_lta-2.7.1 && python3 setup.py install_oracle
-RUN cd /opt/lofar_lta-2.7.1 && python3 setup.py install
-ENV LD_LIBRARY_PATH /usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
+####################################################################
+## LoSoTo
+###################################################################
+RUN cd /opt && git clone https://github.com/revoltek/losoto.git
+RUN cd /opt/losoto && git checkout 3875034a9cc19465c142c290297923ba70dcabaa
+RUN cd /opt/losoto; pip3 install .
 
 #####################################################################
 ## LiLF
 #####################################################################
-RUN cd /
-RUN cd /opt && git clone https://github.com/revoltek/LiLF.git
-RUN cd /opt/LiLF && git checkout LBAdevel
-ENV PYTHONPATH /opt/LiLF:$PYTHONPATH
-ENV PATH /opt/LiLF/scripts:$PATH
+#RUN cd /opt && git clone https://github.com/revoltek/LiLF.git
+#RUN cd /opt/LiLF && git checkout LBAdevel
+#ENV PYTHONPATH /opt/LiLF:$PYTHONPATH
+#ENV PATH /opt/LiLF/scripts:$PATH
 
 #####################################################################
 
