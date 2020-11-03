@@ -88,6 +88,7 @@ if w.if_todo('demix'):
         sep = MSs.getListObj()[0].distBrightSource(ateam)
         if sep < 4 or sep > 15:
             ateams.remove(ateam)
+            logger.debug('No demix of %s (sep: %.0f deg)' % (ateam, sep))
         else:
             logger.warning('Demix of %s (sep: %.0f deg)' % (ateam, sep))
 
