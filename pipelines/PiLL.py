@@ -201,8 +201,9 @@ for target in targets:
             # download calibrator solutions
             with SurveysDB(survey='lba',readonly=True) as sdb:
                 sdb.execute('select location,calibratordata from observations where id=%i' % obsid)
-                location = sdb.cur.fetchall()[0]['location']
-                calibratordata = sdb.cur.fetchall()[0]['calibratordata']
+                r = sdb.cur.fetchall()[0]
+                location = r['location']
+                calibratordata = r['calibratordata']
                 logger.info('Downloading solutions: %s:%s/cal-*h5' % (location,calibratordata))
                 os.system('scp -q %s:%s/cal-*h5 .' % (location,calibratordata))
 
