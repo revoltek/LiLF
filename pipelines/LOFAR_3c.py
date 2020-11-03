@@ -65,8 +65,9 @@ with w.if_todo('setup'):
             
             # flag bad stations, and low-elev
             logger.info('Flagging...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. ant.baseline=\"'+bl2flag+'\"', \
-                        log='$nameMS_flag.log', commandType='DPPP')
+            MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. \
+                     aoflagger.strategy='+parset_dir+'/LBAdefaultwideband.rfis ant.baseline=\"'+bl2flag+'\"',
+                     log='$nameMS_flag.log', commandType='DPPP')
             
             cal_dir = get_cal_dir(timestamp)
             h5_pa = cal_dir+'/cal-pa.h5'
