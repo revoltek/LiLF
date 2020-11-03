@@ -84,15 +84,16 @@ if sourcedb == '':
 ### Demix?
 if w.if_todo('demix'):
     ateams = ['VirA', 'TauA']
+    ateams_todemix = []
     for ateam in ateams:
         sep = MSs.getListObj()[0].distBrightSource(ateam)
         if sep < 4 or sep > 15:
-            ateams.remove(ateam)
             logger.debug('No demix of %s (sep: %.0f deg)' % (ateam, sep))
         else:
+            ateams_todemix.append(ateam)
             logger.warning('Demix of %s (sep: %.0f deg)' % (ateam, sep))
 
-    if len(ateams) > 0:
+    if len(ateams_todemix) > 0:
         if os.path.exists('mss-predemix'):
             logger.warning('Reset mss from mss-predemix...')
             lib_util.check_rm('mss')
@@ -108,7 +109,7 @@ if w.if_todo('demix'):
 
         logger.info('Demixing...')
         MSs.run('DPPP '+parset_dir+'/DPPP-demix.parset msin=$pathMS msout=$pathMS demixer.skymodel=$pathMS/'+os.path.basename(skydb_demix)+
-                ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources=\['+','.join(ateams)+'\]',
+                ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources=\['+','.join(ateams_todemix)+'\]',
                 log='$nameMS_demix.log', commandType='DPPP', maxThreads=1)
 
 ### DONE
