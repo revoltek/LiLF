@@ -202,13 +202,13 @@ for target in targets:
             with SurveysDB(survey='lba',readonly=True) as sdb:
                 sdb.execute('select location,calibratordata from observations where id=%i' % obsid)
                 r = sdb.cur.fetchall()[0]
-                location = r['location']
-                calibratordata = r['calibratordata']
-                cal_dir = calibratordata.split('/')[-1]
-                logger.info('Downloading solutions: %s:%s/cal-*h5' % (location,calibratordata))
-                os.system('mkdir %s' % cal_dir)
-                os.system('scp -q %s:%s/cal-*h5 %s' % (location,calibratordata,cal_dir))
-
+            location = r['location']
+            calibratordata = r['calibratordata']
+            os.chdir(working_dir)
+            cal_dir = calibratordata.split('/')[-1]
+            logger.info('Downloading solutions: %s:%s/cal-*h5' % (location,calibratordata))
+            os.system('mkdir %s' % cal_dir)
+            os.system('scp -q %s:%s/cal-*h5 %s' % (location,calibratordata,cal_dir))
     ### DONE
 
     ##########
@@ -223,8 +223,6 @@ for target in targets:
 
         os.system(LiLF_dir+'/pipelines/LOFAR_timesplit.py')
         check_done('pipeline-timesplit.logger')
-
-
     ### DONE
 
 # group targets with same name, assuming they are different pointings of the same dir
