@@ -190,7 +190,7 @@ for c in range(2):
         # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting TEC1...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
-                cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000', \
+                cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000',
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
     ### DONE
 
@@ -203,7 +203,7 @@ for c in range(2):
         logger.info('Solving TEC2...')
         MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec2.h5 \
                 sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]] \
-                sol.solint=1 sol.nchan=4', \
+                sol.solint=1 sol.nchan=4',
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
     
         lib_util.run_losoto(s, 'tec2-c'+str(c), [ms+'/tec2.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
@@ -215,7 +215,7 @@ for c in range(2):
         # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting TEC2...')
         MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
-                cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000', \
+                cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000',
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
     ### DONE
 
@@ -229,9 +229,9 @@ for c in range(2):
     
             # DIE Calibration - ms:CORRECTED_DATA
             logger.info('Solving slow G1...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/g1.h5', \
+            MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/g1.h5',
                     log='$nameMS_solG1-c'+str(c)+'.log', commandType='DPPP')
-            lib_util.run_losoto(s, 'g1-c'+str(c), [MS+'/g1.h5' for MS in MSs.getListStr()], \
+            lib_util.run_losoto(s, 'g1-c'+str(c), [MS+'/g1.h5' for MS in MSs.getListStr()],
                     [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-fr.parset'])
             os.system('mv plots-g1-c'+str(c)+' self/plots/')
             os.system('mv cal-g1-c'+str(c)+'.h5 self/solutions/')
@@ -245,16 +245,16 @@ for c in range(2):
             # Correct FR - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
             logger.info('Correcting FR...')
             MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                    cor.parmdb=self/solutions/cal-g1-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+                    cor.parmdb=self/solutions/cal-g1-c'+str(c)+'.h5 cor.correction=rotationmeasure000',
                     log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
         ### DONE
 
         with w.if_todo('solve_g_c%02i' % c):
             # DIE Calibration - ms:CORRECTED_DATA
             logger.info('Solving slow G2...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/g2.h5', \
+            MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/g2.h5',
                     log='$nameMS_solG2-c'+str(c)+'.log', commandType='DPPP')
-            lib_util.run_losoto(s, 'g2-c'+str(c), [MS+'/g2.h5' for MS in MSs.getListStr()], \
+            lib_util.run_losoto(s, 'g2-c'+str(c), [MS+'/g2.h5' for MS in MSs.getListStr()],
                     [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-amp.parset'])
             os.system('mv plots-g2-c'+str(c)+' self/plots/')
             os.system('mv cal-g2-c'+str(c)+'.h5 self/solutions/')
@@ -264,7 +264,7 @@ for c in range(2):
             # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
             logger.info('Correcting G...')
             MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                    cor.parmdb=self/solutions/cal-g2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth', \
+                    cor.parmdb=self/solutions/cal-g2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth',
                     log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
         ### DONE
 
@@ -275,15 +275,15 @@ for c in range(2):
     with w.if_todo('imaging_c%02i' % c):
         # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
         logger.info('Cleaning (cycle: '+str(c)+')...')
-        if c==0:
+        if c == 0:
             kwargs = {'do_predict':True, 'baseline_averaging':'', 'parallel_gridding':2, 'auto_mask':2.5}
         else: 
             kwargs = {'baseline_averaging':'', 'parallel_gridding':2, 'auto_mask':2.0, 'fits_mask':maskname}
 
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec', \
-                weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=4500, mgain=0.85, \
-                parallel_deconvolution=512, local_rms='', auto_threshold=1.5, \
-                multiscale='', multiscale_scale_bias=0.6, \
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec',
+                weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=4500, mgain=0.85,
+                parallel_deconvolution=512, local_rms='', auto_threshold=1.5,
+                multiscale='', multiscale_scale_bias=0.6,
                 join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, **kwargs)
 
         os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
@@ -341,18 +341,18 @@ for c in range(2):
             # corrupt model with TEC+FR+Beam2ord solutions - ms:MODEL_DATA -> ms:MODEL_DATA
             logger.info('Corrupt low-res model: TEC1...')
             MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                    cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False', \
+                    cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DPPP')
             logger.info('Corrupt low-res model: TEC2...')
             MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                    cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False', \
+                    cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DPPP')
             MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                    cor.parmdb=self/solutions/cal-g1-c'+str(c)+'.h5 cor.correction=rotationmeasure000 cor.invert=False', \
+                    cor.parmdb=self/solutions/cal-g1-c'+str(c)+'.h5 cor.correction=rotationmeasure000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DPPP')
             logger.info('Corrupt low-res model: G...')
             MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                    cor.parmdb=self/solutions/cal-g2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth cor.invert=False', \
+                    cor.parmdb=self/solutions/cal-g2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DPPP')
         ### DONE
 
