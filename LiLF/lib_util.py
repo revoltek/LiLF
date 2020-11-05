@@ -442,13 +442,14 @@ class Scheduler():
             else:
                 self.qsub = False
         else:
-            if ((self.qsub == False and self.cluster == "Hamburg") or \
-               (self.qsub == True and (self.cluster == "Leiden" or self.cluster == "CEP3" or self.cluster == "Hamburg_fat"))):
+            if ((self.qsub is False and self.cluster == "Hamburg") or
+               (self.qsub is True and (self.cluster == "Leiden" or self.cluster == "CEP3" or
+                                       self.cluster == "Hamburg_fat" or self.cluster == "IRA" or self.cluster == "Herts"))):
                 logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
                 sys.exit(1)
 
-        if (maxThreads == None):
-            if   (self.cluster == "Hamburg"):
+        if (maxThreads is None):
+            if (self.cluster == "Hamburg"):
                 self.maxThreads = 32
             else:
                 self.maxThreads = multiprocessing.cpu_count()
@@ -468,7 +469,7 @@ class Scheduler():
                      str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
 
         self.action_list = []
-        self.log_list    = [] # list of 2-tuples of the type: (log filename, type of action)
+        self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
 
 
     def get_cluster(self):
@@ -479,8 +480,12 @@ class Scheduler():
         hostname = socket.gethostname()
         if (hostname == 'lgc1' or hostname == 'lgc2'):
             return "Hamburg"
+        elif ('ira' in hostname):
+            return "IRA"
         elif ('node3' in hostname):
             return "Hamburg_fat"
+        elif ('node' in hostname):
+            return "Herts"
         elif ('leidenuniv' in hostname):
             return "Leiden"
         elif (hostname[0 : 3] == 'lof'):

@@ -144,7 +144,6 @@ with w.if_todo('download'):
     # TODO: how to be sure all MS were downloaded?
     os.system(LiLF_dir+'/pipelines/LOFAR_download.py')
     os.system('mv mss/* ../')
-
 ### DONE
 
 os.chdir(working_dir)

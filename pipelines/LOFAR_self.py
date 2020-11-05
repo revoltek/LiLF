@@ -9,16 +9,6 @@ import numpy as np
 import casacore.tables as pt
 import lsmtool
 
-# Survey
-#if 'LBAsurvey' in os.getcwd():
-#    obs = os.getcwd().split('/')[-1]
-#    if not os.path.exists('mss'):
-#        os.makedirs('mss')
-#        for i, tc in enumerate(glob.glob('/home/fdg/data/LBAsurvey/c*-o*/%s/mss/*' % obs)):
-#            tc_ren = 'TC%02i.MS' % i
-#            print('cp -r %s mss/%s' % (tc,tc_ren))
-#            os.system('cp -r %s mss/%s' % (tc,tc_ren))
-
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 logger_obj = lib_log.Logger('pipeline-self.logger')
@@ -82,7 +72,7 @@ if sourcedb == '':
 
 ########################################################
 ### Demix?
-if w.if_todo('demix'):
+with w.if_todo('demix'):
     ateams = ['VirA', 'TauA']
     ateams_todemix = []
     for ateam in ateams:
@@ -138,8 +128,6 @@ with w.if_todo('init_model'):
         MSs.run(
             'DPPP ' + parset_dir + '/DPPP-predict.parset msin=$pathMS pre.usebeammodel=true pre.sourcedb=$pathMS/' + sourcedb_basename,
             log='$nameMS_pre.log', commandType='DPPP')
-
-
 ### DONE
 
 #####################################################################################################
