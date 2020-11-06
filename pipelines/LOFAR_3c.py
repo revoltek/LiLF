@@ -110,7 +110,7 @@ with w.if_todo('setup'):
     MSs_orig = lib_ms.AllMSs( glob.glob('*concat.MS'), s, check_flags=False )
 
     # Demix
-    for ateam in ['VirA', 'TauA', 'CygA', 'CasA', '3C338', '3C380']:
+    for ateam in ['VirA', 'TauA', 'CygA', 'CasA']:  #, '3C338', '3C380']:
         sep = MSs_orig.getListObj()[0].distBrightSource(ateam)
         logger.info('%s - sep: %.0f deg' % (ateam, sep))
         if sep > 2 and sep < 25 and (ateam != 'CasA' and ateam != 'CygA'):
@@ -325,7 +325,7 @@ for c in range(100):
 # Low res image
 logger.info('Cleaning low-res...')
 imagename = 'img/img-low'
-lib_util.run_wsclean(s, 'wsclean-lr.log', MSs.getStrWsclean(), name=imagename,
+lib_util.run_wsclean(s, 'wsclean-lr.log', MSs.getStrWsclean(), name=imagename, save_source_list='',
         parallel_gridding=4, size=500, scale='10arcsec', weight='briggs -0.7', taper_gaussian='60arcsec',
         niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0,
         auto_threshold=0.5, auto_mask=1, local_rms='',
