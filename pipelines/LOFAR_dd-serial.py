@@ -431,7 +431,6 @@ for cmaj in range(maxIter):
             MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=DATA \
                     avg.timestep='+str(avgtimeint)+' avg.freqstep=8 shift.phasecenter=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\]', \
                     log='$nameMS_shift-'+logstring+'.log', commandType='DPPP')
-
         ### DONE
 
         MSs_dir = lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s, check_flags=False )
@@ -439,7 +438,6 @@ for cmaj in range(maxIter):
         with w.if_todo('%s-flag' % logstring):
             logger.info('Flag on mindata...')
             MSs_dir.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
-
         ### DONE
 
         # Correct for beam in that direction
@@ -451,13 +449,11 @@ for cmaj in range(maxIter):
                         setbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] \
                         corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=True',
                         log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
-
             ### DONE
 
         with w.if_todo('%s-preimage' % logstring):
             logger.info('Pre-imaging...')
             clean('%s-pre' % logstring, MSs_dir, res='normal', size=[d.size,d.size])#, imagereg=d.get_region())
-
         ### DONE
         
         # get initial noise and set iterators for timeint solutions
@@ -555,7 +551,6 @@ for cmaj in range(maxIter):
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
                         cor.parmdb='+d.get_h5parm('amp2')+' cor.correction=amplitude000',
                         log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP') 
-
             ### DONE
 
             ###########################################################################
@@ -564,7 +559,6 @@ for cmaj in range(maxIter):
 
                 logger.info('%s (cdd: %02i): imaging...' % (d.name, cdd))
                 clean('%s' % logstringcal, MSs_dir, res='normal', size=[d.size,d.size], imagereg=d.get_region())
-
             ### DONE
 
             image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % logstringcal, userReg=userReg)
@@ -579,10 +573,10 @@ for cmaj in range(maxIter):
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
             logger.info('MM ratio (cdd:%02i): %f' % (cdd,mm_ratio))
             if rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre:
-                if   (mm_ratio < 10 and cdd >= 2) or \
-                     (mm_ratio < 20 and cdd >= 3) or \
-                     (mm_ratio < 30 and cdd >= 4) or \
-                     (cdd >= 5): break
+                if (mm_ratio < 10 and cdd >= 2) or \
+                   (mm_ratio < 20 and cdd >= 3) or \
+                   (mm_ratio < 30 and cdd >= 4) or \
+                   (cdd >= 5): break
 
             if cdd >= 4 and (mm_ratio >= 30 or d.get_flux(freq_mid) > 10):
                 doamp = True

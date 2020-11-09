@@ -20,7 +20,8 @@ bl2flag = parset.get('flag', 'stations')
 
 target = os.getcwd().split('/')[-1]
 data_dir = '/home/fdg/lofar5/3Csurvey/%s' % target
-extended_targets = ['3c223','3c231','3c236','3c264','3c274','3c284','3c285','3c293','3c296','3c31','3c310','3c326','3c33','3c35','3c382','3c386','3c442a','3c449','3c465','3c84']
+extended_targets = ['3c223','3c231','3c236','3c264','3c274','3c284','3c285','3c293','3c296','3c31','3c310',
+                    '3c326','3c33','3c35','3c382','3c386','3c442a','3c449','3c454.3','3c465','3c84']
 very_extended_targets = ['3c138','da240']
 
 def get_cal_dir(timestamp):
