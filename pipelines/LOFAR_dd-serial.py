@@ -371,7 +371,7 @@ for cmaj in range(maxIter):
                     'Output_Mode':'Predict',
                     'Predict_InitDicoModel':outdico,
                     'Predict_ColName':'MODEL_DATA',
-                    'Deconv_Mode':'HMP',
+                    'Deconv_Mode':'SSD',
                     #'Deconv_CycleFactor':0,
                     #'Deconv_MaxMinorIter':1000000,
                     #'Deconv_RMSFactor':3.0,

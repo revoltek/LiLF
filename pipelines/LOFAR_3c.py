@@ -279,8 +279,8 @@ for c in range(100):
             kwargs2 = {'weight': 'briggs -0.8', 'multiscale_scales': '0,10,20,40,80,160'}
 
         if c < 1:
-            kwargs1['size'] = 3500
-            kwargs2['size'] = 3500
+            kwargs1['size'] = 4000
+            kwargs2['size'] = 4000
         else:
             kwargs1['size'] = 2000
             kwargs2['size'] = 2000
