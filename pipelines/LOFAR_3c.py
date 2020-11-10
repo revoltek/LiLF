@@ -230,7 +230,7 @@ for c in range(100):
                              parallel_gridding=4, size=2000, scale='10arcsec', weight='briggs -0.7',
                              taper_gaussian='30arcsec',
                              niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0,
-                             auto_threshold=0.5, auto_mask=1, local_rms='',
+                             auto_threshold=1, auto_mask=3,  local_rms='', local_rms_method='rms-with-min',
                              join_channels='', fit_spectral_pol=2, channels_out=2)
             os.system('cat logs/wsclean-wide.log | grep "background noise"')
 

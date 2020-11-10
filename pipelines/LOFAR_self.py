@@ -53,6 +53,40 @@ beamReg = 'self/beam.reg'
 imgsizepix = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/10.)
 if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 
+########################################################
+### Demix
+with w.if_todo('demix'):
+    ateams = ['VirA', 'TauA']
+    ateams_todemix = []
+    for ateam in ateams:
+        sep = MSs.getListObj()[0].distBrightSource(ateam)
+        if sep < 4 or sep > 15:
+            logger.debug('No demix of %s (sep: %.0f deg)' % (ateam, sep))
+        else:
+            ateams_todemix.append(ateam)
+            logger.warning('Demix of %s (sep: %.0f deg)' % (ateam, sep))
+
+    if len(ateams_todemix) > 0:
+        if os.path.exists('mss-predemix'):
+            logger.warning('Reset mss...')
+            lib_util.check_rm('mss/*MS')
+        else:
+            logger.info('Move mss in mss-predemix...')
+            os.system('mv mss mss-predemix')
+            os.system('mkdir mss')
+
+        MSs = lib_ms.AllMSs(glob.glob('mss-predemix/TC*[0-9].MS'), s)
+        for MS in MSs.getListStr():
+            lib_util.check_rm(MS+'/'+os.path.basename(skydb_demix))
+            os.system('cp -r '+skydb_demix+' '+MS+'/'+os.path.basename(skydb_demix))
+
+        logger.info('Demixing...')
+        MSs.run('DPPP '+parset_dir+'/DPPP-demix.parset msin=$pathMS msout=mss/$nameMS.MS demixer.skymodel=$pathMS/'+os.path.basename(skydb_demix)+
+                ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources=\['+','.join(ateams_todemix)+'\]',
+                log='$nameMS_demix.log', commandType='DPPP', maxThreads=1)
+        MSs = lib_ms.AllMSs(glob.glob('mss/TC*[0-9].MS'), s)
+### DONE
+
 #################################################################
 # Get online model
 if sourcedb == '':
@@ -67,42 +101,7 @@ if sourcedb == '':
         lsm.write('tgts.skymodel', clobber=True)
         os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
         apparent = False
-
     sourcedb = 'tgts.skydb'
-
-########################################################
-### Demix?
-with w.if_todo('demix'):
-    ateams = ['VirA', 'TauA']
-    ateams_todemix = []
-    for ateam in ateams:
-        sep = MSs.getListObj()[0].distBrightSource(ateam)
-        if sep < 4 or sep > 15:
-            logger.debug('No demix of %s (sep: %.0f deg)' % (ateam, sep))
-        else:
-            ateams_todemix.append(ateam)
-            logger.warning('Demix of %s (sep: %.0f deg)' % (ateam, sep))
-
-    if len(ateams_todemix) > 0:
-        if os.path.exists('mss-predemix'):
-            logger.warning('Reset mss from mss-predemix...')
-            lib_util.check_rm('mss')
-            os.system('cp -r mss-predemix/*MS mss')
-            MSs = lib_ms.AllMSs(glob.glob('mss/TC*[0-9].MS'), s)
-        else:
-            logger.info('Save mss in mss-predemix...')
-            os.system('cp -r mss mss-predemix')
-
-        for MS in MSs.getListStr():
-            lib_util.check_rm(MS+'/'+os.path.basename(skydb_demix))
-            os.system('cp -r '+skydb_demix+' '+MS+'/'+os.path.basename(skydb_demix))
-
-        logger.info('Demixing...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-demix.parset msin=$pathMS msout=$pathMS demixer.skymodel=$pathMS/'+os.path.basename(skydb_demix)+
-                ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources=\['+','.join(ateams_todemix)+'\]',
-                log='$nameMS_demix.log', commandType='DPPP', maxThreads=1)
-
-### DONE
 
 #################################################################################################
 # Add model to MODEL_DATA
@@ -259,19 +258,31 @@ for c in range(2):
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA
 
-    imagename = 'img/wideM-'+str(c)
+    imagename = 'img/wide-'+str(c)
+    imagenameM = 'img/wideM-'+str(c)
     with w.if_todo('imaging_c%02i' % c):
         # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
         logger.info('Cleaning (cycle: '+str(c)+')...')
         if c == 0:
-            kwargs = {'do_predict':True, 'baseline_averaging':'', 'parallel_gridding':2, 'auto_mask':2.5}
-        else: 
-            kwargs = {'baseline_averaging':'', 'parallel_gridding':2, 'auto_mask':2.0, 'fits_mask':maskname}
+            # make temp mask for cycle 0, in cycle 1 use the maske made from cycle 0 image
+            lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSs.getStrWsclean(), name=imagename,
+                                 size=imgsizepix, scale='10arcsec',
+                                 weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
+                                 parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
+                                 parallel_deconvolution=512, local_rms='', auto_threshold=4,
+                                 join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3)
+            im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
+            im.makeMask(threshisl=5)
+            maskname = imagename + '-mask.fits'
 
-        #multiscale = '', multiscale_scale_bias = 0.6,
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='10arcsec',
-                weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30, maxuv_l=4500, mgain=0.85,
-                parallel_deconvolution=512, local_rms='', auto_threshold=1.5,
+            kwargs = {'do_predict':True, 'auto_mask':2.5}
+        else: 
+            kwargs = {'auto_mask':2.0}
+
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, save_source_list='', size=imgsizepix, scale='10arcsec',
+                weight='briggs -0.3', niter=1000000, no_update_model_required='', parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500, mgain=0.85,
+                parallel_deconvolution=512, local_rms='', auto_threshold=1.5, fits_mask=maskname,
+                multiscale = '', multiscale_scale_bias = 0.6,
                 join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, **kwargs)
 
         os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
@@ -280,9 +291,9 @@ for c in range(2):
     if c == 0:
 
         # make a mask for next cycle
-        im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
+        im = lib_img.Image(imagenameM+'-MFS-image.fits', userReg=userReg)
         im.makeMask(threshisl = 5)
-        maskname = imagename+'-mask.fits'
+        maskname = imagenameM+'-mask.fits'
 
         with w.if_todo('lowres_setdata_c%02i' % c):
             # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
