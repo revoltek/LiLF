@@ -2,8 +2,9 @@ msin =
 msin.datacolumn = DATA
 msin.baseline = [CR]S*&
 msout =
+msout.storagemanager=dysco
 
-steps = [demixer] 
+steps = [demixer]
 
 demixer.type = demixer 
 demixer.demixfreqstep = 20

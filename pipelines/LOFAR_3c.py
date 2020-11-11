@@ -224,15 +224,29 @@ for c in range(100):
     if c == 1:
         with w.if_todo('sub-field'):
             # Low res image
-            logger.info('Cleaning wide...')
+            logger.info('Cleaning wide 1...')
             imagename = 'img/img-wide'
             lib_util.run_wsclean(s, 'wsclean-wide.log', MSs.getStrWsclean(), name=imagename,
-                             parallel_gridding=4, size=2000, scale='10arcsec', weight='briggs -0.7',
+                             parallel_gridding=4, size=2500, scale='10arcsec', weight='briggs -0.7',
                              taper_gaussian='30arcsec',
                              niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0,
-                             auto_threshold=1, auto_mask=3,  local_rms='', local_rms_method='rms-with-min',
+                             auto_threshold=5,  local_rms='', local_rms_method='rms-with-min',
                              join_channels='', fit_spectral_pol=2, channels_out=2)
             os.system('cat logs/wsclean-wide.log | grep "background noise"')
+
+            # makemask
+            im = lib_img.Image(imagename + '-MFS-image.fits')
+            im.makeMask(threshisl=5, rmsbox=(50, 5))
+            maskfits = imagename + '-mask.fits'
+
+            logger.info('Cleaning wide 2...')
+            imagename = 'img/img-wideM'
+            lib_util.run_wsclean(s, 'wsclean-wide.log', MSs.getStrWsclean(), name=imagename,
+                                 parallel_gridding=4, size=2500, scale='10arcsec', weight='briggs -0.7',
+                                 taper_gaussian='30arcsec', fits_mask=maskfits,
+                                 niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0,
+                                 auto_threshold=1, auto_mask=3, local_rms='', local_rms_method='rms-with-min',
+                                 join_channels='', fit_spectral_pol=2, channels_out=2)
 
             # blank models
             logger.info('Cleanup model images...')
