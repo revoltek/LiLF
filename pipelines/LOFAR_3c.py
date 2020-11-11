@@ -221,7 +221,7 @@ for c in range(100):
 
     #################################################
     # 2: Sub field
-    if c == 1:
+    if c == 0:
         with w.if_todo('sub-field'):
             # Low res image
             logger.info('Cleaning wide 1...')

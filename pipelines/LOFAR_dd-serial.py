@@ -141,7 +141,7 @@ if not os.path.exists('mss-avg'):
 MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False)
 
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
-detectability_dist = MSs.getListObj()[0].getFWHM(freq='max')*1.5/2.  # 1.8 to go to close to the null
+detectability_dist = MSs.getListObj()[0].getFWHM(freq='max')*1.7/2.  # 1.8 to go to close to the null
 freq_min = np.min(MSs.getFreqs())
 freq_mid = np.mean(MSs.getFreqs())
 phase_center = MSs.getListObj()[0].getPhaseCentre()
@@ -372,7 +372,7 @@ for cmaj in range(maxIter):
                     'Predict_InitDicoModel':outdico,
                     'Predict_ColName':'MODEL_DATA',
                     'Deconv_Mode':'HMP',
-                    'Image_NPix':8500,
+                    'Image_NPix':8775,
                     'CF_wmax':50000,
                     'CF_Nw':100,
                     'Beam_CenterNorm':1,
@@ -507,10 +507,10 @@ for cmaj in range(maxIter):
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DPPP')
 
-                    if d.peel_off:
-                        losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset']
-                    else:
-                        losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset']
+                    #if d.peel_off:
+                        #losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset']
+                    #else:
+                    losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset']
                     lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
                         plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp1.h5 %s' % d.get_h5parm('amp1'))
@@ -527,10 +527,10 @@ for cmaj in range(maxIter):
                         sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.nchan=6 sol.uvmmin=100 sol.smoothnessconstraint=10e6 sol.minvisratio=0.5', \
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DPPP')
 
-                    if d.peel_off:
-                        losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset']
-                    else:
-                        losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset']
+                    #if d.peel_off:
+                        #losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset']
+                    #else:
+                    losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset']
                     lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
                         plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp2.h5 %s' % d.get_h5parm('amp2'))
@@ -657,7 +657,6 @@ for cmaj in range(maxIter):
                 # Set MODEL_DATA = 0 where data are flagged, then unflag everything
                 MSs.run('taql "update $pathMS set MODEL_DATA[FLAG] = 0"',
                         log='$nameMS_taql.log', commandType='general')
-
                 # Restore of FLAGS
                 MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"',
                         log='$nameMS_taql.log', commandType='general')
@@ -708,7 +707,6 @@ for cmaj in range(maxIter):
             log += ' Amp2 (%s)' % (d.get_h5parm('amp2',-2))
             logger.info(log)
     
-        print (h5parms)
         for typ, h5parm_list in h5parms.items():
             # rename direction
             for h5parmFile in h5parm_list:
@@ -773,7 +771,7 @@ for cmaj in range(maxIter):
                     'Deconv_Mode':'HMP',
                     'HMP_AllowResidIncrease':1.,
                     'Weight_Robust':-0.5,
-                    'Image_NPix':8500,
+                    'Image_NPix':8775,
                     'CF_wmax':50000,
                     'CF_Nw':100,
                     'Beam_CenterNorm':1,

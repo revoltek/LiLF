@@ -6,7 +6,7 @@ steps=[sol]
 
 sol.type = ddecal
 sol.uvmmin = 100
-sol.minvisratio = 0.5
+sol.minvisratio = 0.3
 #sol.sourcedb =
 sol.usemodelcolumn = True
 sol.h5parm = 
