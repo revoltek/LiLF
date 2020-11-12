@@ -55,6 +55,8 @@ if cal_dir == '':
     else:
         logger.error('Cannot find solutions.')
         sys.exit()
+else:
+    cal_dir = '../'+cal_dir
 
 h5_pa = cal_dir+'/cal-pa.h5'
 h5_amp = cal_dir+'/cal-amp.h5'
