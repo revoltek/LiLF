@@ -165,7 +165,7 @@ for c in range(2):
         MSs.run('DPPP '+parset_dir+'/DPPP-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 \
                 msin.baseline="[CR]*&&;!RS208LBA;!RS210LBA;!RS307LBA;!RS310LBA;!RS406LBA;!RS407LBA;!RS409LBA;!RS508LBA;!RS509LBA" \
                 sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
-           	sol.solint=15 sol.nchan=8', \
+           	    sol.solint=15 sol.nchan=8', \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DPPP')
     
         lib_util.run_losoto(s, 'tec1-c'+str(c), [ms+'/tec1.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-resetremote.parset', parset_dir+'/losoto-plot-tec.parset'])
@@ -260,6 +260,7 @@ for c in range(2):
 
     imagename = 'img/wide-'+str(c)
     imagenameM = 'img/wideM-'+str(c)
+    maskname = imagename + '-mask.fits'
     with w.if_todo('imaging_c%02i' % c):
         # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
         logger.info('Cleaning (cycle: '+str(c)+')...')
@@ -273,7 +274,6 @@ for c in range(2):
                                  join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3)
             im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
             im.makeMask(threshisl=5)
-            maskname = imagename + '-mask.fits'
 
             kwargs = {'do_predict':True, 'auto_mask':2.5}
         else: 
@@ -289,11 +289,6 @@ for c in range(2):
     ### DONE
 
     if c == 0:
-
-        # make a mask for next cycle
-        im = lib_img.Image(imagenameM+'-MFS-image.fits', userReg=userReg)
-        im.makeMask(threshisl = 5)
-        maskname = imagenameM+'-mask.fits'
 
         with w.if_todo('lowres_setdata_c%02i' % c):
             # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
@@ -311,11 +306,15 @@ for c in range(2):
             # reclean low-resolution
             logger.info('Cleaning low resolution...')
             imagename_lr = 'img/wide-lr'
-            lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True,
+            lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=False,
                     parallel_gridding=4, temp_dir='./', size=imgsizepix, scale='30arcsec',
                     weight='briggs -1', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000, taper_gaussian='200arcsec', mgain=0.85,
                     parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits',
-                    join_channels='', fit_spectral_pol=5, channels_out=MSs.getChout(2.e6), deconvolution_channels=5)
+                    join_channels='', channels_out=MSs.getChout(2.e6))
+
+            s.add('wsclean -predict -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(2e6))+' '+MSs.getStrWsclean(), \
+                  log='wscleanLR-PRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+            s.run(check=True)
         ### DONE
 
         with w.if_todo('lowres_flag_c%02i' % c):
