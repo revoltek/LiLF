@@ -69,9 +69,9 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
 
         logger.info('Cleaning empty ('+str(p)+')...')
         imagename = 'img/empty-'+str(p)
-        lib_util.run_wsclean(s, 'wscleanE-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, data_column='SUBTRACTED_DATA', \
-                size=imsize, scale=str(pixscale)+'arcsec', \
-                weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0, \
+        lib_util.run_wsclean(s, 'wscleanE-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, data_column='SUBTRACTED_DATA',
+                size=imsize, scale=str(pixscale)+'arcsec',
+                weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0,
                 baseline_averaging='')
  
     else:
@@ -79,10 +79,10 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
         # clean 1
         logger.info('Cleaning ('+str(p)+')...')
         imagename = 'img/ddcal-'+str(p)
-        lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, \
-                size=imsize, scale=str(pixscale)+'arcsec', \
-                weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
-                baseline_averaging='', parallel_deconvolution=512, auto_threshold=5, \
+        lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename,
+                size=imsize, scale=str(pixscale)+'arcsec',
+                weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
+                baseline_averaging='', parallel_deconvolution=512, auto_threshold=5,
                 join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
     
         # make mask
@@ -118,20 +118,19 @@ with w.if_todo('cleaning'):
     os.makedirs('ddcal/init')
     lib_util.check_rm('img')
     os.makedirs('img')
-
-
+    lib_util.check_rm('mss-avg')
 ### DONE
 
 # goes down to 8 seconds/4 chans
 if not os.path.exists('mss-avg'):
     MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
     timeint = MSs.getListObj()[0].getTimeInt()
-    avgtimeint = int(round(8/timeint))
+    avgtimeint = int(round(8/timeint))  # to 8 seconds
     nchan_init = MSs.getListObj()[0].getNchan()
-    # avg (x8) sol (x6) - we need a multiple of 8x6=48, the largest that is <nchan
+    # chan: avg (x8) sol (x6) - we need a multiple of 8x6=48, the largest that is <nchan
     # survey after avg (x8): 60, final number of sol 10
     # pointed after avg (x8): 120, final number of sol 20
-    nchan = nchan_init - nchan_init%48
+    nchan = nchan_init - nchan_init % 48
     os.makedirs('mss-avg')
     logger.info('Averaging in time (%is -> %is), channels: %ich -> %ich)' % (timeint,timeint*avgtimeint,nchan_init,nchan))
     MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-avg/$nameMS.MS msin.datacolumn=CORRECTED_DATA msin.nchan='+str(nchan)+' \
@@ -307,7 +306,6 @@ for cmaj in range(maxIter):
                         -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                         log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
                 s.run(check=True)
-    
         ### DONE
     
         with w.if_todo('c%02i-fullsub' % cmaj):
@@ -319,7 +317,6 @@ for cmaj in range(maxIter):
             logger.info('Set CORRECTED_DATA = DATA...')
             MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"',
                         log='$nameMS_taql.log', commandType='general')
-
         ### DONE
 
         ### TESTTESTTEST: empty image
@@ -359,7 +356,7 @@ for cmaj in range(maxIter):
                 outdico = indico+'-'+d.name
                 inmask = sorted(glob.glob(full_image.root+'.mask*.fits'))[-1]
                 outmask = outdico+'.mask'
-                lib_img.blank_image_reg(inmask, d.get_region(), outfile=outmask, inverse=False, blankval = 0.)
+                lib_img.blank_image_reg(inmask, d.get_region(), outfile=outmask, inverse=False, blankval=0.)
                 s.add('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask, indico, outdico),
                        log='MaskDicoModel-'+logstring+'.log', commandType='python', processors='max')
                 s.run(check=True)
@@ -415,8 +412,8 @@ for cmaj in range(maxIter):
             os.makedirs('mss-dir')
 
             # Shift - ms:SUBTRACTED_DATA -> ms:DATA
-            if d.get_flux(freq_mid) > 4: avgtimeint = int(round(15/timeint))
-            else: avgtimeint = int(round(30/timeint))
+            if d.get_flux(freq_mid) > 4: avgtimeint = int(round(16/timeint))
+            else: avgtimeint = int(round(32/timeint))
             MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=DATA \
                     avg.timestep='+str(avgtimeint)+' avg.freqstep=8 shift.phasecenter=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\]', \
                     log='$nameMS_shift-'+logstring+'.log', commandType='DPPP')
@@ -450,10 +447,10 @@ for cmaj in range(maxIter):
         rms_noise_pre = image.getNoise(); rms_noise_init = rms_noise_pre
         mm_ratio_pre = image.getMaxMinRatio(); mm_ratio_init = mm_ratio_pre
         doamp = False
-        # usually there are 3600/30=120 or 3600/15=240 timesteps, try to use multiple numbers
-        iter_ph_solint = lib_util.Sol_iterator([4,1])
-        iter_amp_solint = lib_util.Sol_iterator([120,60,30,10])
-        iter_amp2_solint = lib_util.Sol_iterator([120,60,30])
+        # usually there are 3600/32=112 or 3600/16=225 timesteps, try to use multiple numbers
+        iter_ph_solint = lib_util.Sol_iterator([4, 1])  # 32 or 16 * [4,1] s
+        iter_amp_solint = lib_util.Sol_iterator([60, 30, 10])  # 32 or 16 * [60,30,10] s
+        iter_amp2_solint = lib_util.Sol_iterator([60, 30])
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
         logger.info('MM ratio (init): %f' % (mm_ratio_pre))
 
@@ -547,7 +544,7 @@ for cmaj in range(maxIter):
             with w.if_todo('%s-image' % logstringcal):
 
                 logger.info('%s (cdd: %02i): imaging...' % (d.name, cdd))
-                clean('%s' % logstringcal, MSs_dir, res='normal', size=[d.size,d.size], imagereg=d.get_region())
+                clean('%s' % logstringcal, MSs_dir, res='normal', size=[d.size,d.size])#, imagereg=d.get_region())
             ### DONE
 
             image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % logstringcal, userReg=userReg)
@@ -580,7 +577,7 @@ for cmaj in range(maxIter):
         # if divergency or died the first cycle, don't subtract
         if cdd == 0:
             d.converged = False
-            logger.warning('%s: something went wring during the first self-cal cycle in this direction.' % (d.name))
+            logger.warning('%s: something went wrong during the first self-cal cycle in this direction.' % (d.name))
             d.clean()
             continue
         elif rms_noise_pre > rms_noise_init:
@@ -602,8 +599,8 @@ for cmaj in range(maxIter):
             os.system('cp %s %s' % (d.get_model('best')+'-sources.txt', model_skymodel))
 
             # restrict to initial mask
-            lib_img.blank_image_reg(d.model['best']+'-mask.fits', d.get_region(),
-                                    inverse=True, blankval=0.)
+            logger.info('Restrict model to initial region')
+            lib_img.blank_image_reg(d.model['best']+'-mask.fits', d.get_region(), inverse=True, blankval=0.)
             lsm = lsmtool.load(model_skymodel)
             lsm.select('%s == True' % (d.model['best']+'-mask.fits'))
             lsm.write(model_skymodel, format='makesourcedb', clobber=True)
@@ -802,7 +799,7 @@ for cmaj in range(maxIter):
             logger.info('Cleaning 1...')
             lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
                     Deconv_MaxMajorIter=1,
-                    Deconv_PeakFactor=0.01,
+                    Deconv_PeakFactor=0.02,
                     Cache_Reset=1
                     )
     
@@ -813,7 +810,7 @@ for cmaj in range(maxIter):
             logger.info('Cleaning 2...')
             lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **ddf_parms,
                     Deconv_MaxMajorIter=10,
-                    Deconv_PeakFactor=0.01,
+                    Deconv_PeakFactor=0.005,
                     Mask_External=im.maskname,
                     Cache_Reset=0
                     )

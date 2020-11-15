@@ -58,6 +58,7 @@ if cal_dir == '':
 else:
     cal_dir = '../'+cal_dir
 
+logger.info('Calibrator directory: %s' % cal_dir)
 h5_pa = cal_dir+'/cal-pa.h5'
 h5_amp = cal_dir+'/cal-amp.h5'
 h5_iono = cal_dir+'/cal-iono.h5'

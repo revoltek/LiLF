@@ -221,8 +221,9 @@ for c in range(100):
 
     #################################################
     # 2: Sub field
-    if c == 0:
+    if c == 1:
         with w.if_todo('sub-field'):
+
             # Low res image
             logger.info('Cleaning wide 1...')
             imagename = 'img/img-wide'
@@ -236,17 +237,78 @@ for c in range(100):
 
             # makemask
             im = lib_img.Image(imagename + '-MFS-image.fits')
-            im.makeMask(threshisl=5, rmsbox=(50, 5))
+            im.makeMask(threshisl=5, rmsbox=(50, 5), userReg=region)
             maskfits = imagename + '-mask.fits'
 
             logger.info('Cleaning wide 2...')
             imagename = 'img/img-wideM'
-            lib_util.run_wsclean(s, 'wsclean-wide.log', MSs.getStrWsclean(), name=imagename,
+            lib_util.run_wsclean(s, 'wsclean-wide.log', MSs.getStrWsclean(), name=imagename, do_predict=True, save_source_list='',
                                  parallel_gridding=4, size=2500, scale='10arcsec', weight='briggs -0.7',
                                  taper_gaussian='30arcsec', fits_mask=maskfits,
                                  niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0,
                                  auto_threshold=1, auto_mask=3, local_rms='', local_rms_method='rms-with-min',
                                  join_channels='', fit_spectral_pol=2, channels_out=2)
+
+            # corrupt
+            MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                    cor.invert=False cor.parmdb=cal-Gp-c%i.h5 cor.correction=phase000' % (c),
+                    log='$nameMS_corrupt.log', commandType='DPPP')
+
+            # subtract everything
+            logger.info('Subtract model: CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA...')
+            MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
+
+            # load skymodel
+            full_image = lib_img.Image(imagename, userReg=region)
+            full_image.selectCC()
+            lsm = lsmtool.load(full_image.skymodel_cut)
+            lsm.group(mask_cl, root='Isl')
+            flux = lsm.getColValues('I',aggregate='sum')
+            lsm.setPatchPositions(method='mid')
+
+
+            # cycle on sources to peel
+            for name, size, ra, dec in \
+                zip( lsm.getPatchNames(), lsm.getPatchSizes(units='deg'),
+                     lsm.getPatchPositions(asArray=True)[0], lsm.getPatchPositions(asArray=True)[1] ):
+
+                # find target brighter than 1 Jy
+                idx = lsm.getRowIndex(name)
+                flux = np.sum(lsm.getColValues('I')[idx])
+                if flux < 1: continue
+
+                logging.info('Peeling %s (%.1f Jy)' % (name,flux))
+
+                # phaseshift + avg
+
+                MSs_shift =
+
+                # predict the source to peel
+                logger.info('Predict (DPPP)...')
+                MSs_shift.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=Flase \
+                        pre.sourcedb='+sourcedb+' pre.sources='+name,
+                        log='$nameMS_pre.log', commandType='DPPP')
+
+                # corrupt it
+                MSs_shift.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                        cor.invert=False cor.parmdb=cal-Gp-c%i.h5 cor.correction=phase000' % (c),
+                        log='$nameMS_corrupt.log', commandType='DPPP')
+
+                # add back
+                logger.info('Subtract model: DATA = DATA + MODEL_DATA...')
+                MSs_shift.run('taql "update $pathMS set DATA = DATA + MODEL_DATA"',
+                        log='$nameMS_taql.log', commandType='general')
+
+                # image
+
+                # calibrate
+
+                # image
+
+                # predict, corrupt and subtract
+
+            # add back central region
 
             # blank models
             logger.info('Cleanup model images...')
@@ -265,7 +327,7 @@ for c in range(100):
                     log='$nameMS_corrupt.log', commandType='DPPP')
 
             # subtract outer field
-            logger.info('Move DATA = DATA - MODEL_DATA...')
+            logger.info('Subtract model: DATA = DATA - MODEL_DATA...')
             MSs.run('taql "update $pathMS set DATA = DATA - MODEL_DATA"',
                     log='$nameMS_taql.log', commandType='general')
 
