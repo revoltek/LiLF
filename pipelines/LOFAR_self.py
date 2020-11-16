@@ -55,6 +55,7 @@ if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 
 ########################################################
 ### Demix
+# TODO: move to preprocess
 with w.if_todo('demix'):
     ateams = ['VirA', 'TauA']
     ateams_todemix = []

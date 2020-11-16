@@ -48,11 +48,11 @@ def getParset(parsetFile='../lilf.config'):
     add_default('PiLL', 'project', '')
     add_default('PiLL', 'target', '')
 
-    # download
-    add_default('LOFAR_download', 'fix_table', 'True') # fix bug in some old observations
-    add_default('LOFAR_download', 'renameavg', 'True')
-    add_default('LOFAR_download', 'flag_elev', 'True')
-    add_default('LOFAR_download', 'keep_IS', 'False')
+    # preprocess
+    add_default('LOFAR_preprocess', 'fix_table', 'True') # fix bug in some old observations
+    add_default('LOFAR_preprocess', 'renameavg', 'True')
+    add_default('LOFAR_preprocess', 'flag_elev', 'True')
+    add_default('LOFAR_preprocess', 'keep_IS', 'False')
     # demix
     add_default('LOFAR_demix', 'data_dir', './data-bkp/')
     add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skydb')

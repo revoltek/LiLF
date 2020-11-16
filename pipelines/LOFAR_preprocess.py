@@ -8,16 +8,16 @@ from astropy.time import Time
 
 ##########################################
 from LiLF import lib_ms, lib_util, lib_log
-logger_obj = lib_log.Logger('pipeline-download.logger')
+logger_obj = lib_log.Logger('pipeline-preprocess.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 
 # parse parset
 parset = lib_util.getParset()
-parset_dir = parset.get('LOFAR_download','parset_dir')
-fix_table = parset.getboolean('LOFAR_download','fix_table')
-renameavg = parset.getboolean('LOFAR_download','renameavg')
-keep_IS = parset.getboolean('LOFAR_download','keep_IS')
+parset_dir = parset.get('LOFAR_preprocess','parset_dir')
+fix_table = parset.getboolean('LOFAR_preprocess','fix_table')
+renameavg = parset.getboolean('LOFAR_preprocess','renameavg')
+keep_IS = parset.getboolean('LOFAR_preprocess','keep_IS')
 
 ###########################################
 if os.path.exists('html.txt'):
@@ -137,7 +137,7 @@ if renameavg:
         MSs = lib_ms.AllMSs([MS for MS in glob.glob('*MS') if not os.path.exists(getName(MS))], s, check_flags=False)
 
         minfreq = np.min(MSs.getFreqs())
-        logger.info('Min freq: %.2f MHz' % (1e6 * minfreq))
+        logger.info('Min freq: %.2f MHz' % (minfreq/1e6))
         for MS in MSs.getListObj():
 
             # get avg time/freq values
@@ -146,9 +146,10 @@ if renameavg:
 
             if nchan == 1:
                 avg_factor_f = 1
+            elif nchan % 8 == 0 and minfreq < 40e6:
+                avg_factor_f = int(nchan / 8)  # to 8 ch/SB
             elif nchan % 4 == 0:
-                if minfreq < 40e6: avg_factor_f = int(nchan / 2)  # to 2 ch/SB
-                else: avg_factor_f = int(nchan / 4)  # to 4 ch/SB
+                avg_factor_f = int(nchan / 4)  # to 4 ch/SB
             elif nchan % 5 == 0:
                 avg_factor_f = int(nchan / 5)  # to 5 ch/SB
             else:

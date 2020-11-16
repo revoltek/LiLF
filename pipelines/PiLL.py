@@ -142,7 +142,8 @@ with w.if_todo('download'):
         os.system(cmd)
 
     # TODO: how to be sure all MS were downloaded?
-    os.system(LiLF_dir+'/pipelines/LOFAR_download.py')
+    os.system(LiLF_dir+'/pipelines/LOFAR_preprocess.py')
+    check_done('pipeline-preprocess.logger')
     os.system('mv mss/* ../')
 ### DONE
 
@@ -171,8 +172,8 @@ for target in targets:
                     os.makedirs(working_dir+'/download-cal_id%i' % obsid)
                 os.chdir(working_dir+'/download-cal_id%i' % obsid)
                 os.system(LiLF_dir+'/scripts/LOFAR_stager.py --cal --projects %s --obsID %i' % (project, obsid))
-                os.system(LiLF_dir+'/pipelines/LOFAR_download.py')
-                check_done('pipeline-download.logger')
+                os.system(LiLF_dir+'/pipelines/LOFAR_preprocess.py')
+                check_done('pipeline-preprocess.logger')
                 os.system('mv mss/* ../')
 
             fix_dir_format(working_dir)
@@ -246,7 +247,6 @@ for grouped_target in grouped_targets:
         logger.info('### %s: Starting selfcal #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_self.py')
         check_done('pipeline-self.logger')
-
     ### DONE
 
     # DD-cal
@@ -261,7 +261,6 @@ for grouped_target in grouped_targets:
         os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s"' % grouped_target)
         os.system('scp -q ddcal/c0*/images/wideDD-c*.app.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
         os.system('scp -q ddcal/c0*/images/wideDD-c*.int.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
-
 ### DONE
 
     if survey: update_status_db(grouped_target, 'Done')

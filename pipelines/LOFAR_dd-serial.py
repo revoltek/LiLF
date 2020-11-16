@@ -93,7 +93,6 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
             logger.warning('Fail to create mask for %s.' % imagename+'-MFS-image.fits')
             return
 
-        # restrict to inside the dd-region TODO: remove?
         if imagereg is not None:
             lib_img.blank_image_reg(im.maskname, imagereg, inverse=True, blankval=0.,)
     
@@ -411,7 +410,7 @@ for cmaj in range(maxIter):
             lib_util.check_rm('mss-dir')
             os.makedirs('mss-dir')
 
-            # Shift - ms:SUBTRACTED_DATA -> ms:DATA
+            # Shift - ms:SUBTRACTED_DATA -> ms:DATA (->16/32 s and 1 chan every 2 SBs: tot of 60 or 120 chan)
             if d.get_flux(freq_mid) > 4: avgtimeint = int(round(16/timeint))
             else: avgtimeint = int(round(32/timeint))
             MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=DATA \
@@ -447,7 +446,8 @@ for cmaj in range(maxIter):
         rms_noise_pre = image.getNoise(); rms_noise_init = rms_noise_pre
         mm_ratio_pre = image.getMaxMinRatio(); mm_ratio_init = mm_ratio_pre
         doamp = False
-        # usually there are 3600/32=112 or 3600/16=225 timesteps, try to use multiple numbers
+        # usually there are 3600/32=112 or 3600/16=225 timesteps and \
+        # 60 (halfband)/120 (fullband) chans, try to use multiple numbers
         iter_ph_solint = lib_util.Sol_iterator([4, 1])  # 32 or 16 * [4,1] s
         iter_amp_solint = lib_util.Sol_iterator([60, 30, 10])  # 32 or 16 * [60,30,10] s
         iter_amp2_solint = lib_util.Sol_iterator([60, 30])
@@ -500,7 +500,7 @@ for cmaj in range(maxIter):
                     # Calibration - ms:CORRECTED_DATA
                     # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp)+' sol.nchan=1 sol.uvmmin=100 sol.smoothnessconstraint=4e6 sol.minvisratio=0.5\
+                        sol.mode=diagonal sol.solint='+str(solint_amp)+' sol.nchan=10 sol.uvmmin=100 sol.minvisratio=0.5\
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DPPP')
 
@@ -521,7 +521,7 @@ for cmaj in range(maxIter):
                     logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
                     # Calibration - ms:SMOOTHED_DATA
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.nchan=6 sol.uvmmin=100 sol.smoothnessconstraint=10e6 sol.minvisratio=0.5', \
+                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.nchan=10 sol.uvmmin=100 sol.minvisratio=0.5', \
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DPPP')
 
                     #if d.peel_off:
