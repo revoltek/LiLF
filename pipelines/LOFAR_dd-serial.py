@@ -99,16 +99,15 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
         # clean 2
         # TODO: add deconvolution_channels when bug fixed
         logger.info('Cleaning w/ mask ('+str(p)+')...')
-        imagename = 'img/ddcalM-'+str(p)
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, do_predict=True,
-                size=imsize, save_source_list='', scale=str(pixscale)+'arcsec',
+        imagenameM = 'img/ddcalM-'+str(p)
+        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
+                size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', reuse_psf=imagename, reuse_dirty=imagename,
                 weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', 
                 baseline_averaging='', parallel_deconvolution=512, local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=im.maskname,
                 join_channels='', fit_spectral_pol=3, channels_out=ch_out)  #, deconvolution_channels=3)
 
-        os.system('cat logs/wscleanA-'+str(p)+'.log logs/wscleanB-'+str(p)+'.log | grep "background noise"')
-
+        os.system('cat logs/wscleanB-'+str(p)+'.log | grep "background noise"')
 
 #############################################################
 with w.if_todo('cleaning'):

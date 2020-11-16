@@ -259,9 +259,9 @@ for c in range(2):
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA
 
-    imagename = 'img/wide-'+str(c)
-    imagenameM = 'img/wideM-'+str(c)
+    imagename = 'img/wide-0'
     maskname = imagename + '-mask.fits'
+    imagenameM = 'img/wideM-'+str(c)
     with w.if_todo('imaging_c%02i' % c):
         # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
         logger.info('Cleaning (cycle: '+str(c)+')...')
@@ -276,14 +276,15 @@ for c in range(2):
             im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
             im.makeMask(threshisl=5)
 
-            kwargs = {'do_predict':True, 'auto_mask':2.5}
+            kwargs = {'do_predict':True, 'auto_mask':2.5, 'reuse_dirty':imagename}
         else: 
             kwargs = {'auto_mask':2.0}
 
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, save_source_list='', size=imgsizepix, scale='10arcsec',
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, save_source_list='',
+                size=imgsizepix, scale='10arcsec', reuse_psf=imagename,
                 weight='briggs -0.3', niter=1000000, no_update_model_required='', parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500, mgain=0.85,
                 parallel_deconvolution=512, local_rms='', auto_threshold=1.5, fits_mask=maskname,
-                multiscale = '', multiscale_scale_bias = 0.6,
+                multiscale='', multiscale_scale_bias=0.6,
                 join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, **kwargs)
 
         os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
