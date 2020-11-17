@@ -300,13 +300,14 @@ for c in range(2):
     
         with w.if_todo('lowres_imaging_c%02i' % c):
             # Making beam mask
+            logger.info('Preparing mask for low-res clean...')
             lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name='img/tmp', size=imgsizepix, scale='30arcsec')
             os.system('mv img/tmp-image.fits img/wide-lr-mask.fits')
             lib_img.blank_image_reg('img/wide-lr-mask.fits', beamReg, blankval = 0.)
             lib_img.blank_image_reg('img/wide-lr-mask.fits', beamReg, blankval = 1., inverse=True)
     
             # reclean low-resolution
-            logger.info('Cleaning low resolution...')
+            logger.info('Cleaning low-res...')
             imagename_lr = 'img/wide-lr'
             lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=False,
                     parallel_gridding=4, temp_dir='./', size=imgsizepix, scale='30arcsec',

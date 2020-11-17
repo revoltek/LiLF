@@ -599,9 +599,10 @@ for cmaj in range(maxIter):
 
             # restrict to initial mask
             logger.info('Restrict model to initial region')
-            lib_img.blank_image_reg(d.model['best']+'-mask.fits', d.get_region(), inverse=True, blankval=0.)
+            os.system('cp '+d.model['best']+'-mask.fits'+' '+d.model['best']+'-mask-restricted.fits')
+            lib_img.blank_image_reg(d.model['best']+'-mask-restricted.fits', d.get_region(), inverse=True, blankval=0.)
             lsm = lsmtool.load(model_skymodel)
-            lsm.select('%s == True' % (d.model['best']+'-mask.fits'))
+            lsm.select('%s == True' % (d.model['best']+'-mask-restricted.fits'))
             lsm.write(model_skymodel, format='makesourcedb', clobber=True)
 
             s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (model_skymodel, model_skydb), log='makesourcedb_cl.log', commandType='general' )
