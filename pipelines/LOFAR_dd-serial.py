@@ -193,19 +193,19 @@ for cmaj in range(maxIter):
             full_image.selectCC(checkBeam=False, maskname=mask_cl)
 
         # cleanup model
-        if cmaj == 0:
-            logger.info('Cleanup model images...')
-            for model_file in glob.glob(full_image.root+'*model.fits'):
-                lib_img.blank_image_fits(model_file, mask_ext, model_file, inverse=True, blankval=0.)
+        #if cmaj == 0:
+        #    logger.info('Cleanup model images...')
+        #    for model_file in glob.glob(full_image.root+'*model.fits'):
+        #        lib_img.blank_image_fits(model_file, mask_ext, model_file, inverse=True, blankval=0.)
         
         # locating DD-calibrators
         lsm = lsmtool.load(full_image.skymodel_cut)
         lsm.select('%s == True' % mask_cl)
         lsm.group(mask_cl, root='Isl')
         # This regroup nearby sources
-        x = lsm.getColValues('RA',aggregate='wmean')
-        y = lsm.getColValues('Dec',aggregate='wmean')
-        flux = lsm.getColValues('I',aggregate='sum')
+        x = lsm.getColValues('RA', aggregate='wmean')
+        y = lsm.getColValues('Dec', aggregate='wmean')
+        flux = lsm.getColValues('I', aggregate='sum')
         grouper = lib_dd.Grouper(list(zip(x,y)), flux, look_distance=0.1, kernel_size=0.07, grouping_distance=0.03)
         grouper.run()
         clusters = grouper.grouping()
@@ -230,15 +230,23 @@ for cmaj in range(maxIter):
             fluxes = lsm.getColValues('I')[idx]
             spidx_coeffs = lsm.getColValues('SpectralIndex')[idx]
             ref_freq = lsm.getColValues('ReferenceFrequency')[idx]
-            gauss_area = (lsm.getColValues('MajorAxis')[idx]*lsm.getColValues('MinorAxis')[idx])/(img_beam[0]*img_beam[1]) # in beams
+            gauss_area = (lsm.getColValues('MajorAxis')[idx]*lsm.getColValues('MinorAxis')[idx])/(img_beam[0]*img_beam[1])  # in beams
             for i in range(len(idx)):
                 if gauss_area[i] > 1:
-                    fluxes[i] /= gauss_area[i] # reduce the fluxes for gaussians to the peak value
+                    fluxes[i] /= gauss_area[i]  # reduce the fluxes for gaussians to the peak value
 
             d = lib_dd.Direction(name)
             d.set_flux(fluxes, spidx_coeffs, ref_freq)
             # skip faint directions
-            if d.get_flux(freq_min) < min_cal_flux60*(freq_min/60e6)**(-0.8) or d.get_flux(freq_mid) < min_cal_flux60*(freq_mid/60e6)**(-0.8): continue
+            # TODO: use masked models
+            logger.debug("%s: low: %.1f mJy, mid:%.1f mJy" %
+                  (name,1e3*d.get_flux(freq_min)*(60e6/freq_min)**(-0.8), 1e3*d.get_flux(freq_mid)*(60e6/freq_mid)**(-0.8)))
+            # sometimes spidx are off, check that at least low or mid are good and the other is not too distant (factor of 2)
+            if (d.get_flux(freq_min) < min_cal_flux60*(freq_min/60e6)**(-0.8)   and d.get_flux(freq_mid) < min_cal_flux60*(freq_mid/60e6)**(-0.8)  ) or \
+               (d.get_flux(freq_min) > min_cal_flux60*(freq_min/60e6)**(-0.8)   and d.get_flux(freq_mid) < min_cal_flux60*(freq_mid/60e6)**(-0.8)/2) or \
+               (d.get_flux(freq_min) < min_cal_flux60*(freq_min/60e6)**(-0.8)/2 and d.get_flux(freq_mid) > min_cal_flux60*(freq_mid/60e6)**(-0.8)  ):
+                logger.debug('Skip.')
+                continue
             if size < 4*img_beam[0]/3600:
                 size = 4*img_beam[0]/3600
             # for complex sources force a larger region

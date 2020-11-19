@@ -31,6 +31,8 @@ def download_file(url, filename, login=None, password=None):
             except (requests.exceptions.Timeout,requests.exceptions.ReadTimeout):
                 print('Downloader -- Timeout! sleeping 30 seconds before retry...')
                 sleep(30)
+            except RuntimeError:
+                sleep(30)
             else:
                 connected=True
         try:

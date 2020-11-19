@@ -11,7 +11,7 @@ soltab = sol000/rotation000
 refAnt = CS001LBA
 #refAnt = CS002LBA
 maxResidual = 1.
-freq.minmaxste = [30e6,1e9]
+freq.minmaxstep = [30e6,1e9]
 
 [plotFR]
 operation = PLOT
