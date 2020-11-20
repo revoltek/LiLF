@@ -263,7 +263,6 @@ for c in range(2):
     maskname = imagename + '-mask.fits'
     imagenameM = 'img/wideM-'+str(c)
     with w.if_todo('imaging_c%02i' % c):
-        # baseline averaging possible as we cut longest baselines (also it is in time, where smearing is less problematic)
         logger.info('Cleaning (cycle: '+str(c)+')...')
         if c == 0:
             # make temp mask for cycle 0, in cycle 1 use the maske made from cycle 0 image
@@ -298,7 +297,7 @@ for c in range(2):
             MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         ### DONE
     
-        with w.if_todo('lowres_imaging_c%02i' % c):
+        with w.if_todo('imaging_lowres_c%02i' % c):
             # Making beam mask
             logger.info('Preparing mask for low-res clean...')
             lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name='img/tmp', size=imgsizepix, scale='30arcsec')
@@ -314,6 +313,14 @@ for c in range(2):
                     weight='briggs -1', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000, taper_gaussian='200arcsec', mgain=0.85,
                     parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits',
                     join_channels='', channels_out=MSs.getChout(2.e6))
+
+            imagename_lr = 'img/wide-ulr'
+            lib_util.run_wsclean(s, 'wscleanULR.log', MSs.getStrWsclean(), name=imagename_ulr, do_predict=False,
+                                 parallel_gridding=4, temp_dir='./', size=imgsizepix/6, scale='60arcsec',
+                                 weight='briggs 0', niter=50000, no_update_model_required='', minuv_l=0,
+                                 maxuvw_m=5000, taper_gaussian='300arcsec', mgain=0.85,
+                                 parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=3,
+                                 auto_threshold=1.5, join_channels='', channels_out=MSs.getChout(4.e6))
 
             s.add('wsclean -predict -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(2e6))+' '+MSs.getStrWsclean(), \
                   log='wscleanLR-PRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
@@ -370,12 +377,22 @@ for c in range(2):
             s.run(check=True)
         ### DONE
 
+# polarisation imaging
+with w.if_todo('imaging-pol'):
+    imagenameP = 'img/wideP'
+    lib_util.run_wsclean(s, 'wscleanP.log', MSs.getStrWsclean(), name=imagenameP,
+        size=imgsizepix, scale='10arcsec', weight='briggs -0.3', niter=0, no_update_model_required='',
+        parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500,
+        join_channels='', channels_out=MSs.getChout(4.e6))
+
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits self/images') for c in range(2) ]
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits self/images') for c in range(2) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(2) ]
+os.system('mv img/wideP-MFS-image*.fits self/images')
 os.system('mv img/wideM-1-*-model.fits self/images')
-os.system('mv img/wide-lr-MFS-image.fits self/images')
+os.system('mv img/wide-lr-MFS-image.fits img/wide-lr-MFS-residual.fits self/images')
+os.system('mv img/wide-ulr-MFS-image.fits img/wide-ulr-MFS-residual.fits self/images')
 os.system('mv logs self')
 
 logger.info("Done.")
