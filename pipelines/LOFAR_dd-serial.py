@@ -231,12 +231,9 @@ for cmaj in range(maxIter):
             spidx_coeffs = lsm.getColValues('SpectralIndex')[idx]
             ref_freq = lsm.getColValues('ReferenceFrequency')[idx]
             gauss_area = (lsm.getColValues('MajorAxis')[idx]*lsm.getColValues('MinorAxis')[idx])/(img_beam[0]*img_beam[1])  # in beams
-            for i in range(len(idx)):
-                if gauss_area[i] > 1:
-                    fluxes[i] /= gauss_area[i]  # reduce the fluxes for gaussians to the peak value
 
             d = lib_dd.Direction(name)
-            d.set_flux(fluxes, spidx_coeffs, ref_freq)
+            d.set_flux(fluxes, spidx_coeffs, ref_freq, gauss_area)
             # skip faint directions
             # TODO: use masked models
             logger.debug("%s: low: %.1f mJy, mid:%.1f mJy" %

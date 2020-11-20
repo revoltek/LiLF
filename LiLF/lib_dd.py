@@ -113,7 +113,7 @@ class Direction(object):
         else:
             self.peel_off = False
 
-    def set_flux(self, fluxes, spidx_coeffs=None, ref_freq=None, freq='mid'):
+    def set_flux(self, fluxes, spidx_coeffs, ref_freq, gauss_area):
         """
         fluxes: list of flues of various components
         spidx_coeffs: spectral index coefficients to extract the flux for each component
@@ -122,6 +122,7 @@ class Direction(object):
         self.fluxes = fluxes
         self.spidx_coeffs = spidx_coeffs
         self.ref_freq = ref_freq
+        self.gauss_area = gauss_area
 
     def get_flux(self, freq):
         """
@@ -130,6 +131,8 @@ class Direction(object):
         fluxes = np.copy(self.fluxes)
         for i, term in enumerate(self.spidx_coeffs[0]):
             fluxes += self.spidx_coeffs[:,i] * ( freq/self.ref_freq - 1 )**(i+1)
+        for j in fluxes:
+            if self.guass_area[j] > 1: fluxes[i] /= self.gauss_area[j]  # reduce the fluxes for gaussians to the peak value
         return np.sum(fluxes)
 
     def set_size(self, size):
