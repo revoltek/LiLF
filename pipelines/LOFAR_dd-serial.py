@@ -218,7 +218,7 @@ for cmaj in range(maxIter):
             patches = patchNames[cluster]
             if len(patches) > 1:
                 lsm.merge(patches.tolist())
-   
+
         lsm.setPatchPositions(method='mid')
         img_beam = full_image.getBeam()
         for name, size, ra, dec in \
@@ -327,7 +327,7 @@ for cmaj in range(maxIter):
 
         ### TESTTESTTEST: empty image
         if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-            clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
+            clean('init', MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
         ###
 
     for dnum, d in enumerate(directions):
