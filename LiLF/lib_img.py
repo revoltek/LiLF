@@ -56,7 +56,7 @@ class Image(object):
             fits.close()
 
 
-    def makeMask(self, threshisl=5, atrous_do=True, rmsbox=(100,10), remove_extended_cutoff=0., only_beam=False, maskname=None, write_srl=False):
+    def makeMask(self, threshpix=5, atrous_do=True, rmsbox=(100,10), remove_extended_cutoff=0., only_beam=False, maskname=None, write_srl=False):
         """
         Create a mask of the image where only believable flux is
 
@@ -71,7 +71,7 @@ class Image(object):
 
         if not os.path.exists(maskname):
             logger.info('%s: Making mask (%s)...' % (self.imagename, maskname))
-            make_mask.make_mask(image_name=self.imagename, mask_name=maskname, threshisl=threshisl, atrous_do=atrous_do, rmsbox=rmsbox, write_srl=write_srl)
+            make_mask.make_mask(image_name=self.imagename, mask_name=maskname, threshpix=threshpix, atrous_do=atrous_do, rmsbox=rmsbox, write_srl=write_srl)
 
         if remove_extended_cutoff > 0:
 

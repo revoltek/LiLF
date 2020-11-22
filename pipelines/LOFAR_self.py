@@ -273,7 +273,7 @@ for c in range(2):
                                  parallel_deconvolution=512, local_rms='', auto_threshold=4,
                                  join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3)
             im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
-            im.makeMask(threshisl=5)
+            im.makeMask(threshpix=5)
 
             kwargs = {'do_predict':True, 'auto_mask':2.5, 'reuse_dirty':imagename}
         else: 

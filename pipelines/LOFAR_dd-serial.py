@@ -88,7 +88,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
         # make mask
         im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
         try:
-            im.makeMask(threshisl = 10, rmsbox=(70,5))
+            im.makeMask(threshpix=10, rmsbox=(70,5))
         except:
             logger.warning('Fail to create mask for %s.' % imagename+'-MFS-image.fits')
             return
@@ -176,13 +176,13 @@ for cmaj in range(maxIter):
 
         ### group into patches corresponding to the mask islands
         if cmaj == 0 and not os.path.exists(mask_cl):
-            full_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff,
+            full_image.makeMask(threshpix=7, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff,
                                 only_beam=False, maskname=mask_cl, write_srl=True)
         if cmaj == 1 and not os.path.exists(mask_cl):
-            full_image.makeMask(threshisl=4, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff,
+            full_image.makeMask(threshpix=4, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff,
                                 only_beam=False, maskname=mask_cl, write_srl=True)
         if cmaj == 0 and not os.path.exists(mask_ext):
-            full_image.makeMask(threshisl=4, atrous_do=True, remove_extended_cutoff=0,
+            full_image.makeMask(threshpix=4, atrous_do=True, remove_extended_cutoff=0,
                                 only_beam=False, maskname=mask_ext)
 
         # the txt skymodel is used only to find directions
@@ -807,7 +807,7 @@ for cmaj in range(maxIter):
     
             # make mask
             im = lib_img.Image(imagename+'.app.restored.fits', userReg=userReg)
-            im.makeMask(threshisl = 4, rmsbox=(150,15), atrous_do=True)
+            im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=True)
 
             logger.info('Cleaning 2...')
             lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **ddf_parms,

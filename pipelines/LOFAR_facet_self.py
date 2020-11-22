@@ -89,7 +89,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 3)
+    im.makeMask(threshpix = 5)
 
     # clean 2
     logger.info('Cleaning w/ mask ('+str(p)+')...')

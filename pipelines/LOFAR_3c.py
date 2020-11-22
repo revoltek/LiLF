@@ -237,7 +237,7 @@ for c in range(100):
 
             # makemask
             im = lib_img.Image(imagename + '-MFS-image.fits')
-            im.makeMask(threshisl=5, rmsbox=(50, 5), userReg=region)
+            im.makeMask(threshpix=5, rmsbox=(50, 5), userReg=region)
             maskfits = imagename + '-mask.fits'
 
             logger.info('Cleaning wide 2...')
@@ -372,7 +372,7 @@ for c in range(100):
 
         # check if hand-made mask is available
         im = lib_img.Image(imagename+'-MFS-image.fits')
-        im.makeMask( threshisl=5, rmsbox=(50,5), atrous_do=True )
+        im.makeMask( threshpix=5, rmsbox=(50,5), atrous_do=True )
         maskfits = imagename+'-mask.fits'
         region = '%s/regions/%s.reg' % (parset_dir,target)
         if os.path.exists( region ):
@@ -390,7 +390,7 @@ for c in range(100):
     ### DONE
 
     im = lib_img.Image(imagename+'-MFS-image.fits')
-    im.makeMask( threshisl=5, rmsbox=(500,30), atrous_do=False )
+    im.makeMask( threshpix=5, rmsbox=(500,30), atrous_do=False )
     rms_noise = im.getNoise(); mm_ratio = im.getMaxMinRatio()
     logger.info('RMS noise: %f - MM ratio: %f' % (rms_noise, mm_ratio))
     if doamp and rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre and c > 6:

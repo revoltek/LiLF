@@ -277,7 +277,7 @@ if imaging:
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits')
-    im.makeMask(threshisl = 3)
+    im.makeMask(threshpix = 5)
 
     logger.info('Cleaning w/ mask...')
     lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
@@ -287,6 +287,6 @@ if imaging:
     os.system('cat logs/wscleanA.log logs/wscleanB.log | grep "background noise"')
 
     # make new mask
-    im.makeMask(threshisl = 5)
+    im.makeMask(threshpix = 7)
 
 logger.info("Done.")
