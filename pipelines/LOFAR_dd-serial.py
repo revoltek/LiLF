@@ -7,6 +7,7 @@
 
 import sys, os, glob, re, pickle
 import numpy as np
+from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 import pyrap.tables as pt
@@ -73,7 +74,6 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
                 size=imsize, scale=str(pixscale)+'arcsec',
                 weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0,
                 baseline_averaging='')
- 
     else:
 
         # clean 1
@@ -104,7 +104,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
                 size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', reuse_psf=imagename, reuse_dirty=imagename,
                 weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', 
-                baseline_averaging='', parallel_deconvolution=512, local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=im.maskname,
+                baseline_averaging='', local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=im.maskname,
                 join_channels='', fit_spectral_pol=3, channels_out=ch_out)  #, deconvolution_channels=3)
 
         os.system('cat logs/wscleanB-'+str(p)+'.log | grep "background noise"')
@@ -163,10 +163,9 @@ for cmaj in range(maxIter):
     # cycle specific variables
     picklefile = 'ddcal/directions-c%02i.pickle' % cmaj
     interp_h5parm = 'ddcal/c%02i/solutions/interp.h5' % cmaj
-    aterm_config_file = 'ddcal/c%02i/aterm/aterm.config' % cmaj
-    mask_cl = full_image.imagename.replace('.fits', '_mask-cl.fits')  # this is used to find calibrators
-    mask_ext = full_image.imagename.replace('.fits', '_mask-ext.fits')  # this is used for the initial subtract
-    
+    #aterm_config_file = 'ddcal/c%02i/aterm/aterm.config' % cmaj
+    mask_ddcal = full_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
+
     if not os.path.exists('ddcal/c%02i' % cmaj): os.makedirs('ddcal/c%02i' % cmaj)
     for subdir in ['plots','images','solutions','skymodels']:
         if not os.path.exists('ddcal/c%02i/%s' % (cmaj, subdir)): os.makedirs('ddcal/c%02i/%s' % (cmaj, subdir))
@@ -175,82 +174,71 @@ for cmaj in range(maxIter):
         directions = []
 
         ### group into patches corresponding to the mask islands
-        if cmaj == 0 and not os.path.exists(mask_cl):
-            full_image.makeMask(threshpix=7, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff,
-                                only_beam=False, maskname=mask_cl, write_gaul=True)
-        if cmaj == 1 and not os.path.exists(mask_cl):
-            full_image.makeMask(threshpix=4, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff,
-                                only_beam=False, maskname=mask_cl, write_gaul=True)
-        if cmaj == 0 and not os.path.exists(mask_ext):
-            full_image.makeMask(threshpix=4, atrous_do=True, remove_extended_cutoff=0,
-                                only_beam=False, maskname=mask_ext)
+        #if cmaj == 0 and not os.path.exists(mask_cl):
+        #    full_image.makeMask(threshpix=7, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff,
+        #                        only_beam=False, maskname=mask_cl, write_gaul=True)
+        #if cmaj == 1 and not os.path.exists(mask_cl):
+        #    full_image.makeMask(threshpix=4, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff,
+        #                        only_beam=False, maskname=mask_cl, write_gaul=True)
+        #if cmaj == 0 and not os.path.exists(mask_ext):
+        #    full_image.makeMask(threshpix=4, atrous_do=True, remove_extended_cutoff=0,
+        #                        only_beam=False, maskname=mask_ext)
 
         # the txt skymodel is used only to find directions
         # note: at clycle 0 it's a wsclean cc-skymodel, at cycle 1 it's a pybdsf source list
-        if cmaj > 0:
-            full_image.skymodel_cut = mask_cl.replace('fits', 'skymodel')
-        elif not os.path.exists(full_image.skymodel_cut): 
-            full_image.selectCC(checkBeam=False, maskname=mask_cl)
+        #if cmaj > 0:
+        #    full_image.skymodel_cut = mask_cl.replace('fits', 'skymodel')
+        #elif not os.path.exists(full_image.skymodel_cut):
+        #    full_image.selectCC(checkBeam=False, maskname=mask_cl)
 
         # cleanup model
         #if cmaj == 0:
         #    logger.info('Cleanup model images...')
         #    for model_file in glob.glob(full_image.root+'*model.fits'):
         #        lib_img.blank_image_fits(model_file, mask_ext, model_file, inverse=True, blankval=0.)
+
+        # making skymodel from image
+        full_image.makeMask(threshpix=5, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
         
         # locating DD-calibrators
-        lsm = lsmtool.load(full_image.skymodel_cut)
-        lsm.select('%s == True' % mask_cl)
-        lsm.group(mask_cl, root='Isl')
-        # This regroup nearby sources
-        x = lsm.getColValues('RA', aggregate='wmean')
-        y = lsm.getColValues('Dec', aggregate='wmean')
-        flux = lsm.getColValues('I', aggregate='sum')
-        grouper = lib_dd.Grouper(list(zip(x,y)), flux, look_distance=0.1, kernel_size=0.07, grouping_distance=0.03)
+        cal =  Table.read(mask_ddcal.replace('fits','cat.fits'))
+        # grouping nearby sources
+        grouper = lib_dd.Grouper(list(zip(cal['RA'],cal['DEC'])), cal['Total_flux'],
+                                 look_distance=0.1, kernel_size=0.07, grouping_distance=0.03)
         grouper.run()
         clusters = grouper.grouping()
         grouper.plot()
         os.system('mv grouping*png ddcal/c%02i/plots/' % cmaj)
-        patchNames = lsm.getPatchNames()
-    
-        logger.info('Merging nearby sources...')
-        for cluster in clusters:
-            patches = patchNames[cluster]
-            if len(patches) > 1:
-                lsm.merge(patches.tolist())
-
-        lsm.setPatchPositions(method='mid')
         img_beam = full_image.getBeam()
-        for name, size, ra, dec in \
-                zip( lsm.getPatchNames(), lsm.getPatchSizes(units='deg'),
-                     lsm.getPatchPositions(asArray=True)[0], lsm.getPatchPositions(asArray=True)[1] ):
+        img_freq = full_image.getFreq()
 
-            # keep track of the spidx of sources
-            idx = lsm.getRowIndex(name)
-            fluxes = lsm.getColValues('I')[idx]
-            spidx_coeffs = lsm.getColValues('SpectralIndex')[idx]
-            ref_freq = lsm.getColValues('ReferenceFrequency')[idx]
-            gauss_area = (lsm.getColValues('MajorAxis')[idx]*lsm.getColValues('MinorAxis')[idx])/(img_beam[0]*img_beam[1])  # in beams
+        logger.info('Finding direction calibrators...')
+        for cluster_num, cluster_idxs in enumerate(clusters):
+            name = 'ddcal%02i' % cluster_num
+
+            fluxes = np.sum(cal['Total_flux'][cluster_idxs])
+            spidx_coeffs = [-0.8]*len(cluster_idxs)
+            ref_freq = [img_freq]*len(cluster_idxs)
+            localrms = np.max(cal['Isl_rms'][cluster_idxs])
 
             d = lib_dd.Direction(name)
-            d.set_flux(fluxes, spidx_coeffs, ref_freq, gauss_area)
+            d.fluxes = fluxes
+            d.spidx_coeffs = spidx_coeffs
+            d.ref_freq = ref_freq
+            d.localrms = localrms
+
             # skip faint directions
-            # TODO: use masked models
-            logger.debug("%s: low: %.1f mJy, mid:%.1f mJy" %
-                  (name,1e3*d.get_flux(freq_min)*(60e6/freq_min)**(-0.8), 1e3*d.get_flux(freq_mid)*(60e6/freq_mid)**(-0.8)))
-            # sometimes spidx are off, check that at least low or mid are good and the other is not too distant (factor of 2)
-            if (d.get_flux(freq_min) < min_cal_flux60*(freq_min/60e6)**(-0.8) and d.get_flux(freq_mid) < min_cal_flux60*(freq_mid/60e6)**(-0.8)):
+            if d.get_flux(60e6) < min_cal_flux60:
+                logger.debug("%s: flux density @ 60 MHz: %.1f mJy (skip)" % (name, 1e3 * d.get_flux(60e6)))
                 continue
-            if size < 4*img_beam[0]/3600:
-                size = 4*img_beam[0]/3600
-            # for complex sources force a larger region
-            if len(idx) > 1 and size < 10*img_beam[0]/3600:
-                size = 10*img_beam[0]/3600
+            else:
+                logger.debug("%s: flux density @ 60 MHz: %.1f mJy (good)" % (name, 1e3 * d.get_flux(60e6)))
 
             #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,ref_freq,size,img_beam,lsm.getColValues('MajorAxis')[idx])
-
+            ra = np.mean(cal['RA'][cluster_idxs])
+            dec = np.mean(cal['DEC'][cluster_idxs])
             d.set_position( [ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center )
-            d.set_size(size*1.2) # size increased by 20%
+            d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], img_beam[0]/3600)
             d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
             model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
             for model_file in glob.glob(full_image.root+'*[0-9]-model.fits'):
@@ -260,10 +248,10 @@ for cmaj in range(maxIter):
             directions.append(d)
 
         # create a concat region for debugging
-        os.system('cat ddcal/c%02i/skymodels/Isl*reg > ddcal/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj,cmaj))
+        os.system('cat ddcal/c%02i/skymodels/ddcal*reg > ddcal/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj,cmaj))
 
-        # order directions from the fluxiest
-        directions = [x for _, x in sorted(zip([d.get_flux(freq_min) for d in directions],directions))][::-1] # reorder with flux
+        # order directions from the one that create more noise
+        directions = [x for _, x in sorted(zip([d.localrms for d in directions],directions))][::-1] # reorder with rms
 
         # If there's a preferential direciotn, get the closer direction to the final target and put it to the end
         if target_dir != '':
@@ -282,17 +270,17 @@ for cmaj in range(maxIter):
 
         for d in directions:
             if not d.peel_off:
-                logger.info('%s: min: %.2f Jy; mid: %.2f Jy' % (d.name, d.get_flux(freq_min), d.get_flux(freq_mid)))
+                logger.info('%s: flux: %.2f Jy (rms:%.2f mJy)' % (d.name, d.get_flux(60e6), d.localrms*1e3))
             else:
-                logger.info('%s: min: %.2f Jy; mid: %.2f Jy (peel off)' % (d.name, d.get_flux(freq_min), d.get_flux(freq_mid)))
+                logger.info('%s: flux: %.2f Jy (rms: %.2f mJy - peel off)' % (d.name, d.get_flux(60e6), d.localrms*1e3))
 
         # write file
-        skymodel_cl = 'ddcal/c%02i/skymodels/cluster.skymodel' % cmaj
-        lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
-        lsm.setColValues('name', [x.split('_')[-1] for x in lsm.getColValues('patch')]) # just for the region - this makes this lsm useless
-        lsm.write('ddcal/c%02i/skymodels/cluster-c%02i.reg' % (cmaj, cmaj), format='ds9', clobber=True)
-        del lsm
-   
+        #skymodel_cl = 'ddcal/c%02i/skymodels/cluster.skymodel' % cmaj
+        #lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
+        #lsm.setColValues('name', [x.split('_')[-1] for x in lsm.getColValues('patch')]) # just for the region - this makes this lsm useless
+        #lsm.write('ddcal/c%02i/skymodels/cluster-c%02i.reg' % (cmaj, cmaj), format='ds9', clobber=True)
+        #del lsm
+
         pickle.dump( directions, open( picklefile, "wb" ) )
     else:
         directions = pickle.load( open( picklefile, "rb" ) )

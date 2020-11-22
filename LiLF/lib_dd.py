@@ -15,11 +15,12 @@ class Direction(object):
     def __init__(self, name):
         self.name = name 
         self.position = None # [deg, deg]
-        self.size = None # deg
-        self.fluxes = None # Jy
-        self.spidx_coeffs = None
-        self.ref_freq = None
-        self.converged = None
+        self.size = None # deg (1 value)
+        self.localrms = None # Jy/b (1 value)
+        self.fluxes = None # Jy - for each component
+        self.spidx_coeffs = None # 1st order - for each component
+        self.ref_freq = None # for each component
+        self.converged = None # bool
         self.peel_off = None
         self.region_file = None
 
@@ -36,7 +37,7 @@ class Direction(object):
         """
         Creates a ds9 regionfile that covers the DD-cal model
         """
-        assert self.size is not None and self.position is not None # we need this to be already set
+        assert self.size is not None and self.position is not None  # we need this to be already set
 
         self.region_file = loc+'/'+self.name+'.reg'
         s = Shape('circle', None)
@@ -87,7 +88,6 @@ class Direction(object):
         assert (typ == 'ph' or typ == 'amp1' or typ == 'amp2')
         self.h5parms[typ].append(h5parmFile)
 
-
     def get_h5parm(self, typ, pos=-1):
         """
         typ can be 'ph', 'amp1', or 'amp2'
@@ -113,33 +113,39 @@ class Direction(object):
         else:
             self.peel_off = False
 
-    def set_flux(self, fluxes, spidx_coeffs, ref_freq, gauss_area):
-        """
-        fluxes: list of flues of various components
-        spidx_coeffs: spectral index coefficients to extract the flux for each component
-        ref_freq: reference frequency (https://sourceforge.net/p/wsclean/wiki/ComponentList/)
-        """
-        self.fluxes = fluxes
-        self.spidx_coeffs = spidx_coeffs
-        self.ref_freq = ref_freq
-        self.gauss_area = gauss_area
-
     def get_flux(self, freq):
         """
         freq: frequency to evaluate the flux
         """
-        fluxes = np.copy(self.fluxes)
-        for i, term in enumerate(self.spidx_coeffs[0]):
-            fluxes += self.spidx_coeffs[:,i] * ( freq/self.ref_freq - 1 )**(i+1)
-        for j in range(len(fluxes)):
-            if self.gauss_area[j] > 1: fluxes[j] /= self.gauss_area[j]  # reduce the fluxes for gaussians to the peak value
-        return np.sum(fluxes)
+        return np.sum(np.array(self.fluxes) * (freq/np.array(self.ref_freq))**(np.array(self.spidx_coeffs)))
 
-    def set_size(self, size):
+    def set_size(self, ras, decs, img_beam):
         """
-        size: deg
+        Calculate the size of this calibrator measuring the distance of each component from the mean
+        :param ras:  list of ras
+        :param decs: list of decs
         """
-        self.size = size
+        ncomp = len(ras)
+        if ncomp > 1:
+            maxdist = 0
+            center = SkyCoord(self.position[0]*u.deg, self.position[1]*u.deg, frame='fk5')
+            for ra, dec in zip(ras, decs):
+                comp = SkyCoord(ra * u.deg, dec * u.deg, frame='fk5')
+                dist = center.separation(comp).deg
+                if dist > maxdist:
+                    maxdist = dist
+            size = maxdist * 2
+        else:
+            size = 0.
+
+        self.size = size * 1.2  # increase 20%
+
+        if size < 4*img_beam:
+            self.size = 4*img_beam
+        #elif ncomp > 1 and size < 10*img_beam:
+        #    # for complex sources force a larger region
+        #    self.size = 8*img_beam
+
 
 
 class Grouper( object ):

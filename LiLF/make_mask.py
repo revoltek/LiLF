@@ -54,14 +54,15 @@ if __name__=='__main__':
     opt = optparse.OptionParser(usage='%prog [-v|-V] imagename \n Francesco de Gasperin', version='1.0')
     opt.add_option('-m', '--newmask', help='Mask name (default=imagename with mask in place of image)', default=None)
     opt.add_option('-p', '--threshpix', help='Threshold pixel (default=5)', type='int', default=5)
+    opt.add_option('-a', '--adaptive_thresh', help='Adaprtive threshold (default=50)', type='int', default=50)
     opt.add_option('-t', '--atrous_do', help='BDSM extended source detection (default=False)', action='store_true', default=False)
     opt.add_option('-r', '--rmsbox', help='rms box size (default=100,10)', default='100,10')
-    opt.add_option('-s', '--write_srl', help='Write SRL (default=False)', action='store_true', default=False)
-    opt.add_option('-g', '--write_gaul', help='Write bbs gaul (default=False)', action='store_true', default=False)
+    opt.add_option('-s', '--write_srl', help='Write SRL skymodel (default=False)', action='store_true', default=False)
+    opt.add_option('-g', '--write_gaul', help='Write bbs gaul skymodel (default=False)', action='store_true', default=False)
     opt.add_option('-d', '--write_ds9', help='Write ds9 regions (default=False)', action='store_true', default=False)
     opt.add_option('-c', '--combinemask', help='Mask name of a mask to add to the found one (default=None)', default=None)
     (options, args) = opt.parse_args()
     
     rmsbox = (int(options.rmsbox.split(',')[0]),int(options.rmsbox.split(',')[1]))
-    make_mask(args[0].rstrip('/'), options.newmask, options.threshpix, options.atrous_do, rmsbox,
+    make_mask(args[0].rstrip('/'), options.newmask, options.threshpix, options.atrous_do, rmsbox, options.adaptive_thresh,
               options.write_srl, options.write_gaul, options.write_ds9, options.combinemask)
