@@ -131,8 +131,8 @@ class Direction(object):
         fluxes = np.copy(self.fluxes)
         for i, term in enumerate(self.spidx_coeffs[0]):
             fluxes += self.spidx_coeffs[:,i] * ( freq/self.ref_freq - 1 )**(i+1)
-        for j in fluxes:
-            if self.guass_area[j] > 1: fluxes[i] /= self.gauss_area[j]  # reduce the fluxes for gaussians to the peak value
+        for j in range(len(fluxes)):
+            if self.gauss_area[j] > 1: fluxes[j] /= self.gauss_area[j]  # reduce the fluxes for gaussians to the peak value
         return np.sum(fluxes)
 
     def set_size(self, size):

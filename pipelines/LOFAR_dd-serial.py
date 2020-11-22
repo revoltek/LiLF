@@ -239,10 +239,7 @@ for cmaj in range(maxIter):
             logger.debug("%s: low: %.1f mJy, mid:%.1f mJy" %
                   (name,1e3*d.get_flux(freq_min)*(60e6/freq_min)**(-0.8), 1e3*d.get_flux(freq_mid)*(60e6/freq_mid)**(-0.8)))
             # sometimes spidx are off, check that at least low or mid are good and the other is not too distant (factor of 2)
-            if (d.get_flux(freq_min) < min_cal_flux60*(freq_min/60e6)**(-0.8)   and d.get_flux(freq_mid) < min_cal_flux60*(freq_mid/60e6)**(-0.8)  ) or \
-               (d.get_flux(freq_min) > min_cal_flux60*(freq_min/60e6)**(-0.8)   and d.get_flux(freq_mid) < min_cal_flux60*(freq_mid/60e6)**(-0.8)/2) or \
-               (d.get_flux(freq_min) < min_cal_flux60*(freq_min/60e6)**(-0.8)/2 and d.get_flux(freq_mid) > min_cal_flux60*(freq_mid/60e6)**(-0.8)  ):
-                logger.debug('Skip.')
+            if (d.get_flux(freq_min) < min_cal_flux60*(freq_min/60e6)**(-0.8) and d.get_flux(freq_mid) < min_cal_flux60*(freq_mid/60e6)**(-0.8)):
                 continue
             if size < 4*img_beam[0]/3600:
                 size = 4*img_beam[0]/3600
