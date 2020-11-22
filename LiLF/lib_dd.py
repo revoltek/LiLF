@@ -138,7 +138,7 @@ class Direction(object):
         else:
             size = 0.
 
-        self.size = size * 1.2  # increase 20%
+        self.size = size * 1.5  # increase 50%
 
         if size < 4*img_beam:
             self.size = 4*img_beam
