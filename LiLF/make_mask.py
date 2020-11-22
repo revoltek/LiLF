@@ -48,7 +48,6 @@ if __name__=='__main__':
     import optparse
     opt = optparse.OptionParser(usage='%prog [-v|-V] imagename \n Francesco de Gasperin', version='1.0')
     opt.add_option('-p', '--threshpix', help='Threshold pixel (default=5)', type='int', default=5)
-    opt.add_option('-t', '--atrous_do', help='BDSM extended source detection (default=False)', action='store_true', default=False)
     opt.add_option('-m', '--newmask', help='Mask name (default=imagename with mask in place of image)', default=None)
     opt.add_option('-c', '--combinemask', help='Mask name of a mask to add to the found one (default=None)', default=None)
     opt.add_option('-r', '--rmsbox', help='rms box size (default=100,10)', default='100,10')
