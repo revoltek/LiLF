@@ -193,7 +193,7 @@ for cmaj in range(maxIter):
 
         logger.info('Finding direction calibrators...')
         for cluster_num, cluster_idxs in enumerate(clusters):
-            name = 'ddcal%03i' % cluster_num
+            name = 'ddcal%04i' % cluster_num
             cal['Cluster_id'][cluster_idxs] = name  # just for debug
 
             fluxes = np.sum(cal['Total_flux'][cluster_idxs])
@@ -340,7 +340,7 @@ for cmaj in range(maxIter):
                     'Beam_Smooth':1,
                     'Beam_Model':'LOFAR',
                     'Beam_LOFARBeamMode':'A',
-                    'Beam_NBand':1,
+                    'Beam_NBand':2*ch_out,
                     'Beam_DtBeamMin':5,
                     'Output_Also':'onNeds',
                     'Image_Cell':3.,
@@ -741,7 +741,7 @@ for cmaj in range(maxIter):
                     'Beam_Smooth':1,
                     'Beam_Model':'LOFAR',
                     'Beam_LOFARBeamMode':'A',
-                    'Beam_NBand':1,
+                    'Beam_NBand':2*ch_out,
                     'Beam_DtBeamMin':5,
                     'Output_Also':'onNeds',
                     'Image_Cell':3.,
