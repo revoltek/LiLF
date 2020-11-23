@@ -177,7 +177,10 @@ for cmaj in range(maxIter):
         full_image.makeMask(threshpix=5, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
         
         # locating DD-calibrators
-        cal =  Table.read(mask_ddcal.replace('fits','cat.fits'))
+        cal = Table.read(mask_ddcal.replace('fits','cat.fits'))
+        cal = cal[np.where(cal['Total_flux'] < 5*cal['Peak_flux'])] #  remove extended
+        cal = cal[np.where(cal['Total_flux'] > 0.1)]  # remove very faint to speedup
+        cal['Cluster_id'] = 'None           '
         # grouping nearby sources
         grouper = lib_dd.Grouper(list(zip(cal['RA'],cal['DEC'])), cal['Total_flux'],
                                  look_distance=0.1, kernel_size=0.07, grouping_distance=0.03)
@@ -190,7 +193,8 @@ for cmaj in range(maxIter):
 
         logger.info('Finding direction calibrators...')
         for cluster_num, cluster_idxs in enumerate(clusters):
-            name = 'ddcal%02i' % cluster_num
+            name = 'ddcal%03i' % cluster_num
+            cal['Cluster_id'][cluster_idxs] = name  # just for debug
 
             fluxes = np.sum(cal['Total_flux'][cluster_idxs])
             spidx_coeffs = [-0.8]*len(cluster_idxs)
@@ -206,6 +210,7 @@ for cmaj in range(maxIter):
             # skip faint directions
             if d.get_flux(60e6) < min_cal_flux60:
                 logger.debug("%s: flux density @ 60 MHz: %.1f mJy (skip)" % (name, 1e3 * d.get_flux(60e6)))
+                cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
                 continue
             else:
                 logger.debug("%s: flux density @ 60 MHz: %.1f mJy (good)" % (name, 1e3 * d.get_flux(60e6)))
@@ -225,6 +230,8 @@ for cmaj in range(maxIter):
 
         # create a concat region for debugging
         os.system('cat ddcal/c%02i/skymodels/ddcal*reg > ddcal/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj,cmaj))
+        # save catalogue for debugging
+        cal.write('ddcal/c%02i/skymodels/cat-c%02i.fits' % (cmaj,cmaj), format='fits', overwrite=True)
 
         # order directions from the one that create more noise
         directions = [x for _, x in sorted(zip([d.localrms for d in directions],directions))][::-1] # reorder with rms
@@ -437,7 +444,7 @@ for cmaj in range(maxIter):
  
                 # Calibration - ms:SMOOTHED_DATA
                 # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
-                logger.info('Gain phase calibration...')
+                logger.info('Gain phase calibration (solint: %i)...' % solint_ph)
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
                     sol.mode=scalarcomplexgain sol.solint='+str(solint_ph)+' sol.nchan=1 sol.smoothnessconstraint=5e6 \
                     sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]', \
@@ -479,7 +486,7 @@ for cmaj in range(maxIter):
                     logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
                     # Calibration - ms:CORRECTED_DATA
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.nchan=10 sol.uvmmin=300 sol.minvisratio=0.5',
+                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.uvmmin=100 sol.minvisratio=0.5',
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DPPP')
 
                     #if d.peel_off:

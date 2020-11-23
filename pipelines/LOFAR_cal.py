@@ -202,10 +202,10 @@ with w.if_todo('cal_iono'):
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_solIONO.log', commandType="DPPP")
     
     if iono3rd:
-        lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
+        lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()],
                 [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono3rd.parset'])
     else:
-        lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
+        lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()],
                 [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono.parset'])
 
 ### DONE

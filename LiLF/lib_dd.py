@@ -42,7 +42,7 @@ class Direction(object):
         self.region_file = loc+'/'+self.name+'.reg'
         s = Shape('circle', None)
         s.coord_format = 'fk5'
-        s.coord_list = [ self.position[0], self.position[1], self.size/2. ] # ra, dec, radius
+        s.coord_list = [ self.position[0], self.position[1], self.size ]  # ra, dec, diam
         s.coord_format = 'fk5'
         s.attr = ([], {'width': '2', 'point': 'cross',
                        'font': '"helvetica 16 normal roman"'})
@@ -138,10 +138,10 @@ class Direction(object):
         else:
             size = 0.
 
-        self.size = size * 1.5  # increase 50%
+        self.size = size * 1.2  # increase 20%
 
-        if size < 4*img_beam:
-            self.size = 4*img_beam
+        if size < 3*img_beam:
+            self.size = 3*img_beam
         #elif ncomp > 1 and size < 10*img_beam:
         #    # for complex sources force a larger region
         #    self.size = 8*img_beam
