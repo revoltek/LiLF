@@ -88,7 +88,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
         # make mask
         im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
         try:
-            im.makeMask(threshpix=10, rmsbox=(70,5))
+            im.makeMask(threshpix=10, rmsbox=(70, 5))
         except:
             logger.warning('Fail to create mask for %s.' % imagename+'-MFS-image.fits')
             return
@@ -173,30 +173,6 @@ for cmaj in range(maxIter):
     if not os.path.exists(picklefile):
         directions = []
 
-        ### group into patches corresponding to the mask islands
-        #if cmaj == 0 and not os.path.exists(mask_cl):
-        #    full_image.makeMask(threshpix=7, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff,
-        #                        only_beam=False, maskname=mask_cl, write_gaul=True)
-        #if cmaj == 1 and not os.path.exists(mask_cl):
-        #    full_image.makeMask(threshpix=4, atrous_do=False, remove_extended_cutoff=removeExtendedCutoff,
-        #                        only_beam=False, maskname=mask_cl, write_gaul=True)
-        #if cmaj == 0 and not os.path.exists(mask_ext):
-        #    full_image.makeMask(threshpix=4, atrous_do=True, remove_extended_cutoff=0,
-        #                        only_beam=False, maskname=mask_ext)
-
-        # the txt skymodel is used only to find directions
-        # note: at clycle 0 it's a wsclean cc-skymodel, at cycle 1 it's a pybdsf source list
-        #if cmaj > 0:
-        #    full_image.skymodel_cut = mask_cl.replace('fits', 'skymodel')
-        #elif not os.path.exists(full_image.skymodel_cut):
-        #    full_image.selectCC(checkBeam=False, maskname=mask_cl)
-
-        # cleanup model
-        #if cmaj == 0:
-        #    logger.info('Cleanup model images...')
-        #    for model_file in glob.glob(full_image.root+'*model.fits'):
-        #        lib_img.blank_image_fits(model_file, mask_ext, model_file, inverse=True, blankval=0.)
-
         # making skymodel from image
         full_image.makeMask(threshpix=5, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
         
@@ -273,13 +249,6 @@ for cmaj in range(maxIter):
                 logger.info('%s: flux: %.2f Jy (rms:%.2f mJy)' % (d.name, d.get_flux(60e6), d.localrms*1e3))
             else:
                 logger.info('%s: flux: %.2f Jy (rms: %.2f mJy - peel off)' % (d.name, d.get_flux(60e6), d.localrms*1e3))
-
-        # write file
-        #skymodel_cl = 'ddcal/c%02i/skymodels/cluster.skymodel' % cmaj
-        #lsm.write(skymodel_cl, format='makesourcedb', clobber=True)
-        #lsm.setColValues('name', [x.split('_')[-1] for x in lsm.getColValues('patch')]) # just for the region - this makes this lsm useless
-        #lsm.write('ddcal/c%02i/skymodels/cluster-c%02i.reg' % (cmaj, cmaj), format='ds9', clobber=True)
-        #del lsm
 
         pickle.dump( directions, open( picklefile, "wb" ) )
     else:
@@ -388,8 +357,8 @@ for cmaj in range(maxIter):
                         log='$nameMS_taql.log', commandType='general')
 
             ### TTESTTESTTEST: empty image
-            if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
-                clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+            #if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
+            #    clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
         ### DONE
 
@@ -489,7 +458,7 @@ for cmaj in range(maxIter):
                     # Calibration - ms:CORRECTED_DATA
                     # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp)+' sol.nchan=10 sol.uvmmin=100 sol.minvisratio=0.5\
+                        sol.mode=diagonal sol.solint='+str(solint_amp)+' sol.nchan=10 sol.uvmmin=100 sol.minvisratio=0.5 \
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DPPP')
 
@@ -508,9 +477,9 @@ for cmaj in range(maxIter):
                         log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP') 
 
                     logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
-                    # Calibration - ms:SMOOTHED_DATA
+                    # Calibration - ms:CORRECTED_DATA
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.nchan=10 sol.uvmmin=100 sol.minvisratio=0.5', \
+                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.nchan=10 sol.uvmmin=300 sol.minvisratio=0.5',
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DPPP')
 
                     #if d.peel_off:
@@ -620,11 +589,11 @@ for cmaj in range(maxIter):
             if not d.get_h5parm('amp1',-2) is None:
                 logger.info('Corrupt amp...')
                 MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                       cor.invert=False cor.parmdb='+d.get_h5parm('amp1',-2)+' cor.correction=amplitude000', \
+                       cor.invert=False cor.parmdb='+d.get_h5parm('amp1',-2)+' cor.correction=amplitude000',
                        log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP') 
             if not d.get_h5parm('amp2',-2) is None:
                 MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                       cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000', \
+                       cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000',
                        log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP') 
 
             if not d.peel_off:
