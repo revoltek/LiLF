@@ -75,9 +75,11 @@ with w.if_todo('cal_pa'):
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating PA...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal', log='$nameMS_solPA.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
+            sol.solint=2 sol.nchan=2',
+            log='$nameMS_solPA.log', commandType="DPPP")
     
-    lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], \
+    lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()],
             [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
     
     # Pol align correction DATA -> CORRECTED_DATA
@@ -101,7 +103,9 @@ with w.if_todo('cal_fr'):
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating FR...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal', log='$nameMS_solFR.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal \
+            sol.solint=2 sol.nchan=2',
+            log='$nameMS_solFR.log', commandType="DPPP")
     
     lib_util.run_losoto(s, 'fr', [ms+'/fr.h5' for ms in MSs.getListStr()],
             [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
@@ -199,14 +203,16 @@ with w.if_todo('cal_iono'):
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_solIONO.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase', log='$nameMS_solIONO.log', commandType="DPPP")
     
     if iono3rd:
         lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()],
-                [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono3rd.parset'])
+            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono3rd.parset'])
+            #[parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono3rd.parset'])
     else:
         lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()],
-                [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono.parset'])
+            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono.parset'])
+            #[parset_dir + '/losoto-flag.parset', parset_dir + '/losoto-plot-ph.parset', parset_dir + '/losoto-iono.parset'])
 
 ### DONE
 
@@ -230,7 +236,7 @@ with w.if_todo('compressing_h5'):
     
     # s.add('losoto -d sol000/tec000 cal-iono.h5', log='losoto-final.log', commandType="python")
     # s.add('losoto -d sol000/clock000 cal-iono.h5', log='losoto-final.log', commandType="python")
-    s.add('losoto -d sol000/amplitude000 cal-iono.h5', log='losoto-final.log', commandType="python")
+    #s.add('losoto -d sol000/amplitude000 cal-iono.h5', log='losoto-final.log', commandType="python")
     s.add('losoto -d sol000/phase_offset000 cal-iono.h5', log='losoto-final.log', commandType="python")
     s.run()
     os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
