@@ -284,8 +284,8 @@ for cmaj in range(maxIter):
         ### DONE
 
         ### TESTTESTTEST: empty image
-        if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-            clean('init', MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
+        #if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
+        #    clean('init', MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
         ###
 
     for dnum, d in enumerate(directions):
@@ -337,10 +337,10 @@ for cmaj in range(maxIter):
                     'CF_wmax':50000,
                     'CF_Nw':100,
                     'Beam_CenterNorm':1,
-                    'Beam_Smooth':1,
+                    'Beam_Smooth':0,
                     'Beam_Model':'LOFAR',
                     'Beam_LOFARBeamMode':'A',
-                    'Beam_NBand':2*ch_out,
+                    'Beam_NBand':1,
                     'Beam_DtBeamMin':5,
                     'Output_Also':'onNeds',
                     'Image_Cell':3.,
@@ -638,8 +638,8 @@ for cmaj in range(maxIter):
         ### DONE
 
         ### TTESTTESTTEST: empty image
-        if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
-            clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        #if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
+        #    clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
     ######################################################
@@ -738,10 +738,10 @@ for cmaj in range(maxIter):
                     'CF_wmax':50000,
                     'CF_Nw':100,
                     'Beam_CenterNorm':1,
-                    'Beam_Smooth':1,
+                    'Beam_Smooth':0,
                     'Beam_Model':'LOFAR',
                     'Beam_LOFARBeamMode':'A',
-                    'Beam_NBand':2*ch_out,
+                    'Beam_NBand':1,
                     'Beam_DtBeamMin':5,
                     'Output_Also':'onNeds',
                     'Image_Cell':3.,

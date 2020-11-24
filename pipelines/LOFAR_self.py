@@ -275,9 +275,9 @@ for c in range(2):
             im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
             im.makeMask(threshpix=5)
 
-            kwargs = {'do_predict':True, 'auto_mask':2.5, 'reuse_dirty':imagename}
+            kwargs = {'do_predict':True, 'reuse_dirty':imagename}
         else: 
-            kwargs = {'auto_mask':2.0}
+            kwargs = {}
 
         #multiscale = '', multiscale_scale_bias = 0.6,
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, save_source_list='',
