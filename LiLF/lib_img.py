@@ -184,8 +184,12 @@ class Image(object):
         The flux of the image
         """
         with pyfits.open(self.imagename) as fits:
-            assert fits[0].header['CTYPE3'] == 'FREQ'
-            return fits[0].header['CRVAL3']
+            if fits[0].header['CTYPE3'] == 'FREQ':
+                return fits[0].header['CRVAL3']
+            elif fits[0].header['CTYPE4'] == 'FREQ':
+                return fits[0].header['CRVAL4']
+            else:
+                raise RuntimeError('Cannot find frequency in image %s' % self.imagename)
 
 
 def flatten(f, channel = 0, freqaxis = 0):

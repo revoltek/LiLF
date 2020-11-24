@@ -7,7 +7,7 @@
 
 import sys, os, glob, re, pickle
 import numpy as np
-from astropy.table import Table
+from astropy.table import Table as astrotab
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 import pyrap.tables as pt
@@ -177,7 +177,8 @@ for cmaj in range(maxIter):
         full_image.makeMask(threshpix=5, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
         
         # locating DD-calibrators
-        cal = Table.read(mask_ddcal.replace('fits','cat.fits'))
+        print(mask_ddcal.replace('fits','cat.fits'))
+        cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
         cal = cal[np.where(cal['Total_flux'] < 5*cal['Peak_flux'])] #  remove extended
         cal = cal[np.where(cal['Total_flux'] > 0.1)]  # remove very faint to speedup
         cal['Cluster_id'] = 'None           '
@@ -573,7 +574,7 @@ for cmaj in range(maxIter):
 
             s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (model_skymodel, model_skydb), log='makesourcedb_cl.log', commandType='general' )
             s.run()
-        
+
         # remove the DD-cal from original dataset using new solutions
         with w.if_todo('%s-subtract' % logstring):
 
@@ -784,7 +785,7 @@ for cmaj in range(maxIter):
             os.system('mv %s* ddcal/c%02i/images' % (imagename, cmaj))
     ### DONE
 
-    full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj,imagename.split('/')[-1]), userReg = userReg)
+    full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
     min_cal_flux60 *= 0.8  # go a bit deeper
 
 logger.info("Done.")
