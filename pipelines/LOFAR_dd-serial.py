@@ -414,7 +414,7 @@ for cmaj in range(maxIter):
         doamp = False
         # usually there are 3600/32=112 or 3600/16=225 timesteps and \
         # 60 (halfband)/120 (fullband) chans, try to use multiple numbers
-        iter_ph_solint = lib_util.Sol_iterator([4, 1])  # 32 or 16 * [4,1] s
+        iter_ph_solint = lib_util.Sol_iterator([8, 4, 1])  # 32 or 16 * [4,1] s
         iter_amp_solint = lib_util.Sol_iterator([60, 30, 10])  # 32 or 16 * [60,30,10] s
         iter_amp2_solint = lib_util.Sol_iterator([60, 30])
         logger.info('RMS noise (init): %f' % (rms_noise_pre))

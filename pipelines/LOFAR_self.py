@@ -283,7 +283,7 @@ for c in range(2):
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, save_source_list='',
                 size=imgsizepix, scale='10arcsec', reuse_psf=imagename,
                 weight='briggs -0.3', niter=1000000, no_update_model_required='', parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500, mgain=0.85,
-                parallel_deconvolution=512, local_rms='', auto_threshold=1.5, fits_mask=maskname,
+                parallel_deconvolution=512, auto_threshold=3., fits_mask=maskname,
                 join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, **kwargs)
 
         os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
@@ -310,15 +310,16 @@ for c in range(2):
             imagename_lr = 'img/wide-lr'
             lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=False,
                     parallel_gridding=4, temp_dir='./', size=imgsizepix, scale='30arcsec',
-                    weight='briggs -1', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000, taper_gaussian='200arcsec', mgain=0.85,
-                    parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits',
+                    weight='briggs -1', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
+                    taper_gaussian='200arcsec', mgain=0.85, parallel_deconvolution=512, baseline_averaging='',
+                    local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits',
                     join_channels='', channels_out=MSs.getChout(2.e6))
 
             imagename_ulr = 'img/wide-ulr'
             lib_util.run_wsclean(s, 'wscleanULR.log', MSs.getStrWsclean(), name=imagename_ulr, do_predict=False,
-                                 parallel_gridding=4, temp_dir='./', size=imgsizepix/6, scale='60arcsec',
+                                 parallel_gridding=4, temp_dir='./', size=imgsizepix/3, scale='30arcsec',
                                  weight='briggs 0', niter=50000, no_update_model_required='', minuv_l=0,
-                                 maxuvw_m=5000, taper_gaussian='300arcsec', mgain=0.85,
+                                 maxuvw_m=5000, taper_gaussian='200arcsec', mgain=0.85,
                                  parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=3,
                                  auto_threshold=1.5, join_channels='', channels_out=MSs.getChout(4.e6))
 
@@ -380,7 +381,7 @@ for c in range(2):
 # polarisation imaging
 with w.if_todo('imaging-pol'):
     imagenameP = 'img/wideP'
-    lib_util.run_wsclean(s, 'wscleanP.log', MSs.getStrWsclean(), name=imagenameP,
+    lib_util.run_wsclean(s, 'wscleanP.log', MSs.getStrWsclean(), name=imagenameP, pol='QUV',
         size=imgsizepix, scale='10arcsec', weight='briggs -0.3', niter=0, no_update_model_required='',
         parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500,
         join_channels='', channels_out=MSs.getChout(4.e6))
