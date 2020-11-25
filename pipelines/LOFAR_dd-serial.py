@@ -730,7 +730,7 @@ for cmaj in range(maxIter):
                     'Output_Mode':'Clean',
                     'Deconv_CycleFactor':0,
                     'Deconv_MaxMinorIter':1000000,
-                    'Deconv_RMSFactor':3.0,
+                    'Deconv_RMSFactor':2.0,
                     'Deconv_FluxThreshold':0.0,
                     'Deconv_Mode':'HMP',
                     'HMP_AllowResidIncrease':1.,

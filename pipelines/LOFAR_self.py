@@ -314,7 +314,7 @@ for c in range(2):
                     parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits',
                     join_channels='', channels_out=MSs.getChout(2.e6))
 
-            imagename_lr = 'img/wide-ulr'
+            imagename_ulr = 'img/wide-ulr'
             lib_util.run_wsclean(s, 'wscleanULR.log', MSs.getStrWsclean(), name=imagename_ulr, do_predict=False,
                                  parallel_gridding=4, temp_dir='./', size=imgsizepix/6, scale='60arcsec',
                                  weight='briggs 0', niter=50000, no_update_model_required='', minuv_l=0,
