@@ -177,7 +177,6 @@ for cmaj in range(maxIter):
         full_image.makeMask(threshpix=5, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
         
         # locating DD-calibrators
-        print(mask_ddcal.replace('fits','cat.fits'))
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
         cal = cal[np.where(cal['Total_flux'] < 5*cal['Peak_flux'])] #  remove extended
         cal = cal[np.where(cal['Total_flux'] > 0.1)]  # remove very faint to speedup
@@ -345,8 +344,8 @@ for cmaj in range(maxIter):
                     'Beam_DtBeamMin':5,
                     'Output_Also':'onNeds',
                     'Image_Cell':3.,
-                    'Freq_NDegridBand':2*ch_out,
-                    'Freq_NBand':2*ch_out,
+                    'Freq_NDegridBand':ch_out,
+                    'Freq_NBand':ch_out,
                     'Facets_DiamMax':1.5,
                     'Facets_DiamMin':0.1,
                     'Weight_ColName':'WEIGHT_SPECTRUM',
@@ -414,7 +413,7 @@ for cmaj in range(maxIter):
         doamp = False
         # usually there are 3600/32=112 or 3600/16=225 timesteps and \
         # 60 (halfband)/120 (fullband) chans, try to use multiple numbers
-        iter_ph_solint = lib_util.Sol_iterator([8, 4, 1])  # 32 or 16 * [4,1] s
+        iter_ph_solint = lib_util.Sol_iterator([8, 8, 4, 1])  # 32 or 16 * [4,1] s
         iter_amp_solint = lib_util.Sol_iterator([60, 30, 10])  # 32 or 16 * [60,30,10] s
         iter_amp2_solint = lib_util.Sol_iterator([60, 30])
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
@@ -746,8 +745,8 @@ for cmaj in range(maxIter):
                     'Beam_DtBeamMin':5,
                     'Output_Also':'onNeds',
                     'Image_Cell':3.,
-                    'Freq_NDegridBand':2*ch_out,
-                    'Freq_NBand':2*ch_out,
+                    'Freq_NDegridBand':ch_out,
+                    'Freq_NBand':ch_out,
                     'Mask_Auto':1,
                     'Mask_SigTh':5.0,
                     'GAClean_MinSizeInit':10,

@@ -315,27 +315,28 @@ for c in range(2):
                     local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits',
                     join_channels='', channels_out=MSs.getChout(2.e6))
 
-            imagename_ulr = 'img/wide-ulr'
-            lib_util.run_wsclean(s, 'wscleanULR.log', MSs.getStrWsclean(), name=imagename_ulr, do_predict=False,
-                                 parallel_gridding=4, temp_dir='./', size=imgsizepix/3, scale='30arcsec',
-                                 weight='briggs 0', niter=50000, no_update_model_required='', minuv_l=0,
-                                 maxuvw_m=5000, taper_gaussian='200arcsec', mgain=0.85,
-                                 parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=3,
-                                 auto_threshold=1.5, join_channels='', channels_out=MSs.getChout(4.e6))
-
             s.add('wsclean -predict -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(2e6))+' '+MSs.getStrWsclean(), \
                   log='wscleanLR-PRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
             s.run(check=True)
         ### DONE
 
-        with w.if_todo('lowres_flag_c%02i' % c):
-            ##############################################
-            # Flag on empty dataset
-    
+        with w.if_todo('lowres_sub_c%02i' % c):
             # Subtract low-res model - CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA
             logger.info('Subtracting low-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
             MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    
+        ### DONE
+
+        with w.if_todo('lowres_ulrimg_c%02i' % c):
+            imagename_ulr = 'img/wide-ulr'
+            lib_util.run_wsclean(s, 'wscleanULR.log', MSs.getStrWsclean(), name=imagename_ulr, do_predict=False,
+                                 parallel_gridding=4, temp_dir='./', size=1500, scale='30arcsec',
+                                 weight='briggs 0', niter=50000, no_update_model_required='', minuv_l=0,
+                                 maxuvw_m=5000, taper_gaussian='200arcsec', mgain=0.85,
+                                 parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=3,
+                                 auto_threshold=1.5, join_channels='', channels_out=MSs.getChout(4.e6))
+        ### DONE
+
+        with w.if_todo('lowres_flag_c%02i' % c):
             # Flag on residuals (CORRECTED_DATA)
             logger.info('Flagging residuals...')
             MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS aoflagger.strategy='+parset_dir+'/LBAdefaultwideband.rfis',

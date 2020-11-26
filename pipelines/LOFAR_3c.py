@@ -4,6 +4,7 @@
 import sys, os, glob
 import numpy as np
 import lsmtool
+from astropy.table import Table as astrotab
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
@@ -173,11 +174,7 @@ rms_noise_pre = np.inf; mm_ratio_pre = 0; doamp = False
 solint_ph = lib_util.Sol_iterator([10,3,1])
 solint_amp = lib_util.Sol_iterator([200,100,50])
 for c in range(100):
-
     logger.info('== Start cycle: %s ==' % c)
-
-    #logger.info('Remove bad timestamps...')
-    #MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
     ####################################################
     # 1: Solving
@@ -206,21 +203,21 @@ for c in range(100):
             #sol.antennaconstraint=[[CSsuperLBA,CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]] \
             solint = next(solint_amp)
             MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGa.h5 sol.mode=fulljones \
-                    sol.solint='+str(solint)+' sol.smoothnessconstraint=2e6', \
+                    sol.solint='+str(solint)+' sol.smoothnessconstraint=2e6',
                     log='$nameMS_solGa-c'+str(c)+'.log', commandType="DPPP")
-            lib_util.run_losoto(s, 'Ga-c'+str(c), [ms+'/calGa.h5' for ms in MSs.getListStr()], \
+            lib_util.run_losoto(s, 'Ga-c'+str(c), [ms+'/calGa.h5' for ms in MSs.getListStr()],
                         [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot2d-pol.parset', parset_dir+'/losoto-plot-pol.parset'])
                         #, parset_dir+'/losoto-ampnorm.parset'])
     
             # Correct CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Correction slow AMP+PH...')
             MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                    cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=\[amplitude000,phase000\]', \
+                    cor.parmdb=cal-Ga-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=\[amplitude000,phase000\]',
                     log='$nameMS_corAMPPHslow-c'+str(c)+'.log', commandType='DPPP')
         ### DONE
 
     #################################################
-    # 2: Sub field
+    # 2: Sub field + peel
     if c == 1:
         with w.if_todo('sub-field'):
 
@@ -236,8 +233,8 @@ for c in range(100):
             os.system('cat logs/wsclean-wide.log | grep "background noise"')
 
             # makemask
-            im = lib_img.Image(imagename + '-MFS-image.fits')
-            im.makeMask(threshpix=5, rmsbox=(50, 5), userReg=region)
+            im = lib_img.Image(imagename + '-MFS-image.fits', userReg=region)
+            im.makeMask(threshpix=5, rmsbox=(50, 5))
             maskfits = imagename + '-mask.fits'
 
             logger.info('Cleaning wide 2...')
@@ -249,71 +246,121 @@ for c in range(100):
                                  auto_threshold=1, auto_mask=3, local_rms='', local_rms_method='rms-with-min',
                                  join_channels='', fit_spectral_pol=2, channels_out=2)
 
-            # corrupt
-            MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                    cor.invert=False cor.parmdb=cal-Gp-c%i.h5 cor.correction=phase000' % (c),
-                    log='$nameMS_corrupt.log', commandType='DPPP')
-
             # subtract everything
             logger.info('Subtract model: CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA...')
             MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"',
                     log='$nameMS_taql.log', commandType='general')
+        # DONE
 
-            # load skymodel
-            full_image = lib_img.Image(imagename, userReg=region)
-            full_image.selectCC()
-            lsm = lsmtool.load(full_image.skymodel_cut)
-            lsm.group(mask_cl, root='Isl')
-            flux = lsm.getColValues('I',aggregate='sum')
-            lsm.setPatchPositions(method='mid')
+        # load skymodel
+        full_image = lib_img.Image(imagename, userReg=region)
+        full_image.makeMask(threshpix=5, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
+        cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
+        cal = cal[np.where(cal['Total_flux'] > 3)]
 
+        # cycle on sources to peel
+        phasecentre = MSs.getListObj()[0].getPhaseCentre()
+        for peelsou in cal:
+            # Skip if source is close to phase centre
+            dist = lib_util.distanceOnSphere(phasecentre[0], phasecentre[1], peelsou['RA'], peelsou['DEC'])
+            if dist < 0.5: continue
 
-            # cycle on sources to peel
-            for name, size, ra, dec in \
-                zip( lsm.getPatchNames(), lsm.getPatchSizes(units='deg'),
-                     lsm.getPatchPositions(asArray=True)[0], lsm.getPatchPositions(asArray=True)[1] ):
+            logger.info('Peeling %s (%.1f Jy)' % (peelsou['Source_id'],peelsou['Total_flux']))
 
-                # find target brighter than 1 Jy
-                idx = lsm.getRowIndex(name)
-                flux = np.sum(lsm.getColValues('I')[idx])
-                if flux < 1: continue
+            with w.if_todo('peel-%s' % peelsou['Source_id']):
+                lib_util.check_rm('peel-'+cal['Source_id'])
+                os.system('mkdir peel-'+cal['Source_id'])
 
-                logging.info('Peeling %s (%.1f Jy)' % (name,flux))
+                # make a region
+                from pyregion.parser_helper import Shape
+                import pyregion
+                peel_region_file = 'peel-'+cal['Source_id']+'/'+peelsou['Source_id']+'.reg'
+                s = Shape('circle', None)
+                s.coord_format = 'fk5'
+                s.coord_list = [peelsou['RA'], peelsou['DEC'], 0.1]  # ra, dec, diam
+                s.coord_format = 'fk5'
+                s.attr = ([], {'width': '2', 'point': 'cross', 'font': '"helvetica 16 normal roman"'})
+                s.comment = 'color=red text="%s"' % peelsou['Source_id']+'.reg'
+                regions = pyregion.ShapeList([s])
+                lib_util.check_rm(peel_region_file)
+                regions.write(peel_region_file)
 
-                # phaseshift + avg
-
-                MSs_shift =
+                # copy and blank models
+                logger.info('Peel - Cleanup model images...')
+                os.system('cp '+imagename+'*model.fits peel-'+cal['Source_id'])
+                imagename = 'peel-'+cal['Source_id']+'/'+imagename
+                for model_file in glob.glob(imagename + '*model.fits'):
+                    lib_img.blank_image_reg(model_file, peel_region_file, blankval=0., inverse=True)
 
                 # predict the source to peel
-                logger.info('Predict (DPPP)...')
-                MSs_shift.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.usebeammodel=Flase \
-                        pre.sourcedb='+sourcedb+' pre.sources='+name,
-                        log='$nameMS_pre.log', commandType='DPPP')
+                logger.info('Peel - Predict...')
+                s.add('wsclean -predict -name ' + imagename + ' -j ' + str(s.max_processors) + ' -channels-out 2 \
+                      -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
+                      log='wsclean-pre.log', commandType='wsclean', processors='max')
+                s.run(check=True)
 
-                # corrupt it
-                MSs_shift.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                        cor.invert=False cor.parmdb=cal-Gp-c%i.h5 cor.correction=phase000' % (c),
-                        log='$nameMS_corrupt.log', commandType='DPPP')
-
-                # add back
-                logger.info('Subtract model: DATA = DATA + MODEL_DATA...')
-                MSs_shift.run('taql "update $pathMS set DATA = DATA + MODEL_DATA"',
+                # add the source to peel back
+                logger.info('Peel - add model: CORRECTED_DATA = CORRECTED_DATA + MODEL_DATA...')
+                MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA + MODEL_DATA"',
                         log='$nameMS_taql.log', commandType='general')
 
+                # phaseshift + avg
+                logger.info('Peel - Phaseshift+avg...')
+                lib_util.check_rm('mss-dir')
+                os.makedirs('mss-dir')
+                MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS \
+                    msin.datacolumn=CORRECTED_DATA msout.datacolumn=DATA \
+                    avg.timestep=8 avg.freqstep=16 \
+                    shift.phasecenter=\['+str(peelsou['RA'])+'deg,'+str(peelsou['DEC'])+'deg\]', \
+                    log='$nameMS_shift.log', commandType='DPPP')
+                MSs_shift = lib_ms.AllMSs(glob.glob('mss-dir/*.MS'), s, check_flags=False, check_sun=True)
+
                 # image
+                logger.info('Peel - Image...')
+                imagename = 'peel-%s/img_%s' % (peelsou['Source_id'], peelsou['Source_id'])
+                lib_util.run_wsclean(s, 'wsclean-c%02i-peel.log' % c, MSs_shift.getStrWsclean(),
+                                     do_predict=True, name=imagename,
+                                     parallel_gridding=4, baseline_averaging='', scale='2.5arcsec',
+                                     niter=100000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0,
+                                     auto_threshold=5, local_rms='', local_rms_method='rms-with-min',
+                                     join_channels='', fit_spectral_pol=2, channels_out=2)
 
                 # calibrate
+                logger.info('Peel - Calibrate...')
+                MSs_shift.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA \
+                        sol.h5parm=$pathMS/calGp.h5 sol.mode=scalarcomplexgain \
+                        sol.solint=' + str(solint) + ' sol.smoothnessconstraint=5e6',
+                        log='$nameMS_solGp-peel.log', commandType="DPPP")
+                lib_util.run_losoto(s, 'Gp-peel_%s' % peelsou['Source_id'],
+                                    [ms + '/calGp.h5' for ms in MSs_shift.getListStr()],
+                                    [parset_dir + '/losoto-plot2d.parset', parset_dir + '/losoto-plot.parset'])
 
-                # image
+                # predict in MSs
+                logger.info('Peel - Predict...')
+                for model_file in glob.glob(imagename + '*model.fits'):
+                    lib_img.blank_image_reg(model_file, peel_region_file, blankval=0., inverse=True)
+                s.add('wsclean -predict -name ' + imagename + ' -j ' + str(s.max_processors) + ' -channels-out 2 \
+                      -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
+                      log='wsclean-pre.log', commandType='wsclean', processors='max')
+                s.run(check=True)
 
-                # predict, corrupt and subtract
+                # corrupt
+                MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS \
+                        msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                        cor.invert=False cor.parmdb=cal-Gp-peel_%s.h5 cor.correction=phase000' % (peelsou['Source_id']),
+                        log='$nameMS_corrupt.log', commandType='DPPP')
 
-            # add back central region
+                # subtract
+                logger.info('Subtract model: CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA...')
+                MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
+            # DONE
 
+        with w.if_todo('reprepare dataset'):
             # blank models
             logger.info('Cleanup model images...')
             for model_file in glob.glob(imagename+'*model.fits'):
-                lib_img.blank_image_reg(model_file, beam07reg, blankval=0.)
+                lib_img.blank_image_reg(model_file, beam07reg, blankval=0., inverse=True)
 
             # ft models
             s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 2 \
@@ -321,27 +368,17 @@ for c in range(100):
                   log='wsclean-pre.log', commandType='wsclean', processors='max')
             s.run(check=True)
 
-            # corrupt field
-            MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                    cor.invert=False cor.parmdb=cal-Gp-c%i.h5 cor.correction=phase000' % (c),
-                    log='$nameMS_corrupt.log', commandType='DPPP')
-
-            # subtract outer field
-            logger.info('Subtract model: DATA = DATA - MODEL_DATA...')
-            MSs.run('taql "update $pathMS set DATA = DATA - MODEL_DATA"',
+            # prepare new data
+            logger.info('Subtract model: DATA = CORRECTED_DATA + MODEL_DATA...')
+            MSs.run('taql "update $pathMS set DATA = CORRECTED_DATA + MODEL_DATA"',
                     log='$nameMS_taql.log', commandType='general')
-
-            # re-apply correction before final imaging
-            # Correct DATA -> CORRECTED_DATA
-            logger.info('Correction PH...')
-            MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-Gp-c' +
-                    str(c) + '.h5 cor.correction=phase000', \
-                    log='$nameMS_corPH-c' + str(c) + '.log', commandType='DPPP')
-        #DONE
+        # DONE
 
     #################################################
     # 3: Cleaning
     imagename = 'img/img-%02i' % c
+
+    # TODO: average down in time/freq?
 
     with w.if_todo('image-c%02i' % c):
         # special for extended sources:
