@@ -44,7 +44,7 @@ with w.if_todo('cleaning'):
 
 MSs = lib_ms.AllMSs( glob.glob('mss-facet/*MS'), s )
 
-def clean(p, MSs, size, res='normal', apply_beam=False):
+def clean(p, MSs, size, res='normal', apply_beam=False, empty=False):
     """
     p = patch name
     mss = list of mss to clean
@@ -59,13 +59,11 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     elif res == 'low':
         pass # no change
 
-    imsize = [0,0]
-    imsize[0] = int(size[0]*1.05/(pixscale/3600.)) # add 5%
-    imsize[1] = int(size[1]*1.05/(pixscale/3600.)) # add 5%
+    imsize = [int(size[0]*1.5/(pixscale/3600.)), int(size[1]*1.5/(pixscale/3600.))] # add 50%
     imsize[0] += imsize[0] % 2
     imsize[1] += imsize[1] % 2
-    if imsize[0] < 64: imsize[0] == 64
-    if imsize[1] < 64: imsize[1] == 64
+    if imsize[0] < 256: imsize[0] = 256
+    if imsize[1] < 256: imsize[1] = 256
 
     logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
 
@@ -78,46 +76,48 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
     elif res == 'low':
         weight = 'briggs 0'
         maxuv_l = None
-
-    # clean 1
-    logger.info('Cleaning ('+str(p)+')...')
-    imagename = 'img/facet-'+str(p)
-    lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
-            weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
-            baseline_averaging='', parallel_deconvolution=512, auto_threshold=5, \
-            join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
-
-    # make mask
-    im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshpix = 5)
-
-    # clean 2
-    logger.info('Cleaning w/ mask ('+str(p)+')...')
-    imagename = 'img/facetM-'+str(p)
-    if apply_beam:
-
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
-            weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
-            use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-            multiscale='', multiscale_scale_bias=0.75, multiscale_scales='0,10,20,40', \
-            parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1, fits_mask=im.maskname, \
-            join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
-
     else:
+        logger.error('Wrong "res": %s.' % str(res))
+        sys.exit()
 
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
-            weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
-            multiscale='', multiscale_scale_bias=0.75, multiscale_scales='0,10,20,40', \
-            baseline_averaging='', parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1., fits_mask=im.maskname, \
-            join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+    if empty:
 
-        lib_util.run_wsclean(s, 'wscleanBlow-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename+'-low', size=imsize, scale=str(pixscale)+'arcsec', \
-            weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, taper_gaussian='30asec', mgain=0.85, \
-            multiscale='', multiscale_scale_bias=0.75, multiscale_scales='0,10,20,40', \
-            baseline_averaging='', parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1., fits_mask=im.maskname, \
-            join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+        logger.info('Cleaning empty ('+str(p)+')...')
+        imagename = 'img/empty-'+str(p)
+        lib_util.run_wsclean(s, 'wscleanE-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, data_column='SUBTRACTED_DATA', \
+                             size=imsize, scale=str(pixscale)+'arcsec', \
+                             weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0, \
+                             baseline_averaging='')
+    else:
+        # clean 1
+        logger.info('Cleaning ('+str(p)+')...')
+        imagename = 'img/facet-'+str(p)
+        lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
+                weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
+                baseline_averaging='', parallel_deconvolution=512, auto_threshold=5, \
+                join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
 
-    os.system('cat logs/wscleanB-'+str(p)+'.log | grep "background noise"')
+        # make mask
+        im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
+        im.makeMask(threshisl = 5, rmsbox=(70,5))
+
+        # clean 2
+        logger.info('Cleaning w/ mask ('+str(p)+')...')
+        imagename = 'img/facetM-'+str(p)
+        if apply_beam:
+            lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
+                weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
+                use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
+                multiscale='', multiscale_scale_bias=0.75, multiscale_scales='0,10,20,40,80', \
+                parallel_deconvolution=512, local_rms='', auto_threshold=0.5, auto_mask=1, fits_mask=im.maskname, \
+                join_channels='', fit_spectral_pol=3, channels_out=ch_out) #, deconvolution_channels=3)
+        else:
+            lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), do_predict=True, name=imagename, size=imsize, scale=str(pixscale)+'arcsec', \
+                weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, \
+                multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', fits_mask=im.maskname,\
+                baseline_averaging='', parallel_deconvolution=512, local_rms='', auto_threshold=0.75, auto_mask=1.5,  \
+                join_channels='', fit_spectral_pol=3, channels_out=ch_out) #, deconvolution_channels=3)
+        os.system('cat logs/wscleanB-'+str(p)+'.log | grep "background noise"')
 
 # Load facet mask and set target region to 0
 mask_voro = 'ddcal/masks/facets%02i.fits' % lastcycle
@@ -211,44 +211,104 @@ with w.if_todo('image_init'):
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
 with w.if_todo('smooth'):
     logger.info('BL-based smoothing...')
-    MSs.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
-
-
+    MSs.run('BLsmooth.py -c 8 -n 6 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python', maxThreads=1)
 ### DONE
 
+
+# get initial noise and set iterators for timeint solutions
+image = lib_img.Image('img/facetM-init-MFS-image.fits', userReg=userReg)
+rms_noise_pre = image.getNoise();
+rms_noise_init = rms_noise_pre
+mm_ratio_pre = image.getMaxMinRatio();
+mm_ratio_init = mm_ratio_pre
+doamp = False
+# usually there are 3600/30=120 or 3600/15=240 timesteps, try to use multiple numbers
+iter_ph_solint = lib_util.Sol_iterator([4, 1])
+iter_amp_solint = lib_util.Sol_iterator([120, 60, 30, 10])
+iter_amp2_solint = lib_util.Sol_iterator([120, 60, 30])
+logger.info('RMS noise (init): %f' % (rms_noise_pre))
+logger.info('MM ratio (init): %f' % (mm_ratio_pre))
 rms_noise_pre = np.inf
-for c in range(maxniter):
+
+for c in range(20):
     logger.info('Starting cycle: %i' % c)
 
-    with w.if_todo('solve-c%02i' % c):
-        # Calibration - ms:SMOOTHED_DATA
-        logger.info('Gain calibration...')
-        solint = max(8-c,1)
-        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS sol.solint='+str(solint)+'\
-                sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5', \
-                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
-    
-        # Plot solutions
-        lib_util.run_losoto(s, 'g-c'+str(c), [ms+'/cal-g-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
-                    [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset'])
-        os.system('mv plots-g-c%i facet' % c)
-    
+    with w.if_todo('smooth-c%02i' % c):
+        logger.info('BL-based smoothing on MODEL_DATA...')
+        MSs.run('BLsmooth.py -c 8 -n 6 -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smoothM-c%02i.log' % c, commandType='python', maxThreads=1)
 
-    ### DONE
+    h5ph = 'facet/cal-ph-c%02i.h5' % c
+    solint_ph = next(iter_ph_solint)
+    if doamp:
+        h5amp1 = 'facet/cal-amp1-c%02i.h5' % c
+        solint_amp = next(iter_amp_solint)
+        h5amp2 = 'facet/cal-amp2-c%02i.h5' % c
+        solint_amp2 = next(iter_amp2_solint)
 
-    with w.if_todo('cor-c%02i' % c):
-        # correct G - ms:DATA -> ms:CORRECTED_DATA
-        logger.info('Ph correct...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS \
-                    cor.parmdb=cal-g-c'+str(c)+'.h5 cor.correction=phase000', \
-                    log='$nameMS_correctPH-c'+str(c)+'.log', commandType='DPPP') 
-        if c>1:
-            logger.info('Amp correct...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                    cor.parmdb=cal-g-c'+str(c)+'.h5 cor.correction=amplitude000', \
-                    log='$nameMS_correctAMP-c'+str(c)+'.log', commandType='DPPP') 
-    
+    logger.info('Phase calibration...')
+    antconstr = '[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,' \
+                'CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,' \
+                'CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,' \
+                'CS302LBA,CS401LBA,CS501LBA]]'
+    with w.if_todo('cal-ph-c%02i' % c):
+        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
+            sol.mode=scalarcomplexgain sol.solint=' + str(solint_ph) + ' sol.nchan=1 sol.smoothnessconstraint=5e6 \
+            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]', \
+                    log='$nameMS_solGph-%s.log' % c, commandType='DPPP')
+        lib_util.run_losoto(s, 'ph', [ms + '/cal-ph.h5' for ms in MSs.getListStr()],
+                            [parset_dir + '/losoto-plot1.parset'],
+                            plots_dir='facet/plots-%s' % c)
+        os.system('mv cal-ph.h5 %s' % h5ph)
 
+    with w.if_todo('cor-ph-c%02i' % c):
+        # correct ph - ms:DATA -> ms:CORRECTED_DATA
+        logger.info('Correct ph...')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
+                     cor.parmdb=' + h5ph + ' cor.correction=phase000',
+                    log='$nameMS_correct-c%02i.log' % c, commandType='DPPP')
+    if doamp:
+        with w.if_todo('cal-amp1-c%02i' % c):
+            logger.info('Gain amp calibration 1 (solint: %i)...' % solint_amp)
+            # Calibration - ms:CORRECTED_DATA
+            # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
+            MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
+                sol.mode=diagonal sol.solint=' + str(solint_amp) + ' sol.nchan=1 sol.uvmmin=100 sol.smoothnessconstraint=4e6 sol.minvisratio=0.5\
+                sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
+                        log='$nameMS_solGamp1-c%02i.log' % c, commandType='DPPP')
+
+            losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-norm.parset',
+                                  parset_dir + '/losoto-plot2.parset']
+            lib_util.run_losoto(s, 'amp1', [ms + '/cal-amp1.h5' for ms in MSs.getListStr()], losoto_parsets,
+                                plots_dir='facet/plots-%s' % c)
+            os.system('mv cal-amp1.h5 %s' % h5amp1)
+
+        with w.if_todo('cor-amp1-c%02i' % c):
+            logger.info('Correct amp 1...')
+            # correct amp - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
+            MSs.run('DPPP ' + parset_dir + '/DPPP-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                cor.parmdb=' + h5amp1 + ' cor.correction=amplitude000',
+                        log='$nameMS_correct-c%02i.log' % c, commandType='DPPP')
+
+        with w.if_todo('cal-amp2-c%02i' % c):
+            logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
+            # Calibration - ms:SMOOTHED_DATA
+            MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
+                sol.mode=diagonal sol.solint=' + str(
+                solint_amp2) + ' sol.nchan=6 sol.uvmmin=100 sol.smoothnessconstraint=10e6 sol.minvisratio=0.5', \
+                        log='$nameMS_solGamp2-c%02i.log' % s, commandType='DPPP')
+
+            losoto_parsets = [parset_dir + '/losoto-clip2.parset', parset_dir + '/losoto-norm.parset',
+                              parset_dir + '/losoto-plot3.parset']
+            lib_util.run_losoto(s, 'amp2', [ms + '/cal-amp2.h5' for ms in MSs.getListStr()], losoto_parsets,
+                                plots_dir='facet/plots-%s' % c)
+            os.system('mv cal-amp2.h5 %s' % h5amp2)
+
+        with w.if_todo('cor-amp2-c%02i' % c):
+            logger.info('Correct amp 2...')
+            # correct amp2 - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
+            MSs.run('DPPP ' + parset_dir + '/DPPP-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                cor.parmdb=' + h5amp2 + ' cor.correction=amplitude000',
+                        log='$nameMS_correct-c%02i.log' % c, commandType='DPPP')
     ### DONE
 
     with w.if_todo('image-c%02i' % c):
@@ -260,7 +320,20 @@ for c in range(maxniter):
 
     # get noise, if larger than 95% of prev cycle: break
     facet_image = lib_img.Image('img/facetM-c%02i-MFS-image.fits' % c)
+    # get noise, if larger than prev cycle: break
     rms_noise = facet_image.getNoise()
-    logger.info('RMS noise: %f' % rms_noise)
-    if rms_noise > rms_noise_pre and c>=5: break
+    mm_ratio = facet_image.getMaxMinRatio()
+    logger.info('RMS noise (c:%02i): %f' % (c, rms_noise))
+    logger.info('MM ratio (c:%02i): %f' % (c, mm_ratio))
+    if rms_noise > 0.99 * rms_noise_pre and mm_ratio < 1.01 * mm_ratio_pre and c >4:
+        if (mm_ratio < 10 and c >= 2) or \
+                (mm_ratio < 20 and c >= 3) or \
+                (mm_ratio < 30 and c >= 4) or \
+                (c >= 5): break
+
+    if c >= 4 and mm_ratio >= 30:
+        logger.info('Start amplitude calibration in next cycle...')
+        doamp = True
+
     rms_noise_pre = rms_noise
+    mm_ratio_pre = mm_ratio
