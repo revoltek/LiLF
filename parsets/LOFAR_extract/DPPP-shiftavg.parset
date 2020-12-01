@@ -9,8 +9,9 @@ msout.storagemanager = dysco
 steps = [shift, avg]
 
 shift.type = phaseshifter
-shift.phasecenter = 
+shift.phasecenter =
 
 avg.type = averager
-avg.freqstep = 1
-avg.timestep = 2
+avg.freqstep =
+avg.timestep =
+
