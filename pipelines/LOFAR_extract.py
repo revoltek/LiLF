@@ -20,7 +20,7 @@ w = lib_util.Walker('pipeline-extract.walker')
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_extract','parset_dir')
 maxniter = parset.getint('LOFAR_extract','maxniter')
-target_reg_file = parset.getstr('LOFAR_extract','extractRegion') # default 'target.reg'
+target_reg_file = parset.get('LOFAR_extract','extractRegion') # default 'target.reg'
 userReg = parset.get('model','userReg')
 
 ############################
@@ -33,7 +33,9 @@ with w.if_todo('cleaning'):
     os.system('cp ddcal/c01/images/wideDD-c01.app.restored.fits extract/init/')
     os.system('cp ddcal/c01/solutions/interp.h5 extract/init/')
     lib_util.check_rm('mss-extract')
-    if not os.path.exists('mss-extract'): os.system('cp -r mss-avg mss-extract')
+    if not os.path.exists('mss-extract'):
+        logger.info('Copy MS...')
+        os.system('cp -r mss-avg mss-extract')
 
 # for now, region must be a single ds9 circle
 target_reg = pyregion.open(target_reg_file)
