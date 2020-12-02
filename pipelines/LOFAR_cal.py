@@ -254,21 +254,13 @@ if imaging:
 
     # Correct all CORRECTED_DATA (PA, beam, FR, BP corrected) -> CORRECTED_DATA
     logger.info('IONO correction...')
-    MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=fullcal-iono.h5 cor.amp.parmdb=cal-iono.h5 \
-        cor.ph.correction=phaseOrig000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corIONO.log', commandType="DPPP")
+    MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
+        cor.correction=phaseOrig000', log='$nameMS_corIONO.log', commandType="DPPP")
 
     lib_util.check_rm('img')
     os.makedirs('img')
 
-    imgsizepix = MSs.getListObj()[0].getFWHM()*3600/5
-
-    #logger.info('Cleaning low-res...')
-    #imagename = 'img/calLR'
-    #lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix/5, scale='60arcsec',
-    #        weight='briggs 0.', taper_gaussian='240arcsec', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85,
-    #        use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400,
-    #        parallel_deconvolution=512,
-    #        auto_mask=10, auto_threshold=1, pol='IQUV', join_polarizations='', join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+    imgsizepix = int(MSs.getListObj()[0].getFWHM()*3600/5)
 
     logger.info('Cleaning normal...')
     imagename = 'img/cal'
