@@ -258,8 +258,8 @@ try:
             if surl in L_toStage:
                 L_toStage.remove(surl)
                 if sid not in L_inStage:
-                    L_inStage.append(sid) # the worker will take care of starting downloads
-                i+=1
+                    L_inStage.append(sid)  # the worker will take care of starting downloads
+                i += 1
     print("Removed %i already staged surls." % i)
 except Exception as e:
     print("Error recovering staged surls...", e)

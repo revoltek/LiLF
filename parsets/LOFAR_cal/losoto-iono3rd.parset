@@ -1,37 +1,37 @@
 Ncpu = 0
 
-[plotAi1]
-operation = PLOT
-soltab = sol000/amplitude000
-freq.minmaxstep = [0,300e6,100]
-axesInPlot = time
-axisInTable = ant
-axisInCol = pol
-plotFlag = True
-prefix = plots/amp_
-NColFig = 4
-figSize = [20,20]
-minmax = [0.5,2]
-
-[plotAi2]
-operation = PLOT
-soltab = sol000/amplitude000
-time.minmaxstep = [0,1e20,500]
-axesInPlot = freq
-axisInTable = ant
-axisInCol = pol
-plotFlag = True
-prefix = plots/amp_
-minmax = [0.5,2]
-
-[plotAi3]
-operation = PLOT
-soltab = sol000/amplitude000
-axesInPlot = [time,freq]
-axisInTable = ant
-plotFlag = True
-prefix = plots/amp_
-minmax = [0.5,2]
+#[plotAi1]
+#operation = PLOT
+#soltab = sol000/amplitude000
+#freq.minmaxstep = [0,300e6,100]
+#axesInPlot = time
+#axisInTable = ant
+#axisInCol = pol
+#plotFlag = True
+#prefix = plots/amp_
+#NColFig = 4
+#figSize = [20,20]
+#minmax = [0.5,2]
+#
+#[plotAi2]
+#operation = PLOT
+#soltab = sol000/amplitude000
+#time.minmaxstep = [0,1e20,500]
+#axesInPlot = freq
+#axisInTable = ant
+#axisInCol = pol
+#plotFlag = True
+#prefix = plots/amp_
+#minmax = [0.5,2]
+#
+#[plotAi3]
+#operation = PLOT
+#soltab = sol000/amplitude000
+#axesInPlot = [time,freq]
+#axisInTable = ant
+#plotFlag = True
+#prefix = plots/amp_
+#minmax = [0.5,2]
 
 [duplicatePbkp]
 operation = DUPLICATE
@@ -41,7 +41,7 @@ soltabOut = phaseOrig000
 [ct]
 operation = CLOCKTEC
 soltab = sol000/phase000
-CombinePol = True
+CombinePol = False
 FlagBadChannels = False
 #Fit3rdOrder = False
 Fit3rdOrder = True # only for very low-freq dataset
@@ -89,24 +89,23 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/phRes
-refAnt = 'CS001LBA'
-#refAnt = 'CS002LBA'
+refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]
 
-[smooth]
-operation = SMOOTH
-soltab = sol000/phase000
-axesToSmooth = [time,freq]
-mode = median
-refAnt = 'CS001LBA'
-
-[PlotPr2]
-operation = PLOT
-soltab = sol000/phase000
-axesInPlot = [time,freq]
-axisInTable = ant
-plotFlag = True
-prefix = plots/phResSmooth
-refAnt = 'CS001LBA'
-#refAnt = 'CS002LBA'
-minmax = [-3.14,3.14]
+#[smooth]
+#operation = SMOOTH
+#soltab = sol000/phase000
+#axesToSmooth = [time,freq]
+#mode = median
+#refAnt = 'CS001LBA'
+#
+#[PlotPr2]
+#operation = PLOT
+#soltab = sol000/phase000
+#axesInPlot = [time,freq]
+#axisInTable = ant
+#plotFlag = True
+#prefix = plots/phResSmooth
+#refAnt = 'CS001LBA'
+##refAnt = 'CS002LBA'
+#minmax = [-3.14,3.14]

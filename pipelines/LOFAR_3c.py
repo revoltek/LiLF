@@ -43,6 +43,7 @@ with w.if_todo('setup'):
     logger.info('Cleaning...')
     lib_util.check_rm('cal*h5')
     lib_util.check_rm('plots*')
+    lib_util.check_rm('peel*')
     lib_util.check_rm('img')
     os.makedirs('img')
 
@@ -141,6 +142,8 @@ MSs.getListObj()[0].makeBeamReg('beam02.reg', freq='mid', pb_cut=0.2)
 beam02Reg = 'beam02.reg'
 MSs.getListObj()[0].makeBeamReg('beam07.reg', freq='mid', pb_cut=0.7)
 beam07reg = 'beam07.reg'
+region = '%s/regions/%s.reg' % (parset_dir, target)
+if not os.path.exists(region): region = None
 
 #####################################################
 # Model
@@ -253,48 +256,54 @@ for c in range(100):
         # DONE
 
         # load skymodel
-        full_image = lib_img.Image(imagename, userReg=region)
+        imagename = 'img/img-wideM'
+        full_image = lib_img.Image(imagename+'-MFS-image.fits', userReg=region)
+        mask_ddcal = full_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
         full_image.makeMask(threshpix=5, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
-        cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
+        cal = astrotab.read(mask_ddcal.replace('fits', 'cat.fits'), format='fits')
         cal = cal[np.where(cal['Total_flux'] > 3)]
+        cal.sort('Total_flux')
+        cal.reverse()
 
         # cycle on sources to peel
         phasecentre = MSs.getListObj()[0].getPhaseCentre()
         for peelsou in cal:
+            name = str(peelsou['Source_id'])
             # Skip if source is close to phase centre
             dist = lib_util.distanceOnSphere(phasecentre[0], phasecentre[1], peelsou['RA'], peelsou['DEC'])
+            print ("dist: ", dist)
             if dist < 0.5: continue
 
-            logger.info('Peeling %s (%.1f Jy)' % (peelsou['Source_id'],peelsou['Total_flux']))
+            logger.info('Peeling %s (%.1f Jy)' % (name, peelsou['Total_flux']))
 
-            with w.if_todo('peel-%s' % peelsou['Source_id']):
-                lib_util.check_rm('peel-'+cal['Source_id'])
-                os.system('mkdir peel-'+cal['Source_id'])
+            with w.if_todo('peel-%s' % name):
+                lib_util.check_rm('peel-%s' % name)
+                os.system('mkdir peel-%s' % name)
 
                 # make a region
                 from pyregion.parser_helper import Shape
                 import pyregion
-                peel_region_file = 'peel-'+cal['Source_id']+'/'+peelsou['Source_id']+'.reg'
-                s = Shape('circle', None)
-                s.coord_format = 'fk5'
-                s.coord_list = [peelsou['RA'], peelsou['DEC'], 0.1]  # ra, dec, diam
-                s.coord_format = 'fk5'
-                s.attr = ([], {'width': '2', 'point': 'cross', 'font': '"helvetica 16 normal roman"'})
-                s.comment = 'color=red text="%s"' % peelsou['Source_id']+'.reg'
-                regions = pyregion.ShapeList([s])
+                peel_region_file = 'peel-'+name+'/'+name+'.reg'
+                sh = Shape('circle', None)
+                sh.coord_format = 'fk5'
+                sh.coord_list = [peelsou['RA'], peelsou['DEC'], 0.1]  # ra, dec, diam
+                sh.coord_format = 'fk5'
+                sh.attr = ([], {'width': '2', 'point': 'cross', 'font': '"helvetica 16 normal roman"'})
+                sh.comment = 'color=red text="%s"' % (name+'.reg')
+                regions = pyregion.ShapeList([sh])
                 lib_util.check_rm(peel_region_file)
                 regions.write(peel_region_file)
 
                 # copy and blank models
                 logger.info('Peel - Cleanup model images...')
-                os.system('cp '+imagename+'*model.fits peel-'+cal['Source_id'])
-                imagename = 'peel-'+cal['Source_id']+'/'+imagename
-                for model_file in glob.glob(imagename + '*model.fits'):
+                os.system('cp '+imagename+'*model.fits peel-'+name)
+                imagename_peel = 'peel-'+name+'/'+imagename.split('/')[-1]
+                for model_file in glob.glob(imagename_peel + '*model.fits'):
                     lib_img.blank_image_reg(model_file, peel_region_file, blankval=0., inverse=True)
 
                 # predict the source to peel
-                logger.info('Peel - Predict...')
-                s.add('wsclean -predict -name ' + imagename + ' -j ' + str(s.max_processors) + ' -channels-out 2 \
+                logger.info('Peel - Predict init...')
+                s.add('wsclean -predict -name ' + imagename_peel + ' -j ' + str(s.max_processors) + ' -channels-out 2 \
                       -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
                       log='wsclean-pre.log', commandType='wsclean', processors='max')
                 s.run(check=True)
@@ -317,9 +326,9 @@ for c in range(100):
 
                 # image
                 logger.info('Peel - Image...')
-                imagename = 'peel-%s/img_%s' % (peelsou['Source_id'], peelsou['Source_id'])
+                imagename_peel = 'peel-%s/img_%s' % (name, name)
                 lib_util.run_wsclean(s, 'wsclean-c%02i-peel.log' % c, MSs_shift.getStrWsclean(),
-                                     do_predict=True, name=imagename,
+                                     do_predict=True, name=imagename_peel, size=512,
                                      parallel_gridding=4, baseline_averaging='', scale='2.5arcsec',
                                      niter=100000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0,
                                      auto_threshold=5, local_rms='', local_rms_method='rms-with-min',
@@ -329,17 +338,18 @@ for c in range(100):
                 logger.info('Peel - Calibrate...')
                 MSs_shift.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA \
                         sol.h5parm=$pathMS/calGp.h5 sol.mode=scalarcomplexgain \
-                        sol.solint=' + str(solint) + ' sol.smoothnessconstraint=5e6',
+                        sol.solint=10 sol.smoothnessconstraint=5e6',
                         log='$nameMS_solGp-peel.log', commandType="DPPP")
-                lib_util.run_losoto(s, 'Gp-peel_%s' % peelsou['Source_id'],
+                lib_util.run_losoto(s, 'Gp-peel_%s' % name,
                                     [ms + '/calGp.h5' for ms in MSs_shift.getListStr()],
-                                    [parset_dir + '/losoto-plot2d.parset', parset_dir + '/losoto-plot.parset'])
+                                    [parset_dir + '/losoto-plot2d.parset', parset_dir + '/losoto-plot.parset'],
+                                    plots_dir='peel-%s' % name)
 
                 # predict in MSs
-                logger.info('Peel - Predict...')
-                for model_file in glob.glob(imagename + '*model.fits'):
+                logger.info('Peel - Predict final...')
+                for model_file in glob.glob(imagename_peel + '*model.fits'):
                     lib_img.blank_image_reg(model_file, peel_region_file, blankval=0., inverse=True)
-                s.add('wsclean -predict -name ' + imagename + ' -j ' + str(s.max_processors) + ' -channels-out 2 \
+                s.add('wsclean -predict -name ' + imagename_peel + ' -j ' + str(s.max_processors) + ' -channels-out 2 \
                       -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
                       log='wsclean-pre.log', commandType='wsclean', processors='max')
                 s.run(check=True)
@@ -347,7 +357,7 @@ for c in range(100):
                 # corrupt
                 MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS \
                         msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                        cor.invert=False cor.parmdb=cal-Gp-peel_%s.h5 cor.correction=phase000' % (peelsou['Source_id']),
+                        cor.invert=False cor.parmdb=cal-Gp-peel_%s.h5 cor.correction=phase000' % name,
                         log='$nameMS_corrupt.log', commandType='DPPP')
 
                 # subtract
@@ -411,8 +421,7 @@ for c in range(100):
         im = lib_img.Image(imagename+'-MFS-image.fits')
         im.makeMask( threshpix=5, rmsbox=(50,5), atrous_do=True )
         maskfits = imagename+'-mask.fits'
-        region = '%s/regions/%s.reg' % (parset_dir,target)
-        if os.path.exists( region ):
+        if region is not None:
             lib_img.blank_image_reg(maskfits, beam02Reg, blankval = 0.)
             lib_img.blank_image_reg(maskfits, region, blankval = 1.)
 

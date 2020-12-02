@@ -183,7 +183,7 @@ for cmaj in range(maxIter):
         cal['Cluster_id'] = 'None           '
         # grouping nearby sources
         grouper = lib_dd.Grouper(list(zip(cal['RA'],cal['DEC'])), cal['Total_flux'],
-                                 look_distance=0.1, kernel_size=0.07, grouping_distance=0.03)
+                                 look_distance=0.05, kernel_size=0.03, grouping_distance=0.03)
         grouper.run()
         clusters = grouper.grouping()
         grouper.plot()
@@ -198,13 +198,13 @@ for cmaj in range(maxIter):
 
             fluxes = np.sum(cal['Total_flux'][cluster_idxs])
             spidx_coeffs = [-0.8]*len(cluster_idxs)
-            ref_freq = [img_freq]*len(cluster_idxs)
+            ref_freqs = [img_freq]*len(cluster_idxs)
             localrms = np.max(cal['Isl_rms'][cluster_idxs])
 
             d = lib_dd.Direction(name)
             d.fluxes = fluxes
             d.spidx_coeffs = spidx_coeffs
-            d.ref_freq = ref_freq
+            d.ref_freq = ref_freqs
             d.localrms = localrms
 
             # skip faint directions
@@ -215,7 +215,7 @@ for cmaj in range(maxIter):
             else:
                 logger.debug("%s: flux density @ 60 MHz: %.1f mJy (good)" % (name, 1e3 * d.get_flux(60e6)))
 
-            #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,ref_freq,size,img_beam,lsm.getColValues('MajorAxis')[idx])
+            #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,ref_freqs,size,img_beam,lsm.getColValues('MajorAxis')[idx])
             ra = np.mean(cal['RA'][cluster_idxs])
             dec = np.mean(cal['DEC'][cluster_idxs])
             d.set_position( [ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center )
@@ -234,7 +234,7 @@ for cmaj in range(maxIter):
         cal.write('ddcal/c%02i/skymodels/cat-c%02i.fits' % (cmaj,cmaj), format='fits', overwrite=True)
 
         # order directions from the one that create more noise
-        directions = [x for _, x in sorted(zip([d.localrms for d in directions],directions))][::-1] # reorder with rms
+        directions = [x for _, x in sorted(zip([d.get_flux(img_freq) for d in directions],directions))][::-1]  # reorder with rms
 
         # If there's a preferential direciotn, get the closer direction to the final target and put it to the end
         if target_dir != '':
@@ -310,7 +310,7 @@ for cmaj in range(maxIter):
     
             else:
 
-                # these dd-cal are not in the data anymore
+                # this dd-cal should not be in the data anymore but probably the source finder got some strong residuals
                 if d.peel_off:
                     logger.info('This sources has been peeled, skip.')
                     continue
@@ -446,8 +446,8 @@ for cmaj in range(maxIter):
                 # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                 logger.info('Gain phase calibration (solint: %i)...' % solint_ph)
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
-                    sol.mode=scalarcomplexgain sol.solint='+str(solint_ph)+' sol.nchan=1 sol.smoothnessconstraint=5e6 \
-                    sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]', \
+                    sol.mode=scalarcomplexgain sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=5e6 \
+                    sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
                     log='$nameMS_solGph-'+logstringcal+'.log', commandType='DPPP')
                 lib_util.run_losoto(s, 'ph', [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()],
                     [parset_dir+'/losoto-plot1.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
@@ -545,7 +545,7 @@ for cmaj in range(maxIter):
             logger.warning('%s: something went wrong during the first self-cal cycle in this direction.' % (d.name))
             d.clean()
             continue
-        elif rms_noise_pre > rms_noise_init:
+        elif rms_noise_pre*0.98 > rms_noise_init:
             d.converged = False
             logger.warning('%s: noise did not decresed (%f -> %f), do not further use this source.' % (d.name, rms_noise_init, rms_noise_pre))
             d.clean()
@@ -762,7 +762,7 @@ for cmaj in range(maxIter):
                     'DDESolutions_DDSols':interp_h5parm+':sol000/phase000+amplitude000'
                     }
             
-            logger.info('Cleaning 1...')
+            logger.info('Cleaning...')
             lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
                     Deconv_MaxMajorIter=1,
                     Deconv_PeakFactor=0.02,
@@ -773,7 +773,7 @@ for cmaj in range(maxIter):
             im = lib_img.Image(imagename+'.app.restored.fits', userReg=userReg)
             im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=True)
 
-            logger.info('Cleaning 2...')
+            logger.info('Cleaning (with mask)...')
             lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **ddf_parms,
                     Deconv_MaxMajorIter=10,
                     Deconv_PeakFactor=0.005,
