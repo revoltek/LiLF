@@ -228,7 +228,8 @@ for c in range(100):
             logger.info('Cleaning wide 1...')
             imagename = 'img/img-wide'
             lib_util.run_wsclean(s, 'wsclean-wide.log', MSs.getStrWsclean(), name=imagename,
-                             parallel_gridding=4, size=2500, scale='10arcsec', weight='briggs -0.7',
+                             parallel_gridding=4, baseline_averaging='', size=2500,
+                             scale='10arcsec', weight='briggs -0.7',
                              taper_gaussian='30arcsec',
                              niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0,
                              auto_threshold=5,  local_rms='', local_rms_method='rms-with-min',
@@ -241,9 +242,10 @@ for c in range(100):
             maskfits = imagename + '-mask.fits'
 
             logger.info('Cleaning wide 2...')
-            imagename = 'img/img-wideM'
-            lib_util.run_wsclean(s, 'wsclean-wide.log', MSs.getStrWsclean(), name=imagename, do_predict=True, save_source_list='',
-                                 parallel_gridding=4, size=2500, scale='10arcsec', weight='briggs -0.7',
+            imagenameM = 'img/img-wideM'
+            lib_util.run_wsclean(s, 'wsclean-wide.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
+                                 parallel_gridding=4, baseline_averaging='', size=2500, reuse_psf=imagename, reuse_dirty=imagename,
+                                 scale='10arcsec', weight='briggs -0.7',
                                  taper_gaussian='30arcsec', fits_mask=maskfits,
                                  niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0,
                                  auto_threshold=1, auto_mask=3, local_rms='', local_rms_method='rms-with-min',
@@ -271,8 +273,8 @@ for c in range(100):
             name = str(peelsou['Source_id'])
             # Skip if source is close to phase centre
             dist = lib_util.distanceOnSphere(phasecentre[0], phasecentre[1], peelsou['RA'], peelsou['DEC'])
-            print ("dist: ", dist)
-            if dist < 0.5: continue
+            if dist < 0.5:
+                continue
 
             logger.info('Peeling %s (%.1f Jy)' % (name, peelsou['Total_flux']))
 
@@ -296,8 +298,8 @@ for c in range(100):
 
                 # copy and blank models
                 logger.info('Peel - Cleanup model images...')
-                os.system('cp '+imagename+'*model.fits peel-'+name)
-                imagename_peel = 'peel-'+name+'/'+imagename.split('/')[-1]
+                os.system('cp '+imagenameM+'*model.fits peel-'+name)
+                imagename_peel = 'peel-'+name+'/'+imagenameM.split('/')[-1]
                 for model_file in glob.glob(imagename_peel + '*model.fits'):
                     lib_img.blank_image_reg(model_file, peel_region_file, blankval=0., inverse=True)
 

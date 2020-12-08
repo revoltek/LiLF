@@ -271,7 +271,8 @@ for c in range(2):
                                  weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
                                  parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
                                  parallel_deconvolution=512, local_rms='', auto_threshold=4,
-                                 join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3)
+                                 join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6),
+                                 deconvolution_channels=3)
             im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
             im.makeMask(threshpix=5)
 
@@ -391,10 +392,8 @@ with w.if_todo('imaging-pol'):
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits self/images') for c in range(2) ]
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits self/images') for c in range(2) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(2) ]
-os.system('mv img/wideP-MFS-image*.fits self/images')
+os.system('mv img/wideP-MFS-*-image.fits self/images')
 os.system('mv img/wideM-1-*-model.fits self/images')
-os.system('mv img/wide-lr-MFS-image.fits img/wide-lr-MFS-residual.fits self/images')
-os.system('mv img/wide-ulr-MFS-image.fits img/wide-ulr-MFS-residual.fits self/images')
 os.system('mv logs self')
 
 logger.info("Done.")
