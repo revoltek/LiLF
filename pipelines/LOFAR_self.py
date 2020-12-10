@@ -53,41 +53,6 @@ beamReg = 'self/beam.reg'
 imgsizepix = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/10.)
 if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 
-########################################################
-### Demix
-# TODO: move to preprocess
-with w.if_todo('demix'):
-    ateams = ['VirA', 'TauA']
-    ateams_todemix = []
-    for ateam in ateams:
-        sep = MSs.getListObj()[0].distBrightSource(ateam)
-        if sep < 4 or sep > 15:
-            logger.debug('No demix of %s (sep: %.0f deg)' % (ateam, sep))
-        else:
-            ateams_todemix.append(ateam)
-            logger.warning('Demix of %s (sep: %.0f deg)' % (ateam, sep))
-
-    if len(ateams_todemix) > 0:
-        if os.path.exists('mss-predemix'):
-            logger.warning('Reset mss...')
-            lib_util.check_rm('mss/*MS')
-        else:
-            logger.info('Move mss in mss-predemix...')
-            os.system('mv mss mss-predemix')
-            os.system('mkdir mss')
-
-        MSs = lib_ms.AllMSs(glob.glob('mss-predemix/TC*[0-9].MS'), s)
-        for MS in MSs.getListStr():
-            lib_util.check_rm(MS+'/'+os.path.basename(skydb_demix))
-            os.system('cp -r '+skydb_demix+' '+MS+'/'+os.path.basename(skydb_demix))
-
-        logger.info('Demixing...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-demix.parset msin=$pathMS msout=mss/$nameMS.MS demixer.skymodel=$pathMS/'+os.path.basename(skydb_demix)+
-                ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources=\['+','.join(ateams_todemix)+'\]',
-                log='$nameMS_demix.log', commandType='DPPP', maxThreads=1)
-        MSs = lib_ms.AllMSs(glob.glob('mss/TC*[0-9].MS'), s)
-### DONE
-
 #################################################################
 # Get online model
 if sourcedb == '':
@@ -103,6 +68,41 @@ if sourcedb == '':
         os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
         apparent = False
     sourcedb = 'tgts.skydb'
+
+########################################################
+### Demix
+# TODO: moved to LOFAR_demix
+#with w.if_todo('demix'):
+#    ateams = ['VirA', 'TauA']
+#    ateams_todemix = []
+#    for ateam in ateams:
+#        sep = MSs.getListObj()[0].distBrightSource(ateam)
+#        if sep < 4 or sep > 15:
+#            logger.debug('No demix of %s (sep: %.0f deg)' % (ateam, sep))
+#        else:
+#            ateams_todemix.append(ateam)
+#            logger.warning('Demix of %s (sep: %.0f deg)' % (ateam, sep))
+#
+#    if len(ateams_todemix) > 0:
+#        if os.path.exists('mss-predemix'):
+#            logger.warning('Reset mss...')
+#            lib_util.check_rm('mss/*MS')
+#        else:
+#            logger.info('Move mss in mss-predemix...')
+#            os.system('mv mss mss-predemix')
+#            os.system('mkdir mss')
+#
+#        MSs = lib_ms.AllMSs(glob.glob('mss-predemix/TC*[0-9].MS'), s)
+#        for MS in MSs.getListStr():
+#            lib_util.check_rm(MS+'/'+os.path.basename(skydb_demix))
+#            os.system('cp -r '+skydb_demix+' '+MS+'/'+os.path.basename(skydb_demix))
+#
+#        logger.info('Demixing...')
+#        MSs.run('DPPP '+parset_dir+'/DPPP-demix.parset msin=$pathMS msout=mss/$nameMS.MS demixer.skymodel=$pathMS/'+os.path.basename(skydb_demix)+
+#                ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources=\['+','.join(ateams_todemix)+'\]',
+#                log='$nameMS_demix.log', commandType='DPPP', maxThreads=1)
+#        MSs = lib_ms.AllMSs(glob.glob('mss/TC*[0-9].MS'), s)
+### DONE
 
 #################################################################################################
 # Add model to MODEL_DATA

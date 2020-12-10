@@ -55,7 +55,8 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_preprocess', 'keep_IS', 'False')
     # demix
     add_default('LOFAR_demix', 'data_dir', './data-bkp/')
-    add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skydb')
+    add_default('LOFAR_demix', 'include_target', 'False')
+    add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skymodel')
     # cal
     add_default('LOFAR_cal', 'data_dir', './data-bkp/')
     add_default('LOFAR_cal', 'skymodel', os.path.dirname(__file__)+'/../models/calib-simple.skydb')
