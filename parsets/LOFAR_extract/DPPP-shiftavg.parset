@@ -1,5 +1,5 @@
 msin = 
-msin.datacolumn = CORRECTED_DATA
+msin.datacolumn =
 #do not copy aucorr as they have too weird weights for dysco
 msin.baseline = [CR]S*&
 msout = 

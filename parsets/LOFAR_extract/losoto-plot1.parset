@@ -1,11 +1,11 @@
 Ncpu = 0
 
-[plotA]
-operation = PLOT
-soltab = sol000/amplitude000
-axesInPlot = [time,freq]
-axisInTable = ant
-prefix = plots/amp1_
+#[plotA]
+#operation = PLOT
+#soltab = sol000/amplitude000
+#axesInPlot = [time,freq]
+#axisInTable = ant
+#prefix = plots/amp1_
 
 [plotP]
 operation = PLOT
@@ -20,6 +20,16 @@ minmax = [-3.14,3.14]
 operation = PLOT
 soltab = sol000/phase000
 freq.minmaxstep = [55e6,100e6,1000]
+axesInPlot = [time]
+axisInTable = ant
+prefix = plots/ph1_
+refAnt = 'CS002LBA'
+minmax = [-3.14,3.14]
+
+[plotP3]
+operation = PLOT
+soltab = sol000/phase000
+time.minmaxstep = [0,1e20,500]
 axesInPlot = [time]
 axisInTable = ant
 prefix = plots/ph1_
