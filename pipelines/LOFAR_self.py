@@ -329,9 +329,10 @@ for c in range(2):
 
         with w.if_todo('lowres_ulrimg_c%02i' % c):
             imagename_ulr = 'img/wide-ulr'
+            #                     intervals_out=len(MSs.mssListObj)*4,
             lib_util.run_wsclean(s, 'wscleanULR.log', MSs.getStrWsclean(), name=imagename_ulr, do_predict=False,
                                  parallel_gridding=4, temp_dir='./', size=1500, scale='30arcsec',
-                                 weight='briggs 0', niter=50000, no_update_model_required='', minuv_l=0,
+                                 weight='briggs 0', niter=500, no_update_model_required='', minuv_l=0,
                                  maxuvw_m=5000, taper_gaussian='200arcsec', mgain=0.85,
                                  parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=3,
                                  auto_threshold=1.5, join_channels='', channels_out=MSs.getChout(4.e6))
@@ -394,6 +395,8 @@ with w.if_todo('imaging-pol'):
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(2) ]
 os.system('mv img/wideP-MFS-*-image.fits self/images')
 os.system('mv img/wideM-1-*-model.fits self/images')
+os.system('mv img/wide-lr-MFS-image.fits self/images')
+os.system('mv img/wide-ulr-MFS-image.fits self/images')
 os.system('mv logs self')
 
 logger.info("Done.")

@@ -14,13 +14,13 @@ class Direction(object):
 
     def __init__(self, name):
         self.name = name 
-        self.position = None # [deg, deg]
-        self.size = None # deg (1 value)
-        self.localrms = None # Jy/b (1 value)
-        self.fluxes = None # Jy - for each component
-        self.spidx_coeffs = None # 1st order - for each component
-        self.ref_freq = None # for each component
-        self.converged = None # bool
+        self.position = None  # [deg, deg]
+        self.size = None  # deg (1 value)
+        self.localrms = None  # Jy/b (1 value)
+        self.fluxes = None  # Jy - for each component
+        self.spidx_coeffs = None  # 1st order - for each component
+        self.ref_freq = None  # for each component
+        self.converged = None  # bool
         self.peel_off = None
         self.region_file = None
 
@@ -46,7 +46,8 @@ class Direction(object):
         s.coord_format = 'fk5'
         s.attr = ([], {'width': '2', 'point': 'cross',
                        'font': '"helvetica 16 normal roman"'})
-        s.comment = 'color=red text="%s"' % self.name
+        if not self.peel_off: s.comment = 'color=red text="%s"' % self.name
+        else: s.comment = 'color=blue text="%s"' % self.name
 
         regions = pyregion.ShapeList([s])
         lib_util.check_rm(self.region_file)

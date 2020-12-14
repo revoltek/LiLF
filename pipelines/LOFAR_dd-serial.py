@@ -145,6 +145,8 @@ phase_center = MSs.getListObj()[0].getPhaseCentre()
 timeint = MSs.getListObj()[0].getTimeInt()
 ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 ch_out_idg = 12  # better 24, but slow
+imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
+if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 #MSs.getListObj()[0].makeBeamReg('ddcal/beam.reg', freq='mid')
 #beamReg = 'ddcal/beam.reg'
 
@@ -333,7 +335,7 @@ for cmaj in range(maxIter):
                     'Predict_InitDicoModel':outdico,
                     'Predict_ColName':'MODEL_DATA',
                     'Deconv_Mode':'HMP',
-                    'Image_NPix':8775,
+                    'Image_NPix':imgsizepix,
                     'CF_wmax':50000,
                     'CF_Nw':100,
                     'Beam_CenterNorm':1,
@@ -486,7 +488,8 @@ for cmaj in range(maxIter):
                     logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
                     # Calibration - ms:CORRECTED_DATA
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.uvmmin=100 sol.minvisratio=0.5',
+                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.uvmmin=100 sol.minvisratio=0.5 \
+                        sol.antennaconstraint = [[CS002LBA, CS003LBA, CS004LBA, CS005LBA, CS006LBA, CS007LBA]]',
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DPPP')
 
                     #if d.peel_off:
@@ -721,7 +724,7 @@ for cmaj in range(maxIter):
             sys.exit('Not implemente further on...')
     
         else:
-    
+
             ddf_parms = {
                     'Data_MS':MSs.getStrDDF(),
                     'Data_ColName':'CORRECTED_DATA',
@@ -734,7 +737,7 @@ for cmaj in range(maxIter):
                     'Deconv_Mode':'HMP',
                     'HMP_AllowResidIncrease':1.,
                     'Weight_Robust':-0.5,
-                    'Image_NPix':8775,
+                    'Image_NPix':imgsizepix,
                     'CF_wmax':50000,
                     'CF_Nw':100,
                     'Beam_CenterNorm':1,
