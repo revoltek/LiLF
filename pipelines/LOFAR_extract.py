@@ -10,7 +10,7 @@ from losoto.h5parm import h5parm
 
 
 #######################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd
+from LiLF import lib_ms, lib_img, lib_util, lib_log
 logger_obj = lib_log.Logger('pipeline-extract.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
@@ -108,6 +108,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None):
         # clean 1
         logger.info('Cleaning (' + str(p) + ')...')
         imagename = 'img/extract-' + str(p)
+
         lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
                              size=imsize, scale=str(pixscale) + 'arcsec',
                              weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
@@ -134,7 +135,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None):
                              size=imsize, scale=str(pixscale) + 'arcsec',
                              weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
                              reuse_psf=imagename, reuse_dirty=imagename, mgain=0.85, multiscale='', baseline_averaging='',
-                             parallel_deconvolution=512, auto_threshold=0.5, auto_mask=1.5,
+                             parallel_deconvolution=512, auto_threshold=0.7, auto_mask=1.5,
                              fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=ch_out)  # , deconvolution_channels=3)
         os.system('cat logs/wscleanB-' + str(p) + '.log | grep "background noise"')
 
@@ -230,7 +231,7 @@ with w.if_todo('apply_init'):
     logger.info('Init apply: correct closest DDE solutions ({})'.format(closest))
     logger.info('Correct init ph...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-correct.parset msin=$pathMS msin.datacolumn=DATA '
-                                   'msout.datacolumn=CORRECTED_DATA \ cor.parmdb=' + dde_h5parm + ' cor.correction=phase000 cor.direction='+closest,
+                                   'msout.datacolumn=CORRECTED_DATA cor.parmdb=' + dde_h5parm + ' cor.correction=phase000 cor.direction='+closest,
             log='$nameMS_init-correct.log', commandType='DPPP')
     if 'amplitude000' in solset_dde.getSoltabNames():
         logger.info('Correct init amp...')
@@ -250,7 +251,7 @@ with w.if_todo('image_init'):
 with w.if_todo('smooth'):
     logger.info('BL-based smoothing...')
     # try smoothing less (does the averaging affect smoothing?)
-    MSs.run('BLsmooth.py -c 1 -n 8 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python') #, maxThreads=1)
+    MSs.run('BLsmooth.py -c 1 -n 8 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python', maxThreads=1)
     ### DONE
 
 # get initial noise and set iterators for timeint solutions
@@ -279,33 +280,47 @@ for c in range(maxniter):
         h5amp2 = 'extract/cal-amp2-c%02i.h5' % c
         solint_amp2 = next(iter_amp2_solint)
 
-    logger.info('Phase calibration...')
-    with w.if_todo('cal-ph-c%02i' % c):
-        MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
-            sol.mode=scalarphase sol.solint=' + str(solint_ph) + ' sol.nchan=1 sol.smoothnessconstraint=5e6 \
-            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]', \
-                log='$nameMS_solGph-c%02i.log' % c, commandType='DPPP')
-        lib_util.run_losoto(s, 'ph', [ms + '/cal-ph.h5' for ms in MSs.getListStr()],
-                            [parset_dir + '/losoto-plot1.parset'],
-                            plots_dir='extract/plots-%s' % c)
-        os.system('mv cal-ph.h5 %s' % h5ph)
-
+    # logger.info('Phase calibration...')
     # with w.if_todo('cal-ph-c%02i' % c):
     #     MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
-    #         sol.mode=scalarcomplexgain sol.solint=' + str(solint_ph) + ' sol.nchan=1 sol.smoothnessconstraint=5e6 \
-    #         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]', \
-    #                 log='$nameMS_solGph-c%02i.log' % c, commandType='DPPP')
+    #         sol.mode=scalarphase sol.solint=' + str(solint_ph) + ' sol.nchan=1 sol.smoothnessconstraint='+str(smoothness)+
+    #             ' sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
+    #             log='$nameMS_solGph-c%02i.log' % c, commandType='DPPP')
     #     lib_util.run_losoto(s, 'ph', [ms + '/cal-ph.h5' for ms in MSs.getListStr()],
     #                         [parset_dir + '/losoto-plot1.parset'],
     #                         plots_dir='extract/plots-%s' % c)
     #     os.system('mv cal-ph.h5 %s' % h5ph)
+    #
+    # with w.if_todo('cor-ph-c%02i' % c):
+    #     # correct ph - ms:DATA -> ms:CORRECTED_DATA
+    #     logger.info('Correct ph...')
+    #     MSs.run('DPPP ' + parset_dir + '/DPPP-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
+    #                  cor.parmdb=' + h5ph + ' cor.correction=phase000',
+    #             log='$nameMS_correct-c%02i.log' % c, commandType='DPPP')
 
-    with w.if_todo('cor-ph-c%02i' % c):
+
+    logger.info('tecandphase calibration...')
+    with w.if_todo('cal-tecandph-c%02i' % c):
+        MSs.run('DPPP ' + parset_dir + '/DPPP-soltecandphase.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
+            sol.mode=tecandphase sol.solint=' + str(solint_ph) + ' sol.nchan=1 sol.smoothnessconstraint=5e6',
+                log='$nameMS_soltecandphase-c%02i.log' % c, commandType='DPPP')
+        lib_util.run_losoto(s, 'ph', [ms + '/cal-ph.h5' for ms in MSs.getListStr()],
+                            [parset_dir + '/losoto-plottecandphase.parset'],
+                            plots_dir='extract/plots-%s' % c)
+        os.system('mv cal-ph.h5 %s' % h5ph)
+    logger.info('tecandphase calibration...')
+
+
+    with w.if_todo('cor-tecandph-c%02i' % c):
         # correct ph - ms:DATA -> ms:CORRECTED_DATA
-        logger.info('Correct ph...')
+        logger.info('Correct tec...')
         MSs.run('DPPP ' + parset_dir + '/DPPP-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
-                     cor.parmdb=' + h5ph + ' cor.correction=phase000',
+                     cor.parmdb=' + h5ph + ' cor.correction=tec000',
                     log='$nameMS_correct-c%02i.log' % c, commandType='DPPP')
+        logger.info('Correct ph...')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                     cor.parmdb=' + h5ph + ' cor.correction=phase000',
+                log='$nameMS_correct-c%02i.log' % c, commandType='DPPP')
     if doamp:
         with w.if_todo('cal-amp1-c%02i' % c):
             logger.info('Gain amp calibration 1 (solint: %i)...' % solint_amp)
@@ -333,7 +348,7 @@ for c in range(maxniter):
             logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
             # Calibration - ms:SMOOTHED_DATA
             MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                sol.mode=diagonal sol.solint=' + str(
+                sol.mode=diagonal sol.numthreads = 3 sol.solint=' + str(
                 solint_amp2) + ' sol.nchan=6 sol.uvmmin=100 sol.smoothnessconstraint=10e6 sol.minvisratio=0.5', \
                         log='$nameMS_solGamp2-c%02i.log' % c, commandType='DPPP')
 
@@ -367,7 +382,7 @@ for c in range(maxniter):
         if (mm_ratio < 10 and c >= 2) or \
                 (mm_ratio < 20 and c >= 3) or \
                 (mm_ratio < 30 and c >= 4) or \
-                (c >= 5): break
+                (c >= 8): break
 
     if c >= 4 and mm_ratio >= 30:
         logger.info('Start amplitude calibration in next cycle...')
