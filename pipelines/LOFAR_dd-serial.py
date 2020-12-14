@@ -148,14 +148,15 @@ ch_out_idg = 12  # better 24, but slow
 #MSs.getListObj()[0].makeBeamReg('ddcal/beam.reg', freq='mid')
 #beamReg = 'ddcal/beam.reg'
 
-logger.info('Add columns...')
-MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
-MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+# logger.info('Add columns...')
+# MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+# MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
 
 ##############################################################
 # setup initial model
-os.system('cp self/images/wideM-1* ddcal/init/')
-full_image = lib_img.Image('ddcal/init/wideM-1-MFS-image.fits', userReg=userReg)
+# os.system('cp self/images/wideM-1* ddcal/init/')
+# full_image = lib_img.Image('ddcal/init/wideM-1-MFS-image.fits', userReg=userReg)
+full_image = lib_img.Image('ddcal/c00/images/wideDD-c00.app.restored.fits', userReg=userReg)
 
 for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
@@ -178,8 +179,10 @@ for cmaj in range(maxIter):
         
         # locating DD-calibrators
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
-        cal = cal[np.where(cal['Total_flux'] < 5*cal['Peak_flux'])] #  remove extended
-        cal = cal[np.where(cal['Total_flux'] > 0.1)]  # remove very faint to speedup
+        # cal.remove_rows(cal['Total_flux'] < 0.01) # remove very faint to speedup
+        # cal.remove_rows((cal['Total_flux'] > 5*cal['Peak_flux']) & (cal['Total_flux'] < 0.5)) # remove extended faint
+        # cal.remove_rows((cal['Total_flux'] > 5*cal['Total_flux']*cal['Peak_flux']) & (cal['Total_flux'] >= 0.5)) # remove extended bright
+        print(len(cal))
         cal['Cluster_id'] = 'None           '
         # grouping nearby sources
         grouper = lib_dd.Grouper(list(zip(cal['RA'],cal['DEC'])), cal['Total_flux'],
