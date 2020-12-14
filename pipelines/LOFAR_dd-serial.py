@@ -180,8 +180,8 @@ for cmaj in range(maxIter):
         
         # locating DD-calibrators
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
-        cal = cal[np.where(cal['Total_flux'] < 5*cal['Peak_flux'])] #  remove extended
-        cal = cal[np.where(cal['Total_flux'] > 0.1)]  # remove very faint to speedup
+        #cal = cal[np.where(cal['Total_flux'] < 5*cal['Peak_flux'])] #  remove extended
+        #cal = cal[np.where(cal['Total_flux'] > 0.1)]  # remove very faint to speedup
         cal['Cluster_id'] = 'None           '
         # grouping nearby sources
         grouper = lib_dd.Grouper(list(zip(cal['RA'],cal['DEC'])), cal['Total_flux'],
