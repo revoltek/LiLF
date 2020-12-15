@@ -27,7 +27,7 @@ maxniter = parset.getint('LOFAR_extract','maxniter')
 target_reg_file = parset.get('LOFAR_extract','extractRegion') # default 'target.reg'
 phSolMode = parset.get('LOFAR_extract','phSolMode') # default: tecandphase
 if phSolMode not in ['tecandphase', 'phase']:
-    logger.error('phSolMode {} not supported. Choose tecandphase, phase'.)
+    logger.error('phSolMode {} not supported. Choose tecandphase, phase.')
     sys.exit()
 userReg = parset.get('model','userReg')
 
