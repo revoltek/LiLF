@@ -448,7 +448,7 @@ for cmaj in range(maxIter):
                 # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                 logger.info('Gain phase calibration (solint: %i)...' % solint_ph)
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
-                    sol.mode=scalarcomplexgain sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=5e6 \
+                    sol.mode=scalarphase sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=5e6 \
                     sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
                     log='$nameMS_solGph-'+logstringcal+'.log', commandType='DPPP')
                 lib_util.run_losoto(s, 'ph', [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()],
@@ -462,7 +462,6 @@ for cmaj in range(maxIter):
                              log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP')
 
                 if doamp:
-                    
                     logger.info('Gain amp calibration 1 (solint: %i)...' % solint_amp)
                     # Calibration - ms:CORRECTED_DATA
                     # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
@@ -487,9 +486,9 @@ for cmaj in range(maxIter):
 
                     logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
                     # Calibration - ms:CORRECTED_DATA
+                    #sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.uvmmin=100 sol.minvisratio=0.5 \
-                        sol.antennaconstraint=[[CS002LBA, CS003LBA, CS004LBA, CS005LBA, CS006LBA, CS007LBA]]',
+                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.uvmmin=100 sol.minvisratio=0.5',
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DPPP')
 
                     #if d.peel_off:
