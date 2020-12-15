@@ -81,6 +81,7 @@ def getParset(parsetFile='../lilf.config'):
     # extract
     add_default('LOFAR_extract', 'maxIter', '10')
     add_default('LOFAR_extract', 'extractRegion', 'target.reg')
+    add_default('LOFAR_extract', 'phSolMode', 'tecandphase') # tecandphase, phase
 
     ### uGMRT ###
 
