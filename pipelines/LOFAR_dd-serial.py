@@ -181,7 +181,7 @@ for cmaj in range(maxIter):
         # locating DD-calibrators
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
         #cal = cal[np.where(cal['Total_flux'] < 5*cal['Peak_flux'])] #  remove extended
-        #cal = cal[np.where(cal['Total_flux'] > 0.1)]  # remove very faint to speedup
+        cal = cal[np.where(cal['Total_flux'] > 0.1)]  # remove very faint to speedup
         cal['Cluster_id'] = 'None           '
         # grouping nearby sources
         grouper = lib_dd.Grouper(list(zip(cal['RA'],cal['DEC'])), cal['Total_flux'],
@@ -489,7 +489,7 @@ for cmaj in range(maxIter):
                     # Calibration - ms:CORRECTED_DATA
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
                         sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.uvmmin=100 sol.minvisratio=0.5 \
-                        sol.antennaconstraint = [[CS002LBA, CS003LBA, CS004LBA, CS005LBA, CS006LBA, CS007LBA]]',
+                        sol.antennaconstraint=[[CS002LBA, CS003LBA, CS004LBA, CS005LBA, CS006LBA, CS007LBA]]',
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DPPP')
 
                     #if d.peel_off:
