@@ -350,12 +350,12 @@ for c in range(maxniter):
             MSs.run('DPPP ' + parset_dir + '/DPPP-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
                 cor.parmdb=' + h5amp1 + ' cor.correction=amplitude000',
                         log='$nameMS_correct-c%02i.log' % c, commandType='DPPP')
-        # TODO change numthreads
+
         with w.if_todo('cal-amp2-c%02i' % c):
             logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
             # Calibration - ms:SMOOTHED_DATA
             MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                sol.mode=diagonal numthreads=1 sol.solint=' + str(
+                sol.mode=diagonal sol.solint=' + str(
                 solint_amp2) + ' sol.nchan=6  sol.smoothnessconstraint=10e6 sol.minvisratio=0.5', \
                         log='$nameMS_solGamp2-c%02i.log' % c, commandType='DPPP')
 
