@@ -120,19 +120,20 @@ class Direction(object):
         """
         return np.sum(np.array(self.fluxes) * (freq/np.array(self.ref_freq))**(np.array(self.spidx_coeffs)))
 
-    def set_size(self, ras, decs, img_beam):
+    def set_size(self, ras, decs, majs, img_beam):
         """
-        Calculate the size of this calibrator measuring the distance of each component from the mean
+        Calculate the size (diameter) of this calibrator measuring the distance of each component from the mean
         :param ras:  list of ras
         :param decs: list of decs
+        :param majs: major axis sizes for sources [deg]
         """
         ncomp = len(ras)
         if ncomp > 1:
             maxdist = 0
             center = SkyCoord(self.position[0]*u.deg, self.position[1]*u.deg, frame='fk5')
-            for ra, dec in zip(ras, decs):
+            for ra, dec, maj in zip(ras, decs, majs):
                 comp = SkyCoord(ra * u.deg, dec * u.deg, frame='fk5')
-                dist = center.separation(comp).deg
+                dist = center.separation(comp).deg + maj
                 if dist > maxdist:
                     maxdist = dist
             size = maxdist * 2
@@ -146,7 +147,6 @@ class Direction(object):
         #elif ncomp > 1 and size < 10*img_beam:
         #    # for complex sources force a larger region
         #    self.size = 8*img_beam
-
 
 
 class Grouper( object ):

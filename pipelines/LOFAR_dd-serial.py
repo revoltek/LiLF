@@ -180,7 +180,7 @@ for cmaj in range(maxIter):
         
         # locating DD-calibrators
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
-        #cal = cal[np.where(cal['Total_flux'] < 5*cal['Peak_flux'])] #  remove extended
+        cal = cal[np.where(cal['Total_flux'] < 10*cal['Peak_flux'])] #  remove extended
         cal = cal[np.where(cal['Total_flux'] > 0.1)]  # remove very faint to speedup
         cal['Cluster_id'] = 'None           '
         # grouping nearby sources
@@ -221,7 +221,7 @@ for cmaj in range(maxIter):
             ra = np.mean(cal['RA'][cluster_idxs])
             dec = np.mean(cal['DEC'][cluster_idxs])
             d.set_position( [ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center )
-            d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], img_beam[0]/3600)
+            d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
             d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
             model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
             for model_file in glob.glob(full_image.root+'*[0-9]-model.fits'):
