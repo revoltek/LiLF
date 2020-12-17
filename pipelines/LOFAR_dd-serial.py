@@ -355,7 +355,7 @@ for cmaj in range(maxIter):
                     'DDESolutions_DDModeGrid':'AP',
                     'DDESolutions_DDModeDeGrid':'AP',
                     'RIME_ForwardMode':'BDA-degrid',
-                    'DDESolutions_DDSols':interp_h5parm.replace('c%02i' % cmaj, 'c%02i' % (cmaj-1))+':sol000/phase000+amplitude000'
+                    'DDESolutions_DDSols':interp_h5parm.replace('c%02i' % cmaj, 'c%02i' % (cmaj-1))+':sol000/'+correct_for
                     }
                 logger.info('Predict corrupted rest-of-the-sky...')
                 lib_util.run_DDF(s, 'ddfacet-pre-'+logstring+'.log', **ddf_parms, Cache_Reset=1)
@@ -648,29 +648,35 @@ for cmaj in range(maxIter):
     
     imagename = 'img/wideDD-c%02i' % (cmaj)
 
+    # combine the h5parms
+    h5parms = {'ph':[], 'amp1':[], 'amp2':[]}
+    for d in directions:
+        # only those who converged
+        if d.peel_off:
+            continue
+        if not d.converged:
+            continue
+
+        h5parms['ph'].append(d.get_h5parm('ph',-2))
+        if d.get_h5parm('amp1',-2) is not None:
+            h5parms['amp1'].append(d.get_h5parm('amp1',-2))
+        if d.get_h5parm('amp2',-2) is not None:
+            h5parms['amp2'].append(d.get_h5parm('amp2',-2))
+
+        log = '%s: Phase (%s)' % (d.name, d.get_h5parm('ph',-2))
+        log += ' Amp1 (%s)' % (d.get_h5parm('amp1',-2))
+        log += ' Amp2 (%s)' % (d.get_h5parm('amp2',-2))
+        logger.info(log)
+
+    # it might happens that no directions ended up with amp solutions, restrict to phase only correction
+    if len(h5parms['amp1']) == 0:
+        correct_for = 'phase000'
+    else:
+        correct_for = 'phase000+amplitude000'
+
     with w.if_todo('c%02i-imaging' % cmaj):
         logger.info("Imaging - preparing solutions:")
 
-        # combine the h5parms
-        h5parms = {'ph':[], 'amp1':[], 'amp2':[]}
-        for d in directions:
-            # only those who converged
-            if d.peel_off:
-                continue
-            if not d.converged:
-                continue
-    
-            h5parms['ph'].append(d.get_h5parm('ph',-2))
-            if d.get_h5parm('amp1',-2) is not None:
-                h5parms['amp1'].append(d.get_h5parm('amp1',-2))
-            if d.get_h5parm('amp2',-2) is not None:
-                h5parms['amp2'].append(d.get_h5parm('amp2',-2))
-            
-            log = '%s: Phase (%s)' % (d.name, d.get_h5parm('ph',-2))
-            log += ' Amp1 (%s)' % (d.get_h5parm('amp1',-2))
-            log += ' Amp2 (%s)' % (d.get_h5parm('amp2',-2))
-            logger.info(log)
-    
         for typ, h5parm_list in h5parms.items():
             # rename direction
             for h5parmFile in h5parm_list:
@@ -760,7 +766,7 @@ for cmaj in range(maxIter):
                     'DDESolutions_DDModeDeGrid':'AP',
                     'RIME_ForwardMode':'BDA-degrid',
                     'Output_RestoringBeam':15.,
-                    'DDESolutions_DDSols':interp_h5parm+':sol000/phase000+amplitude000'
+                    'DDESolutions_DDSols':interp_h5parm+':sol000/'+correct_for
                     }
             
             logger.info('Cleaning...')
