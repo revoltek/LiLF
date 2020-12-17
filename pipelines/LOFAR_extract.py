@@ -309,7 +309,7 @@ for c in range(maxniter):
         with w.if_todo('cal-tecandph-c%02i' % c):
             MSs.run('DPPP ' + parset_dir + '/DPPP-soltecandphase.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
                      sol.mode=tecandphase sol.solint=' + str(solint_ph) + ' sol.nchan=1 sol.smoothnessconstraint=5e6 \
-                     sol.antennaconstraint = [[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
+                     sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
                      log='$nameMS_soltecandphase-c%02i.log' % c, commandType='DPPP')
             lib_util.run_losoto(s, 'ph', [ms + '/cal-ph.h5' for ms in MSs.getListStr()],
                                 [parset_dir + '/losoto-plottecandphase.parset'],
@@ -334,7 +334,7 @@ for c in range(maxniter):
             # Calibration - ms:CORRECTED_DATA
             # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
             MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
-                sol.mode=diagonal sol.solint=' + str(solint_amp) + ' sol.nchan=1 sol.smoothnessconstraint=4e6 sol.minvisratio=0.5\
+                sol.mode=diagonal sol.solint=' + str(solint_amp) + ' sol.nchan=1 sol.smoothnessconstraint=4e6 sol.minvisratio=0.5 \
                 sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-c%02i.log' % c, commandType='DPPP')
 
@@ -408,6 +408,7 @@ for c in range(maxniter):
 # Finally:
 with w.if_todo('apply_final'):
     if best_iter != c: # If last iteration was NOT the best iteration, apply best iteration.
+        logger.info('Best ieration: second to last cycle ({})'.format(best_iter))
         h5ph = 'extract/cal-ph-c%02i.h5' % best_iter
         h5amp1 = 'extract/cal-amp1-c%02i.h5' % best_iter
         h5amp2 = 'extract/cal-amp2-c%02i.h5' % best_iter
@@ -437,4 +438,5 @@ with w.if_todo('apply_final'):
                 cor.parmdb=' + h5amp2 + ' cor.correction=amplitude000',
                     log='$nameMS_correct-final.log', commandType='DPPP')
 
+    logger.info('Best ieration: last cycle ({})'.format(best_iter))
     logger.info('Finished, final results are in CORRECTED_DATA.')
