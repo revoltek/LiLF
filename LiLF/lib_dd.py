@@ -42,7 +42,7 @@ class Direction(object):
         self.region_file = loc+'/'+self.name+'.reg'
         s = Shape('circle', None)
         s.coord_format = 'fk5'
-        s.coord_list = [ self.position[0], self.position[1], self.size ]  # ra, dec, diam
+        s.coord_list = [ self.position[0], self.position[1], self.size/2. ]  # ra, dec, radius
         s.coord_format = 'fk5'
         s.attr = ([], {'width': '2', 'point': 'cross',
                        'font': '"helvetica 16 normal roman"'})
