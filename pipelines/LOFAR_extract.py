@@ -212,7 +212,7 @@ if not os.path.exists('img/empty-but-target-image.fits'):
 with w.if_todo('phaseshift'):
     logger.info('Phase shift and avg...')
     MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-extract/$nameMS.MS-extract msin.datacolumn=SUBTRACTED_DATA \
-            shift.phasecenter=['+str(target_reg.coord_list[0])+'deg,'+str(target_reg.coord_list[1])+'deg\] avg.freqstep=8 avg.timestep=2', \
+            shift.phasecenter=['+str(target_reg.coord_list[0])+'deg,'+str(target_reg.coord_list[1])+'deg\] avg.freqstep=8 avg.timestep=4', \
             log='$nameMS_shiftavg.log', commandType='DPPP')
     ### DONE
 
@@ -308,8 +308,9 @@ for c in range(maxniter):
         logger.info('Tecandphase calibration...')
         with w.if_todo('cal-tecandph-c%02i' % c):
             MSs.run('DPPP ' + parset_dir + '/DPPP-soltecandphase.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
-                sol.mode=tecandphase sol.solint=' + str(solint_ph) + ' sol.nchan=1 sol.smoothnessconstraint=5e6',
-                    log='$nameMS_soltecandphase-c%02i.log' % c, commandType='DPPP')
+                     sol.mode=tecandphase sol.solint=' + str(solint_ph) + ' sol.nchan=1 sol.smoothnessconstraint=5e6 \
+                     sol.antennaconstraint = [[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
+                     log='$nameMS_soltecandphase-c%02i.log' % c, commandType='DPPP')
             lib_util.run_losoto(s, 'ph', [ms + '/cal-ph.h5' for ms in MSs.getListStr()],
                                 [parset_dir + '/losoto-plottecandphase.parset'],
                                 plots_dir='extract/plots-%s' % c)
@@ -354,7 +355,7 @@ for c in range(maxniter):
             logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
             # Calibration - ms:SMOOTHED_DATA
             MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                sol.mode=diagonal sol.numthreads = 3 sol.solint=' + str(
+                sol.mode=diagonal numthreads=1 sol.solint=' + str(
                 solint_amp2) + ' sol.nchan=6  sol.smoothnessconstraint=10e6 sol.minvisratio=0.5', \
                         log='$nameMS_solGamp2-c%02i.log' % c, commandType='DPPP')
 
