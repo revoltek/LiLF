@@ -383,6 +383,7 @@ for c in range(2):
 
 # polarisation imaging
 with w.if_todo('imaging-pol'):
+    logger.info('Cleaning (Pol)...')
     imagenameP = 'img/wideP'
     lib_util.run_wsclean(s, 'wscleanP.log', MSs.getStrWsclean(), name=imagenameP, pol='QUV',
         size=imgsizepix, scale='10arcsec', weight='briggs -0.3', niter=0, no_update_model_required='',

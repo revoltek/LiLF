@@ -389,7 +389,7 @@ for cmaj in range(maxIter):
 
         with w.if_todo('%s-flag' % logstring):
             logger.info('Flag on mindata...')
-            MSs_dir.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+            MSs_dir.run('flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
         ### DONE
 
         # Correct for beam in that direction
@@ -613,7 +613,6 @@ for cmaj in range(maxIter):
                        setbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] \
                        corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=False', \
                        log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
-                #[MS.delBeamInfo(col='MODEL_DATA') for MS in MSs.getListObj()]
                 MSs.run('DPPP '+parset_dir+'/DPPP-beam2.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA steps=corrbeam \
                        corrbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] corrbeam.beammode=element corrbeam.invert=True', \
                        log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
@@ -680,10 +679,10 @@ for cmaj in range(maxIter):
     
                 if typ == 'ph':
                     lib_h5.addpol(h5parmFile, 'phase000')
-                    lib_h5.addpol(h5parmFile, 'amplitude000')
+                    #lib_h5.addpol(h5parmFile, 'amplitude000')
                     # reset high-res amplitudes in ph-solve
-                    s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetamp.parset ', log='h5parm_collector.log', commandType='python' )
-                    s.run()
+                    #s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetamp.parset ', log='h5parm_collector.log', commandType='python' )
+                    #s.run()
                     s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-refph.parset ', log='h5parm_collector.log', commandType='python' )
                     s.run()
     
