@@ -17,7 +17,7 @@ parser.add_argument('--projects', '-p', dest='project', help='Comma separated li
 parser.add_argument('--skip', '-s', action="store_true", help='Skip observations already present in field_obs, \
         this is faster but might miss some target to update as "Observed" in the field table.')
 parser.add_argument('--showdb', '-d', action="store_true", help='Print db status and exit.')
-parser.add_argument('--reset', '-r', action="store_true", help='Reset the db to "Not started" for all fields.')
+parser.add_argument('--reset', '-r', dest="reset", help='Reset the db to "Not started" for all fields. If a field is specified it only reset it to "Observed".', default=None)
 parser.add_argument('--incompletereset', '-i', action="store_true", help='Reset the fields that are not "Done"/"Not started" to "Observed".')
 args = parser.parse_args()
 
@@ -34,12 +34,17 @@ if args.showdb:
             print('%03i) ID: %s (%s)' % (i, entry['id'], entry['status']))
     sys.exit()
 
-if args.reset:
+if args.reset is not None:
     with SurveysDB(survey='lba',readonly=False) as sdb:  
-        print("WARNING: RESET ALL POINTINGS to \"Not started\"")
-        input("Press Enter to continue...")
-        sdb.execute('UPDATE fields SET status="Not started"')
-        sdb.execute('DELETE from field_obs')
+        if args.reset == 'all':
+            print("WARNING: RESET ALL POINTINGS to \"Not started\"")
+            input("Press Enter to continue...")
+            sdb.execute('UPDATE fields SET status="Not started"')
+            sdb.execute('DELETE from field_obs')
+        else:
+            print("WARNING: reset pointing %s to \"Observed\"" % args.reset)
+            input("Press Enter to continue...")
+            sdb.execute('UPDATE fields SET status="Observed" where id="%s"' % args.reset)
         sys.exit()
 
 if args.incompletereset:

@@ -14,13 +14,13 @@ class Direction(object):
 
     def __init__(self, name):
         self.name = name 
-        self.position = None # [deg, deg]
-        self.size = None # deg (1 value)
-        self.localrms = None # Jy/b (1 value)
-        self.fluxes = None # Jy - for each component
-        self.spidx_coeffs = None # 1st order - for each component
-        self.ref_freq = None # for each component
-        self.converged = None # bool
+        self.position = None  # [deg, deg]
+        self.size = None  # deg (1 value)
+        self.localrms = None  # Jy/b (1 value)
+        self.fluxes = None  # Jy - for each component
+        self.spidx_coeffs = None  # 1st order - for each component
+        self.ref_freq = None  # for each component
+        self.converged = None  # bool
         self.peel_off = None
         self.region_file = None
 
@@ -42,11 +42,12 @@ class Direction(object):
         self.region_file = loc+'/'+self.name+'.reg'
         s = Shape('circle', None)
         s.coord_format = 'fk5'
-        s.coord_list = [ self.position[0], self.position[1], self.size ]  # ra, dec, diam
+        s.coord_list = [ self.position[0], self.position[1], self.size/2. ]  # ra, dec, radius
         s.coord_format = 'fk5'
         s.attr = ([], {'width': '2', 'point': 'cross',
                        'font': '"helvetica 16 normal roman"'})
-        s.comment = 'color=red text="%s"' % self.name
+        if not self.peel_off: s.comment = 'color=red text="%s"' % self.name
+        else: s.comment = 'color=blue text="%s"' % self.name
 
         regions = pyregion.ShapeList([s])
         lib_util.check_rm(self.region_file)
@@ -119,19 +120,20 @@ class Direction(object):
         """
         return np.sum(np.array(self.fluxes) * (freq/np.array(self.ref_freq))**(np.array(self.spidx_coeffs)))
 
-    def set_size(self, ras, decs, img_beam):
+    def set_size(self, ras, decs, majs, img_beam):
         """
-        Calculate the size of this calibrator measuring the distance of each component from the mean
+        Calculate the size (diameter) of this calibrator measuring the distance of each component from the mean
         :param ras:  list of ras
         :param decs: list of decs
+        :param majs: major axis sizes for sources [deg]
         """
         ncomp = len(ras)
         if ncomp > 1:
             maxdist = 0
             center = SkyCoord(self.position[0]*u.deg, self.position[1]*u.deg, frame='fk5')
-            for ra, dec in zip(ras, decs):
+            for ra, dec, maj in zip(ras, decs, majs):
                 comp = SkyCoord(ra * u.deg, dec * u.deg, frame='fk5')
-                dist = center.separation(comp).deg
+                dist = center.separation(comp).deg + maj
                 if dist > maxdist:
                     maxdist = dist
             size = maxdist * 2
@@ -145,7 +147,6 @@ class Direction(object):
         #elif ncomp > 1 and size < 10*img_beam:
         #    # for complex sources force a larger region
         #    self.size = 8*img_beam
-
 
 
 class Grouper( object ):

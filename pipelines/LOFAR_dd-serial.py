@@ -145,18 +145,19 @@ phase_center = MSs.getListObj()[0].getPhaseCentre()
 timeint = MSs.getListObj()[0].getTimeInt()
 ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 ch_out_idg = 12  # better 24, but slow
+imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
+if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 #MSs.getListObj()[0].makeBeamReg('ddcal/beam.reg', freq='mid')
 #beamReg = 'ddcal/beam.reg'
 
-# logger.info('Add columns...')
-# MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
-# MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+logger.info('Add columns...')
+MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
 
 ##############################################################
 # setup initial model
-# os.system('cp self/images/wideM-1* ddcal/init/')
-# full_image = lib_img.Image('ddcal/init/wideM-1-MFS-image.fits', userReg=userReg)
-full_image = lib_img.Image('ddcal/c00/images/wideDD-c00.app.restored.fits', userReg=userReg)
+os.system('cp self/images/wideM-1* ddcal/init/')
+full_image = lib_img.Image('ddcal/init/wideM-1-MFS-image.fits', userReg=userReg)
 
 for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
@@ -222,7 +223,7 @@ for cmaj in range(maxIter):
             ra = np.mean(cal['RA'][cluster_idxs])
             dec = np.mean(cal['DEC'][cluster_idxs])
             d.set_position( [ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center )
-            d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], img_beam[0]/3600)
+            d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
             d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
             model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
             for model_file in glob.glob(full_image.root+'*[0-9]-model.fits'):
@@ -336,7 +337,7 @@ for cmaj in range(maxIter):
                     'Predict_InitDicoModel':outdico,
                     'Predict_ColName':'MODEL_DATA',
                     'Deconv_Mode':'HMP',
-                    'Image_NPix':8775,
+                    'Image_NPix':imgsizepix,
                     'CF_wmax':50000,
                     'CF_Nw':100,
                     'Beam_CenterNorm':1,
@@ -390,7 +391,7 @@ for cmaj in range(maxIter):
 
         with w.if_todo('%s-flag' % logstring):
             logger.info('Flag on mindata...')
-            MSs_dir.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+            MSs_dir.run('flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
         ### DONE
 
         # Correct for beam in that direction
@@ -449,7 +450,7 @@ for cmaj in range(maxIter):
                 # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                 logger.info('Gain phase calibration (solint: %i)...' % solint_ph)
                 MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
-                    sol.mode=scalarcomplexgain sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=5e6 \
+                    sol.mode=scalarphase sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=5e6 \
                     sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
                     log='$nameMS_solGph-'+logstringcal+'.log', commandType='DPPP')
                 lib_util.run_losoto(s, 'ph', [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()],
@@ -463,12 +464,11 @@ for cmaj in range(maxIter):
                              log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP')
 
                 if doamp:
-                    
                     logger.info('Gain amp calibration 1 (solint: %i)...' % solint_amp)
                     # Calibration - ms:CORRECTED_DATA
                     # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp)+' sol.nchan=10 sol.uvmmin=100 sol.minvisratio=0.5 \
+                        sol.mode=diagonal sol.solint='+str(solint_amp)+' sol.nchan=10 sol.minvisratio=0.5 \
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DPPP')
 
@@ -488,8 +488,9 @@ for cmaj in range(maxIter):
 
                     logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
                     # Calibration - ms:CORRECTED_DATA
+                    #sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]
                     MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.uvmmin=100 sol.minvisratio=0.5',
+                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.minvisratio=0.5',
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DPPP')
 
                     #if d.peel_off:
@@ -614,7 +615,6 @@ for cmaj in range(maxIter):
                        setbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] \
                        corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=False', \
                        log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
-                #[MS.delBeamInfo(col='MODEL_DATA') for MS in MSs.getListObj()]
                 MSs.run('DPPP '+parset_dir+'/DPPP-beam2.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA steps=corrbeam \
                        corrbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] corrbeam.beammode=element corrbeam.invert=True', \
                        log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
@@ -681,13 +681,13 @@ for cmaj in range(maxIter):
     
                 if typ == 'ph':
                     lib_h5.addpol(h5parmFile, 'phase000')
-                    lib_h5.addpol(h5parmFile, 'amplitude000')
-                    # reset high-res amplitudes in ph-solve
-                    s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetamp.parset ', log='h5parm_collector.log', commandType='python' )
-                    s.run()
+                    #lib_h5.addpol(h5parmFile, 'amplitude000')
                     s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-refph.parset ', log='h5parm_collector.log', commandType='python' )
                     s.run()
-    
+                    # reset high-res amplitudes in ph-solve
+                    #s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetamp.parset ', log='h5parm_collector.log', commandType='python' )
+                    #s.run()
+
                 if typ == 'amp1' or typ == 'amp2':
                     s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetph.parset ', log='h5parm_collector.log', commandType='python' )
                     s.run()
@@ -724,7 +724,7 @@ for cmaj in range(maxIter):
             sys.exit('Not implemente further on...')
     
         else:
-    
+
             ddf_parms = {
                     'Data_MS':MSs.getStrDDF(),
                     'Data_ColName':'CORRECTED_DATA',
@@ -737,7 +737,7 @@ for cmaj in range(maxIter):
                     'Deconv_Mode':'HMP',
                     'HMP_AllowResidIncrease':1.,
                     'Weight_Robust':-0.5,
-                    'Image_NPix':8775,
+                    'Image_NPix':imgsizepix,
                     'CF_wmax':50000,
                     'CF_Nw':100,
                     'Beam_CenterNorm':1,

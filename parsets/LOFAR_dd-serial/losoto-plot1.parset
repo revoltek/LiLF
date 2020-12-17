@@ -1,11 +1,11 @@
 Ncpu = 0
 
-[plotA]
-operation = PLOT
-soltab = sol000/amplitude000
-axesInPlot = [time,freq]
-axisInTable = ant
-prefix = plots/amp1_
+#[plotA]
+#operation = PLOT
+#soltab = sol000/amplitude000
+#axesInPlot = [time,freq]
+#axisInTable = ant
+#prefix = plots/amp1_
 
 [plotP]
 operation = PLOT
