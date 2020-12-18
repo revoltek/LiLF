@@ -30,9 +30,8 @@ def make_mask(image_name, mask_name=None, threshpix=5, atrous_do=False, rmsbox=(
         img.write_catalog(format='fits', catalog_type='srl', outfile=mask_name.replace('fits','cat.fits'), clobber=True)
     if write_gaul:
         img.write_catalog(format='bbs', catalog_type='gaul', outfile=mask_name.replace('fits','skymodel'), clobber=True)
-    if write_srl:
+    if write_ds9:
         img.write_catalog(format='ds9', catalog_type='srl', outfile=mask_name.replace('fits','reg'), clobber=True)
-
     del img
 
     # do an pixel-by-pixel "OR" operation with a given mask

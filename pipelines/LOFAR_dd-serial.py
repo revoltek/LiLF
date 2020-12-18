@@ -5,7 +5,7 @@
 
 # TODO: remove regions and move to masks
 
-import sys, os, glob, re, pickle
+import sys, os, glob, re, pickle, collections
 import numpy as np
 from astropy.table import Table as astrotab
 from astropy.coordinates import SkyCoord
@@ -180,17 +180,21 @@ for cmaj in range(maxIter):
         
         # locating DD-calibrators
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
-        # cal.remove_rows(cal['Total_flux'] < 0.01) # remove very faint to speedup
-        # cal.remove_rows((cal['Total_flux'] > 5*cal['Peak_flux']) & (cal['Total_flux'] < 0.5)) # remove extended faint
-        # cal.remove_rows((cal['Total_flux'] > 5*cal['Total_flux']*cal['Peak_flux']) & (cal['Total_flux'] >= 0.5)) # remove extended bright
-        print(len(cal))
+        cal.remove_rows((cal['Total_flux'] < 0.01) | (cal['Isl_Total_flux'] < 0.1)) # remove very faint to speedup
+        cal.remove_rows((cal['Total_flux'] > 5*cal['Peak_flux']) & (cal['Total_flux'] < 0.5)) # remove extended faint
+        cal.remove_rows((cal['Total_flux'] > 5*cal['Total_flux']*cal['Peak_flux']) & (cal['Total_flux'] >= 0.5)) # remove extended bright
         cal['Cluster_id'] = 'None           '
         # grouping nearby sources
         grouper = lib_dd.Grouper(list(zip(cal['RA'],cal['DEC'])), cal['Total_flux'],
                                  look_distance=0.05, kernel_size=0.03, grouping_distance=0.03)
         grouper.run()
-        clusters = grouper.grouping()
+        grouper.grouping()
         grouper.plot()
+        # assert sources in same island are in same group
+        populated_isl = [isl for isl, n in collections.Counter(cal['Isl_id']).items() if n > 1] # isls with more than 1 source
+        ids_to_merge = [np.where(cal['Isl_id'] == this_isl)[0] for this_isl in populated_isl] # list of lists of source ids that belong to populated cluster
+        [grouper.merge_ids(ids) for ids in ids_to_merge] # merge ids
+        clusters = grouper.clusters
         os.system('mv grouping*png ddcal/c%02i/plots/' % cmaj)
         img_beam = full_image.getBeam()
         img_freq = full_image.getFreq()
@@ -201,8 +205,8 @@ for cmaj in range(maxIter):
             cal['Cluster_id'][cluster_idxs] = name  # just for debug
 
             fluxes = np.sum(cal['Total_flux'][cluster_idxs])
-            spidx_coeffs = [-0.8]*len(cluster_idxs)
-            ref_freqs = [img_freq]*len(cluster_idxs)
+            spidx_coeffs = -0.8
+            ref_freqs = img_freq
             localrms = np.max(cal['Isl_rms'][cluster_idxs])
 
             d = lib_dd.Direction(name)
@@ -255,6 +259,7 @@ for cmaj in range(maxIter):
             d = directions.pop(target_idx)
             directions.insert(len(directions),d)
 
+        logger.info('Found {} cals brighter than {} Jy:'.format(len(directions), min_cal_flux60))
         for d in directions:
             if not d.peel_off:
                 logger.info('%s: flux: %.2f Jy (rms:%.2f mJy)' % (d.name, d.get_flux(60e6), d.localrms*1e3))
