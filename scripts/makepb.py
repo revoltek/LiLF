@@ -3,7 +3,7 @@
 # use idg to create a primary beam file for LOFAR
 # the output of wsclean is re-arranged to have a single beam file even if more channels are used
 
-import os, sys
+import os, sys, glob
 from astropy.io import fits
 
 def make_beam(mss, outfile='beam.fits', pixscale=10, size=5, nchans=1):
