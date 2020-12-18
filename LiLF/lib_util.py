@@ -79,8 +79,10 @@ def getParset(parsetFile='../lilf.config'):
     # ddfacet
     add_default('LOFAR_ddfacet', 'maxniter', '10')
     add_default('LOFAR_ddfacet', 'calFlux', '2.0')
-    # facet_self
-    add_default('LOFAR_facet_self', 'maxniter', '10')
+    # extract
+    add_default('LOFAR_extract', 'maxIter', '10')
+    add_default('LOFAR_extract', 'extractRegion', 'target.reg')
+    add_default('LOFAR_extract', 'phSolMode', 'tecandphase') # tecandphase, phase
 
     ### uGMRT ###
 

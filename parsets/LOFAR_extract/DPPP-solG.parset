@@ -1,0 +1,18 @@
+msin = 
+msin.datacolumn = SMOOTHED_DATA
+msout = .
+
+steps=[sol]
+
+sol.type = ddecal
+sol.uvlambdamin = 100
+sol.minvisratio = 0.5
+#sol.sourcedb =
+sol.usemodelcolumn = True
+sol.h5parm =
+sol.maxiter = 100
+sol.tolerance = 1e-4
+sol.solint =
+sol.nchan = 1
+sol.mode = scalarcomplexgain # diagonal, scalarcomplexgain, tec
+sol.propagatesolutions = True
