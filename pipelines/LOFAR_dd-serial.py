@@ -192,7 +192,7 @@ for cmaj in range(maxIter):
         grouper.plot()
         # assert sources in same island are in same group
         populated_isl = [isl for isl, n in collections.Counter(cal['Isl_id']).items() if n > 1] # isls with more than 1 source
-        ids_to_merge = [np.where(cal['Isl_id'] == this_isl)[0] for this_isl in populated_isl] # list of lists of source ids that belong to populated cluster
+        ids_to_merge = [np.flatnonzero(cal['Isl_id'] == this_isl) for this_isl in populated_isl] # list of lists of source ids that belong to populated cluster
         [grouper.merge_ids(ids) for ids in ids_to_merge] # merge ids
         clusters = grouper.clusters
         os.system('mv grouping*png ddcal/c%02i/plots/' % cmaj)

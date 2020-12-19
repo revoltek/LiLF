@@ -184,7 +184,7 @@ class Grouper( object ):
         """
         distances = self.euclid_distance(centroid, coords)
         #print('Evaluating: [%s vs %s] yield dist=%.2f' % (x, x_centroid, distance_between))
-        return np.where(distances < max_distance)[0]
+        return np.flatnonzero(distances < max_distance)
     
     def gaussian_kernel(self, distance):
         """
@@ -260,7 +260,7 @@ class Grouper( object ):
             merged = np.squeeze([clusters[id] for id in contains_id]) # this will be the merged cluster
             clusters = list(np.delete(clusters, contains_id)) # delete clusters that are merged so they don't apper twice
             logger.info('Merge groups in same mask island: {}'.format(merged))
-            clusters.append(merged)
+            clusters.append(merged.astype(int))
             self.clusters = clusters
 
 
