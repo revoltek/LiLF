@@ -5,6 +5,7 @@
 
 import os, sys, glob
 from astropy.io import fits
+import numpy as np
 
 def make_beam(mss, outfile='beam.fits', pixscale=10, size=5, nchans=1):
 
