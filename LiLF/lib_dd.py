@@ -219,7 +219,7 @@ class Grouper( object ):
             #    print (np.max(self.euclid_distance(self.coords,self.past_coords[-2])))
 
             # if things changes little, brak
-            if it>1 and np.max(self.euclid_distance(self.coords, self.past_coords[-2])) < self.grouping_distance/2.: 
+            if it > 1 and np.max(self.euclid_distance(self.coords, self.past_coords[-2])) < self.grouping_distance/2.:
                 break
             
 
@@ -244,20 +244,21 @@ class Grouper( object ):
         logger.info('Grouper: Creating %i groups.' % len(self.clusters))
         return self.clusters
 
+
     def merge_ids(self, ids):
         """ Merge groups containing ids"""
         if len(ids) < 2:
             return None
         clusters = self.clusters
-        contains_id = [] # indices of clusters which contain one or more of the ids
+        contains_id = []  # indices of clusters which contain one or more of the ids
         for id in ids:
-            isin = [id in cluster for cluster in clusters] # cluster_ids for clusters containing source ids
+            isin = [id in cluster for cluster in clusters]  # cluster_ids for clusters containing source ids
             contains_id.append(np.nonzero(isin))
         contains_id = np.unique(contains_id)
-        if len(contains_id) == 1: # all sources are already in the same cluster!
+        if len(contains_id) == 1:  # all sources are already in the same cluster!
             return None
         else:
-            merged = np.squeeze([clusters[id] for id in contains_id]) # this will be the merged cluster
+            merged = np.concatenate([clusters[id] for id in contains_id]) # this will be the merged cluster
             clusters = list(np.delete(clusters, contains_id)) # delete clusters that are merged so they don't apper twice
             logger.info('Merge groups in same mask island: {}'.format(merged))
             clusters.append(merged.astype(int))
