@@ -283,9 +283,12 @@ for c in range(2):
         #multiscale = '', multiscale_scale_bias = 0.6,
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, save_source_list='',
                 size=imgsizepix, scale='10arcsec', reuse_psf=imagename,
-                weight='briggs -0.3', niter=1000000, no_update_model_required='', parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500, mgain=0.85,
+                weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
+                parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
                 parallel_deconvolution=512, auto_threshold=3., fits_mask=maskname,
-                join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, **kwargs)
+                join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6),
+                multiscale = '', multiscale_scale_bias = 0.6,
+                deconvolution_channels=3, **kwargs)
 
         os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
     ### DONE
@@ -332,10 +335,12 @@ for c in range(2):
             #                     intervals_out=len(MSs.mssListObj)*4,
             lib_util.run_wsclean(s, 'wscleanULR.log', MSs.getStrWsclean(), name=imagename_ulr, do_predict=False,
                                  parallel_gridding=4, temp_dir='./', size=1500, scale='30arcsec',
-                                 weight='briggs 0', niter=500, no_update_model_required='', minuv_l=0,
+                                 no_fit_beam='', circular_beam='', beam_size='200.0arcsec',
+                                 multiscale='', multiscale_scales='0,4,8,16,32,64',
+                                 weight='briggs 0', niter=10000, no_update_model_required='', minuv_l=20,
                                  maxuvw_m=5000, taper_gaussian='200arcsec', mgain=0.85,
-                                 parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=3,
-                                 auto_threshold=1.5, join_channels='', channels_out=MSs.getChout(4.e6))
+                                 parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=1.5,
+                                 auto_threshold=0.5, join_channels='', channels_out=MSs.getChout(4.e6))
         ### DONE
 
         with w.if_todo('lowres_flag_c%02i' % c):

@@ -186,7 +186,7 @@ for cmaj in range(maxIter):
         cal['Cluster_id'] = 'None           '
         # grouping nearby sources
         grouper = lib_dd.Grouper(list(zip(cal['RA'],cal['DEC'])), cal['Total_flux'],
-                                 look_distance=0.05, kernel_size=0.03, grouping_distance=0.03)
+                                 look_distance=0.1, kernel_size=0.07, grouping_distance=0.03)
         grouper.run()
         grouper.grouping()
         grouper.plot()
@@ -226,7 +226,7 @@ for cmaj in range(maxIter):
             #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,ref_freqs,size,img_beam,lsm.getColValues('MajorAxis')[idx])
             ra = np.mean(cal['RA'][cluster_idxs])
             dec = np.mean(cal['DEC'][cluster_idxs])
-            d.set_position( [ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center )
+            d.set_position([ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center)
             d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
             d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
             model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
