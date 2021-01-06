@@ -402,9 +402,10 @@ class Region_helper():
                 min_dec.append(c[1] - c[2])
                 max_dec.append(c[1] + c[2])
             elif r.name == 'polygon':
-                c = r.coord_list # ra_i, dec_i, ra_i+1, dec_i+1
-                n_p = np.arange(0,int(c/2), dtype=int)
-                p_ra, p_dec = c[n_p], c[n_p+1]
+                c = np.array(r.coord_list) # ra_i, dec_i, ra_i+1, dec_i+1
+                ra_mask = np.zeros(len(c), dtype=int)
+                ra_mask[::2] = 1
+                p_ra, p_dec = c[ra_mask], c[~ra_mask]
                 min_ra.append(np.min(p_ra))
                 max_ra.append(np.max(p_ra))
                 min_dec.append(np.min(p_dec))
