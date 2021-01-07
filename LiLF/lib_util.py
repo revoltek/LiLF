@@ -403,9 +403,10 @@ class Region_helper():
                 max_dec.append(c[1] + c[2])
             elif r.name == 'polygon':
                 c = np.array(r.coord_list) # ra_i, dec_i, ra_i+1, dec_i+1
-                ra_mask = np.zeros(len(c), dtype=int)
-                ra_mask[::2] = 1
-                p_ra, p_dec = c[ra_mask], c[~ra_mask]
+                ra_mask = np.zeros(len(c), dtype=bool)
+                ra_mask[::2] = True
+                p_ra  = c[ra_mask]
+                p_dec = c[~ra_mask]
                 min_ra.append(np.min(p_ra))
                 max_ra.append(np.max(p_ra))
                 min_dec.append(np.min(p_dec))
@@ -422,12 +423,15 @@ class Region_helper():
         """ Return center point [ra, dec] """
         return 0.5 * np.array([self.min_ra + self.max_ra, self.min_dec + self.max_dec])
 
-    def get_width_ra(self):
-        """ Return RA width in degree"""
-        return self.max_ra - self.min_ra
+    def get_width(self):
+        """ Return RA width in degree (at center declination)"""
+        delta_ra = self.max_ra - self.min_ra
+        width = 2*np.arcsin(np.cos(np.deg2rad(self.get_center()[1]))*np.sin(np.deg2rad(delta_ra/2)))
+        width = np.rad2deg(width)
+        return width
 
-    def get_width_dec(self):
-        """ Return RA width in degree"""
+    def get_height(self):
+        """ Return height in degree"""
         return self.max_dec - self.min_dec
 
     def __len__(self):

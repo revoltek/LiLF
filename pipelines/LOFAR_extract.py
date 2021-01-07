@@ -215,7 +215,7 @@ with w.if_todo('phaseshift'):
 MSs = lib_ms.AllMSs( glob.glob('mss-extract/*MS-extract'), s )
 
 with w.if_todo('beamcorr'):
-    logger.info('Correcting beam...')
+    logger.info('Correcting beam...') # TODO is this correct?
     # Convince DPPP that DATA is corrected for the beam in the phase centre
     MSs.run('DPPP ' + parset_dir + '/DPPP-beam.parset msin=$pathMS setbeam.direction=\[' + str(center[0]) + 'deg,'
             + str(center[1]) + 'deg\] corrbeam.direction=\[' + str(center[0]) + 'deg,' + str(
@@ -247,7 +247,7 @@ with w.if_todo('apply_init'):
 # initial imaging to get the model in the MODEL_DATA (could also be done using the Dico DDFacet model
 with w.if_todo('image_init'):
     logger.info('Initial imaging...')
-    clean('init', MSs, size=(1.1*target_reg.get_width_ra(),1.1*target_reg.get_width_dec()))
+    clean('init', MSs, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()))
     ### DONE
 
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
