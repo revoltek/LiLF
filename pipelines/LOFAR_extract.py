@@ -17,15 +17,15 @@ from losoto.h5parm import h5parm
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 logger_obj = lib_log.Logger('pipeline-extract.logger')
 logger = lib_log.logger
-s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
+s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-extract.walker')
 
 # parse parset
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_extract','parset_dir')
 maxniter = parset.getint('LOFAR_extract','maxniter')
-target_reg_file = parset.get('LOFAR_extract','extractRegion') # default 'target.reg'
-phSolMode = parset.get('LOFAR_extract','phSolMode') # default: tecandphase
+target_reg_file = parset.get('LOFAR_extract','extractRegion')  # default 'target.reg'
+phSolMode = parset.get('LOFAR_extract','phSolMode')  # default: tecandphase
 if phSolMode not in ['tecandphase', 'phase']:
     logger.error('phSolMode {} not supported. Choose tecandphase, phase.')
     sys.exit()
@@ -35,10 +35,8 @@ userReg = parset.get('model','userReg')
 with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('extract')
-    os.makedirs('extract')
     lib_util.check_rm('img')
     os.makedirs('img')
-    lib_util.check_rm('extract/init')
     os.makedirs('extract/init')
     os.system('cp ddcal/c01/images/wideDD-c01.app.restored.fits extract/init/') # copy ddcal image
     os.system('cp ddcal/c01/images/wideDD-c01.DicoModel extract/init/') # copy dico model
@@ -166,7 +164,7 @@ with w.if_todo('predict_rest'):
         'Output_Mode': 'Predict',
         'Predict_InitDicoModel': outdico,
         'Predict_ColName': 'MODEL_DATA',
-        'Deconv_Mode': 'HMP',
+        'Deconv_Mode': 'SSD',
         'Image_NPix': 8775,
         'CF_wmax': 50000,
         'CF_Nw': 100,
@@ -206,7 +204,6 @@ with w.if_todo('subtract_rest'):
 if not os.path.exists('img/empty-but-target-image.fits'):
     clean('but-target', MSs, size=(fwhm,fwhm), res='normal', empty=True)
     ### DONE
-
 
 # Phase shift in the target location
 with w.if_todo('phaseshift'):

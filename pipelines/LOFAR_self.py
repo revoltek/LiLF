@@ -69,41 +69,6 @@ if sourcedb == '':
         apparent = False
     sourcedb = 'tgts.skydb'
 
-########################################################
-### Demix
-# TODO: moved to LOFAR_demix
-#with w.if_todo('demix'):
-#    ateams = ['VirA', 'TauA']
-#    ateams_todemix = []
-#    for ateam in ateams:
-#        sep = MSs.getListObj()[0].distBrightSource(ateam)
-#        if sep < 4 or sep > 15:
-#            logger.debug('No demix of %s (sep: %.0f deg)' % (ateam, sep))
-#        else:
-#            ateams_todemix.append(ateam)
-#            logger.warning('Demix of %s (sep: %.0f deg)' % (ateam, sep))
-#
-#    if len(ateams_todemix) > 0:
-#        if os.path.exists('mss-predemix'):
-#            logger.warning('Reset mss...')
-#            lib_util.check_rm('mss/*MS')
-#        else:
-#            logger.info('Move mss in mss-predemix...')
-#            os.system('mv mss mss-predemix')
-#            os.system('mkdir mss')
-#
-#        MSs = lib_ms.AllMSs(glob.glob('mss-predemix/TC*[0-9].MS'), s)
-#        for MS in MSs.getListStr():
-#            lib_util.check_rm(MS+'/'+os.path.basename(skydb_demix))
-#            os.system('cp -r '+skydb_demix+' '+MS+'/'+os.path.basename(skydb_demix))
-#
-#        logger.info('Demixing...')
-#        MSs.run('DPPP '+parset_dir+'/DPPP-demix.parset msin=$pathMS msout=mss/$nameMS.MS demixer.skymodel=$pathMS/'+os.path.basename(skydb_demix)+
-#                ' demixer.instrumentmodel=$pathMS/instrument_demix demixer.subtractsources=\['+','.join(ateams_todemix)+'\]',
-#                log='$nameMS_demix.log', commandType='DPPP', maxThreads=1)
-#        MSs = lib_ms.AllMSs(glob.glob('mss/TC*[0-9].MS'), s)
-### DONE
-
 #################################################################################################
 # Add model to MODEL_DATA
 # copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
@@ -276,18 +241,17 @@ for c in range(2):
             im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
             im.makeMask(threshpix=5)
 
-            kwargs = {'do_predict':True, 'reuse_dirty':imagename}
+            kwargs = {'do_predict':True, 'reuse_dirty':imagename, 'reuse_psf':''}
         else: 
             kwargs = {}
 
-        #multiscale = '', multiscale_scale_bias = 0.6,
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, save_source_list='',
-                size=imgsizepix, scale='10arcsec', reuse_psf=imagename,
+                size=imgsizepix, scale='10arcsec',
                 weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
                 parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
                 parallel_deconvolution=512, auto_threshold=3., fits_mask=maskname,
                 join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6),
-                multiscale = '', multiscale_scale_bias = 0.6,
+                multiscale='', multiscale_scale_bias=0.6,
                 deconvolution_channels=3, **kwargs)
 
         os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
