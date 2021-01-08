@@ -46,13 +46,9 @@ with w.if_todo('cleaning'):
         logger.info('Copy MS...')
         os.system('cp -r mss-avg mss-extract')
 
-# region must be a single ds9 circle
-target_reg = pyregion.open(target_reg_file)
-if len(target_reg) > 1 or target_reg[0].name != 'circle':
-    raise ImportError('Only single circle regions supported.')
-target_reg = target_reg[0]
-logger.info("Extract target region: {:.2f}deg, {:.2f}deg; radius: {:.3f}deg".format(*target_reg.coord_list))
-
+# region must be a list of ds9 circles and polygons (other shapes can be implemented in lib_util.Rgion_helper()
+target_reg = lib_util.Region_helper(target_reg_file)
+center = target_reg.get_center() # center of the extract region
 MSs = lib_ms.AllMSs( glob.glob('mss-extract/*MS'), s )
 ch_out = MSs.getChout(4e6)  # chout from dd-serial
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
@@ -209,18 +205,18 @@ if not os.path.exists('img/empty-but-target-image.fits'):
 with w.if_todo('phaseshift'):
     logger.info('Phase shift and avg...')
     MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-extract/$nameMS.MS-extract msin.datacolumn=SUBTRACTED_DATA \
-            shift.phasecenter=['+str(target_reg.coord_list[0])+'deg,'+str(target_reg.coord_list[1])+'deg\] avg.freqstep=8 avg.timestep=4', \
+            shift.phasecenter=['+str(center[0])+'deg,'+str(center[1])+'deg\] avg.freqstep=8 avg.timestep=4', \
             log='$nameMS_shiftavg.log', commandType='DPPP')
     ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('mss-extract/*MS-extract'), s )
 
 with w.if_todo('beamcorr'):
-    logger.info('Correcting beam...')
+    logger.info('Correcting beam...') # TODO is this correct?
     # Convince DPPP that DATA is corrected for the beam in the phase centre
-    MSs.run('DPPP ' + parset_dir + '/DPPP-beam.parset msin=$pathMS setbeam.direction=\[' + str(phase_center[0]) + 'deg,'
-            + str(phase_center[1]) + 'deg\] corrbeam.direction=\[' + str(target_reg.coord_list[0]) + 'deg,' + str(
-        str(target_reg.coord_list[1])) + 'deg\]', log='$nameMS_beam-.log', commandType='DPPP')
+    MSs.run('DPPP ' + parset_dir + '/DPPP-beam.parset msin=$pathMS setbeam.direction=\[' + str(center[0]) + 'deg,'
+            + str(center[1]) + 'deg\] corrbeam.direction=\[' + str(center[0]) + 'deg,' + str(
+        str(center[1])) + 'deg\]', log='$nameMS_beam-.log', commandType='DPPP')
     ### DONE
 
 # apply init - closest DDE sol
@@ -229,9 +225,8 @@ with w.if_todo('apply_init'):
     h5init = h5parm(dde_h5parm)
     solset_dde = h5init.getSolset('sol000')
     # get closest dir to target reg center
-    dirs = [solset_dde.getSou()[k] for k in solset_dde.getSoltab('phase000').dir]
-    center = np.deg2rad(target_reg.coord_list[0:2])
-    dir_dist = ((dirs - center)**2).sum(axis=1)**0.5 # TODO: should use haversine here, not euclidean norm for ra, dec...
+    dirs = np.array([solset_dde.getSou()[k] for k in solset_dde.getSoltab('phase000').dir])
+    dir_dist = lib_util.distanceOnSphere(dirs[:,0], dirs[:,1],*np.deg2rad(center), rad=True)
     closest = solset_dde.getSoltab('phase000').dir[np.argmin(dir_dist)]
     logger.info('Init apply: correct closest DDE solutions ({})'.format(closest))
     logger.info('Correct init ph...')
@@ -249,7 +244,7 @@ with w.if_todo('apply_init'):
 # initial imaging to get the model in the MODEL_DATA (could also be done using the Dico DDFacet model
 with w.if_todo('image_init'):
     logger.info('Initial imaging...')
-    clean('init', MSs, size=(2*target_reg.coord_list[2], 2*target_reg.coord_list[2]))
+    clean('init', MSs, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()))
     ### DONE
 
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
@@ -372,7 +367,8 @@ for c in range(maxniter):
 
     with w.if_todo('image-c%02i' % c):
         logger.info('Imaging...')
-        clean('c%02i' % c, MSs, size=(2*target_reg.coord_list[2], 2*target_reg.coord_list[2])) # size 2 times radius  , apply_beam = c==maxniter
+        # TODO: Apply beam for last iteration
+        clean('c%02i' % c, MSs, size=(1.1*target_reg.get_width_ra(),1.1*target_reg.get_width_dec())) # size 2 times radius  , apply_beam = c==maxniter
     ### DONE
 
     # get noise, if larger than 95% of prev cycle: break

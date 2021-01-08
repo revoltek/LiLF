@@ -5,6 +5,7 @@ import numpy as np
 import multiprocessing, subprocess
 from threading import Thread
 from queue import Queue
+import pyregion
 import gc
 
 if (sys.version_info > (3, 0)):
@@ -175,21 +176,31 @@ def getCalibratorProperties():
     return calibratorRAs, calibratorDecs, calibratorNames
 
 
-def distanceOnSphere(RAs1, Decs1, RAs2, Decs2):
+def distanceOnSphere(RAs1, Decs1, RAs2, Decs2, rad=False):
     """
     Return the distances on the sphere from the set of points '(RAs1, Decs1)' to the
     set of points '(RAs2, Decs2)' using the spherical law of cosines.
 
-    It assumes that all inputs are given in degrees, and gives the output in degrees, too.
-
     Using 'numpy.clip(..., -1, 1)' is necessary to counteract the effect of numerical errors, that can sometimes
     incorrectly cause '...' to be slightly larger than 1 or slightly smaller than -1. This leads to NaNs in the arccosine.
     """
+    if rad: # rad in rad out
+        return np.radians(np.arccos(np.clip(
+            np.sin(Decs1) * np.sin(Decs2) +
+            np.cos(Decs1) * np.cos(Decs2) *
+            np.cos(RAs1 - RAs2), -1, 1)))
+    else: # deg in deg out
+        return np.degrees(np.arccos(np.clip(
+               np.sin(np.radians(Decs1)) * np.sin(np.radians(Decs2)) +
+               np.cos(np.radians(Decs1)) * np.cos(np.radians(Decs2)) *
+               np.cos(np.radians(RAs1 - RAs2)), -1, 1)))
 
-    return np.degrees(np.arccos(np.clip(
-           np.sin(np.radians(Decs1)) * np.sin(np.radians(Decs2)) +
-           np.cos(np.radians(Decs1)) * np.cos(np.radians(Decs2)) *
-           np.cos(np.radians(RAs1 - RAs2)), -1, 1)))
+# def _haversine(s1, s2): # crosscheck
+#     """
+#     Calculate the great circle distance between two points
+#     (specified in rad)
+#     """
+#     return 2*np.arcsin(np.sqrt(np.sin((s2[1]-s1[1])/2.0)**2 + np.cos(s1[1]) * np.cos(s2[1]) * np.sin((s2[0]-s1[0])/2.0)**2))
 
 
 def check_rm(regexp):
@@ -364,6 +375,67 @@ def run_DDF(s, logfile, **kwargs):
     command_string = 'DDF.py '+' '.join(ddf_parms)
     s.add(command_string, log=logfile, commandType='python', processors='max')
     s.run(check=True)
+
+
+class Region_helper():
+    """
+    Simple class to get the extent of a ds9 region file containing one or more circles or polygons.
+    All properties are returned in degrees.
+
+    Parameters
+    ----------
+    filename: str
+        Path to ds9 region file.
+    """
+    def __init__(self, filename):
+        self.filename = filename
+        self.reg_list = pyregion.open(filename)
+        min_ra, max_ra, min_dec, max_dec = [], [], [], []
+        for r in self.reg_list:
+            # TODO: if necessary, box, ellipse and polygon can be added.
+            if r.name == 'circle':
+                c = r.coord_list # c_ra, c_dec, radius
+                # how much RA does the radius correspond to
+                radius_ra = np.rad2deg(2*np.arcsin(np.sin(np.deg2rad(c[2])/2)/np.cos(np.deg2rad(c[1]))))
+                min_ra.append(c[0] - radius_ra)
+                max_ra.append(c[0] + radius_ra)
+                min_dec.append(c[1] - c[2])
+                max_dec.append(c[1] + c[2])
+            elif r.name == 'polygon':
+                c = np.array(r.coord_list) # ra_i, dec_i, ra_i+1, dec_i+1
+                ra_mask = np.zeros(len(c), dtype=bool)
+                ra_mask[::2] = True
+                p_ra  = c[ra_mask]
+                p_dec = c[~ra_mask]
+                min_ra.append(np.min(p_ra))
+                max_ra.append(np.max(p_ra))
+                min_dec.append(np.min(p_dec))
+                max_dec.append(np.max(p_dec))
+            else:
+                logger.error('Region type {} not supported.'.format(r.name))
+                sys.exit(1)
+        self.min_ra = np.min(min_ra)
+        self.max_ra = np.max(max_ra)
+        self.min_dec = np.min(min_dec)
+        self.max_dec = np.max(max_dec)
+
+    def get_center(self):
+        """ Return center point [ra, dec] """
+        return 0.5 * np.array([self.min_ra + self.max_ra, self.min_dec + self.max_dec])
+
+    def get_width(self):
+        """ Return RA width in degree (at center declination)"""
+        delta_ra = self.max_ra - self.min_ra
+        width = 2*np.arcsin(np.cos(np.deg2rad(self.get_center()[1]))*np.sin(np.deg2rad(delta_ra/2)))
+        width = np.rad2deg(width)
+        return width
+
+    def get_height(self):
+        """ Return height in degree"""
+        return self.max_dec - self.min_dec
+
+    def __len__(self):
+        return len(self.reg_list)
 
 
 class Skip(Exception):
