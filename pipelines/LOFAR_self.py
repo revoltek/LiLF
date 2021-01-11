@@ -53,8 +53,8 @@ beamReg = 'self/beam.reg'
 imgsizepix = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/10.)
 if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 
-# set clean componet fit order
-bandwidth = MSs.getListObj()[0].getBandwidth()
+# set clean componet fit order (use 5 for large BW)
+bandwidth = MSs.getBandwidth()
 if bandwidth > 25e6: cc_fit_order = 5
 else: cc_fit_order = 3
 
