@@ -55,7 +55,7 @@ if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 
 # set clean componet fit order
 bandwidth = MSs.getListObj()[0].getBandwidth()
-if bandwidth > 25: cc_fit_order = 5
+if bandwidth > 25e6: cc_fit_order = 5
 else: cc_fit_order = 3
 
 #################################################################
