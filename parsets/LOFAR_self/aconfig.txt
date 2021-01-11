@@ -1,0 +1,4 @@
+aterms=[beam]
+beam.differential = true
+beam.update_interval = 600
+beam.usechannelfreq = true

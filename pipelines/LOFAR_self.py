@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # perform self-calibration on a group of SBs concatenated in TCs.
@@ -241,11 +241,11 @@ for c in range(2):
             im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
             im.makeMask(threshpix=5)
 
-            kwargs = {'do_predict':True, 'reuse_dirty':imagename, 'reuse_psf':''}
+            kwargs = {'do_predict':True, 'reuse_dirty':imagename, 'reuse_psf':imagename}
         else: 
             kwargs = {}
 
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, save_source_list='',
+        lib_util.run_wsclean(s, 'wscleanM-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, save_source_list='',
                 size=imgsizepix, scale='10arcsec',
                 weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
                 parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
@@ -278,7 +278,7 @@ for c in range(2):
             imagename_lr = 'img/wide-lr'
             lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=False,
                     parallel_gridding=4, temp_dir='./', size=imgsizepix, scale='30arcsec',
-                    weight='briggs -1', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
+                    weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                     taper_gaussian='200arcsec', mgain=0.85, parallel_deconvolution=512, baseline_averaging='',
                     local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits',
                     join_channels='', channels_out=MSs.getChout(2.e6))
@@ -295,14 +295,14 @@ for c in range(2):
         ### DONE
 
         with w.if_todo('lowres_ulrimg_c%02i' % c):
-            imagename_ulr = 'img/wide-ulr'
+            imagename_ulr = 'img/wide-largescale'
             #                     intervals_out=len(MSs.mssListObj)*4,
-            lib_util.run_wsclean(s, 'wscleanULR.log', MSs.getStrWsclean(), name=imagename_ulr, do_predict=False,
-                                 parallel_gridding=4, temp_dir='./', size=1500, scale='30arcsec',
-                                 no_fit_beam='', circular_beam='', beam_size='200.0arcsec',
+            lib_util.run_wsclean(s, 'wscleanLS.log', MSs.getStrWsclean(), name=imagename_ulr, do_predict=False,
+                                 parallel_gridding=4, temp_dir='./', size=2000, scale='20arcsec',
+                                 no_fit_beam='', circular_beam='', beam_size='90.0arcsec',
                                  multiscale='', multiscale_scales='0,4,8,16,32,64',
-                                 weight='briggs 0', niter=10000, no_update_model_required='', minuv_l=20,
-                                 maxuvw_m=5000, taper_gaussian='200arcsec', mgain=0.85,
+                                 weight='briggs -0.3', niter=10000, no_update_model_required='', minuv_l=20,
+                                 maxuvw_m=5000, taper_gaussian='90arcsec', mgain=0.85,
                                  parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=1.5,
                                  auto_threshold=0.5, join_channels='', channels_out=MSs.getChout(4.e6))
         ### DONE
@@ -366,7 +366,7 @@ with w.if_todo('imaging-pol'):
 os.system('mv img/wideP-MFS-*-image.fits self/images')
 os.system('mv img/wideM-1-*-model.fits self/images')
 os.system('mv img/wide-lr-MFS-image.fits self/images')
-os.system('mv img/wide-ulr-MFS-image.fits self/images')
+os.system('mv img/wide-largescale-MFS-image.fits self/images')
 os.system('mv logs self')
 
 logger.info("Done.")
