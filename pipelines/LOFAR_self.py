@@ -259,7 +259,7 @@ for c in range(2):
                 multiscale='', multiscale_scale_bias=0.6,
                 deconvolution_channels=cc_fit_order, **kwargs)
 
-        os.system('cat logs/wsclean-c'+str(c)+'.log | grep "background noise"')
+        os.system('cat logs/wscleanM-c'+str(c)+'.log | grep "background noise"')
     ### DONE
 
     if c == 0:
@@ -303,7 +303,7 @@ for c in range(2):
             imagename_ls = 'img/wide-largescale'
             #                     intervals_out=len(MSs.mssListObj)*4,
             lib_util.run_wsclean(s, 'wscleanLS.log', MSs.getStrWsclean(), name=imagename_ls, do_predict=False,
-                                 parallel_gridding=4, temp_dir='./', size=2000, scale='20arcsec',
+                                 temp_dir='./', size=2000, scale='20arcsec',
                                  no_fit_beam='', circular_beam='', beam_size='90.0arcsec',
                                  use_idg='', aterm_kernel_size=16, aterm_config=parset_dir+'/aconfig.txt',
                                  multiscale='', multiscale_scales='0,4,8,16,32,64',

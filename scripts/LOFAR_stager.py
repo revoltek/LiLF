@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 # To do a second run, rename the uris.pickle
 
+# Idea of the code:
+# The code crates 4 suprocesses:
+# - 1 stager
+# - 1 checker
+# - 2 downlaoders
+
 import os, sys, time, glob, pickle, argparse, re
 import subprocess, multiprocessing
 from awlofar.database.Context import context
@@ -55,7 +61,8 @@ if os.path.exists(file_rc):
 cls = CorrelatedDataProduct
 re_cal = re.compile('.*3[c|C](196|295|380).*')
 
-# first collect all uris
+# First: collect all uris
+# This part of the code simply selects the uris to stage starting from the project names and the target name
 if not os.path.exists('uris.pickle'):
     uris = set() # All URIS to stage
     for project in projects:
@@ -89,7 +96,6 @@ if not os.path.exists('uris.pickle'):
                         sys.stdout.flush()
                 else :
                     print("No URI found for %s with dataProductIdentifier %d" % (dataproduct.__class__.__name__, dataproduct.dataProductIdentifier))
-            
             print("")
                 
                 #if len(uris) == 1: break # TEST
@@ -114,16 +120,18 @@ if len(uris) == 0:
     sys.exit()
  
 # Queue of data to stage
-L_toStage = multiprocessing.Manager().list() # list of surls to download
-L_inStage = multiprocessing.Manager().list() # list of sids of active staging processes
+L_toStage = multiprocessing.Manager().list()  # list of surls to download
+L_inStage = multiprocessing.Manager().list()  # list of sids of active staging processes
 
 # Queue of data to download
-L_toDownload = multiprocessing.Manager().list() # list of surls ready to download
-L_inDownload = multiprocessing.Manager().list() # list of surls being downloaded
-L_Downloaded = multiprocessing.Manager().list() # list of surls downlaoded
+L_toDownload = multiprocessing.Manager().list()  # list of surls ready to download
+L_inDownload = multiprocessing.Manager().list()  # list of surls being downloaded
+L_Downloaded = multiprocessing.Manager().list()  # list of surls downlaoded
 
 class Worker(multiprocessing.Process):
-
+    """
+    This is a global worker class to be inherited by the 3 specialized workers
+    """
     def __init__(self, stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded):
         multiprocessing.Process.__init__(self)
         self.exit = multiprocessing.Event()
@@ -142,6 +150,9 @@ class Worker(multiprocessing.Process):
         self.exit.set()
 
 class Worker_stager(Worker):
+    """
+    This worker is specialized in staging the data
+    """
     def run(self):
         import time
         while not self.exit.is_set():
@@ -162,6 +173,9 @@ class Worker_stager(Worker):
     
     
 class Worker_checker(Worker):
+    """
+    This worker check if the data are staged and in that case it passes the uris to the downloaders
+    """
     def run(self):
         import time
         while not self.exit.is_set():
@@ -200,12 +214,14 @@ class Worker_checker(Worker):
     
     
 class Worker_downloader(Worker):
+    """
+    This worker download the data
+    """
     def run(self):
         import os
         while not self.exit.is_set():
             if len(self.L_toDownload) > 0:
                 surl = self.L_toDownload.pop()
-                print("Downloader -- Download: "+surl.split('/')[-1])
                 self.L_inDownload.append(surl)
 
                 tar_file = surl.split('/')[-1]  # e.g. .../L769079_SB020_uv.MS_daf24388.tar
@@ -213,13 +229,18 @@ class Worker_downloader(Worker):
 
                 if 'psnc.pl' in surl:
                     url = 'https://lta-download.lofar.psnc.pl/lofigrid/SRMFifoGet.py?surl=%s' % surl
+                    LTA_site = 'PL'
                 elif 'sara.nl' in surl:
                     url = 'https://lofar-download.grid.surfsara.nl/lofigrid/SRMFifoGet.py?surl=%s' % surl
+                    LTA_site = 'NL'
                 elif 'juelich.de' in surl:
                     url = 'https://lofar-download.fz-juelich.de/webserver-lofar/SRMFifoGet.py?surl=%s' % surl
+                    LTA_site = 'DE'
                 else:
                     print('ERROR: unknown archive for %s...' % surl)
                     sys.exit()
+
+                print("Downloader -- Download: %s (from: %s) " % (tar_file, LTA_site))
 
                 # loop until the sanity check on the downloaded MS is ok
                 while True:
@@ -248,7 +269,7 @@ w_downloader2 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_
 # fill the queue with uris
 [L_toStage.append(uri) for uri in uris]
 
-# add things already staged
+# add things already staged (here we do the get_progress())
 i=0
 try:
     for sid, _ in stager.get_progress().items():
@@ -270,6 +291,7 @@ w_checker.start()
 w_downloader1.start()
 w_downloader2.start()
 
+# this part creates some output to monitor the progress
 while True:
     sys.stdout.write("\r%s: To stage: %i -- In staging: %i (blocks) -- To download: %i -- In downloading: %i || " % \
             ( time.ctime(), len(L_toStage), len(L_inStage), len(L_toDownload), len(L_inDownload) ) )
