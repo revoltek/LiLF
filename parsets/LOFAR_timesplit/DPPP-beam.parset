@@ -7,6 +7,6 @@ msout.datacolumn = CORRECTED_DATA
 steps = [corrbeam]
 
 corrbeam.type = applybeam
-corrbeam.beammode = element # the array_factor is 1
+corrbeam.beammode = default # the array_factor is 1 but we need both to make idg runs in self
 corrbeam.usechannelfreq = False
 corrbeam.updateweights = True # add reweight
