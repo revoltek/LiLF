@@ -160,7 +160,7 @@ with w.if_todo('predict_rest'):
         'Output_Mode': 'Predict',
         'Predict_InitDicoModel': outdico,
         'Predict_ColName': 'MODEL_DATA',
-        'Deconv_Mode': 'SSD',
+        'Deconv_Mode': 'HMP',
         'Image_NPix': 8775,
         'CF_wmax': 50000,
         'CF_Nw': 100,
@@ -368,7 +368,7 @@ for c in range(maxniter):
     with w.if_todo('image-c%02i' % c):
         logger.info('Imaging...')
         # TODO: Apply beam for last iteration
-        clean('c%02i' % c, MSs, size=(1.1*target_reg.get_width_ra(),1.1*target_reg.get_width_dec())) # size 2 times radius  , apply_beam = c==maxniter
+        clean('c%02i' % c, MSs, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height())) # size 2 times radius  , apply_beam = c==maxniter
     ### DONE
 
     # get noise, if larger than 95% of prev cycle: break
