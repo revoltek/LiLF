@@ -302,10 +302,10 @@ for c in range(2):
         with w.if_todo('lowres_lsimg_c%02i' % c):
             imagename_ls = 'img/wide-largescale'
             #                     intervals_out=len(MSs.mssListObj)*4,
+            #use_idg = '', aterm_kernel_size = 16, aterm_config = parset_dir + '/aconfig.txt',
             lib_util.run_wsclean(s, 'wscleanLS.log', MSs.getStrWsclean(), name=imagename_ls, do_predict=False,
                                  temp_dir='./', size=2000, scale='20arcsec',
                                  no_fit_beam='', circular_beam='', beam_size='90.0arcsec',
-                                 use_idg='', aterm_kernel_size=16, aterm_config=parset_dir+'/aconfig.txt',
                                  multiscale='', multiscale_scales='0,4,8,16,32,64',
                                  weight='briggs -0.3', niter=10000, no_update_model_required='', minuv_l=20,
                                  maxuvw_m=5000, taper_gaussian='90arcsec', mgain=0.85,
