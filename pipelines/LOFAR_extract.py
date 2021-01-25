@@ -127,7 +127,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None):
             return
 
         if imagereg is not None:
-            lib_img.blank_image_reg(im.maskname, imagereg, inverse=True, blankval=0., )
+            lib_img.blank_image_reg(im.maskname, imagereg, inverse=True, blankval=0.)
 
         # clean 2
         # TODO: add deconvolution_channels when bug fixed
