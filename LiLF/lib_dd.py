@@ -125,7 +125,7 @@ class Direction(object):
         Calculate the size (diameter) of this calibrator measuring the distance of each component from the mean
         :param ras:  list of ras
         :param decs: list of decs
-        :param majs: major axis sizes for sources [deg]
+        :param majs: major axis sizes for sources [deg] - radius
         """
         ncomp = len(ras)
         if ncomp > 1:
@@ -138,7 +138,7 @@ class Direction(object):
                     maxdist = dist
             size = maxdist * 2
         else:
-            size = majs[0]
+            size = majs[0]*2
 
         self.size = size * 1.2  # increase 20%
 
