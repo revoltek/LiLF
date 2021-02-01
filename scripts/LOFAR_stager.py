@@ -156,7 +156,7 @@ class Worker_stager(Worker):
     def run(self):
         import time
         while not self.exit.is_set():
-            # if there's space add a block of 500
+            # if there's space add a block of 200
             if len(self.L_inStage) < 5 and len(self.L_toStage) > 0:
                 uris = self.L_toStage[:200]
                 #uris = [self.L_toStage[0]] # debug to stage 1 uri at a time
