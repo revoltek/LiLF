@@ -221,7 +221,7 @@ for c in range(100):
 
     #################################################
     # 2: Sub field + peel
-    if c == 1:
+    if c == 100:
         with w.if_todo('sub-field'):
 
             # Low res image

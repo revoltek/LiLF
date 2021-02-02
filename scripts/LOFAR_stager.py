@@ -156,9 +156,9 @@ class Worker_stager(Worker):
     def run(self):
         import time
         while not self.exit.is_set():
-            # if there's space add a block of 500
-            if len(self.L_inStage) < 10 and len(self.L_toStage) > 0:
-                uris = self.L_toStage[:500]
+            # if there's space add a block of 200
+            if len(self.L_inStage) < 5 and len(self.L_toStage) > 0:
+                uris = self.L_toStage[:200]
                 #uris = [self.L_toStage[0]] # debug to stage 1 uri at a time
                 print("Stager -- Staging %i uris" % len(uris))
                 try:
@@ -169,7 +169,7 @@ class Worker_stager(Worker):
                 except Exception as e:
                     print("Error at staging...", e)
     
-            time.sleep(60)
+            time.sleep(600)
     
     
 class Worker_checker(Worker):
@@ -210,7 +210,7 @@ class Worker_checker(Worker):
                     print("Checker -- ERROR: Sid %i status is: '%s' (reschedule submitted)" % (sid, status) )
                     self.stager.reschedule(sid)
     
-            time.sleep(60)
+            time.sleep(300)
     
     
 class Worker_downloader(Worker):

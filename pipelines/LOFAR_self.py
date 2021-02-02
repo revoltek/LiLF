@@ -349,7 +349,7 @@ for c in range(2):
         ### DONE
 
         with w.if_todo('lowres_predict_c%02i' % c):
-            # Recreate MODEL_DATA
+            # Recreate MODEL_DATA for next calibration cycle
             logger.info('Predict model...')
             s.add('wsclean -predict -name img/wideM-'+str(c)+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(4e6))+' '+MSs.getStrWsclean(), \
                    log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')

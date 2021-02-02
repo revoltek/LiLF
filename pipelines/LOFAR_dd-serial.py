@@ -241,8 +241,8 @@ for cmaj in range(maxIter):
         # save catalogue for debugging
         cal.write('ddcal/c%02i/skymodels/cat-c%02i.fits' % (cmaj,cmaj), format='fits', overwrite=True)
 
-        # order directions from the one that create more noise
-        directions = [x for _, x in sorted(zip([d.get_flux(img_freq) for d in directions],directions))][::-1]  # reorder with rms
+        # order directions from the fluxiest one
+        directions = [x for _, x in sorted(zip([d.get_flux(img_freq) for d in directions],directions))][::-1]
 
         # If there's a preferential direciotn, get the closer direction to the final target and put it to the end
         if target_dir != '':
@@ -262,9 +262,9 @@ for cmaj in range(maxIter):
         logger.info('Found {} cals brighter than {} Jy:'.format(len(directions), min_cal_flux60))
         for d in directions:
             if not d.peel_off:
-                logger.info('%s: flux: %.2f Jy (rms:%.2f mJy)' % (d.name, d.get_flux(60e6), d.localrms*1e3))
+                logger.info('%s: flux: %.2f Jy (rms:%.2f mJy)' % (d.name, d.get_flux(img_freq), d.localrms*1e3))
             else:
-                logger.info('%s: flux: %.2f Jy (rms: %.2f mJy - peel off)' % (d.name, d.get_flux(60e6), d.localrms*1e3))
+                logger.info('%s: flux: %.2f Jy (rms: %.2f mJy - peel off)' % (d.name, d.get_flux(img_freq), d.localrms*1e3))
 
         pickle.dump( directions, open( picklefile, "wb" ) )
     else:
@@ -538,7 +538,7 @@ for cmaj in range(maxIter):
                    (mm_ratio < 30 and cdd >= 4) or \
                    (cdd >= 5): break
 
-            if cdd >= 4 and (mm_ratio >= 30 or d.get_flux(freq_mid) > 10):
+            if cdd >= 4 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 50) or d.get_flux(freq_mid) > 10):
                 doamp = True
 
             d.set_model(image.root, typ='best', apply_region=False)  # current best model
