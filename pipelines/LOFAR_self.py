@@ -242,7 +242,7 @@ for c in range(2):
                                  parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
                                  parallel_deconvolution=512, local_rms='', auto_threshold=4,
                                  join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSs.getChout(4.e6),
-                                 deconvolution_channels=cc_fit_order)
+                                 deconvolution_channels=cc_fit_order*2)
             im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
             im.makeMask(threshpix=5)
 
@@ -257,7 +257,7 @@ for c in range(2):
                 parallel_deconvolution=512, auto_threshold=3., fits_mask=maskname,
                 join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSs.getChout(4.e6),
                 multiscale='', multiscale_scale_bias=0.6,
-                deconvolution_channels=cc_fit_order, **kwargs)
+                deconvolution_channels=cc_fit_order*2, **kwargs)
 
         os.system('cat logs/wscleanM-c'+str(c)+'.log | grep "background noise"')
     ### DONE
