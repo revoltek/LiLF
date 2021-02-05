@@ -10,7 +10,7 @@ RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
 RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename \
-    python3-dev python3-ipython python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql python3-requests \
+    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql python3-requests \
     libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
@@ -49,7 +49,7 @@ RUN cd /opt/python-casacore && git checkout tags/v3.3.1
 RUN cd /opt/python-casacore && pip3 install .
 
 #####################################################################
-## LOFARBeam (v. June 2020)
+## LOFARBeam (master 6/2020)
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/LOFARBeam.git
 RUN cd /opt/LOFARBeam && git checkout 5b5d80ff308784adbf00985293257b16afff86b2
@@ -61,10 +61,10 @@ ENV PYTHONPATH /usr/local/lib/python3.8/site-packages/:$PYTHONPATH
 ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
 
 #####################################################################
-## EveryBeam (master 1/2021)
+## EveryBeam (master 2/2021)
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git
-RUN cd /opt/EveryBeam && git checkout 887dd33c4e6ca7d7e83d939eb2f18402e8b86940
+RUN cd /opt/EveryBeam && git checkout a441678ec48b192d81c431c26f99304f745c0c4e
 RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake .. \
     && make -j 64 && make install
@@ -106,11 +106,13 @@ RUN cd /opt/wsclean && mkdir build && cd build \
     && make -j 64 && make install
 
 #####################################################################
-## Dp3 (master 1/2021)
+## Dp3 (master 2/2021)
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/DP3.git
-RUN cd /opt/DP3 && git checkout 0ba8edd
+RUN cd /opt/DP3 && git checkout 275003094e32bfbac7dd3e5cae3241c37a89622c
 #RUN cd /opt/DP3 && git checkout tags/v4.2
+RUN ls /usr/local/share/everybeam
+RUN ls /usr/local/lib
 RUN cd /opt/DP3 && mkdir build && cd build \
     && cmake .. \
     && make -j 64 && make install

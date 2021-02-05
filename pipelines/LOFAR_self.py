@@ -242,7 +242,7 @@ for c in range(2):
                                  parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
                                  parallel_deconvolution=512, local_rms='', auto_threshold=4,
                                  join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSs.getChout(4.e6),
-                                 deconvolution_channels=cc_fit_order*2)
+                                 deconvolution_channels=cc_fit_order)
             im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
             im.makeMask(threshpix=5)
 
@@ -257,7 +257,7 @@ for c in range(2):
                 parallel_deconvolution=512, auto_threshold=3., fits_mask=maskname,
                 join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSs.getChout(4.e6),
                 multiscale='', multiscale_scale_bias=0.6,
-                deconvolution_channels=cc_fit_order*2, **kwargs)
+                deconvolution_channels=cc_fit_order, **kwargs)
 
         os.system('cat logs/wscleanM-c'+str(c)+'.log | grep "background noise"')
     ### DONE
@@ -300,15 +300,16 @@ for c in range(2):
         ### DONE
 
         with w.if_todo('lowres_lsimg_c%02i' % c):
+            logger.info('Cleaning large-scale...')
             imagename_ls = 'img/wide-largescale'
             #                     intervals_out=len(MSs.mssListObj)*4,
             #use_idg = '', aterm_kernel_size = 16, aterm_config = parset_dir + '/aconfig.txt',
             lib_util.run_wsclean(s, 'wscleanLS.log', MSs.getStrWsclean(), name=imagename_ls, do_predict=False,
                                  temp_dir='./', size=2000, scale='20arcsec',
-                                 no_fit_beam='', circular_beam='', beam_size='90.0arcsec',
+                                 no_fit_beam='', circular_beam='', beam_size='120.0arcsec',
                                  multiscale='', multiscale_scales='0,4,8,16,32,64',
                                  weight='briggs -0.3', niter=10000, no_update_model_required='', minuv_l=20,
-                                 maxuvw_m=5000, taper_gaussian='90arcsec', mgain=0.85,
+                                 maxuvw_m=5000, taper_gaussian='120arcsec', mgain=0.85,
                                  parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=1.5,
                                  auto_threshold=0.5, join_channels='', channels_out=MSs.getChout(4.e6))
         ### DONE
