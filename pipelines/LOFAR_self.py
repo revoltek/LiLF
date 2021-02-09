@@ -306,10 +306,10 @@ for c in range(2):
             #use_idg = '', aterm_kernel_size = 16, aterm_config = parset_dir + '/aconfig.txt',
             lib_util.run_wsclean(s, 'wscleanLS.log', MSs.getStrWsclean(), name=imagename_ls, do_predict=False,
                                  temp_dir='./', size=2000, scale='20arcsec',
-                                 no_fit_beam='', circular_beam='', beam_size='120.0arcsec',
+                                 no_fit_beam='', circular_beam='', beam_size='180.0arcsec',
                                  multiscale='', multiscale_scales='0,4,8,16,32,64',
                                  weight='briggs -0.3', niter=10000, no_update_model_required='', minuv_l=20,
-                                 maxuvw_m=5000, taper_gaussian='120arcsec', mgain=0.85,
+                                 maxuvw_m=5000, taper_gaussian='180arcsec', mgain=0.85,
                                  parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=1.5,
                                  auto_threshold=0.5, join_channels='', channels_out=MSs.getChout(4.e6))
         ### DONE
