@@ -281,6 +281,6 @@ if imaging:
     os.system('cat logs/wscleanB.log | grep "background noise"')
 
     # make new mask
-    im.makeMask(threshpix = 7)
+    im.makeMask(threshpix=7)
 
 logger.info("Done.")
