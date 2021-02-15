@@ -2,7 +2,7 @@ msin =
 msin.datacolumn = DATA
 msout = .
 msout.datacolumn = MODEL_DATA
-msout.storagemanager = dysco
+#msout.storagemanager = dysco
 
 steps = [pre]
 
