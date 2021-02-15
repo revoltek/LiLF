@@ -214,8 +214,8 @@ MSs = lib_ms.AllMSs( glob.glob('mss-extract/*MS-extract'), s )
 with w.if_todo('beamcorr'):
     logger.info('Correcting beam...') # TODO is this correct?
     # Convince DPPP that DATA is corrected for the beam in the phase centre
-    MSs.run('DPPP ' + parset_dir + '/DPPP-beam.parset msin=$pathMS setbeam.direction=\[' + str(center[0]) + 'deg,'
-            + str(center[1]) + 'deg\] corrbeam.direction=\[' + str(center[0]) + 'deg,' + str(
+    MSs.run('DPPP ' + parset_dir + '/DPPP-beam.parset msin=$pathMS setbeam.direction=\[' + str(phase_center[0]) + 'deg,'
+            + str(phase_center[1]) + 'deg\] corrbeam.direction=\[' + str(center[0]) + 'deg,' + str(
         str(center[1])) + 'deg\]', log='$nameMS_beam-.log', commandType='DPPP')
     ### DONE
 
