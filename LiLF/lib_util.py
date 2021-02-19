@@ -306,8 +306,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     # other stanrdard parms
     wsc_parms.append( '-clean-border 1' )
     # temp dir
-    if s.get_cluster() == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
-        wsc_parms.append( '-temp-dir /localwork.ssd' )
+    #if s.get_cluster() == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
+    #    wsc_parms.append( '-temp-dir /localwork.ssd' )
     # user defined parms
     for parm, value in list(kwargs.items()):
         if value is None: continue

@@ -580,6 +580,7 @@ for cmaj in range(maxIter):
             lsm.select('%s == True' % (d.model['best']+'-mask-restricted.fits'))
             lsm.write(model_skymodel, format='makesourcedb', clobber=True)
 
+            lib_util.check_rm(model_skydb)
             s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (model_skymodel, model_skydb), log='makesourcedb_cl.log', commandType='general' )
             s.run()
 
