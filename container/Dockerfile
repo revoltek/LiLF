@@ -10,7 +10,7 @@ RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
 RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename \
-    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql python3-requests \
+    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy \
     libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
@@ -109,7 +109,7 @@ RUN cd /opt/wsclean && mkdir build && cd build \
 ## Dp3 (master 2/2021)
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/DP3.git
-RUN cd /opt/DP3 && git checkout 275003094e32bfbac7dd3e5cae3241c37a89622c
+RUN cd /opt/DP3 && git checkout 0cdf91693676061401c21716b084fd71ba3a8ffd
 #RUN cd /opt/DP3 && git checkout tags/v4.2
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
@@ -175,6 +175,7 @@ RUN rm -rf /opt/DDFacet/DDFacet/cbuild
 
 RUN python3 -m pip install -U "/opt/DDFacet/[moresane-support,testing-requirements,fits-beam-support]"
 RUN cd /opt/DDFacet/ && python3 setup.py build
+RUN cd /opt/DDFacet/ && python3 setup.py install
 
 # Set MeqTrees Cattery path to installation directory
 ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
