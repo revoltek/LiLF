@@ -3,7 +3,10 @@ msin.datacolumn = DATA
 msin.baseline = [CR]S*&&
 msout = .
 
-steps = [ant, uvmin, elev, count]
+steps = [aoflagger, ant, uvmin, elev, count]
+
+aoflagger.strategy =
+aoflagger.memoryperc = 6
 
 ant.type = preflagger
 ant.baseline = 

@@ -74,7 +74,7 @@ def clean(p, MSs, size, res='normal', apply_beam=False):
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-    im.makeMask(threshisl = 3)
+    im.makeMask(threshpix = 3)
 
     # clean 2
     logger.info('Cleaning w/ mask ('+str(p)+')...')
@@ -172,7 +172,7 @@ for c in range(maxniter):
         # this mask is with no user region, done to isolate only bight compact sources
         if not os.path.exists(mask_cl): 
             mosaic_image.beamReg = 'ddcal/beam.reg'
-            mosaic_image.makeMask(threshisl=7, atrous_do=False, remove_extended_cutoff=0.001, maskname=mask_cl, only_beam=True)
+            mosaic_image.makeMask(threshpix=7, atrous_do=False, remove_extended_cutoff=0.001, maskname=mask_cl, only_beam=True)
         
         lsm = lsmtool.load(mosaic_image.skymodel_cut)
         lsm.group(mask_cl, root='Isl')
@@ -447,7 +447,7 @@ for c in range(maxniter):
                 d.image_high = lib_img.Image('img/ddcalM-%s-high-MFS-image.fits' % d.name, userReg = userReg)
         
                 # restrict skymodel to facet
-                d.image.makeMask(threshisl=5)
+                d.image.makeMask(threshpix=5)
                 d.image.selectCC()
                 try:
                     lsm = lsmtool.load(d.image.skymodel_cut)
@@ -501,7 +501,7 @@ for c in range(maxniter):
     
         mosaic_image = lib_img.Image('ddcal/images/c%02i/mos-MFS-image.fits' % c, userReg = userReg)
 
-    mosaic_image.makeMask(threshisl=3, atrous_do=True) # used in the faceting function
+    mosaic_image.makeMask(threshpix=3, atrous_do=True) # used in the faceting function
     # get noise, if larger than 95% of prev cycle: break
     rms_noise = mosaic_image.getNoise()
     logger.info('RMS noise: %f' % rms_noise)

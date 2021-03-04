@@ -61,7 +61,7 @@ with w.if_todo('predict'):
     logger.info('Add model to MODEL_DATA (%s)...' % calname)
     MSs.run("DPPP " + parset_dir + "/DPPP-predict.parset msin=$pathMS pre.sourcedb=$pathMS/" + os.path.basename(skymodel) + " pre.sources=" + calname, \
             log="$nameMS_pre.log", commandType="DPPP", maxThreads=30)
-    
+
 ### DONE
 
 ###################################################
@@ -70,14 +70,16 @@ with w.if_todo('predict'):
 with w.if_todo('cal_pa'):
     # Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -c 1 -n 8 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log', commandType
-    ='python', maxThreads=8)
+    MSs.run('BLsmooth.py -r -c 1 -n 8 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log',
+            commandType='python', maxThreads=8)
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating PA...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal', log='$nameMS_solPA.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
+            sol.solint=2 sol.nchan=2',
+            log='$nameMS_solPA.log', commandType="DPPP")
     
-    lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()], \
+    lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()],
             [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
     
     # Pol align correction DATA -> CORRECTED_DATA
@@ -101,9 +103,11 @@ with w.if_todo('cal_fr'):
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating FR...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal', log='$nameMS_solFR.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal \
+            sol.solint=2 sol.nchan=2',
+            log='$nameMS_solFR.log', commandType="DPPP")
     
-    lib_util.run_losoto(s, 'fr', [ms+'/fr.h5' for ms in MSs.getListStr()], \
+    lib_util.run_losoto(s, 'fr', [ms+'/fr.h5' for ms in MSs.getListStr()],
             [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
     
     # Correct FR CORRECTED_DATA -> CORRECTED_DATA
@@ -150,8 +154,9 @@ with w.if_todo('cal_bp'):
     logger.info('Calibrating BP...')
     MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal', log='$nameMS_solAMP.log', commandType="DPPP")
     
-    lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()], \
-            [parset_dir + '/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-bp.parset'])
+    lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()],
+            [parset_dir + '/losoto-flag.parset', parset_dir+'/losoto-plot-amp.parset',
+             parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-bp.parset'])
 
 ### DONE
 
@@ -199,55 +204,47 @@ with w.if_todo('cal_iono'):
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/iono.h5 sol.mode=diagonal', log='$nameMS_solIONO.log', commandType="DPPP")
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase', log='$nameMS_solIONO.log', commandType="DPPP")
     
     if iono3rd:
-        lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
-                [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono3rd.parset'])
+        lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()],
+            [parset_dir+'/losoto-plot-scalarph.parset', parset_dir+'/losoto-iono3rd.parset'])
+            #[parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono3rd.parset'])
     else:
-        lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()], \
-                [parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono.parset'])
+        lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()],
+            [parset_dir+'/losoto-plot-scalarph.parset', parset_dir+'/losoto-iono.parset'])
+            #[parset_dir + '/losoto-flag.parset', parset_dir + '/losoto-plot-ph.parset', parset_dir + '/losoto-iono.parset'])
 
 ### DONE
 
-with w.if_todo('upload'):
+with w.if_todo('compressing_h5'):
     logger.info('Compressing caltables...')
     os.system('cp cal-pa.h5 fullcal-pa.h5')
     #os.system('cp cal-fr.h5 fullcal-fr.h5') # no need to keep orig
     os.system('cp cal-amp.h5 fullcal-amp.h5')
     os.system('cp cal-iono.h5 fullcal-iono.h5')
     s.add('losoto -d sol000/amplitude000 cal-pa.h5', log='losoto-final.log', commandType="python")
+    s.run()
     s.add('losoto -d sol000/phase000 cal-pa.h5', log='losoto-final.log', commandType="python")
+    s.run()
     s.add('losoto -d sol000/phaseOrig000 cal-pa.h5', log='losoto-final.log', commandType="python")
     s.run()
     os.system('h5repack cal-pa.h5 cal-pa-compressed.h5; mv cal-pa-compressed.h5 cal-pa.h5')
     
     s.add('losoto -d sol000/amplitude000 cal-amp.h5', log='losoto-final.log', commandType="python")
+    s.run()
     s.add('losoto -d sol000/amplitudeRes cal-amp.h5', log='losoto-final.log', commandType="python")
+    s.run()
     s.add('losoto -d sol000/phase000 cal-amp.h5', log='losoto-final.log', commandType="python")
     s.run()
     os.system('h5repack cal-amp.h5 cal-amp-compressed.h5; mv cal-amp-compressed.h5 cal-amp.h5')
     
     # s.add('losoto -d sol000/tec000 cal-iono.h5', log='losoto-final.log', commandType="python")
     # s.add('losoto -d sol000/clock000 cal-iono.h5', log='losoto-final.log', commandType="python")
-    s.add('losoto -d sol000/amplitude000 cal-iono.h5', log='losoto-final.log', commandType="python")
+    #s.add('losoto -d sol000/amplitude000 cal-iono.h5', log='losoto-final.log', commandType="python")
     s.add('losoto -d sol000/phase_offset000 cal-iono.h5', log='losoto-final.log', commandType="python")
     s.run()
     os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
-    
-    logger.info('Save caltables and plots...')
-    obsid = MSs.getListObj()[0].getObsID()
-    cal = 'id%i_%s' % (obsid, calname)
-    logger.info('Copy: cal*h5 -> lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
-    os.system('ssh lofar.herts.ac.uk "rm -rf /beegfs/lofar/lba/calibration_solutions/%s"' % cal)
-    os.system('ssh lofar.herts.ac.uk "mkdir /beegfs/lofar/lba/calibration_solutions/%s"' % cal)
-    os.system('scp -q cal-pa.h5 cal-amp.h5 cal-iono.h5 lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
-    os.system('scp -q -r plots* lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s' % cal)
-
-    # update the db
-    from LiLF.surveys_db import SurveysDB
-    with SurveysDB(survey='lba',readonly=False) as sdb:
-        sdb.execute('INSERT INTO observations (id,calibratordata) VALUES (%i,"%s")' % (obsid,cal))
 
 ### DONE
 
@@ -255,52 +252,35 @@ with w.if_todo('upload'):
 if imaging:
     logger.info("Imaging section:")
 
-    if iono3rd:
-        MSs = lib_ms.AllMSs( sorted(glob.glob('./*MS'))[int(len(glob.glob('./*MS'))/2.):], s, check_flags = False ) # keep only upper band
-
     # Correct all CORRECTED_DATA (PA, beam, FR, BP corrected) -> CORRECTED_DATA
     logger.info('IONO correction...')
-    MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.steps=[ph,amp] cor.ph.parmdb=cal-iono.h5 cor.amp.parmdb=cal-iono.h5 \
-        cor.ph.correction=phaseOrig000 cor.amp.correction=amplitude000 cor.amp.updateweights=False', log='$nameMS_corIONO.log', commandType="DPPP")
-
-    logger.info('Subtract model...')
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql2.log', commandType ='general')
-
-    logger.info('Flag...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-flag2.parset msin=$pathMS', log='$nameMS_flag2.log', commandType='DPPP')
+    MSs.run("DPPP " + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
+        cor.correction=phaseOrig000', log='$nameMS_corIONO.log', commandType="DPPP")
 
     lib_util.check_rm('img')
     os.makedirs('img')
 
-    imgsizepix =  MSs.getListObj()[0].getFWHM()*3600/5
-
-    logger.info('Cleaning low-res...')
-    imagename = 'img/calLR'
-    lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix/5, scale='60arcsec', \
-            weight='briggs 0.', taper_gaussian='240arcsec', niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=2000, mgain=0.85, \
-            use_idg='', grid_with_beam='', use_differential_lofar_beam='', beam_aterm_update=400, \
-            parallel_deconvolution=512, \
-            auto_mask=10, auto_threshold=1, pol='IQUV', join_polarizations='', join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+    imgsizepix = int(MSs.getListObj()[0].getFWHM()*3600/5)
 
     logger.info('Cleaning normal...')
     imagename = 'img/cal'
-    lib_util.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
-            weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-            baseline_averaging='', parallel_deconvolution=512, \
-            auto_threshold=20, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
+    lib_util.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec',
+            weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85,
+            baseline_averaging='', parallel_deconvolution=512,
+            auto_threshold=20, join_channels='', fit_spectral_pol=3, channels_out=12, deconvolution_channels=3)
 
     # make mask
     im = lib_img.Image(imagename+'-MFS-image.fits')
-    im.makeMask(threshisl = 3)
+    im.makeMask(threshpix=5)
 
     logger.info('Cleaning w/ mask...')
-    lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec', \
-            weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
-            baseline_averaging='', parallel_deconvolution=512, \
-            auto_threshold=0.1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=9, deconvolution_channels=3)
-    os.system('cat logs/wscleanA.log logs/wscleanB.log | grep "background noise"')
+    lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec',
+            weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85,
+            baseline_averaging='', parallel_deconvolution=512,
+            auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=12, deconvolution_channels=3)
+    os.system('cat logs/wscleanB.log | grep "background noise"')
 
     # make new mask
-    im.makeMask(threshisl = 5)
+    im.makeMask(threshpix=7)
 
 logger.info("Done.")

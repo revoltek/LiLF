@@ -1,6 +1,5 @@
 import os, sys, itertools
 import numpy as np
-from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy.io import fits as pyfits
 from astropy import wcs as pywcs

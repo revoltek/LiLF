@@ -9,7 +9,7 @@ soltabOut = amplitudeSmooth
 operation = REPLICATEONAXIS
 soltab = sol000/amplitudeSmooth
 axisReplicate = ant
-fromCell = CS001LBA
+fromCell = first
 
 [norm]
 operation = NORM

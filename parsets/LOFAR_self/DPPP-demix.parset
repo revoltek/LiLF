@@ -1,0 +1,19 @@
+msin = 
+msin.datacolumn = DATA
+msin.baseline = [CR]S*&
+msout =
+msout.storagemanager=dysco
+
+steps = [demixer]
+
+demixer.type = demixer 
+demixer.demixfreqstep = 20
+demixer.demixtimestep = 20
+demixer.ignoretarget = F
+#demixer.targetsource = 
+demixer.subtractsources = 
+demixer.ntimechunk = 0
+demixer.skymodel =
+demixer.freqstep = 1
+demixer.timestep = 1
+demixer.instrumentmodel =

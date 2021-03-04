@@ -12,6 +12,7 @@ soltabOut = polalign
 average = True
 replace = True
 fitOffset = True
+minFreq = 30e6
 refAnt = 'CS001LBA'
 
 # copy flags on polalign (this is because diag+rot is good at flagging bad points)

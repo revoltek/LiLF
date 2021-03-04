@@ -56,7 +56,8 @@ class Image(object):
             fits.close()
 
 
-    def makeMask(self, threshisl=5, atrous_do=True, rmsbox=(100,10), remove_extended_cutoff=0., only_beam=False, maskname=None, write_srl=False):
+    def makeMask(self, threshpix=5, atrous_do=True, rmsbox=(100,10), remove_extended_cutoff=0., only_beam=False, maskname=None,
+                 write_srl=False, write_gaul=False, write_ds9=False):
         """
         Create a mask of the image where only believable flux is
 
@@ -71,7 +72,8 @@ class Image(object):
 
         if not os.path.exists(maskname):
             logger.info('%s: Making mask (%s)...' % (self.imagename, maskname))
-            make_mask.make_mask(image_name=self.imagename, mask_name=maskname, threshisl=threshisl, atrous_do=atrous_do, rmsbox=rmsbox, write_srl=write_srl)
+            make_mask.make_mask(image_name=self.imagename, mask_name=maskname, threshpix=threshpix, atrous_do=atrous_do,
+                                rmsbox=rmsbox, write_srl=write_srl, write_gaul=write_gaul, write_ds9=write_ds9)
 
         if remove_extended_cutoff > 0:
 
@@ -137,7 +139,6 @@ class Image(object):
         lib_util.check_rm(self.skydb)
         os.system('makesourcedb outtype="blob" format="<" in="'+self.skymodel_cut+'" out="'+self.skydb+'"')
 
-
     def getNoise(self, boxsize=None):
         """
         Return the rms of all the non-masked pixels in an image
@@ -155,7 +156,6 @@ class Image(object):
                     mask = mask[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2]
     
                 return np.nanstd(data[mask==0])
-
 
     def getMaxMinRatio(self):
         """
@@ -177,6 +177,19 @@ class Image(object):
         bpar_pa = quanta.quantity(info_dict['positionangle']).get_value('deg')
         #print('\n{0} - Beam: maj {1:0.3f} (arcsec), min {2:2.3f} (arcsec), pa {3:0.2f} (deg)'.format(img, bpar_ma, bpar_mi,bpar_pa))
         return (bpar_ma,bpar_mi,bpar_pa)
+
+    def getFreq(self):
+        """
+        :return:
+        The flux of the image
+        """
+        with pyfits.open(self.imagename) as fits:
+            if fits[0].header['CTYPE3'] == 'FREQ':
+                return fits[0].header['CRVAL3']
+            elif fits[0].header['CTYPE4'] == 'FREQ':
+                return fits[0].header['CRVAL4']
+            else:
+                raise RuntimeError('Cannot find frequency in image %s' % self.imagename)
 
 
 def flatten(f, channel = 0, freqaxis = 0):

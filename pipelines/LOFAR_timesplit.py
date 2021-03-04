@@ -24,16 +24,12 @@ cal_dir = parset.get('LOFAR_timesplit','cal_dir')
 ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
 bl2flag = parset.get('flag','stations')
-if 'LBAsurvey' in os.getcwd():
-    data_dir = '/home/fdg/lofar1/LBAsurvey/%s/%s' % (os.getcwd().split('/')[-2], os.getcwd().split('/')[-1])
 
 #################################################
 # Clean
 with w.if_todo('clean'):
     logger.info('Cleaning...')
     lib_util.check_rm('mss*')
-
-
 ### DONE
 
 with w.if_todo('copy'):
@@ -44,8 +40,6 @@ with w.if_todo('copy'):
         #if min(MS.getFreqs()) > 30.e6:
         # overwrite=True to prevent updating the weights twice
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=True)
-
-
 ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
@@ -55,29 +49,22 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 if cal_dir == '':
     obsid = MSs.getListObj()[0].getObsID()
     # try standard location
-    cal_dir = glob.glob('../id%i_3[c|C]196' % obsid)+glob.glob('../id%i_3[c|C]295' % obsid)+glob.glob('../id%i_3[c|C]380' % obsid)
+    cal_dir = glob.glob('../id%i_-_3[c|C]196' % obsid)+glob.glob('../id%i_-_3[c|C]295' % obsid)+glob.glob('../id%i_-_3[c|C]380' % obsid)
     if len(cal_dir) > 0:
         cal_dir = cal_dir[0]
     else:
-        from LiLF.surveys_db import SurveysDB
-        with SurveysDB(survey='lba',readonly=True) as sdb:
-            sdb.execute('select calibratordata from observations where id=%i' % obsid)
-            calibratordata = sdb.cur.fetchall()[0]['calibratordata']
-        if calibratordata is not None:
-            logger.info('Downloading solutions...')
-            # try the repository
-            os.system('scp -q lofar.herts.ac.uk:/beegfs/lofar/lba/calibration_solutions/%s/cal-*h5 .' % calibratordata)
-            cal_dir = './'
-        else:
-            logger.error('Cannot find solutions.')
-            sys.exit()
+        logger.error('Cannot find solutions.')
+        sys.exit()
+else:
+    cal_dir = '../'+cal_dir
 
+logger.info('Calibrator directory: %s' % cal_dir)
 h5_pa = cal_dir+'/cal-pa.h5'
 h5_amp = cal_dir+'/cal-amp.h5'
 h5_iono = cal_dir+'/cal-iono.h5'
-assert os.path.exists(h5_pa)
-assert os.path.exists(h5_amp)
-assert os.path.exists(h5_iono)
+if not os.path.exists(h5_pa) or not os.path.exists(h5_amp) or not os.path.exists(h5_iono):
+    logger.error("Missing solutions in %s" % cal_dir)
+    sys.exit()
 
 ####################################################
 # Correct fist for BP(diag)+TEC+Clock and then for beam
@@ -97,17 +84,10 @@ with w.if_todo('apply'):
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
     logger.info('Beam correction...')
     MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DPPP')
-
-
 ### DONE
 
 ###################################################################################################
 # Create groups
-# TODO: the creation of groups should always be:
-# - 1 group with the most sensitive region
-# - 1 group below that region
-# - 1 group above that region
-# to be understood if calibration/imaging gain anything from using only the central group or all of them
 groupnames = []
 logger.info('Concatenating in frequency...')
 for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
@@ -141,8 +121,9 @@ MSs = lib_ms.AllMSs( glob.glob('mss*/*MS'), s )
 with w.if_todo('flag'):
 
     logger.info('Flagging...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\"', \
-                    log='$nameMS_DPPP_flag.log', commandType='DPPP')
+    MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\" \
+            aoflagger.strategy='+parset_dir+'/LBAdefaultwideband.rfis',
+            log='$nameMS_DPPP_flag.log', commandType='DPPP')
     
     logger.info('Remove bad timestamps...')
     MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
@@ -151,8 +132,6 @@ with w.if_todo('flag'):
     MSs.run('reweight.py $pathMS -v -p -a CS001LBA', log='$nameMS_weights.log', commandType='python')
     lib_util.check_rm('plots-weights')
     os.system('mkdir plots-weights; mv *png plots-weights')
-
-
 ### DONE
 
 #####################################
@@ -181,32 +160,7 @@ with w.if_todo('timesplit'):
         t.close()
     
         lib_util.check_rm(ms) # remove not-timesplitted file
-
-
 ### DONE
-
-############################################
-# put everything together
-#with w.if_todo('concat'):
-#
-#    if ngroups == 1:
-#        lib_util.check_rm('mss')
-#        os.makedirs('mss')
-#        os.system('mv mss_t*/*MS mss')
-#        lib_util.check_rm('mss_t*')
-#    else:
-#        for group in range(ngroups):
-#            groupname = 'mss-%02i' % group
-#            lib_util.check_rm(groupname)
-#            os.makedirs(groupname)
-#            os.system('mv mss_t*-%02i/*MS %s' % (group, groupname))
-#        lib_util.check_rm('mss_t*')
-#    
-#    logger.info('Cleaning up...')
-#    os.system('rm -r *MS')
-#
-
-#### DONE
 
 logger.info('Cleaning up...')
 os.system('rm -r *MS')

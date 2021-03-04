@@ -1,0 +1,21 @@
+Ncpu = 0
+
+[plotA]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/ampPreflag_
+
+[clip]
+operation = CLIP
+soltab = sol000/amplitude000
+mode = above
+clipLevel = 5.0
+pol = XX,YY
+
+[copyFlags]
+operation = REWEIGHT
+mode = copy
+soltab = sol000/phase000
+soltabImport = amplitude000

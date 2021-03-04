@@ -5,6 +5,7 @@ import numpy as np
 import multiprocessing, subprocess
 from threading import Thread
 from queue import Queue
+import pyregion
 import gc
 
 if (sys.version_info > (3, 0)):
@@ -48,14 +49,15 @@ def getParset(parsetFile='../lilf.config'):
     add_default('PiLL', 'project', '')
     add_default('PiLL', 'target', '')
 
-    # download
-    add_default('LOFAR_download', 'fix_table', 'True') # fix bug in some old observations
-    add_default('LOFAR_download', 'renameavg', 'True')
-    add_default('LOFAR_download', 'flag_elev', 'True')
-    add_default('LOFAR_download', 'keep_IS', 'False')
+    # preprocess
+    add_default('LOFAR_preprocess', 'fix_table', 'True') # fix bug in some old observations
+    add_default('LOFAR_preprocess', 'renameavg', 'True')
+    add_default('LOFAR_preprocess', 'flag_elev', 'True')
+    add_default('LOFAR_preprocess', 'keep_IS', 'False')
     # demix
     add_default('LOFAR_demix', 'data_dir', './data-bkp/')
-    add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skydb')
+    add_default('LOFAR_demix', 'include_target', 'False')
+    add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skymodel')
     # cal
     add_default('LOFAR_cal', 'data_dir', './data-bkp/')
     add_default('LOFAR_cal', 'skymodel', os.path.dirname(__file__)+'/../models/calib-simple.skydb')
@@ -72,14 +74,16 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
     # dd-serial
     add_default('LOFAR_dd-serial', 'maxIter', '2')
-    add_default('LOFAR_dd-serial', 'minCalFlux60', '1.')
+    add_default('LOFAR_dd-serial', 'minCalFlux60', '1')
     add_default('LOFAR_dd-serial', 'removeExtendedCutoff', '0.0005')
     add_default('LOFAR_dd-serial', 'target_dir', '') # ra,dec
     # ddfacet
     add_default('LOFAR_ddfacet', 'maxniter', '10')
     add_default('LOFAR_ddfacet', 'calFlux', '2.0')
-    # facet_self
-    add_default('LOFAR_facet_self', 'maxniter', '10')
+    # extract
+    add_default('LOFAR_extract', 'maxniter', '10')
+    add_default('LOFAR_extract', 'extractRegion', 'target.reg')
+    add_default('LOFAR_extract', 'phSolMode', 'tecandphase') # tecandphase, phase
 
     ### uGMRT ###
 
@@ -172,21 +176,31 @@ def getCalibratorProperties():
     return calibratorRAs, calibratorDecs, calibratorNames
 
 
-def distanceOnSphere(RAs1, Decs1, RAs2, Decs2):
+def distanceOnSphere(RAs1, Decs1, RAs2, Decs2, rad=False):
     """
     Return the distances on the sphere from the set of points '(RAs1, Decs1)' to the
     set of points '(RAs2, Decs2)' using the spherical law of cosines.
 
-    It assumes that all inputs are given in degrees, and gives the output in degrees, too.
-
     Using 'numpy.clip(..., -1, 1)' is necessary to counteract the effect of numerical errors, that can sometimes
     incorrectly cause '...' to be slightly larger than 1 or slightly smaller than -1. This leads to NaNs in the arccosine.
     """
+    if rad: # rad in rad out
+        return np.radians(np.arccos(np.clip(
+            np.sin(Decs1) * np.sin(Decs2) +
+            np.cos(Decs1) * np.cos(Decs2) *
+            np.cos(RAs1 - RAs2), -1, 1)))
+    else: # deg in deg out
+        return np.degrees(np.arccos(np.clip(
+               np.sin(np.radians(Decs1)) * np.sin(np.radians(Decs2)) +
+               np.cos(np.radians(Decs1)) * np.cos(np.radians(Decs2)) *
+               np.cos(np.radians(RAs1 - RAs2)), -1, 1)))
 
-    return np.degrees(np.arccos(np.clip(
-           np.sin(np.radians(Decs1)) * np.sin(np.radians(Decs2)) +
-           np.cos(np.radians(Decs1)) * np.cos(np.radians(Decs2)) *
-           np.cos(np.radians(RAs1 - RAs2)), -1, 1)))
+# def _haversine(s1, s2): # crosscheck
+#     """
+#     Calculate the great circle distance between two points
+#     (specified in rad)
+#     """
+#     return 2*np.arcsin(np.sqrt(np.sin((s2[1]-s1[1])/2.0)**2 + np.cos(s1[1]) * np.cos(s2[1]) * np.sin((s2[0]-s1[0])/2.0)**2))
 
 
 def check_rm(regexp):
@@ -281,7 +295,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     reordering_processors = np.min([len(MSs_files),s.max_processors])
 
     # basic parms
-    wsc_parms.append( '-reorder -j '+str(s.max_processors)+' -parallel-reordering 4 -fit-beam -weighting-rank-filter 3 ' )
+    wsc_parms.append( '-j '+str(s.max_processors)+' -reorder -parallel-reordering 4 ' )
     if 'use_idg' in kwargs.keys():
         if s.get_cluster() == 'Hamburg_fat':
             wsc_parms.append( '-idg-mode hybrid' )
@@ -292,8 +306,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     # other stanrdard parms
     wsc_parms.append( '-clean-border 1' )
     # temp dir
-    if s.get_cluster() == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
-        wsc_parms.append( '-temp-dir /localwork.ssd' )
+    #if s.get_cluster() == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
+    #    wsc_parms.append( '-temp-dir /localwork.ssd' )
     # user defined parms
     for parm, value in list(kwargs.items()):
         if value is None: continue
@@ -329,7 +343,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
         # files
         wsc_parms.append( MSs_files )
 
-        command_string = 'wsclean -predict -j '+str(s.max_processors)+' '+' '.join(wsc_parms)
+        command_string = 'wsclean -reorder -parallel-reordering 4 -predict ' \
+                         '-j '+str(s.max_processors)+' '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean', processors='max')
         s.run(check=True)
 
@@ -361,6 +376,67 @@ def run_DDF(s, logfile, **kwargs):
     command_string = 'DDF.py '+' '.join(ddf_parms)
     s.add(command_string, log=logfile, commandType='python', processors='max')
     s.run(check=True)
+
+
+class Region_helper():
+    """
+    Simple class to get the extent of a ds9 region file containing one or more circles or polygons.
+    All properties are returned in degrees.
+
+    Parameters
+    ----------
+    filename: str
+        Path to ds9 region file.
+    """
+    def __init__(self, filename):
+        self.filename = filename
+        self.reg_list = pyregion.open(filename)
+        min_ra, max_ra, min_dec, max_dec = [], [], [], []
+        for r in self.reg_list:
+            # TODO: if necessary, box, ellipse and polygon can be added.
+            if r.name == 'circle':
+                c = r.coord_list # c_ra, c_dec, radius
+                # how much RA does the radius correspond to
+                radius_ra = np.rad2deg(2*np.arcsin(np.sin(np.deg2rad(c[2])/2)/np.cos(np.deg2rad(c[1]))))
+                min_ra.append(c[0] - radius_ra)
+                max_ra.append(c[0] + radius_ra)
+                min_dec.append(c[1] - c[2])
+                max_dec.append(c[1] + c[2])
+            elif r.name == 'polygon':
+                c = np.array(r.coord_list) # ra_i, dec_i, ra_i+1, dec_i+1
+                ra_mask = np.zeros(len(c), dtype=bool)
+                ra_mask[::2] = True
+                p_ra  = c[ra_mask]
+                p_dec = c[~ra_mask]
+                min_ra.append(np.min(p_ra))
+                max_ra.append(np.max(p_ra))
+                min_dec.append(np.min(p_dec))
+                max_dec.append(np.max(p_dec))
+            else:
+                logger.error('Region type {} not supported.'.format(r.name))
+                sys.exit(1)
+        self.min_ra = np.min(min_ra)
+        self.max_ra = np.max(max_ra)
+        self.min_dec = np.min(min_dec)
+        self.max_dec = np.max(max_dec)
+
+    def get_center(self):
+        """ Return center point [ra, dec] """
+        return 0.5 * np.array([self.min_ra + self.max_ra, self.min_dec + self.max_dec])
+
+    def get_width(self):
+        """ Return RA width in degree (at center declination)"""
+        delta_ra = self.max_ra - self.min_ra
+        width = 2*np.arcsin(np.cos(np.deg2rad(self.get_center()[1]))*np.sin(np.deg2rad(delta_ra/2)))
+        width = np.rad2deg(width)
+        return width
+
+    def get_height(self):
+        """ Return height in degree"""
+        return self.max_dec - self.min_dec
+
+    def __len__(self):
+        return len(self.reg_list)
 
 
 class Skip(Exception):
@@ -442,13 +518,14 @@ class Scheduler():
             else:
                 self.qsub = False
         else:
-            if ((self.qsub == False and self.cluster == "Hamburg") or \
-               (self.qsub == True and (self.cluster == "Leiden" or self.cluster == "CEP3" or self.cluster == "Hamburg_fat"))):
+            if ((self.qsub is False and self.cluster == "Hamburg") or
+               (self.qsub is True and (self.cluster == "Leiden" or self.cluster == "CEP3" or
+                                       self.cluster == "Hamburg_fat" or self.cluster == "IRA" or self.cluster == "Herts"))):
                 logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
                 sys.exit(1)
 
-        if (maxThreads == None):
-            if   (self.cluster == "Hamburg"):
+        if (maxThreads is None):
+            if (self.cluster == "Hamburg"):
                 self.maxThreads = 32
             else:
                 self.maxThreads = multiprocessing.cpu_count()
@@ -468,7 +545,7 @@ class Scheduler():
                      str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
 
         self.action_list = []
-        self.log_list    = [] # list of 2-tuples of the type: (log filename, type of action)
+        self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
 
 
     def get_cluster(self):
@@ -479,8 +556,12 @@ class Scheduler():
         hostname = socket.gethostname()
         if (hostname == 'lgc1' or hostname == 'lgc2'):
             return "Hamburg"
+        elif ('ira' in hostname):
+            return "IRA"
         elif ('node3' in hostname):
             return "Hamburg_fat"
+        elif ('node' in hostname):
+            return "Herts"
         elif ('leidenuniv' in hostname):
             return "Leiden"
         elif (hostname[0 : 3] == 'lof'):
@@ -600,6 +681,9 @@ class Scheduler():
 
         if (commandType == "DPPP"):
             out = subprocess.check_output('grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            #
+            # out += subprocess.check_output('grep -l "Aborted (core dumped)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "**** uncaught exception ****" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
@@ -612,15 +696,15 @@ class Scheduler():
 
         elif (commandType == "wsclean"):
             out = subprocess.check_output('grep -l "exception occur" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Segmentation fault" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Aborted" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "python"):
             out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Segmentation fault" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "ERROR" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
@@ -639,6 +723,6 @@ class Scheduler():
         if out != b'':
             out = out.split(b'\n')[0].decode()
             logger.error(commandType+' run problem on:\n'+out)
-            raise
+            raise RuntimeError(commandType+' run problem on:\n'+out)
 
         return 0

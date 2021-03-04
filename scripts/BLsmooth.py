@@ -29,7 +29,7 @@ from scipy.ndimage import gaussian_filter1d as gfilter
 
 import casacore.tables as pt
 
-from lib_multiproc import multiprocManager
+from LiLF.lib_multiproc import multiprocManager
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s: %(message)s')
 logging.info('BL-based smoother - Francesco de Gasperin, Henrik Edler')

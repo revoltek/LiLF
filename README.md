@@ -5,8 +5,11 @@ LiLF is a set of functions linked together in pipelines for the reduction of low
 
 
 LOFAR: http://lofar.org/
-
 uGMRT: http://www.ncra.tifr.res.in/ncra/gmrt
+
+### Files:
+- ~/.stagingrc >> with the login and pass for LTA archive
+- ~/.surveys >> with the pass for the surveydb
 
 # lilf.config specifications:
 
