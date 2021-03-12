@@ -19,6 +19,7 @@ working_dir = os.path.abspath(parset.get('PiLL','working_dir'))
 redo_cal = parset.getboolean('PiLL','redo_cal')
 project = parset.get('PiLL','project')
 target = parset.get('PiLL','target')
+obsid = parset.get('PiLL','obsid')
 download_file = parset.get('PiLL','download_file')
 if download_file != '': download_file = os.path.abspath(download_file)
 
@@ -78,7 +79,7 @@ def fix_dir_format(working_dir):
 
 # query the database for data to process
 survey = False
-if download_file == '' and project == '' and target == '':
+if download_file == '' and project == '' and target == '' and obsid == '':
     survey = True
     project = survey_projects
     if os.path.exists('target.txt'):
@@ -163,7 +164,7 @@ for target in targets:
     # then it also runs the calibrator pipeline
     obsid = int(target.split('_-_')[0][2:])
     with w.if_todo('cal_id%i' % obsid):
-        if redo_cal or not calibrator_tables_available(obsid):
+        if not survey or redo_cal or not calibrator_tables_available(obsid):
             logger.info('### %s: Starting calibrator... #####################################' % target)
             # if calibrator not downaloaded, do it
             cal_dir = local_calibrator_dirs(working_dir, obsid)
@@ -184,18 +185,19 @@ for target in targets:
             os.system(LiLF_dir+'/pipelines/LOFAR_cal.py')
             check_done('pipeline-cal.logger')
 
-            # copy solutions in the repository
-            cal_dir = os.path.basename(local_calibrator_dirs(working_dir, obsid)[0])
-            logger.info('Copy: cal*h5 -> herts:/beegfs/lofar/lba/calibration_solutions/%s' % cal_dir)
-            os.system('ssh herts "rm -rf /beegfs/lofar/lba/calibration_solutions/%s"' % cal_dir)
-            os.system('ssh herts "mkdir /beegfs/lofar/lba/calibration_solutions/%s"' % cal_dir)
-            os.system('scp -q cal-pa.h5 cal-amp.h5 cal-iono.h5 herts:/beegfs/lofar/lba/calibration_solutions/%s' % cal_dir)
-            os.system('scp -q -r plots* herts:/beegfs/lofar/lba/calibration_solutions/%s' % cal_dir)
+            if survey: # only backup solutions if survey
+                # copy solutions in the repository
+                cal_dir = os.path.basename(local_calibrator_dirs(working_dir, obsid)[0])
+                logger.info('Copy: cal*h5 -> herts:/beegfs/lofar/lba/calibration_solutions/%s' % cal_dir)
+                os.system('ssh herts "rm -rf /beegfs/lofar/lba/calibration_solutions/%s"' % cal_dir)
+                os.system('ssh herts "mkdir /beegfs/lofar/lba/calibration_solutions/%s"' % cal_dir)
+                os.system('scp -q cal-pa.h5 cal-amp.h5 cal-iono.h5 herts:/beegfs/lofar/lba/calibration_solutions/%s' % cal_dir)
+                os.system('scp -q -r plots* herts:/beegfs/lofar/lba/calibration_solutions/%s' % cal_dir)
 
-            # update the db
-            with SurveysDB(survey='lba',readonly=False) as sdb:
-                sdb.execute('INSERT INTO observations (id,location,calibratordata) VALUES \
-                (%i,"herts","%s")' % (obsid, "/beegfs/lofar/lba/calibration_solutions/"+cal_dir))
+                # update the db
+                with SurveysDB(survey='lba',readonly=False) as sdb:
+                    sdb.execute('INSERT INTO observations (id,location,calibratordata) VALUES \
+                    (%i,"herts","%s")' % (obsid, "/beegfs/lofar/lba/calibration_solutions/"+cal_dir))
 
         else:
             # download calibrator solutions
@@ -256,15 +258,16 @@ for grouped_target in grouped_targets:
         os.system(LiLF_dir+'/pipelines/LOFAR_dd-serial.py')
         check_done('pipeline-dd-serial.logger')
 
-        logger.info('Copy: ddcal/c0*/images/img/wideDD-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % grouped_target)
-        os.system('ssh herts "rm -rf /beegfs/lofar/lba/products/%s"' % grouped_target)
-        os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s"' % grouped_target)
-        os.system('scp -q self/images/wideP*.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
-        os.system('scp -q self/images/wideM-1-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
-        os.system('scp -q self/images/wide-largescale-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
-        os.system('scp -q ddcal/c0*/images/wideDD-c*.app.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
-        os.system('scp -q ddcal/c0*/images/wideDD-c*.int.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
-        os.system('scp -q ddcal/c01/solutions/interp.h5 herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+        if survey: # only back up solutions if survey
+            logger.info('Copy: ddcal/c0*/images/img/wideDD-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('ssh herts "rm -rf /beegfs/lofar/lba/products/%s"' % grouped_target)
+            os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s"' % grouped_target)
+            os.system('scp -q self/images/wideP*.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q self/images/wideM-1-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q self/images/wide-largescale-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q ddcal/c0*/images/wideDD-c*.app.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q ddcal/c0*/images/wideDD-c*.int.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q ddcal/c01/solutions/interp.h5 herts:/beegfs/lofar/lba/products/%s' % grouped_target)
 ### DONE
 
     if survey: update_status_db(grouped_target, 'Done')

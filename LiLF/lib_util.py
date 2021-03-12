@@ -48,6 +48,7 @@ def getParset(parsetFile='../lilf.config'):
     add_default('PiLL', 'download_file', '') # html.txt file to use instead of staging
     add_default('PiLL', 'project', '')
     add_default('PiLL', 'target', '')
+    add_default('PiLL', 'obsid', '') # unique ID
 
     # preprocess
     add_default('LOFAR_preprocess', 'fix_table', 'True') # fix bug in some old observations
@@ -723,6 +724,7 @@ class Scheduler():
         if out != b'':
             out = out.split(b'\n')[0].decode()
             logger.error(commandType+' run problem on:\n'+out)
+            print(out)
             raise RuntimeError(commandType+' run problem on:\n'+out)
 
         return 0
