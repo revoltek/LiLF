@@ -724,7 +724,6 @@ class Scheduler():
         if out != b'':
             out = out.split(b'\n')[0].decode()
             logger.error(commandType+' run problem on:\n'+out)
-            print(out)
             raise RuntimeError(commandType+' run problem on:\n'+out)
 
         return 0
