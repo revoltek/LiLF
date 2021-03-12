@@ -122,7 +122,7 @@ with w.if_todo('flag'):
 
     logger.info('Flagging...')
     MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\" \
-            aoflagger.strategy='+parset_dir+'/LBAdefaultwideband.rfis',
+            aoflagger.strategy='+parset_dir+'/LBAdefaultwideband.lua',
             log='$nameMS_DPPP_flag.log', commandType='DPPP')
     
     logger.info('Remove bad timestamps...')
