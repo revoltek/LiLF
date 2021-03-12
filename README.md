@@ -11,6 +11,10 @@ uGMRT: http://www.ncra.tifr.res.in/ncra/gmrt
 - ~/.stagingrc >> with the login and pass for LTA archive
 - ~/.surveys >> with the pass for the surveydb
 
+### Container:
+check here if you want a container that can run the pipeline:
+LiLF/container/docker_build.sh
+
 # lilf.config specifications:
 
 ### PiLL
