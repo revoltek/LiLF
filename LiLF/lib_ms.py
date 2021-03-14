@@ -134,6 +134,26 @@ class AllMSs(object):
 
         self.scheduler.run(check = True, maxThreads = maxThreads)
 
+    def addcol(self, newcol, fromcol, usedysco='auto', log='$nameMS_addcol.log'):
+        """
+        Use DP3 to add a new data column using values from an existing column.
+        Parameters
+        ----------
+        newcol: string, name of new column
+        fromcol: string, name of esisting column
+        usedysco: bool or string, if bool: use dysco? if 'auto', use dysco if fromcol uses dysco.
+        log: string, logfile name
+        """
+        sm = '' # storagemanager
+        if usedysco == 'auto': # if col is dysco compressed in first MS, assume it is for all MSs
+            with tables.table(self.mssListStr[0]) as t:
+                if t.getdminfo(fromcol)['TYPE'] == 'DyscoStMan':
+                    sm = 'dysco'
+        elif usedysco:
+            sm = 'dysco'
+        self.run(f'DPPP msin=$pathMS msin.datacolumn={fromcol} msout=. msout.datacolumn={newcol} \
+                 msout.storagemanager={sm} steps=[]', log=log, commandType="DPPP")
+
     def print_HAcov(self, png=None):
         """
         some info on the MSs

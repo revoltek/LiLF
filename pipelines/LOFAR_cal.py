@@ -9,7 +9,7 @@ import sys, os, glob, re
 import numpy as np
 
 ########################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log
+from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_h5
 logger_obj = lib_log.Logger('pipeline-cal.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
@@ -81,11 +81,10 @@ with w.if_todo('cal_pa'):
     
     lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()],
             [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
-    
+
     # Pol align correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
     MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DPPP")
-
 ### DONE
 
 ########################################################
@@ -94,26 +93,44 @@ with w.if_todo('cal_pa'):
 with w.if_todo('cal_fr'):
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
-    MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType="DPPP")
-    
-    # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+    MSs.run("DPPP " + parset_dir + '/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log',
+            commandType="DPPP")
+
+    # Smooth data CORRECTED_DATA -> CIRC_PHASEDIFF_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth2.log',
-            commandType ='python', maxThreads=8)
-    
-    # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+    MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o CIRC_PHASEDIFF_DATA $pathMS', log='$nameMS_smooth2.log',
+            commandType='python', maxThreads=8)
+
+    logger.info('Converting to circular...')
+    MSs.run('mslin2circ.py -s -i $pathMS:CIRC_PHASEDIFF_DATA -o $pathMS:CIRC_PHASEDIFF_DATA', log='$nameMS_lincirc.log',
+            commandType='python', maxThreads=2)
+    # Get circular phase diff CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
+    logger.info('Get circular phase difference...')
+    MSs.run('taql "UPDATE $pathMS SET\
+     CIRC_PHASEDIFF_DATA[,0]=0.5*EXP(1.0i*(PHASE(CIRC_PHASEDIFF_DATA[,0])-PHASE(CIRC_PHASEDIFF_DATA[,3]))), \
+     CIRC_PHASEDIFF_DATA[,3]=CIRC_PHASEDIFF_DATA[,0], \
+     CIRC_PHASEDIFF_DATA[,1]=0+0i, \
+     CIRC_PHASEDIFF_DATA[,2]=0+0i"',log='$nameMS_taql_phdiff.log', commandType='general')
+
+    logger.info('Creating FR_MODEL_DATA...') # take from MODEL_DATA but overwrite
+    MSs.run('addcol2ms.py -m $pathMS -c FR_MODEL_DATA -i MODEL_DATA', log='$nameMS_addcol.log', commandType='python')
+    MSs.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
+     FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
+
+    # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve)
     logger.info('Calibrating FR...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal \
-            sol.solint=2 sol.nchan=2',
-            log='$nameMS_solFR.log', commandType="DPPP")
-    
-    lib_util.run_losoto(s, 'fr', [ms+'/fr.h5' for ms in MSs.getListStr()],
-            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-fr.parset'])
-    
+    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CIRC_PHASEDIFF_DATA \
+     msin.modelcolumn=FR_MODEL_DATA sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
+    sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint=2 sol.nchan=2 sol.coreconstraint=1e3 sol.smoothnessconstraint=5e6', log='$nameMS_solFR.log', commandType="DPPP")
+    lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
+
     # Correct FR CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DPPP")
-
+    MSs.run(
+        'DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000',
+        log='$nameMS_corFR.log', commandType="DPPP")
+    # remove columns
+    MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN CIRC_PHASEDIFF_DATA, FR_MODEL_DATA"', log='$nameMS_taql_delcol.log', commandType='general')
 ### DONE
 
 #######################################################
