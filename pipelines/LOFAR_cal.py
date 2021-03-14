@@ -98,7 +98,8 @@ with w.if_todo('cal_fr'):
 
     # Smooth data CORRECTED_DATA -> CIRC_PHASEDIFF_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o CIRC_PHASEDIFF_DATA $pathMS', log='$nameMS_smooth2.log',
+    MSs.addcol('CIRC_PHASEDIFF_DATA', 'CORRECTED_DATA', usedysco=False) # need this to make sure no dysco, if we have dyso we cannot set values to zero
+    MSs.run('BLsmooth.py -r -c 1 -n 8 -i CIRC_PHASEDIFF_DATA -o CIRC_PHASEDIFF_DATA $pathMS', log='$nameMS_smooth2.log',
             commandType='python', maxThreads=8)
 
     logger.info('Converting to circular...')
@@ -113,7 +114,7 @@ with w.if_todo('cal_fr'):
      CIRC_PHASEDIFF_DATA[,2]=0+0i"',log='$nameMS_taql_phdiff.log', commandType='general')
 
     logger.info('Creating FR_MODEL_DATA...') # take from MODEL_DATA but overwrite
-    MSs.run('addcol2ms.py -m $pathMS -c FR_MODEL_DATA -i MODEL_DATA', log='$nameMS_addcol.log', commandType='python')
+    MSs.addcol('FR_MODEL_DATA', 'MODEL_DATA', usedysco=False) # need this to make sure no dysco, if we have dyso we cannot set values to zero
     MSs.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
      FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
 
@@ -124,13 +125,14 @@ with w.if_todo('cal_fr'):
     sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint=2 sol.nchan=2 sol.coreconstraint=1e3 sol.smoothnessconstraint=5e6', log='$nameMS_solFR.log', commandType="DPPP")
     lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
 
+    # remove columns
+    MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN CIRC_PHASEDIFF_DATA, FR_MODEL_DATA"', log='$nameMS_taql_delcol.log', commandType='general')
+
     # Correct FR CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
     MSs.run(
         'DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000',
         log='$nameMS_corFR.log', commandType="DPPP")
-    # remove columns
-    MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN CIRC_PHASEDIFF_DATA, FR_MODEL_DATA"', log='$nameMS_taql_delcol.log', commandType='general')
 ### DONE
 
 #######################################################
