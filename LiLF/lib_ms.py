@@ -136,11 +136,12 @@ class AllMSs(object):
 
     def addcol(self, newcol, fromcol, usedysco='auto', log='$nameMS_addcol.log'):
         """
+        # TODO: it might be that if col exists and is dysco, forcing no dysco will not work. Maybe force TiledColumnStMan in such cases?
         Use DP3 to add a new data column using values from an existing column.
         Parameters
         ----------
         newcol: string, name of new column
-        fromcol: string, name of esisting column
+        fromcol: string, name of existing column
         usedysco: bool or string, if bool: use dysco? if 'auto', use dysco if fromcol uses dysco.
         log: string, logfile name
         """
