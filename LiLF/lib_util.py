@@ -196,13 +196,6 @@ def distanceOnSphere(RAs1, Decs1, RAs2, Decs2, rad=False):
                np.cos(np.radians(Decs1)) * np.cos(np.radians(Decs2)) *
                np.cos(np.radians(RAs1 - RAs2)), -1, 1)))
 
-# def _haversine(s1, s2): # crosscheck
-#     """
-#     Calculate the great circle distance between two points
-#     (specified in rad)
-#     """
-#     return 2*np.arcsin(np.sqrt(np.sin((s2[1]-s1[1])/2.0)**2 + np.cos(s1[1]) * np.cos(s2[1]) * np.sin((s2[0]-s1[0])/2.0)**2))
-
 
 def check_rm(regexp):
     """
@@ -237,6 +230,26 @@ class Sol_iterator(object):
         else:
             return self.vals[-1]
 
+
+def lofar_nu2num(nu):
+    """
+    Get LOFAR SB number from the freq
+    """
+    nu_clk = 200. # 160 or 200 MHz, clock freq
+    # nyquist zone (1 for LBA, 2 for HBA low, 3 for HBA mid-high)
+    if nu < 90e6:
+        n = 1
+    elif nu < 170e6:
+        n = 2
+    else:
+        n = 3
+
+    if nu_clk == 200:
+        SBband = 195312.5/1e6
+    elif nu_clk == 160:
+        SBband = 156250.0/1e6
+
+    return np.int(np.floor((1024./nu_clk) * (nu - (n-1) * nu_clk/2.)))
 
 def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
     """
@@ -316,6 +329,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
             scale = float(kwargs['scale'].replace('arcsec','')) # arcsec
             value = 1.87e3*60000.*2.*np.pi/(24.*60.*60*np.max(kwargs['size'])) # the np.max() is OK with both float and arrays
             if value > 10: value=10
+            if value < 1: continue
         if parm == 'cont': 
             parm = 'continue'
             value = ''
