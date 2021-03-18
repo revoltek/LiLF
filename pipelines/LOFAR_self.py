@@ -112,32 +112,28 @@ for c in range(2):
             MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         ### DONE
     else:
-        
-        with w.if_todo('init_apply_c%02i' % c):
+        with w.if_todo('cor_g_c%02i' % c):
+            # initial correction for slow gain after first cycle
             # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
             logger.info('Correcting G...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g2-c0.h5 cor.correction=amplitudeSmooth', \
-                    log='$nameMS_corG-c'+str(c)+'.log', commandType='DPPP')
-    
-            # correct FR - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-            logger.info('Correcting FR...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g1-c0.h5 cor.correction=rotationmeasure000', \
-                    log='$nameMS_corFR-c'+str(c)+'.log', commandType='DPPP')
-        ### DONE
-
+            MSs.run(
+                'DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g-c0.h5 cor.correction=amplitudeSmooth', \
+                log='$nameMS_corG-c' + str(c) + '.log', commandType='DPPP')
     if c == 0:
         with w.if_todo('solve_fr_c%02i' % c):
-            # Smooth data CORRECTED_DATA -> CIRC_PHASEDIFF_DATA (BL-based smoothing)
-            logger.info('BL-smooth...')
+            logger.info('Add column CIRC_PHASEDIFF_DATA...')
             MSs.addcol('CIRC_PHASEDIFF_DATA', 'CORRECTED_DATA', usedysco=False)
-            MSs.run('BLsmooth.py -r -c 1 -n 8 -i CIRC_PHASEDIFF_DATA -o CIRC_PHASEDIFF_DATA $pathMS',
-                    log='$nameMS_smooth2-c' + str(c) + '.log',
-                    commandType='python', maxThreads=8)
+            # Probably we do not need smoothing since we have long time intervals and smoothnessconstraint?
+            # logger.info('BL-smooth...')
+            # MSs.run('BLsmooth.py -r -c 1 -n 8 -i CIRC_PHASEDIFF_DATA -o CIRC_PHASEDIFF_DATA $pathMS',
+            #         log='$nameMS_smooth2-c' + str(c) + '.log',
+            #         commandType='python', maxThreads=8)
 
             logger.info('Converting to circular...')
             MSs.run('mslin2circ.py -s -i $pathMS:CIRC_PHASEDIFF_DATA -o $pathMS:CIRC_PHASEDIFF_DATA',
                     log='$nameMS_lincirc.log',
                     commandType='python', maxThreads=2)
+
             # Get circular phase diff CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
             logger.info('Get circular phase difference...')
             MSs.run('taql "UPDATE $pathMS SET\
@@ -152,21 +148,24 @@ for c in range(2):
              FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
 
             # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve)
-            logger.info('Solving circular phase difference ...')
+            logger.info('Solving circ phase difference ...')
             MSs.run('DPPP ' + parset_dir + '/DPPP-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5',
-                    log='$nameMS_solFR.log', commandType="DPPP")
-            lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
+                    log='$nameMS_solFR-c' + str(c) + '.log', commandType="DPPP")
+            lib_util.run_losoto(s, f'fr-c{c}', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
+            os.system('mv cal-fr-c' + str(c) + '.h5 self/solutions/')
+            os.system('mv plots-fr-c' + str(c) + ' self/plots/')
+            # Delete cols again to not waste space
             MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN CIRC_PHASEDIFF_DATA, FR_MODEL_DATA"',
                     log='$nameMS_taql_delcol.log', commandType='general')
         ### DONE
 
-        with w.if_todo('cor_fr_c%02i' % c):
-            # Correct FR - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-            logger.info('Correcting FR...')
-            MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                    cor.parmdb=self/solutions/cal-fr-c' + str(c) + '.h5 cor.correction=rotationmeasure000',
-                    log='$nameMS_corFR-c' + str(c) + '.log', commandType='DPPP')
-        ### DONE
+    with w.if_todo('cor_fr_c%02i' % c):
+        # Correct FR with results of cycle 0 - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
+        logger.info('Correcting FR...')
+        MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+                cor.parmdb=self/solutions/cal-fr-c0.h5 cor.correction=rotationmeasure000',
+                log='$nameMS_corFR-c' + str(c) + '.log', commandType='DPPP')
+    ### DONE
 
     with w.if_todo('solve_tec1_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
@@ -220,31 +219,8 @@ for c in range(2):
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DPPP')
     ### DONE
 
-    # AMP+FR DIE correction
+    # AMP DIE correction
     if c == 0:
-
-        # with w.if_todo('cal_frold_c%02i' % c):
-        #     # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
-        #     logger.info('Converting to circular...')
-        #     MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log',
-        #             commandType='python', maxThreads=2)
-        #
-        #     # DIE Calibration - ms:CORRECTED_DATA
-        #     logger.info('Solving slow G1...')
-        #     MSs.run('DPPP ' + parset_dir + '/DPPP-solG.parset msin=$pathMS sol.h5parm=$pathMS/g1.h5',
-        #             log='$nameMS_solG1-c' + str(c) + '.log', commandType='DPPP')
-        #     lib_util.run_losoto(s, 'g1-c' + str(c), [MS + '/g1.h5' for MS in MSs.getListStr()],
-        #                         [parset_dir + '/losoto-plot-amp.parset', parset_dir + '/losoto-plot-ph.parset',
-        #                          parset_dir + '/losoto-fr-old.parset'])
-        #     os.system('mv plots-g1-c' + str(c) + ' self/plots/')
-        #     os.system('mv cal-g1-c' + str(c) + '.h5 self/solutions/')
-        #
-        #     # Convert back to linear CORRECTED_DATA -> CORRECTED_DATA
-        #     logger.info('Converting to linear...')
-        #     MSs.run('mslin2circ.py -r -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log',
-        #             commandType='python', maxThreads=2)
-        ### DONE
-
         with w.if_todo('solve_g_c%02i' % c):
             # DIE Calibration - ms:CORRECTED_DATA
             logger.info('Solving slow G...')
