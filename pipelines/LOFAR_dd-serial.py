@@ -131,9 +131,9 @@ if not os.path.exists('mss-avg'):
     nchan = nchan_init - nchan_init % 48
     os.makedirs('mss-avg')
     logger.info('Averaging in time (%is -> %is), channels: %ich -> %ich)' % (timeint,timeint*avgtimeint,nchan_init,nchan))
-    MSs.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-avg/$nameMS.MS msin.datacolumn=CORRECTED_DATA msin.nchan='+str(nchan)+' \
+    MSs.run('DP3 '+parset_dir+'/DP3-avg.parset msin=$pathMS msout=mss-avg/$nameMS.MS msin.datacolumn=CORRECTED_DATA msin.nchan='+str(nchan)+' \
             avg.timestep='+str(avgtimeint)+' avg.freqstep=1',
-            log='$nameMS_initavg.log', commandType='DPPP')
+            log='$nameMS_initavg.log', commandType='DP3')
 
 MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False)
 
@@ -387,9 +387,9 @@ for cmaj in range(maxIter):
             # Shift - ms:SUBTRACTED_DATA -> ms:DATA (->16/32 s and 1 chan every 2 SBs: tot of 60 or 120 chan)
             if d.get_flux(freq_mid) > 4: avgtimeint = int(round(16/timeint))
             else: avgtimeint = int(round(32/timeint))
-            MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=DATA \
+            MSs.run('DP3 '+parset_dir+'/DP3-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=DATA \
                     avg.timestep='+str(avgtimeint)+' avg.freqstep=8 shift.phasecenter=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\]', \
-                    log='$nameMS_shift-'+logstring+'.log', commandType='DPPP')
+                    log='$nameMS_shift-'+logstring+'.log', commandType='DP3')
         ### DONE
 
         MSs_dir = lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s, check_flags=False )
@@ -403,11 +403,11 @@ for cmaj in range(maxIter):
         if not d.peel_off:
             with w.if_todo('%s-beamcorr' % logstring):
                 logger.info('Correcting beam...')
-                # Convince DPPP that DATA is corrected for the beam in the phase centre
-                MSs_dir.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
+                # Convince DP3 that DATA is corrected for the beam in the phase centre
+                MSs_dir.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
                         setbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] \
                         corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=True',
-                        log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
+                        log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
             ### DONE
 
         with w.if_todo('%s-preimage' % logstring):
@@ -454,28 +454,28 @@ for cmaj in range(maxIter):
                 # Calibration - ms:SMOOTHED_DATA
                 # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                 logger.info('Gain phase calibration (solint: %i)...' % solint_ph)
-                MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
+                MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
                     sol.mode=scalarphase sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=5e6 \
                     sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
-                    log='$nameMS_solGph-'+logstringcal+'.log', commandType='DPPP')
+                    log='$nameMS_solGph-'+logstringcal+'.log', commandType='DP3')
                 lib_util.run_losoto(s, 'ph', [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()],
                     [parset_dir+'/losoto-plot1.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                 os.system('mv cal-ph.h5 %s' % d.get_h5parm('ph'))
 
                 # correct ph - ms:DATA -> ms:CORRECTED_DATA
                 logger.info('Correct ph...')
-                MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
+                MSs_dir.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
                              cor.parmdb='+d.get_h5parm('ph')+' cor.correction=phase000',
-                             log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP')
+                             log='$nameMS_correct-'+logstringcal+'.log', commandType='DP3')
 
                 if doamp:
                     logger.info('Gain amp calibration 1 (solint: %i)...' % solint_amp)
                     # Calibration - ms:CORRECTED_DATA
                     # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
-                    MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
+                    MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
                         sol.mode=diagonal sol.solint='+str(solint_amp)+' sol.nchan=10 sol.minvisratio=0.5 \
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
-                        log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DPPP')
+                        log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DP3')
 
                     #if d.peel_off:
                         #losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset']
@@ -487,16 +487,16 @@ for cmaj in range(maxIter):
 
                     logger.info('Correct amp 1...')
                     # correct amp - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
-                    MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                    MSs_dir.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
                         cor.parmdb='+d.get_h5parm('amp1')+' cor.correction=amplitude000',
-                        log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP') 
+                        log='$nameMS_correct-'+logstringcal+'.log', commandType='DP3')
 
                     logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
                     # Calibration - ms:CORRECTED_DATA
                     #sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]
-                    MSs_dir.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
+                    MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
                         sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.minvisratio=0.5',
-                        log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DPPP')
+                        log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DP3')
 
                     #if d.peel_off:
                         #losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset']
@@ -508,9 +508,9 @@ for cmaj in range(maxIter):
 
                     logger.info('Correct amp 2...')
                     # correct amp2 - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
-                    MSs_dir.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                    MSs_dir.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
                         cor.parmdb='+d.get_h5parm('amp2')+' cor.correction=amplitude000',
-                        log='$nameMS_correct-'+logstringcal+'.log', commandType='DPPP') 
+                        log='$nameMS_correct-'+logstringcal+'.log', commandType='DP3')
             ### DONE
 
             ###########################################################################
@@ -589,8 +589,8 @@ for cmaj in range(maxIter):
 
             # Predict - ms:MODEL_DATA
             logger.info('Add best model to MODEL_DATA...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+model_skydb,
-                    log='$nameMS_pre-'+logstring+'.log', commandType='DPPP')
+            MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+model_skydb,
+                    log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
 
             # Store FLAGS - just for sources to peel as they might be visible only for a fraction of the band
             if d.peel_off:
@@ -599,31 +599,31 @@ for cmaj in range(maxIter):
 
             # Corrput now model - ms:MODEL_DATA -> MODEL_DATA
             logger.info('Corrupt ph...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+            MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                         cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=phase000',
-                        log='$nameMS_corruping'+logstring+'.log', commandType='DPPP')
+                        log='$nameMS_corruping'+logstring+'.log', commandType='DP3')
 
             if not d.get_h5parm('amp1',-2) is None:
                 logger.info('Corrupt amp...')
-                MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                        cor.invert=False cor.parmdb='+d.get_h5parm('amp1',-2)+' cor.correction=amplitude000',
-                       log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP')
+                       log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
             if not d.get_h5parm('amp2',-2) is None:
-                MSs.run('DPPP '+parset_dir+'/DPPP-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                        cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000',
-                       log='$nameMS_corrupt-'+logstring+'.log', commandType='DPPP')
+                       log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
 
             if not d.peel_off:
                 # Corrupt for the beam
                 logger.info('Corrupting beam...')
-                # Convince DPPP that MODELDATA is corrected for the beam in the dd-cal direction, so I can corrupt
-                MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                # Convince DP3 that MODELDATA is corrected for the beam in the dd-cal direction, so I can corrupt
+                MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                        setbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] \
                        corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=False', \
-                       log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
-                MSs.run('DPPP '+parset_dir+'/DPPP-beam2.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA steps=corrbeam \
+                       log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
+                MSs.run('DP3 '+parset_dir+'/DP3-beam2.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA steps=corrbeam \
                        corrbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] corrbeam.beammode=element corrbeam.invert=True', \
-                       log='$nameMS_beam-'+logstring+'.log', commandType='DPPP')
+                       log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
 
             if d.peel_off:
                 # Set MODEL_DATA = 0 where data are flagged, then unflag everything

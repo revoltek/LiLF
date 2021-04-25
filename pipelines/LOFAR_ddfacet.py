@@ -53,8 +53,8 @@ logger.info('Copy data...')
 if not os.path.exists('mss-dd'):
     os.makedirs('mss-dd')
     for n in range(1,nchan%122):
-        MSs_self.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS-n%i.MS msin.datacolumn=CORRECTED_DATA msin.nchan=122 msin.startchan=%i \
-                avg.freqstep=1 avg.timestep=1' % (n, n*122), log='$nameMS_avg.log', commandType='DPPP')
+        MSs_self.run('DP3 '+parset_dir+'/DP3-avg.parset msin=$pathMS msout=mss-dd/$nameMS-n%i.MS msin.datacolumn=CORRECTED_DATA msin.nchan=122 msin.startchan=%i \
+                avg.freqstep=1 avg.timestep=1' % (n, n*122), log='$nameMS_avg.log', commandType='DP3')
 MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9]-n[0-9].MS'), s )
        
 logger.info('Add columns...')

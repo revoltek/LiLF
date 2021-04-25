@@ -10,7 +10,7 @@ import numpy as np
 def make_beam(mss, outfile='beam.fits', pixscale=10, size=5, nchans=1):
 
     for ms in mss:
-        os.system('DPPP msin=%s msin.datacolumn=CORRECTED_DATA msout=. msout.datacolumn=DATA steps=[setbeam] \
+        os.system('DP3 msin=%s msin.datacolumn=CORRECTED_DATA msout=. msout.datacolumn=DATA steps=[setbeam] \
         setbeam.type=setbeam setbeam.beammode=default' % ms)
 
     # make beam image with wsclean

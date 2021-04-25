@@ -165,14 +165,14 @@ if renameavg:
             if avg_factor_f != 1 or avg_factor_t != 1:
                 logger.info('%s->%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, avg_factor_f, avg_factor_t))
                 if keep_IS:
-                    s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
+                    s.add('DP3 '+parset_dir+'/DP3-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
-                        log=MS.nameMS+'_avg.log', commandType='DPPP')
+                        log=MS.nameMS+'_avg.log', commandType='DP3')
                 else:
-                    s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
+                    s.add('DP3 '+parset_dir+'/DP3-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
                         msin.baseline="[CR]S*&" \
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
-                        log=MS.nameMS+'_avg.log', commandType='DPPP')
+                        log=MS.nameMS+'_avg.log', commandType='DP3')
                 s.run(check=True, maxThreads=1) # limit threads to prevent I/O isssues
                 lib_util.check_rm(MS.pathMS)
             else:

@@ -118,7 +118,7 @@ class AllMSs(object):
         """
         # add max num of threads given the total jobs to run
         # e.g. in a 64 processors machine running on 16 MSs, would result in numthreads=4
-        if commandType == 'DPPP': command += ' numthreads='+str(self.getNThreads())
+        if commandType == 'DP3': command += ' numthreads='+str(self.getNThreads())
 
         for MSObject in self.mssListObj:
             commandCurrent = MSObject.concretiseString(command)
@@ -152,8 +152,8 @@ class AllMSs(object):
                     sm = 'dysco'
         elif usedysco:
             sm = 'dysco'
-        self.run(f'DPPP msin=$pathMS msin.datacolumn={fromcol} msout=. msout.datacolumn={newcol} \
-                 msout.storagemanager={sm} steps=[]', log=log, commandType="DPPP")
+        self.run(f'DP3 msin=$pathMS msin.datacolumn={fromcol} msout=. msout.datacolumn={newcol} \
+                 msout.storagemanager={sm} steps=[]', log=log, commandType="DP3")
 
     def print_HAcov(self, png=None):
         """
