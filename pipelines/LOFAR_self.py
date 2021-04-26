@@ -190,7 +190,7 @@ for c in range(2):
         # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting TEC1...')
         MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
-                cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000 missingantennabehavior=unit',
+                cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000 cor.missingantennabehavior=unit',
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DP3')
     ### DONE
 
@@ -349,11 +349,11 @@ for c in range(2):
                     cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DP3')
             MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                    cor.parmdb=self/solutions/cal-g1-c'+str(c)+'.h5 cor.correction=rotationmeasure000 cor.invert=False',
+                    cor.parmdb=self/solutions/cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DP3')
             logger.info('Corrupt low-res model: G...')
             MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                    cor.parmdb=self/solutions/cal-g2-c'+str(c)+'.h5 cor.correction=amplitudeSmooth cor.invert=False',
+                    cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitudeSmooth cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DP3')
         ### DONE
 
