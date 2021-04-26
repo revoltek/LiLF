@@ -348,6 +348,7 @@ for c in range(2):
             MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
                     cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DP3')
+            logger.info('Corrupt low-res model: FR...')
             MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                     cor.parmdb=self/solutions/cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DP3')
