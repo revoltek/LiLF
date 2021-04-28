@@ -3,9 +3,8 @@ Library for Low Frequencies
 
 LiLF is a set of functions linked together in pipelines for the reduction of low-frequency interferometric data in radio astronomy. It is built upon LOFAR software. LiLF can be used on both LOFAR and uGMRT data.
 
-
-LOFAR: http://lofar.org/
-uGMRT: http://www.ncra.tifr.res.in/ncra/gmrt
+- LOFAR: http://lofar.org/
+- uGMRT: http://www.ncra.tifr.res.in/ncra/gmrt
 
 ### Files:
 - ~/.stagingrc >> with the login and pass for LTA archive
@@ -17,6 +16,16 @@ LiLF/container/docker_build.sh
 
 # LBA data reduction How-To:
 To calibrate LOFAR LBA data is possible to use the script PILL.py (in the pipeline dir) that automatically does all the pipeline steps, or to run the single steps by hand to check the intermediate results.
+
+If you use these scripts, please cite:
+- [de Gasperin+ 2019](https://ui.adsabs.harvard.edu/abs/2019A%26A...622A...5D/abstract)
+- [de Gasperin+ 2021](https://ui.adsabs.harvard.edu/abs/2021A%26A...648A.104D/abstract)
+
+Information on the ionosphere systematic effects can be found here:
+- [deGasperin+ 2018](https://ui.adsabs.harvard.edu/abs/2018A%26A...615A.179D/abstract)
+
+If you demixed A-team sources, you here is the paper describing the models:
+- [de Gasperin+ 2020](https://ui.adsabs.harvard.edu/abs/2020A%26A...635A.150D/abstract)
 
 ### Environment
 Best is to use the singularity container as described above, enter in the singularity and go on your working directory
