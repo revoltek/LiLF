@@ -25,13 +25,13 @@ class Direction(object):
         self.region_file = None
 
         self.model = {}
-        self.h5parms = {'ph':[],'amp1':[],'amp2':[]}
+        self.h5parms = {'ph':[],'fr':[],'amp1':[],'amp2':[]}
 
     def clean(self):
         # TODO: remove files?
 
         # associated h5parms
-        self.h5parms = {'ph':[],'amp1':[],'amp2':[]}
+        self.h5parms = {'ph':[],'fr':[],'amp1':[],'amp2':[]}
 
     def set_region(self, loc):
         """
@@ -86,7 +86,7 @@ class Direction(object):
         typ can be 'ph', 'amp1', or 'amp2'
         h5parmFile: filename
         """
-        assert (typ == 'ph' or typ == 'amp1' or typ == 'amp2')
+        assert (typ == 'ph' or typ == 'fr' or typ == 'amp1' or typ == 'amp2')
         self.h5parms[typ].append(h5parmFile)
 
     def get_h5parm(self, typ, pos=-1):
@@ -94,7 +94,7 @@ class Direction(object):
         typ can be 'ph', 'amp1', or 'amp2'
         pos: the cycle from 0 to last added, negative numbers to search backwards, if non exists returns None
         """
-        assert (typ == 'ph' or typ == 'amp1' or typ == 'amp2')
+        assert (typ == 'ph' or typ == 'fr' or typ == 'amp1' or typ == 'amp2')
         l = self.h5parms[typ]
         try:
             return l[pos]
