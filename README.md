@@ -35,7 +35,7 @@ as the pipeline requires to open many files at the same time.
 ### Run the pipelines:
 
 - Tu use PILL run
-- 
+
 `python3 /opt/LiLF/pipelines/PILL.py`
 
 - To run the pipeline step-by-step follow these commands:
