@@ -98,8 +98,8 @@ for obs in set([ os.path.basename(ms).split('_')[0] for ms in MSs.getListStr() ]
         os.system('rm -r %s' % MS_concat)
         os.system('cp -r %s %s' % (MS_concat_bkp, MS_concat) )
     else:
-        s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin=\"'+str(mss_toconcat)+'\" msout='+MS_concat+' avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time),\
-            log=obs+'_avg.log', commandType='DPPP')
+        s.add('DP3 '+parset_dir+'/DP3-avg.parset msin=\"'+str(mss_toconcat)+'\" msout='+MS_concat+' avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time),\
+            log=obs+'_avg.log', commandType='DP3')
 s.run(check=True, maxThreads=2)
 
 ################################################################
@@ -123,8 +123,8 @@ else:
 ########################################################   
 # flag bad stations, and low-elev
 logger.info('Flagging...')
-MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS msout=. steps=\"'+flag_steps+'\" ant.baseline=\"'+bl2flag+'\"', \
-            log='$nameMS_flag.log', commandType='DPPP')
+MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS msout=. steps=\"'+flag_steps+'\" ant.baseline=\"'+bl2flag+'\"', \
+            log='$nameMS_flag.log', commandType='DP3')
 
 if lofar_system == 'hba': model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
@@ -138,8 +138,8 @@ if os.path.exists(model_dir+'/img-MFS-model.fits'):
           log='wscleanPRE-init.log', commandType='wsclean', processors='max')
     s.run(check=True)
 else:
-    logger.info('Predict (DPPP)...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DPPP')
+    logger.info('Predict (DP3)...')
+    MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DP3')
 
 # TESTTESTTEST
 # BL Smooth DATA -> DATA
@@ -160,8 +160,8 @@ for c in range(100):
     # Solve cal_SB.MS:DATA (only solve)
     if not os.path.exists('cal-pa-c0.h5'):
         logger.info('Solving PA...')
-        MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
-            sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solPA.log', commandType="DPPP")
+        MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
+            sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solPA.log', commandType="DP3")
 
         lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
@@ -171,12 +171,12 @@ for c in range(100):
     
     # Beam correction DATA -> CORRECTED_DATA
     logger.info('PA correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c0.h5 cor.correction=polalign', \
-            log='$nameMS_corPA2.log', commandType="DPPP")
+    MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c0.h5 cor.correction=polalign', \
+            log='$nameMS_corPA2.log', commandType="DP3")
 
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS', log='$nameMS_beam2.log', commandType='DPPP')
+    MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS', log='$nameMS_beam2.log', commandType='DP3')
     
     # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Converting to circular...')
@@ -184,8 +184,8 @@ for c in range(100):
     
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Solving FR...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=diagonal \
-             sol.smoothnessconstraint=1e6 sol.solint=3 sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solFR.log', commandType="DPPP")
+    MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=diagonal \
+             sol.smoothnessconstraint=1e6 sol.solint=3 sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solFR.log', commandType="DP3")
     
     lib_util.run_losoto(s, 'fr-c'+str(c), [ms+'/fr.h5' for ms in MSs.getListStr()], \
             [parset_dir + '/losoto-fr.parset'])
@@ -195,38 +195,38 @@ for c in range(100):
 
     # Beam correction DATA -> CORRECTED_DATA
     logger.info('PA correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c0.h5 cor.correction=polalign', \
-            log='$nameMS_corPA3.log', commandType="DPPP")
+    MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c0.h5 cor.correction=polalign', \
+            log='$nameMS_corPA3.log', commandType="DP3")
 
     # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
     if c == 0 and lofar_system == 'lba':
-        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM3.log', commandType='DPPP')
+        MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM3.log', commandType='DP3')
     else:
-        MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=False', log='$nameMS_corBEAM3.log', commandType='DPPP')
+        MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False', log='$nameMS_corBEAM3.log', commandType='DP3')
  
     # Correct FR CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
-            log='$nameMS_corFR3.log', commandType="DPPP")
+    MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
+            log='$nameMS_corFR3.log', commandType="DP3")
 
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Solving IONO...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=scalarcomplexgain \
-                                    sol.smoothnessconstraint=1e6 sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solIONO3.log', commandType="DPPP")
+    MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=scalarcomplexgain \
+                                    sol.smoothnessconstraint=1e6 sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solIONO3.log', commandType="DP3")
 
     lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
                         [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
 
     # Correct all CORRECTED_DATA -> CORRECTED_DATA
     logger.info('IONO correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=phase000', \
-                                log='$nameMS_corIONO3.log', commandType='DPPP')
+    MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-iono-c'+str(c)+'.h5 cor.correction=phase000', \
+                                log='$nameMS_corIONO3.log', commandType='DP3')
 
     # Solve MS:CORRECTED_DATA (only solve)
     logger.info('Solving BP...')
-    MSs.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/bp.h5 sol.mode=fulljones \
-            sol.uvlambdarange='+str(nouseblrange)+' sol.smoothnessconstraint=2e6 sol.nchan=1 sol.solint=50', log='$nameMS_solBP3.log', commandType="DPPP")
+    MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/bp.h5 sol.mode=fulljones \
+            sol.uvlambdarange='+str(nouseblrange)+' sol.smoothnessconstraint=2e6 sol.nchan=1 sol.solint=50', log='$nameMS_solBP3.log', commandType="DP3")
     
     lib_util.run_losoto(s, 'bp-c'+str(c), [ms+'/bp.h5' for ms in MSs.getListStr()], \
             [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
@@ -235,13 +235,13 @@ for c in range(100):
     # Correct BP CORRECTED_DATA -> CORRECTED_DATA
     logger.info('BP correction...')
     if c == 0 and lofar_system == 'lba':
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-bp-c'+str(c)+'.h5 cor.correction=fulljones \
+        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.updateweights=True cor.parmdb=cal-bp-c'+str(c)+'.h5 cor.correction=fulljones \
                 cor.soltab=\[amplitude000,phase000\]', \
-                log='$nameMS_corBP3.log', commandType='DPPP')
+                log='$nameMS_corBP3.log', commandType='DP3')
     else:
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-bp-c'+str(c)+'.h5 cor.correction=fulljones \
+        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-bp-c'+str(c)+'.h5 cor.correction=fulljones \
                cor.soltab=\[amplitude000,phase000\]', \
-               log='$nameMS_corBP3.log', commandType='DPPP')
+               log='$nameMS_corBP3.log', commandType='DP3')
 
     logger.info('Cleaning (cycle %02i)...' % c)
     imagename = 'img/img-c%02i' % c

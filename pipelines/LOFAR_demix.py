@@ -74,9 +74,9 @@ for MS in MSs.getListStr():
     os.system('cp -r demix.skydb '+MS+'/demix.skydb')
 
 logger.info('Demixing...')
-MSs.run('DPPP '+parset_dir+'/DPPP-demix.parset msin=$pathMS msout=mss/$nameMS.MS demixer.skymodel=$pathMS/demix.skydb \
+MSs.run('DP3 '+parset_dir+'/DP3-demix.parset msin=$pathMS msout=mss/$nameMS.MS demixer.skymodel=$pathMS/demix.skydb \
         demixer.instrumentmodel=$pathMS/instrument_demix demixer.targetsource='+targetsource+'\
         demixer.subtractsources=\['+','.join(ateams_todemix)+'\]',
-        log='$nameMS_demix.log', commandType='DPPP', maxThreads=1)
+        log='$nameMS_demix.log', commandType='DP3', maxThreads=1)
 
 logger.info("Done.")

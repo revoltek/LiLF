@@ -118,7 +118,7 @@ class AllMSs(object):
         """
         # add max num of threads given the total jobs to run
         # e.g. in a 64 processors machine running on 16 MSs, would result in numthreads=4
-        if commandType == 'DPPP': command += ' numthreads='+str(self.getNThreads())
+        if commandType == 'DP3': command += ' numthreads='+str(self.getNThreads())
 
         for MSObject in self.mssListObj:
             commandCurrent = MSObject.concretiseString(command)
@@ -133,6 +133,27 @@ class AllMSs(object):
             #print (logCurrent)
 
         self.scheduler.run(check = True, maxThreads = maxThreads)
+
+    def addcol(self, newcol, fromcol, usedysco='auto', log='$nameMS_addcol.log'):
+        """
+        # TODO: it might be that if col exists and is dysco, forcing no dysco will not work. Maybe force TiledColumnStMan in such cases?
+        Use DP3 to add a new data column using values from an existing column.
+        Parameters
+        ----------
+        newcol: string, name of new column
+        fromcol: string, name of existing column
+        usedysco: bool or string, if bool: use dysco? if 'auto', use dysco if fromcol uses dysco.
+        log: string, logfile name
+        """
+        sm = '' # storagemanager
+        if usedysco == 'auto': # if col is dysco compressed in first MS, assume it is for all MSs
+            with tables.table(self.mssListStr[0]) as t:
+                if t.getdminfo(fromcol)['TYPE'] == 'DyscoStMan':
+                    sm = 'dysco'
+        elif usedysco:
+            sm = 'dysco'
+        self.run(f'DP3 msin=$pathMS msin.datacolumn={fromcol} msout=. msout.datacolumn={newcol} \
+                 msout.storagemanager={sm} steps=[]', log=log, commandType="DP3")
 
     def print_HAcov(self, png=None):
         """

@@ -38,8 +38,8 @@ for msID in msIDs:
     # predict to save time ms:MODEL_DATA
     for i, MS in enumerate(MSs_cals.getListObj()):
         logger.info('%s: add model to MODEL_DATA (%s)...' % (MS.pathMS, calnames[i]) )
-        s.add("DPPP " + parset_dir + "/DPPP-predict.parset msin="+MS.pathMS+" pre.sourcedb="+MS.pathMS+"/" + os.path.basename(skymodel) + " pre.sources=" + calnames[i], \
-            log=MS.nameMS+"_pre.log", commandType="DPPP")
+        s.add("DP3 " + parset_dir + "/DP3-predict.parset msin="+MS.pathMS+" pre.sourcedb="+MS.pathMS+"/" + os.path.basename(skymodel) + " pre.sources=" + calnames[i], \
+            log=MS.nameMS+"_pre.log", commandType="DP3")
     s.run(check=True)
     
     # Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
@@ -49,7 +49,7 @@ for msID in msIDs:
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating...')
-    MSs_cals.run('DPPP ' + parset_dir + '/DPPP-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/diag.h5 sol.mode=diagonal', log='$nameMS_sol.log', commandType="DPPP")
+    MSs_cals.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/diag.h5 sol.mode=diagonal', log='$nameMS_sol.log', commandType="DP3")
     
     lib_util.run_losoto(s, 'diag', [ms+'/diag.h5' for ms in MSs_cals.getListStr()], \
             [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', \
@@ -63,7 +63,7 @@ for msID in msIDs:
 
     # Trasnfer tgt_SB.MS:DATA -> tgt.MS:CORRECTED_DATA
     logger.info('Correcting targets...')
-    MSs_tgts.run('DPPP ' + parset_dir + '/DPPP-cor.parset msin=$pathMS', log='$nameMS_cor.log', commandType="DPPP")
+    MSs_tgts.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS', log='$nameMS_cor.log', commandType="DP3")
 
     # Combine and split
     # TODO: find a way to concat in time
@@ -72,7 +72,7 @@ for msID in msIDs:
     #    mss_in = glob.glob(tgt_dir+'/mss/*MS')
     #    ms_out = tgt_dir+'/mss/concat_'+tgt_dir+'.MS'
     #    log = tgt_dir.split('/')[1]+'_split.log'
-    #    s.add('DPPP ' + parset_dir + '/DPPP-split.parset msin="['+','.join(mss_in)+']" msin.datacolumn=CORRECTED_DATA msout='+ms_out, log=log, commandType="DPPP")
+    #    s.add('DP3 ' + parset_dir + '/DP3-split.parset msin="['+','.join(mss_in)+']" msin.datacolumn=CORRECTED_DATA msout='+ms_out, log=log, commandType="DP3")
     #s.run(check=True)
     
     # TODO: for now just use the un-splitted files
