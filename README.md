@@ -27,7 +27,9 @@ Check the path for LiLF, let's say it is /opt/LiLF/, and include it in your ~/.b
 `export PATH=/opt/LiLF/scripts:$PATH`
 
 I also reccommended to set:
-ulimit -n 4000
+
+`ulimit -n 4000`
+
 as the pipeline requires to open many files at the same time.
 
 ### Run the pipelines:
