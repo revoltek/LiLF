@@ -1,0 +1,22 @@
+msin =
+msin.datacolumn = CIRC_PHASEDIFF_DATA
+msin.modelcolumn = FR_MODEL_DATA
+msout = .
+
+steps = [sol]
+
+sol.type = ddecal
+sol.uvlambdamin = 100
+sol.uvmmax = 80e3
+sol.minvisratio = 0.5
+sol.mode = phaseonly
+sol.maxiter = 500
+sol.nchan = 8
+sol.solint = 60 # 4 min, old method used 8 min
+sol.tolerance = 1e-3
+sol.propagatesolutions = True
+sol.propagateconvergedonly = True
+sol.usemodelcolumn = True
+sol.smoothnessconstraint = 5e6
+sol.smoothnessreffrequency = 50e6
+sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]
