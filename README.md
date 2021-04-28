@@ -19,13 +19,13 @@ To calibrate LOFAR LBA data is possible to use the script PILL.py (in the pipeli
 
 If you use these scripts, please cite:
 - [de Gasperin+ 2019](https://ui.adsabs.harvard.edu/abs/2019A%26A...622A...5D/abstract) (DIE calibration)
-- [de Gasperin+ 2021](https://ui.adsabs.harvard.edu/abs/2021A%26A...648A.104D/abstract) (DDE calibration)
+- [de Gasperin+ 2020](https://ui.adsabs.harvard.edu/abs/2020A%26A...642A..85D/abstract) (DDE calibration)
 
 Information on the ionosphere systematic effects can be found here:
 - [deGasperin+ 2018](https://ui.adsabs.harvard.edu/abs/2018A%26A...615A.179D/abstract)
 
 If you demixed A-team sources, here is the paper describing the models:
-- [de Gasperin+ 2020](https://ui.adsabs.harvard.edu/abs/2020A%26A...635A.150D/abstract)
+- [de Gasperin+ 2020b](https://ui.adsabs.harvard.edu/abs/2020A%26A...635A.150D/abstract)
 
 ### Environment
 Best is to use the singularity container as described above, enter in the singularity and go on your working directory
