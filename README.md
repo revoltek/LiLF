@@ -21,8 +21,8 @@ To calibrate LOFAR LBA data is possible to use the script PILL.py (in the pipeli
 ### Environment
 Best is to use the singularity container as described above, enter in the singularity and go on your working directory
 Check the path for LiLF, let's say it is /opt/LiLF/, and include it in your ~/.bashrc as follow:
-export PYTHONPATH=/opt/LiLF:$PYTHONPATH
-export PATH=/opt/LiLF/scripts:$PATH
+`export PYTHONPATH=/opt/LiLF:$PYTHONPATH`
+`export PATH=/opt/LiLF/scripts:$PATH`
 
 I also reccommended to set:
 ulimit -n 4000
