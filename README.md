@@ -15,6 +15,64 @@ uGMRT: http://www.ncra.tifr.res.in/ncra/gmrt
 check here if you want a container that can run the pipeline:
 LiLF/container/docker_build.sh
 
+# LBA data reduction How-To:
+To calibrate LOFAR LBA data is possible to use the script PILL.py (in the pipeline dir) that automatically does all the pipeline steps, or to run the single steps by hand to check the intermediate results.
+
+### Environment
+Best is to use the singularity container as described above, enter in the singularity and go on your working directory
+Check the path for LiLF, let's say it is /opt/LiLF/, and include it in your ~/.bashrc as follow:
+export PYTHONPATH=/opt/LiLF:$PYTHONPATH
+export PATH=/opt/LiLF/scripts:$PATH
+
+I also reccommended to set:
+ulimit -n 4000
+as the pipeline requires to open many files at the same time.
+
+### Run the pipelines:
+
+- Tu use PILL run
+`python3 /opt/LiLF/pipelines/PILL.py`
+
+- To run the pipeline step-by-step follow these commands:
+
+1. On you working directory create a `Download` directory and put here the html.txt files obtained from a data staging request on Long Term Archive (LTA). Then run:
+`python3 /opt/LiLF/pipelines/LOFAR_preprocess.py`,
+that will download the data from LTA, unpack, averaged to 4 chan/sb and 4 sec and finally arrange the data in sub-directories that you can find in `Download/mss`
+The subdirectories are called `id000_CAL` and `id000_TARGET`, where 000 is the id of your observation and CAL and TARGET are the name of the calibrator and target. If your observation is split in more than 1 night, you will have a calibrator and target directory for every observation.
+Inside that directories you will find all the ms files. Copy them in a directory called data-bkp (Don't change the name otherwise the pipeline doesn't find the ms files).
+So to summarize you will have `Download/mss/id000_CAL/data-bkp` and `Download/mss/id000_TARGET/data-bkp`
+
+2. In your cal directory `Download/mss/id000_CAL/` run the calibrator pipeline that will estimate the contribution of systematic effects on your observations.
+`python3 /opt/LiLF/pipelines/LOFAR_cal.py`
+Do it for your observations if you have more than one.
+
+3. In your target directory `Download/mss/id000_TARGET` run the split pipeline to apply the calibrator solutions and split the data to ms of 1h to run the next steps in parallel.
+`python3 /opt/LiLF/pipelines/LOFAR_timesplit.py`
+You can find the new ms in `Download/mss/id000_TARGET/mss` named as TC00.ms TC01.ms ecc one for every hour of observation.
+Now if you have more than one observation copy all the ms files in a single directory as `Download/mss/TARGET/mss` , pay attention to rename the files with an increasing number, as for each observation the name start from T00.ms.
+
+4. In your target directory run the self pipeline that performs the direction-indipendent calibration
+`python3 /opt/LiLF/pipelines/LOFAR_self.py`
+In the self directory you can find some plots useful to understand if the calibration is good, you can find some examples in the papers mentioned below.
+The images are in the `img` directory.
+
+5. In your target directory run the dd-self pipeline that performs the direction-dependent calibration
+`python3 /opt/LiLF/pipelines/LOFAR_dd-serial.py`
+The pipeline selects the DDcalibrators, calibates them singularly (check the plots in `ddcal/` and the images of the varius steps of self-calibration), then it transfers the solutions to the associated facet and with DDF creates an image of the widefield. It makes two steps called c00 and c01.
+In the `/ddcal/c00/skymodels/` directory you can find the `all-c00.reg` file that indicates all the source selected as DDcalibrators, load it on the image you obtain from the previous step to check which sources it selects, they are indicated with a red circle and named ddcal000. To have a good image of your source is important that it is selected as a calibrator.
+The images of the single calibrators are named as `ddcalM-c01-ddcal0059-cdd00-MFS-image.fits, ddcalM-c01-ddcal0059-cdd01-MFS-image.fits` where cdd are the different steps of selfcal. You can use the best of them as final image of your source.
+The image of the widefield instead is `wideDD-c01.app.restored.fits`. You can re-image it using DDF with your prefered parameters (for example try to use --Deconv-Mode SSD).
+
+6. Extra: if you want to extract your source visibilities, by subtracting all the sources outside a region of ~10arcmin, to have a smaller dataset easier to re-image the source.
+Draw a ds9 circle around the target on which you want to perform the extraction and futher self calibration, the region should contain sufficient flux for calibration. Something roughly in the order of 10 arcmin should work. This region should be called 'target.reg' and saved in the TARGET directory.
+Then you can run:
+`python3 /opt/LiLF/pipelines/LOFAR_extract.py`
+For this step, to have a good calibration of the source would be usefull to specify a region around the source so it is included in the mask used for the cleaning.
+Create a ds9 region around your source called userReg.reg and put it in the TARGET directory. Then specify it in the configuration file called lilf.config that should be put in `Download/mss/`,  using the following parameter:
+`[model]`
+`userReg = userReg.reg`
+If you want to change some parameters you should specify them in the lilf.config file.
+
 # lilf.config specifications:
 
 ### PiLL
