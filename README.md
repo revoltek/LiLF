@@ -50,7 +50,9 @@ Inside that directories you will find all the ms files. Copy them in a directory
 So to summarize you will have `Download/mss/id000_CAL/data-bkp` and `Download/mss/id000_TARGET/data-bkp`
 
 2. In your cal directory `Download/mss/id000_CAL/` run the calibrator pipeline that will estimate the contribution of systematic effects on your observations.
+
 `python3 /opt/LiLF/pipelines/LOFAR_cal.py`
+
 Do it for your observations if you have more than one.
 
 3. In your target directory `Download/mss/id000_TARGET` run the split pipeline to apply the calibrator solutions and split the data to ms of 1h to run the next steps in parallel.
