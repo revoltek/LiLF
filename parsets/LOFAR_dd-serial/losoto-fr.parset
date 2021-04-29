@@ -2,8 +2,8 @@ Ncpu = 0
 
 [duplicate]
 operation = DUPLICATE
-soltab = sol000/phase000
-soltabOut = phaseOrig000
+soltab = sol000/phaseOrig000
+soltabOut = phase000
 
 [reset]
 operation = RESET
@@ -75,4 +75,4 @@ AxisDiff = pol
 plotFlag = True
 prefix = plots/phRes-rot
 refAnt = 'CS001LBA'
-minmax = [-3.14.,3.14]
+minmax = [-3.14,3.14]

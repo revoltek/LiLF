@@ -454,44 +454,42 @@ for cmaj in range(maxIter):
                     # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
                     MSs_dir.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS',
                         log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')
+                    if dofr:
+                        logger.info('Create CIRC_PHASEDIFF_DATA...')
+                        MSs_dir.addcol('CIRC_PHASEDIFF_DATA', 'SMOOTHED_DATA', usedysco=False)
 
-                    logger.info('Create CIRC_PHASEDIFF_DATA...')
-                    MSs_dir.addcol('CIRC_PHASEDIFF_DATA', 'SMOOTHED_DATA', usedysco=False)
+                        logger.info('Converting to circular...')
+                        MSs_dir.run('mslin2circ.py -s -i $pathMS:CIRC_PHASEDIFF_DATA -o $pathMS:CIRC_PHASEDIFF_DATA',
+                                log='$nameMS_lincirc.log',
+                                commandType='python')
+                        # Get circular phase diff CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
+                        logger.info('Get circular phase difference...')
+                        MSs_dir.run('taql "UPDATE $pathMS SET\
+                                 CIRC_PHASEDIFF_DATA[,0]=0.5*EXP(1.0i*(PHASE(CIRC_PHASEDIFF_DATA[,0])-PHASE(CIRC_PHASEDIFF_DATA[,3]))), \
+                                 CIRC_PHASEDIFF_DATA[,3]=CIRC_PHASEDIFF_DATA[,0], \
+                                 CIRC_PHASEDIFF_DATA[,1]=0+0i, \
+                                 CIRC_PHASEDIFF_DATA[,2]=0+0i"', log='$nameMS_taql_phdiff.log', commandType='general')
 
-                    logger.info('Converting to circular...')
-                    MSs_dir.run('mslin2circ.py -s -i $pathMS:CIRC_PHASEDIFF_DATA -o $pathMS:CIRC_PHASEDIFF_DATA',
-                            log='$nameMS_lincirc.log',
-                            commandType='python')
-                    # Get circular phase diff CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
-                    logger.info('Get circular phase difference...')
-                    MSs_dir.run('taql "UPDATE $pathMS SET\
-                             CIRC_PHASEDIFF_DATA[,0]=0.5*EXP(1.0i*(PHASE(CIRC_PHASEDIFF_DATA[,0])-PHASE(CIRC_PHASEDIFF_DATA[,3]))), \
-                             CIRC_PHASEDIFF_DATA[,3]=CIRC_PHASEDIFF_DATA[,0], \
-                             CIRC_PHASEDIFF_DATA[,1]=0+0i, \
-                             CIRC_PHASEDIFF_DATA[,2]=0+0i"', log='$nameMS_taql_phdiff.log', commandType='general')
+                        logger.info('Creating FR_MODEL_DATA...')  # take from MODEL_DATA but overwrite
+                        MSs_dir.addcol('FR_MODEL_DATA', 'MODEL_DATA', usedysco=False)
+                        MSs_dir.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
+                                 FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
 
-                    logger.info('Creating FR_MODEL_DATA...')  # take from MODEL_DATA but overwrite
-                    MSs_dir.addcol('FR_MODEL_DATA', 'MODEL_DATA', usedysco=False)
-                    MSs_dir.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
-                             FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
+                        logger.info('FR calibration...')
+                        # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve)
+                        logger.info('Solving circular phase difference ...')
+                        MSs_dir.run(
+                            'DP3 ' + parset_dir + f'/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/cal-fr.h5 sol.solint={solint_ph}',
+                            log=f'$nameMS_solFR-{logstringcal}.log', commandType="DP3")
+                        lib_util.run_losoto(s, 'fr', [ms + '/cal-fr.h5' for ms in MSs_dir.getListStr()],
+                                            [parset_dir + '/losoto-fr.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                        os.system('mv cal-fr.h5 %s' % d.get_h5parm('fr'))
+                        # Correct FR - group*_TC.MS:SMOOTHED_DATA -> group*_TC.MS:SMOOTHED_DATA
+                        logger.info('Correcting FR...')
+                        MSs_dir.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA '
+                                    f'msout.datacolumn=SMOOTHED_DATA cor.parmdb={d.get_h5parm("fr")} cor.correction=rotationmeasure000',
+                                log='$nameMS_corFR-c' + logstringcal + '.log', commandType='DP3')
 
-                    logger.info('FR calibration...')
-                    # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve)
-                    logger.info('Solving circular phase difference ...')
-                    MSs_dir.run(
-                        'DPPP ' + parset_dir + f'/DPPP-solFR.parset msin=$pathMS sol.h5parm=$pathMS/cal-fr.h5 sol.solint={solint_ph}',
-                        log=f'$nameMS_solFR-{logstringcal}.log', commandType="DPPP")
-                    lib_util.run_losoto(s, 'fr', [ms + '/cal-fr.h5' for ms in MSs_dir.getListStr()],
-                                        [parset_dir + '/losoto-fr.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
-                    os.system('mv cal-fr.h5 %s' % d.get_h5parm('fr'))
-                    # Correct FR - group*_TC.MS:SMOOTHED_DATA -> group*_TC.MS:SMOOTHED_DATA
-                    logger.info('Correcting FR...')
-                    MSs_dir.run('DPPP ' + parset_dir + '/DPPP-correct.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA msout.datacolumn=SMOOTHED_DATA \
-                                    cor.parmdb=self/solutions/cal-fr.h5 cor.correction=rotationmeasure000',
-                            log='$nameMS_corFR-c' + logstringcal + '.log', commandType='DPPP')
-                    ### DONE
-
- 
                 # Calibration - ms:SMOOTHED_DATA
                 # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                 logger.info('Gain phase calibration (solint: %i)...' % solint_ph)
@@ -644,10 +642,10 @@ for cmaj in range(maxIter):
                         cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=phase000',
                         log='$nameMS_corruping'+logstring+'.log', commandType='DP3')
 
-            if not d.get_h5parm('fr') is None:
+            if not d.get_h5parm('fr',0) is None:
                 logger.info('Corrupt fr...')
                 MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                       cor.invert=False cor.parmdb='+d.get_h5parm('fr')+' cor.correction=rotationmeasure000',
+                       cor.invert=False cor.parmdb='+d.get_h5parm('fr',0)+' cor.correction=rotationmeasure000',
                         log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
             if not d.get_h5parm('amp1',-2) is None:
                 logger.info('Corrupt amp...')
