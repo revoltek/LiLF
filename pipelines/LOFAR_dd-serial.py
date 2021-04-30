@@ -701,7 +701,7 @@ for cmaj in range(maxIter):
     imagename = 'img/wideDD-c%02i' % (cmaj)
 
     # combine the h5parms
-    h5parms = {'ph':[], 'amp1':[], 'amp2':[]}
+    h5parms = {'ph':[], 'amp1':[], 'amp2':[], 'fr':[]}
     for d in directions:
         # only those who converged
         if d.peel_off:
@@ -711,22 +711,22 @@ for cmaj in range(maxIter):
 
         h5parms['ph'].append(d.get_h5parm('ph',-2))
         if d.get_h5parm('fr') is not None:
-            h5parms['fr'].append(d.get_h5parm('fr'))
+            h5parms['fr'].append(d.get_h5parm('fr',0))
         if d.get_h5parm('amp1',-2) is not None:
             h5parms['amp1'].append(d.get_h5parm('amp1',-2))
         if d.get_h5parm('amp2',-2) is not None:
             h5parms['amp2'].append(d.get_h5parm('amp2',-2))
 
         log = '%s: Phase (%s)' % (d.name, d.get_h5parm('ph',-2))
-        log += ' FR (%s)' % (d.get_h5parm('fr'))
+        log += ' FR (%s)' % (d.get_h5parm('fr',0))
         log += ' Amp1 (%s)' % (d.get_h5parm('amp1',-2))
         log += ' Amp2 (%s)' % (d.get_h5parm('amp2',-2))
         logger.info(log)
 
     # it might happens that no directions ended up with amp solutions, restrict to phase only correction
     correct_for = 'phase000'
-    if len(h5parms['amp1']) == 0: correct_for += '+amplitude000'
-    if len(h5parms['fr']) == 0: correct_for += '+rotationmeasure000'
+    if len(h5parms['amp1']) != 0: correct_for += '+amplitude000'
+    if len(h5parms['fr']) != 0: correct_for += '+rotationmeasure000'
 
     with w.if_todo('c%02i-imaging' % cmaj):
         logger.info("Imaging - preparing solutions:")
