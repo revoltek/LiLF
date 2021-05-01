@@ -28,6 +28,7 @@ maxIter = parset.getint('LOFAR_dd-serial','maxIter')
 min_cal_flux60 = parset.getfloat('LOFAR_dd-serial','minCalFlux60')
 removeExtendedCutoff = parset.getfloat('LOFAR_dd-serial','removeExtendedCutoff')
 target_dir = parset.get('LOFAR_dd-serial','target_dir')
+do_dd_faraday = parset.getboolean('LOFAR_dd-serial','do_dd_faraday')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
     """
@@ -421,7 +422,7 @@ for cmaj in range(maxIter):
         rms_noise_pre = image.getNoise(); rms_noise_init = rms_noise_pre
         mm_ratio_pre = image.getMaxMinRatio(); mm_ratio_init = mm_ratio_pre
         doamp = False
-        dofr = d.get_flux(freq_mid) > 4
+        dofr = d.get_flux(freq_mid) > 4 and do_dd_faraday
         # usually there are 3600/32=112 or 3600/16=225 or 3600/8=450 timesteps and \
         # 60 (halfband)/120 (fullband) chans, try to use multiple numbers
         iter_ph_solint = lib_util.Sol_iterator([8, 8, 4, 1])  # 32 or 16 or 8 * [4,1] s
@@ -736,7 +737,6 @@ for cmaj in range(maxIter):
             for h5parmFile in h5parm_list:
                 dirname = h5parmFile.split('-')[3]
                 lib_h5.repoint(h5parmFile, dirname)
-    
                 if typ == 'ph':
                     lib_h5.addpol(h5parmFile, 'phase000')
                     #lib_h5.addpol(h5parmFile, 'amplitude000')
@@ -745,8 +745,8 @@ for cmaj in range(maxIter):
                     # reset high-res amplitudes in ph-solve
                     #s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetamp.parset ', log='h5parm_collector.log', commandType='python' )
                     #s.run()
-
                 if typ == 'fr':
+                    lib_h5.adddir(h5parmFile, 'rotationmeasure000', dirname=dirname)
                     lib_h5.addpol(h5parmFile, 'rotationmeasure000')
                     s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-reffr.parset ', log='h5parm_collector.log', commandType='python' )
                     s.run()
@@ -758,7 +758,7 @@ for cmaj in range(maxIter):
         logger.info('Interpolating solutions...')
         s.add('H5parm_interpolator.py -o '+interp_h5parm+' '+' '.join(h5parms['ph']+h5parms['fr']+h5parms['amp1']+h5parms['amp2']), log='h5parm_interpolator.log', commandType='python' )
         s.run()
-    
+
         idg = False
         if idg:
     

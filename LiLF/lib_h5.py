@@ -65,3 +65,41 @@ def addpol(h5parmFile, soltabname, solsetname='sol000'):
 
     # write h5parm
     h5.close()
+
+
+def adddir(h5parmFile, soltabname, solsetname='sol000', dirname='[pointing]'):
+    """
+    add dir axis on a soltab
+    """
+    # open h5parm
+    logger.info('%s: add dir axis to %s.' % (h5parmFile, soltabname))
+    h5 = h5parm(h5parmFile, readonly=False)
+    ss = h5.getSolset(solsetname)
+    st = ss.getSoltab(soltabname)
+
+    if 'dir' in st.getAxesNames():
+        h5.close()
+        logger.warning('%s: direction axis already present in %s.' % (h5parmFile, soltabname))
+        return
+
+    # create values for new soltab
+    typ = st.getType()
+    axesNames = ['dir'] + st.getAxesNames()
+    if dirname not in ss.getSou().keys():
+        logger.error(f'Direction {dirname} is not in Solset!')
+    axesVals = [np.array([dirname])] + [st.getAxisValues(axisName) for axisName in st.getAxesNames()]
+    vals = st.getValues(retAxesVals=False)
+    vals = np.array([vals])
+    # vals = np.moveaxis(vals, 0, -1)
+    weights = st.getValues(weight=True, retAxesVals=False)
+    weights = np.array([weights])
+    # weights = np.moveaxis(weights, 0, -1)
+    # remove old soltab
+    st.delete()
+
+    # make new soltab
+    soltabout = ss.makeSoltab(soltype=typ, soltabName=soltabname, axesNames=axesNames, \
+                              axesVals=axesVals, vals=vals, weights=weights)
+
+    # write h5parm
+    h5.close()
