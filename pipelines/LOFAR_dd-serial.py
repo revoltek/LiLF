@@ -300,7 +300,7 @@ for cmaj in range(maxIter):
 
     for dnum, d in enumerate(directions):
 
-        logger.info('c%02i - Working on direction: %s (%f Jy - %f deg)' % (cmaj, d.name, d.get_flux(freq_mid), d.size))
+        logger.info('c%02i - Working on direction %s/%s: %s (%f Jy - %f deg)' % (dnum, len(directions), cmaj, d.name, d.get_flux(freq_mid), d.size))
         if d.size > 0.5: logger.warning('Patch size large: %f' % d.size)
         logstring = 'c%02i-%s' % (cmaj, d.name)
 
@@ -456,6 +456,8 @@ for cmaj in range(maxIter):
                     MSs_dir.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS',
                         log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')
                     if dofr:
+                        logger.error('Rotationmeasure frpm h5parm in DDF not yet implemented.')
+                        sys.exit(1)
                         logger.info('Create CIRC_PHASEDIFF_DATA...')
                         MSs_dir.addcol('CIRC_PHASEDIFF_DATA', 'SMOOTHED_DATA', usedysco=False)
 
@@ -829,7 +831,8 @@ for cmaj in range(maxIter):
 
             if cmaj > 0:
                 ddf_parms['Output_Cubes'] = 'iI'
-            
+                ddf_parms['Predict_ColName'] = 'MODEL_DATA' # to subtract model
+
             logger.info('Cleaning...')
             lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
                     Deconv_MaxMajorIter=1,
@@ -854,5 +857,62 @@ for cmaj in range(maxIter):
 
     full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
     min_cal_flux60 *= 0.8  # go a bit deeper
+
+### Additional images
+with w.if_todo('output_lres'):
+    logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
+    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
+            log='$nameMS_taql.log', commandType='general')
+    imagename = 'img/wideDD-lres-c%02i' % (cmaj)
+    logger.info('Clean lowres subtracted image...')
+    # TODO: number of open questions - does WSCMS even work with non-regular-square-grid directions?
+    ddf_parms = {
+        'Data_MS': MSs.getStrDDF(),
+        'Data_ColName': 'SUBTRACTED_DATA',
+        'Data_Sort': 1,
+        'Output_Mode': 'Clean',
+        'Deconv_CycleFactor': 0,
+        'Deconv_MaxMinorIter': 1000000,
+        'Deconv_RMSFactor': 2.0,
+        'Deconv_FluxThreshold': 0.0,
+        'Deconv_Mode': 'WSCMS',
+        'Deconv_MaxMajorIter': 10,
+        'Deconv_PeakFactor': 0.3, #0.005
+        'Cache_Reset': 0,
+        # 'WSCMS_NumFreqBasisFuncs': ,
+        'WSCMS_CacheSize':3,  # default
+        'Weight_EnableSigmoidTaper': 1,
+        'Weight_SigmoidTaperOuterCutoff': 3600, # ~100arcsec?
+        'Weight_Robust': -0.3,
+        'Image_NPix': int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 15.), # needs to be tuned
+        'CF_wmax': 50000,
+        'CF_Nw': 100,
+        'Beam_CenterNorm': 1,
+        'Beam_Smooth': 1,
+        'Beam_Model': 'LOFAR',
+        'Beam_LOFARBeamMode': 'A',
+        'Beam_NBand': 1,
+        'Beam_DtBeamMin': 5,
+        'Output_Also': 'd',
+        'Image_Cell': 15.,
+        'Freq_NDegridBand': ch_out,
+        'Freq_NBand': ch_out,
+        'Mask_Auto': 1,
+        'Mask_SigTh': 5.0,
+        'GAClean_MinSizeInit': 10, # check
+        'GAClean_MaxMinorIterInitHMP': 100000, # check
+        'Facets_DiamMax': 1.5,
+        'Facets_DiamMin': 0.1,
+        'Weight_ColName': 'WEIGHT_SPECTRUM',
+        'Output_Name': imagename,
+        'DDESolutions_DDModeGrid': 'AP',
+        'DDESolutions_DDModeDeGrid': 'AP',
+        'RIME_ForwardMode': 'BDA-degrid',
+        'Output_RestoringBeam': 15.,
+        'DDESolutions_DDSols': interp_h5parm + ':sol000/' + correct_for
+    }
+
+    lib_util.run_DDF(s, 'ddfacet-lowres-c' + str(cmaj) + '.log', **ddf_parms,
+                     )
 
 logger.info("Done.")
