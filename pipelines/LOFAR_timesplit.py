@@ -107,9 +107,10 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
        num_init = lib_util.lofar_nu2num(min_nu)+1  # +1 because FREQ_MIN/MAX somewhat have the lowest edge of the SB freq
        num_fin = lib_util.lofar_nu2num(max_nu)+1
        ms_name_init = msg[0]
+       prefix = re.sub('SB[0-9]*.MS','',msg[0])
        msg = []
        for j in range(num_init, num_fin+1):
-           msg.append(ms_name_init.replace('SB%03i' % num_init, 'SB%03i' % j))
+           msg.append(prefix+'SB%03i.MS' % j)
 
        # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected)
        s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(msg)+']"  msout='+groupname+'/'+groupname+'.MS', \
