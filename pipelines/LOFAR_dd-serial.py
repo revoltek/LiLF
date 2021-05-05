@@ -28,7 +28,6 @@ maxIter = parset.getint('LOFAR_dd-serial','maxIter')
 min_cal_flux60 = parset.getfloat('LOFAR_dd-serial','minCalFlux60')
 removeExtendedCutoff = parset.getfloat('LOFAR_dd-serial','removeExtendedCutoff')
 target_dir = parset.get('LOFAR_dd-serial','target_dir')
-do_dd_faraday = parset.getboolean('LOFAR_dd-serial','do_dd_faraday')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
     """
@@ -422,7 +421,6 @@ for cmaj in range(maxIter):
         rms_noise_pre = image.getNoise(); rms_noise_init = rms_noise_pre
         mm_ratio_pre = image.getMaxMinRatio(); mm_ratio_init = mm_ratio_pre
         doamp = False
-        dofr = d.get_flux(freq_mid) > 4 and do_dd_faraday
         # usually there are 3600/32=112 or 3600/16=225 or 3600/8=450 timesteps and \
         # 60 (halfband)/120 (fullband) chans, try to use multiple numbers
         iter_ph_solint = lib_util.Sol_iterator([8, 8, 4, 1])  # 32 or 16 or 8 * [4,1] s
@@ -440,8 +438,6 @@ for cmaj in range(maxIter):
             # Calibrate
             solint_ph = next(iter_ph_solint)
             d.add_h5parm('ph', 'ddcal/c%02i/solutions/cal-ph-%s.h5' % (cmaj,logstringcal) )
-            if dofr: # FR solve only in first iteration
-                d.add_h5parm('fr', 'ddcal/c%02i/solutions/cal-fr-%s.h5' % (cmaj, logstringcal))
             if doamp:
                 solint_amp = next(iter_amp_solint)
                 d.add_h5parm('amp1', 'ddcal/c%02i/solutions/cal-amp1-%s.h5' % (cmaj,logstringcal) )
@@ -449,49 +445,11 @@ for cmaj in range(maxIter):
                 d.add_h5parm('amp2', 'ddcal/c%02i/solutions/cal-amp2-%s.h5' % (cmaj,logstringcal) )
    
             with w.if_todo('%s-calibrate' % logstringcal):
-
                 if cdd == 0:
                     logger.info('BL-based smoothing...')
                     # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
                     MSs_dir.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS',
                         log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')
-                    if dofr:
-                        logger.error('Rotationmeasure frpm h5parm in DDF not yet implemented.')
-                        sys.exit(1)
-                        logger.info('Create CIRC_PHASEDIFF_DATA...')
-                        MSs_dir.addcol('CIRC_PHASEDIFF_DATA', 'SMOOTHED_DATA', usedysco=False)
-
-                        logger.info('Converting to circular...')
-                        MSs_dir.run('mslin2circ.py -s -i $pathMS:CIRC_PHASEDIFF_DATA -o $pathMS:CIRC_PHASEDIFF_DATA',
-                                log='$nameMS_lincirc.log',
-                                commandType='python')
-                        # Get circular phase diff CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
-                        logger.info('Get circular phase difference...')
-                        MSs_dir.run('taql "UPDATE $pathMS SET\
-                                 CIRC_PHASEDIFF_DATA[,0]=0.5*EXP(1.0i*(PHASE(CIRC_PHASEDIFF_DATA[,0])-PHASE(CIRC_PHASEDIFF_DATA[,3]))), \
-                                 CIRC_PHASEDIFF_DATA[,3]=CIRC_PHASEDIFF_DATA[,0], \
-                                 CIRC_PHASEDIFF_DATA[,1]=0+0i, \
-                                 CIRC_PHASEDIFF_DATA[,2]=0+0i"', log='$nameMS_taql_phdiff.log', commandType='general')
-
-                        logger.info('Creating FR_MODEL_DATA...')  # take from MODEL_DATA but overwrite
-                        MSs_dir.addcol('FR_MODEL_DATA', 'MODEL_DATA', usedysco=False)
-                        MSs_dir.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
-                                 FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
-
-                        logger.info('FR calibration...')
-                        # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve)
-                        logger.info('Solving circular phase difference ...')
-                        MSs_dir.run(
-                            'DP3 ' + parset_dir + f'/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/cal-fr.h5 sol.solint={solint_ph}',
-                            log=f'$nameMS_solFR-{logstringcal}.log', commandType="DP3")
-                        lib_util.run_losoto(s, 'fr', [ms + '/cal-fr.h5' for ms in MSs_dir.getListStr()],
-                                            [parset_dir + '/losoto-fr.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
-                        os.system('mv cal-fr.h5 %s' % d.get_h5parm('fr'))
-                        # Correct FR - group*_TC.MS:SMOOTHED_DATA -> group*_TC.MS:SMOOTHED_DATA
-                        logger.info('Correcting FR...')
-                        MSs_dir.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA '
-                                    f'msout.datacolumn=SMOOTHED_DATA cor.parmdb={d.get_h5parm("fr")} cor.correction=rotationmeasure000',
-                                log='$nameMS_corFR-c' + logstringcal + '.log', commandType='DP3')
 
                 # Calibration - ms:SMOOTHED_DATA
                 # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
@@ -645,11 +603,6 @@ for cmaj in range(maxIter):
                         cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=phase000',
                         log='$nameMS_corruping'+logstring+'.log', commandType='DP3')
 
-            if not d.get_h5parm('fr',0) is None:
-                logger.info('Corrupt fr...')
-                MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                       cor.invert=False cor.parmdb='+d.get_h5parm('fr',0)+' cor.correction=rotationmeasure000',
-                        log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
             if not d.get_h5parm('amp1',-2) is None:
                 logger.info('Corrupt amp...')
                 MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
@@ -704,7 +657,7 @@ for cmaj in range(maxIter):
     imagename = 'img/wideDD-c%02i' % (cmaj)
 
     # combine the h5parms
-    h5parms = {'ph':[], 'amp1':[], 'amp2':[], 'fr':[]}
+    h5parms = {'ph':[], 'amp1':[], 'amp2':[]}
     for d in directions:
         # only those who converged
         if d.peel_off:
@@ -713,15 +666,12 @@ for cmaj in range(maxIter):
             continue
 
         h5parms['ph'].append(d.get_h5parm('ph',-2))
-        if d.get_h5parm('fr') is not None:
-            h5parms['fr'].append(d.get_h5parm('fr',0))
         if d.get_h5parm('amp1',-2) is not None:
             h5parms['amp1'].append(d.get_h5parm('amp1',-2))
         if d.get_h5parm('amp2',-2) is not None:
             h5parms['amp2'].append(d.get_h5parm('amp2',-2))
 
         log = '%s: Phase (%s)' % (d.name, d.get_h5parm('ph',-2))
-        log += ' FR (%s)' % (d.get_h5parm('fr',0))
         log += ' Amp1 (%s)' % (d.get_h5parm('amp1',-2))
         log += ' Amp2 (%s)' % (d.get_h5parm('amp2',-2))
         logger.info(log)
@@ -729,7 +679,6 @@ for cmaj in range(maxIter):
     # it might happens that no directions ended up with amp solutions, restrict to phase only correction
     correct_for = 'phase000'
     if len(h5parms['amp1']) != 0: correct_for += '+amplitude000'
-    if len(h5parms['fr']) != 0: correct_for += '+rotationmeasure000'
 
     with w.if_todo('c%02i-imaging' % cmaj):
         logger.info("Imaging - preparing solutions:")
@@ -747,18 +696,13 @@ for cmaj in range(maxIter):
                     # reset high-res amplitudes in ph-solve
                     #s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetamp.parset ', log='h5parm_collector.log', commandType='python' )
                     #s.run()
-                if typ == 'fr':
-                    lib_h5.adddir(h5parmFile, 'rotationmeasure000', dirname=dirname)
-                    lib_h5.addpol(h5parmFile, 'rotationmeasure000')
-                    s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-reffr.parset ', log='h5parm_collector.log', commandType='python' )
-                    s.run()
                 if typ == 'amp1' or typ == 'amp2':
                     s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetph.parset ', log='h5parm_collector.log', commandType='python' )
                     s.run()
     
         lib_util.check_rm(interp_h5parm)
         logger.info('Interpolating solutions...')
-        s.add('H5parm_interpolator.py -o '+interp_h5parm+' '+' '.join(h5parms['ph']+h5parms['fr']+h5parms['amp1']+h5parms['amp2']), log='h5parm_interpolator.log', commandType='python' )
+        s.add('H5parm_interpolator.py -o '+interp_h5parm+' '+' '.join(h5parms['ph']+h5parms['amp1']+h5parms['amp2']), log='h5parm_interpolator.log', commandType='python' )
         s.run()
 
         idg = False
