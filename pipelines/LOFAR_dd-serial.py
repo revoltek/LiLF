@@ -765,17 +765,15 @@ for cmaj in range(maxIter):
                     'Facets_DiamMax':1.5,
                     'Facets_DiamMin':0.1,
                     'Weight_ColName':'WEIGHT_SPECTRUM',
-                    'Output_Name':imagename,
+                    'RIME_ForwardMode':'BDA-degrid',
                     'DDESolutions_DDModeGrid':'AP',
                     'DDESolutions_DDModeDeGrid':'AP',
-                    'RIME_ForwardMode':'BDA-degrid',
+                    'DDESolutions_DDSols':interp_h5parm+':sol000/'+correct_for,
                     'Output_RestoringBeam':15.,
-                    'DDESolutions_DDSols':interp_h5parm+':sol000/'+correct_for
+                    'Output_Also':'onNedsR',
+                    'Output_Name':imagename,
                     }
 
-            if cmaj > 0:
-                ddf_parms['Output_Cubes'] = 'iI'
-                ddf_parms['Predict_ColName'] = 'MODEL_DATA' # to subtract model
 
             logger.info('Cleaning...')
             lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
@@ -783,10 +781,15 @@ for cmaj in range(maxIter):
                     Deconv_PeakFactor=0.02,
                     Cache_Reset=1
                     )
-    
+
             # make mask
             im = lib_img.Image(imagename+'.app.restored.fits', userReg=userReg)
             im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=True)
+
+            if cmaj > 0: # additional output for final DDF call
+                ddf_parms['Output_Cubes'] = 'iI'
+                ddf_parms['Predict_ColName'] = 'MODEL_DATA' # to subtract model
+                # ddf_parms['Output_StokesResidues'] = 'I,V' # this could be used to get stokes V residual
 
             logger.info('Cleaning (with mask)...')
             lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **ddf_parms,
@@ -795,22 +798,65 @@ for cmaj in range(maxIter):
                     Mask_External=im.maskname,
                     Cache_Reset=0
                     )
- 
+
             os.system('mv %s* ddcal/c%02i/images' % (imagename, cmaj))
-    ### DONE
+
+        ### DONE
 
     full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
     min_cal_flux60 *= 0.8  # go a bit deeper
 
-### Additional images
+##############################################################################################################
+### Calibration finished - additional images with scientific value
+
+with w.if_todo('output_stokesV'):
+    imagenameV = 'img/wideDD-V-c%02i' % (cmaj)
+
+    logger.info('Cleaning Stokes V...')
+    lib_util.run_DDF(s, 'ddfacet-v-c' + str(cmaj) + '.log',
+                     Data_MS=MSs.getStrDDF(),
+                     Data_ColName='CORRECTED_DATA',
+                     Data_Sort=1,
+                     Deconv_Mode='SSD',
+                     SSDClean_BICFactor=0,
+                     GAClean_AllowNegativeInitHMP=1,
+                     Output_Mode='Dirty',
+                     Weight_Robust=-0.5,
+                     Image_NPix=imgsizepix,
+                     CF_wmax=50000,
+                     CF_Nw=100,
+                     Beam_CenterNorm=1,
+                     Beam_Smooth=1,
+                     Beam_Model='LOFAR',
+                     Beam_LOFARBeamMode='A',
+                     Beam_NBand=1,
+                     Beam_DtBeamMin=5,
+                     Image_Cell=3.,
+                     Freq_NDegridBand=ch_out,
+                     Freq_NBand=ch_out,
+                     Facets_DiamMax=1.5,
+                     Facets_DiamMin=0.1,
+                     Weight_ColName='WEIGHT_SPECTRUM',
+                     RIME_ForwardMode='BDA-degrid',
+                     DDESolutions_DDModeGrid='AP',
+                     DDESolutions_DDModeDeGrid='AP',
+                     DDESolutions_DDSols=interp_h5parm + ':sol000/' + correct_for,
+                     Output_RestoringBeam=15.,  # what does this do?
+                     Output_Also='DsR',
+                     Output_Name=imagenameV,
+                     RIME_PolMode='IV',
+                     Cache_Reset=1
+                     )
+    os.system('mv %s* ddcal/c%02i/images' % (imagenameV, cmaj))
+
 with w.if_todo('output_lres'):
+
     logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
             log='$nameMS_taql.log', commandType='general')
-    imagename = 'img/wideDD-lres-c%02i' % (cmaj)
+    imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
     logger.info('Clean lowres subtracted image...')
-    # TODO: number of open questions - does WSCMS even work with non-regular-square-grid directions?
-    ddf_parms = {
+    ddf_parms_lres = {
         'Data_MS': MSs.getStrDDF(),
         'Data_ColName': 'SUBTRACTED_DATA',
         'Data_Sort': 1,
@@ -818,16 +864,16 @@ with w.if_todo('output_lres'):
         'Deconv_CycleFactor': 0,
         'Deconv_MaxMinorIter': 1000000,
         'Deconv_RMSFactor': 2.0,
-        'Deconv_FluxThreshold': 0.0,
+        'Deconv_FluxThreshold': 2.0, # 0.0 only with automask?
         'Deconv_Mode': 'WSCMS',
-        'Deconv_MaxMajorIter': 10,
+        'Deconv_MaxMajorIter': 2,
         'Deconv_PeakFactor': 0.3, #0.005
         'Cache_Reset': 0,
         # 'WSCMS_NumFreqBasisFuncs': ,
         'WSCMS_CacheSize':3,  # default
         'Weight_EnableSigmoidTaper': 1,
-        'Weight_SigmoidTaperOuterCutoff': 3600, # ~100arcsec?
-        'Weight_Robust': -0.3,
+        'Weight_SigmoidTaperOuterCutoff': 3600, # ~60arcsec?
+        'Weight_Robust': 0.3,
         'Image_NPix': int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 15.), # needs to be tuned
         'CF_wmax': 50000,
         'CF_Nw': 100,
@@ -848,7 +894,8 @@ with w.if_todo('output_lres'):
         'Facets_DiamMax': 1.5,
         'Facets_DiamMin': 0.1,
         'Weight_ColName': 'WEIGHT_SPECTRUM',
-        'Output_Name': imagename,
+        'Output_RestoringBeam': 60.,
+        'Output_Name': imagenameL,
         'DDESolutions_DDModeGrid': 'AP',
         'DDESolutions_DDModeDeGrid': 'AP',
         'RIME_ForwardMode': 'BDA-degrid',
@@ -856,7 +903,8 @@ with w.if_todo('output_lres'):
         'DDESolutions_DDSols': interp_h5parm + ':sol000/' + correct_for
     }
 
-    lib_util.run_DDF(s, 'ddfacet-lowres-c' + str(cmaj) + '.log', **ddf_parms,
+    lib_util.run_DDF(s, 'ddfacet-lowres-c' + str(cmaj) + '.log', **ddf_parms_lres,
                      )
+    os.system('mv %s* ddcal/c%02i/images' % (imagenameL, cmaj))
 
 logger.info("Done.")
