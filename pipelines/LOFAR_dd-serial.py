@@ -373,7 +373,7 @@ for cmaj in range(maxIter):
                 MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
                         log='$nameMS_taql.log', commandType='general')
 
-            ### TTESTTESTTEST: empty image
+            ### TTESTTESTTEST: empty image but with the DD cal
             #if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
             #    clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
