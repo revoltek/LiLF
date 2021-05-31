@@ -78,7 +78,6 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_dd-serial', 'minCalFlux60', '1')
     add_default('LOFAR_dd-serial', 'removeExtendedCutoff', '0.0005')
     add_default('LOFAR_dd-serial', 'target_dir', '') # ra,dec
-    add_default('LOFAR_dd-serial', 'do_dd_faraday', 'False')
     # ddfacet
     add_default('LOFAR_ddfacet', 'maxniter', '10')
     add_default('LOFAR_ddfacet', 'calFlux', '2.0')
