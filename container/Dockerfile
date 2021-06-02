@@ -39,7 +39,7 @@ RUN chown lofar:lofar /home/lofar
 RUN cd /opt && git clone https://github.com/casacore/casacore.git \
     && cd /opt/casacore && git checkout tags/v3.3.0
 RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused ftp://anonymous@ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar
-RUN cd /opt/casacore && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=True -DUSE_OPENMP=True -DUSE_FFTW3=TRUE -DUSE_HDF5=True -DBUILD_PYTHON:BOOL=False -DBUILD_PYTHON3:BOOL=True .. && make -j 64 && make install
+RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=True -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=True -DUSE_OPENMP=True -DUSE_FFTW3=TRUE -DUSE_HDF5=True -DBUILD_PYTHON:BOOL=False -DBUILD_PYTHON3:BOOL=True .. && make -j 64 && make install
 
 #####################################################################
 ## CASACORE-python v3.3.1
@@ -54,7 +54,7 @@ RUN cd /opt/python-casacore && pip3 install .
 RUN cd /opt && git clone https://github.com/lofar-astron/LOFARBeam.git \
     && cd /opt/LOFARBeam && git checkout 5b5d80ff308784adbf00985293257b16afff86b2
 RUN cd /opt/LOFARBeam && mkdir build && cd build \
-    && cmake .. \
+    && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
 ENV PYTHONPATH /usr/local/lib/python3.8/site-packages/:$PYTHONPATH
@@ -66,7 +66,7 @@ ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
     && cd /opt/EveryBeam && git checkout tags/v0.2.0
 RUN cd /opt/EveryBeam && mkdir build && cd build \
-    && cmake .. \
+    && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
     
 #####################################################################
@@ -75,7 +75,7 @@ RUN cd /opt/EveryBeam && mkdir build && cd build \
 RUN cd /opt && git clone https://gitlab.com/astron-idg/idg.git \
     && cd /opt/idg && git checkout fff21998
 RUN cd /opt/idg && mkdir build && cd build \
-    && cmake -DCMAKE_INSTALL_PREFIX:PATH=/ .. \
+    && cmake -DPORTABLE=True -DCMAKE_INSTALL_PREFIX:PATH=/ .. \
     && make -j 64 && make install
 
 #####################################################################
@@ -84,7 +84,7 @@ RUN cd /opt/idg && mkdir build && cd build \
 RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
     && cd /opt/aoflagger && git checkout tags/v3.1.0
 RUN cd /opt/aoflagger && mkdir build && cd build && mkdir install \
-    && cmake .. \
+    && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
 #####################################################################
@@ -93,7 +93,7 @@ RUN cd /opt/aoflagger && mkdir build && cd build && mkdir install \
 RUN cd /opt && git clone https://github.com/aroffringa/dysco.git \
     && cd /opt/dysco && git checkout tags/v1.2
 RUN cd /opt/dysco && mkdir build && cd build \
-    && cmake .. \
+    && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
 #####################################################################
@@ -102,7 +102,7 @@ RUN cd /opt/dysco && mkdir build && cd build \
 RUN cd /opt && git clone https://github.com/lofar-astron/LofarStMan
 #   && cd /opt/LofarStMan
 RUN cd /opt/LofarStMan && mkdir build && cd build \
-    && cmake .. \
+    && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
 #####################################################################
@@ -111,19 +111,18 @@ RUN cd /opt/LofarStMan && mkdir build && cd build \
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
     && cd /opt/wsclean && git checkout tags/v2.10.1
 RUN cd /opt/wsclean && mkdir build && cd build \
-    && cmake .. \
+    && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
 #####################################################################
-## Dp3 (master 2/2021)
+## Dp3 (master 31/5/2021)
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/DP3.git \
-    && cd /opt/DP3 && git checkout f6d2248c7c52e43c260cfd137e94db41029c7003
-#RUN cd /opt/DP3 && git checkout tags/v4.2
+    && cd /opt/DP3 && git checkout 1c194eec93ae2ae45c5d579c319ec534181c01b8
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
 RUN cd /opt/DP3 && mkdir build && cd build \
-    && cmake .. \
+    && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
 #####################################################################
