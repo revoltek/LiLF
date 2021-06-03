@@ -145,7 +145,7 @@ phase_center = MSs.getListObj()[0].getPhaseCentre()
 timeint = MSs.getListObj()[0].getTimeInt()
 ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 ch_out_idg = 12  # better 24, but slow
-imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
+imgsizepix = int(1.8 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 #MSs.getListObj()[0].makeBeamReg('ddcal/beam.reg', freq='mid')
 #beamReg = 'ddcal/beam.reg'
@@ -299,7 +299,7 @@ for cmaj in range(maxIter):
 
     for dnum, d in enumerate(directions):
 
-        logger.info('c%02i - Working on direction %s/%s: %s (%f Jy - %f deg)' % (dnum, len(directions), cmaj, d.name, d.get_flux(freq_mid), d.size))
+        logger.info('c%02i - Working on direction %i of %i: %s (%f Jy - %f deg)' % (cmaj, dnum, len(directions), d.name, d.get_flux(freq_mid), d.size))
         if d.size > 0.5: logger.warning('Patch size large: %f' % d.size)
         logstring = 'c%02i-%s' % (cmaj, d.name)
 
