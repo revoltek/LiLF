@@ -1,17 +1,62 @@
 Ncpu = 0
 
-#[duplicate]
-#operation = DUPLICATE
-#soltab = sol000/phase000
-#soltabOut = phaseOrig000
+[duplicate]
+operation = DUPLICATE
+soltab = sol000/phase000
+soltabOut = phaseOrig000
+
+[reset]
+operation = RESET
+soltab = sol000/phase000
+pol = YY
+dataVal = 0.0
+
+[plotP1]
+operation = PLOT
+soltab = sol000/phase000
+freq.minmaxstep = [0,300e6,100]
+axesInPlot = time
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ph_
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
+minmax = [-3.14,3.14]
+NColFig = 4
+figSize = [20,20]
+
+[plotP2]
+operation = PLOT
+soltab = sol000/phase000
+time.minmaxstep = [0,1e20,1000]
+axesInPlot = freq
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ph_
+refAnt = 'CS001LBA'
+#refAnt = 'CS002LBA'
+minmax = [-3.14,3.14]
+
+[plotP3]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ph_
+refAnt = 'CS001LBA'
+pol = XX
+#refAnt = 'CS002LBA'
+minmax = [-3.14,3.14]
 
 [faraday]
 operation = FARADAY
-soltab = sol000/rotation000
+soltab = sol000/phase000
 refAnt = CS001LBA
-#refAnt = CS002LBA
 maxResidual = 1.
-freq.minmaxstep = [30e6,1e9]
+freq.minmaxstep = [15e6,1e9] # should this start form 30 MHz or does 15 MHz work?
 
 [plotFR]
 operation = PLOT
@@ -20,18 +65,18 @@ axesInPlot = [time]
 axisInTable = ant
 prefix = plots/fr
 
-#[residuals]
-#operation = RESIDUALS
-#soltab = sol000/phase000
-#soltabsToSub = rotationmeasure000
-#
-#[plotRES]
-#operation = PLOT
-#soltab = sol000/phase000
-#axesInPlot = [time,freq]
-#AxisInTable = ant
-#AxisDiff = pol
-#plotFlag = True
-#prefix = plots/phRes-rot
-#refAnt = CS002LBA
-#minmax = [-1.,1.]
+[residuals]
+operation = RESIDUALS
+soltab = sol000/phase000
+soltabsToSub = rotationmeasure000
+
+[plotRES]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+AxisInTable = ant
+AxisDiff = pol
+plotFlag = True
+prefix = plots/phRes-rot
+refAnt = CS001LBA
+minmax = [-1.,1.]

@@ -196,13 +196,6 @@ def distanceOnSphere(RAs1, Decs1, RAs2, Decs2, rad=False):
                np.cos(np.radians(Decs1)) * np.cos(np.radians(Decs2)) *
                np.cos(np.radians(RAs1 - RAs2)), -1, 1)))
 
-# def _haversine(s1, s2): # crosscheck
-#     """
-#     Calculate the great circle distance between two points
-#     (specified in rad)
-#     """
-#     return 2*np.arcsin(np.sqrt(np.sin((s2[1]-s1[1])/2.0)**2 + np.cos(s1[1]) * np.cos(s2[1]) * np.sin((s2[0]-s1[0])/2.0)**2))
-
 
 def check_rm(regexp):
     """
@@ -237,6 +230,26 @@ class Sol_iterator(object):
         else:
             return self.vals[-1]
 
+
+def lofar_nu2num(nu):
+    """
+    Get LOFAR SB number from the freq
+    """
+    nu_clk = 200. # 160 or 200 MHz, clock freq
+    # nyquist zone (1 for LBA, 2 for HBA low, 3 for HBA mid-high)
+    if nu < 90:
+        n = 1
+    elif nu < 170:
+        n = 2
+    else:
+        n = 3
+
+    if nu_clk == 200:
+        SBband = 195312.5/1e6
+    elif nu_clk == 160:
+        SBband = 156250.0/1e6
+
+    return np.int(np.floor((1024./nu_clk) * (nu - (n-1) * nu_clk/2.)))
 
 def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
     """
@@ -316,6 +329,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
             scale = float(kwargs['scale'].replace('arcsec','')) # arcsec
             value = 1.87e3*60000.*2.*np.pi/(24.*60.*60*np.max(kwargs['size'])) # the np.max() is OK with both float and arrays
             if value > 10: value=10
+            if value < 1: continue
         if parm == 'cont': 
             parm = 'continue'
             value = ''
@@ -578,7 +592,7 @@ class Scheduler():
         cmd:         the command to run
         log:         log file name that can be checked at the end
         logAppend:  if True append, otherwise replace
-        commandType: can be a list of known command types as "BBS", "DPPP", ...
+        commandType: can be a list of known command types as "BBS", "DP3", ...
         processors:  number of processors to use, can be "max" to automatically use max number of processors per node
         """
 
@@ -594,8 +608,8 @@ class Scheduler():
         # if running wsclean add the string
         if commandType == 'wsclean':
             logger.debug('Running wsclean: %s' % cmd)
-        elif commandType == 'DPPP':
-            logger.debug('Running DPPP: %s' % cmd)
+        elif commandType == 'DP3':
+            logger.debug('Running DP3: %s' % cmd)
         elif commandType == 'singularity':
             cmd = 'SINGULARITY_TMPDIR=/dev/shm singularity exec -B /tmp,/dev/shm,/localwork,/localwork.ssd,/home /home/fdg/node31/opt/src/lofar_sksp_ddf.simg ' + cmd
             logger.debug('Running singularity: %s' % cmd)
@@ -609,7 +623,7 @@ class Scheduler():
             # if number of processors not specified, try to find automatically
             if (processors == None):
                 processors = 1 # default use single CPU
-                if ("DPPP" == cmd[ : 4]):
+                if ("DP3" == cmd[ : 4]):
                     processors = 1
                 if ("wsclean" == cmd[ : 7]):
                     processors = self.max_processors
@@ -680,14 +694,15 @@ class Scheduler():
             logger.warning("No log file found to check results: " + log)
             return 1
 
-        if (commandType == "DPPP"):
+        if (commandType == "DP3"):
             out = subprocess.check_output('grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            #
+            # TODO: This needs to be uncommented once the malloc_consolidate stuff is fixed
             # out += subprocess.check_output('grep -l "Aborted (core dumped)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -i -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "**** uncaught exception ****" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            # this interferes with the missingantennabehaviour=error option...
+            # out += subprocess.check_output('grep -l "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "misspelled" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "CASA"):

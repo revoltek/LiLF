@@ -25,20 +25,6 @@ if os.path.exists('html.txt'):
 else:
     download_file = None # just renaming
 
-def nu2num(nu):
-    """
-    Get the SB number from the freq
-    """
-    nu_clk = 200. # 160 or 200 MHz, clock freq
-    n = 1 # nyquist zone (1 for LBA, 2 for HBA low, 3 for HBA mid-high)
-
-    if nu_clk == 200:
-        SBband = 195312.5/1e6
-    elif nu_clk == 160:
-        SBband = 156250.0/1e6
-
-    return np.int(np.floor((1024./nu_clk) * (nu - (n-1) * nu_clk/2.)))
-
 def getName(ms):
     """
     Get new MS name based on obs name and time
@@ -69,11 +55,11 @@ def getName(ms):
     #if pattern.match(code):
     #    cycle_obs, sou = code.split('_')
     #    if not os.path.exists(cycle_obs+'/'+sou): os.makedirs(cycle_obs+'/'+sou)
-    #    return cycle_obs+'/'+sou+'/'+sou+'_t'+time+'_SB'+str(nu2num(freq/1.e6))+'.MS'
+    #    return cycle_obs+'/'+sou+'/'+sou+'_t'+time+'_SB'+str(lib_util.lofar_nu2num(freq/1.e6))+'.MS'
     #else:
     
     if not os.path.exists('mss/id'+obsid+'_-_'+code): os.makedirs('mss/id'+obsid+'_-_'+code)
-    return 'mss/id'+obsid+'_-_'+code+'/'+code+'_SB%03i.MS' % nu2num(freq/1.e6)
+    return 'mss/id'+obsid+'_-_'+code+'/'+code+'_SB%03i.MS' % lib_util.lofar_nu2num(freq/1.e6)
 
 ########################################
 if not download_file is None:
@@ -165,14 +151,14 @@ if renameavg:
             if avg_factor_f != 1 or avg_factor_t != 1:
                 logger.info('%s->%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, avg_factor_f, avg_factor_t))
                 if keep_IS:
-                    s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
+                    s.add('DP3 '+parset_dir+'/DP3-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
-                        log=MS.nameMS+'_avg.log', commandType='DPPP')
+                        log=MS.nameMS+'_avg.log', commandType='DP3')
                 else:
-                    s.add('DPPP '+parset_dir+'/DPPP-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
+                    s.add('DP3 '+parset_dir+'/DP3-avg.parset msin='+MS.pathMS+' msout='+MSout+' msin.datacolumn=DATA \
                         msin.baseline="[CR]S*&" \
                         avg.timestep='+str(avg_factor_t)+' avg.freqstep='+str(avg_factor_f), \
-                        log=MS.nameMS+'_avg.log', commandType='DPPP')
+                        log=MS.nameMS+'_avg.log', commandType='DP3')
                 s.run(check=True, maxThreads=1) # limit threads to prevent I/O isssues
                 lib_util.check_rm(MS.pathMS)
             else:

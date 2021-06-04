@@ -80,7 +80,7 @@ logger.info('Add columns...')
 MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA,SUBTRACTED_DATA,CORRECTED_DATA_DIE -i DATA', log="$nameMS_addcol.log", commandType="python")
 
 logger.info('Add model to MODEL_DATA...')
-MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DPPP')
+MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb=$pathMS/'+sourcedb_basename, log='$nameMS_pre.log', commandType='DP3')
 
 #####################################################################################################
 # Self-cal cycle
@@ -91,34 +91,34 @@ for c in range(3):
     # solve - concat*.MS:SMOOTHED_DATA
     if not is_wideband:
         logger.info('Solving G...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/gs.h5 \
+        MSs.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/gs.h5 \
                  sol.solint=1 sol.nchan=1 sol.mode=complexgain sol.smoothnessconstraint=1e6', \
-                    log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+                    log='$nameMS_solG-c'+str(c)+'.log', commandType='DP3')
         lib_util.run_losoto(s, 'gs'+str(c), [MS+'/gs.h5' for MS in MSs.getListStr()], \
                 [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-norm.parset'])
         os.system('mv plots-gs'+str(c)+'* self/solutions/')
         os.system('mv cal-gs'+str(c)+'*.h5 self/solutions/')
         # correct phases - MS:DATA -> MS:CORRECTED_DATA
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=phase000', \
-                    log='$nameMS_corGp-c'+str(c)+'.log', commandType='DPPP')
+        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=phase000', \
+                    log='$nameMS_corGp-c'+str(c)+'.log', commandType='DP3')
         if c >= 2:
             # correct amplitudes - MS:DATA -> MS:CORRECTED_DATA
             logger.info('Correcting Ga...')
-            MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=amplitude000', \
-                    log='$nameMS_corGa-c'+str(c)+'.log', commandType='DPPP')
+            MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-gs'+str(c)+'.h5 cor.correction=amplitude000', \
+                    log='$nameMS_corGa-c'+str(c)+'.log', commandType='DP3')
     else:
         logger.info('Solving TEC...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/tec.h5 \
+        MSs.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/tec.h5 \
                  sol.solint=1 sol.nchan=1 sol.mode=tec', \
-                    log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+                    log='$nameMS_solG-c'+str(c)+'.log', commandType='DP3')
         lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], \
                 [parset_dir+'/losoto-plot-tec.parset'])
         os.system('mv plots-tec'+str(c)+'* self/plots/')
         os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
         # correct phases - MS:DATA -> MS:CORRECTED_DATA
         logger.info('Correcting Gp...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=tec000', \
-                log='$nameMS_corGp-c'+str(c)+'.log', commandType='DPPP')
+        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.parmdb=self/solutions/cal-tec'+str(c)+'.h5 cor.correction=tec000', \
+                log='$nameMS_corGp-c'+str(c)+'.log', commandType='DP3')
 
     # set image size at 1.5 * FWHM
     imgsizepix = int(1.5*MSs.getListObj()[0].getFWHM()/(2./3600))
@@ -156,8 +156,8 @@ for c in range(3):
 
         # predict - ms: MODEL_DATA
         logger.info('Predict model...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.sourcedb='+im.skydb, \
-                log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+        MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA pre.sourcedb='+im.skydb, \
+                log='$nameMS_pre-c'+str(c)+'.log', commandType='DP3')
 
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image.fits self/images') for c in range(3) ]
@@ -290,7 +290,7 @@ for c in range(3):
 
     #Predict - ms:MODEL_DATA
     logger.info('Add rest_field to MODEL_DATA...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+    MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DP3')
 
     # Empty dataset from faint sources (TODO: better corrupt with DDE solutions when available before subtract)
     logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA_DIE - MODEL_DATA...')
@@ -312,8 +312,8 @@ for c in range(3):
 
     # Calibration - ms:SMOOTHED_DATA
     logger.info('Calibrating...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-solGdd.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA sol.h5parm=$pathMS/cal-dd-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
-            log='$nameMS_solDD-c'+str(c)+'.log', commandType='DPPP')
+    MSs.run('DP3 '+parset_dir+'/DP3-solGdd.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA sol.h5parm=$pathMS/cal-dd-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
+            log='$nameMS_solDD-c'+str(c)+'.log', commandType='DP3')
 
     # Plot solutions
     lib_util.run_losoto(s, 'dd-c'+str(c), [MS+'/cal-dd-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-amp-dd.parset', parset_dir+'/losoto-plot-ph-dd.parset'])
@@ -329,14 +329,14 @@ for c in range(3):
     for i, d in enumerate(directions):
         # predict - ms:MODEL_DATA
         logger.info('Patch '+d.name+': predict...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name,log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name,log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
 
         # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
         # TODO: corrupt also for amplitudes?
         logger.info('Patch '+d.name+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+d.name+'] cor.correction=phase000 cor.invert=False \
+        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+d.name+'] cor.correction=phase000 cor.invert=False \
                  msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA', \
-                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+                log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
 
         # subtract - ms:SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA
         logger.info('Patch '+d.name+': subtract...')
@@ -347,31 +347,31 @@ for c in range(3):
     for i, d in enumerate(directions):
         # predict - ms:MODEL_DATA
         logger.info('Patch '+d.name+': predict...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
-                   log='$nameMS_pre2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+        MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
+                   log='$nameMS_pre2-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
 
         # corrupt - ms:MODEL_DATA -> ms:MODEL_DATA
         # TODO: corrupt also for amplitudes?
         logger.info('Patch '+d.name+': corrupt...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+d.name+'] cor.correction=phase000 cor.invert=False \
+        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+d.name+'] cor.correction=phase000 cor.invert=False \
                  msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA', \
-                 log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+                 log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
 
         logger.info('Patch '+d.name+': add...')
         MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA + MODEL_DATA"', log='$nameMS_taql4-c'+str(c)+'-'+d.name+'.log', commandType='general')
 
         # DD-correct - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
         logger.info('Patch '+d.name+': correct...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+d.name+'] cor.correction=phase000 \
+        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.parmdb=$pathMS/cal-dd-c'+str(c)+'.h5 cor.direction=['+d.name+'] cor.correction=phase000 \
                msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA', \
-               log='$nameMS_cor-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+               log='$nameMS_cor-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
 
         logger.info('Patch '+d.name+': phase shift and avg...')
         lib_util.check_rm('mss-dir')
         os.makedirs('mss-dir')
-        MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=CORRECTED_DATA \
+        MSs.run('DP3 '+parset_dir+'/DP3-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=CORRECTED_DATA \
                 shift.phasecenter=['+str(d.position_facet[0])+'deg,'+str(d.position_facet[1])+'deg\]', \
-                log='$nameMS_shift-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+                log='$nameMS_shift-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
 
         logger.info('Patch '+d.name+': imaging...')
 

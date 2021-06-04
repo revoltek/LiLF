@@ -117,8 +117,8 @@ with w.if_todo('cleaning'):
 logger.info('Copy data...')
 if not os.path.exists('mss-dd'):
     os.makedirs('mss-dd')
-    MSs_self.run('DPPP '+parset_dir+'/DPPP-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=CORRECTED_DATA avg.freqstep=1 avg.timestep=1', \
-                log='$nameMS_avg.log', commandType='DPPP')
+    MSs_self.run('DP3 '+parset_dir+'/DP3-avg.parset msin=$pathMS msout=mss-dd/$nameMS.MS msin.datacolumn=CORRECTED_DATA avg.freqstep=1 avg.timestep=1', \
+                log='$nameMS_avg.log', commandType='DP3')
 MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9].MS'), s )
        
 logger.info('Add columns...')
@@ -280,7 +280,7 @@ for c in range(maxniter):
     
         # Predict - ms:MODEL_DATA
         logger.info('Add rest_field to MODEL_DATA...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DPPP')
+        MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+skymodel_rest_skydb,log='$nameMS_pre-c'+str(c)+'.log', commandType='DP3')
         
         # Empty dataset from faint sources
         logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
@@ -292,9 +292,9 @@ for c in range(maxniter):
     
         # Calibration - ms:SMOOTHED_DATA
         logger.info('Gain calibration...')
-        MSs.run('DPPP '+parset_dir+'/DPPP-solG.parset msin=$pathMS \
+        MSs.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS \
                 sol.h5parm=$pathMS/cal-g-c'+str(c)+'.h5 sol.sourcedb='+skymodel_cl_skydb, \
-                log='$nameMS_solG-c'+str(c)+'.log', commandType='DPPP')
+                log='$nameMS_solG-c'+str(c)+'.log', commandType='DP3')
     
         # Plot solutions
         lib_util.run_losoto(s, 'g-c'+str(c), [ms+'/cal-g-c'+str(c)+'.h5' for ms in MSs.getListStr()], \
@@ -338,18 +338,18 @@ for c in range(maxniter):
                 
                 # predict - ms:MODEL_DATA
                 logger.info('Patch '+d.name+': predict...')
-                MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
-                        log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+                MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
+                        log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
             
                 # corrupt G - ms:MODEL_DATA -> ms:MODEL_DATA
                 logger.info('Patch '+d.name+': corrupt...')
-                MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+                MSs.run('DP3 '+parset_dir+'/DP3-corrupt1.parset msin=$pathMS \
                         cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
-                        log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+                        log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
                 if c>0:
-                    MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+                    MSs.run('DP3 '+parset_dir+'/DP3-corrupt1.parset msin=$pathMS \
                         cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
-                        log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+                        log='$nameMS_corrupt1-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
          
                 logger.info('Patch '+d.name+': subtract...')
                 MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
@@ -377,38 +377,38 @@ for c in range(maxniter):
                 #TODO: see if we can phase shift and average before predict-corrupt=correct
                 # predict - ms:MODEL_DATA
                 logger.info('Patch '+d.name+': predict...')
-                MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
-                           log='$nameMS_pre2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+                MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+skymodel_voro_skydb+' pre.sources='+d.name, \
+                           log='$nameMS_pre2-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
         
                 # corrupt G - ms:MODEL_DATA -> ms:MODEL_DATA
                 logger.info('Patch '+d.name+': corrupt...')
-                MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+                MSs.run('DP3 '+parset_dir+'/DP3-corrupt1.parset msin=$pathMS \
                         cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
-                        log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
+                        log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
                 if c>0:
-                    MSs.run('DPPP '+parset_dir+'/DPPP-corrupt1.parset msin=$pathMS \
+                    MSs.run('DP3 '+parset_dir+'/DP3-corrupt1.parset msin=$pathMS \
                         cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
-                        log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
+                        log='$nameMS_corrupt2-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
         
                 logger.info('Patch '+d.name+': add...')
                 MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA + MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
         
                 # correct G - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
                 logger.info('Patch '+d.name+': correct...')
-                MSs.run('DPPP '+parset_dir+'/DPPP-correct1.parset msin=$pathMS \
+                MSs.run('DP3 '+parset_dir+'/DP3-correct1.parset msin=$pathMS \
                         cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=phase000 cor.direction=['+d.name+']', \
-                        log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
+                        log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
                 if c>0:
-                    MSs.run('DPPP '+parset_dir+'/DPPP-correct1.parset msin=$pathMS \
+                    MSs.run('DP3 '+parset_dir+'/DP3-correct1.parset msin=$pathMS \
                         cor.parmdb=ddcal/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitude000 cor.direction=['+d.name+']', \
-                        log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DPPP') 
+                        log='$nameMS_correct-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
         
                 logger.info('Patch '+d.name+': phase shift and avg...')
                 lib_util.check_rm('mss-dir')
                 os.makedirs('mss-dir')
-                MSs.run('DPPP '+parset_dir+'/DPPP-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=CORRECTED_DATA \
+                MSs.run('DP3 '+parset_dir+'/DP3-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=CORRECTED_DATA \
                         shift.phasecenter=['+str(d.position_facet[0])+'deg,'+str(d.position_facet[1])+'deg\]', \
-                        log='$nameMS_shift-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+                        log='$nameMS_shift-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
                 
                 logger.info('Patch '+d.name+': imaging...')
                 clean(d.name, lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s ), size=d.size_facet, apply_beam = c==maxniter )
@@ -422,8 +422,8 @@ for c in range(maxniter):
                     s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % \
                             ('img/ddcalM-'+d.name+'-high-sources.txt', 'img/ddcalM-'+d.name+'-high-sources.skydb'), log='makesourcedb_'+d.name+'.log', commandType='general' )
                     s.run(check=True)
-                    MSs.run('DPPP '+parset_dir+'/DPPP-predict.parset msin=$pathMS pre.sourcedb=img/ddcalM-'+d.name+'-high-sources.skydb pre.sources='+d.name, \
-                            log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DPPP')
+                    MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb=img/ddcalM-'+d.name+'-high-sources.skydb pre.sources='+d.name, \
+                            log='$nameMS_pre1-c'+str(c)+'-'+d.name+'.log', commandType='DP3')
                     logger.info('Patch '+d.name+': subtract high-res...')
                     MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'-'+d.name+'.log', commandType='general')
                     logger.info('Patch '+d.name+': imaging low-res...')

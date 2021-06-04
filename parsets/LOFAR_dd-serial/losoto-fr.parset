@@ -2,8 +2,8 @@ Ncpu = 0
 
 [duplicate]
 operation = DUPLICATE
-soltab = sol000/phase000
-soltabOut = phaseOrig000
+soltab = sol000/phaseOrig000
+soltabOut = phase000
 
 [reset]
 operation = RESET
@@ -20,10 +20,9 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/ph_
-refAnt = 'CS001LBA'
-#refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]
 NColFig = 4
+refAnt = 'CS001LBA'
 figSize = [20,20]
 
 [plotP2]
@@ -36,7 +35,6 @@ axisInCol = pol
 plotFlag = True
 prefix = plots/ph_
 refAnt = 'CS001LBA'
-#refAnt = 'CS002LBA'
 minmax = [-3.14,3.14]
 
 [plotP3]
@@ -46,22 +44,21 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/ph_
-refAnt = 'CS001LBA'
 pol = XX
+refAnt = 'CS001LBA'
 minmax = [-3.14,3.14]
 
 [faraday]
 operation = FARADAY
 soltab = sol000/phase000
-refAnt = CS001LBA
 maxResidual = 1.
-freq.minmaxstep = [15e6,1e9] # should this start form 30 MHz or does 15 MHz work?
 
 [plotFR]
 operation = PLOT
 soltab = sol000/rotationmeasure000
 axesInPlot = [time]
 axisInTable = ant
+refAnt = 'CS001LBA'
 prefix = plots/fr
 
 [residuals]
@@ -77,5 +74,5 @@ AxisInTable = ant
 AxisDiff = pol
 plotFlag = True
 prefix = plots/phRes-rot
-refAnt = CS001LBA
+refAnt = 'CS001LBA'
 minmax = [-3.14,3.14]

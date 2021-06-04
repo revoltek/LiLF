@@ -25,13 +25,19 @@ class Direction(object):
         self.region_file = None
 
         self.model = {}
-        self.h5parms = {'ph':[],'amp1':[],'amp2':[]}
+        self.h5parms = {'ph':[],'fr':[],'amp1':[],'amp2':[]}
+
+        # for debug
+        self.avg_t = None
+        self.avg_f = None
+        self.rms_noise = []
+        self.mm_ratio = []
 
     def clean(self):
         # TODO: remove files?
 
         # associated h5parms
-        self.h5parms = {'ph':[],'amp1':[],'amp2':[]}
+        self.h5parms = {'ph':[],'fr':[],'amp1':[],'amp2':[]}
 
     def set_region(self, loc):
         """
@@ -83,23 +89,30 @@ class Direction(object):
 
     def add_h5parm(self, typ, h5parmFile):
         """
-        typ can be 'ph', 'amp1', or 'amp2'
+        typ can be 'ph', 'fr', 'amp1', or 'amp2'
         h5parmFile: filename
         """
-        assert (typ == 'ph' or typ == 'amp1' or typ == 'amp2')
+        assert (typ == 'ph' or typ == 'fr' or typ == 'amp1' or typ == 'amp2')
         self.h5parms[typ].append(h5parmFile)
 
     def get_h5parm(self, typ, pos=-1):
         """
-        typ can be 'ph', 'amp1', or 'amp2'
+        typ can be 'ph', 'fr', 'amp1', or 'amp2'
         pos: the cycle from 0 to last added, negative numbers to search backwards, if non exists returns None
         """
-        assert (typ == 'ph' or typ == 'amp1' or typ == 'amp2')
+        assert (typ == 'ph' or typ == 'fr' or typ == 'amp1' or typ == 'amp2')
         l = self.h5parms[typ]
         try:
             return l[pos]
         except:
             return None
+
+    def add_rms_mm(self, rms_noise, mm_ratio):
+        """
+        track rms noise and mm ratio
+        """
+        self.rms_noise.append(rms_noise)
+        self.mm_ratio.append(mm_ratio)
 
     def set_position(self, position, distance_peeloff, phase_center):
         """

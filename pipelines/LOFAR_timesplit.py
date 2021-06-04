@@ -72,18 +72,18 @@ with w.if_todo('apply'):
     
     # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign corrected)
     logger.info('Apply solutions (pa)...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS \
-            cor.parmdb='+h5_pa+' cor.correction=polalign', log='$nameMS_cor1.log', commandType='DPPP')
+    MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS \
+            cor.parmdb='+h5_pa+' cor.correction=polalign', log='$nameMS_cor1.log', commandType='DP3')
     
     # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, calibrator corrected+reweight, beam corrected+reweight)
     logger.info('Apply solutions (amp/ph)...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
+    MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
             cor.amp.parmdb='+h5_amp+' cor.amp.correction=amplitudeSmooth cor.amp.updateweights=True\
-            cor.ph.parmdb='+h5_iono+' cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DPPP')
+            cor.ph.parmdb='+h5_iono+' cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DP3')
     
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
     logger.info('Beam correction...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DPPP')
+    MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DP3')
 ### DONE
 
 ###################################################################################################
@@ -102,16 +102,19 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
        os.makedirs(groupname)
 
        # add missing SB with a fake name not to leave frequency holes
-       num_init = int(re.findall(r'\d+', msg[0])[-1])
-       num_fin = int(re.findall(r'\d+', msg[-1])[-1])
+       min_nu = pt.table(MSs.getListStr()[0]).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MIN']
+       max_nu = pt.table(MSs.getListStr()[0]).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MAX']
+       num_init = lib_util.lofar_nu2num(min_nu)+1  # +1 because FREQ_MIN/MAX somewhat have the lowest edge of the SB freq
+       num_fin = lib_util.lofar_nu2num(max_nu)+1
        ms_name_init = msg[0]
+       prefix = re.sub('SB[0-9]*.MS','',msg[0])
        msg = []
        for j in range(num_init, num_fin+1):
-           msg.append(ms_name_init.replace('SB%03i' % num_init, 'SB%03i' % j))
+           msg.append(prefix+'SB%03i.MS' % j)
 
        # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected)
-       s.add('DPPP '+parset_dir+'/DPPP-concat.parset msin="['+','.join(msg)+']"  msout='+groupname+'/'+groupname+'.MS', \
-                   log=groupname+'_DPPP_concat.log', commandType='DPPP')
+       s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(msg)+']"  msout='+groupname+'/'+groupname+'.MS', \
+                   log=groupname+'_DP3_concat.log', commandType='DP3')
        s.run(check=True)
 
 MSs = lib_ms.AllMSs( glob.glob('mss*/*MS'), s )
@@ -121,9 +124,9 @@ MSs = lib_ms.AllMSs( glob.glob('mss*/*MS'), s )
 with w.if_todo('flag'):
 
     logger.info('Flagging...')
-    MSs.run('DPPP '+parset_dir+'/DPPP-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\" \
-            aoflagger.strategy='+parset_dir+'/LBAdefaultwideband.rfis',
-            log='$nameMS_DPPP_flag.log', commandType='DPPP')
+    MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\" \
+            aoflagger.strategy='+parset_dir+'/LBAdefaultwideband.lua',
+            log='$nameMS_DP3_flag.log', commandType='DP3')
     
     logger.info('Remove bad timestamps...')
     MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')

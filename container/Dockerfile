@@ -10,7 +10,7 @@ RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
 RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename \
-    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy \
+    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy \
     libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
@@ -36,85 +36,93 @@ RUN chown lofar:lofar /home/lofar
 ####################################################################
 ## CASACORE v3.3.0
 ###################################################################
-RUN cd /opt && git clone https://github.com/casacore/casacore.git
-RUN cd /opt/casacore && git checkout tags/v3.3.0
+RUN cd /opt && git clone https://github.com/casacore/casacore.git \
+    && cd /opt/casacore && git checkout tags/v3.3.0
 RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused ftp://anonymous@ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar
-RUN cd /opt/casacore && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=True -DUSE_OPENMP=True -DUSE_FFTW3=TRUE -DUSE_HDF5=True -DBUILD_PYTHON:BOOL=False -DBUILD_PYTHON3:BOOL=True .. && make -j 64 && make install
+RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=True -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=True -DUSE_OPENMP=True -DUSE_FFTW3=TRUE -DUSE_HDF5=True -DBUILD_PYTHON:BOOL=False -DBUILD_PYTHON3:BOOL=True .. && make -j 64 && make install
 
 #####################################################################
 ## CASACORE-python v3.3.1
 #####################################################################
-RUN cd /opt && git clone https://github.com/casacore/python-casacore.git
-RUN cd /opt/python-casacore && git checkout tags/v3.3.1
+RUN cd /opt && git clone https://github.com/casacore/python-casacore.git \
+    && cd /opt/python-casacore && git checkout tags/v3.3.1
 RUN cd /opt/python-casacore && pip3 install .
 
 #####################################################################
 ## LOFARBeam (master 6/2020)
 #####################################################################
-RUN cd /opt && git clone https://github.com/lofar-astron/LOFARBeam.git
-RUN cd /opt/LOFARBeam && git checkout 5b5d80ff308784adbf00985293257b16afff86b2
+RUN cd /opt && git clone https://github.com/lofar-astron/LOFARBeam.git \
+    && cd /opt/LOFARBeam && git checkout 5b5d80ff308784adbf00985293257b16afff86b2
 RUN cd /opt/LOFARBeam && mkdir build && cd build \
-    && cmake .. \
+    && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
 ENV PYTHONPATH /usr/local/lib/python3.8/site-packages/:$PYTHONPATH
 ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
 
 #####################################################################
-## EveryBeam (master 2/2021)
+## EveryBeam v0.2.0
 #####################################################################
-RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git
-RUN cd /opt/EveryBeam && git checkout a441678ec48b192d81c431c26f99304f745c0c4e
+RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
+    && cd /opt/EveryBeam && git checkout tags/v0.2.0
 RUN cd /opt/EveryBeam && mkdir build && cd build \
-    && cmake .. \
+    && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
     
 #####################################################################
 ## idg (master a bit ahead of v0.8)
 #####################################################################
-RUN cd /opt && git clone https://gitlab.com/astron-idg/idg.git
-RUN cd /opt/idg && git checkout fff21998
+RUN cd /opt && git clone https://gitlab.com/astron-idg/idg.git \
+    && cd /opt/idg && git checkout fff21998
 RUN cd /opt/idg && mkdir build && cd build \
-    && cmake -DCMAKE_INSTALL_PREFIX:PATH=/ .. \
+    && cmake -DPORTABLE=True -DCMAKE_INSTALL_PREFIX:PATH=/ .. \
     && make -j 64 && make install
 
 #####################################################################
-## AOFlagger (master 1/2021)
+## AOFlagger v3.1.0
 #####################################################################
-RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git
-RUN cd /opt/aoflagger && git checkout 458006a8af004b5be82635f97dbbeb5cd1fe286c
+RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
+    && cd /opt/aoflagger && git checkout tags/v3.1.0
 RUN cd /opt/aoflagger && mkdir build && cd build && mkdir install \
-    && cmake .. \
+    && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
 #####################################################################
 ## Dysco v1.2
 #####################################################################
-RUN cd /opt && git clone https://github.com/aroffringa/dysco.git
-RUN cd /opt/dysco && git checkout tags/v1.2
+RUN cd /opt && git clone https://github.com/aroffringa/dysco.git \
+    && cd /opt/dysco && git checkout tags/v1.2
 RUN cd /opt/dysco && mkdir build && cd build \
-    && cmake .. \
+    && cmake -DPORTABLE=True .. \
+    && make -j 64 && make install
+
+#####################################################################
+## LofarStMan
+#####################################################################
+RUN cd /opt && git clone https://github.com/lofar-astron/LofarStMan
+#   && cd /opt/LofarStMan
+RUN cd /opt/LofarStMan && mkdir build && cd build \
+    && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
 #####################################################################
 ## Wsclean v2.10.1
 #####################################################################
-RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git
-RUN cd /opt/wsclean && git checkout tags/v2.10.1
+RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
+    && cd /opt/wsclean && git checkout tags/v2.10.1
 RUN cd /opt/wsclean && mkdir build && cd build \
-    && cmake .. \
+    && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
 #####################################################################
-## Dp3 (master 2/2021)
+## Dp3 (master 31/5/2021)
 #####################################################################
-RUN cd /opt && git clone https://github.com/lofar-astron/DP3.git
-RUN cd /opt/DP3 && git checkout 0cdf91693676061401c21716b084fd71ba3a8ffd
-#RUN cd /opt/DP3 && git checkout tags/v4.2
+RUN cd /opt && git clone https://github.com/lofar-astron/DP3.git \
+    && cd /opt/DP3 && git checkout 1c194eec93ae2ae45c5d579c319ec534181c01b8
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
 RUN cd /opt/DP3 && mkdir build && cd build \
-    && cmake .. \
+    && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
 #####################################################################
@@ -128,23 +136,23 @@ ENV LD_LIBRARY_PATH /usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 #####################################################################
 ## Pybdsf (master 1/2021)
 #####################################################################
-RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git
-RUN cd /opt/PyBDSF; git checkout 8f75efa
-RUN cd /opt/PyBDSF; pip3 install .
+RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
+    && cd /opt/PyBDSF; git checkout 8f75efa
+RUN cd /opt/PyBDSF && pip3 install .
 
 #####################################################################
 ## LSMtool
 #####################################################################
 RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git
-RUN cd /opt/LSMTool
-RUN cd /opt/LSMTool; pip3 install .
+#   && cd /opt/LSMTool
+RUN cd /opt/LSMTool && pip3 install .
 
 ####################################################################
 ## LoSoTo v2.1
 ###################################################################
-RUN cd /opt && git clone https://github.com/revoltek/losoto.git
-RUN cd /opt/losoto && git checkout tags/2.1
-RUN cd /opt/losoto; pip3 install .
+RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
+    && cd /opt/losoto && git checkout tags/2.1
+RUN cd /opt/losoto && pip3 install .
 RUN pip3 install --upgrade scipy
 
 #####################################################################
