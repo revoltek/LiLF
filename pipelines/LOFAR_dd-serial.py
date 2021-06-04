@@ -391,6 +391,10 @@ for cmaj in range(maxIter):
             MSs.run('DP3 '+parset_dir+'/DP3-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=DATA \
                     avg.timestep='+str(avgtimeint)+' avg.freqstep=8 shift.phasecenter=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\]', \
                     log='$nameMS_shift-'+logstring+'.log', commandType='DP3')
+
+            # save some info for debug
+            d.avg_t = avgtimeint
+            d.avg_f = 8
         ### DONE
 
         MSs_dir = lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s, check_flags=False )
@@ -443,6 +447,10 @@ for cmaj in range(maxIter):
                 d.add_h5parm('amp1', 'ddcal/c%02i/solutions/cal-amp1-%s.h5' % (cmaj,logstringcal) )
                 solint_amp2 = next(iter_amp2_solint)
                 d.add_h5parm('amp2', 'ddcal/c%02i/solutions/cal-amp2-%s.h5' % (cmaj,logstringcal) )
+            else:
+                # not necessary but cleaner
+                d.add_h5parm('amp1', None )
+                d.add_h5parm('amp2', None )
    
             with w.if_todo('%s-calibrate' % logstringcal):
                 if cdd == 0:
@@ -530,6 +538,7 @@ for cmaj in range(maxIter):
             # get noise, if larger than prev cycle: break
             rms_noise = image.getNoise()
             mm_ratio = image.getMaxMinRatio()
+            d.add_rms_mm(rms_noise, mm_ratio) # track values for debug
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
             logger.info('MM ratio (cdd:%02i): %f' % (cdd,mm_ratio))
             if rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre:
@@ -650,6 +659,31 @@ for cmaj in range(maxIter):
         #if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
         #    clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
+
+    #####################################################
+    # print a debug table
+    logger.info("################################################")
+    for d in directions:
+        if d.peel_off:
+            logger.info("### Direction (PEEL!): %s -- %.2f Jy" % (d.name, np.sum(d.fluxes)))
+        else:
+            logger.info("### Direction: %s -- %.2f Jy" % (d.name, np.sum(d.fluxes)))
+        logger.info("- Averaging: %i s - %i ch" % (d.avg_t, d.avg_f))
+        logger.info("- Converged: %s" % str(d.converged))
+        for ic, (rms_noise, mm_ratio) in enumerate(zip(d.rms_noise,d.mm_ratio)):
+
+            tables_to_print = '['
+            for sol_type in ['ph','fr','amp1','amp2']:
+                if d.get_h5parm(sol_type, pos=ic) is not None:
+                    tables_to_print += sol_type+','
+            tables_to_print = tables_to_print[:-1] + ']'
+
+            if ic == len(d.rms_noise)-2 and d.converged:
+                logger.info('%02i: Rms: %f, MMratio: %f - %s ***' % (ic,rms_noise,mm_ratio,tables_to_print))
+            else:
+                logger.info('%02i: Rms: %f, MMratio: %f - %s' % (ic,rms_noise,mm_ratio,tables_to_print))
+
+    logger.info("################################################")
 
     ######################################################
     # full imaging
