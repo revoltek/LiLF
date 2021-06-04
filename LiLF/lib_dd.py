@@ -28,8 +28,8 @@ class Direction(object):
         self.h5parms = {'ph':[],'fr':[],'amp1':[],'amp2':[]}
 
         # for debug
-        self.avg_t = None
-        self.avg_f = None
+        self.avg_t = 0
+        self.avg_f = 0
         self.rms_noise = []
         self.mm_ratio = []
 

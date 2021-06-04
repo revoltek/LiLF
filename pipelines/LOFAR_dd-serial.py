@@ -145,7 +145,7 @@ phase_center = MSs.getListObj()[0].getPhaseCentre()
 timeint = MSs.getListObj()[0].getTimeInt()
 ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 ch_out_idg = 12  # better 24, but slow
-imgsizepix = int(1.8 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
+imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 #MSs.getListObj()[0].makeBeamReg('ddcal/beam.reg', freq='mid')
 #beamReg = 'ddcal/beam.reg'
@@ -800,36 +800,39 @@ for cmaj in range(maxIter):
                     'Facets_DiamMin':0.1,
                     'Weight_ColName':'WEIGHT_SPECTRUM',
                     'RIME_ForwardMode':'BDA-degrid',
-                    'DDESolutions_DDModeGrid':'AP',
-                    'DDESolutions_DDModeDeGrid':'AP',
                     'DDESolutions_DDSols':interp_h5parm+':sol000/'+correct_for,
                     'Output_RestoringBeam':15.,
                     'Output_Also':'onNedsR',
                     'Output_Name':imagename,
                     }
 
-
-            logger.info('Cleaning...')
-            lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
+            if cmaj == 0: 
+                # initial shallow clean to make a mask
+                logger.info('Cleaning (shallow)...')
+                lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
                     Deconv_MaxMajorIter=1,
                     Deconv_PeakFactor=0.02,
                     Cache_Reset=1
                     )
+                im = lib_img.Image(imagename+'.app.restored.fits', userReg=userReg)
+                im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False)
+                maskname = im.maskname
+            else:
+                # make mask from previous cycle
+                maskname = imagename+'-mask.fits'
+                im = lib_img.Image('ddcal/c%02i/images/wideDD-c%02i.app.restored.fits' % (cmaj-1,cmaj-1), userReg=userReg)
+                im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False, maskname=maskname)
 
-            # make mask
-            im = lib_img.Image(imagename+'.app.restored.fits', userReg=userReg)
-            im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=True)
-
-            if cmaj > 0: # additional output for final DDF call
+                # additional output for final DDF call
                 ddf_parms['Output_Cubes'] = 'iI'
                 ddf_parms['Predict_ColName'] = 'MODEL_DATA' # to subtract model
                 # ddf_parms['Output_StokesResidues'] = 'I,V' # this could be used to get stokes V residual
 
-            logger.info('Cleaning (with mask)...')
+            logger.info('Cleaning...')
             lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **ddf_parms,
                     Deconv_MaxMajorIter=10,
                     Deconv_PeakFactor=0.005,
-                    Mask_External=im.maskname,
+                    Mask_External=maskname,
                     Cache_Reset=0
                     )
 
