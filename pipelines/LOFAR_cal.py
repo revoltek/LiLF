@@ -122,7 +122,8 @@ with w.if_todo('cal_fr'):
     logger.info('Calibrating FR...')
     MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=CIRC_PHASEDIFF_DATA \
      msin.modelcolumn=FR_MODEL_DATA sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
-    sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint=2 sol.nchan=2 sol.coreconstraint=1e3 sol.smoothnessconstraint=5e6', log='$nameMS_solFR.log', commandType="DP3")
+    sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint=2 sol.nchan=2 sol.coreconstraint=1e3 sol.smoothnessconstraint=5e6 sol.smoothnessreffrequency=54e6',
+            log='$nameMS_solFR.log', commandType="DP3")
     lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
 
     # remove columns
