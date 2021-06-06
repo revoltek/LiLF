@@ -769,7 +769,6 @@ for cmaj in range(maxIter):
 
             ddf_parms = {
                     'Data_MS':MSs.getStrDDF(),
-                    'Data_ColName':'CORRECTED_DATA',
                     'Data_Sort':1,
                     'Output_Mode':'Clean',
                     'Deconv_CycleFactor':0,
@@ -801,44 +800,69 @@ for cmaj in range(maxIter):
                     'Weight_ColName':'WEIGHT_SPECTRUM',
                     'RIME_ForwardMode':'BDA-degrid',
                     'DDESolutions_DDSols':interp_h5parm+':sol000/'+correct_for,
-                    'Output_RestoringBeam':15.,
-                    'Output_Also':'onNedsR',
-                    'Output_Name':imagename,
+                    'Output_Also':'onNedsR'
                     }
 
             if cmaj == 0: 
                 # initial shallow clean to make a mask
                 logger.info('Cleaning (shallow)...')
                 lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
+                    Data_ColName='CORRECTED_DATA',
                     Deconv_MaxMajorIter=1,
                     Deconv_PeakFactor=0.02,
-                    Cache_Reset=1
+                    Cache_Reset=1,
+                    Output_RestoringBeam=15.,
+                    Output_Name=imagename
                     )
                 im = lib_img.Image(imagename+'.app.restored.fits', userReg=userReg)
                 im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False)
                 maskname = im.maskname
             else:
-                # make mask from previous cycle
+                # make mask from previous cycle (low res)
+                maskname_ext = imagename+'-mask-ext.fits'
+                im = lib_img.Image('ddcal/c%02i/images/wideDD-lres-c%02i.app.restored.fits' % (cmaj-1,cmaj-1), userReg=userReg)
+                im.makeMask(threshpix=4, atrous_do=False, maskname=maskname_ext)
+                # make mask from previous cycle (low res)
                 maskname = imagename+'-mask.fits'
                 im = lib_img.Image('ddcal/c%02i/images/wideDD-c%02i.app.restored.fits' % (cmaj-1,cmaj-1), userReg=userReg)
-                im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False, maskname=maskname)
+                im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False, maskname=maskname, mask_combine=maskname_ext)
 
                 # additional output for final DDF call
                 ddf_parms['Output_Cubes'] = 'iI'
-                ddf_parms['Predict_ColName'] = 'MODEL_DATA' # to subtract model
                 # ddf_parms['Output_StokesResidues'] = 'I,V' # this could be used to get stokes V residual
 
             logger.info('Cleaning...')
             lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **ddf_parms,
-                    Deconv_MaxMajorIter=10,
+                    Data_ColName='CORRECTED_DATA',
+                    Predict_ColName='MODEL_DATA',
+                    Deconv_MaxMajorIter=1,
                     Deconv_PeakFactor=0.005,
                     Mask_External=maskname,
-                    Cache_Reset=0
+                    Cache_Reset=0,
+                    Output_RestoringBeam=15.,
+                    Output_Name=imagename
                     )
-
             os.system('mv %s* ddcal/c%02i/images' % (imagename, cmaj))
 
-        ### DONE
+            # now make a low res and source subtracted map for masking extended sources
+            if cmaj == 0: 
+                logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
+                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
+                imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
+                logger.info('Cleaning (low res)...')
+                lib_util.run_DDF(s, 'ddfacet-lres-c'+str(cmaj)+'.log', **ddf_parms,
+                    Data_ColName='SUBTRACTED_DATA',
+                    Deconv_MaxMajorIter=3,
+                    Deconv_PeakFactor=0.005,
+                    Cache_Reset=1,
+                    Selection_UVRangeKm='0,20',
+                    Output_RestoringBeam=60.,
+                    Output_Name=imagenameL
+                    )
+                os.system('mv %s* ddcal/c%02i/images' % (imagenameL, cmaj))
+
+    ### DONE
 
     full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
     min_cal_flux60 *= 0.8  # go a bit deeper
