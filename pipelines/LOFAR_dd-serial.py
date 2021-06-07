@@ -299,7 +299,7 @@ for cmaj in range(maxIter):
 
     for dnum, d in enumerate(directions):
 
-        logger.info('c%02i - Working on direction %i of %i: %s (%f Jy - %f deg)' % (cmaj, dnum, len(directions), d.name, d.get_flux(freq_mid), d.size))
+        logger.info('c%02i - Working on direction %s/%s: %s (%f Jy - %f deg)' % (dnum, len(directions), cmaj, d.name, d.get_flux(freq_mid), d.size))
         if d.size > 0.5: logger.warning('Patch size large: %f' % d.size)
         logstring = 'c%02i-%s' % (cmaj, d.name)
 
@@ -713,7 +713,7 @@ for cmaj in range(maxIter):
     correct_for = 'phase000'
     if len(h5parms['amp1']) != 0: correct_for += '+amplitude000'
 
-    with w.if_todo('c%02i-imaging' % cmaj):
+    with w.if_todo('c%02i-interpsol' % cmaj):
         logger.info("Imaging - preparing solutions:")
 
         for typ, h5parm_list in h5parms.items():
@@ -737,14 +737,50 @@ for cmaj in range(maxIter):
         logger.info('Interpolating solutions...')
         s.add('H5parm_interpolator.py -o '+interp_h5parm+' '+' '.join(h5parms['ph']+h5parms['amp1']+h5parms['amp2']), log='h5parm_interpolator.log', commandType='python' )
         s.run()
+    # parameters for DDF widefield clean + predict
+    ddf_parms_common = {
+        'Data_MS': MSs.getStrDDF(),
+        'Data_Sort': 1,
+        'Weight_Robust': -0.5,
+        'Image_NPix': imgsizepix,
+        'Image_Cell': 3.,
+        'CF_wmax': 50000,
+        'Beam_CenterNorm': 1,
+        'Beam_Smooth': 1,
+        'Beam_Model': 'LOFAR',
+        'Beam_LOFARBeamMode': 'A',
+        'Beam_NBand': 1,
+        'Beam_DtBeamMin': 5,
+        'Freq_NDegridBand': ch_out,
+        'Freq_NBand': ch_out,
+        'Facets_DiamMax': 1.5,
+        'Facets_DiamMin': 0.1,
+        'DDESolutions_DDSols': interp_h5parm + ':sol000/' + correct_for,
+    }
+    # params for clean + predict
+    ddf_parms_clean = {
+        'Deconv_CycleFactor': 0,
+        'Deconv_MaxMinorIter': 1000000,
+        'Deconv_RMSFactor': 2.0,
+        'Deconv_FluxThreshold': 0.0,
+        'Deconv_Mode': 'HMP',
+        'HMP_AllowResidIncrease': 1.,
+        'GAClean_MaxMinorIterInitHMP': 100000,
+        'Mask_Auto': 1,
+        'Mask_SigTh': 5.0,
+        'Output_Mode': 'Clean',
+        'Output_Also': 'onNedsR'
+    }
 
+    with w.if_todo('c%02i-imaging' % cmaj):
+        logger.info("Imaging - preparing solutions:")
         idg = False
         if idg:
-    
+
             for i, MS in enumerate(MSs.getStrObj()):
                 s.add('/home/fdg/scripts/LiLF/scripts/make_gain_screen.py \
                         -m '+MS.path+' -p '+interp_h5parm+' -o ddcal/c%02i/aterm/TC%02i' % (cmaj, i), \
-                        log='h5parm_interpolator.log', commandType='python')
+                      log='h5parm_interpolator.log', commandType='python')
                 s.run()
      
             # create aterm config file
@@ -763,49 +799,13 @@ for cmaj in range(maxIter):
                         temp_dir='./', pol='I', use_idg='', aterm_config=aterm_config_file, aterm_kernel_size=45, nmiter=4 )
 
             sys.exit('Not implemente further on...')
-    
+
         else:
-
-            ddf_parms = {
-                    'Data_MS':MSs.getStrDDF(),
-                    'Data_Sort':1,
-                    'Output_Mode':'Clean',
-                    'Deconv_CycleFactor':0,
-                    'Deconv_MaxMinorIter':1000000,
-                    'Deconv_RMSFactor':2.0,
-                    'Deconv_FluxThreshold':0.0,
-                    'Deconv_Mode':'HMP',
-                    'HMP_AllowResidIncrease':1.,
-                    'Weight_Robust':-0.5,
-                    'Image_NPix':imgsizepix,
-                    'CF_wmax':50000,
-                    'CF_Nw':100,
-                    'Beam_CenterNorm':1,
-                    'Beam_Smooth':1,
-                    'Beam_Model':'LOFAR',
-                    'Beam_LOFARBeamMode':'A',
-                    'Beam_NBand':1,
-                    'Beam_DtBeamMin':5,
-                    'Output_Also':'onNeds',
-                    'Image_Cell':3.,
-                    'Freq_NDegridBand':ch_out,
-                    'Freq_NBand':ch_out,
-                    'Mask_Auto':1,
-                    'Mask_SigTh':5.0,
-                    'GAClean_MinSizeInit':10,
-                    'GAClean_MaxMinorIterInitHMP':100000,
-                    'Facets_DiamMax':1.5,
-                    'Facets_DiamMin':0.1,
-                    'Weight_ColName':'WEIGHT_SPECTRUM',
-                    'DDESolutions_DDSols':interp_h5parm+':sol000/'+correct_for,
-                    'Output_Also':'onNedsR'
-                    }
-
-            if cmaj == 0: 
+            if cmaj == 0:
                 # initial shallow clean to make a mask
                 logger.info('Cleaning (shallow)...')
-                lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **ddf_parms,
-                    Data_ColName='CORRECTED_DATA',
+                lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **{**ddf_parms_common, **ddf_parms_clean},
+                    Data_ColName='CORRECTED_DATA', # this is a default setting and could be removed
                     Deconv_MaxMajorIter=1,
                     Deconv_PeakFactor=0.02,
                     Cache_Reset=1,
@@ -826,63 +826,48 @@ for cmaj in range(maxIter):
                 im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False, maskname=maskname, mask_combine=maskname_ext)
 
                 # additional output for final DDF call
-                ddf_parms['Output_Cubes'] = 'iI'
-                # ddf_parms['Output_StokesResidues'] = 'I,V' # this could be used to get stokes V residual
+                ddf_parms_clean['Output_Cubes'] = 'iI' # this will also generate lowres-cubes - do we want this?
+                # ddf_parms_clean['Output_StokesResidues'] = 'I,V' # this could be used to get stokes V residual
 
             logger.info('Cleaning...')
-            lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **ddf_parms,
-                    Data_ColName='CORRECTED_DATA',
+            lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **{**ddf_parms_common, **ddf_parms_clean},
+                    Data_ColName='CORRECTED_DATA', # This is a default setting and could be removed
                     Deconv_MaxMajorIter=1,
                     Deconv_PeakFactor=0.005,
                     Mask_External=maskname,
-                    Cache_Reset=0,
+                    Cache_Reset=0, # This is a default setting and could be removed
                     Output_RestoringBeam=15.,
                     Output_Name=imagename
                     )
             os.system('mv %s* ddcal/c%02i/images' % (imagename, cmaj))
 
+    with w.if_todo('c%02i-imaging-lres' % cmaj):
             # now make a low res and source subtracted map for masking extended sources
-            if cmaj == 0: 
-                
-                # DDF predict+corrupt in MODEL_DATA of everything
-                ddf_parms_pre = {
-                    'Data_MS':MSs.getStrDDF(),
-                    'Data_ColName':'CORRECTED_DATA',
-                    'Data_Sort':1,
-                    'Output_Mode':'Predict',
-                    'Predict_InitDicoModel':imagename+'.DicoModel',
-                    'Predict_ColName':'MODEL_DATA',
-                    'Image_NPix':imgsizepix,
-                    'CF_wmax':50000,
-                    'CF_Nw':100,
-                    'Beam_CenterNorm':1,
-                    'Beam_Smooth':1,
-                    'Beam_Model':'LOFAR',
-                    'Beam_LOFARBeamMode':'A',
-                    'Beam_NBand':1,
-                    'Beam_DtBeamMin':5,
-                    'Image_Cell':3.,
-                    'Freq_NDegridBand':ch_out,
-                    'Freq_NBand':ch_out,
-                    'Facets_DiamMax':1.5,
-                    'Facets_DiamMin':0.1,
-                    'Weight_ColName':'WEIGHT_SPECTRUM',
-                    'Comp_BDAMode':1,
-                    'DDESolutions_DDSols':interp_h5parm+':sol000/'+correct_for
-                    }
-                lib_util.run_DDF(s, 'ddfacet-pre-c'+str(cmaj)+'.log', **ddf_parms_pre, Cache_Reset=1)
+            if cmaj == 0:
+                logger.info('Predicting DD-corrupted...')
+                lib_util.run_DDF(s, 'ddfacet-pre-c' + str(cmaj) + '.log',
+                                 Mask_External=im.maskname,
+                                 Output_Mode='Predict',
+                                 Predict_InitDicoModel=imagename+'.DicoModel',
+                                 Predict_ColName='MODEL_DATA',
+                                 Cache_Reset=1,
+                                 **ddf_parms_common
+                                 )
 
                 logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
                 MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
                     log='$nameMS_taql.log', commandType='general')
                 imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
                 logger.info('Cleaning (low res)...')
-                lib_util.run_DDF(s, 'ddfacet-lres-c'+str(cmaj)+'.log', **ddf_parms,
+                lib_util.run_DDF(s, 'ddfacet-lres-c'+str(cmaj)+'.log', **{**ddf_parms_common, **ddf_parms_clean},
                     Data_ColName='SUBTRACTED_DATA',
                     Deconv_MaxMajorIter=3,
                     Deconv_PeakFactor=0.005,
                     Cache_Reset=1,
                     Selection_UVRangeKm='0,20',
+                    # This can be added instead of the hard uv-cut once the DDF branches are merged:
+                    # Weight_EnableSigmoidTaper=1,
+                    # Weight_SigmoidTaperOuterCutoff=3600,
                     Output_RestoringBeam=60.,
                     Output_Name=imagenameL
                     )
@@ -898,14 +883,14 @@ for cmaj in range(maxIter):
 
 with w.if_todo('output_stokesV'):
     imagenameV = 'img/wideDD-V-c%02i' % (cmaj)
-
+    inmask = sorted(glob.glob('ddcal/c%02i/images/wideDD-c%02i.mask*.fits' % (cmaj, cmaj)))[-1]
     logger.info('Cleaning Stokes V...')
     lib_util.run_DDF(s, 'ddfacet-v-c' + str(cmaj) + '.log',
                      Data_MS=MSs.getStrDDF(),
                      Data_ColName='CORRECTED_DATA',
                      Data_Sort=1,
+                     Mask_External=inmask,
                      Deconv_Mode='SSD',
-                     SSDClean_BICFactor=0,
                      GAClean_AllowNegativeInitHMP=1,
                      Output_Mode='Dirty',
                      Weight_Robust=-0.5,
@@ -923,73 +908,13 @@ with w.if_todo('output_stokesV'):
                      Freq_NBand=ch_out,
                      Facets_DiamMax=1.5,
                      Facets_DiamMin=0.1,
-                     Weight_ColName='WEIGHT_SPECTRUM',
-                     DDESolutions_DDModeGrid='AP',
-                     DDESolutions_DDModeDeGrid='AP',
                      DDESolutions_DDSols=interp_h5parm + ':sol000/' + correct_for,
-                     Output_RestoringBeam=15.,  # what does this do?
-                     Output_Also='DsR',
+                     Output_RestoringBeam=15.,
+                     Output_Also='DdSsR',
                      Output_Name=imagenameV,
                      RIME_PolMode='IV',
                      Cache_Reset=1
                      )
     os.system('mv %s* ddcal/c%02i/images' % (imagenameV, cmaj))
-
-with w.if_todo('output_lres'):
-
-    logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
-    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
-            log='$nameMS_taql.log', commandType='general')
-    imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
-    logger.info('Clean lowres subtracted image...')
-    ddf_parms_lres = {
-        'Data_MS': MSs.getStrDDF(),
-        'Data_ColName': 'SUBTRACTED_DATA',
-        'Data_Sort': 1,
-        'Output_Mode': 'Clean',
-        'Deconv_CycleFactor': 0,
-        'Deconv_MaxMinorIter': 1000000,
-        'Deconv_RMSFactor': 2.0,
-        'Deconv_FluxThreshold': 2.0, # 0.0 only with automask?
-        'Deconv_Mode': 'WSCMS',
-        'Deconv_MaxMajorIter': 2,
-        'Deconv_PeakFactor': 0.3, #0.005
-        'Cache_Reset': 0,
-        # 'WSCMS_NumFreqBasisFuncs': ,
-        'WSCMS_CacheSize':3,  # default
-        'Weight_EnableSigmoidTaper': 1,
-        'Weight_SigmoidTaperOuterCutoff': 3600, # ~60arcsec?
-        'Weight_Robust': 0.3,
-        'Image_NPix': int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 15.), # needs to be tuned
-        'CF_wmax': 50000,
-        'CF_Nw': 100,
-        'Beam_CenterNorm': 1,
-        'Beam_Smooth': 1,
-        'Beam_Model': 'LOFAR',
-        'Beam_LOFARBeamMode': 'A',
-        'Beam_NBand': 1,
-        'Beam_DtBeamMin': 5,
-        'Output_Also': 'd',
-        'Image_Cell': 15.,
-        'Freq_NDegridBand': ch_out,
-        'Freq_NBand': ch_out,
-        'Mask_Auto': 1,
-        'Mask_SigTh': 5.0,
-        'GAClean_MinSizeInit': 10, # check
-        'GAClean_MaxMinorIterInitHMP': 100000, # check
-        'Facets_DiamMax': 1.5,
-        'Facets_DiamMin': 0.1,
-        'Weight_ColName': 'WEIGHT_SPECTRUM',
-        'Output_RestoringBeam': 60.,
-        'Output_Name': imagenameL,
-        'DDESolutions_DDModeGrid': 'AP',
-        'DDESolutions_DDModeDeGrid': 'AP',
-        'Output_RestoringBeam': 15.,
-        'DDESolutions_DDSols': interp_h5parm + ':sol000/' + correct_for
-    }
-
-    lib_util.run_DDF(s, 'ddfacet-lres-c' + str(cmaj) + '.log', **ddf_parms_lres,
-                     )
-    os.system('mv %s* ddcal/c%02i/images' % (imagenameL, cmaj))
-
+### DONE
 logger.info("Done.")
