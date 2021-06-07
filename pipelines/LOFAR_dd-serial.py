@@ -361,7 +361,6 @@ for cmaj in range(maxIter):
                     'Comp_BDAMode':1,
                     'DDESolutions_DDModeGrid':'AP',
                     'DDESolutions_DDModeDeGrid':'AP',
-                    'RIME_ForwardMode':'BDA-degrid',
                     'DDESolutions_DDSols':interp_h5parm.replace('c%02i' % cmaj, 'c%02i' % (cmaj-1))+':sol000/'+correct_for
                     }
                 logger.info('Predict corrupted rest-of-the-sky...')
@@ -798,7 +797,6 @@ for cmaj in range(maxIter):
                     'Facets_DiamMax':1.5,
                     'Facets_DiamMin':0.1,
                     'Weight_ColName':'WEIGHT_SPECTRUM',
-                    'RIME_ForwardMode':'BDA-degrid',
                     'DDESolutions_DDSols':interp_h5parm+':sol000/'+correct_for,
                     'Output_Also':'onNedsR'
                     }
@@ -834,7 +832,6 @@ for cmaj in range(maxIter):
             logger.info('Cleaning...')
             lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **ddf_parms,
                     Data_ColName='CORRECTED_DATA',
-                    Predict_ColName='MODEL_DATA',
                     Deconv_MaxMajorIter=1,
                     Deconv_PeakFactor=0.005,
                     Mask_External=maskname,
@@ -846,6 +843,35 @@ for cmaj in range(maxIter):
 
             # now make a low res and source subtracted map for masking extended sources
             if cmaj == 0: 
+                
+                # DDF predict+corrupt in MODEL_DATA of everything
+                ddf_parms_pre = {
+                    'Data_MS':MSs.getStrDDF(),
+                    'Data_ColName':'CORRECTED_DATA',
+                    'Data_Sort':1,
+                    'Output_Mode':'Predict',
+                    'Predict_InitDicoModel':imagename+'.DicoModel',
+                    'Predict_ColName':'MODEL_DATA',
+                    'Image_NPix':imgsizepix,
+                    'CF_wmax':50000,
+                    'CF_Nw':100,
+                    'Beam_CenterNorm':1,
+                    'Beam_Smooth':1,
+                    'Beam_Model':'LOFAR',
+                    'Beam_LOFARBeamMode':'A',
+                    'Beam_NBand':1,
+                    'Beam_DtBeamMin':5,
+                    'Image_Cell':3.,
+                    'Freq_NDegridBand':ch_out,
+                    'Freq_NBand':ch_out,
+                    'Facets_DiamMax':1.5,
+                    'Facets_DiamMin':0.1,
+                    'Weight_ColName':'WEIGHT_SPECTRUM',
+                    'Comp_BDAMode':1,
+                    'DDESolutions_DDSols':interp_h5parm+':sol000/'+correct_for
+                    }
+                lib_util.run_DDF(s, 'ddfacet-pre-c'+str(cmaj)+'.log', **ddf_parms_pre, Cache_Reset=1)
+
                 logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
                 MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
                     log='$nameMS_taql.log', commandType='general')
@@ -898,7 +924,6 @@ with w.if_todo('output_stokesV'):
                      Facets_DiamMax=1.5,
                      Facets_DiamMin=0.1,
                      Weight_ColName='WEIGHT_SPECTRUM',
-                     RIME_ForwardMode='BDA-degrid',
                      DDESolutions_DDModeGrid='AP',
                      DDESolutions_DDModeDeGrid='AP',
                      DDESolutions_DDSols=interp_h5parm + ':sol000/' + correct_for,
@@ -959,12 +984,11 @@ with w.if_todo('output_lres'):
         'Output_Name': imagenameL,
         'DDESolutions_DDModeGrid': 'AP',
         'DDESolutions_DDModeDeGrid': 'AP',
-        'RIME_ForwardMode': 'BDA-degrid',
         'Output_RestoringBeam': 15.,
         'DDESolutions_DDSols': interp_h5parm + ':sol000/' + correct_for
     }
 
-    lib_util.run_DDF(s, 'ddfacet-lowres-c' + str(cmaj) + '.log', **ddf_parms_lres,
+    lib_util.run_DDF(s, 'ddfacet-lres-c' + str(cmaj) + '.log', **ddf_parms_lres,
                      )
     os.system('mv %s* ddcal/c%02i/images' % (imagenameL, cmaj))
 
