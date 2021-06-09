@@ -373,7 +373,7 @@ def run_DDF(s, logfile, **kwargs):
     ddf_parms = []
 
     # basic parms
-    ddf_parms.append( '--Debug-Pdb=never --Parallel-NCPU=%i ' % (s.max_processors) )
+    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i ' % (s.max_processors) )
 
     # cache dir
     if not 'Cache_Dir' in list(kwargs.keys()):
