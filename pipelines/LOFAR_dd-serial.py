@@ -135,7 +135,7 @@ if not os.path.exists('mss-avg'):
             avg.timestep='+str(avgtimeint)+' avg.freqstep=1',
             log='$nameMS_initavg.log', commandType='DP3')
 
-MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False)
+MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
 
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 detectability_dist = MSs.getListObj()[0].getFWHM(freq='max')*1.7/2.  # 1.8 to go to close to the null
@@ -350,8 +350,6 @@ for cmaj in range(maxIter):
                     'Beam_Model':'LOFAR',
                     'Beam_LOFARBeamMode':'A',
                     'Beam_NBand':1,
-                    'Beam_DtBeamMin':5,
-                    'Output_Also':'onNeds',
                     'Image_Cell':3.,
                     'Freq_NDegridBand':ch_out,
                     'Freq_NBand':ch_out,
@@ -686,6 +684,9 @@ for cmaj in range(maxIter):
 
     ######################################################
     # full imaging
+
+    # be sure not to use flagged MS as ddf doesn't like them
+    MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
     
     imagename = 'img/wideDD-c%02i' % (cmaj)
 
@@ -750,7 +751,6 @@ for cmaj in range(maxIter):
         'Beam_Model': 'LOFAR',
         'Beam_LOFARBeamMode': 'A',
         'Beam_NBand': 1,
-        'Beam_DtBeamMin': 5,
         'Freq_NDegridBand': ch_out,
         'Freq_NBand': ch_out,
         'Facets_DiamMax': 1.5,
@@ -793,11 +793,11 @@ for cmaj in range(maxIter):
             maskname = im.maskname
         else:
             # make mask from previous cycle (low res)
-            maskname_ext = imagename+'-mask-ext.fits'
+            maskname_ext = imagename+'.mask-ext.fits'
             im = lib_img.Image('ddcal/c%02i/images/wideDD-lres-c%02i.app.restored.fits' % (cmaj-1,cmaj-1), userReg=userReg)
-            im.makeMask(threshpix=5, atrous_do=False, maskname=maskname_ext)
+            im.makeMask(threshpix=3, atrous_do=False, maskname=maskname_ext)
             # make mask from previous cycle (high res) and combine with low res
-            maskname = imagename+'-mask.fits'
+            maskname = imagename+'.mask.fits'
             im = lib_img.Image('ddcal/c%02i/images/wideDD-c%02i.app.restored.fits' % (cmaj-1,cmaj-1), userReg=userReg)
             im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False, maskname=maskname, mask_combine=maskname_ext)
 
