@@ -349,7 +349,7 @@ for cmaj in range(maxIter):
                     'Beam_Smooth':1,
                     'Beam_Model':'LOFAR',
                     'Beam_LOFARBeamMode':'A',
-                    'Beam_NBand':1,
+                    'Beam_NBand':6,
                     'Image_Cell':3.,
                     'Freq_NDegridBand':ch_out,
                     'Freq_NBand':ch_out,
@@ -750,7 +750,7 @@ for cmaj in range(maxIter):
         'Beam_Smooth': 1,
         'Beam_Model': 'LOFAR',
         'Beam_LOFARBeamMode': 'A',
-        'Beam_NBand': 1,
+        'Beam_NBand': 6,
         'Freq_NDegridBand': ch_out,
         'Freq_NBand': ch_out,
         'Facets_DiamMax': 1.5,
@@ -808,7 +808,7 @@ for cmaj in range(maxIter):
         logger.info('Cleaning (deep)...')
         lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **{**ddf_parms_common, **ddf_parms_clean},
                 Data_ColName='CORRECTED_DATA', # This is a default setting and could be removed
-                Deconv_MaxMajorIter=5, # 5 for SSD, 10 for HMP
+                Deconv_MaxMajorIter=3, # 3 for SSD, 10 for HMP
                 Deconv_PeakFactor=0.0, # 0 for SSD
                 Mask_External=maskname,
                 Cache_Reset=0, # This is a default setting and could be removed
@@ -874,7 +874,7 @@ with w.if_todo('output_stokesV'):
                      Beam_Smooth=1,
                      Beam_Model='LOFAR',
                      Beam_LOFARBeamMode='A',
-                     Beam_NBand=1,
+                     Beam_NBand=6,
                      Beam_DtBeamMin=5,
                      Image_Cell=3.,
                      Freq_NDegridBand=ch_out,

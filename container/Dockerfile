@@ -1,7 +1,7 @@
 FROM ubuntu:20.04
 ARG DEBIAN_FRONTEND=noninteractive
 LABEL maintainer="Francesco de Gasperin"
-LABEL version="0.1"
+LABEL version="1.0"
 
 USER root
 
