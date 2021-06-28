@@ -299,7 +299,7 @@ for cmaj in range(maxIter):
 
     for dnum, d in enumerate(directions):
 
-        logger.info('Working on direction %s/%s: %s (%f Jy - %f deg)' % (dnum, len(directions), d.name, d.get_flux(freq_mid), d.size))
+        logger.info('Working on direction %s/%s: %s (%f Jy - %f deg)' % (dnum+1, len(directions), d.name, d.get_flux(freq_mid), d.size))
         if d.size > 0.5: logger.warning('Patch size large: %f' % d.size)
         logstring = 'c%02i-%s' % (cmaj, d.name)
 
@@ -457,7 +457,6 @@ for cmaj in range(maxIter):
                         log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')
 
                 # Calibration - ms:SMOOTHED_DATA
-                # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                 logger.info('Gain phase calibration (solint: %i)...' % solint_ph)
                 MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
                     sol.mode=scalarphase sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=5e6 sol.smoothnessreffrequency=54e6 \
@@ -544,7 +543,7 @@ for cmaj in range(maxIter):
                    (mm_ratio < 30 and cdd >= 4) or \
                    (cdd >= 5): break
 
-            if cdd >= 4 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 50) or d.get_flux(freq_mid) > 10):
+            if cdd >= 4 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 40) or d.get_flux(freq_mid) > 5):
                 doamp = True
 
             d.set_model(image.root, typ='best', apply_region=False)  # current best model
@@ -761,11 +760,9 @@ for cmaj in range(maxIter):
     ddf_parms_clean = {
         'Deconv_MaxMinorIter': 1000000,
         'Deconv_RMSFactor': 0.0,
-        'GAClean_MaxMinorIterInitHMP': 100000,
+        'GAClean_MaxMinorIterInitHMP': 1000000,
         'GAClean_AllowNegativeInitHMP':1,
         'GAClean_RMSFactorInitHMP':1.0,
-        'Mask_Auto': 1,
-        'Mask_SigTh': 5.0,
         'Output_Mode': 'Clean',
         'Output_Also': 'onNedsR',
         # HMP
@@ -785,6 +782,8 @@ for cmaj in range(maxIter):
                 Deconv_MaxMajorIter=1,
                 Deconv_PeakFactor=0.02,
                 Cache_Reset=1,
+                Mask_Auto=1,
+                Mask_SigTh=5.0,
                 Output_RestoringBeam=15.,
                 Output_Name=imagename
                 )
@@ -793,13 +792,14 @@ for cmaj in range(maxIter):
             maskname = im.maskname
         else:
             # make mask from previous cycle (low res)
-            maskname_ext = imagename+'.mask-ext.fits'
-            im = lib_img.Image('ddcal/c%02i/images/wideDD-lres-c%02i.app.restored.fits' % (cmaj-1,cmaj-1), userReg=userReg)
-            im.makeMask(threshpix=3, atrous_do=False, maskname=maskname_ext)
+#            maskname_ext = imagename+'.mask-ext.fits'
+#            im = lib_img.Image('ddcal/c%02i/images/wideDD-lres-c%02i.app.restored.fits' % (cmaj-1,cmaj-1), userReg=userReg)
+#            im.makeMask(threshpix=3, atrous_do=False, maskname=maskname_ext)
             # make mask from previous cycle (high res) and combine with low res
             maskname = imagename+'.mask.fits'
             im = lib_img.Image('ddcal/c%02i/images/wideDD-c%02i.app.restored.fits' % (cmaj-1,cmaj-1), userReg=userReg)
-            im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False, maskname=maskname, mask_combine=maskname_ext)
+#            im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False, maskname=maskname, mask_combine=maskname_ext)
+            im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False, maskname=maskname) # To remove when activating mask_ext
 
             # additional output for final DDF call
             ddf_parms_clean['Output_Cubes'] = 'iI' # this will also generate lowres-cubes - do we want this?
@@ -818,37 +818,37 @@ for cmaj in range(maxIter):
         os.system('mv %s* ddcal/c%02i/images' % (imagename, cmaj))
     ### DONE
 
-    with w.if_todo('c%02i-imaging-lres' % cmaj):
-        # now make a low res and source subtracted map for masking extended sources
-        logger.info('Predicting DD-corrupted...')
-        lib_util.run_DDF(s, 'ddfacet-pre-c' + str(cmaj) + '.log',
-                         Output_Mode='Predict',
-                         Predict_InitDicoModel='ddcal/c%02i/images/%s.DicoModel' % (cmaj, imagename.split('/')[-1]),
-                         Predict_ColName='MODEL_DATA',
-                         Deconv_Mode='SSD2',
-                         Cache_Reset=1,
-                         **ddf_parms_common
-                         )
-
-        logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
-            log='$nameMS_taql.log', commandType='general')
-        imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
-        logger.info('Cleaning (low res)...')
-        lib_util.run_DDF(s, 'ddfacet-lres-c'+str(cmaj)+'.log', **{**ddf_parms_common, **ddf_parms_clean},
-            Data_ColName='SUBTRACTED_DATA',
-            Deconv_MaxMajorIter=3,
-            Deconv_PeakFactor=0.0, # 0 for SSD
-            Cache_Reset=1,
-            Selection_UVRangeKm='0,20',
-            # This can be added instead of the hard uv-cut once the DDF branches are merged:
-            # Weight_EnableSigmoidTaper=1,
-            # Weight_SigmoidTaperOuterCutoff=3600,
-            Output_RestoringBeam=60.,
-            Output_Name=imagenameL
-            )
-        os.system('mv %s* ddcal/c%02i/images' % (imagenameL, cmaj))
-    ### DONE
+#    with w.if_todo('c%02i-imaging-lres' % cmaj):
+#        # now make a low res and source subtracted map for masking extended sources
+#        logger.info('Predicting DD-corrupted...')
+#        lib_util.run_DDF(s, 'ddfacet-pre-c' + str(cmaj) + '.log',
+#                         Output_Mode='Predict',
+#                         Predict_InitDicoModel='ddcal/c%02i/images/%s.DicoModel' % (cmaj, imagename.split('/')[-1]),
+#                         Predict_ColName='MODEL_DATA',
+#                         Deconv_Mode='SSD2',
+#                         Cache_Reset=1,
+#                         **ddf_parms_common
+#                         )
+#
+#        logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
+#        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
+#            log='$nameMS_taql.log', commandType='general')
+#        imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
+#        logger.info('Cleaning (low res)...')
+#        lib_util.run_DDF(s, 'ddfacet-lres-c'+str(cmaj)+'.log', **{**ddf_parms_common, **ddf_parms_clean},
+#            Data_ColName='SUBTRACTED_DATA',
+#            Deconv_MaxMajorIter=3,
+#            Deconv_PeakFactor=0.0, # 0 for SSD
+#            Cache_Reset=1,
+#            Selection_UVRangeKm='0,20',
+#            # This can be added instead of the hard uv-cut once the DDF branches are merged:
+#            # Weight_EnableSigmoidTaper=1,
+#            # Weight_SigmoidTaperOuterCutoff=3600,
+#            Output_RestoringBeam=60.,
+#            Output_Name=imagenameL
+#            )
+#        os.system('mv %s* ddcal/c%02i/images' % (imagenameL, cmaj))
+#    ### DONE
 
     full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
     min_cal_flux60 *= 0.8  # go a bit deeper
