@@ -1,7 +1,7 @@
 FROM ubuntu:20.04
 ARG DEBIAN_FRONTEND=noninteractive
 LABEL maintainer="Francesco de Gasperin"
-LABEL version="0.1"
+LABEL version="1.0"
 
 USER root
 
@@ -10,7 +10,7 @@ RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
 RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename \
-    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy \
+    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz \
     libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
@@ -156,6 +156,13 @@ RUN cd /opt/losoto && pip3 install .
 RUN pip3 install --upgrade scipy
 
 #####################################################################
+# msoverview
+#####################################################################
+RUN apt-get install -y subversion
+RUN cd /opt && mkdir -p msoverview/src && cd msoverview/src && svn export https://svn.astron.nl/LOFAR/tags/LOFAR-Release-4_0_17/CEP/MS/src/msoverview.cc \
+    && gcc -I/usr/local/include/casacore -L/usr/local/lib msoverview.cc -o /usr/local/bin/msoverview -lcasa_casa -lcasa_ms -lcasa_tables -lstdc++
+
+#####################################################################
 ## BUILD DDF FROM SOURCE
 #####################################################################
 #RUN cd /tmp && git clone https://github.com/cyriltasse/DDFacet.git
@@ -196,7 +203,7 @@ ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
 #RUN cd /opt/LiLF && git checkout LBAdevel
 #ENV PYTHONPATH /opt/LiLF:$PYTHONPATH
 #ENV PATH /opt/LiLF/scripts:$PATH
-
+   
 #####################################################################
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
