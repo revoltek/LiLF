@@ -27,6 +27,12 @@ class Direction(object):
         self.model = {}
         self.h5parms = {'ph':[],'fr':[],'amp1':[],'amp2':[]}
 
+        # for debug
+        self.avg_t = 0
+        self.avg_f = 0
+        self.rms_noise = []
+        self.mm_ratio = []
+
     def clean(self):
         # TODO: remove files?
 
@@ -83,7 +89,7 @@ class Direction(object):
 
     def add_h5parm(self, typ, h5parmFile):
         """
-        typ can be 'ph', 'amp1', or 'amp2'
+        typ can be 'ph', 'fr', 'amp1', or 'amp2'
         h5parmFile: filename
         """
         assert (typ == 'ph' or typ == 'fr' or typ == 'amp1' or typ == 'amp2')
@@ -91,7 +97,7 @@ class Direction(object):
 
     def get_h5parm(self, typ, pos=-1):
         """
-        typ can be 'ph', 'amp1', or 'amp2'
+        typ can be 'ph', 'fr', 'amp1', or 'amp2'
         pos: the cycle from 0 to last added, negative numbers to search backwards, if non exists returns None
         """
         assert (typ == 'ph' or typ == 'fr' or typ == 'amp1' or typ == 'amp2')
@@ -100,6 +106,13 @@ class Direction(object):
             return l[pos]
         except:
             return None
+
+    def add_rms_mm(self, rms_noise, mm_ratio):
+        """
+        track rms noise and mm ratio
+        """
+        self.rms_noise.append(rms_noise)
+        self.mm_ratio.append(mm_ratio)
 
     def set_position(self, position, distance_peeloff, phase_center):
         """

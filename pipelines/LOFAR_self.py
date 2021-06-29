@@ -258,7 +258,7 @@ for c in range(2):
                                  join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSs.getChout(4.e6),
                                  deconvolution_channels=cc_fit_order)
             im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
-            im.makeMask(threshpix=5)
+            im.makeMask(threshpix=5, atrous_do=True)
 
             kwargs = {'do_predict':True, 'reuse_dirty':imagename, 'reuse_psf':imagename}
         else: 
