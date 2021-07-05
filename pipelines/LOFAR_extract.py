@@ -51,6 +51,7 @@ target_reg = lib_util.Region_helper(target_reg_file)
 center = target_reg.get_center() # center of the extract region
 MSs = lib_ms.AllMSs( glob.glob('mss-extract/*MS'), s )
 ch_out = MSs.getChout(4e6)  # chout from dd-serial
+imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 phase_center = MSs.getListObj()[0].getPhaseCentre()
 # read image, h5parm, make mask
@@ -161,7 +162,7 @@ with w.if_todo('predict_rest'):
         'Predict_InitDicoModel': outdico,
         'Predict_ColName': 'MODEL_DATA',
         'Deconv_Mode': 'HMP',
-        'Image_NPix': 8775,
+        'Image_NPix': imgsizepix,
         'CF_wmax': 50000,
         'CF_Nw': 100,
         'Beam_CenterNorm': 1,
