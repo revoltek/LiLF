@@ -62,21 +62,22 @@ mask_ddcal = wideDD_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this
 wideDD_image.makeMask(threshpix=5, atrous_do=True, maskname=mask_ddcal, write_srl=True, write_ds9=True)
 
 
-def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None):
+def clean(p, MSs, mode='normal', size=[1, 1], imagereg=None):
     """
     p = patch name
+    mode = noamel, empty, high, low
     mss = list of mss to clean
     size = in deg of the image
     """
     # set pixscale and imsize
     pixscale = MSs.resolution
 
-    if res == 'normal':
+    if mode == 'normal' or mode == 'empty':
         pixscale = float('%.1f' % (pixscale / 2.5))
-    elif res == 'high':
-        pixscale = float('%.1f' % (pixscale / 3.5))
-    elif res == 'low':
-        pass  # no change
+    elif mode == 'high':
+        pixscale = float('%.1f' % (pixscale / 4))
+    elif mode == 'low':
+        pixscale = 8
 
     imsize = [int(size[0] * 1.5 / (pixscale / 3600.)), int(size[1] * 1.5 / (pixscale / 3600.))]  # add 50%
     imsize[0] += imsize[0] % 2
@@ -86,35 +87,48 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None):
 
     logger.debug('Image size: ' + str(imsize) + ' - Pixel scale: ' + str(pixscale))
 
-    if res == 'normal':
-        weight = 'briggs -0.3'
-        maxuv_l = None
-    elif res == 'high':
-        weight = 'briggs -0.6'
-        maxuv_l = None
-    elif res == 'low':
-        weight = 'briggs 0'
-        maxuv_l = 3500
-    else:
-        logger.error('Wrong "res": %s.' % str(res))
-        sys.exit()
+    if mode == 'high':
+        logger.info('Cleaning high-res (' + str(p) + ')...')
+        imagenameM = 'img/extract-' + str(p)
+        lib_util.run_wsclean(s, 'wsclean-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM,
+                             size=imsize, scale=str(pixscale) + 'arcsec',
+                             weight='briggs -1.5', niter=100000, no_update_model_required='', minuv_l=30,
+                             mgain=0.85, baseline_averaging='',
+                             parallel_deconvolution=512, auto_threshold=1, auto_mask=5,
+                             join_channels='', fit_spectral_pol=3, channels_out=ch_out)  # , deconvolution_channels=3)
+        os.system('cat logs/wsclean-' + str(p) + '.log | grep "background noise"')
+ 
 
-    if empty:
+    elif mode == 'low':
+        logger.info('Cleaning low-res (' + str(p) + ')...')
+        imagenameM = 'img/extract-' + str(p)
+        lib_util.run_wsclean(s, 'wsclean-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, data_column='SUBTRACTED_DATA',
+                             size=imsize, scale=str(pixscale) + 'arcsec',
+                             weight='briggs -0.3', taper_gaussian='30arcsec', niter=100000, no_update_model_required='', minuv_l=30,
+                             mgain=0.85, multiscale='', baseline_averaging='',
+                             parallel_deconvolution=512, auto_threshold=1, auto_mask=2,
+                             join_channels='', fit_spectral_pol=3, channels_out=ch_out)  # , deconvolution_channels=3)
+        os.system('cat logs/wsclean-' + str(p) + '.log | grep "background noise"')
+
+    elif mode == 'empty':
+
         logger.info('Cleaning empty (' + str(p) + ')...')
         imagename = 'img/empty-' + str(p)
         lib_util.run_wsclean(s, 'wscleanE-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
                              data_column='SUBTRACTED_DATA',
                              size=imsize, scale=str(pixscale) + 'arcsec',
-                             weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0,
+                             weight='briggs -0.3', niter=0, no_update_model_required='', minuv_l=30, mgain=0,
                              baseline_averaging='')
-    else:
+
+    elif mode == 'normal':
+
         # clean 1
         logger.info('Cleaning (' + str(p) + ')...')
         imagename = 'img/extract-' + str(p)
 
         lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
                              size=imsize, scale=str(pixscale) + 'arcsec',
-                             weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
+                             weight='briggs -0.3', niter=10000, no_update_model_required='', minuv_l=30,
                              mgain=0.85,
                              baseline_averaging='', parallel_deconvolution=512, auto_threshold=5,
                              join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
@@ -136,11 +150,15 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None):
         imagenameM = 'img/extractM-' + str(p)
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
                              size=imsize, scale=str(pixscale) + 'arcsec',
-                             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
+                             weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30,
                              reuse_psf=imagename, reuse_dirty=imagename, mgain=0.85, multiscale='', baseline_averaging='',
                              parallel_deconvolution=512, auto_threshold=0.7, auto_mask=1.5,
                              fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=ch_out)  # , deconvolution_channels=3)
         os.system('cat logs/wscleanB-' + str(p) + '.log | grep "background noise"')
+
+    else:
+        logger.error('Wrong "res": %s.' % str(res))
+        sys.exit()
 
 
 with w.if_todo('predict_rest'):
@@ -199,7 +217,7 @@ with w.if_todo('subtract_rest'):
 
 ## TTESTTESTTEST: empty image
 if not os.path.exists('img/empty-but-target-image.fits'):
-    clean('but-target', MSs, size=(fwhm,fwhm), res='normal', empty=True)
+    clean('but-target', MSs, size=(fwhm,fwhm), mode='empty')
     ### DONE
 
 # Phase shift in the target location
@@ -400,7 +418,7 @@ for c in range(maxniter):
     ### DONE
 
 # Finally:
-with w.if_todo('apply_final'):
+with w.if_todo('final_apply'):
     if best_iter != c: # If last iteration was NOT the best iteration, apply best iteration.
         logger.info('Best ieration: second to last cycle ({})'.format(best_iter))
         h5ph = 'extract/cal-ph-c%02i.h5' % best_iter
@@ -434,3 +452,18 @@ with w.if_todo('apply_final'):
 
     logger.info('Best ieration: last cycle ({})'.format(best_iter))
     logger.info('Finished, final results are in CORRECTED_DATA.')
+
+# high res imaging
+with w.if_todo('final_highres'):
+    clean('high', MSs, mode='high', size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()))
+
+# subtract
+with w.if_todo('final_sub'):
+    logger.info('Subtracting high-res model...')
+    MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
+            log='$nameMS_subtract.log', commandType='general')
+
+# low res imaging
+with w.if_todo('final_lowres'):
+    clean('low', MSs, mode='low', size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()))
