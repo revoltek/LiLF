@@ -89,8 +89,8 @@ def clean(p, MSs, mode='normal', size=[1, 1], imagereg=None):
 
     if mode == 'high':
         logger.info('Cleaning high-res (' + str(p) + ')...')
-        imagenameM = 'img/extract-' + str(p)
-        lib_util.run_wsclean(s, 'wsclean-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM,
+        imagename = 'img/extract-' + str(p)
+        lib_util.run_wsclean(s, 'wsclean-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
                              size=imsize, scale=str(pixscale) + 'arcsec',
                              weight='briggs -1.5', niter=100000, no_update_model_required='', minuv_l=30,
                              mgain=0.85, baseline_averaging='',
@@ -101,10 +101,11 @@ def clean(p, MSs, mode='normal', size=[1, 1], imagereg=None):
 
     elif mode == 'low':
         logger.info('Cleaning low-res (' + str(p) + ')...')
-        imagenameM = 'img/extract-' + str(p)
-        lib_util.run_wsclean(s, 'wsclean-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, data_column='SUBTRACTED_DATA',
+        imagename = 'img/extract-' + str(p)
+        lib_util.run_wsclean(s, 'wsclean-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename, data_column='SUBTRACTED_DATA',
                              size=imsize, scale=str(pixscale) + 'arcsec',
-                             weight='briggs -0.3', taper_gaussian='30arcsec', niter=100000, no_update_model_required='', minuv_l=30,
+                             weight='briggs -0.3', taper_gaussian='30arcsec', beam_shape='30 30 0',
+                             niter=100000, no_update_model_required='', minuv_l=30,
                              mgain=0.85, multiscale='', baseline_averaging='',
                              parallel_deconvolution=512, auto_threshold=1, auto_mask=2,
                              join_channels='', fit_spectral_pol=3, channels_out=ch_out)  # , deconvolution_channels=3)
