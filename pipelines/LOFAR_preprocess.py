@@ -132,7 +132,7 @@ if renameavg:
 
             if nchan == 1:
                 avg_factor_f = 1
-            elif nchan % 8 == 0 and minfreq < 40e6:
+            elif nchan % 8 == 0 and (minfreq < 40e6 or 'SPARSE' in MS.getAntennaSet()):
                 avg_factor_f = int(nchan / 8)  # to 8 ch/SB
             elif nchan % 4 == 0:
                 avg_factor_f = int(nchan / 4)  # to 4 ch/SB
