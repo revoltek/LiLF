@@ -90,7 +90,7 @@ def clean(p, MSs, mode='normal', size=[1, 1], imagereg=None):
     if mode == 'high':
         logger.info('Cleaning high-res (' + str(p) + ')...')
         imagename = 'img/extract-' + str(p)
-        lib_util.run_wsclean(s, 'wsclean-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
+        lib_util.run_wsclean(s, 'wsclean-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename, do_predict=True,
                              size=imsize, scale=str(pixscale) + 'arcsec',
                              weight='briggs -1.5', niter=100000, no_update_model_required='', minuv_l=30,
                              mgain=0.85, baseline_averaging='',
@@ -104,10 +104,10 @@ def clean(p, MSs, mode='normal', size=[1, 1], imagereg=None):
         imagename = 'img/extract-' + str(p)
         lib_util.run_wsclean(s, 'wsclean-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename, data_column='SUBTRACTED_DATA',
                              size=imsize, scale=str(pixscale) + 'arcsec',
-                             weight='briggs -0.3', taper_gaussian='30arcsec', beam_shape='30 30 0',
+                             weight='briggs -0.3', taper_gaussian='25arcsec', circular_beam='',
                              niter=100000, no_update_model_required='', minuv_l=30,
                              mgain=0.85, multiscale='', baseline_averaging='',
-                             parallel_deconvolution=512, auto_threshold=1, auto_mask=2,
+                             parallel_deconvolution=512, auto_threshold=1.5, auto_mask=3,
                              join_channels='', fit_spectral_pol=3, channels_out=ch_out)  # , deconvolution_channels=3)
         os.system('cat logs/wsclean-' + str(p) + '.log | grep "background noise"')
 
