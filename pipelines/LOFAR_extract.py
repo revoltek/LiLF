@@ -32,15 +32,16 @@ if phSolMode not in ['tecandphase', 'phase']:
 userReg = parset.get('model','userReg')
 
 ############################
+ddcycle='c01' # usually c01 is the last and best to use
 with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('extract')
     lib_util.check_rm('img')
     os.makedirs('img')
     os.makedirs('extract/init')
-    os.system('cp ddcal/c01/images/wideDD-c01.app.restored.fits extract/init/') # copy ddcal image
-    os.system('cp ddcal/c01/images/wideDD-c01.DicoModel extract/init/') # copy dico model
-    os.system('cp ddcal/c01/solutions/interp.h5 extract/init/') # copy fnal dde sol
+    os.system('cp ddcal/'+ddcycle+'/images/wideDD-'+ddcycle+'.app.restored.fits extract/init/') # copy ddcal image
+    os.system('cp ddcal/'+ddcycle+'/images/wideDD-'+ddcycle+'.DicoModel extract/init/') # copy dico model
+    os.system('cp ddcal/'+ddcycle+'/solutions/interp.h5 extract/init/') # copy fnal dde sol
     lib_util.check_rm('mss-extract')
     if not os.path.exists('mss-extract'):
         logger.info('Copy MS...')
@@ -55,7 +56,7 @@ imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 phase_center = MSs.getListObj()[0].getPhaseCentre()
 # read image, h5parm, make mask
-wideDD_image = lib_img.Image('extract/init/wideDD-c01.app.restored.fits')
+wideDD_image = lib_img.Image('extract/init/wideDD-'+ddcycle+'.app.restored.fits')
 dde_h5parm = 'extract/init/interp.h5'
 # make mask for subtraction
 mask_ddcal = wideDD_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
