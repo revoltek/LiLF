@@ -49,7 +49,7 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 if cal_dir == '':
     obsid = MSs.getListObj()[0].getObsID()
     # try standard location
-    cal_dir = glob.glob('../id%i_-_3[c|C]196' % obsid)+glob.glob('../id%i_-_3[c|C]295' % obsid)+glob.glob('../id%i_-_3[c|C]380' % obsid)
+    cal_dir = glob.glob('../id%i_-_*3[c|C]196' % obsid)+glob.glob('../id%i_-_*3[c|C]295' % obsid)+glob.glob('../id%i_-_*3[c|C]380' % obsid)
     if len(cal_dir) > 0:
         cal_dir = cal_dir[0]
     else:
