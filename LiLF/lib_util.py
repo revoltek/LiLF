@@ -68,8 +68,8 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
-    # self
-    add_default('LOFAR_self', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skydb')
+    # quick-self
+    add_default('LOFAR_quick-self', 'data_dir', './data-bkp/')
     # dd-parallel
     add_default('LOFAR_dd-parallel', 'maxniter', '10')
     add_default('LOFAR_dd-parallel', 'calFlux', '1.5')

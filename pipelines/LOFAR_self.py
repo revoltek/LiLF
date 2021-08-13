@@ -18,7 +18,6 @@ w = lib_util.Walker('pipeline-self.walker')
 
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_self','parset_dir')
-skydb_demix = parset.get('LOFAR_self','demix_model')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
