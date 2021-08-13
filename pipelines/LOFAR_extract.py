@@ -32,15 +32,16 @@ if phSolMode not in ['tecandphase', 'phase']:
 userReg = parset.get('model','userReg')
 
 ############################
+ddcycle='c01' # usually c01 is the last and best to use
 with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('extract')
     lib_util.check_rm('img')
     os.makedirs('img')
     os.makedirs('extract/init')
-    os.system('cp ddcal/c01/images/wideDD-c01.app.restored.fits extract/init/') # copy ddcal image
-    os.system('cp ddcal/c01/images/wideDD-c01.DicoModel extract/init/') # copy dico model
-    os.system('cp ddcal/c01/solutions/interp.h5 extract/init/') # copy fnal dde sol
+    os.system('cp ddcal/'+ddcycle+'/images/wideDD-'+ddcycle+'.app.restored.fits extract/init/') # copy ddcal image
+    os.system('cp ddcal/'+ddcycle+'/images/wideDD-'+ddcycle+'.DicoModel extract/init/') # copy dico model
+    os.system('cp ddcal/'+ddcycle+'/solutions/interp.h5 extract/init/') # copy fnal dde sol
     lib_util.check_rm('mss-extract')
     if not os.path.exists('mss-extract'):
         logger.info('Copy MS...')
@@ -51,31 +52,33 @@ target_reg = lib_util.Region_helper(target_reg_file)
 center = target_reg.get_center() # center of the extract region
 MSs = lib_ms.AllMSs( glob.glob('mss-extract/*MS'), s )
 ch_out = MSs.getChout(4e6)  # chout from dd-serial
+imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 phase_center = MSs.getListObj()[0].getPhaseCentre()
 # read image, h5parm, make mask
-wideDD_image = lib_img.Image('extract/init/wideDD-c01.app.restored.fits')
+wideDD_image = lib_img.Image('extract/init/wideDD-'+ddcycle+'.app.restored.fits')
 dde_h5parm = 'extract/init/interp.h5'
 # make mask for subtraction
 mask_ddcal = wideDD_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
 wideDD_image.makeMask(threshpix=5, atrous_do=True, maskname=mask_ddcal, write_srl=True, write_ds9=True)
 
 
-def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None):
+def clean(p, MSs, mode='normal', size=[1, 1], imagereg=None):
     """
     p = patch name
+    mode = noamel, empty, high, low
     mss = list of mss to clean
     size = in deg of the image
     """
     # set pixscale and imsize
     pixscale = MSs.resolution
 
-    if res == 'normal':
+    if mode == 'normal' or mode == 'empty':
         pixscale = float('%.1f' % (pixscale / 2.5))
-    elif res == 'high':
-        pixscale = float('%.1f' % (pixscale / 3.5))
-    elif res == 'low':
-        pass  # no change
+    elif mode == 'high':
+        pixscale = float('%.1f' % (pixscale / 4))
+    elif mode == 'low':
+        pixscale = 8
 
     imsize = [int(size[0] * 1.5 / (pixscale / 3600.)), int(size[1] * 1.5 / (pixscale / 3600.))]  # add 50%
     imsize[0] += imsize[0] % 2
@@ -85,35 +88,49 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None):
 
     logger.debug('Image size: ' + str(imsize) + ' - Pixel scale: ' + str(pixscale))
 
-    if res == 'normal':
-        weight = 'briggs -0.3'
-        maxuv_l = None
-    elif res == 'high':
-        weight = 'briggs -0.6'
-        maxuv_l = None
-    elif res == 'low':
-        weight = 'briggs 0'
-        maxuv_l = 3500
-    else:
-        logger.error('Wrong "res": %s.' % str(res))
-        sys.exit()
+    if mode == 'high':
+        logger.info('Cleaning high-res (' + str(p) + ')...')
+        imagename = 'img/extract-' + str(p)
+        lib_util.run_wsclean(s, 'wsclean-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename, do_predict=True,
+                             size=imsize, scale=str(pixscale) + 'arcsec',
+                             weight='briggs -1.5', niter=100000, no_update_model_required='', minuv_l=30,
+                             mgain=0.85, baseline_averaging='',
+                             parallel_deconvolution=512, auto_threshold=1, auto_mask=5,
+                             join_channels='', fit_spectral_pol=3, channels_out=ch_out)  # , deconvolution_channels=3)
+        os.system('cat logs/wsclean-' + str(p) + '.log | grep "background noise"')
+ 
 
-    if empty:
+    elif mode == 'low':
+        logger.info('Cleaning low-res (' + str(p) + ')...')
+        imagename = 'img/extract-' + str(p)
+        lib_util.run_wsclean(s, 'wsclean-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename, data_column='SUBTRACTED_DATA',
+                             size=imsize, scale=str(pixscale) + 'arcsec',
+                             weight='briggs -0.3', taper_gaussian='25arcsec', circular_beam='',
+                             niter=100000, no_update_model_required='', minuv_l=30,
+                             mgain=0.85, multiscale='', baseline_averaging='',
+                             parallel_deconvolution=512, auto_threshold=1.5, auto_mask=3,
+                             join_channels='', fit_spectral_pol=3, channels_out=ch_out)  # , deconvolution_channels=3)
+        os.system('cat logs/wsclean-' + str(p) + '.log | grep "background noise"')
+
+    elif mode == 'empty':
+
         logger.info('Cleaning empty (' + str(p) + ')...')
         imagename = 'img/empty-' + str(p)
         lib_util.run_wsclean(s, 'wscleanE-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
                              data_column='SUBTRACTED_DATA',
                              size=imsize, scale=str(pixscale) + 'arcsec',
-                             weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0,
+                             weight='briggs -0.3', niter=0, no_update_model_required='', minuv_l=30, mgain=0,
                              baseline_averaging='')
-    else:
+
+    elif mode == 'normal':
+
         # clean 1
         logger.info('Cleaning (' + str(p) + ')...')
         imagename = 'img/extract-' + str(p)
 
         lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
                              size=imsize, scale=str(pixscale) + 'arcsec',
-                             weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
+                             weight='briggs -0.3', niter=10000, no_update_model_required='', minuv_l=30,
                              mgain=0.85,
                              baseline_averaging='', parallel_deconvolution=512, auto_threshold=5,
                              join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
@@ -135,11 +152,15 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None):
         imagenameM = 'img/extractM-' + str(p)
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
                              size=imsize, scale=str(pixscale) + 'arcsec',
-                             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
+                             weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30,
                              reuse_psf=imagename, reuse_dirty=imagename, mgain=0.85, multiscale='', baseline_averaging='',
                              parallel_deconvolution=512, auto_threshold=0.7, auto_mask=1.5,
                              fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=ch_out)  # , deconvolution_channels=3)
         os.system('cat logs/wscleanB-' + str(p) + '.log | grep "background noise"')
+
+    else:
+        logger.error('Wrong "res": %s.' % str(res))
+        sys.exit()
 
 
 with w.if_todo('predict_rest'):
@@ -161,7 +182,7 @@ with w.if_todo('predict_rest'):
         'Predict_InitDicoModel': outdico,
         'Predict_ColName': 'MODEL_DATA',
         'Deconv_Mode': 'HMP',
-        'Image_NPix': 8775,
+        'Image_NPix': imgsizepix,
         'CF_wmax': 50000,
         'CF_Nw': 100,
         'Beam_CenterNorm': 1,
@@ -197,22 +218,24 @@ with w.if_todo('subtract_rest'):
     ### DONE
 
 ## TTESTTESTTEST: empty image
-if not os.path.exists('img/empty-but-target-image.fits'):
-    clean('but-target', MSs, size=(fwhm,fwhm), res='normal', empty=True)
-    ### DONE
+#if not os.path.exists('img/empty-but-target-image.fits'):
+#    clean('but-target', MSs, size=(fwhm,fwhm), mode='empty')
 
 # Phase shift in the target location
 with w.if_todo('phaseshift'):
+    avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=2*0.192e6))) # avg to 1 ch every 2 SBs
+    if not (avgfreqint == 8 or avgfreqint == 16):
+        logger.warning('Strange averaging of channels (%i): %i -> %i' % (avgfreqint,MSs.getListObj()[0].getNchan(),int(MSs.getListObj()[0].getNchan()/avgfreqint)))
     logger.info('Phase shift and avg...')
     MSs.run('DP3 '+parset_dir+'/DP3-shiftavg.parset msin=$pathMS msout=mss-extract/$nameMS.MS-extract msin.datacolumn=SUBTRACTED_DATA \
-            shift.phasecenter=['+str(center[0])+'deg,'+str(center[1])+'deg\] avg.freqstep=8 avg.timestep=4', \
+            shift.phasecenter=['+str(center[0])+'deg,'+str(center[1])+'deg\] avg.freqstep='+str(avgfreqint)+' avg.timestep=4', \
             log='$nameMS_shiftavg.log', commandType='DP3')
     ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('mss-extract/*MS-extract'), s )
 
 with w.if_todo('beamcorr'):
-    logger.info('Correcting beam...') # TODO is this correct?
+    logger.info('Correcting beam...')
     # Convince DP3 that DATA is corrected for the beam in the phase centre
     MSs.run('DP3 ' + parset_dir + '/DP3-beam.parset msin=$pathMS setbeam.direction=\[' + str(phase_center[0]) + 'deg,'
             + str(phase_center[1]) + 'deg\] corrbeam.direction=\[' + str(center[0]) + 'deg,' + str(
@@ -220,7 +243,7 @@ with w.if_todo('beamcorr'):
     ### DONE
 
 # apply init - closest DDE sol
-# TODO: this assumes phase000 and optionally, amplitude000
+# This assumes phase000 and optionally, amplitude000
 with w.if_todo('apply_init'):
     h5init = h5parm(dde_h5parm)
     solset_dde = h5init.getSolset('sol000')
@@ -274,7 +297,8 @@ for c in range(maxniter):
     solint_ph = next(iter_ph_solint)
     if doamp:
         h5amp1 = 'extract/cal-amp1-c%02i.h5' % c
-        solint_amp = next(iter_amp_solint)
+        solint_amp1 = next(iter_amp_solint)
+        solch_amp1 = int(round(MSs.getListObj()[0].getNchan() / ch_out))
         h5amp2 = 'extract/cal-amp2-c%02i.h5' % c
         solint_amp2 = next(iter_amp2_solint)
 
@@ -322,11 +346,10 @@ for c in range(maxniter):
 
     if doamp:
         with w.if_todo('cal-amp1-c%02i' % c):
-            logger.info('Gain amp calibration 1 (solint: %i)...' % solint_amp)
+            logger.info('Gain amp calibration 1 (solint: %i)...' % solint_amp1)
             # Calibration - ms:CORRECTED_DATA
-            # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
             MSs.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
-                sol.mode=diagonal sol.solint=' + str(solint_amp) + ' sol.nchan=1 sol.smoothnessconstraint=4e6 sol.minvisratio=0.5 \
+                sol.mode=diagonal sol.solint=' + str(solint_amp1) + ' sol.nchan=' + str(solch_amp1) + ' sol.minvisratio=0.5 \
                 sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-c%02i.log' % c, commandType='DP3')
 
@@ -347,8 +370,7 @@ for c in range(maxniter):
             logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
             # Calibration - ms:SMOOTHED_DATA
             MSs.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                sol.mode=diagonal sol.solint=' + str(
-                solint_amp2) + ' sol.nchan=6  sol.smoothnessconstraint=10e6 sol.minvisratio=0.5', \
+                sol.mode=diagonal sol.solint=' + str(solint_amp2) + '  sol.smoothnessconstraint=10e6 sol.minvisratio=0.5', \
                         log='$nameMS_solGamp2-c%02i.log' % c, commandType='DP3')
 
             losoto_parsets = [parset_dir + '/losoto-clip2.parset', parset_dir + '/losoto-norm.parset',
@@ -399,7 +421,7 @@ for c in range(maxniter):
     ### DONE
 
 # Finally:
-with w.if_todo('apply_final'):
+with w.if_todo('final_apply'):
     if best_iter != c: # If last iteration was NOT the best iteration, apply best iteration.
         logger.info('Best ieration: second to last cycle ({})'.format(best_iter))
         h5ph = 'extract/cal-ph-c%02i.h5' % best_iter
@@ -433,3 +455,22 @@ with w.if_todo('apply_final'):
 
     logger.info('Best ieration: last cycle ({})'.format(best_iter))
     logger.info('Finished, final results are in CORRECTED_DATA.')
+    ### DONE
+
+# high res imaging
+with w.if_todo('final_highres'):
+    clean('high', MSs, mode='high', size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()))
+    ### DONE
+
+# subtract
+with w.if_todo('final_sub'):
+    logger.info('Subtracting high-res model...')
+    MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+    MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
+            log='$nameMS_subtract.log', commandType='general')
+    ### DONE
+
+# low res imaging
+with w.if_todo('final_lowres'):
+    clean('low', MSs, mode='low', size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()))
+    ### DONE

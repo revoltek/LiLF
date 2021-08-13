@@ -70,14 +70,34 @@ If you want to change any parameters, you can specify them in the lilf.config fi
 ### PiLL
 working_dir: dir path [./] # working directory
 
-### LOFAR_download
+download_file: str # html.txt file for downloading if no project/target/obsid provided
+
+project: str # LOFAR project
+
+target: str # observation target
+
+obsid: str # unique observation ID
+
+### flag
+stations: str [DE*;FR*;SE*;UK*;IE*;PL*] # For LOFAR, by default flag all IS.
+
+antennas: str, # uGMRT
+
+### model
+sourcedb: str # model sourcedb
+
+apparent: bool [False] # is model in apparent sky?
+
+userReg: str # user defined region for cleaning
+
+### LOFAR_preprocess
 fix_table: bool [True] # fix bug in some old observations
 
-renameavg: bool [True]
+renameavg: bool [True] # rename and average the data
 
-flag_elev: bool [True] # flag anything below 30 deg elevation
+flagelev: bool [True] # flag anything below 30 deg elevation
 
-keep_IS: bool [False] # keep international stations
+keep_IS: bool [False] # keep the LOFAR international stations?
     
 ### LOFAR_demix
 data_dir: dir path [../cals-bkp/]
@@ -109,5 +129,9 @@ minCalFlux60: float [1.5] # apparent flux [Jy] at 60 MHz to be considered a cali
 
 removeExtendedCutoff: float [0.0001] # remove extended sources from possible DD-calibrator list
 
-### LOFAR_facet_self
-maxniter: int [10]
+### LOFAR_extract
+maxniter: int [10] # maximum number of iterations to perform
+
+extractRegion: str [target.reg] # ds9 region defining the extract target
+
+phSolMode: str [tecandphase] # mode to use for phase solutions, either 'tecandphase' (to reduce number of free parameters) or 'phase' (to allow for more accurate solutions)
