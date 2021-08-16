@@ -10,7 +10,7 @@ RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
 RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename \
-    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz \
+    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely \
     libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
@@ -106,10 +106,11 @@ RUN cd /opt/LofarStMan && mkdir build && cd build \
     && make -j 64 && make install
 
 #####################################################################
-## Wsclean v2.10.1
+## Wsclean master 30/6/21
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-    && cd /opt/wsclean && git checkout tags/v2.10.1
+    && cd /opt/wsclean && git checkout cb451544a372b82403054a01900cd6e58ff87aaf
+#    && cd /opt/wsclean && git checkout tags/v2.10.1
 RUN cd /opt/wsclean && mkdir build && cd build \
     && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
@@ -148,10 +149,10 @@ RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git
 RUN cd /opt/LSMTool && pip3 install .
 
 ####################################################################
-## LoSoTo v2.1
+## LoSoTo (master 8/2021)
 ###################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto && git checkout tags/2.1
+    && cd /opt/losoto && git checkout ecf8a078f910454b989044b293e2416e1c9c09b7
 RUN cd /opt/losoto && pip3 install .
 RUN pip3 install --upgrade scipy
 
