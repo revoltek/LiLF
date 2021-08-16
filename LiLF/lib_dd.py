@@ -53,7 +53,7 @@ class Direction(object):
         s.attr = ([], {'width': '2', 'point': 'cross',
                        'font': '"helvetica 16 normal roman"'})
         if not self.peel_off: s.comment = 'color=red text="%s"' % self.name
-        else: s.comment = 'color=blue text="%s"' % self.name
+        else: s.comment = 'color=yellow text="%s"' % self.name
 
         regions = pyregion.ShapeList([s])
         lib_util.check_rm(self.region_file)
