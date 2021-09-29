@@ -10,7 +10,30 @@
 import sys, os, glob, re
 import numpy as np
 import pyregion
+from astropy.io import fits
 from losoto.h5parm import h5parm
+
+def get_ddf_parms_from_header(img):
+    """
+    Parse the HISTORY header of a DDFacet image and return a dict containing the options used to create the image.
+    Will replace '-' by '_'.
+    Parameters
+    ----------
+    img: str, filename of image
+
+    Returns
+    -------
+    params_dict: dict,
+    """
+    params_dict = dict()
+    hdr = fits.open(img)[0].header['HISTORY']
+    for line in hdr:
+        if line.count('=') == 1 and line.count('-') == 1:
+            _key, _value = line.replace('-','_').replace(' ', '').split('=')
+            params_dict[_key] = _value
+        else:
+            continue
+    return params_dict
 
 
 #######################################################
@@ -50,6 +73,7 @@ with w.if_todo('cleaning'):
 target_reg = lib_util.Region_helper(target_reg_file)
 center = target_reg.get_center() # center of the extract region
 MSs = lib_ms.AllMSs( glob.glob('mss-extract/*MS'), s )
+
 ch_out = MSs.getChout(4e6)  # chout from dd-serial
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 phase_center = MSs.getListObj()[0].getPhaseCentre()
@@ -61,7 +85,7 @@ mask_ddcal = wideDD_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this
 wideDD_image.makeMask(threshpix=5, atrous_do=True, maskname=mask_ddcal, write_srl=True, write_ds9=True)
 
 
-def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None):
+def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None, apply_beam=False):
     """
     p = patch name
     mss = list of mss to clean
@@ -107,6 +131,12 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None):
                              weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0,
                              baseline_averaging='')
     else:
+        arg_dict = dict()
+        if apply_beam:
+            arg_dict['use_idg'] = ''
+            arg_dict['grid_with_beam'] = ''
+        else:
+            arg_dict['baseline_averaging'] = ''
         # clean 1
         logger.info('Cleaning (' + str(p) + ')...')
         imagename = 'img/extract-' + str(p)
@@ -114,9 +144,8 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None):
         lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
                              size=imsize, scale=str(pixscale) + 'arcsec',
                              weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
-                             mgain=0.85,
-                             baseline_averaging='', parallel_deconvolution=512, auto_threshold=5,
-                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
+                             mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
+                             fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, **arg_dict)
 
         # make mask
         im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
@@ -133,12 +162,13 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None):
         # TODO: add deconvolution_channels when bug fixed
         logger.info('Cleaning w/ mask (' + str(p) + ')...')
         imagenameM = 'img/extractM-' + str(p)
+        if apply_beam: arg_dict['reuse_primary_beam'] = imagename
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
                              size=imsize, scale=str(pixscale) + 'arcsec',
                              weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
-                             reuse_psf=imagename, reuse_dirty=imagename, mgain=0.85, multiscale='', baseline_averaging='',
+                             reuse_psf=imagename, reuse_dirty=imagename,  mgain=0.85, multiscale='',
                              parallel_deconvolution=512, auto_threshold=0.7, auto_mask=1.5,
-                             fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=ch_out)  # , deconvolution_channels=3)
+                             fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
         os.system('cat logs/wscleanB-' + str(p) + '.log | grep "background noise"')
 
 
@@ -153,36 +183,46 @@ with w.if_todo('predict_rest'):
           log='MaskDicoModel.log', commandType='python', processors='max')
     s.run(check=True)
 
-    ddf_parms = {
-        'Data_MS': MSs.getStrDDF(),
-        'Data_ColName': 'CORRECTED_DATA',
-        'Data_Sort': 1,
-        'Output_Mode': 'Predict',
-        'Predict_InitDicoModel': outdico,
-        'Predict_ColName': 'MODEL_DATA',
-        'Deconv_Mode': 'HMP',
-        'Image_NPix': 8775,
-        'CF_wmax': 50000,
-        'CF_Nw': 100,
-        'Beam_CenterNorm': 1,
-        'Beam_Smooth': 0,
-        'Beam_Model': 'LOFAR',
-        'Beam_LOFARBeamMode': 'A',
-        'Beam_NBand': 1,
-        'Beam_DtBeamMin': 5,
-        'Output_Also': 'onNeds',
-        'Image_Cell': 3.,
-        'Freq_NDegridBand': ch_out,
-        'Freq_NBand': ch_out,
-        'Facets_DiamMax': 1.5,
-        'Facets_DiamMin': 0.1,
-        'Weight_ColName': 'WEIGHT_SPECTRUM',
-        'Comp_BDAMode': 1,
-        'DDESolutions_DDModeGrid': 'AP',
-        'DDESolutions_DDModeDeGrid': 'AP',
-        'RIME_ForwardMode': 'BDA-degrid',
-        'DDESolutions_DDSols': dde_h5parm+':sol000/phase000+amplitude000'
-    }
+    # get DDF parameters used to create the image/model
+    ddf_parms = get_ddf_parms_from_header(wideDD_image.imagename)
+    # change for PREDICT
+    ddf_parms['Data_MS'] = MSs.getStrDDF()
+    ddf_parms['Data_ColName'] = 'CORRECTED_DATA'
+    ddf_parms['Output_Mode'] = 'Predict'
+    ddf_parms['Predict_InitDicoModel'] = outdico
+    ddf_parms['Output_Mode'] = 'Predict'
+    ddf_parms['Beam_Smooth'] = 1
+    ddf_parms['DDESolutions_DDSols'] = dde_h5parm + ':sol000/phase000+amplitude000'
+    # ddf_parms = {
+    #     'Data_MS': MSs.getStrDDF(),
+    #     'Data_ColName': 'CORRECTED_DATA',
+    #     'Data_Sort': 1,
+    #     'Output_Mode': 'Predict',
+    #     'Predict_InitDicoModel': outdico,
+    #     'Predict_ColName': 'MODEL_DATA',
+    #     'Deconv_Mode': 'HMP',
+    #     'Image_NPix': 8775,
+    #     'CF_wmax': 50000,
+    #     'CF_Nw': 100,
+    #     'Beam_CenterNorm': 1,
+    #     'Beam_Smooth': 1,
+    #     'Beam_Model': 'LOFAR',
+    #     'Beam_LOFARBeamMode': 'A',
+    #     'Beam_NBand': 1,
+    #     'Beam_DtBeamMin': 5,
+    #     'Output_Also': 'onNeds',
+    #     'Image_Cell': 3.,
+    #     'Freq_NDegridBand': ch_out,
+    #     'Freq_NBand': ch_out,
+    #     'Facets_DiamMax': 1.5,
+    #     'Facets_DiamMin': 0.1,
+    #     'Weight_ColName': 'WEIGHT_SPECTRUM',
+    #     'Comp_BDAMode': 1,
+    #     'DDESolutions_DDModeGrid': 'AP',
+    #     'DDESolutions_DDModeDeGrid': 'AP',
+    #     'RIME_ForwardMode': 'BDA-degrid',
+    #     'DDESolutions_DDSols': dde_h5parm+':sol000/phase000+amplitude000'
+    # }
     logger.info('Predict corrupted rest-of-the-sky...')
     lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms, Cache_Reset=1)
     ### DONE
@@ -325,7 +365,7 @@ for c in range(maxniter):
             logger.info('Gain amp calibration 1 (solint: %i)...' % solint_amp)
             # Calibration - ms:CORRECTED_DATA
             # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
-            MSs.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
+            MSs.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
                 sol.mode=diagonal sol.solint=' + str(solint_amp) + ' sol.nchan=1 sol.smoothnessconstraint=4e6 sol.minvisratio=0.5 \
                 sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-c%02i.log' % c, commandType='DP3')
@@ -346,7 +386,7 @@ for c in range(maxniter):
         with w.if_todo('cal-amp2-c%02i' % c):
             logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
             # Calibration - ms:SMOOTHED_DATA
-            MSs.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
+            MSs.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
                 sol.mode=diagonal sol.solint=' + str(
                 solint_amp2) + ' sol.nchan=6  sol.smoothnessconstraint=10e6 sol.minvisratio=0.5', \
                         log='$nameMS_solGamp2-c%02i.log' % c, commandType='DP3')
@@ -378,17 +418,17 @@ for c in range(maxniter):
     mm_ratio = extract_image.getMaxMinRatio()
     logger.info('RMS noise (c:%02i): %f' % (c, rms_noise))
     logger.info('MM ratio (c:%02i): %f' % (c, mm_ratio))
+    if rms_noise < rms_noise_pre:
+        best_iter = c
+    else: best_iter = c - 1
 
     if rms_noise > 0.99 * rms_noise_pre and mm_ratio < 1.01 * mm_ratio_pre and c >4:
         if (mm_ratio < 10 and c >= 2) or \
                 (mm_ratio < 20 and c >= 3) or \
                 (mm_ratio < 30 and c >= 4) or \
                 (c >= 5):
-            # save best iteration
-            if rms_noise < rms_noise_pre:
-                best_iter = c
-            else: best_iter = c - 1
             break
+    # save best iteration
 
     if c >= 4 and mm_ratio >= 30:
         logger.info('Start amplitude calibration in next cycle...')
@@ -401,7 +441,7 @@ for c in range(maxniter):
 # Finally:
 with w.if_todo('apply_final'):
     if best_iter != c: # If last iteration was NOT the best iteration, apply best iteration.
-        logger.info('Best ieration: second to last cycle ({})'.format(best_iter))
+        logger.info('Best iteration: second to last cycle ({})'.format(best_iter))
         h5ph = 'extract/cal-ph-c%02i.h5' % best_iter
         h5amp1 = 'extract/cal-amp1-c%02i.h5' % best_iter
         h5amp2 = 'extract/cal-amp2-c%02i.h5' % best_iter
@@ -430,6 +470,10 @@ with w.if_todo('apply_final'):
             MSs.run('DP3 ' + parset_dir + '/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
                 cor.parmdb=' + h5amp2 + ' cor.correction=amplitude000',
                     log='$nameMS_correct-final.log', commandType='DP3')
+    else:
+        logger.info('Best ieration: last cycle ({})'.format(best_iter))
 
-    logger.info('Best ieration: last cycle ({})'.format(best_iter))
-    logger.info('Finished, final results are in CORRECTED_DATA.')
+with w.if_todo('imaging_final'):
+    logger.info('Final imaging w/ beam correction...')
+    clean('final', MSs, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True)  # size 2 times radius  , apply_beam = c==maxniter
+    logger.info('Done.')
