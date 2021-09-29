@@ -190,39 +190,9 @@ with w.if_todo('predict_rest'):
     ddf_parms['Data_ColName'] = 'CORRECTED_DATA'
     ddf_parms['Output_Mode'] = 'Predict'
     ddf_parms['Predict_InitDicoModel'] = outdico
-    ddf_parms['Output_Mode'] = 'Predict'
     ddf_parms['Beam_Smooth'] = 1
     ddf_parms['DDESolutions_DDSols'] = dde_h5parm + ':sol000/phase000+amplitude000'
-    # ddf_parms = {
-    #     'Data_MS': MSs.getStrDDF(),
-    #     'Data_ColName': 'CORRECTED_DATA',
-    #     'Data_Sort': 1,
-    #     'Output_Mode': 'Predict',
-    #     'Predict_InitDicoModel': outdico,
-    #     'Predict_ColName': 'MODEL_DATA',
-    #     'Deconv_Mode': 'HMP',
-    #     'Image_NPix': 8775,
-    #     'CF_wmax': 50000,
-    #     'CF_Nw': 100,
-    #     'Beam_CenterNorm': 1,
-    #     'Beam_Smooth': 1,
-    #     'Beam_Model': 'LOFAR',
-    #     'Beam_LOFARBeamMode': 'A',
-    #     'Beam_NBand': 1,
-    #     'Beam_DtBeamMin': 5,
-    #     'Output_Also': 'onNeds',
-    #     'Image_Cell': 3.,
-    #     'Freq_NDegridBand': ch_out,
-    #     'Freq_NBand': ch_out,
-    #     'Facets_DiamMax': 1.5,
-    #     'Facets_DiamMin': 0.1,
-    #     'Weight_ColName': 'WEIGHT_SPECTRUM',
-    #     'Comp_BDAMode': 1,
-    #     'DDESolutions_DDModeGrid': 'AP',
-    #     'DDESolutions_DDModeDeGrid': 'AP',
-    #     'RIME_ForwardMode': 'BDA-degrid',
-    #     'DDESolutions_DDSols': dde_h5parm+':sol000/phase000+amplitude000'
-    # }
+
     logger.info('Predict corrupted rest-of-the-sky...')
     lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms, Cache_Reset=1)
     ### DONE
@@ -365,7 +335,7 @@ for c in range(maxniter):
             logger.info('Gain amp calibration 1 (solint: %i)...' % solint_amp)
             # Calibration - ms:CORRECTED_DATA
             # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
-            MSs.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
+            MSs.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
                 sol.mode=diagonal sol.solint=' + str(solint_amp) + ' sol.nchan=1 sol.smoothnessconstraint=4e6 sol.minvisratio=0.5 \
                 sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-c%02i.log' % c, commandType='DP3')
@@ -386,7 +356,7 @@ for c in range(maxniter):
         with w.if_todo('cal-amp2-c%02i' % c):
             logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
             # Calibration - ms:SMOOTHED_DATA
-            MSs.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
+            MSs.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
                 sol.mode=diagonal sol.solint=' + str(
                 solint_amp2) + ' sol.nchan=6  sol.smoothnessconstraint=10e6 sol.minvisratio=0.5', \
                         log='$nameMS_solGamp2-c%02i.log' % c, commandType='DP3')
