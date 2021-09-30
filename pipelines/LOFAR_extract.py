@@ -194,6 +194,7 @@ with w.if_todo('predict_rest'):
     ddf_parms['Beam_Smooth'] = 1
     ddf_parms['Cache_Reset'] = 1
     ddf_parms['DDESolutions_DDSols'] = dde_h5parm + ':sol000/phase000+amplitude000'
+    if 'Misc_ParsetVersion' in ddf_parms.keys(): del ddf_parms['Misc_ParsetVersion']
 
     logger.info('Predict corrupted rest-of-the-sky...')
     lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms)
