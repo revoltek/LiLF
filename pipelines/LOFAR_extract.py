@@ -191,10 +191,11 @@ with w.if_todo('predict_rest'):
     ddf_parms['Output_Mode'] = 'Predict'
     ddf_parms['Predict_InitDicoModel'] = outdico
     ddf_parms['Beam_Smooth'] = 1
+    ddf_parms['Cache_Reset'] = 1
     ddf_parms['DDESolutions_DDSols'] = dde_h5parm + ':sol000/phase000+amplitude000'
 
     logger.info('Predict corrupted rest-of-the-sky...')
-    lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms, Cache_Reset=1)
+    lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms)
     ### DONE
 
 with w.if_todo('subtract_rest'):
