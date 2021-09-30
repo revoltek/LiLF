@@ -29,7 +29,8 @@ def get_ddf_parms_from_header(img):
     hdr = fits.open(img)[0].header['HISTORY']
     for line in hdr:
         if line.count('=') == 1 and line.count('-') > 0:
-            _key, _value = line.replace('-','_').replace(' ', '').split('=')
+            _key, _value = line.replace(' ', '').split('=')
+            _key = _key.replace('-', '_')
             params_dict[_key] = _value
         else:
             continue
