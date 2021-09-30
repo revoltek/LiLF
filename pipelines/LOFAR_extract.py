@@ -189,12 +189,14 @@ with w.if_todo('predict_rest'):
     # change for PREDICT
     ddf_parms['Data_MS'] = MSs.getStrDDF()
     ddf_parms['Data_ColName'] = 'CORRECTED_DATA'
+    ddf_parms['Predict_ColName'] = 'CORRECTED_DATA'
     ddf_parms['Output_Mode'] = 'Predict'
     ddf_parms['Predict_InitDicoModel'] = outdico
     ddf_parms['Beam_Smooth'] = 1
     ddf_parms['Cache_Reset'] = 1
     ddf_parms['DDESolutions_DDSols'] = dde_h5parm + ':sol000/phase000+amplitude000'
     if 'Misc_ParsetVersion' in ddf_parms.keys(): del ddf_parms['Misc_ParsetVersion']
+    if 'Mask_External' in ddf_parms.keys(): del ddf_parms['Mask_External']
 
     logger.info('Predict corrupted rest-of-the-sky...')
     lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms)

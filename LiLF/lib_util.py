@@ -382,8 +382,9 @@ def run_DDF(s, logfile, **kwargs):
     # user defined parms
     for parm, value in list(kwargs.items()):
         if value is None: continue
-        if '$' in value: # escape dollar signs (e.g. of BeamFits)
-            value = "'" + value + "'"
+        if isinstance(value, str):
+            if '$' in value: # escape dollar signs (e.g. of BeamFits)
+                value = "'" + value + "'"
         ddf_parms.append( '--%s=%s' % (parm.replace('_','-'), str(value)) )
 
     # files
