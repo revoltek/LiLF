@@ -189,7 +189,7 @@ with w.if_todo('predict_rest'):
     # change for PREDICT
     ddf_parms['Data_MS'] = MSs.getStrDDF()
     ddf_parms['Data_ColName'] = 'CORRECTED_DATA'
-    ddf_parms['Predict_ColName'] = 'CORRECTED_DATA'
+    ddf_parms['Predict_ColName'] = 'MODEL_DATA'
     ddf_parms['Output_Mode'] = 'Predict'
     ddf_parms['Predict_InitDicoModel'] = outdico
     ddf_parms['Beam_Smooth'] = 1
