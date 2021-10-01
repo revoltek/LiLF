@@ -166,7 +166,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None, apply_b
         else:
             arg_dict['baseline_averaging'] = ''
             arg_dict['reuse_psf'] = imagename
-            arg_dict['reuse_dirty'] = imagename,
+            arg_dict['reuse_dirty'] = imagename
 
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
                              size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=100000,
