@@ -133,11 +133,6 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None, apply_b
                              baseline_averaging='')
     else:
         arg_dict = dict()
-        if apply_beam:
-            arg_dict['use_idg'] = ''
-            arg_dict['grid_with_beam'] = ''
-        else:
-            arg_dict['baseline_averaging'] = ''
         # clean 1
         logger.info('Cleaning (' + str(p) + ')...')
         imagename = 'img/extract-' + str(p)
@@ -146,7 +141,8 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None, apply_b
                              size=imsize, scale=str(pixscale) + 'arcsec',
                              weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
                              mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
-                             fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, **arg_dict)
+                             fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, baseline_averaging='',
+                             **arg_dict)
 
         # make mask
         im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
@@ -163,13 +159,20 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None, apply_b
         # TODO: add deconvolution_channels when bug fixed
         logger.info('Cleaning w/ mask (' + str(p) + ')...')
         imagenameM = 'img/extractM-' + str(p)
-        if apply_beam: arg_dict['reuse_primary_beam'] = imagename
+        if apply_beam:
+            # Faster would be to resue psf, dirty + beam for the apply_beam case -> however, it causes SegFaults. TODO more investigation
+            arg_dict['use_idg'] = ''
+            arg_dict['grid_with_beam'] = ''
+        else:
+            arg_dict['baseline_averaging'] = ''
+            arg_dict['reuse_psf'] = imagename
+            arg_dict['reuse_dirty'] = imagename,
+
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
-                             size=imsize, scale=str(pixscale) + 'arcsec',
-                             weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
-                             reuse_psf=imagename, reuse_dirty=imagename,  mgain=0.85, multiscale='',
-                             parallel_deconvolution=512, auto_threshold=0.7, auto_mask=1.5,
-                             fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
+                             size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=100000,
+                             no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
+                             parallel_deconvolution=512, auto_threshold=0.7, auto_mask=1.5, fits_mask=im.maskname,
+                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
         os.system('cat logs/wscleanB-' + str(p) + '.log | grep "background noise"')
 
 
