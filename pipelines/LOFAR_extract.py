@@ -28,6 +28,7 @@ def get_ddf_parms_from_header(img):
     params_dict = dict()
     hdr = fits.open(img)[0].header['HISTORY']
     for line in hdr:
+        if 'MUFFIN' in line: continue
         if line.count('=') == 1 and line.count('-') > 0:
             _key, _value = line.replace(' ', '').split('=')
             _key = _key.replace('-', '_')
