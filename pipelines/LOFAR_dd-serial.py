@@ -381,7 +381,7 @@ for cmaj in range(maxIter):
             lib_util.check_rm('mss-dir')
             os.makedirs('mss-dir')
 
-            # Shift - ms:SUBTRACTED_DATA -> ms:DATA (->8/16/32 s and 1 chan every 2 SBs: tot of 60 or 120 chan)
+            # Shift - ms:SUBTRACTED_DATA -> ms:DATA (->4/8/16/32 s and 1 chan every 2 SBs: tot of 60 or 120 chan)
             if d.get_flux(freq_mid) > 10: avgtimeint = int(round(8/timeint))
             elif d.get_flux(freq_mid) > 4: avgtimeint = int(round(16/timeint))
             else: avgtimeint = int(round(32/timeint))
@@ -427,9 +427,9 @@ for cmaj in range(maxIter):
         doamp = False
         # usually there are 3600/32=112 or 3600/16=225 or 3600/8=450 timesteps and \
         # 60 (halfband)/120 (fullband) chans, try to use multiple numbers
-        iter_ph_solint = lib_util.Sol_iterator([8, 8, 4, 1])  # 32 or 16 or 8 * [4,1] s
-        iter_amp_solint = lib_util.Sol_iterator([60, 30, 10])  # 32 or 16 or 8 * [60,30,10] s
-        iter_amp2_solint = lib_util.Sol_iterator([60, 30])
+        iter_ph_solint = lib_util.Sol_iterator([8, 8, 4, 1])  # 32 or 16 or 8 * [8,4,1] s
+        iter_amp_solint = lib_util.Sol_iterator([30, 10, 5])  # 32 or 16 or 8 * [30,10,5] s
+        iter_amp2_solint = lib_util.Sol_iterator([30, 10])
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
         logger.info('MM ratio (init): %f' % (mm_ratio_pre))
 
@@ -444,7 +444,7 @@ for cmaj in range(maxIter):
             d.add_h5parm('ph', 'ddcal/c%02i/solutions/cal-ph-%s.h5' % (cmaj,logstringcal) )
             if doamp:
                 solint_amp1 = next(iter_amp_solint)
-                solch_amp1 = int(round(MSs.getListObj()[0].getNchan() / ch_out))
+                solch_amp1 = int(round(MSs_dir.getListObj()[0].getNchan() / ch_out))
                 d.add_h5parm('amp1', 'ddcal/c%02i/solutions/cal-amp1-%s.h5' % (cmaj,logstringcal) )
                 solint_amp2 = next(iter_amp2_solint)
                 d.add_h5parm('amp2', 'ddcal/c%02i/solutions/cal-amp2-%s.h5' % (cmaj,logstringcal) )
@@ -664,8 +664,10 @@ for cmaj in range(maxIter):
     # print a debug table
     logger.info("################################################")
     for d in directions:
-        if d.peel_off:
+        if d.peel_off and cmaj == 0:
             logger.info("### Direction (PEEL!): %s -- %.2f Jy" % (d.name, np.sum(d.fluxes)))
+        elif d.peel_off and cmaj == 1:
+            continue
         else:
             logger.info("### Direction: %s -- %.2f Jy" % (d.name, np.sum(d.fluxes)))
         logger.info("- Averaging: %i s - %i ch" % (d.avg_t, d.avg_f))
@@ -802,7 +804,9 @@ for cmaj in range(maxIter):
             #im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False)
             #maskname = im.maskname
             image4mask = imagename+'.app.restored.fits'
-            os.system('MakeMask.py --RestoredIm=%s --Th=4 --Box=150,15 --OutName=ddfmask' % image4mask)
+            s.add('MakeMask.py --RestoredIm=%s --Th=4 --Box=150,15 --OutName=ddfmask' % image4mask, \
+                        log='makemask.log', commandType='python')
+            s.run()
             maskname = image4mask+'.ddfmask.fits'
         else:
             # make mask from previous cycle (low res)
@@ -816,7 +820,9 @@ for cmaj in range(maxIter):
 #            im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False, maskname=maskname) # To remove when activating mask_ext
             # DDF MakeMask.py
             image4mask = 'ddcal/c%02i/images/wideDD-c%02i.app.restored.fits' % (cmaj-1,cmaj-1)
-            os.system('MakeMask.py --RestoredIm=%s --Th=4 --Box=150,15 --OutName=ddfmask' % image4mask)
+            s.add('MakeMask.py --RestoredIm=%s --Th=4 --Box=150,15 --OutName=ddfmask' % image4mask, \
+                        log='makemask.log', commandType='python')
+            s.run()
             maskname = image4mask+'.ddfmask.fits'
 
             # additional output for final DDF call
