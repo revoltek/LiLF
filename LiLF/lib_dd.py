@@ -21,6 +21,7 @@ class Direction(object):
         self.spidx_coeffs = None  # 1st order - for each component
         self.ref_freq = None  # for each component
         self.converged = None  # bool
+        self.dist_from_centre = None # distance from the phase centre in deg
         self.peel_off = None
         self.region_file = None
 
@@ -122,7 +123,8 @@ class Direction(object):
         self.position = [round(position[0], 5), round(position[1], 5)]
         c1 = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
         c2 = SkyCoord(phase_center[0]*u.deg, phase_center[1]*u.deg, frame='fk5')
-        if c1.separation(c2).deg > distance_peeloff:
+        self.dist_from_centre = c1.separation(c2).deg
+        if self.dist_from_centre > distance_peeloff:
             self.peel_off = True
         else:
             self.peel_off = False

@@ -181,8 +181,8 @@ for cmaj in range(maxIter):
         # locating DD-calibrators
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
         cal.remove_rows((cal['Total_flux'] < 0.01) | (cal['Isl_Total_flux'] < 0.1)) # remove very faint to speedup
-        cal.remove_rows((cal['Total_flux'] > 5*cal['Peak_flux']) & (cal['Total_flux'] < 0.5)) # remove extended faint
-        cal.remove_rows((cal['Total_flux'] > 5*cal['Total_flux']*cal['Peak_flux']) & (cal['Total_flux'] >= 0.5)) # remove extended bright
+        #cal.remove_rows((cal['Total_flux'] > 5*cal['Peak_flux']) & (cal['Total_flux'] < 1.0)) # remove extended faint
+        #cal.remove_rows((cal['Total_flux'] > 10*cal['Peak_flux']) & (cal['Total_flux'] >= 1.0)) # remove extended bright
         cal['Cluster_id'] = 'None           '
         # grouping nearby sources
         grouper = lib_dd.Grouper(list(zip(cal['RA'],cal['DEC'])), cal['Total_flux'],
@@ -197,22 +197,32 @@ for cmaj in range(maxIter):
         clusters = grouper.clusters
         os.system('mv grouping*png ddcal/c%02i/plots/' % cmaj)
         img_beam = full_image.getBeam()
-        img_freq = full_image.getFreq()
 
         logger.info('Finding direction calibrators...')
         for cluster_num, cluster_idxs in enumerate(clusters):
             name = 'ddcal%04i' % cluster_num
             cal['Cluster_id'][cluster_idxs] = name  # just for debug
-
             fluxes = np.sum(cal['Total_flux'][cluster_idxs])
             spidx_coeffs = -0.8
-            ref_freqs = img_freq
             localrms = np.max(cal['Isl_rms'][cluster_idxs])
+
+            # remove clusters with diffuse calibrators
+            class ContinueI(Exception):
+                pass
+            continue_i = ContinueI()
+            try:
+                for subcal in cal[cluster_idxs]:
+                    if ((subcal['Total_flux']/subcal['Peak_flux']) > 4) and (subcal['Total_flux'] > 0.2*fluxes):
+                        logger.debug("%s: found extended source (skip)" % (name))
+                        cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
+                        raise continue_i
+            except ContinueI:
+                continue
 
             d = lib_dd.Direction(name)
             d.fluxes = fluxes
             d.spidx_coeffs = spidx_coeffs
-            d.ref_freq = ref_freqs
+            d.ref_freq = freq_mid
             d.localrms = localrms
 
             # skip faint directions
@@ -223,7 +233,7 @@ for cmaj in range(maxIter):
             else:
                 logger.debug("%s: flux density @ 60 MHz: %.1f mJy (good)" % (name, 1e3 * d.get_flux(60e6)))
 
-            #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,ref_freqs,size,img_beam,lsm.getColValues('MajorAxis')[idx])
+            #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,freq_mid,size,img_beam,lsm.getColValues('MajorAxis')[idx])
             ra = np.mean(cal['RA'][cluster_idxs])
             dec = np.mean(cal['DEC'][cluster_idxs])
             d.set_position([ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center)
@@ -242,7 +252,7 @@ for cmaj in range(maxIter):
         cal.write('ddcal/c%02i/skymodels/cat-c%02i.fits' % (cmaj,cmaj), format='fits', overwrite=True)
 
         # order directions from the fluxiest one
-        directions = [x for _, x in sorted(zip([d.get_flux(img_freq) for d in directions],directions))][::-1]
+        directions = [x for _, x in sorted(zip([d.get_flux(freq_mid) for d in directions],directions))][::-1]
 
         # If there's a preferential direciotn, get the closer direction to the final target and put it to the end
         if target_dir != '':
@@ -259,12 +269,12 @@ for cmaj in range(maxIter):
             d = directions.pop(target_idx)
             directions.insert(len(directions),d)
 
-        logger.info('Found {} cals brighter than {} Jy:'.format(len(directions), min_cal_flux60))
+        logger.info('Found {} cals brighter than {} Jy (expected at 60 MHz):'.format(len(directions), min_cal_flux60))
         for d in directions:
             if not d.peel_off:
-                logger.info('%s: flux: %.2f Jy (rms:%.2f mJy)' % (d.name, d.get_flux(img_freq), d.localrms*1e3))
+                logger.info('%s: flux: %.2f Jy (rms:%.2f mJy)' % (d.name, d.get_flux(freq_mid), d.localrms*1e3))
             else:
-                logger.info('%s: flux: %.2f Jy (rms: %.2f mJy - peel off)' % (d.name, d.get_flux(img_freq), d.localrms*1e3))
+                logger.info('%s: flux: %.2f Jy (rms: %.2f mJy - peel off)' % (d.name, d.get_flux(freq_mid), d.localrms*1e3))
 
         pickle.dump( directions, open( picklefile, "wb" ) )
     else:
@@ -319,9 +329,9 @@ for cmaj in range(maxIter):
     
             else:
 
-                # this dd-cal should not be in the data anymore but probably the source finder got some strong residuals
+                # either faint sources that were not detected before or residuals of peeled sources - skip?
                 if d.peel_off:
-                    logger.info('This sources has been peeled, skip.')
+                    logger.info('This sources is far in the outkirts - skip.')
                     continue
 
                 # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
@@ -381,7 +391,7 @@ for cmaj in range(maxIter):
             lib_util.check_rm('mss-dir')
             os.makedirs('mss-dir')
 
-            # Shift - ms:SUBTRACTED_DATA -> ms:DATA (->4/8/16/32 s and 1 chan every 2 SBs: tot of 60 or 120 chan)
+            # Shift - ms:SUBTRACTED_DATA -> ms:DATA (->8/16/32 s and 1 chan every 2 SBs: tot of 60 or 120 chan)
             if d.get_flux(freq_mid) > 10: avgtimeint = int(round(8/timeint))
             elif d.get_flux(freq_mid) > 4: avgtimeint = int(round(16/timeint))
             else: avgtimeint = int(round(32/timeint))
@@ -427,9 +437,9 @@ for cmaj in range(maxIter):
         doamp = False
         # usually there are 3600/32=112 or 3600/16=225 or 3600/8=450 timesteps and \
         # 60 (halfband)/120 (fullband) chans, try to use multiple numbers
-        iter_ph_solint = lib_util.Sol_iterator([8, 8, 4, 1])  # 32 or 16 or 8 * [8,4,1] s
+        iter_ph_solint = lib_util.Sol_iterator([8, 4, 1])  # 32 or 16 or 8 * [8,4,1] s
         iter_amp_solint = lib_util.Sol_iterator([30, 10, 5])  # 32 or 16 or 8 * [30,10,5] s
-        iter_amp2_solint = lib_util.Sol_iterator([30, 10])
+        iter_amp2_solint = lib_util.Sol_iterator([60, 30])
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
         logger.info('MM ratio (init): %f' % (mm_ratio_pre))
 
@@ -541,13 +551,23 @@ for cmaj in range(maxIter):
             d.add_rms_mm(rms_noise, mm_ratio) # track values for debug
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
             logger.info('MM ratio (cdd:%02i): %f' % (cdd,mm_ratio))
-            if rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre:
-                if (mm_ratio < 10 and cdd >= 2) or \
+            # if noise incresed and mm ratio decreased - or noise increased a lot!
+            if (rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre) or rms_noise > 1.2*rms_noise_pre:
+                   if (mm_ratio < 10 and cdd >= 2) or \
                    (mm_ratio < 20 and cdd >= 3) or \
-                   (mm_ratio < 30 and cdd >= 4) or \
-                   (cdd >= 5): break
+                   (cdd >= 4): 
+                       logger.debug('BREAK ddcal self cycle with noise: %f, noise_pre: %f, mmratio: %f, mmratio_pre: %f' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
+                       break
 
-            if cdd >= 4 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 40) or d.get_flux(freq_mid) > 5):
+            if cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or d.get_flux(freq_mid) > 5):
+                logger.debug('START AMP WITH MODE 1 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
+                doamp = True
+            # correct more amp in the outskirts
+            elif d.dist_from_centre >= fwhm/4. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 25) or d.get_flux(freq_mid) > 3):
+                logger.debug('START AMP WITH MODE 2 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
+                doamp = True
+            elif d.dist_from_centre >= fwhm/2. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 20) or d.get_flux(freq_mid) > 2):
+                logger.debug('START AMP WITH MODE 3 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
 
             d.set_model(image.root, typ='best', apply_region=False)  # current best model
@@ -683,7 +703,7 @@ for cmaj in range(maxIter):
             if ic == len(d.rms_noise)-2 and d.converged:
                 logger.info('%02i: Rms: %f, MMratio: %f - %s ***' % (ic,rms_noise,mm_ratio,tables_to_print))
             else:
-                logger.info('%02i: Rms: %f, MMratio: %f' % (ic,rms_noise,mm_ratio))
+                logger.info('%02i: Rms: %f, MMratio: %f - %s' % (ic,rms_noise,mm_ratio,tables_to_print))
 
         # replace color in the region file to distinguish region that converged from those that didn't
         if d.converged:
