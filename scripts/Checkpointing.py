@@ -1,23 +1,22 @@
 import pyregion
-from LiLF.lib_fits import flatten
+from LiLF.lib_img import flatten
 import astropy.io.fits as fits
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
 from astropy import units as u
-import math
 import astropy.wcs.utils as utils
-import os, sys
+from astropy.io import fits as pyfits
 
 
-def checkregion(pointing, image, region):
+def checkregion(pointing, fitsimage, region):
     """
     Check if target region is fully covered in the input image.
-    Currently works for box regions only.
+    Currently works for box and circles only.
     """
 
-    head, datafits = flatten(image)
+    hdul = fits.open(fitsimage)
+    head, datafits = flatten(hdul)
     r = pyregion.open(region)
-    hdul = fits.open(image)
 
     if len(r[0].coord_list) == 5:
         region_shape = 1
