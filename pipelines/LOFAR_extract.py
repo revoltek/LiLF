@@ -12,8 +12,11 @@ import sys, os, glob, re
 import numpy as np
 import pyregion
 from astropy.io import fits
+from astropy.wcs import WCS
+import lib_img
 import astropy.wcs
 from losoto.h5parm import h5parm
+from pathlib import Path
 import shutil
 import warnings
 from scripts import Checkpointing
@@ -57,6 +60,7 @@ parset_dir = parset.get('LOFAR_extract','parset_dir')
 maxniter = parset.getint('LOFAR_extract','maxniter')
 target_reg_file = parset.get('LOFAR_extract','extractRegion')  # default 'target.reg'
 phSolMode = parset.get('LOFAR_extract','phSolMode')  # default: tecandphase
+beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.5
 if phSolMode not in ['tecandphase', 'phase']:
     logger.error('phSolMode {} not supported. Choose tecandphase, phase.')
     sys.exit()
@@ -71,25 +75,46 @@ center = target_reg.get_center() # center of the extract region
 
 warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
 
-list_sub = [f for f in os.listdir('.') if os.path.isdir(f)]
-
+# check for directories in same hierachy that contain 'ddcal' and 'mss-avg' - assume these are processed LBA observations
+list_dirs = [_d for _d in Path('../').iterdir() if _d.is_dir()]
 tocheck = []
-for dir in list_sub:
-    if dir.startswith('p'):
-        if dir[-1].isdigit():
-            tocheck.append(dir)
-
+for dir in list_dirs:
+    if dir/'ddcal' in dir.iterdir() and dir/'mss-avg' in dir.iterdir():
+        tocheck.append(dir)
+close_pointings = []
 ## TODO add beam sensitivity criteria to pointing checker
-mslist = []
-for pointing in tocheck:
-    rel_image = pointing+'/ddcal/c01/images/wideDD-c01.app.restored.fits'
-    checked = Checkpointing.checkregion(pointing, rel_image, target_reg_file)
-    mslist.append(checked)
+if not os.path.exists('pointinglist.txt'):
+    for pointing in tocheck:
+        with fits.open(pointing/'ddcal/c01/images/wideDD-c01.MeanSmoothNorm.fits') as f:
+            header, data = lib_img.flatten(f)
+            wcs = WCS(header)
+            c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
+            # print(c_pix)
+            beam_value = data[c_pix[1]][c_pix[0]]  # TODO Maybe 1 and 0 are swapped here!
+            # beam_value2 = data[c_pix[0]][c_pix[1]]  # TODO Maybe 1 and 0 are swapped here!
 
+            # print(beam_value, beam_value2)
+            if beam_value > beam_cut:
+                close_pointings.append(pointing)
+
+    with open('pointinglist.txt', 'w') as f:
+        close_pointings = [str(p) for p in close_pointings]
+        f.write('\n'.join(close_pointings))
+
+        # rel_image = pointing+'/ddcal/c01/images/wideDD-c01.app.restored.fits'
+        # checked = Checkpointing.checkregion(pointing, rel_image, target_reg_file)
+        # mslist.append(checked)
+else:
+    with open('pointinglist.txt', 'r') as f:
+        close_pointings = f.readlines()
+        close_pointings = [line.rstrip() for line in close_pointings]
+
+if len(close_pointings) == 0:
+    raise ValueError(f"Did not find any pointing with primary beam response > {beam_cut}")
 print('')
 logger.info('The following pointings will be used:')
 print('')
-for name in mslist:
+for name in close_pointings:
     if name != None:
         logger.info(f'Pointing {name};')
 print('')
@@ -99,30 +124,29 @@ with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('extract')
     lib_util.check_rm('img')
-    lib_util.check_rm('mss-extract/allms')
+    lib_util.check_rm('mss-extract/shiftavg')
     os.makedirs('img')
 
-    os.makedirs('mss-extract/allms')
-    for i, el in enumerate(mslist):
-        if el != None:
-            os.makedirs('extract/init/'+el)
-            os.system('cp '+el+'/ddcal/c01/images/wideDD-c01.app.restored.fits extract/init/'+el)  # copy ddcal images
-            os.system('cp '+el+'/ddcal/c01/images/wideDD-c01.DicoModel extract/init/'+el)  # copy dico models
-            os.system('cp '+el+'/ddcal/c01/solutions/interp.h5 extract/init/'+el)  # copy final dde sols
-            lib_util.check_rm('mss-extract/'+el)
-            if not os.path.exists('mss-extract/'+el):
-                logger.info('Copying MS of '+el+'...')
-                os.makedirs('mss-extract/' + el)
-                os.system('cp -r '+el+'/mss-avg/* mss-extract/'+el)
+    os.makedirs('mss-extract/shiftavg')
+    for i, p in enumerate(close_pointings):
+            os.makedirs('extract/init/'+p)
+            os.system('cp '+p+'/ddcal/c01/images/wideDD-c01.app.restored.fits extract/init/'+p)  # copy ddcal images
+            os.system('cp '+p+'/ddcal/c01/images/wideDD-c01.DicoModel extract/init/'+p)  # copy dico models
+            os.system('cp '+p+'/ddcal/c01/solutions/interp.h5 extract/init/'+p)  # copy final dde sols
+            lib_util.check_rm('mss-extract/'+p)
+            if not os.path.exists('mss-extract/'+p):
+                logger.info('Copying MS of '+p+'...')
+                os.makedirs('mss-extract/' + p)
+                os.system('cp -r '+p+'/mss-avg/* mss-extract/'+p)
 
-                filelist = os.listdir(el+'/mss-avg/')
-                for file in filelist:
-                    src = el+'/mss-avg/'+file
-                    dst = 'mss-extract/allms/' + str(el) + '_' + str(file)
-                    shutil.copytree(src, dst)
+                # filelist = os.listdir(el+'/mss-avg/')
+                # for file in filelist:
+                #     src = el+'/mss-avg/'+file
+                #     dst = 'mss-extract/allms/' + str(el) + '_' + str(file)
+                #     shutil.copytree(src, dst)
 
 
-def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None, apply_beam=False):
+def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False):
     """
     p = patch name
     mss = list of mss to clean
@@ -169,78 +193,76 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, imagereg=None, apply_b
                              baseline_averaging='')
     else:
         arg_dict = dict()
-        # clean 1
-        # logger.info('Cleaning (' + str(p) + ')...')
-        # imagename = 'img/extract-' + str(p)
-        #
-        # lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
-        #                      size=imsize, scale=str(pixscale) + 'arcsec',
-        #                      weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
-        #                      mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
-        #                      fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, baseline_averaging='',
-        #                      **arg_dict)
-        #
-        # #make mask
-        # im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
-        # # try:
-        # #     im.makeMask(threshpix=10, rmsbox=(70, 5))
-        # # except:
-        # #     logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
-        # #     return
-        #
-        # # New mask method using Makemask.py
-        # formask = imagename + '-MFS-image.fits'
-        # try:
-        #     os.system(f'MakeMask.py --RestoredIm {formask} --Th 4 --Box 150,5')
-        # except:
-        #     logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
-        #     return
-        #
-        # if imagereg is not None:
-        #     lib_img.blank_image_reg(im.maskname, imagereg, inverse=True, blankval=0.)
+        # in case userReg is provided -> shallow clean, mask, merge mask with userReg, deep clean with mask
+        if userReg:
+            # clean 1
+            logger.info('Cleaning (' + str(p) + ')...')
+            imagename = 'img/extract-' + str(p)
 
-        # TODO add option for usermask
+            lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
+                                 size=imsize, scale=str(pixscale) + 'arcsec',
+                                 weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
+                                 mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
+                                 fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, baseline_averaging='',
+                                 **arg_dict)
 
+            #make mask
+            im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
+            # try:
+            #     im.makeMask(threshpix=10, rmsbox=(70, 5))
+            # except:
+            #     logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
+            #     return
+
+            # New mask method using Makemask.py
+            mask = imagename + '-MFS-image.fits'
+            try:
+                os.system(f'MakeMask.py --RestoredIm {mask} --Th 4 --Box 150,5')
+            except:
+                logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
+                return
+
+            lib_img.blank_image_reg(im.maskname, userReg, inverse=True, blankval=0.)
 
         # clean 2
         # TODO: add deconvolution_channels when bug fixed
-        # TODO fix user region
         logger.info('Cleaning w/ mask (' + str(p) + ')...')
         imagenameM = 'img/extractM-' + str(p)
         if apply_beam:
-            # Faster would be to resue psf, dirty + beam for the apply_beam case -> however, it causes SegFaults. TODO more investigation
             arg_dict['use_idg'] = ''
             arg_dict['grid_with_beam'] = ''
             arg_dict['beam_aterm_update'] = 800
         else:
             arg_dict['baseline_averaging'] = ''
-        #    arg_dict['reuse_psf'] = imagename
-        #    arg_dict['reuse_dirty'] = imagename
+            if userReg:
+                arg_dict['reuse_psf'] = imagename
+                arg_dict['reuse_dirty'] = imagename
+                arg_dict['fits_mask'] = mask + '.mask.fits',
 
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
                              size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=100000,
                              no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
                              parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0,
-                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3) fits_mask=formask+'.mask.fits',
+                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
         os.system('cat logs/wscleanB-' + str(p) + '.log | grep "background noise"')
 
-for el in mslist:
+for p in close_pointings:
 
-    if el != None:
+    if p != None:
 
-        MSs = lib_ms.AllMSs( glob.glob('mss-extract/'+el+'/*MS'), s )
+        MSs = lib_ms.AllMSs( glob.glob('mss-extract/'+p+'/*MS'), s )
         ch_out = MSs.getChout(4e6)  # chout from dd-serial
         fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
         phase_center = MSs.getListObj()[0].getPhaseCentre()
         # read image, h5parm, make mask
-        wideDD_image = lib_img.Image('extract/init/'+el+'/wideDD-c01.app.restored.fits')
-        dde_h5parm = 'extract/init/'+el+'/interp.h5'
+        wideDD_image = lib_img.Image('extract/init/'+p+'/wideDD-c01.app.restored.fits')
+        dde_h5parm = 'extract/init/'+p+'/interp.h5'
         # make mask for subtraction
         mask_ddcal = wideDD_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
         wideDD_image.makeMask(threshpix=5, atrous_do=True, maskname=mask_ddcal, write_srl=True, write_ds9=True)
 
 
-        with w.if_todo('predict_rest_'+el):
+        with w.if_todo('predict_rest_'+p):
             # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
             indico = wideDD_image.root + '.DicoModel'
             outdico = indico + '-' + target_reg_file.split('.')[0] # use prefix of target reg
@@ -265,11 +287,11 @@ for el in mslist:
             if 'Misc_ParsetVersion' in ddf_parms.keys(): del ddf_parms['Misc_ParsetVersion']
             if 'Mask_External' in ddf_parms.keys(): del ddf_parms['Mask_External']
 
-            logger.info('Predict corrupted rest-of-the-sky for '+el+'...')
+            logger.info('Predict corrupted rest-of-the-sky for '+p+'...')
             lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms)
             ### DONE
 
-        with w.if_todo('subtract_rest_'+el):
+        with w.if_todo('subtract_rest_'+p):
             # Remove corrupted data from CORRECTED_DATA
             logger.info('Add columns...')
             MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
@@ -279,28 +301,28 @@ for el in mslist:
             ### DONE
 
         ## TTESTTESTTEST: empty image
-        #if not os.path.exists('img/'+el+'_empty-but-target-image.fits'):
-            #clean('img/'+el+'but-target', MSs, size=(fwhm,fwhm), res='normal', empty=True)
+        #if not os.path.exists('img/'+p+'_empty-but-target-image.fits'):
+            #clean('img/'+p+'but-target', MSs, size=(fwhm,fwhm), res='normal', empty=True)
 
 
         # Phase shift in the target location
         # TODO frequency and time averaging differently for outer and sparse?
-        with w.if_todo('phaseshift_'+el):
+        with w.if_todo('phaseshift_'+p):
             logger.info('Phase shift and avg...')
-            MSs.run('DP3 '+parset_dir+'/DP3-shiftavg.parset msin=$pathMS msout=mss-extract/allms/'+el+'_$nameMS.MS-extract msin.datacolumn=SUBTRACTED_DATA \
+            MSs.run('DP3 '+parset_dir+'/DP3-shiftavg.parset msin=$pathMS msout=mss-extract/shiftavg/'+p+'_$nameMS.MS-extract msin.datacolumn=SUBTRACTED_DATA \
                     shift.phasecenter=['+str(center[0])+'deg,'+str(center[1])+'deg\] avg.freqstep=8 avg.timestep=4', \
-                    log=el+'$nameMS_shiftavg.log', commandType='DP3')
+                    log=p+'$nameMS_shiftavg.log', commandType='DP3')
             ### DONE
 
-        MSs_extract = lib_ms.AllMSs( glob.glob('mss-extract/allms/'+el+'_*.MS-extract'), s )
-        with w.if_todo('beamcorr_'+el):
+        MSs_extract = lib_ms.AllMSs( glob.glob('mss-extract/shiftavg/'+p+'_*.MS-extract'), s )
+        with w.if_todo('beamcorr_'+p):
             logger.info('Correcting beam...')  # TODO is this correct?
             # Convince DP3 that DATA is corrected for the beam in the phase centre
-            MSs_extract.run('DP3 ' + parset_dir + '/DP3-beam.parset msin=$pathMS', log=el+'$nameMS_beam-.log', commandType='DP3')
+            MSs_extract.run('DP3 ' + parset_dir + '/DP3-beam.parset msin=$pathMS', log=p+'$nameMS_beam-.log', commandType='DP3')
 
         # apply init - closest DDE sol
         # TODO: this assumes phase000 and optionally, amplitude000
-        with w.if_todo('apply_init_'+el):
+        with w.if_todo('apply_init_'+p):
             h5init = h5parm(dde_h5parm)
             solset_dde = h5init.getSolset('sol000')
             # get closest dir to target reg center
@@ -320,7 +342,7 @@ for el in mslist:
             h5init.close()
         ### DONE
 
-MSs_extract = lib_ms.AllMSs(glob.glob('mss-extract/allms/*.MS-extract'), s)
+MSs_extract = lib_ms.AllMSs(glob.glob('mss-extract/shiftavg/*.MS-extract'), s)
 
 # initial imaging to get the model in the MODEL_DATA (could also be done using the Dico DDFacet model
 with w.if_todo('image_init'):
@@ -449,8 +471,9 @@ for c in range(maxniter):
 
     with w.if_todo('image-c%02i' % c):
         logger.info('Imaging...')
-        # TODO: Apply beam for last iteration
-        clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=True) # size 2 times radius  , apply_beam = c==maxniter
+        # if we have more than one close pointing, need to apply idg beam each iteration
+        do_beam = len(close_pointings) > 1
+        clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg) # size 2 times radius  , apply_beam = c==maxniter
     ### DONE
 
     # get noise, if larger than 95% of prev cycle: break
@@ -518,5 +541,5 @@ with w.if_todo('apply_final'):
 
 with w.if_todo('imaging_final'):
     logger.info('Final imaging w/ beam correction...')
-    clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True)  # size 2 times radius  , apply_beam = c==maxniter
+    clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg)  # size 2 times radius  , apply_beam = c==maxniter
     logger.info('Done.')
