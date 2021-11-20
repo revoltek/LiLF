@@ -10,16 +10,12 @@
 
 import sys, os, glob, re
 import numpy as np
-import pyregion
 from astropy.io import fits
 from astropy.wcs import WCS
-import lib_img
 import astropy.wcs
 from losoto.h5parm import h5parm
 from pathlib import Path
-import shutil
 import warnings
-from scripts import Checkpointing
 
 def get_ddf_parms_from_header(img):
     """
@@ -90,8 +86,11 @@ if not os.path.exists('pointinglist.txt'):
             wcs = WCS(header)
             c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
             # print(c_pix)
-            beam_value = data[c_pix[1]][c_pix[0]]  # TODO Maybe 1 and 0 are swapped here!
-            # beam_value2 = data[c_pix[0]][c_pix[1]]  # TODO Maybe 1 and 0 are swapped here!
+            try:
+                beam_value = data[c_pix[1]][c_pix[0]]  # TODO Maybe 1 and 0 are swapped here!
+                # beam_value2 = data[c_pix[0]][c_pix[1]]  # TODO Maybe 1 and 0 are swapped here!
+            except IndexError:
+                continue
 
             # print(beam_value, beam_value2)
             if beam_value > beam_cut:

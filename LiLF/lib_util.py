@@ -85,7 +85,7 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_extract', 'maxniter', '10')
     add_default('LOFAR_extract', 'extractRegion', 'target.reg')
     add_default('LOFAR_extract', 'phSolMode', 'phase') # tecandphase, phase
-    add_default('LOFAR_extract', 'beam_cut', '0.5') # up to which distance a pointing will be considered
+    add_default('LOFAR_extract', 'beam_cut', '0.3') # up to which distance a pointing will be considered
 
     ### uGMRT ###
 
