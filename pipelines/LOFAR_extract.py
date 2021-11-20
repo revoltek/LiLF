@@ -50,101 +50,6 @@ logger = lib_log.logger
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-extract.walker')
 
-# parse parset
-parset = lib_util.getParset()
-parset_dir = parset.get('LOFAR_extract','parset_dir')
-maxniter = parset.getint('LOFAR_extract','maxniter')
-target_reg_file = parset.get('LOFAR_extract','extractRegion')  # default 'target.reg'
-phSolMode = parset.get('LOFAR_extract','phSolMode')  # default: tecandphase
-beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.5
-if phSolMode not in ['tecandphase', 'phase']:
-    logger.error('phSolMode {} not supported. Choose tecandphase, phase.')
-    sys.exit()
-userReg = parset.get('model','userReg')
-
-
-############################
-
-# region must be a list of ds9 circles and polygons (other shapes can be implemented in lib_util.Rgion_helper()
-target_reg = lib_util.Region_helper(target_reg_file)
-center = target_reg.get_center() # center of the extract region
-
-warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
-
-# check for directories in same hierachy that contain 'ddcal' and 'mss-avg' - assume these are processed LBA observations
-list_dirs = [_d for _d in Path('../').iterdir() if _d.is_dir()]
-tocheck = []
-for dir in list_dirs:
-    if dir/'ddcal' in dir.iterdir() and dir/'mss-avg' in dir.iterdir():
-        tocheck.append(dir)
-close_pointings = []
-## TODO add beam sensitivity criteria to pointing checker
-if not os.path.exists('pointinglist.txt'):
-    for pointing in tocheck:
-        with fits.open(pointing/'ddcal/c01/images/wideDD-c01.MeanSmoothNorm.fits') as f:
-            header, data = lib_img.flatten(f)
-            wcs = WCS(header)
-            c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
-            # print(c_pix)
-            try:
-                beam_value = data[c_pix[1]][c_pix[0]]  # TODO Maybe 1 and 0 are swapped here!
-                # beam_value2 = data[c_pix[0]][c_pix[1]]  # TODO Maybe 1 and 0 are swapped here!
-            except IndexError:
-                continue
-
-            # print(beam_value, beam_value2)
-            if beam_value > beam_cut:
-                close_pointings.append(pointing)
-
-    with open('pointinglist.txt', 'w') as f:
-        close_pointings = [str(p) for p in close_pointings]
-        f.write('\n'.join(close_pointings))
-
-        # rel_image = pointing+'/ddcal/c01/images/wideDD-c01.app.restored.fits'
-        # checked = Checkpointing.checkregion(pointing, rel_image, target_reg_file)
-        # mslist.append(checked)
-else:
-    with open('pointinglist.txt', 'r') as f:
-        close_pointings = f.readlines()
-        close_pointings = [line.rstrip() for line in close_pointings]
-
-if len(close_pointings) == 0:
-    raise ValueError(f"Did not find any pointing with primary beam response > {beam_cut}")
-print('')
-logger.info('The following pointings will be used:')
-print('')
-for name in close_pointings:
-    if name != None:
-        logger.info(f'Pointing {name};')
-print('')
-
-
-with w.if_todo('cleaning'):
-    logger.info('Cleaning...')
-    lib_util.check_rm('extract')
-    lib_util.check_rm('img')
-    lib_util.check_rm('mss-extract/shiftavg')
-    os.makedirs('img')
-
-    os.makedirs('mss-extract/shiftavg')
-    for i, p in enumerate(close_pointings):
-            os.makedirs('extract/init/'+p)
-            os.system('cp '+p+'/ddcal/c01/images/wideDD-c01.app.restored.fits extract/init/'+p)  # copy ddcal images
-            os.system('cp '+p+'/ddcal/c01/images/wideDD-c01.DicoModel extract/init/'+p)  # copy dico models
-            os.system('cp '+p+'/ddcal/c01/solutions/interp.h5 extract/init/'+p)  # copy final dde sols
-            lib_util.check_rm('mss-extract/'+p)
-            if not os.path.exists('mss-extract/'+p):
-                logger.info('Copying MS of '+p+'...')
-                os.makedirs('mss-extract/' + p)
-                os.system('cp -r '+p+'/mss-avg/* mss-extract/'+p)
-
-                # filelist = os.listdir(el+'/mss-avg/')
-                # for file in filelist:
-                #     src = el+'/mss-avg/'+file
-                #     dst = 'mss-extract/allms/' + str(el) + '_' + str(file)
-                #     shutil.copytree(src, dst)
-
-
 def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False):
     """
     p = patch name
@@ -245,101 +150,180 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                              join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
         os.system('cat logs/wscleanB-' + str(p) + '.log | grep "background noise"')
 
+# parse parset
+parset = lib_util.getParset()
+parset_dir = parset.get('LOFAR_extract','parset_dir')
+maxniter = parset.getint('LOFAR_extract','maxniter')
+target_reg_file = parset.get('LOFAR_extract','extractRegion')  # default 'target.reg'
+phSolMode = parset.get('LOFAR_extract','phSolMode')  # default: tecandphase
+beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.5
+if phSolMode not in ['tecandphase', 'phase']:
+    logger.error('phSolMode {} not supported. Choose tecandphase, phase.')
+    sys.exit()
+userReg = parset.get('model','userReg')
+
+##########
+
+# region must be a list of ds9 circles and polygons (other shapes can be implemented in lib_util.Rgion_helper()
+target_reg = lib_util.Region_helper(target_reg_file)
+center = target_reg.get_center() # center of the extract region
+
+warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
+
+# check for directories in same hierachy that contain 'ddcal' and 'mss-avg' - assume these are processed LBA observations
+list_dirs = [_d for _d in Path('../').iterdir() if _d.is_dir()]
+tocheck = []
+for dir in list_dirs:
+    if dir/'ddcal' in dir.iterdir() and dir/'mss-avg' in dir.iterdir():
+        tocheck.append(dir)
+close_pointings = []
+## TODO add beam sensitivity criteria to pointing checker
+if not os.path.exists('pointinglist.txt'):
+    for pointing in tocheck:
+        with fits.open(pointing/'ddcal/c01/images/wideDD-c01.MeanSmoothNorm.fits') as f:
+            header, data = lib_img.flatten(f)
+            wcs = WCS(header)
+            c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
+            # print(c_pix)
+            try:
+                beam_value = data[c_pix[1]][c_pix[0]]  # TODO Maybe 1 and 0 are swapped here!
+                # beam_value2 = data[c_pix[0]][c_pix[1]]  # TODO Maybe 1 and 0 are swapped here!
+            except IndexError:
+                continue
+
+            # print(beam_value, beam_value2)
+            if beam_value > beam_cut:
+                close_pointings.append(str(pointing).split('/')[-1])
+
+    with open('pointinglist.txt', 'w') as f:
+        f.write('\n'.join(close_pointings))
+else:
+    with open('pointinglist.txt', 'r') as f:
+        close_pointings = f.readlines()
+        close_pointings = [line.rstrip() for line in close_pointings]
+
+if len(close_pointings) == 0:
+    raise ValueError(f"Did not find any pointing with primary beam response > {beam_cut}")
+print('')
+logger.info('The following pointings will be used:')
+print('')
+for name in close_pointings:
+    if name != None:
+        logger.info(f'Pointing {name};')
+print('')
+
+
+with w.if_todo('cleaning'):
+    logger.info('Cleaning...')
+    lib_util.check_rm('extract')
+    lib_util.check_rm('img')
+    lib_util.check_rm('mss-extract/shiftavg')
+    os.makedirs('img')
+
+    os.makedirs('mss-extract/shiftavg')
+    for i, p in enumerate(close_pointings):
+            os.makedirs('extract/init/'+p)
+            os.system(f'cp ../{p}/ddcal/c01/images/wideDD-c01.app.restored.fits extract/init/{p}')  # copy ddcal images
+            os.system(f'cp ../{p}/ddcal/c01/images/wideDD-c01.DicoModel extract/init/{p}')  # copy dico models
+            os.system(f'cp ../{p}/ddcal/c01/solutions/interp.h5 extract/init/{p}')  # copy final dde sols
+            lib_util.check_rm('mss-extract/'+p)
+            if not os.path.exists('mss-extract/'+p):
+                logger.info('Copying MS of '+p+'...')
+                os.makedirs('mss-extract/' + p)
+                os.system(f'cp -r ../{p}/mss-avg/* mss-extract/{p}')
+
+
 for p in close_pointings:
+    MSs = lib_ms.AllMSs( glob.glob('mss-extract/'+p+'/*MS'), s )
+    ch_out = MSs.getChout(4e6)  # chout from dd-serial
+    fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
+    phase_center = MSs.getListObj()[0].getPhaseCentre()
+    # read image, h5parm, make mask
+    wideDD_image = lib_img.Image('extract/init/'+p+'/wideDD-c01.app.restored.fits')
+    dde_h5parm = 'extract/init/'+p+'/interp.h5'
+    # make mask for subtraction
+    mask_ddcal = wideDD_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
+    wideDD_image.makeMask(threshpix=5, atrous_do=True, maskname=mask_ddcal, write_srl=True, write_ds9=True)
 
-    if p != None:
+    with w.if_todo('predict_rest_'+p):
+        # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
+        indico = wideDD_image.root + '.DicoModel'
+        outdico = indico + '-' + target_reg_file.split('.')[0] # use prefix of target reg
+        inmask = sorted(glob.glob(wideDD_image.root + '*_mask-ddcal.fits'))[-1]
+        outmask = outdico + '.mask'
+        lib_img.blank_image_reg(inmask, target_reg_file, outfile=outmask, inverse=False, blankval=0.)
+        s.add('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask, indico, outdico),
+              log='MaskDicoModel.log', commandType='python', processors='max')
+        s.run(check=True)
 
-        MSs = lib_ms.AllMSs( glob.glob('mss-extract/'+p+'/*MS'), s )
-        ch_out = MSs.getChout(4e6)  # chout from dd-serial
-        fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
-        phase_center = MSs.getListObj()[0].getPhaseCentre()
-        # read image, h5parm, make mask
-        wideDD_image = lib_img.Image('extract/init/'+p+'/wideDD-c01.app.restored.fits')
-        dde_h5parm = 'extract/init/'+p+'/interp.h5'
-        # make mask for subtraction
-        mask_ddcal = wideDD_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
-        wideDD_image.makeMask(threshpix=5, atrous_do=True, maskname=mask_ddcal, write_srl=True, write_ds9=True)
+        # get DDF parameters used to create the image/model
+        ddf_parms = get_ddf_parms_from_header(wideDD_image.imagename)
+        # change for PREDICT
+        ddf_parms['Data_MS'] = MSs.getStrDDF()
+        ddf_parms['Data_ColName'] = 'CORRECTED_DATA'
+        ddf_parms['Predict_ColName'] = 'MODEL_DATA'
+        ddf_parms['Output_Mode'] = 'Predict'
+        ddf_parms['Predict_InitDicoModel'] = outdico
+        ddf_parms['Beam_Smooth'] = 1
+        ddf_parms['Cache_Reset'] = 1
+        ddf_parms['DDESolutions_DDSols'] = dde_h5parm + ':sol000/phase000+amplitude000'
+        if 'Misc_ParsetVersion' in ddf_parms.keys(): del ddf_parms['Misc_ParsetVersion']
+        if 'Mask_External' in ddf_parms.keys(): del ddf_parms['Mask_External']
 
-
-        with w.if_todo('predict_rest_'+p):
-            # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
-            indico = wideDD_image.root + '.DicoModel'
-            outdico = indico + '-' + target_reg_file.split('.')[0] # use prefix of target reg
-            inmask = sorted(glob.glob(wideDD_image.root + '*_mask-ddcal.fits'))[-1]
-            outmask = outdico + '.mask'
-            lib_img.blank_image_reg(inmask, target_reg_file, outfile=outmask, inverse=False, blankval=0.)
-            s.add('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask, indico, outdico),
-                  log='MaskDicoModel.log', commandType='python', processors='max')
-            s.run(check=True)
-
-            # get DDF parameters used to create the image/model
-            ddf_parms = get_ddf_parms_from_header(wideDD_image.imagename)
-            # change for PREDICT
-            ddf_parms['Data_MS'] = MSs.getStrDDF()
-            ddf_parms['Data_ColName'] = 'CORRECTED_DATA'
-            ddf_parms['Predict_ColName'] = 'MODEL_DATA'
-            ddf_parms['Output_Mode'] = 'Predict'
-            ddf_parms['Predict_InitDicoModel'] = outdico
-            ddf_parms['Beam_Smooth'] = 1
-            ddf_parms['Cache_Reset'] = 1
-            ddf_parms['DDESolutions_DDSols'] = dde_h5parm + ':sol000/phase000+amplitude000'
-            if 'Misc_ParsetVersion' in ddf_parms.keys(): del ddf_parms['Misc_ParsetVersion']
-            if 'Mask_External' in ddf_parms.keys(): del ddf_parms['Mask_External']
-
-            logger.info('Predict corrupted rest-of-the-sky for '+p+'...')
-            lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms)
-            ### DONE
-
-        with w.if_todo('subtract_rest_'+p):
-            # Remove corrupted data from CORRECTED_DATA
-            logger.info('Add columns...')
-            MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
-            logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
-                    log='$nameMS_subtract.log', commandType='general')
-            ### DONE
-
-        ## TTESTTESTTEST: empty image
-        #if not os.path.exists('img/'+p+'_empty-but-target-image.fits'):
-            #clean('img/'+p+'but-target', MSs, size=(fwhm,fwhm), res='normal', empty=True)
-
-
-        # Phase shift in the target location
-        # TODO frequency and time averaging differently for outer and sparse?
-        with w.if_todo('phaseshift_'+p):
-            logger.info('Phase shift and avg...')
-            MSs.run('DP3 '+parset_dir+'/DP3-shiftavg.parset msin=$pathMS msout=mss-extract/shiftavg/'+p+'_$nameMS.MS-extract msin.datacolumn=SUBTRACTED_DATA \
-                    shift.phasecenter=['+str(center[0])+'deg,'+str(center[1])+'deg\] avg.freqstep=8 avg.timestep=4', \
-                    log=p+'$nameMS_shiftavg.log', commandType='DP3')
-            ### DONE
-
-        MSs_extract = lib_ms.AllMSs( glob.glob('mss-extract/shiftavg/'+p+'_*.MS-extract'), s )
-        with w.if_todo('beamcorr_'+p):
-            logger.info('Correcting beam...')  # TODO is this correct?
-            # Convince DP3 that DATA is corrected for the beam in the phase centre
-            MSs_extract.run('DP3 ' + parset_dir + '/DP3-beam.parset msin=$pathMS', log=p+'$nameMS_beam-.log', commandType='DP3')
-
-        # apply init - closest DDE sol
-        # TODO: this assumes phase000 and optionally, amplitude000
-        with w.if_todo('apply_init_'+p):
-            h5init = h5parm(dde_h5parm)
-            solset_dde = h5init.getSolset('sol000')
-            # get closest dir to target reg center
-            dirs = np.array([solset_dde.getSou()[k] for k in solset_dde.getSoltab('phase000').dir])
-            dir_dist = lib_util.distanceOnSphere(dirs[:,0], dirs[:,1],*np.deg2rad(center), rad=True)
-            closest = solset_dde.getSoltab('phase000').dir[np.argmin(dir_dist)]
-            logger.info('Init apply: correct closest DDE solutions ({})'.format(closest))
-            logger.info('Correct init ph...')
-            MSs_extract.run('DP3 ' + parset_dir + '/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA '
-                                           'msout.datacolumn=CORRECTED_DATA cor.parmdb=' + dde_h5parm + ' cor.correction=phase000 cor.direction='+closest,
-                    log='$nameMS_init-correct.log', commandType='DP3')
-            if 'amplitude000' in solset_dde.getSoltabNames():
-                logger.info('Correct init amp...')
-                MSs_extract.run('DP3 ' + parset_dir + '/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-                             cor.parmdb=' + dde_h5parm + ' cor.correction=amplitude000 cor.direction=' + closest,
-                        log='$nameMS_init-correct.log', commandType='DP3')
-            h5init.close()
+        logger.info('Predict corrupted rest-of-the-sky for '+p+'...')
+        lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms)
         ### DONE
+
+    with w.if_todo('subtract_rest_'+p):
+        # Remove corrupted data from CORRECTED_DATA
+        logger.info('Add columns...')
+        MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+        logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
+                log='$nameMS_subtract.log', commandType='general')
+        ### DONE
+
+    ## TTESTTESTTEST: empty image
+    #if not os.path.exists('img/'+p+'_empty-but-target-image.fits'):
+        #clean('img/'+p+'but-target', MSs, size=(fwhm,fwhm), res='normal', empty=True)
+
+
+    # Phase shift in the target location
+    # TODO frequency and time averaging differently for outer and sparse?
+    with w.if_todo('phaseshift_'+p):
+        logger.info('Phase shift and avg...')
+        MSs.run('DP3 '+parset_dir+'/DP3-shiftavg.parset msin=$pathMS msout=mss-extract/shiftavg/'+p+'_$nameMS.MS-extract msin.datacolumn=SUBTRACTED_DATA \
+                shift.phasecenter=['+str(center[0])+'deg,'+str(center[1])+'deg\] avg.freqstep=8 avg.timestep=4', \
+                log=p+'$nameMS_shiftavg.log', commandType='DP3')
+        ### DONE
+
+    MSs_extract = lib_ms.AllMSs( glob.glob('mss-extract/shiftavg/'+p+'_*.MS-extract'), s )
+    with w.if_todo('beamcorr_'+p):
+        logger.info('Correcting beam...')  # TODO is this correct?
+        # Convince DP3 that DATA is corrected for the beam in the phase centre
+        MSs_extract.run('DP3 ' + parset_dir + '/DP3-beam.parset msin=$pathMS', log=p+'$nameMS_beam-.log', commandType='DP3')
+
+    # apply init - closest DDE sol
+    # TODO: this assumes phase000 and optionally, amplitude000
+    with w.if_todo('apply_init_'+p):
+        h5init = h5parm(dde_h5parm)
+        solset_dde = h5init.getSolset('sol000')
+        # get closest dir to target reg center
+        dirs = np.array([solset_dde.getSou()[k] for k in solset_dde.getSoltab('phase000').dir])
+        dir_dist = lib_util.distanceOnSphere(dirs[:,0], dirs[:,1],*np.deg2rad(center), rad=True)
+        closest = solset_dde.getSoltab('phase000').dir[np.argmin(dir_dist)]
+        logger.info('Init apply: correct closest DDE solutions ({})'.format(closest))
+        logger.info('Correct init ph...')
+        MSs_extract.run('DP3 ' + parset_dir + '/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA '
+                                       'msout.datacolumn=CORRECTED_DATA cor.parmdb=' + dde_h5parm + ' cor.correction=phase000 cor.direction='+closest,
+                log='$nameMS_init-correct.log', commandType='DP3')
+        if 'amplitude000' in solset_dde.getSoltabNames():
+            logger.info('Correct init amp...')
+            MSs_extract.run('DP3 ' + parset_dir + '/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                         cor.parmdb=' + dde_h5parm + ' cor.correction=amplitude000 cor.direction=' + closest,
+                    log='$nameMS_init-correct.log', commandType='DP3')
+        h5init.close()
+    ### DONE
 
 MSs_extract = lib_ms.AllMSs(glob.glob('mss-extract/shiftavg/*.MS-extract'), s)
 
