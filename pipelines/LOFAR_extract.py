@@ -111,7 +111,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                                  **arg_dict)
 
             #make mask
-            im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
+            # im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
             # try:
             #     im.makeMask(threshpix=10, rmsbox=(70, 5))
             # except:
@@ -126,7 +126,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                 logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
                 return
 
-            lib_img.blank_image_reg(im.maskname, userReg, inverse=True, blankval=0.)
+            lib_img.blank_image_reg(mask + '.mask.fits', userReg, inverse=True, blankval=0.)
 
         # clean 2
         # TODO: add deconvolution_channels when bug fixed
@@ -141,7 +141,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             if userReg:
                 arg_dict['reuse_psf'] = imagename
                 arg_dict['reuse_dirty'] = imagename
-                arg_dict['fits_mask'] = mask + '.mask.fits',
+                arg_dict['fits_mask'] = mask + '.mask.fits'
 
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
                              size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=100000,
