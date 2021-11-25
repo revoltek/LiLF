@@ -312,11 +312,12 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     # basic parms
     wsc_parms.append( '-j '+str(s.max_processors)+' -reorder -parallel-reordering 4 ' )
     if 'use_idg' in kwargs.keys():
-        if s.get_cluster() == 'Hamburg_fat':
-            wsc_parms.append( '-idg-mode hybrid' )
-            wsc_parms.append( '-mem 10' )
-        else:
-            wsc_parms.append( '-idg-mode cpu' )
+        # for singularity: does not work with gpu
+        # if s.get_cluster() == 'Hamburg_fat':
+            # wsc_parms.append( '-idg-mode hybrid' )
+            # wsc_parms.append( '-mem 10' )
+        # else:
+        wsc_parms.append( '-idg-mode cpu' )
 
     # other stanrdard parms
     wsc_parms.append( '-clean-border 1' )
@@ -692,6 +693,7 @@ class Scheduler():
         """
         Produce a warning if a command didn't close the log properly i.e. it crashed
         NOTE: grep, -L inverse match, -l return only filename
+        # TODO add commandType=DDFacet consistently to pipelines, check for keywords
         """
 
         if (not os.path.exists(log)):
@@ -720,6 +722,13 @@ class Scheduler():
             out += subprocess.check_output('grep -l "Aborted" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
+        elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
+            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "exception occur" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "Segmentation fault\|Killed" ' + log + ' ; exit 0', shell=True,
+                                           stderr=subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "Aborted" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
         elif (commandType == "python"):
             out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)

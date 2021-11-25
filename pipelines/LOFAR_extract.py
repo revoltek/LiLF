@@ -110,14 +110,6 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                                  fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, baseline_averaging='',
                                  **arg_dict)
 
-            #make mask
-            # im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
-            # try:
-            #     im.makeMask(threshpix=10, rmsbox=(70, 5))
-            # except:
-            #     logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
-            #     return
-
             # New mask method using Makemask.py
             mask = imagename + '-MFS-image.fits'
             try:
@@ -125,15 +117,19 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             except:
                 logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
                 return
+            lib_img.blank_image_reg(mask + '.mask.fits', userReg, inverse=False, blankval=1.)
 
-            lib_img.blank_image_reg(mask + '.mask.fits', userReg, inverse=True, blankval=0.)
 
         # clean 2
         # TODO: add deconvolution_channels when bug fixed
-        logger.info('Cleaning w/ mask (' + str(p) + ')...')
+        if userReg:
+            logger.info('Cleaning w/ mask (' + str(p) + ')...')
+        else:
+            logger.info('Cleaning (' + str(p) + ')...')
         imagenameM = 'img/extractM-' + str(p)
         if apply_beam:
             arg_dict['use_idg'] = ''
+            arg_dict['idg_mode'] = 'cpu'
             arg_dict['grid_with_beam'] = ''
             arg_dict['beam_aterm_update'] = 800
         else:
@@ -253,7 +249,7 @@ for p in close_pointings:
         outmask = outdico + '.mask'
         lib_img.blank_image_reg(inmask, target_reg_file, outfile=outmask, inverse=False, blankval=0.)
         s.add('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask, indico, outdico),
-              log='MaskDicoModel.log', commandType='python', processors='max')
+              log='MaskDicoModel.log', commandType='DDFacet', processors='max')
         s.run(check=True)
 
         # get DDF parameters used to create the image/model
@@ -346,6 +342,7 @@ rms_noise_init, mm_ratio_init = rms_noise_pre, mm_ratio_pre
 doamp = False
 
 # Per default we have 32s exposure
+# TODO should be a function of flux?
 #iter_ph_solint = lib_util.Sol_iterator([8, 8, 4, 2, 1])
 iter_ph_solint = lib_util.Sol_iterator([8, 8, 8, 8, 8])
 iter_amp_solint = lib_util.Sol_iterator([60, 60, 30, 15])
