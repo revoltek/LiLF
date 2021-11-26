@@ -394,7 +394,7 @@ def run_DDF(s, logfile, **kwargs):
 
     # create command string
     command_string = 'DDF.py '+' '.join(ddf_parms)
-    s.add(command_string, log=logfile, commandType='python', processors='max')
+    s.add(command_string, log=logfile, commandType='DDFacet', processors='max')
     s.run(check=True)
 
 
