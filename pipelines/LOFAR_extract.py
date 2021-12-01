@@ -10,6 +10,7 @@
 
 import sys, os, glob, re
 import numpy as np
+import lsmtool as lsm
 from astropy.io import fits
 from astropy.wcs import WCS
 import astropy.wcs
@@ -140,9 +141,9 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                 arg_dict['fits_mask'] = mask + '.mask.fits'
 
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
-                             size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=100000,
+                             size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=100000, local_rms='',
                              no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
-                             parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0,
+                             parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
                              join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
         os.system('cat logs/wscleanB-' + str(p) + '.log | grep "background noise"')
 
@@ -283,21 +284,19 @@ for p in close_pointings:
     #if not os.path.exists('img/'+p+'_empty-but-target-image.fits'):
         #clean('img/'+p+'but-target', MSs, size=(fwhm,fwhm), res='normal', empty=True)
 
-
     # Phase shift in the target location
-    # TODO frequency and time averaging differently for outer and sparse?
     with w.if_todo('phaseshift_'+p):
+        t_avg_factor = int(round(32/MSs.getListObj()[0].getTimeInt()))
         logger.info('Phase shift and avg...')
-        MSs.run('DP3 '+parset_dir+'/DP3-shiftavg.parset msin=$pathMS msout=mss-extract/shiftavg/'+p+'_$nameMS.MS-extract msin.datacolumn=SUBTRACTED_DATA \
-                shift.phasecenter=['+str(center[0])+'deg,'+str(center[1])+'deg\] avg.freqstep=8 avg.timestep=4', \
+        MSs.run(f'DP3 {parset_dir}/DP3-shiftavg.parset msin=$pathMS msout=mss-extract/shiftavg/{p}_$nameMS.MS-extract msin.datacolumn=SUBTRACTED_DATA '
+                f'shift.phasecenter=[{center[0]}deg,{center[1]}deg\] avg.freqstep=8 avg.timestep={t_avg_factor}',
                 log=p+'$nameMS_shiftavg.log', commandType='DP3')
         ### DONE
 
     MSs_extract = lib_ms.AllMSs( glob.glob('mss-extract/shiftavg/'+p+'_*.MS-extract'), s )
     with w.if_todo('beamcorr_'+p):
-        logger.info('Correcting beam...')  # TODO is this correct?
-        # Convince DP3 that DATA is corrected for the beam in the phase centre
-        MSs_extract.run('DP3 ' + parset_dir + '/DP3-beam.parset msin=$pathMS', log=p+'$nameMS_beam-.log', commandType='DP3')
+        logger.info('Correcting beam...')
+        MSs_extract.run('DP3 ' + parset_dir + '/DP3-beam.parset msin=$pathMS', log='$nameMS_beam-.log', commandType='DP3')
 
     # apply init - closest DDE sol
     # TODO: this assumes phase000 and optionally, amplitude000
@@ -323,10 +322,11 @@ for p in close_pointings:
 
 MSs_extract = lib_ms.AllMSs(glob.glob('mss-extract/shiftavg/*.MS-extract'), s)
 
-# initial imaging to get the model in the MODEL_DATA (could also be done using the Dico DDFacet model
+# initial imaging to get the model in the MODEL_DATA (could also be done using the Dico DDFacet model)
+do_beam = len(close_pointings) > 1 # if > 1 pointing, correct beam every cycle, otherwise only at the end.
 with w.if_todo('image_init'):
     logger.info('Initial imaging...')
-    clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=True)
+    clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam)
     ### DONE;
 
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
@@ -341,14 +341,26 @@ rms_noise_pre, mm_ratio_pre = image.getNoise(), image.getMaxMinRatio()
 rms_noise_init, mm_ratio_init = rms_noise_pre, mm_ratio_pre
 doamp = False
 
+image.selectCC(checkBeam=False)
+sm = lsm.load(image.skymodel_cut)
+total_flux = np.sum(sm.getColValues('I', aggregate='sum'))
+
+
 # Per default we have 32s exposure
-# TODO should be a function of flux?
-#iter_ph_solint = lib_util.Sol_iterator([8, 8, 4, 2, 1])
-iter_ph_solint = lib_util.Sol_iterator([8, 8, 8, 8, 8])
-iter_amp_solint = lib_util.Sol_iterator([60, 60, 30, 15])
-iter_amp2_solint = lib_util.Sol_iterator([120, 60, 60, 30])
+# shortest time interval for phase solutions as a function of total flux
+ph_int = [8]
+if total_flux > 3:
+    ph_int.append(4)
+if total_flux > 5:
+    ph_int.append(2)
+if total_flux > 10:
+    ph_int.append(1)
+iter_ph_solint = lib_util.Sol_iterator(ph_int)
+iter_amp_solint = lib_util.Sol_iterator([60, 30, 15])
+iter_amp2_solint = lib_util.Sol_iterator([60, 30])
 logger.info('RMS noise (init): %f' % (rms_noise_pre))
 logger.info('MM ratio (init): %f' % (mm_ratio_pre))
+logger.info('Total flux (init): %f Jy' % (total_flux))
 rms_noise_pre = np.inf
 
 for c in range(maxniter):
@@ -452,31 +464,28 @@ for c in range(maxniter):
     with w.if_todo('image-c%02i' % c):
         logger.info('Imaging...')
         # if we have more than one close pointing, need to apply idg beam each iteration
-        do_beam = len(close_pointings) > 1
         clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg) # size 2 times radius  , apply_beam = c==maxniter
     ### DONE
 
-    # get noise, if larger than 95% of prev cycle: break
-    extract_image = lib_img.Image('img/extractM-c%02i-MFS-image.fits' % c)
-    # get noise, if larger than prev cycle: break
-    rms_noise = extract_image.getNoise()
-    mm_ratio = extract_image.getMaxMinRatio()
+    # get noise, if larger than 98% of prev cycle: break
+    extract_image = lib_img.Image('img/extractM-c%02i-MFS-image.fits' % c, userReg=userReg)
+    rms_noise, mm_ratio = extract_image.getNoise(), extract_image.getMaxMinRatio()
+
+    extract_image.selectCC(checkBeam=False)
+    sm = lsm.load(extract_image.skymodel_cut)
+    total_flux = np.sum(sm.getColValues('I', aggregate='sum'))
     logger.info('RMS noise (c:%02i): %f' % (c, rms_noise))
     logger.info('MM ratio (c:%02i): %f' % (c, mm_ratio))
+    logger.info('Total flux (c:%02i): %f Jy' % (c, total_flux))
+
     if rms_noise < rms_noise_pre:
         best_iter = c
     else: best_iter = c - 1
 
-    if rms_noise > 0.99 * rms_noise_pre and mm_ratio < 1.01 * mm_ratio_pre and c >4:
-        if (mm_ratio < 10 and c >= 2) or \
-                (mm_ratio < 20 and c >= 3) or \
-                (mm_ratio < 30 and c >= 4) or \
-                (c >= 5):
-            break
-    # save best iteration
+    if rms_noise > 0.98 * rms_noise_pre and mm_ratio < 1.01 * mm_ratio_pre and c >3:
+        break
 
-    # TODO check doamp requirement
-    if c >= 4 and mm_ratio >= 30:
+    if c >= 3 and mm_ratio >= 30:
         logger.info('Start amplitude calibration in next cycle...')
         doamp = True
 
