@@ -485,7 +485,7 @@ for c in range(maxniter):
     if rms_noise > 0.98 * rms_noise_pre and mm_ratio < 1.01 * mm_ratio_pre and c >3:
         break
 
-    if c >= 3 and mm_ratio >= 30:
+    if c >= 3 and mm_ratio >= 20:
         logger.info('Start amplitude calibration in next cycle...')
         doamp = True
 
