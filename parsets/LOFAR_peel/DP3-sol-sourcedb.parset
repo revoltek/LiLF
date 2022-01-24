@@ -1,0 +1,23 @@
+msin =
+msin.datacolumn = DATA
+msout = .
+
+steps = [sol]
+
+sol.type = ddecal
+sol.mode = phaseonly
+sol.h5parm =
+sol.uvlambdamin =
+sol.maxiter = 300
+sol.tolerance = 1e-4
+sol.propagatesolutions = True
+sol.propagateconvergedonly = True
+sol.flagunconverged = False
+sol.flagdivergedonly = True
+sol.sourcedb =
+sol.usebeammodel = True
+sol.usechannelfreq = True
+sol.beammode = array_factor
+sol.onebeamperpatch = False
+sol.nchan = 0
+sol.solint = 1

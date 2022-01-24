@@ -8,16 +8,37 @@ axisInTable = ant
 plotFlag = True
 prefix = plots/ampBF_
 
-[flag]
+[flagF]
 operation = FLAG
 soltab = sol000/amplitude000
-axesToFlag = [time,freq]
-order = [100,40]
+axesToFlag = [freq,time]
+order = [50,1] 
 maxCycles = 1
-maxRms = 5
-replace = False
+maxRms = 20
 preFlagZeros = False
 mode = smooth
+
+[flagT]
+operation = FLAG
+soltab = sol000/amplitude000
+axesToFlag = [freq,time]
+order = [1,100] 
+maxCycles = 1
+maxRms = 10
+preFlagZeros = False
+mode = smooth
+
+[clip]
+operation = CLIP
+soltab = sol000/amplitude000
+mode = below
+clipLevel = 0.2
+
+[clip2]
+operation = CLIP
+soltab = sol000/amplitude000
+mode = above
+clipLevel = 5.0
 
 [flagextend]
 operation = FLAGEXTEND

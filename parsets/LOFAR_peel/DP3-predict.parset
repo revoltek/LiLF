@@ -1,0 +1,13 @@
+msin = 
+msout = .
+msout.datacolumn = MODEL_DATA
+# this makes a problem in the solver, bug?
+#msout.storagemanager = dysco
+
+steps = [pre]
+
+pre.type = predict
+pre.sourcedb =
+pre.usebeammodel = True
+pre.usechannelfreq = True
+pre.beamproximitylimit = 180

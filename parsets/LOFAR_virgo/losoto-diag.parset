@@ -1,0 +1,83 @@
+Ncpu = 0
+
+#[norm]
+#operation = NORM
+#soltab = sol000/amplitude000
+#normVal = 1.
+#axesToNorm = [time,freq,ant]
+#log = True
+
+[plotA]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = False
+prefix = plots/amp_
+
+#[smooth_amp]
+#operation = SMOOTH
+#axesToSmooth = time
+#size = 6
+#soltab = sol000/amplitude000
+#mode = savitzky-golay
+#degree = 1
+#log = True
+
+#[plotAreg]
+#operation = PLOT
+#soltab = sol000/amplitude000
+#axesInPlot = [time,freq]
+#axisInTable = ant
+#plotFlag = False
+#prefix = plots/ampReg_
+
+[plotPraw]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ph_
+refAnt = 'CS001HBA0'
+minmax = [-3.14,3.14]
+
+[plotPdraw]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
+plotFlag = True
+prefix = plots/ph-dif
+refAnt = 'CS001HBA0'
+minmax = [-1,+1]
+
+#[smooth_ph]
+#operation = SMOOTH
+#axesToSmooth = time
+#size = 6
+#soltab = sol000/phase000
+#mode = runningmedian
+#log = False
+
+#[plotPreg]
+#operation = PLOT
+#soltab = sol000/phase000
+#axesInPlot = [time,freq]
+#axisInTable = ant
+#plotFlag = True
+#prefix = plots/phReg_
+#refAnt = 'CS001HBA0'
+#minmax = [-3.14,3.14]
+#
+#[plotPdreg]
+#operation = PLOT
+#soltab = sol000/phase000
+#axesInPlot = [time,freq]
+#axisInTable = ant
+#axisDiff = pol
+#plotFlag = True
+#prefix = plots/phReg-dif_
+#refAnt = 'CS001HBA0'
+#minmax = [-1,+1]

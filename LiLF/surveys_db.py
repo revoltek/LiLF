@@ -166,7 +166,7 @@ class SurveysDB(object):
 
                 self.tunnel.start()
                 localport=self.tunnel.local_bind_port
-                self.con = mdb.connect('127.0.0.1', 'survey_user', self.password, self.database, port=localport, cursorclass=mdbcursors.DictCursor)
+                self.con = mdb.connect(host='127.0.0.1', user='survey_user', password=self.password, database=self.database, port=localport, cursorclass=mdbcursors.DictCursor)
             else:
                 connected=False
                 retry=0

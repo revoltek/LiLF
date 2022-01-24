@@ -51,6 +51,9 @@ class AllMSs(object):
         self.mssListStr = [ms.pathMS for ms in self.mssListObj]
         self.resolution = self.mssListObj[0].getResolution(check_flags=False)
 
+        self.isLBA = all(['LBA' in ms.getAntennaSet() for ms in self.mssListObj])
+        self.isHBA = all(['HBA' in ms.getAntennaSet() for ms in self.mssListObj])
+
 
     def getListObj(self):
         """
@@ -91,7 +94,7 @@ class AllMSs(object):
         Return a list of freqs per chan per SB
         """
         freqs = [ list(ms.getFreqs()) for ms in self.mssListObj ]
-        return list(set([item for sublist in freqs for item in sublist])) # flatten
+        return np.array([item for sublist in freqs for item in sublist]).flatten()
 
 
     def getBandwidth(self):
@@ -99,7 +102,7 @@ class AllMSs(object):
         Return the total span of frequency covered by this MS set
         """
         freqs = self.getFreqs()
-        return max(freqs) - min(freqs)
+        return freqs.max() - freqs.min()
 
     def getChout(self, size=4.e6):
         """
@@ -147,7 +150,7 @@ class AllMSs(object):
         """
         sm = '' # storagemanager
         if usedysco == 'auto': # if col is dysco compressed in first MS, assume it is for all MSs
-            with tables.table(self.mssListStr[0]) as t:
+            with tables.table(self.mssListStr[0], ack=False) as t:
                 if t.getdminfo(fromcol)['TYPE'] == 'DyscoStMan':
                     sm = 'dysco'
         elif usedysco:
@@ -196,7 +199,6 @@ class MS(object):
         nameMS:        name of the MS, without parent directories and extension (which is assumed to be ".MS" always)
         """
         self.setPathVariables(pathMS)
-
         # If the field name is not a recognised calibrator name, one of two scenarios is true:
         # 1. The field is not a calibrator field;
         # 2. The field is a calibrator field, but the name was not properly set.
@@ -389,7 +391,7 @@ class MS(object):
         Returns the number of time slots in this MS
         """
         with tables.table(self.pathMS, ack = False) as t:
-            return len(t.getcol("TIME"))
+            return len(np.unique(t.getcol("TIME")))
 
 
     def getTimeInt(self):
@@ -541,8 +543,12 @@ class MS(object):
         """
         Is the dataset fully flagged?
         """
-        with tables.table(self.pathMS, ack = False) as t:
-            return np.all(t.getcol('FLAG'))
+        try:
+            with tables.table(self.pathMS, ack = False) as t:
+                return np.all(t.getcol('FLAG'))
+        except MemoryError: # can happen e.g. for full MS in timesplit (with IS and/or HBA)
+            logger.warning('Caugt MemoryError in checking for fully flagged MS! This can happen when working with large '
+                           'measurement sets. You might want to manually inspect the flags. Trying to proceed...')
 
 #    def delBeamInfo(self, col=None):
 #        """
