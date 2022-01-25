@@ -7,7 +7,11 @@ LiLF is a set of functions linked together in pipelines for the reduction of low
 - uGMRT: http://www.ncra.tifr.res.in/ncra/gmrt
 
 ### Files:
-- ~/.stagingrc >> with the login and pass for LTA archive
+- ~/.stagingrc >> with the login and pass for LTA archive, for example:
+```
+user = <username>
+password = <password>
+```
 - ~/.surveys >> with the pass for the surveydb
 
 ### Container:

@@ -24,6 +24,15 @@ imaging = parset.getboolean('LOFAR_cal','imaging')
 bl2flag = parset.get('flag','stations')
 
 #############################################################
+
+MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags=False)
+
+if skymodel == '':  # default case
+    if MSs.isLBA:
+        skymodel = os.path.dirname(__file__) + '/../models/calib-simple.skydb'
+    elif MSs.isHBA:
+        skymodel = os.path.dirname(__file__) + '/../models/calib-hba.skydb'
+
 with w.if_todo('copy'):
     # copy data
     MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags = False )
@@ -49,7 +58,7 @@ else: iono3rd = False
 with w.if_todo('flag'):
     logger.info("Flagging...")
     MSs.run("DP3 " + parset_dir + "/DP3-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag+"\"", log="$nameMS_flag.log", commandType="DP3")
-    
+
     # extend flags
     logger.info('Remove bad time/freq stamps...')
     MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
@@ -58,7 +67,8 @@ with w.if_todo('flag'):
 
 with w.if_todo('predict'):
     # predict to save time ms:MODEL_DATA
-    logger.info('Add model to MODEL_DATA (%s)...' % calname)
+
+    logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
     MSs.run("DP3 " + parset_dir + "/DP3-predict.parset msin=$pathMS pre.sourcedb=$pathMS/" + os.path.basename(skymodel) + " pre.sources=" + calname, \
             log="$nameMS_pre.log", commandType="DP3", maxThreads=30)
 
@@ -70,15 +80,15 @@ with w.if_todo('predict'):
 with w.if_todo('cal_pa'):
     # Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -c 1 -n 8 -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log',
+    MSs.run(f'BLsmooth.py -r -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log',
             commandType='python', maxThreads=8)
-    
+
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating PA...')
     MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
             sol.solint=2 sol.nchan=2',
             log='$nameMS_solPA.log', commandType="DP3")
-    
+
     lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()],
             [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
 
@@ -90,7 +100,6 @@ with w.if_todo('cal_pa'):
 
 ########################################################
 # 2: find FR
-
 with w.if_todo('cal_fr'):
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
@@ -100,7 +109,7 @@ with w.if_todo('cal_fr'):
     # Smooth data CORRECTED_DATA -> CIRC_PHASEDIFF_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
     MSs.addcol('CIRC_PHASEDIFF_DATA', 'CORRECTED_DATA', usedysco=False) # need this to make sure no dysco, if we have dyso we cannot set values to zero
-    MSs.run('BLsmooth.py -r -c 1 -n 8 -i CIRC_PHASEDIFF_DATA -o CIRC_PHASEDIFF_DATA $pathMS', log='$nameMS_smooth2.log',
+    MSs.run(f'BLsmooth.py -r -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CIRC_PHASEDIFF_DATA -o CIRC_PHASEDIFF_DATA $pathMS', log='$nameMS_smooth2.log',
             commandType='python', maxThreads=8)
 
     logger.info('Converting to circular...')
@@ -122,9 +131,8 @@ with w.if_todo('cal_fr'):
     # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve)
     logger.info('Calibrating FR...')
     MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=CIRC_PHASEDIFF_DATA \
-     msin.modelcolumn=FR_MODEL_DATA sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
-    sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint=2 sol.nchan=2 sol.coreconstraint=1e3 sol.smoothnessconstraint=5e6 sol.smoothnessreffrequency=54e6',
-            log='$nameMS_solFR.log', commandType="DP3")
+     msin.modelcolumn=FR_MODEL_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint=2 sol.nchan=2 \
+     sol.coreconstraint=2e3 sol.smoothnessconstraint=5e6 sol.smoothnessreffrequency=54e6', log='$nameMS_solFR.log', commandType="DP3")
     lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
 
     # remove columns
@@ -144,13 +152,13 @@ with w.if_todo('cal_fr'):
 with w.if_todo('cal_bp'):
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log',
+    MSs.run(f'BLsmooth.py -r -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log',
             commandType ='python', maxThreads=8)
-    
+
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating BP...')
     MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal', log='$nameMS_solAMP.log', commandType="DP3")
-    
+
     lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()],
             [parset_dir + '/losoto-flag.parset', parset_dir+'/losoto-plot-amp.parset',
              parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-bp.parset'])
@@ -164,20 +172,20 @@ with w.if_todo('apply_all'):
     # Pol align correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
     MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA2.log', commandType="DP3")
-    
+
     # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
     logger.info('AmpBP correction...')
     MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.parmdb=cal-amp.h5 \
             cor.correction=amplitudeSmooth cor.updateweights=True', log='$nameMS_corAMP.log', commandType="DP3")
-    
+
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
     MSs.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam2.log', commandType="DP3")
-    
+
     # Correct FR CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
     MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DP3")
-    
+
     # Correct abs FR CORRECTED_DATA -> CORRECTED_DATA
     #logger.info('Absolute Faraday rotation correction...')
     #MSs.run('createRMh5parm.py $pathMS $pathMS/rme.h5', log='$nameMS_RME.log', commandType="general", maxThreads=1)
@@ -191,16 +199,20 @@ with w.if_todo('apply_all'):
 with w.if_todo('cal_iono'):
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
+    MSs.run(f'BLsmooth.py -r -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
             commandType ='python', maxThreads=8)
-    
+
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO...')
     MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase', log='$nameMS_solIONO.log', commandType="DP3")
-    
+
     if iono3rd:
         lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()],
             [parset_dir+'/losoto-plot-scalarph.parset', parset_dir+'/losoto-iono3rd.parset'])
+            #[parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono3rd.parset'])
+    elif MSs.isHBA:
+        lib_util.run_losoto(s, 'iono', [ms + '/iono.h5' for ms in MSs.getListStr()],
+                            [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-iono-hba.parset'])
     else:
         lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()],
             [parset_dir+'/losoto-plot-scalarph.parset', parset_dir+'/losoto-iono.parset'])
@@ -220,7 +232,7 @@ with w.if_todo('compressing_h5'):
     s.add('losoto -d sol000/phaseOrig000 cal-pa.h5', log='losoto-final.log', commandType="python")
     s.run()
     os.system('h5repack cal-pa.h5 cal-pa-compressed.h5; mv cal-pa-compressed.h5 cal-pa.h5')
-    
+
     s.add('losoto -d sol000/amplitude000 cal-amp.h5', log='losoto-final.log', commandType="python")
     s.run()
     s.add('losoto -d sol000/amplitudeRes cal-amp.h5', log='losoto-final.log', commandType="python")
@@ -229,8 +241,6 @@ with w.if_todo('compressing_h5'):
     s.run()
     os.system('h5repack cal-amp.h5 cal-amp-compressed.h5; mv cal-amp-compressed.h5 cal-amp.h5')
     
-    #s.add('losoto -d sol000/tec000 cal-iono.h5', log='losoto-final.log', commandType="python")
-    #s.add('losoto -d sol000/clock000 cal-iono.h5', log='losoto-final.log', commandType="python")
     #s.add('losoto -d sol000/amplitude000 cal-iono.h5', log='losoto-final.log', commandType="python")
     s.add('losoto -d sol000/phase_offset000 cal-iono.h5', log='losoto-final.log', commandType="python")
     s.run()

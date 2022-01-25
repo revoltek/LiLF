@@ -1,0 +1,31 @@
+Ncpu = 0
+
+[plotAraw]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = False
+prefix = plots/ampRaw_
+
+[plotPraw]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ph_
+refAnt = 'CS001HBA0'
+minmax = [-3.14,3.14]
+
+[plotPdraw]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
+plotFlag = True
+prefix = plots/ph-dif
+refAnt = 'CS001HBA0'
+minmax = [-1,+1]
+

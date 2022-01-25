@@ -1,0 +1,95 @@
+Ncpu = 0
+
+[plotP1]
+operation = PLOT
+soltab = sol000/phase000
+freq.minmaxstep = [0,300e6,100]
+axesInPlot = time
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ph_
+refAnt = CS002HBA0
+minmax = [-3.14,3.14]
+NColFig = 4
+figSize = [20,20]
+
+[plotP2]
+operation = PLOT
+soltab = sol000/phase000
+time.minmaxstep = [0,1e20,500]
+axesInPlot = freq
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ph_
+refAnt = 'CS002HBA0'
+minmax = [-3.14,3.14]
+
+[plotP3]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ph_
+refAnt = 'CS002HBA0'
+#minmax = [-3.14,3.14]
+
+[plotPdXXYY]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
+plotFlag = True
+prefix = plots/ph-dif-XXYY_
+refAnt = 'CS002HBA0'
+pol = [XX,YY]
+#minmax = [-1,+1]
+
+[plotPdXYYX]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
+plotFlag = True
+prefix = plots/ph-dif-XYYX_
+refAnt = 'CS002HBA0'
+pol = [XY,YX]
+#minmax = [-1,+1]
+
+[plotA1]
+operation = PLOT
+Soltab = sol000/amplitude000
+freq.minmaxstep = [0,300e6,100]
+axesInPlot = time
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/amp_
+NColFig = 4
+figSize = [20,20]
+#minmax = [0,300]
+
+[plotA2]
+operation = PLOT
+soltab = sol000/amplitude000
+time.minmaxstep = [0,1e20,500]
+axesInPlot = freq
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/amp_
+#minmax = [0,300]
+
+[plotA3]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/amp_
+#minmax = [0,300]
+
