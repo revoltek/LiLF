@@ -41,7 +41,7 @@ def make_mask(image_name, mask_name=None, threshpix=5, atrous_do=False, rmsbox=(
             data_comb = fits[0].data
         with pyfits.open(mask_name) as fits:
             data = fits[0].data
-            assert data.shape() == data_comb.shape()
+            assert data.shape == data_comb.shape
             data[(data_comb == 1.)] = 1.
             fits[0].data = data
             fits.writeto(mask_name, overwrite=True)
