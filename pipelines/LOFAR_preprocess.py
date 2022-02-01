@@ -181,8 +181,7 @@ if renameavg:
                         for MS in MSs.getListObj():
                             MS.move('data-bkp/' + MS.nameMS + '.MS', keepOrig=False, overwrite=False)
                     else:
-                        pass
-                        #lib_util.check_rm(MS.pathMS)
+                        lib_util.check_rm(MS.pathMS)
                 else:
                     logger.info('%s->%s: Move data - no averaging...' % (MS.nameMS, MSout))
                     MS.move(MSout)
