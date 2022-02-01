@@ -166,7 +166,8 @@ for cmaj in range(maxIter):
     picklefile = 'ddcal/directions-c%02i.pickle' % cmaj
     interp_h5parm = 'ddcal/c%02i/solutions/interp.h5' % cmaj
     #aterm_config_file = 'ddcal/c%02i/aterm/aterm.config' % cmaj
-    mask_ddcal = full_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
+    #mask_ddcal = full_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
+    mask_ddcal = 'ddcal/c%02i/skymodels/mask-ddcal-c%02i.fits' % (cmaj, cmaj)  # this is used to find calibrators
 
     if not os.path.exists('ddcal/c%02i' % cmaj): os.makedirs('ddcal/c%02i' % cmaj)
     for subdir in ['plots','images','solutions','skymodels']:
@@ -176,14 +177,13 @@ for cmaj in range(maxIter):
         directions = []
 
         # making skymodel from image
-        full_image.makeMask(threshpix=5, atrous_do=True, maskname=mask_ddcal, write_srl=True, write_ds9=True)
+        full_image.makeMask(threshpix=5, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
         
         # locating DD-calibrators
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
         cal.remove_rows((cal['Total_flux'] < 0.01) | (cal['Isl_Total_flux'] < 0.1)) # remove very faint to speedup
-        #cal.remove_rows((cal['Total_flux'] > 5*cal['Peak_flux']) & (cal['Total_flux'] < 1.0)) # remove extended faint
-        #cal.remove_rows((cal['Total_flux'] > 10*cal['Peak_flux']) & (cal['Total_flux'] >= 1.0)) # remove extended bright
         cal['Cluster_id'] = 'None           '
+        cal['Flux_ratio'] = cal['Total_flux']/cal['Peak_flux']
         # grouping nearby sources
         grouper = lib_dd.Grouper(list(zip(cal['RA'],cal['DEC'])), cal['Total_flux'],
                                  look_distance=0.1, kernel_size=0.07, grouping_distance=0.03)
@@ -212,7 +212,7 @@ for cmaj in range(maxIter):
             continue_i = ContinueI()
             try:
                 for subcal in cal[cluster_idxs]:
-                    if ((subcal['Total_flux']/subcal['Peak_flux']) > 4) and (subcal['Total_flux'] > 0.2*fluxes):
+                    if (subcal['Flux_ratio'] > 4) and (subcal['Total_flux'] > 0.2*fluxes):
                         logger.debug("%s: found extended source (skip)" % (name))
                         cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
                         raise continue_i

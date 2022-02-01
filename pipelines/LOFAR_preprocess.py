@@ -130,7 +130,7 @@ if renameavg:
             logger.info('Min freq: %.2f MHz' % (minfreq/1e6))
             for MS in MSs.getListObj():
 
-                if 'HBA' in MS.getAntennaSet() and np.all(MS.getFreqs() > 168.3e6):
+                if np.all(MS.getFreqs() > 168.3e6):
                     logger.warning(f'Skipping HBA above 168 MHz: deleting {MS.pathMS}')
                     lib_util.check_rm(MS.pathMS)
                     continue
@@ -154,11 +154,11 @@ if renameavg:
                     sys.exit(1)
 
                 if keep_IS:
-                     avg_factor_f = int(nchan / 8) if MSs.isHBA else int(nchan / 16)
+                     avg_factor_f = int(nchan / 16) if MSs.isHBA else int(nchan / 16) # to have the full FoV in LBA we need 32 ch/SB
                 if avg_factor_f < 1: avg_factor_f = 1
 
-                avg_factor_t = int(np.round(4/timeint)) # to 4 sec
-                if avg_factor_t < 1 or keep_IS: avg_factor_t = 1
+                avg_factor_t = int(np.round(2/timeint)) if keep_IS else int(np.round(4/timeint)) # to 4 sec (2 for IS)
+                if avg_factor_t < 1: avg_factor_t = 1
 
                 MSout = getName(MS.pathMS)
                 flog.write(MS.nameMS+'.MS\n')
@@ -181,7 +181,8 @@ if renameavg:
                         for MS in MSs.getListObj():
                             MS.move('data-bkp/' + MS.nameMS + '.MS', keepOrig=False, overwrite=False)
                     else:
-                        lib_util.check_rm(MS.pathMS)
+                        pass
+                        #lib_util.check_rm(MS.pathMS)
                 else:
                     logger.info('%s->%s: Move data - no averaging...' % (MS.nameMS, MSout))
                     MS.move(MSout)
