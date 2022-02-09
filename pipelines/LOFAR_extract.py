@@ -181,14 +181,11 @@ if not os.path.exists('pointinglist.txt'):
             header, data = lib_img.flatten(f)
             wcs = WCS(header)
             c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
-            # print(c_pix)
             try:
-                beam_value = data[c_pix[1]][c_pix[0]]  # TODO Maybe 1 and 0 are swapped here!
-                # beam_value2 = data[c_pix[0]][c_pix[1]]  # TODO Maybe 1 and 0 are swapped here!
+                beam_value = data[c_pix[1]][c_pix[0]]  # Checked -  1 and 0 are correct here.
             except IndexError:
                 continue
 
-            # print(beam_value, beam_value2)
             if beam_value > beam_cut:
                 close_pointings.append(str(pointing).split('/')[-1])
 
