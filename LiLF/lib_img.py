@@ -56,8 +56,8 @@ class Image(object):
             fits.close()
 
 
-    def makeMask(self, threshpix=5, atrous_do=True, rmsbox=(100,10), remove_extended_cutoff=0., only_beam=False, maskname=None,
-                 write_srl=False, write_gaul=False, write_ds9=False):
+    def makeMask(self, threshpix=5, atrous_do=False, rmsbox=(100,10), remove_extended_cutoff=0., only_beam=False, maskname=None,
+                 write_srl=False, write_gaul=False, write_ds9=False, mask_combine=None):
         """
         Create a mask of the image where only believable flux is
 
@@ -73,7 +73,7 @@ class Image(object):
         if not os.path.exists(maskname):
             logger.info('%s: Making mask (%s)...' % (self.imagename, maskname))
             make_mask.make_mask(image_name=self.imagename, mask_name=maskname, threshpix=threshpix, atrous_do=atrous_do,
-                                rmsbox=rmsbox, write_srl=write_srl, write_gaul=write_gaul, write_ds9=write_ds9)
+                                rmsbox=rmsbox, write_srl=write_srl, write_gaul=write_gaul, write_ds9=write_ds9, mask_combine=mask_combine)
 
         if remove_extended_cutoff > 0:
 
@@ -341,3 +341,15 @@ def regrid(image_in, header_from, image_out):
     header_rep =  fits.open(header_from)[0].header
     hdu = fits.PrimaryHDU(header=header_rep, data=[[data_out]])
     hdu.writeto(image_out, overwrite=True)
+
+def add_beam(imagefile, bmaj, bmin, bpa):
+    """
+    Add/change beam info to fits header
+    """
+    with pyfits.open(imagefile) as fits:
+        header = fits[0].header
+        header["BMAJ"] = bmaj
+        header["BMIN"] = bmin
+        header["BPA"] = bpa
+        fits[0].header = header
+        fits.writeto(imagefile, overwrite=True)

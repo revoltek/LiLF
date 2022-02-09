@@ -24,6 +24,7 @@ imaging = parset.getboolean('LOFAR_cal','imaging')
 bl2flag = parset.get('flag','stations')
 
 #############################################################
+
 MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags=False)
 
 if skymodel == '':  # default case
@@ -34,6 +35,8 @@ if skymodel == '':  # default case
 
 with w.if_todo('copy'):
     # copy data
+    MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags = False )
+
     logger.info('Copy data...')
     for MS in MSs.getListObj():
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=False)
@@ -92,6 +95,7 @@ with w.if_todo('cal_pa'):
     # Pol align correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
     MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DP3")
+
 ### DONE
 
 ########################################################
@@ -139,32 +143,8 @@ with w.if_todo('cal_fr'):
     MSs.run(
         'DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000',
         log='$nameMS_corFR.log', commandType="DP3")
-### DONE
 
-#######################################################
-## 3: find leak
-#
-## Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-#logger.info('BL-smooth...')
-#MSs.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log', commandType ='python', maxThreads=10)
-#
-## Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-#logger.info('Calibrating LEAK...')
-#MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/leak-old.h5 sol.mode=fulljones sol.sourcedb=calib-simple.skydb',\
-#        log='$nameMS_solLEAK.log', commandType="DP3")
-#
-#lib_util.run_losoto(s, 'leak', [ms+'/leak.h5' for ms in MSs.getListStr()], \
-#        [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset',parset_dir+'/losoto-leak.parset'])
-#
-#### TODO: fix for DP3 to apply fulljones
-###os.system('losoto -d sol000/amplitude000 cal-leak.h5')
-###os.system('losoto -V cal-leak.h5 ~/scripts/LiLF/parsets/LOFAR_cal/losoto-leakfix.parset')
-#
-## Correct amp LEAK CORRECTED_DATA -> CORRECTED_DATA
-#logger.info('Amp/ph Leak correction...')
-#MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  cor.parmdb=cal-leak.h5 \
-#        cor.correction=fulljones cor.soltab=[amplitudeD,phaseD]', log='$nameMS_corLEAK.log', commandType="DP3")
-#sys.exit()
+### DONE
 
 ######################################################
 # 4: find BP
@@ -202,11 +182,6 @@ with w.if_todo('apply_all'):
     logger.info('Beam correction...')
     MSs.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam2.log', commandType="DP3")
 
-    # Correct LEAK CORRECTED_DATA -> CORRECTED_DATA
-    #logger.info('LEAK correction...')
-    #MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  cor.parmdb=cal-leak.h5 \
-    #        cor.correction=fulljones cor.soltab=[amplitudeD,phaseD]', log='$nameMS_corLEAK2.log', commandType="DP3")
-
     # Correct FR CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
     MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DP3")
@@ -241,16 +216,15 @@ with w.if_todo('cal_iono'):
     else:
         lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()],
             [parset_dir+'/losoto-plot-scalarph.parset', parset_dir+'/losoto-iono.parset'])
-            #[parset_dir + '/losoto-flag.parset', parset_dir + '/losoto-plot-ph.parset', parset_dir + '/losoto-iono.parset'])
 
 ### DONE
 
 with w.if_todo('compressing_h5'):
     logger.info('Compressing caltables...')
-    os.system('cp cal-pa.h5 fullcal-pa.h5')
+    #os.system('cp cal-pa.h5 fullcal-pa.h5')
     #os.system('cp cal-fr.h5 fullcal-fr.h5') # no need to keep orig
-    os.system('cp cal-amp.h5 fullcal-amp.h5')
-    os.system('cp cal-iono.h5 fullcal-iono.h5')
+    #os.system('cp cal-amp.h5 fullcal-amp.h5')
+    #os.system('cp cal-iono.h5 fullcal-iono.h5')
     s.add('losoto -d sol000/amplitude000 cal-pa.h5', log='losoto-final.log', commandType="python")
     s.run()
     s.add('losoto -d sol000/phase000 cal-pa.h5', log='losoto-final.log', commandType="python")
@@ -266,9 +240,7 @@ with w.if_todo('compressing_h5'):
     s.add('losoto -d sol000/phase000 cal-amp.h5', log='losoto-final.log', commandType="python")
     s.run()
     os.system('h5repack cal-amp.h5 cal-amp-compressed.h5; mv cal-amp-compressed.h5 cal-amp.h5')
-
-    # s.add('losoto -d sol000/tec000 cal-iono.h5', log='losoto-final.log', commandType="python")
-    # s.add('losoto -d sol000/clock000 cal-iono.h5', log='losoto-final.log', commandType="python")
+    
     #s.add('losoto -d sol000/amplitude000 cal-iono.h5', log='losoto-final.log', commandType="python")
     s.add('losoto -d sol000/phase_offset000 cal-iono.h5', log='losoto-final.log', commandType="python")
     s.run()
@@ -278,37 +250,63 @@ with w.if_todo('compressing_h5'):
 
 # a debug image
 if imaging:
-    logger.info("Imaging section:")
 
-    # Correct all CORRECTED_DATA (PA, beam, FR, BP corrected) -> CORRECTED_DATA
-    logger.info('IONO correction...')
-    MSs.run("DP3 " + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
-        cor.correction=phaseOrig000', log='$nameMS_corIONO.log', commandType="DP3")
+    ####################################################
+    # 5: find leak
 
-    lib_util.check_rm('img')
-    os.makedirs('img')
+    with w.if_todo('cal_leak'):
 
-    imgsizepix = int(MSs.getListObj()[0].getFWHM()*3600/5)
+        # Correct all CORRECTED_DATA (PA, beam, FR, BP corrected) -> CORRECTED_DATA
+        logger.info('IONO correction...')
+        MSs.run("DP3 " + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
+            cor.correction=phaseOrig000', log='$nameMS_corIONO.log', commandType="DP3")
 
-    logger.info('Cleaning normal...')
-    imagename = 'img/cal'
-    lib_util.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec',
-            weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85,
-            baseline_averaging='', parallel_deconvolution=512,
-            auto_threshold=20, join_channels='', fit_spectral_pol=3, channels_out=12, deconvolution_channels=3)
+        # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+        logger.info('BL-smooth...')
+        MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
+                commandType ='python', maxThreads=8)
+        
+        # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+        logger.info('Calibrating LEAK...')
+        MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/leak.h5 sol.mode=fulljones sol.solint=1 sol.nchan=1 sol.minvisratio=0.8',
+                log='$nameMS_solLEAK.log', commandType="DP3")
+    
+        lib_util.run_losoto(s, 'leak', [ms+'/leak.h5' for ms in MSs.getListStr()], \
+                [parset_dir+'/losoto-flag-leak.parset', parset_dir+'/losoto-plot-fullj.parset'])
 
-    # make mask
-    im = lib_img.Image(imagename+'-MFS-image.fits')
-    im.makeMask(threshpix=5)
+        logger.info('LEAK correction...')
+        MSs.run("DP3 " + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-leak.h5 cor.correction=fulljones\
+            cor.soltab=[amplitude000,phase000]', log='$nameMS_corIONO.log', commandType="DP3")
 
-    logger.info('Cleaning w/ mask...')
-    lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec',
-            weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85,
-            baseline_averaging='', parallel_deconvolution=512,
-            auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=12, deconvolution_channels=3)
-    os.system('cat logs/wscleanB.log | grep "background noise"')
+    ### DONE
 
-    # make new mask
-    im.makeMask(threshpix=7)
+    with w.if_todo('cal_imaging'):
+        logger.info("Imaging section:")
+    
+        lib_util.check_rm('img')
+        os.makedirs('img')
+    
+        #imgsizepix = int(MSs.getListObj()[0].getFWHM()*3600/3)
+        imgsizepix = 1024 # debug
+        if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
+    
+        logger.info('Cleaning normal...')
+        imagename = 'img/cal'
+        lib_util.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='3arcsec',
+                auto_mask=5, local_rms='', local_rms_method='rms-with-min',
+                weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.5,
+                baseline_averaging='', auto_threshold=2, join_channels='', fit_spectral_pol=5, channels_out=12)
+    
+        # make mask
+       # im = lib_img.Image(imagename+'-MFS-image.fits')
+       # im.makeMask(threshpix=5)
+    
+       # logger.info('Cleaning w/ mask...')
+       # lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec',
+       #         weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85,
+       #         baseline_averaging='', auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=12)
+       # os.system('cat logs/wscleanB.log | grep "background noise"')
+
+    ### DONE
 
 logger.info("Done.")

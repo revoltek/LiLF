@@ -69,8 +69,8 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
-    # self
-    add_default('LOFAR_self', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skydb')
+    # quick-self
+    add_default('LOFAR_quick-self', 'data_dir', './data-bkp/')
     # dd-parallel
     add_default('LOFAR_dd-parallel', 'maxniter', '10')
     add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
@@ -95,8 +95,8 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_peel', 'predictReg', '')
     add_default('LOFAR_peel', 'cal_dir', '')
     add_default('LOFAR_peel', 'data_dir', './')
-    ### uGMRT ###
 
+    ### uGMRT ###
     # init
     add_default('uGMRT_init', 'data_dir', './datadir')
     # cal
@@ -384,7 +384,7 @@ def run_DDF(s, logfile, **kwargs):
     ddf_parms = []
 
     # basic parms
-    ddf_parms.append( '--Debug-Pdb=never --Parallel-NCPU=%i ' % (s.max_processors) )
+    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i ' % (s.max_processors) )
 
     # cache dir
     if not 'Cache_Dir' in list(kwargs.keys()):

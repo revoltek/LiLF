@@ -21,6 +21,7 @@ class Direction(object):
         self.spidx_coeffs = None  # 1st order - for each component
         self.ref_freq = None  # for each component
         self.converged = None  # bool
+        self.dist_from_centre = None # distance from the phase centre in deg
         self.peel_off = None
         self.region_file = None
 
@@ -28,8 +29,8 @@ class Direction(object):
         self.h5parms = {'ph':[],'fr':[],'amp1':[],'amp2':[]}
 
         # for debug
-        self.avg_t = None
-        self.avg_f = None
+        self.avg_t = 0
+        self.avg_f = 0
         self.rms_noise = []
         self.mm_ratio = []
 
@@ -53,7 +54,7 @@ class Direction(object):
         s.attr = ([], {'width': '2', 'point': 'cross',
                        'font': '"helvetica 16 normal roman"'})
         if not self.peel_off: s.comment = 'color=red text="%s"' % self.name
-        else: s.comment = 'color=blue text="%s"' % self.name
+        else: s.comment = 'color=yellow text="%s"' % self.name
 
         regions = pyregion.ShapeList([s])
         lib_util.check_rm(self.region_file)
@@ -122,7 +123,8 @@ class Direction(object):
         self.position = [round(position[0], 5), round(position[1], 5)]
         c1 = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
         c2 = SkyCoord(phase_center[0]*u.deg, phase_center[1]*u.deg, frame='fk5')
-        if c1.separation(c2).deg > distance_peeloff:
+        self.dist_from_centre = c1.separation(c2).deg
+        if self.dist_from_centre > distance_peeloff:
             self.peel_off = True
         else:
             self.peel_off = False

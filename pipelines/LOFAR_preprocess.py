@@ -121,6 +121,7 @@ with w.if_todo('rescale_flux'):
 # Avg to 4 chan and 2 sec
 # Remove internationals
 if renameavg:
+
     with w.if_todo('renameavg'):
         logger.info('Renaming/averaging...')
         with open('renamed.txt','a') as flog:
@@ -151,6 +152,7 @@ if renameavg:
                 else:
                     logger.error('Channels should be a multiple of 4 or 5.')
                     sys.exit(1)
+
                 if keep_IS:
                      avg_factor_f = int(nchan / 8) if MSs.isHBA else int(nchan / 16)
                 if avg_factor_f < 1: avg_factor_f = 1

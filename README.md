@@ -133,7 +133,7 @@ minCalFlux60: float [1.5] # apparent flux [Jy] at 60 MHz to be considered a cali
 
 removeExtendedCutoff: float [0.0001] # remove extended sources from possible DD-calibrator list
 
-### LOFAR_facet_self
+### LOFAR_extract
 maxniter: int [10] # maximum number of iterations to perform
 
 extractRegion: str [target.reg] # ds9 region defining the extract target
