@@ -1,0 +1,17 @@
+msin =
+msin.datacolumn = DATA
+msout = .
+
+steps = [sol]
+
+sol.type = ddecal
+sol.mode = 
+sol.h5parm =
+sol.uvlambdamin = 100
+sol.maxiter = 300
+sol.tolerance = 1e-5
+sol.propagatesolutions = True
+sol.propagateconvergedonly = False
+sol.usemodelcolumn = True
+sol.flagunconverged = False
+sol.flagdivergedonly = True

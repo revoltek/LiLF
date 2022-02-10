@@ -1,0 +1,22 @@
+msin =
+msin.datacolumn = DATA
+msout = .
+msout.datacolumn = CORRECTED_DATA
+
+steps = [cor, corrbeam, count]
+
+cor.type = correct
+cor.steps = [pa,amp,ph]
+cor.pa.parmdb =
+cor.pa.correction = polalign
+cor.amp.parmdb =
+cor.amp.updateweights = True
+cor.amp.correction = amplitudeSmooth
+cor.ph.parmdb =
+cor.ph.correction =
+
+corrbeam.type = applybeam
+corrbeam.beammode = default
+corrbeam.invert = True # True=correct
+corrbeam.usechannelfreq = True
+corrbeam.updateweights = True
