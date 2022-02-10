@@ -10,7 +10,7 @@ RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
 RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename \
-    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely \
+    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm python3-numba \
     libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
@@ -149,10 +149,10 @@ RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git
 RUN cd /opt/LSMTool && pip3 install .
 
 ####################################################################
-## LoSoTo (master 8/2021)
+## LoSoTo (master 1/2022)
 ###################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto && git checkout ecf8a078f910454b989044b293e2416e1c9c09b7
+    && cd /opt/losoto && git checkout 2920438aa8cd3b5b7e316712969a490a64498438
 RUN cd /opt/losoto && pip3 install .
 RUN pip3 install --upgrade scipy
 
@@ -188,6 +188,9 @@ RUN cp -a /tmp/DDFacet/DDFacet /opt/DDFacet/DDFacet && \
 RUN rm -rf /opt/DDFacet/DDFacet/cbuild
 #RUN pip3 install -U pip setuptools wheel
 #RUN python3 -m pip install tensorflow-cpu
+
+# Force numba <0.55 otherwise it breaks for numpy
+RUN pip3 install numba==0.54.1
 
 RUN python3 -m pip install -U "/opt/DDFacet/[moresane-support,testing-requirements,fits-beam-support]"
 RUN cd /opt/DDFacet/ && python3 setup.py build
