@@ -54,7 +54,7 @@ class AllMSs(object):
         self.isLBA = all(['LBA' in ms.getAntennaSet() for ms in self.mssListObj])
         self.isHBA = all(['HBA' in ms.getAntennaSet() for ms in self.mssListObj])
 
-        self.hasIS = any([ms.getMaxBL(check_flags=False) > 100e3 for ms in self.mssListObj])
+        self.hasIS = any([ms.getMaxBL(check_flags=False) > 150e3 for ms in self.mssListObj])
 
 
     def getListObj(self):
