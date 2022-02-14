@@ -23,6 +23,7 @@ data_dir = parset.get('LOFAR_timesplit','data_dir')
 cal_dir = parset.get('LOFAR_timesplit','cal_dir')
 ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
+bl2flag = parset.get('flag','stations')
 
 #################################################
 
