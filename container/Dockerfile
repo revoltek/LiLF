@@ -138,7 +138,7 @@ ENV LD_LIBRARY_PATH /usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 ## Pybdsf (master 1/2021)
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
-    && cd /opt/PyBDSF; git checkout 8f75efa
+    && cd /opt/PyBDSF; git checkout tags/v1.10.0
 RUN cd /opt/PyBDSF && pip3 install .
 
 #####################################################################
