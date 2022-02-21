@@ -10,7 +10,7 @@ RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
 RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename \
-    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm python3-numba \
+    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm python3-numba python3-ipdb \
     libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
@@ -135,10 +135,10 @@ RUN cd /opt/lofar_lta-2.7.1 && python3 setup.py install
 ENV LD_LIBRARY_PATH /usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 
 #####################################################################
-## Pybdsf (master 1/2021)
+## Pybdsf (1.10.1)
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
-    && cd /opt/PyBDSF; git checkout 8f75efa
+    && cd /opt/PyBDSF; git checkout tags/v1.10.1
 RUN cd /opt/PyBDSF && pip3 install .
 
 #####################################################################
@@ -199,6 +199,9 @@ RUN cd /opt/DDFacet/ && python3 setup.py install
 # Set MeqTrees Cattery path to installation directory
 ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
 ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
+
+# upgrade regions for compatibility with some pipelines
+RUN pip3 install regions --upgrade
 
 #####################################################################
 ## LiLF
