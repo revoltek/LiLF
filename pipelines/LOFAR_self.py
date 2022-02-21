@@ -118,6 +118,7 @@ for c in range(2):
             MSs.run(
                 'DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g-c0.h5 cor.correction=amplitudeSmooth', \
                 log='$nameMS_corG-c' + str(c) + '.log', commandType='DP3')
+
     if c == 0:
         with w.if_todo('solve_fr_c%02i' % c):
             logger.info('Add column CIRC_PHASEDIFF_DATA...')

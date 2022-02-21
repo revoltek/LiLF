@@ -56,7 +56,7 @@ operation = FARADAY
 soltab = sol000/phase000
 refAnt = CS001LBA
 maxResidual = 1.
-freq.minmaxstep = [15e6,1e9] # should this start form 30 MHz or does 15 MHz work?
+freq.minmaxstep = [20e6,1e9] # should this start form 30 MHz or does 20 MHz work?
 
 [plotFR]
 operation = PLOT
