@@ -54,19 +54,18 @@ w = lib_util.Walker('pipeline-extract.walker')
 def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False):
     """
     p = patch name
-    mode = noamel, empty, high, low
     mss = list of mss to clean
     size = in deg of the image
     """
     # set pixscale and imsize
     pixscale = MSs.resolution
 
-    if mode == 'normal' or mode == 'empty':
+    if res == 'normal':
         pixscale = float('%.1f' % (pixscale / 2.5))
-    elif mode == 'high':
-        pixscale = float('%.1f' % (pixscale / 4))
-    elif mode == 'low':
-        pixscale = 8
+    elif res == 'high':
+        pixscale = float('%.1f' % (pixscale / 3.5))
+    elif res == 'low':
+        pass  # no change
 
     imsize = [int(size[0] * 1.5 / (pixscale / 3600.)), int(size[1] * 1.5 / (pixscale / 3600.))]  # add 50%
     imsize[0] += imsize[0] % 2
@@ -76,38 +75,26 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
 
     logger.debug('Image size: ' + str(imsize) + ' - Pixel scale: ' + str(pixscale))
 
-    if mode == 'high':
-        logger.info('Cleaning high-res (' + str(p) + ')...')
-        imagename = 'img/extract-' + str(p)
-        lib_util.run_wsclean(s, 'wsclean-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename, do_predict=True,
-                             size=imsize, scale=str(pixscale) + 'arcsec',
-                             weight='briggs -1.5', niter=100000, no_update_model_required='', minuv_l=30,
-                             mgain=0.85, baseline_averaging='',
-                             parallel_deconvolution=512, auto_threshold=1, auto_mask=5,
-                             join_channels='', fit_spectral_pol=3, channels_out=ch_out)  # , deconvolution_channels=3)
-        os.system('cat logs/wsclean-' + str(p) + '.log | grep "background noise"')
- 
+    if res == 'normal':
+        weight = 'briggs -0.3'
+        maxuv_l = None
+    elif res == 'high':
+        weight = 'briggs -0.6'
+        maxuv_l = None
+    elif res == 'low':
+        weight = 'briggs 0'
+        maxuv_l = 3500
+    else:
+        logger.error('Wrong "res": %s.' % str(res))
+        sys.exit()
 
-    elif mode == 'low':
-        logger.info('Cleaning low-res (' + str(p) + ')...')
-        imagename = 'img/extract-' + str(p)
-        lib_util.run_wsclean(s, 'wsclean-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename, data_column='SUBTRACTED_DATA',
-                             size=imsize, scale=str(pixscale) + 'arcsec',
-                             weight='briggs -0.3', taper_gaussian='25arcsec', circular_beam='',
-                             niter=100000, no_update_model_required='', minuv_l=30,
-                             mgain=0.85, multiscale='', baseline_averaging='',
-                             parallel_deconvolution=512, auto_threshold=1.5, auto_mask=3,
-                             join_channels='', fit_spectral_pol=3, channels_out=ch_out)  # , deconvolution_channels=3)
-        os.system('cat logs/wsclean-' + str(p) + '.log | grep "background noise"')
-
-    elif mode == 'empty':
-
+    if empty:
         logger.info('Cleaning empty (' + str(p) + ')...')
         imagename = 'img/empty-' + str(p)
         lib_util.run_wsclean(s, 'wscleanE-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
                              data_column='SUBTRACTED_DATA',
                              size=imsize, scale=str(pixscale) + 'arcsec',
-                             weight='briggs -0.3', niter=0, no_update_model_required='', minuv_l=30, mgain=0,
+                             weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0,
                              baseline_averaging='')
     else:
         arg_dict = dict()
@@ -166,7 +153,7 @@ parset_dir = parset.get('LOFAR_extract','parset_dir')
 maxniter = parset.getint('LOFAR_extract','maxniter')
 target_reg_file = parset.get('LOFAR_extract','extractRegion')  # default 'target.reg'
 phSolMode = parset.get('LOFAR_extract','phSolMode')  # default: tecandphase
-beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.5
+beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.3
 if phSolMode not in ['tecandphase', 'phase']:
     logger.error('phSolMode {} not supported. Choose tecandphase, phase.')
     sys.exit()
@@ -194,15 +181,15 @@ if not os.path.exists('pointinglist.txt'):
             header, data = lib_img.flatten(f)
             wcs = WCS(header)
             c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
-            # print(c_pix)
-            try:
-                beam_value = data[c_pix[1]][c_pix[0]]  # TODO Maybe 1 and 0 are swapped here!
-                # beam_value2 = data[c_pix[0]][c_pix[1]]  # TODO Maybe 1 and 0 are swapped here!
-            except IndexError:
+            if np.all(c_pix > 0):
+                try:
+                    beam_value = data[c_pix[1]][c_pix[0]]  # Checked -  1 and 0 are correct here.
+                except IndexError:
+                    continue
+            else:
                 continue
 
-            # print(beam_value, beam_value2)
-            if beam_value > beam_cut:
+            if beam_value > beam_cut**2: # square since Norm is sqrt(beam_factor)!
                 close_pointings.append(str(pointing).split('/')[-1])
 
     with open('pointinglist.txt', 'w') as f:
@@ -383,8 +370,7 @@ for c in range(maxniter):
     solint_ph = next(iter_ph_solint)
     if doamp:
         h5amp1 = 'extract/cal-amp1-c%02i.h5' % c
-        solint_amp1 = next(iter_amp_solint)
-        solch_amp1 = int(round(MSs.getListObj()[0].getNchan() / ch_out))
+        solint_amp = next(iter_amp_solint)
         h5amp2 = 'extract/cal-amp2-c%02i.h5' % c
         solint_amp2 = next(iter_amp2_solint)
 
@@ -432,7 +418,7 @@ for c in range(maxniter):
 
     if doamp:
         with w.if_todo('cal-amp1-c%02i' % c):
-            logger.info('Gain amp calibration 1 (solint: %i)...' % solint_amp1)
+            logger.info('Gain amp calibration 1 (solint: %i)...' % solint_amp)
             # Calibration - ms:CORRECTED_DATA
             # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
             MSs_extract.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \

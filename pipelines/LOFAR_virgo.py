@@ -61,11 +61,13 @@ if MSs.resolution < 2.0:
     is_IS = True
 if is_IS:
     uvlambdamin = 100
+    uvlambdamin_sol = 500
     freqstep = 2  # might wanna decrease later!
     t_int = 8 # might wanna decrease later!
     final_chan_per_sb = 9999
 else:
     uvlambdamin = 100
+    uvlambdamin_sol = 100
     t_int = 8
     final_chan_per_sb = 2
 
@@ -214,10 +216,10 @@ for c in range(100):
         logger.info('Solving scalarphase...')
         MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA '
                 f'sol.h5parm=$pathMS/iono.h5 sol.mode=scalarcomplexgain sol.nchan=1 sol.solint=1 sol.smoothnessconstraint=1e6 '
-                f'sol.uvlambdamin={uvlambdamin}', log=f'$nameMS_sol_iono-c{c:02}.log', commandType="DP3")
+                f'sol.uvlambdamin={uvlambdamin_sol}', log=f'$nameMS_sol_iono-c{c:02}.log', commandType="DP3")
 
         lib_util.run_losoto(s, f'iono-c{c:02}', [ms + '/iono.h5' for ms in MSs.getListStr()], \
-                            [parset_dir + '/losoto-flag.parset',
+                            [#parset_dir + '/losoto-flag.parset', # disabled to not flag too much in many iterations...
                              parset_dir + '/losoto-plot-scalaramp.parset',
                              parset_dir + '/losoto-plot-scalarph.parset'])
         move(f'cal-iono-c{c:02}.h5', 'self/solutions/')
@@ -234,8 +236,8 @@ for c in range(100):
     with w.if_todo('solve_gain_c%02i' % c):
         logger.info('Solving full-Jones...')
         MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA ' 
-                f'sol.h5parm=$pathMS/fulljones.h5 sol.mode=fulljones sol.nchan=10 sol.solint={8*64//t_int} '# sol.nchan=8 4*64//t_int #sol.smoothnessconstraint=1.5e6 '
-                f'sol.uvlambdamin={uvlambdamin}', log=f'$nameMS_sol_fulljones-c{c}.log',
+                f'sol.h5parm=$pathMS/fulljones.h5 sol.mode=fulljones sol.nchan=10 sol.solint={8*30//t_int} '# sol.nchan=8 4*64//t_int #sol.smoothnessconstraint=1.5e6 '
+                f'sol.uvlambdamin={uvlambdamin_sol}', log=f'$nameMS_sol_fulljones-c{c}.log',
                 commandType="DP3")
 
         lib_util.run_losoto(s, f'fulljones-c{c:02}', [ms + '/fulljones.h5' for ms in MSs.getListStr()], \
@@ -272,7 +274,6 @@ for c in range(100):
     wsclean_params = {
         'scale': '0.2arcsec' if is_IS else '1.0arcsec',
         'size': 6000 if is_IS else 2400,
-        # 'padding': 1.5,
         'weight': 'briggs -0.6' if is_IS  else'briggs -1.0',
         'join_channels': '',
         # 'fit_spectral_pol': 12,
@@ -321,11 +322,11 @@ for c in range(100):
             os.system(f'cat logs/wsclean-c{c}.log | grep "background noise"')
         else: # International LOFAR Telescope
             logger.info('Cleaning...')
-            wsclean_params['mgain'] = 0.7
-            wsclean_params['gain'] = 0.09
+            wsclean_params['mgain'] = 0.5
             lib_util.run_wsclean(s, f'wsclean-c{c}.log', MSs.getStrWsclean(), niter=1000000,
                                  auto_mask= 3.0, fits_mask=basemask, multiscale_scales='0,10,20,40,80,160,320', mem=95,
-                                 taper_gaussian='0.8asec', **wsclean_params)
+                                 taper_gaussian='0.8asec', maxuv_l=250000,
+                                  **wsclean_params) # taper_gaussian='2.0asec', # 250000 should be a 0.8asec or so
             os.system(f'cat logs/wsclean-c{c}.log | grep "background noise"')
 
 
