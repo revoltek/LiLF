@@ -153,7 +153,7 @@ parset_dir = parset.get('LOFAR_extract','parset_dir')
 maxniter = parset.getint('LOFAR_extract','maxniter')
 target_reg_file = parset.get('LOFAR_extract','extractRegion')  # default 'target.reg'
 phSolMode = parset.get('LOFAR_extract','phSolMode')  # default: tecandphase
-beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.5
+beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.3
 if phSolMode not in ['tecandphase', 'phase']:
     logger.error('phSolMode {} not supported. Choose tecandphase, phase.')
     sys.exit()
@@ -181,12 +181,15 @@ if not os.path.exists('pointinglist.txt'):
             header, data = lib_img.flatten(f)
             wcs = WCS(header)
             c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
-            try:
-                beam_value = data[c_pix[1]][c_pix[0]]  # Checked -  1 and 0 are correct here.
-            except IndexError:
+            if np.all(c_pix > 0):
+                try:
+                    beam_value = data[c_pix[1]][c_pix[0]]  # Checked -  1 and 0 are correct here.
+                except IndexError:
+                    continue
+            else:
                 continue
 
-            if beam_value > beam_cut:
+            if beam_value > beam_cut**2: # square since Norm is sqrt(beam_factor)!
                 close_pointings.append(str(pointing).split('/')[-1])
 
     with open('pointinglist.txt', 'w') as f:
