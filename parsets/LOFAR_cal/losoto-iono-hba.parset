@@ -1,0 +1,72 @@
+Ncpu = 0
+
+[duplicatePbkp]
+operation = DUPLICATE
+soltab = sol000/phase000
+soltabOut = phaseOrig000
+
+[ct]
+operation = CLOCKTEC
+soltab = sol000/phase000
+CombinePol = False
+FlagBadChannels = False
+Fit3rdOrder = False
+Circular = False
+
+[duplicateClock]
+operation = DUPLICATE
+soltab = sol000/clock000
+soltabOut = clockMed000
+
+[clockMed]
+operation = SMOOTH
+soltab = sol000/clockMed000
+axesToSmooth = [time]
+mode = median
+
+[plotClock]
+operation = PLOT
+soltab = sol000/clock000
+axesInPlot = [time]
+axisInTable = ant
+prefix = plots/clock
+#minmax = [-2e-7,2e-7]
+plotFlag = False
+refAnt = 'CS001HBA0'
+
+[plotClockMed]
+operation = PLOT
+soltab = sol000/clockMed000
+axesInPlot = [time]
+axisInTable = ant
+prefix = plots/clockMed
+#minmax = [-2e-7,2e-7]
+plotFlag = False
+refAnt = 'CS001HBA0'
+
+[plotTEC]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = [time]
+axisInTable = ant
+prefix = plots/tec
+#minmax = [-0.5,0.5]
+plotFlag = False
+refAnt = 'CS001HBA0'
+#refAnt = 'CS002HBA0'
+
+[residuals]
+operation = RESIDUALS
+soltab = sol000/phase000
+soltabsToSub = [clockMed000]
+
+[PlotPr1]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/phMedClockSubtracted
+refAnt = 'CS001HBA0'
+#refAnt = 'CS002HBA0'
+minmax = [-3.14,3.14]

@@ -1,20 +1,18 @@
 msin = 
-msin.datacolumn = DATA
+msin.datacolumn = CAL_CORRECTED_DATA
 msin.baseline = [CR]S*&
-msout =
+msout = .
+msout.datacolumn = SUBTRACTED_DATA
 
 steps = [demixer] 
 
 demixer.type = demixer 
-#demixer.baseline = [CR]S*&
 demixer.demixfreqstep = 8 # 16 if possible
 demixer.demixtimestep = 10
-#demixer.elevationcutoff = 0.0deg # not-working
-demixer.ignoretarget = F
-#demixer.targetsource = 
+demixer.targetsource = field
 demixer.subtractsources =
 demixer.ntimechunk = 0
 demixer.skymodel =
-demixer.freqstep = 2
-demixer.timestep = 2
+demixer.freqstep = 1
+demixer.timestep = 1
 demixer.instrumentmodel =

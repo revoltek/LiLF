@@ -1,4 +1,5 @@
 import os, sys, re, time, pickle, random, shutil, glob
+import socket
 
 from casacore import tables
 import numpy as np
@@ -49,27 +50,27 @@ def getParset(parsetFile='../lilf.config'):
     add_default('PiLL', 'project', '')
     add_default('PiLL', 'target', '')
     add_default('PiLL', 'obsid', '') # unique ID
-
     # preprocess
     add_default('LOFAR_preprocess', 'fix_table', 'True') # fix bug in some old observations
     add_default('LOFAR_preprocess', 'renameavg', 'True')
     add_default('LOFAR_preprocess', 'flag_elev', 'True')
     add_default('LOFAR_preprocess', 'keep_IS', 'False')
+    add_default('LOFAR_preprocess', 'backup_full_res', 'False')
     # demix
     add_default('LOFAR_demix', 'data_dir', './data-bkp/')
     add_default('LOFAR_demix', 'include_target', 'False')
     add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skymodel')
     # cal
     add_default('LOFAR_cal', 'data_dir', './data-bkp/')
-    add_default('LOFAR_cal', 'skymodel', os.path.dirname(__file__)+'/../models/calib-simple.skydb')
+    add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
     add_default('LOFAR_cal', 'imaging', 'False')
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', './data-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
-    # self
-    add_default('LOFAR_self', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skydb')
+    # quick-self
+    add_default('LOFAR_quick-self', 'data_dir', './data-bkp/')
     # dd-parallel
     add_default('LOFAR_dd-parallel', 'maxniter', '10')
     add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
@@ -84,10 +85,18 @@ def getParset(parsetFile='../lilf.config'):
     # extract
     add_default('LOFAR_extract', 'maxniter', '10')
     add_default('LOFAR_extract', 'extractRegion', 'target.reg')
-    add_default('LOFAR_extract', 'phSolMode', 'tecandphase') # tecandphase, phase
+    add_default('LOFAR_extract', 'phSolMode', 'phase') # tecandphase, phase
+    add_default('LOFAR_extract', 'beam_cut', '0.3') # up to which distance a pointing will be considered
+    # virgo
+    add_default('LOFAR_virgo', 'cal_dir', '')
+    add_default('LOFAR_virgo', 'data_dir', './')
+    # peel
+    add_default('LOFAR_peel', 'peelReg', 'peel.reg')
+    add_default('LOFAR_peel', 'predictReg', '')
+    add_default('LOFAR_peel', 'cal_dir', '')
+    add_default('LOFAR_peel', 'data_dir', './')
 
     ### uGMRT ###
-
     # init
     add_default('uGMRT_init', 'data_dir', './datadir')
     # cal
@@ -96,10 +105,11 @@ def getParset(parsetFile='../lilf.config'):
     ### General ###
 
     # flag
-    add_default('flag', 'stations', 'DE*;FR*;SE*;UK*;IE*;PL*') # LOFAR
+    add_default('flag', 'stations', '') # LOFAR
     add_default('flag', 'antennas', '') # uGMRT
     # model
     add_default('model', 'sourcedb', '')
+    add_default('model', 'fits_model', '')
     add_default('model', 'apparent', 'False')
     add_default('model', 'userReg', '')
 
@@ -239,7 +249,7 @@ def lofar_nu2num(nu):
     # nyquist zone (1 for LBA, 2 for HBA low, 3 for HBA mid-high)
     if nu < 90:
         n = 1
-    elif nu < 170:
+    elif nu < 190:
         n = 2
     else:
         n = 3
@@ -311,7 +321,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     # basic parms
     wsc_parms.append( '-j '+str(s.max_processors)+' -reorder -parallel-reordering 4 ' )
     if 'use_idg' in kwargs.keys():
-        if s.get_cluster() == 'Hamburg_fat':
+        if s.get_cluster() == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
             wsc_parms.append( '-idg-mode hybrid' )
             wsc_parms.append( '-mem 10' )
         else:
@@ -352,13 +362,14 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
         for parm, value in list(kwargs.items()):
             if value is None: continue
             #if 'min' in parm or 'max' in parm or parm == 'name' or parm == 'channels_out':
-            if parm == 'name' or parm == 'channels_out':
+            if parm == 'name' or parm == 'channels_out' or parm == 'use_wgridder' or parm == 'wgridder_accuracy':
                 wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
 
         # files
         wsc_parms.append( MSs_files )
-
-        command_string = 'wsclean -reorder -parallel-reordering 4 -predict ' \
+        # Test without reorder as it apperas to be faster
+        # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
+        command_string = 'wsclean -predict ' \
                          '-j '+str(s.max_processors)+' '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean', processors='max')
         s.run(check=True)
@@ -373,7 +384,7 @@ def run_DDF(s, logfile, **kwargs):
     ddf_parms = []
 
     # basic parms
-    ddf_parms.append( '--Debug-Pdb=never --Parallel-NCPU=%i ' % (s.max_processors) )
+    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i ' % (s.max_processors) )
 
     # cache dir
     if not 'Cache_Dir' in list(kwargs.keys()):
@@ -382,14 +393,17 @@ def run_DDF(s, logfile, **kwargs):
     # user defined parms
     for parm, value in list(kwargs.items()):
         if value is None: continue
-        ddf_parms.append( '--%s %s' % (parm.replace('_','-'), str(value)) )
+        if isinstance(value, str):
+            if '$' in value: # escape dollar signs (e.g. of BeamFits)
+                value = "'" + value + "'"
+        ddf_parms.append( '--%s=%s' % (parm.replace('_','-'), str(value)) )
 
     # files
     #wsc_parms.append( MSs_files )
 
     # create command string
     command_string = 'DDF.py '+' '.join(ddf_parms)
-    s.add(command_string, log=logfile, commandType='python', processors='max')
+    s.add(command_string, log=logfile, commandType='DDFacet', processors='max')
     s.run(check=True)
 
 
@@ -496,6 +510,9 @@ class Walker():
             sys.settrace(lambda *args, **keys: None)
             frame = sys._getframe(1)
             frame.f_trace = self.trace
+        else:
+            logger.log(20, '>> start >> {}'.format(self.__step__))
+
 
     def trace(self, frame, event, arg):
         raise Skip()
@@ -507,10 +524,10 @@ class Walker():
         if type is None:
             with open(self.filename, "a") as f:
                 f.write(self.__step__ + '\n')
-            logger.debug('Done: {}'.format(self.__step__))
+            logger.info('<< done << {}'.format(self.__step__))
             return  # No exception
         if issubclass(type, Skip):
-            logger.warning('SKIP: {}'.format(self.__step__))
+            logger.warning('>> skip << {}'.format(self.__step__))
             return True  # Suppress special SkipWithBlock exception
 
 class Scheduler():
@@ -567,7 +584,6 @@ class Scheduler():
         """
         Find in which computing cluster the pipeline is running
         """
-        import socket
         hostname = socket.gethostname()
         if (hostname == 'lgc1' or hostname == 'lgc2'):
             return "Hamburg"
@@ -688,6 +704,7 @@ class Scheduler():
         """
         Produce a warning if a command didn't close the log properly i.e. it crashed
         NOTE: grep, -L inverse match, -l return only filename
+        # TODO add commandType=DDFacet consistently to pipelines, check for keywords
         """
 
         if (not os.path.exists(log)):
@@ -714,7 +731,15 @@ class Scheduler():
             out = subprocess.check_output('grep -l "exception occur" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Aborted" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            # out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+
+        elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
+            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "exception occur" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "Segmentation fault\|Killed" ' + log + ' ; exit 0', shell=True,
+                                           stderr=subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "Aborted" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
 
         elif (commandType == "python"):
             out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)

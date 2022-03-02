@@ -18,7 +18,6 @@ w = lib_util.Walker('pipeline-self.walker')
 
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_self','parset_dir')
-skydb_demix = parset.get('LOFAR_self','demix_model')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
@@ -119,6 +118,7 @@ for c in range(2):
             MSs.run(
                 'DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=self/solutions/cal-g-c0.h5 cor.correction=amplitudeSmooth', \
                 log='$nameMS_corG-c' + str(c) + '.log', commandType='DP3')
+
     if c == 0:
         with w.if_todo('solve_fr_c%02i' % c):
             logger.info('Add column CIRC_PHASEDIFF_DATA...')

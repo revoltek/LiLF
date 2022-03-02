@@ -1,0 +1,20 @@
+msin = 
+msin.datacolumn = CORRECTED_DATA
+msout = .
+
+steps = [ant, uvmin, elev, ears, aoflagger, count]
+
+ant.type = preflagger
+ant.baseline = 
+
+elev.type = preflagger
+elev.elevation = 0deg..25deg
+
+uvmin.type = uvwflag
+uvmin.uvlambdamin = 30
+
+ears.type = preflagger
+ears.baseline = /(.*)HBA0&\1HBA1/
+
+aoflagger.strategy =
+aoflagger.memoryperc = 6

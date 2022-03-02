@@ -1,0 +1,13 @@
+msin = 
+msin.datacolumn = DATA
+msout = .
+msout.datacolumn = MODEL_DATA
+# this makes a problem in the solver, bug?
+#msout.storagemanager = dysco
+
+steps = [pre]
+
+pre.type = predict
+pre.sourcedb =
+pre.sources =
+pre.usebeammodel = False

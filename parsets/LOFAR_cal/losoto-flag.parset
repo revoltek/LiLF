@@ -1,4 +1,4 @@
-Ncpu = 32
+Ncpu = 0
 
 [plotA1]
 operation = PLOT

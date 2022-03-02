@@ -1,7 +1,7 @@
 FROM ubuntu:20.04
 ARG DEBIAN_FRONTEND=noninteractive
 LABEL maintainer="Francesco de Gasperin"
-LABEL version="0.1"
+LABEL version="1.0"
 
 USER root
 
@@ -10,7 +10,7 @@ RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
 RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename \
-    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy \
+    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm python3-numba python3-ipdb \
     libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
@@ -106,10 +106,11 @@ RUN cd /opt/LofarStMan && mkdir build && cd build \
     && make -j 64 && make install
 
 #####################################################################
-## Wsclean v2.10.1
+## Wsclean master 30/6/21
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-    && cd /opt/wsclean && git checkout tags/v2.10.1
+    && cd /opt/wsclean && git checkout cb451544a372b82403054a01900cd6e58ff87aaf
+#    && cd /opt/wsclean && git checkout tags/v2.10.1
 RUN cd /opt/wsclean && mkdir build && cd build \
     && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
@@ -134,10 +135,10 @@ RUN cd /opt/lofar_lta-2.7.1 && python3 setup.py install
 ENV LD_LIBRARY_PATH /usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 
 #####################################################################
-## Pybdsf (master 1/2021)
+## Pybdsf (1.10.1)
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
-    && cd /opt/PyBDSF; git checkout 8f75efa
+    && cd /opt/PyBDSF; git checkout tags/v1.10.1
 RUN cd /opt/PyBDSF && pip3 install .
 
 #####################################################################
@@ -148,12 +149,19 @@ RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git
 RUN cd /opt/LSMTool && pip3 install .
 
 ####################################################################
-## LoSoTo v2.1
+## LoSoTo (master 1/2022)
 ###################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto && git checkout tags/2.1
+    && cd /opt/losoto && git checkout 2920438aa8cd3b5b7e316712969a490a64498438
 RUN cd /opt/losoto && pip3 install .
 RUN pip3 install --upgrade scipy
+
+#####################################################################
+# msoverview
+#####################################################################
+RUN apt-get install -y subversion
+RUN cd /opt && mkdir -p msoverview/src && cd msoverview/src && svn export https://svn.astron.nl/LOFAR/tags/LOFAR-Release-4_0_17/CEP/MS/src/msoverview.cc \
+    && gcc -I/usr/local/include/casacore -L/usr/local/lib msoverview.cc -o /usr/local/bin/msoverview -lcasa_casa -lcasa_ms -lcasa_tables -lstdc++
 
 #####################################################################
 ## BUILD DDF FROM SOURCE
@@ -181,6 +189,9 @@ RUN rm -rf /opt/DDFacet/DDFacet/cbuild
 #RUN pip3 install -U pip setuptools wheel
 #RUN python3 -m pip install tensorflow-cpu
 
+# Force numba <0.55 otherwise it breaks for numpy
+RUN pip3 install numba==0.54.1
+
 RUN python3 -m pip install -U "/opt/DDFacet/[moresane-support,testing-requirements,fits-beam-support]"
 RUN cd /opt/DDFacet/ && python3 setup.py build
 RUN cd /opt/DDFacet/ && python3 setup.py install
@@ -189,6 +200,9 @@ RUN cd /opt/DDFacet/ && python3 setup.py install
 ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
 ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
 
+# upgrade regions for compatibility with some pipelines
+RUN pip3 install regions --upgrade
+
 #####################################################################
 ## LiLF
 #####################################################################
@@ -196,7 +210,7 @@ ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
 #RUN cd /opt/LiLF && git checkout LBAdevel
 #ENV PYTHONPATH /opt/LiLF:$PYTHONPATH
 #ENV PATH /opt/LiLF/scripts:$PATH
-
+   
 #####################################################################
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
