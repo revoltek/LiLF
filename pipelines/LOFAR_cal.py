@@ -35,6 +35,7 @@ with w.if_todo('copy'):
 
 ### DONE
 
+lib_util.check_rm('concat.MS')
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s, check_flags = False )
 calname = MSs.getListObj()[0].getNameField()
 nchan = MSs.mssListObj[0].getNchan()
@@ -133,26 +134,41 @@ with w.if_todo('cal_fr'):
      CIRC_PHASEDIFF_DATA[,1]=0+0i, \
      CIRC_PHASEDIFF_DATA[,2]=0+0i"',log='$nameMS_taql_phdiff.log', commandType='general')
 
+    # concat all SBs
+    # SB.MS:CIRC_PHASEDIFF_DATA -> concat.MS:DATA
+    lib_util.check_rm('concat.MS')
+    s.add('DP3 msin="['+','.join(MSs.getListStr())+']" msin.datacolumn=CIRC_PHASEDIFF_DATA msout=concat.MS steps=[]', log='concat.log', commandType='DP3')
+    s.run(check=True)
+    MSs_concat = lib_ms.AllMSs( ['concat.MS'], s, check_flags = False )
+
     logger.info('Creating FR_MODEL_DATA...') # take from MODEL_DATA but overwrite
-    MSs.addcol('FR_MODEL_DATA', 'MODEL_DATA', usedysco=False) # need this to make sure no dysco, if we have dyso we cannot set values to zero
-    MSs.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
+    #MSs.addcol('FR_MODEL_DATA', 'MODEL_DATA', usedysco=False) # need this to make sure no dysco, if we have dyso we cannot set values to zero
+    #MSs.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
+    # FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
+    MSs_concat.addcol('FR_MODEL_DATA', 'DATA', usedysco=False) # need this to make sure no dysco, if we have dyso we cannot set values to zero
+    MSs_concat.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
      FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
 
     # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve)
+    # TODO: concat and use sol.smoothnessconstraint=5e6 sol.smoothnessreffrequency=54e6
     logger.info('Calibrating FR...')
-    MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=CIRC_PHASEDIFF_DATA \
-     msin.modelcolumn=FR_MODEL_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint='+str(2*base_solint)+' sol.nchan='+str(2*base_nchan)+' \
+    #MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=CIRC_PHASEDIFF_DATA \
+    # msin.modelcolumn=FR_MODEL_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint='+str(4*base_solint)+' sol.nchan=0 \
+    # sol.coreconstraint=2e3', log='$nameMS_solFR.log', commandType="DP3")
+    MSs_concat.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA \
+     msin.modelcolumn=FR_MODEL_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint='+str(4*base_solint)+' sol.nchan='+str(4*base_solint)+' \
      sol.coreconstraint=2e3 sol.smoothnessconstraint=5e6 sol.smoothnessreffrequency=54e6', log='$nameMS_solFR.log', commandType="DP3")
-    lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
+    lib_util.run_losoto(s, 'fr', ['concat.MS/fr.h5'], [parset_dir + '/losoto-fr.parset'])
+    lib_util.check_rm('concat.MS')
 
     # remove columns
-    MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN CIRC_PHASEDIFF_DATA, FR_MODEL_DATA"', log='$nameMS_taql_delcol.log', commandType='general')
+    #MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN CIRC_PHASEDIFF_DATA, FR_MODEL_DATA"', log='$nameMS_taql_delcol.log', commandType='general')
+    MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN CIRC_PHASEDIFF_DATA"', log='$nameMS_taql_delcol.log', commandType='general')
 
     # Correct FR CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
-    MSs.run(
-        'DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000',
-        log='$nameMS_corFR.log', commandType="DP3")
+    MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000',
+             log='$nameMS_corFR.log', commandType="DP3")
 
 ### DONE
 
