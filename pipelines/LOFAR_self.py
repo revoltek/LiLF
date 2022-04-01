@@ -38,6 +38,18 @@ with w.if_todo('cleaning'):
 ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+
+# if IS are present, copy the MS and split a dataset with just CS+RS
+#if MSs.hasIS:
+#    logger.info('Splitting out international stations...')
+#    lib_util.check_rm('mss-withIS')
+#    os.system('mkdir mss-withIS')
+#    for MS in MSs.getListObj():
+#        MS.move('mss-withIS/'+MS.nameMS+'.MS')
+#    MSs.run('DP3 msin=$pathMS msin.datacolumn=DATA msin.baseline="[CR]S*&" msout=mss/$nameMS.MS steps=[]',
+#            log='$nameMS_splitIS.log', commandType="DP3")
+#    MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+
 try:
     MSs.print_HAcov()
 except:
@@ -140,12 +152,12 @@ for c in range(2):
              CIRC_PHASEDIFF_DATA[,0]=0.5*EXP(1.0i*(PHASE(CIRC_PHASEDIFF_DATA[,0])-PHASE(CIRC_PHASEDIFF_DATA[,3]))), \
              CIRC_PHASEDIFF_DATA[,3]=CIRC_PHASEDIFF_DATA[,0], \
              CIRC_PHASEDIFF_DATA[,1]=0+0i, \
-             CIRC_PHASEDIFF_DATA[,2]=0+0i"', log='$nameMS_taql_phdiff.log', commandType='general')
+             CIRC_PHASEDIFF_DATA[,2]=0+0i WHERE ANTENNA == p/[CR]S*/"', log='$nameMS_taql_phdiff.log', commandType='general')
 
             logger.info('Creating FR_MODEL_DATA...')  # take from MODEL_DATA but overwrite
             MSs.addcol('FR_MODEL_DATA', 'MODEL_DATA', usedysco=False)
             MSs.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
-             FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
+             FR_MODEL_DATA[,3]=0.5+0i WHERE ANTENNA == p/[CR]S*/"', log='$nameMS_taql_frmodel.log', commandType='general')
 
             # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve)
             logger.info('Solving circ phase difference ...')
@@ -190,7 +202,7 @@ for c in range(2):
         # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting TEC1...')
         MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
-                cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000 cor.missingantennabehavior=unit',
+                cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000',
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DP3')
     ### DONE
 
@@ -320,10 +332,10 @@ for c in range(2):
             #use_idg = '', aterm_kernel_size = 16, aterm_config = parset_dir + '/aconfig.txt',
             lib_util.run_wsclean(s, 'wscleanLS.log', MSs.getStrWsclean(), name=imagename_ls, do_predict=False,
                                  temp_dir='./', size=2000, scale='20arcsec',
-                                 no_fit_beam='', circular_beam='', beam_size='180.0arcsec',
+                                 no_fit_beam='', circular_beam='', beam_size='200arcsec',
                                  multiscale='', multiscale_scales='0,4,8,16,32,64',
                                  weight='briggs -0.3', niter=10000, no_update_model_required='', minuv_l=20,
-                                 maxuvw_m=5000, taper_gaussian='180arcsec', mgain=0.85,
+                                 maxuvw_m=5000, taper_gaussian='200arcsec', mgain=0.85,
                                  parallel_deconvolution=512, baseline_averaging='', local_rms='', auto_mask=1.5,
                                  auto_threshold=0.5, join_channels='', channels_out=MSs.getChout(4.e6))
         ### DONE
@@ -342,7 +354,7 @@ for c in range(2):
             # corrupt model with TEC+FR+Beam2ord solutions - ms:MODEL_DATA -> ms:MODEL_DATA
             logger.info('Corrupt low-res model: TEC1...')
             MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                    cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False cor.missingantennabehavior=unit',
+                    cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DP3')
             logger.info('Corrupt low-res model: TEC2...')
             MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \

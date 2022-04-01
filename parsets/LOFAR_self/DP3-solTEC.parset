@@ -1,5 +1,7 @@
 msin = 
 msin.datacolumn = SMOOTHED_DATA
+msin.baseline="[CR]S*&"
+
 msout = .
 
 steps=[sol]
