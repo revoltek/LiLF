@@ -17,7 +17,7 @@ parser.add_argument('--projects', '-p', dest='project', help='Comma separated li
 parser.add_argument('--skip', '-s', action="store_true", help='Skip observations already present in field_obs, \
         this is faster but might miss some target to update as "Observed" in the field table.')
 parser.add_argument('--showdb', '-d', action="store_true", help='Print db status and exit.')
-parser.add_argument('--reset', '-r', dest="reset", help='Reset the db to "Not started" for all fields. If a field is specified it only reset it to "Observed".', default=None)
+parser.add_argument('--reset', '-r', dest="reset", help='If "all" reset the db to "Not started" for all fields. If a field is specified it only reset it to "Observed".', default=None)
 parser.add_argument('--incompletereset', '-i', action="store_true", help='Reset the fields that are not "Done"/"Not started" to "Observed".')
 args = parser.parse_args()
 
@@ -90,6 +90,10 @@ with SurveysDB(survey='lba',readonly=False) as sdb:
             for i, dataproduct in enumerate(dataproduct_query):
                 # apply selections
                 field_id = dataproduct.subArrayPointing.targetName.split('_')[-1]
+                time = dataproduct.subArrayPointing.startTime
+                # skip correlator bugs
+                if time.year == 2021 and ( (time.month==2 and time.day>=8) or (time.month>2 and time.month<8) or ( time.month==8 and time.day<=3) ): continue
+                # skip calibrators
                 if re_cal.match(field_id): continue
                 if not obs_id in obs_to_skip: # prevent multiple entries
                     print('Add to the db: %i -> %s' % (obs_id, field_id))
