@@ -587,7 +587,7 @@ class Scheduler():
         hostname = socket.gethostname()
         if (hostname == 'lgc1' or hostname == 'lgc2'):
             return "Hamburg"
-        elif ('ira' in hostname):
+        elif ('lofar' in hostname):
             return "IRA"
         elif ('node3' in hostname):
             return "Hamburg_fat"
