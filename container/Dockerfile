@@ -10,7 +10,7 @@ RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
 RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename \
-    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm python3-numba python3-ipdb \
+    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm python3-numba \
     libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
@@ -135,17 +135,17 @@ RUN cd /opt/lofar_lta-2.7.1 && python3 setup.py install
 ENV LD_LIBRARY_PATH /usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 
 #####################################################################
-## Pybdsf (1.10.1)
+## Pybdsf (master 1/2021)
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
     && cd /opt/PyBDSF; git checkout tags/v1.10.1
 RUN cd /opt/PyBDSF && pip3 install .
 
 #####################################################################
-## LSMtool
+## LSMtool (1.4.5)
 #####################################################################
-RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git
-#   && cd /opt/LSMTool
+RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git \
+    && cd /opt/LSMTool; git checkout tags/v1.4.5
 RUN cd /opt/LSMTool && pip3 install .
 
 ####################################################################
@@ -191,6 +191,8 @@ RUN rm -rf /opt/DDFacet/DDFacet/cbuild
 
 # Force numba <0.55 otherwise it breaks for numpy
 RUN pip3 install numba==0.54.1
+# Forse ipython not to be upgraded too much otherwise we lose compatibility with come astropy
+RUN pip3 install ipython==7.17.0
 
 RUN python3 -m pip install -U "/opt/DDFacet/[moresane-support,testing-requirements,fits-beam-support]"
 RUN cd /opt/DDFacet/ && python3 setup.py build
@@ -199,9 +201,6 @@ RUN cd /opt/DDFacet/ && python3 setup.py install
 # Set MeqTrees Cattery path to installation directory
 ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
 ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
-
-# upgrade regions for compatibility with some pipelines
-RUN pip3 install regions --upgrade
 
 #####################################################################
 ## LiLF
@@ -215,5 +214,6 @@ RUN pip3 install regions --upgrade
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN ln -s /usr/bin/ipython3 /usr/bin/ipython
+ENV HDF5_USE_FILE_LOCKING FALSE
 ENV OMP_NUM_THREADS 1
 RUN ulimit -n 4000
