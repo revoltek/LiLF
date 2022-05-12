@@ -1,6 +1,6 @@
 msin =
 msin.datacolumn = CIRC_PHASEDIFF_DATA
-msin.baseline="[CR]S*&"
+#msin.baseline="[CR]S*&" # solve also for IS
 
 msin.modelcolumn = FR_MODEL_DATA
 msout = .
@@ -9,11 +9,11 @@ steps = [sol]
 
 sol.type = ddecal
 sol.uvlambdamin = 100
-sol.uvmmax = 80e3
+#sol.uvmmax = 80e3
 sol.minvisratio = 0.5
 sol.mode = phaseonly
 sol.maxiter = 500
-sol.nchan = 8
+#sol.nchan = 8
 sol.solint = 30 # 2 min, old method used 8 min
 sol.tolerance = 1e-3
 sol.propagatesolutions = True

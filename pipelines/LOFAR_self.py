@@ -39,17 +39,6 @@ with w.if_todo('cleaning'):
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
-# if IS are present, copy the MS and split a dataset with just CS+RS
-#if MSs.hasIS:
-#    logger.info('Splitting out international stations...')
-#    lib_util.check_rm('mss-withIS')
-#    os.system('mkdir mss-withIS')
-#    for MS in MSs.getListObj():
-#        MS.move('mss-withIS/'+MS.nameMS+'.MS')
-#    MSs.run('DP3 msin=$pathMS msin.datacolumn=DATA msin.baseline="[CR]S*&" msout=mss/$nameMS.MS steps=[]',
-#            log='$nameMS_splitIS.log', commandType="DP3")
-#    MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
-
 try:
     MSs.print_HAcov()
 except:
@@ -68,6 +57,16 @@ if imgsizepix%2 != 0: imgsizepix += 1 # prevent odd img sizes
 bandwidth = MSs.getBandwidth()
 if bandwidth > 25e6: cc_fit_order = 5
 else: cc_fit_order = 3
+
+fullband = MSs.getBandwidth()
+nchan = MSs.mssListObj[0].getNchan()
+tint = MSs.mssListObj[0].getTimeInt()
+if int(np.rint(fullband / nchan < 195.3e3/4)):
+    base_nchan = int(np.rint((195.3e3/4)/(fullband/nchan))) # this is 1 for ducth observations, and larger (2,4) for IS observations
+else: base_nchan = 1
+if tint < 4:
+    base_solint = int(np.rint(4/tint)) # this is 1 for dutch observations and 2 for IS observations
+else: base_solint = 1
 
 #################################################################
 # Get online model
@@ -94,6 +93,7 @@ for MS in MSs.getListStr():
     logger.debug('Copy: ' + sourcedb + ' -> ' + MS)
     os.system('cp -r ' + sourcedb + ' ' + MS)
 
+# Here the model is added only to CS+RS, IS used only for FR and model is not needed
 with w.if_todo('init_model'):
 
     # note: do not add MODEL_DATA or the beam is transported from DATA, while we want it without beam applied
@@ -134,7 +134,7 @@ for c in range(2):
     if c == 0:
         with w.if_todo('solve_fr_c%02i' % c):
             logger.info('Add column CIRC_PHASEDIFF_DATA...')
-            MSs.addcol('CIRC_PHASEDIFF_DATA', 'CORRECTED_DATA', usedysco=False)
+            MSs.addcol('CIRC_PHASEDIFF_DATA', 'CORRECTED_DATA', usedysco=False) # No dysco here as off diag elements are 0 and dysco does not like 0s
             # Probably we do not need smoothing since we have long time intervals and smoothnessconstraint?
             # logger.info('BL-smooth...')
             # MSs.run('BLsmooth.py -r -c 1 -n 8 -i CIRC_PHASEDIFF_DATA -o CIRC_PHASEDIFF_DATA $pathMS',
@@ -143,8 +143,7 @@ for c in range(2):
 
             logger.info('Converting to circular...')
             MSs.run('mslin2circ.py -s -i $pathMS:CIRC_PHASEDIFF_DATA -o $pathMS:CIRC_PHASEDIFF_DATA',
-                    log='$nameMS_lincirc.log',
-                    commandType='python', maxThreads=2)
+                    log='$nameMS_lincirc.log', commandType='python', maxThreads=2)
 
             # Get circular phase diff CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
             logger.info('Get circular phase difference...')
@@ -152,16 +151,16 @@ for c in range(2):
              CIRC_PHASEDIFF_DATA[,0]=0.5*EXP(1.0i*(PHASE(CIRC_PHASEDIFF_DATA[,0])-PHASE(CIRC_PHASEDIFF_DATA[,3]))), \
              CIRC_PHASEDIFF_DATA[,3]=CIRC_PHASEDIFF_DATA[,0], \
              CIRC_PHASEDIFF_DATA[,1]=0+0i, \
-             CIRC_PHASEDIFF_DATA[,2]=0+0i WHERE ANTENNA == p/[CR]S*/"', log='$nameMS_taql_phdiff.log', commandType='general')
+             CIRC_PHASEDIFF_DATA[,2]=0+0i"', log='$nameMS_taql_phdiff.log', commandType='general')
 
             logger.info('Creating FR_MODEL_DATA...')  # take from MODEL_DATA but overwrite
             MSs.addcol('FR_MODEL_DATA', 'MODEL_DATA', usedysco=False)
             MSs.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
-             FR_MODEL_DATA[,3]=0.5+0i WHERE ANTENNA == p/[CR]S*/"', log='$nameMS_taql_frmodel.log', commandType='general')
+             FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
 
-            # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve)
+            # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve - solint=2m nchan=0 as it has the smoothnessconstrain)
             logger.info('Solving circ phase difference ...')
-            MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5',
+            MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint='+str(30*base_solint),
                     log='$nameMS_solFR-c' + str(c) + '.log', commandType="DP3")
             lib_util.run_losoto(s, f'fr-c{c}', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
             os.system('mv cal-fr-c' + str(c) + '.h5 self/solutions/')
@@ -185,12 +184,13 @@ for c in range(2):
         MSs.run('BLsmooth.py -c 8 -n 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
         MSs.run('BLsmooth.py -c 8 -n 8 -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
 
-        # solve TEC - ms:SMOOTHED_DATA
+        # solve TEC - ms:SMOOTHED_DATA (1m 2SB)
         logger.info('Solving TEC1...')
         MSs.run('DP3 '+parset_dir+'/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 \
                 msin.baseline="[CR]*&&;!RS208LBA;!RS210LBA;!RS307LBA;!RS310LBA;!RS406LBA;!RS407LBA;!RS409LBA;!RS508LBA;!RS509LBA" \
                 sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
-           	    sol.solint=15 sol.nchan=8', \
+                sol.solint='+str(15*base_solint), \
+                #+' sol.nchan='+str(8*base_nchan), \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
         lib_util.run_losoto(s, 'tec1-c'+str(c), [ms+'/tec1.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
@@ -211,11 +211,12 @@ for c in range(2):
         logger.info('BL-based smoothing...')
         MSs.run('BLsmooth.py -c 8 -n 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
 
-        # solve TEC - ms:SMOOTHED_DATA
+        # solve TEC - ms:SMOOTHED_DATA (4s, 1SB)
         logger.info('Solving TEC2...')
         MSs.run('DP3 '+parset_dir+'/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec2.h5 \
                 sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]] \
-                sol.solint=1 sol.nchan=4',
+                sol.solint='+str(base_solint), \
+                #+' sol.nchan='+str(4*base_nchan), \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
         lib_util.run_losoto(s, 'tec2-c'+str(c), [ms+'/tec2.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
@@ -234,9 +235,9 @@ for c in range(2):
     # AMP DIE correction
     if c == 0:
         with w.if_todo('solve_g_c%02i' % c):
-            # DIE Calibration - ms:CORRECTED_DATA
+            # DIE Calibration - ms:CORRECTED_DATA (8m, 4SB)
             logger.info('Solving slow G...')
-            MSs.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS sol.h5parm=$pathMS/g.h5',
+            MSs.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS sol.h5parm=$pathMS/g.h5 sol.solint='+str(120*base_solint)+' sol.nchan='+str(16*base_nchan),
                     log='$nameMS_solG-c'+str(c)+'.log', commandType='DP3')
             lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()],
                     [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-amp.parset'])
@@ -255,6 +256,17 @@ for c in range(2):
     ###################################################################################################################
     # clen on concat.MS:CORRECTED_DATA
 
+    # if IS are present, copy the MS and split a dataset with just CS+RS
+    if MSs.hasIS:
+        logger.info('Splitting out international stations...')
+        lib_util.check_rm('mss-noIS')
+        os.system('mkdir mss-noIS')
+        MSs.run('DP3 msin=$pathMS msin.datacolumn=CORRECTED_DATA msin.baseline="[CR]S*&" msout=mss-noIS/$nameMS.MS steps=[]',
+                 log='$nameMS_splitDutch.log', commandType="DP3")
+        MSsClean = lib_ms.AllMSs( glob.glob('mss-noIS/TC*[0-9].MS'), s )
+    else:
+        MSsClean = MSs
+
     imagename = 'img/wide-0'
     maskname = imagename + '-mask.fits'
     imagenameM = 'img/wideM-'+str(c)
@@ -262,30 +274,37 @@ for c in range(2):
         logger.info('Cleaning (cycle: '+str(c)+')...')
         if c == 0:
             # make temp mask for cycle 0, in cycle 1 use the maske made from cycle 0 image
-            lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSs.getStrWsclean(), name=imagename,
+            lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(), name=imagename,
                                  size=imgsizepix, scale='10arcsec',
                                  weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
                                  parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
                                  parallel_deconvolution=512, local_rms='', auto_threshold=4,
-                                 join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSs.getChout(4.e6),
+                                 join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6),
                                  deconvolution_channels=cc_fit_order)
             im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
             im.makeMask(threshpix=5, atrous_do=True)
 
-            kwargs = {'do_predict':True, 'reuse_dirty':imagename, 'reuse_psf':imagename}
+            kwargs = {'do_predict':False, 'reuse_dirty':imagename, 'reuse_psf':imagename}
         else: 
             kwargs = {}
 
-        lib_util.run_wsclean(s, 'wscleanM-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, save_source_list='',
+        lib_util.run_wsclean(s, 'wscleanM-c'+str(c)+'.log', MSsClean.getStrWsclean(), name=imagenameM, save_source_list='',
                 size=imgsizepix, scale='10arcsec',
                 weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
                 parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
                 parallel_deconvolution=512, auto_threshold=3., fits_mask=maskname,
-                join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSs.getChout(4.e6),
+                join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6),
                 multiscale='', multiscale_scale_bias=0.6,
                 deconvolution_channels=cc_fit_order, **kwargs)
 
         os.system('cat logs/wscleanM-c'+str(c)+'.log | grep "background noise"')
+
+        # when wasclean allow station selection, then we can remove MSsClean and this predict can go in the previous call with do_predict=True
+        if c == 0:
+            logger.info('Predict model...')
+            s.add('wsclean -predict -name img/wideM-'+str(c)+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(4e6))+' '+MSs.getStrWsclean(), \
+                   log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+            s.run(check=True)
     ### DONE
 
     if c == 0:
