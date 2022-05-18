@@ -1,6 +1,5 @@
 msin =
 msin.datacolumn = CIRC_PHASEDIFF_DATA
-#msin.baseline="[CR]S*&" # solve also for IS
 
 msin.modelcolumn = FR_MODEL_DATA
 msout = .
