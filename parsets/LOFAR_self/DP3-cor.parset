@@ -1,5 +1,6 @@
 msin =
 msin.datacolumn = DATA
+
 msout = .
 msout.datacolumn = CORRECTED_DATA
 msout.storagemanager = dysco
@@ -9,3 +10,4 @@ steps = [cor, count]
 cor.type = correct
 cor.parmdb =
 cor.correction = 
+cor.missingantennabehavior=unit

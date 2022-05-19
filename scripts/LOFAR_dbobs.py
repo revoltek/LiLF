@@ -9,24 +9,28 @@ from awlofar.main.aweimports import CorrelatedDataProduct, \
     Observation, Pointing, SubArrayPointing
 from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
 from surveys_db import SurveysDB
+import numpy as np
 
-survey_projects = 'LT14_002,LC12_017,LC9_016,LC8_031' # list of projects related with the LBA survey
+survey_projects = 'LT16_004,LT14_002,LC12_017,LC9_016,LC8_031' # list of projects related with the LBA survey
 
 parser = argparse.ArgumentParser(description='Stage and download MS from the LOFAR LTA.')
 parser.add_argument('--projects', '-p', dest='project', help='Comma separated list of project names.', default=survey_projects)
 parser.add_argument('--skip', '-s', action="store_true", help='Skip observations already present in field_obs, \
         this is faster but might miss some target to update as "Observed" in the field table.')
-parser.add_argument('--showdb', '-d', action="store_true", help='Print db status and exit.')
-parser.add_argument('--reset', '-r', dest="reset", help='Reset the db to "Not started" for all fields. If a field is specified it only reset it to "Observed".', default=None)
+parser.add_argument('--showdb', '-d', action="store_true", help='Print all targets and exit.')
+parser.add_argument('--reset', '-r', dest="reset", help='If "all" reset the db to "Not started" for all fields. If a field is specified it only reset it to "Observed".', default=None)
 parser.add_argument('--incompletereset', '-i', action="store_true", help='Reset the fields that are not "Done"/"Not started" to "Observed".')
 args = parser.parse_args()
 
 if args.showdb:
-    with SurveysDB(survey='lba',readonly=False) as sdb:
-        sdb.execute('SELECT * FROM fields WHERE status="Observed" order by priority desc')
+    with SurveysDB(survey='lba',readonly=True) as sdb:
+        sdb.execute('SELECT id,status,priority FROM fields WHERE status="Observed" order by priority desc')
         r = sdb.cur.fetchall()
+        sdb.execute('SELECT field_id FROM field_obs')
+        all_fields = [x['field_id'] for x in sdb.cur.fetchall()]
         for i, entry in enumerate(r):
-            print('%03i) ID: %s (%s - pri: %i)' % (i, entry['id'], entry['status'], entry['priority']))
+            hrs = sum(np.array(all_fields) == entry['id'])
+            print('%03i) ID: %s - %i hrs (%s - priority: %i)' % (i, entry['id'], hrs, entry['status'], entry['priority']))
         print("############################")
         sdb.execute('SELECT * FROM fields WHERE status!="Observed" and status!="Not started"')
         r = sdb.cur.fetchall()
@@ -90,6 +94,10 @@ with SurveysDB(survey='lba',readonly=False) as sdb:
             for i, dataproduct in enumerate(dataproduct_query):
                 # apply selections
                 field_id = dataproduct.subArrayPointing.targetName.split('_')[-1]
+                time = dataproduct.subArrayPointing.startTime
+                # skip correlator bugs
+                if time.year == 2021 and ( (time.month==2 and time.day>=8) or (time.month>2 and time.month<8) or ( time.month==8 and time.day<=3) ): continue
+                # skip calibrators
                 if re_cal.match(field_id): continue
                 if not obs_id in obs_to_skip: # prevent multiple entries
                     print('Add to the db: %i -> %s' % (obs_id, field_id))

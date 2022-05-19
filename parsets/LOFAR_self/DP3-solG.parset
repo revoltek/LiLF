@@ -1,5 +1,7 @@
 msin =
 msin.datacolumn = CORRECTED_DATA
+msin.baseline="[CR]S*&"
+
 msout = .
 
 steps = [sol]
@@ -11,7 +13,7 @@ sol.minvisratio = 0.5
 sol.mode = diagonal
 sol.tolerance = 1e-3
 sol.maxiter = 500
-sol.nchan = 16
+#sol.nchan = 16
 sol.solint = 120
 sol.propagatesolutions = True
 sol.usemodelcolumn = True

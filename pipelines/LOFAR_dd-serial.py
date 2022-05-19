@@ -942,4 +942,11 @@ with w.if_todo('output_stokesV'):
     os.system('mv %s* ddcal/c%02i/images' % (imagenameV, cmaj))
 ### DONE
 
+with w.if_todo('output_PB'):
+    logger.info('Make primary beam...')
+    s.add('makepb.py -o ddcal/primarybeam.fits -s 10 -p 60 %s > logs/makepb.log' % MSs.getStrDDF(),
+          log='makepb.log', commandType='python', processors='max')
+    s.run(check=True)
+### DONE
+
 logger.info("Done.")

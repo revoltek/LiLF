@@ -79,14 +79,13 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_dd-serial', 'minCalFlux60', '1')
     add_default('LOFAR_dd-serial', 'removeExtendedCutoff', '0.0005')
     add_default('LOFAR_dd-serial', 'target_dir', '') # ra,dec
-    # ddfacet
-    add_default('LOFAR_ddfacet', 'maxniter', '10')
-    add_default('LOFAR_ddfacet', 'calFlux', '2.0')
     # extract
     add_default('LOFAR_extract', 'maxniter', '10')
     add_default('LOFAR_extract', 'extractRegion', 'target.reg')
     add_default('LOFAR_extract', 'phSolMode', 'phase') # tecandphase, phase
     add_default('LOFAR_extract', 'beam_cut', '0.3') # up to which distance a pointing will be considered
+    # quality
+    add_default('LOFAR_quality', 'self_dir', 'self')
     # virgo
     add_default('LOFAR_virgo', 'cal_dir', '')
     add_default('LOFAR_virgo', 'data_dir', './')
@@ -587,7 +586,7 @@ class Scheduler():
         hostname = socket.gethostname()
         if (hostname == 'lgc1' or hostname == 'lgc2'):
             return "Hamburg"
-        elif ('ira' in hostname):
+        elif ('lofar' in hostname):
             return "IRA"
         elif ('node3' in hostname):
             return "Hamburg_fat"
