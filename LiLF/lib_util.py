@@ -608,7 +608,7 @@ class Scheduler():
         cmd:         the command to run
         log:         log file name that can be checked at the end
         logAppend:  if True append, otherwise replace
-        commandType: can be a list of known command types as "BBS", "DP3", ...
+        commandType: can be a list of known command types as "wsclean", "DP3", ...
         processors:  number of processors to use, can be "max" to automatically use max number of processors per node
         """
 
@@ -626,9 +626,11 @@ class Scheduler():
             logger.debug('Running wsclean: %s' % cmd)
         elif commandType == 'DP3':
             logger.debug('Running DP3: %s' % cmd)
-        elif commandType == 'singularity':
-            cmd = 'SINGULARITY_TMPDIR=/dev/shm singularity exec -B /tmp,/dev/shm,/localwork,/localwork.ssd,/home /home/fdg/node31/opt/src/lofar_sksp_ddf.simg ' + cmd
-            logger.debug('Running singularity: %s' % cmd)
+        #elif commandType == 'singularity':
+        #    cmd = 'SINGULARITY_TMPDIR=/dev/shm singularity exec -B /tmp,/dev/shm,/localwork,/localwork.ssd,/home /home/fdg/node31/opt/src/lofar_sksp_ddf.simg ' + cmd
+        #    logger.debug('Running singularity: %s' % cmd)
+        elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
+            logger.debug('Running DDFacet: %s' % cmd)
         elif commandType == 'python':
             logger.debug('Running python: %s' % cmd)
 
@@ -704,7 +706,6 @@ class Scheduler():
         """
         Produce a warning if a command didn't close the log properly i.e. it crashed
         NOTE: grep, -L inverse match, -l return only filename
-        # TODO add commandType=DDFacet consistently to pipelines, check for keywords
         """
 
         if (not os.path.exists(log)):
@@ -749,10 +750,10 @@ class Scheduler():
             out += subprocess.check_output('grep -l "ERROR" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
-        elif (commandType == "singularity"):
-            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+#        elif (commandType == "singularity"):
+#            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+#            out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+#            out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "general"):
             out = subprocess.check_output('grep -l -i "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
