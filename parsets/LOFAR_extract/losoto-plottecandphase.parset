@@ -8,7 +8,7 @@ axisInTable = ant
 plotFlag = True
 minmax = [-0.5,0.5]
 prefix = plots/tec
-refAnt = 'CS002LBA'
+refAnt = auto
 
 [plotP]
 operation = PLOT
@@ -17,7 +17,7 @@ axesInPlot = [time]
 # axesInPlot = [time,freq]
 axisInTable = ant
 prefix = plots/ph1_
-refAnt = 'CS002LBA'
+refAnt = auto
 minmax = [-3.14,3.14]
 
 [plotP2]
@@ -27,7 +27,7 @@ freq.minmaxstep = [40e6,100e6,10000]
 axesInPlot = [time]
 axisInTable = ant
 prefix = plots/ph1_
-refAnt = 'CS002LBA'
+refAnt = auto
 minmax = [-3.14,3.14]
 
 [plotP3]
@@ -37,6 +37,6 @@ time.minmaxstep = [0,1e20,500]
 axesInPlot = [freq]
 axisInTable = ant
 prefix = plots/ph1_
-refAnt = 'CS002LBA'
+refAnt = auto
 minmax = [-3.14,3.14]
 
