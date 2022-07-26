@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os, sys, glob, getpass, socket, re
 from LiLF.surveys_db import SurveysDB
