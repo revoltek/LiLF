@@ -6,7 +6,7 @@ soltab = sol000/phase000
 axesInPlot = [time,freq]
 axisInTable = ant
 prefix = plots/ph_
-refAnt = 'CS002LBA'
+refAnt = auto
 minmax = [-3.14,3.14]
 
 [plotPdirD]
@@ -16,5 +16,5 @@ axesInPlot = [time,freq]
 axisInTable = ant
 axisDiff = pol
 prefix = plots/ph-dif
-refAnt = 'CS002LBA'
+refAnt = auto
 minmax = [-1,+1]

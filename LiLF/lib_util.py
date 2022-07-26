@@ -551,7 +551,7 @@ class Scheduler():
         else:
             if ((self.qsub is False and self.cluster == "Hamburg") or
                (self.qsub is True and (self.cluster == "Leiden" or self.cluster == "CEP3" or
-                                       self.cluster == "Hamburg_fat" or self.cluster == "IRA" or self.cluster == "Herts"))):
+                                       self.cluster == "Hamburg_fat" or self.cluster == "Pleiadi" or self.cluster == "Herts"))):
                 logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
                 sys.exit(1)
 
@@ -586,8 +586,8 @@ class Scheduler():
         hostname = socket.gethostname()
         if (hostname == 'lgc1' or hostname == 'lgc2'):
             return "Hamburg"
-        elif ('lofar' in hostname):
-            return "IRA"
+        elif ('r' == hostname[0] and 'c' == hostname[3] and 's' == hostname[6]):
+            return "Pleiadi"
         elif ('node3' in hostname):
             return "Hamburg_fat"
         elif ('node' in hostname):
