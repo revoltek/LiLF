@@ -17,17 +17,19 @@ from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
 import stager_access as stager
 from casacore import tables
 from download_file import download_file
+from astropy.time import Time
 
 #project = 'LC9_017' # 3c first part
 #project = 'LC10_020' # 3c second part
 #project = 'LC13_011' # cluster
 
 parser = argparse.ArgumentParser(description='Stage and download MS from the LOFAR LTA.')
-parser.add_argument('--projects', '-p', dest='projects', help='Comma separated list of project names')
-parser.add_argument('--obsID', '-o', dest='obsID', help='Comma separated list of project ids')
+parser.add_argument('--projects', '-p', dest='projects', help='Comma separated list of project names.')
+parser.add_argument('--obsID', '-o', dest='obsID', help='Comma separated list of project ids.')
 parser.add_argument('--target', '-t', dest='target', help='')
 parser.add_argument('--calonly', '-c', dest='calonly', action='store_true', help='')
 parser.add_argument('--nocal', '-n', dest='nocal', action='store_true', help='')
+parser.add_argument('--nobad', '-b', dest='nobad', action='store_true', help='Remove observations taken turing the correlator bag in 2021.')
 args = parser.parse_args()
 
 if args.projects is None:
@@ -68,7 +70,7 @@ if not os.path.exists('uris.pickle'):
     for project in projects:
         print("Quering project: %s" % project)
         query_observations = Observation.select_all().project_only(project)
-        for observation in query_observations :
+        for observation in query_observations:
             obsID = int(observation.observationId)
             if args.obsID is not None:
                 if obsID not in obsIDs:
@@ -83,6 +85,7 @@ if not os.path.exists('uris.pickle'):
             for i, dataproduct in enumerate(dataproduct_query):
                 # apply selections
                 name = dataproduct.subArrayPointing.targetName
+                time = dataproduct.subArrayPointing.startTime # TODO: check if it is ok to get bad obs
                 if re_cal.match(name) and nocal: continue
                 if not re_cal.match(name) and calonly: continue
                 if target is not None and not target in name: continue
@@ -103,6 +106,7 @@ if not os.path.exists('uris.pickle'):
      
         pickle.dump(uris, open('uris.pickle', 'wb'))
 else:
+    print('WARNING: using uris.pickle')
     uris = pickle.load(open('uris.pickle','rb'))
 
 # remove files already downloaded/renamed
