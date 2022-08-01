@@ -17,7 +17,6 @@ from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
 import stager_access as stager
 from casacore import tables
 from download_file import download_file
-from astropy.time import Time
 
 #project = 'LC9_017' # 3c first part
 #project = 'LC10_020' # 3c second part
@@ -26,10 +25,10 @@ from astropy.time import Time
 parser = argparse.ArgumentParser(description='Stage and download MS from the LOFAR LTA.')
 parser.add_argument('--projects', '-p', dest='projects', help='Comma separated list of project names.')
 parser.add_argument('--obsID', '-o', dest='obsID', help='Comma separated list of project ids.')
-parser.add_argument('--target', '-t', dest='target', help='')
-parser.add_argument('--calonly', '-c', dest='calonly', action='store_true', help='')
-parser.add_argument('--nocal', '-n', dest='nocal', action='store_true', help='')
-parser.add_argument('--nobad', '-b', dest='nobad', action='store_true', help='Remove observations taken turing the correlator bag in 2021.')
+parser.add_argument('--target', '-t', dest='target', help='Target name.')
+parser.add_argument('--calonly', '-c', dest='calonly', action='store_true', help='Get only calibrator data.')
+parser.add_argument('--nocal', '-n', dest='nocal', action='store_true', help='Do not download calibrator data.')
+parser.add_argument('--nobug', '-b', dest='nobug', action='store_true', help='Remove observations taken turing the correlator bag in 2021.')
 args = parser.parse_args()
 
 if args.projects is None:
@@ -43,6 +42,7 @@ if args.obsID is not None:
 target = args.target
 calonly = args.calonly
 nocal = args.nocal
+nobug = args.nobug
 
 # Login/Passwd for LTA
 login = None
@@ -76,6 +76,13 @@ if not os.path.exists('uris.pickle'):
                 if obsID not in obsIDs:
                     continue
             print("Querying ObservationID %i" % obsID, end='')
+            # remove buggy observations
+            if nobug:
+                time = observation.as_dict()['Observation.startTime']
+                if time.year == 2021 and ( (time.month==2 and time.day>=8) or (time.month>2 and time.month<8) or ( time.month==8 and time.day<=3) ):
+                    print('bad')
+                    continue
+
             # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
             dataproduct_query = cls.observations.contains(observation)
             # isValid = 1 means there should be an associated URI
@@ -85,9 +92,8 @@ if not os.path.exists('uris.pickle'):
             for i, dataproduct in enumerate(dataproduct_query):
                 # apply selections
                 name = dataproduct.subArrayPointing.targetName
-                time = dataproduct.subArrayPointing.startTime # TODO: check if it is ok to get bad obs
-                if re_cal.match(name) and nocal: continue
-                if not re_cal.match(name) and calonly: continue
+                if nocal and re_cal.match(name): continue
+                if calonly and not re_cal.match(name): continue
                 if target is not None and not target in name: continue
 
                 # This DataProduct should have an associated URL
