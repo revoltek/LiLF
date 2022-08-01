@@ -31,13 +31,16 @@ parser.add_argument('--nocal', '-n', dest='nocal', action='store_true', help='Do
 parser.add_argument('--nobug', '-b', dest='nobug', action='store_true', help='Remove observations taken turing the correlator bag in 2021.')
 args = parser.parse_args()
 
-if args.projects is None:
-    print('ERROR: --project needs to be specified.')
+if args.projects is None and args.obsID is None:
+    print('ERROR: --project or --obsID needs to be specified.')
     sys.exit()
-projects = args.projects.split(',')
+
+if args.projects is not None:
+    projects = args.projects.split(',')
 
 if args.obsID is not None:
     obsIDs = [int(obsID) for obsID in args.obsID.split(',')]
+    projects = ['all'] # obsID defined, project is not used
 
 target = args.target
 calonly = args.calonly
@@ -69,19 +72,26 @@ if not os.path.exists('uris.pickle'):
     uris = set() # All URIS to stage
     for project in projects:
         print("Quering project: %s" % project)
-        query_observations = Observation.select_all().project_only(project)
+
+        # using only certain obsID
+        if args.obsID is not None:
+            query_observations = (Observation.observationId==obsIDs[0])
+            if len(obsIDs)>1:
+                for obsID in obsIDs[1:]:
+                    print(obsID)
+                    query_observations |= (Observation.observationId==obsID)
+        # select all obsID in a project
+        else:
+            query_observations = Observation.select_all().project_only(project)
+
         for observation in query_observations:
             obsID = int(observation.observationId)
-            if args.obsID is not None:
-                if obsID not in obsIDs:
-                    continue
-            print("Querying ObservationID %i" % obsID, end='')
             # remove buggy observations
             if nobug:
                 time = observation.as_dict()['Observation.startTime']
                 if time.year == 2021 and ( (time.month==2 and time.day>=8) or (time.month>2 and time.month<8) or ( time.month==8 and time.day<=3) ):
-                    print('bad')
                     continue
+            print("Querying ObservationID %i" % obsID, end='')
 
             # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
             dataproduct_query = cls.observations.contains(observation)
