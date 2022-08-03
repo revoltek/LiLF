@@ -66,6 +66,7 @@ def check_done(logfile):
         logger.error('Something went wrong in the last pipeline call.')
         sys.exit()
 
+
 def fix_dir_format(working_dir):
     # fix for c##-o##_p##### format
     pattern = re.compile(".*id[0-9]*_-_c[0-9][0-9]-o.*_.*$")
@@ -75,7 +76,7 @@ def fix_dir_format(working_dir):
 
 ####################################################################################
 
-# query the database for data to process
+# If no input given, assume survey data and query the database for data to process
 survey = False
 if download_file == '' and project == '' and target == '' and obsid == '':
     survey = True
@@ -85,9 +86,9 @@ if download_file == '' and project == '' and target == '' and obsid == '':
     else:
         logger.info('### Quering database...')
         with SurveysDB(survey='lba',readonly=True) as sdb:
-            sdb.execute('SELECT * FROM fields WHERE status="Observed" order by priority desc')
+            sdb.execute('SELECT * FROM fields WHERE status="Observed" order by priority asc')
             r = sdb.cur.fetchall()
-            target = r[0]['id']
+            target = r[0]['id'] # here we set $target
         # save target name
         with open("target.txt", "w") as file:
                 print(target, file=file)
@@ -95,7 +96,7 @@ if download_file == '' and project == '' and target == '' and obsid == '':
     with SurveysDB(survey='lba',readonly=True) as sdb:
         sdb.execute('SELECT * FROM field_obs WHERE field_id="%s"' % target)
         r = sdb.cur.fetchall()
-        obsid = ','.join([str(x['obs_id']) for x in r])
+        obsid = ','.join([str(x['obs_id']) for x in r]) # here we set $obsid
 
     logger.info("### Working on target: %s (obsid: %s)" % (target, obsid))
     # add other info, like cluster, node, user...
@@ -154,7 +155,6 @@ logger.debug('CALIBRATORS: %s' % ( ','.join(calibrators) ) )
 logger.debug('TARGET: %s' % (','.join(targets) ) )
 
 for target in targets:
-    
     ##########
     # calibrator
     # here the pipeline checks if the calibrator is available online, otherwise it downloads it
@@ -163,13 +163,13 @@ for target in targets:
     with w.if_todo('cal_id%i' % obsid):
         if not survey or redo_cal or not calibrator_tables_available(obsid):
             logger.info('### %s: Starting calibrator... #####################################' % target)
-            # if calibrator not downaloaded, do it
             cal_dir = local_calibrator_dirs(working_dir, obsid)
+            # if calibrator not downaloaded, do it
             if len(cal_dir) == 0:
                 if not os.path.exists(working_dir+'/download-cal_id%i' % obsid):
                     os.makedirs(working_dir+'/download-cal_id%i' % obsid)
                 os.chdir(working_dir+'/download-cal_id%i' % obsid)
-                os.system(LiLF_dir+'/scripts/LOFAR_stager.py --cal --projects %s --obsID %i' % (project, obsid))
+                os.system(LiLF_dir+'/scripts/LOFAR_stager.py --cal --obsID %i' % (obsid))
                 os.system(LiLF_dir+'/pipelines/LOFAR_preprocess.py')
                 check_done('pipeline-preprocess.logger')
                 os.system('mv mss/* ../')
@@ -224,7 +224,7 @@ for target in targets:
         check_done('pipeline-timesplit.logger')
     ### DONE
 
-# group targets with same name, assuming they are different pointings of the same dir
+# group targets with same name, assuming they are different pointings in the same direction
 grouped_targets = set([t.split('_-_',1)[1] for t in targets])
 
 for grouped_target in grouped_targets:

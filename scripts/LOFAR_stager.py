@@ -78,7 +78,6 @@ if not os.path.exists('uris.pickle'):
             query_observations = (Observation.observationId==obsIDs[0])
             if len(obsIDs)>1:
                 for obsID in obsIDs[1:]:
-                    print(obsID)
                     query_observations |= (Observation.observationId==obsID)
         # select all obsID in a project
         else:
