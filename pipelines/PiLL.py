@@ -11,8 +11,6 @@ w = lib_util.Walker('PiLL.walker')
 LiLF_dir = os.path.dirname(os.path.dirname(lib_util.__file__))
 parset = lib_util.getParset(parsetFile='lilf.config')
 
-survey_projects = 'LT14_002,LC12_017,LC9_016,LC8_031' # list of projects related with the LBA survey
-
 # get parameters
 # use lilf.config (this is also used by all other scripits)
 working_dir = os.path.abspath(parset.get('PiLL','working_dir'))
@@ -81,7 +79,6 @@ def fix_dir_format(working_dir):
 survey = False
 if download_file == '' and project == '' and target == '' and obsid == '':
     survey = True
-    project = survey_projects
     if os.path.exists('target.txt'):
         with open('target.txt', 'r') as file:
                 target = file.read().replace('\n', '')
@@ -134,7 +131,7 @@ with w.if_todo('download'):
     os.chdir(working_dir+'/download')
 
     if download_file == '':
-        cmd = LiLF_dir+'/scripts/LOFAR_stager.py --projects %s --nocal' % project
+        cmd = LiLF_dir+'/scripts/LOFAR_stager.py --nocal'
         if target != '':
             cmd += ' --target %s' % target
         if obsid != '':
@@ -142,7 +139,7 @@ with w.if_todo('download'):
         logger.debug("Exec: %s" % cmd)
         os.system(cmd)
 
-    # TODO: how to be sure all MS were downloaded?
+    logger.info('Downloaded %i files' % len(glob.glob('*MS')))
     os.system(LiLF_dir+'/pipelines/LOFAR_preprocess.py')
     check_done('pipeline-preprocess.logger')
     os.system('mv mss/* ../')
