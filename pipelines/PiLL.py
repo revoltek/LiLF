@@ -45,7 +45,6 @@ def local_calibrator_dirs(searchdir='', obsid=None):
         calibrators = glob.glob(searchdir+'/id%i_-_*3[C|c]196*' % obsid) + \
                   glob.glob(searchdir+'id%i_-_*3[C|c]295*' % obsid) + \
                   glob.glob(searchdir+'id%i_-_*3[C|c]380*' % obsid)
-
     if len(calibrators) == 0: return []
     else: return calibrators
 
@@ -67,12 +66,24 @@ def check_done(logfile):
         sys.exit()
 
 
-def fix_dir_format(working_dir):
-    # fix for c##-o##_p##### format
-    pattern = re.compile(".*id[0-9]*_-_c[0-9][0-9]-o.*_.*$")
-    for dir in glob.glob(working_dir+'/id*'):
-        if pattern.match(dir):
-            os.system('mv '+dir+' '+dir.split('_-_')[0]+'_-_'+dir.split('_')[-1])
+def fix_dirs(target):
+    """
+    fix dir names in the working_dir
+    """
+    calibrators = local_calibrator_dirs(working_dir)
+    targets = [t for t in glob.glob(working_dir+'/id*') if t not in calibrators]
+    # rename targets to consistent format
+    for t in targets:
+        idx = t.split('_')[0]
+        if t != '%s_-_%s' % (idx,target):
+            os.system('mv %s %s_-_%s' % (t,idx,target))
+    # rename calibrators to consistent format
+    for c in calibrators:
+        idx = c.split('_')[0]
+        cal = c.split('_')[-1]
+        if c != '%s_-_%s' % (idx,cal):
+            os.system('mv %s %s_-_%s' % (c,idx,cal))
+
 
 ####################################################################################
 
@@ -108,7 +119,7 @@ if download_file == '' and project == '' and target == '' and obsid == '':
         r = sdb.execute('UPDATE fields SET clustername="%s" WHERE id="%s"' % (clustername, target))
         r = sdb.execute('UPDATE fields SET nodename="%s" WHERE id="%s"' % (nodename, target))
 
-    update_status_db(target, 'Download') 
+if survey: update_status_db(target, 'Download') 
 
 #######
 # setup
@@ -147,24 +158,22 @@ with w.if_todo('download'):
 ### DONE
 
 os.chdir(working_dir)
-fix_dir_format(working_dir)
-if survey: update_status_db(target, 'Calibrator')
-calibrators = local_calibrator_dirs()
-targets = [t for t in glob.glob('id*') if t not in calibrators]
-logger.debug('CALIBRATORS: %s' % ( ','.join(calibrators) ) )
-logger.debug('TARGET: %s' % (','.join(targets) ) )
+target_dirs = [t for t in glob.glob('id*') if t not in local_calibrator_dirs()]
+logger.debug('TARGET DIRS: %s' % (','.join(target_dirs) ) )
 
-for target in targets:
+if survey: update_status_db(target, 'Calibrator')
+
+for target_dir in target_dirs:
     ##########
     # calibrator
     # here the pipeline checks if the calibrator is available online, otherwise it downloads it
     # then it also runs the calibrator pipeline
-    obsid = int(target.split('_-_')[0][2:])
+    obsid = int(target_dir.split('_-_')[0][2:])
     with w.if_todo('cal_id%i' % obsid):
         if not survey or redo_cal or not calibrator_tables_available(obsid):
-            logger.info('### %s: Starting calibrator... #####################################' % target)
+            logger.info('### %s: Starting calibrator... #####################################' % target_dir)
             cal_dir = local_calibrator_dirs(working_dir, obsid)
-            # if calibrator not downaloaded, do it
+            # if calibrator not downloaded, do it
             if len(cal_dir) == 0:
                 if not os.path.exists(working_dir+'/download-cal_id%i' % obsid):
                     os.makedirs(working_dir+'/download-cal_id%i' % obsid)
@@ -174,7 +183,6 @@ for target in targets:
                 check_done('pipeline-preprocess.logger')
                 os.system('mv mss/* ../')
 
-            fix_dir_format(working_dir)
             os.chdir(local_calibrator_dirs(working_dir, obsid)[0])
             if not os.path.exists('data-bkp'):
                 os.makedirs('data-bkp')
@@ -213,9 +221,9 @@ for target in targets:
     ##########
     # timesplit
     # each target of each observation is then timesplit
-    with w.if_todo('timesplit_%s' % target):
-        logger.info('### %s: Starting timesplit... #####################################' % target)
-        os.chdir(working_dir+'/'+target)
+    with w.if_todo('timesplit_%s' % target_dir):
+        logger.info('### %s: Starting timesplit... #####################################' % target_dir)
+        os.chdir(working_dir+'/'+target_dir)
         if not os.path.exists('data-bkp'):
             os.makedirs('data-bkp')
             os.system('mv *MS data-bkp')
@@ -225,7 +233,10 @@ for target in targets:
     ### DONE
 
 # group targets with same name, assuming they are different pointings in the same direction
-grouped_targets = set([t.split('_-_',1)[1] for t in targets])
+os.chdir(working_dir)
+if target != '': fix_dirs(target) # try to harmonize target dirs
+target_dirs = [t for t in glob.glob('id*') if t not in local_calibrator_dirs()]
+grouped_targets = set([t.split('_-_')[-1] for t in target_dirs])
 
 for grouped_target in grouped_targets:
     if not os.path.exists(working_dir+'/'+grouped_target):

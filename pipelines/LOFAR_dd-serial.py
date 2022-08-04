@@ -850,7 +850,7 @@ for cmaj in range(maxIter):
             # ddf_parms_clean['Output_StokesResidues'] = 'I,V' # this could be used to get stokes V residual
 
         # if defined, add userReg to the mask
-        if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.):
+        if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
 
         logger.info('Cleaning (deep)...')
         lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **{**ddf_parms_common, **ddf_parms_clean},

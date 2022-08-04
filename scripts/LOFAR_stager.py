@@ -100,7 +100,8 @@ if not os.path.exists('uris.pickle'):
             dataproduct_query &= cls.isValid == 1
             #if target is not None: dataproduct_query &= CorrelatedDataProduct.subArrayPointing.targetName == target
 
-            for i, dataproduct in enumerate(dataproduct_query):
+            i=0
+            for dataproduct in dataproduct_query:
                 # apply selections
                 name = dataproduct.subArrayPointing.targetName
                 if nocal and re_cal.match(name): continue
@@ -111,6 +112,7 @@ if not os.path.exists('uris.pickle'):
                 fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
                 if fileobject:
                     uris.add(fileobject.URI)
+                    i += 1
                     if i%10 == 0:
                         print(".", end='')
                         sys.stdout.flush()
