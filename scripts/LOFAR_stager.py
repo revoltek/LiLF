@@ -29,6 +29,7 @@ parser.add_argument('--target', '-t', dest='target', help='Target name.')
 parser.add_argument('--calonly', '-c', dest='calonly', action='store_true', help='Get only calibrator data.')
 parser.add_argument('--nocal', '-n', dest='nocal', action='store_true', help='Do not download calibrator data.')
 parser.add_argument('--nobug', '-b', dest='nobug', action='store_true', help='Remove observations taken turing the correlator bag in 2021.')
+parser.add_argument('--quiet', '-q', dest='quiet', action='store_true', help='Limit the output.')
 args = parser.parse_args()
 
 if args.projects is None and args.obsID is None:
@@ -46,6 +47,7 @@ target = args.target
 calonly = args.calonly
 nocal = args.nocal
 nobug = args.nobug
+quiet = args.quiet
 
 # Login/Passwd for LTA
 login = None
@@ -312,16 +314,18 @@ w_downloader2.start()
 
 # this part creates some output to monitor the progress
 while True:
-    sys.stdout.write("\r%s: To stage: %i -- In staging: %i (blocks) -- To download: %i -- In downloading: %i || " % \
+    if not quiet:
+        sys.stdout.write("\r%s: To stage: %i -- In staging: %i (blocks) -- To download: %i -- In downloading: %i || " % \
             ( time.ctime(), len(L_toStage), len(L_inStage), len(L_toDownload), len(L_inDownload) ) )
-    #print(L_toStage,L_inStage,L_toDownload,L_inDownload)
-    sys.stdout.flush()
-    time.sleep(2)
-    
+        #print(L_toStage,L_inStage,L_toDownload,L_inDownload)
+        sys.stdout.flush()
+
     # if all queues are empty, kill children and exit
     if len(L_toStage) + len(L_toDownload) + len(L_inStage) + len(L_inDownload) == 0 :
         print("Done.")
         break
+
+    time.sleep(2)
 
 w_stager.terminate()
 w_checker.terminate()

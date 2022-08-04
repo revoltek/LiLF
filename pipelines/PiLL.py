@@ -132,13 +132,13 @@ with w.if_todo('download'):
     os.chdir(working_dir+'/download')
 
     if download_file == '':
-        cmd = LiLF_dir+'/scripts/LOFAR_stager.py --nocal'
+        cmd = LiLF_dir+'/scripts/LOFAR_stager.py --quiet --nocal'
         if target != '':
             cmd += ' --target %s' % target
         if obsid != '':
             cmd += ' --obsID %s' % obsid
         logger.debug("Exec: %s" % cmd)
-        os.system(cmd)
+        os.system(cmd+' >> stager.log')
 
     logger.info('Downloaded %i files' % len(glob.glob('*MS')))
     os.system(LiLF_dir+'/pipelines/LOFAR_preprocess.py')
@@ -169,7 +169,7 @@ for target in targets:
                 if not os.path.exists(working_dir+'/download-cal_id%i' % obsid):
                     os.makedirs(working_dir+'/download-cal_id%i' % obsid)
                 os.chdir(working_dir+'/download-cal_id%i' % obsid)
-                os.system(LiLF_dir+'/scripts/LOFAR_stager.py --cal --obsID %i' % (obsid))
+                os.system(LiLF_dir+'/scripts/LOFAR_stager.py --quiet --cal --obsID %i >> stager.log' % (obsid))
                 os.system(LiLF_dir+'/pipelines/LOFAR_preprocess.py')
                 check_done('pipeline-preprocess.logger')
                 os.system('mv mss/* ../')
