@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # Pipeline to run on the calibrator observation.
@@ -41,7 +41,7 @@ calname = MSs.getListObj()[0].getNameField()
 nchan = MSs.mssListObj[0].getNchan()
 tint = MSs.mssListObj[0].getTimeInt()
 if nchan > 4:
-    base_nchan = int(np.rint(nchan / 4)) # this is 1 for ducht observations, and larger (2,4) for IS observations 
+    base_nchan = int(np.rint(nchan / 4)) # this is 1 for ducth observations, and larger (2,4) for IS observations 
 else: base_nchan = 1
 if tint < 4:
     base_solint = int(np.rint(4/tint)) # this is 1 for dutch observations and 2 for IS observations
@@ -239,7 +239,6 @@ with w.if_todo('cal_iono'):
     if iono3rd:
         lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()],
             [parset_dir+'/losoto-plot-scalarph.parset', parset_dir+'/losoto-iono3rd.parset'])
-            #[parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-iono3rd.parset'])
     elif MSs.isHBA:
         lib_util.run_losoto(s, 'iono', [ms + '/iono.h5' for ms in MSs.getListStr()],
                             [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-iono-hba.parset'])
@@ -263,6 +262,12 @@ with w.if_todo('compressing_h5'):
     s.run()
     os.system('h5repack cal-pa.h5 cal-pa-compressed.h5; mv cal-pa-compressed.h5 cal-pa.h5')
 
+    s.add('losoto -d sol000/phase000 cal-fr.h5', log='losoto-final.log', commandType="python")
+    s.run()
+    s.add('losoto -d sol000/phaseOrig000 cal-fr.h5', log='losoto-final.log', commandType="python")
+    s.run()
+    os.system('h5repack cal-fr.h5 cal-fr-compressed.h5; mv cal-fr-compressed.h5 cal-fr.h5')
+
     s.add('losoto -d sol000/amplitude000 cal-amp.h5', log='losoto-final.log', commandType="python")
     s.run()
     s.add('losoto -d sol000/amplitudeRes cal-amp.h5', log='losoto-final.log', commandType="python")
@@ -271,7 +276,6 @@ with w.if_todo('compressing_h5'):
     s.run()
     os.system('h5repack cal-amp.h5 cal-amp-compressed.h5; mv cal-amp-compressed.h5 cal-amp.h5')
     
-    #s.add('losoto -d sol000/amplitude000 cal-iono.h5', log='losoto-final.log', commandType="python")
     s.add('losoto -d sol000/phase_offset000 cal-iono.h5', log='losoto-final.log', commandType="python")
     s.run()
     os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')

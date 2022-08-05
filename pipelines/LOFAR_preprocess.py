@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import sys, os, re, glob, time
@@ -144,6 +144,8 @@ if renameavg:
                 elif nchan % 2 == 0 and MSs.isHBA: # case HBA
                     avg_factor_f = int(nchan / 4)  # to 2 ch/SB
                 elif nchan % 8 == 0 and minfreq < 40e6:
+                    avg_factor_f = int(nchan / 8)  # to 8 ch/SB
+                elif nchan % 8 == 0 and 'SPARSE' in MS.getAntennaSet():
                     avg_factor_f = int(nchan / 8)  # to 8 ch/SB
                 elif nchan % 4 == 0:
                     avg_factor_f = int(nchan / 4)  # to 4 ch/SB

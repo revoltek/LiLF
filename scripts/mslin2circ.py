@@ -23,6 +23,8 @@ import sys
 import casacore.tables as pt
 from casacore.quanta import quantity
 
+stepsize = 200000
+
 def checkfile(inms):
   if inms == '':
      print('Error: give an input MS')
@@ -66,18 +68,18 @@ def setupiofiles(inms, outms, incolumn, outcolumn):
   to.close()
   return outms
 
-
 def mslin2circ(incol, outcol, outms, skipmetadata):
   tc = pt.table(outms, readonly=False, ack=False)
-  dataXY = tc.getcol(incol)
-  I=numpy.complex(0.0,1.0)
-  dataRL = 0.5* numpy.transpose(numpy.array([
+  for row in range(0, tc.nrows(), stepsize):
+    dataXY = tc.getcol(incol, startrow=row, nrow=stepsize, rowincr=1)
+    I = numpy.complex(0.0,1.0)
+    dataRL = 0.5* numpy.transpose(numpy.array([
            +dataXY[:,:,0]-I*dataXY[:,:,1]+I*dataXY[:,:,2]+dataXY[:,:,3],
            +dataXY[:,:,0]+I*dataXY[:,:,1]+I*dataXY[:,:,2]-dataXY[:,:,3],
            +dataXY[:,:,0]-I*dataXY[:,:,1]-I*dataXY[:,:,2]-dataXY[:,:,3],
            +dataXY[:,:,0]+I*dataXY[:,:,1]-I*dataXY[:,:,2]+dataXY[:,:,3]]),
            (1,2,0))
-  tc.putcol(outcol,dataRL)
+    tc.putcol(outcol, dataRL, startrow=row, nrow=stepsize, rowincr=1)
 
   #Change metadata information to be circular feeds
   if not skipmetadata:
@@ -92,15 +94,16 @@ def mslin2circ(incol, outcol, outms, skipmetadata):
 
 def mscirc2lin(incol, outcol, outms, skipmetadata):
   tc = pt.table(outms,readonly=False, ack=False)
-  dataRL = tc.getcol(incol)
-  I=numpy.complex(0.0,1.0)
-  dataXY = 0.5* numpy.transpose(numpy.array([
+  for row in range(0, tc.nrows(), stepsize):
+    dataRL = tc.getcol(incol, startrow=row, nrow=stepsize, rowincr=1)
+    I = numpy.complex(0.0,1.0)
+    dataXY = 0.5* numpy.transpose(numpy.array([
               +dataRL[:,:,0]+dataRL[:,:,1]+dataRL[:,:,2]+dataRL[:,:,3],
            I*(+dataRL[:,:,0]-dataRL[:,:,1]+dataRL[:,:,2]-dataRL[:,:,3]),
            I*(-dataRL[:,:,0]-dataRL[:,:,1]+dataRL[:,:,2]+dataRL[:,:,3]),
               +dataRL[:,:,0]-dataRL[:,:,1]-dataRL[:,:,2]+dataRL[:,:,3] ]),
            (1,2,0))
-  tc.putcol(outcol,dataXY)
+    tc.putcol(outcol, dataXY, startrow=row, nrow=stepsize, rowincr=1)
 
   #Change metadata information to be circular feeds
   if not skipmetadata:

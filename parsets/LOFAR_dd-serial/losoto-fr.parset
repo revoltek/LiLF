@@ -22,7 +22,7 @@ plotFlag = True
 prefix = plots/ph_
 minmax = [-3.14,3.14]
 NColFig = 4
-refAnt = 'CS001LBA'
+refAnt = auto
 figSize = [20,20]
 
 [plotP2]
@@ -34,7 +34,7 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/ph_
-refAnt = 'CS001LBA'
+refAnt = auto
 minmax = [-3.14,3.14]
 
 [plotP3]
@@ -45,7 +45,7 @@ axisInTable = ant
 plotFlag = True
 prefix = plots/ph_
 pol = XX
-refAnt = 'CS001LBA'
+refAnt = auto
 minmax = [-3.14,3.14]
 
 [faraday]
@@ -58,7 +58,7 @@ operation = PLOT
 soltab = sol000/rotationmeasure000
 axesInPlot = [time]
 axisInTable = ant
-refAnt = 'CS001LBA'
+refAnt = auto
 prefix = plots/fr
 
 [residuals]
@@ -74,5 +74,5 @@ AxisInTable = ant
 AxisDiff = pol
 plotFlag = True
 prefix = plots/phRes-rot
-refAnt = 'CS001LBA'
+refAnt = auto
 minmax = [-3.14,3.14]
