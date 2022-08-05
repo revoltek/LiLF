@@ -89,8 +89,8 @@ if not os.path.exists('uris.pickle'):
             obsID = int(observation.observationId)
             # remove buggy observations
             if nobug:
-                time = observation.as_dict()['Observation.startTime']
-                if time.year == 2021 and ( (time.month==2 and time.day>=8) or (time.month>2 and time.month<8) or ( time.month==8 and time.day<=3) ):
+                timeobs = observation.as_dict()['Observation.startTime']
+                if timeobs.year == 2021 and ( (timeobs.month==2 and timeobs.day>=8) or (timeobs.month>2 and timeobs.month<8) or ( timeobs.month==8 and timeobs.day<=3) ):
                     continue
             print("Querying ObservationID %i" % obsID, end='')
 

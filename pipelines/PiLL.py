@@ -276,7 +276,15 @@ for grouped_target in grouped_targets:
             os.system('scp -q ddcal/c0*/images/wideDD-c*.app.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/c0*/images/wideDD-c*.int.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/c01/solutions/interp.h5 herts:/beegfs/lofar/lba/products/%s' % grouped_target)
-### DONE
+    ### DONE
+
+    # Quality check
+    with w.if_todo('quality_%s' % grouped_target):
+        if survey: update_status_db(grouped_target, 'QualityCheck')
+        logger.info('### %s: Starting quality check #####################################' % grouped_target)
+        os.system(LiLF_dir+'/pipelines/LOFAR_quality.py')
+        check_done('pipeline-quality.logger')
+    ### DONE
 
     if survey: update_status_db(grouped_target, 'Done')
     logger.info('### %s: Done. #####################################' % grouped_target)
