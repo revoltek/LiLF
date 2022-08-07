@@ -86,6 +86,7 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_extract', 'beam_cut', '0.3') # up to which distance a pointing will be considered
     # quality
     add_default('LOFAR_quality', 'self_dir', 'self')
+    add_default('LOFAR_quality', 'ddcal_dir', 'ddcal')
     # virgo
     add_default('LOFAR_virgo', 'cal_dir', '')
     add_default('LOFAR_virgo', 'data_dir', './')

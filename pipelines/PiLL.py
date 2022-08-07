@@ -158,6 +158,7 @@ with w.if_todo('download'):
 ### DONE
 
 os.chdir(working_dir)
+if target != '': fix_dirs(target) # try to harmonize target dirs
 target_dirs = [t for t in glob.glob('id*') if t not in local_calibrator_dirs()]
 logger.debug('TARGET DIRS: %s' % (','.join(target_dirs) ) )
 
@@ -234,7 +235,6 @@ for target_dir in target_dirs:
 
 # group targets with same name, assuming they are different pointings in the same direction
 os.chdir(working_dir)
-if target != '': fix_dirs(target) # try to harmonize target dirs
 target_dirs = [t for t in glob.glob('id*') if t not in local_calibrator_dirs()]
 grouped_targets = set([t.split('_-_')[-1] for t in target_dirs])
 
@@ -275,7 +275,12 @@ for grouped_target in grouped_targets:
             os.system('scp -q self/images/wide-largescale-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/c0*/images/wideDD-c*.app.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/c0*/images/wideDD-c*.int.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q '+sorted(glob.glob('ddcal/c00/images/wideDD-c0.residual*.fits'))[-1]+' herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q '+sorted(glob.glob('ddcal/c01/images/wideDD-c1.residual*.fits'))[-1]+' herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/c01/solutions/interp.h5 herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q ddcal/c0*/skymodels/all*reg herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/plots"' % grouped_target)
+            os.system('scp -q ddcal/c0*/plots/* herts:/beegfs/lofar/lba/products/%s/plots' % grouped_target)
     ### DONE
 
     # Quality check
