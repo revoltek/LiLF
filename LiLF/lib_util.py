@@ -86,6 +86,7 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_extract', 'beam_cut', '0.3') # up to which distance a pointing will be considered
     # quality
     add_default('LOFAR_quality', 'self_dir', 'self')
+    add_default('LOFAR_quality', 'ddcal_dir', 'ddcal')
     # virgo
     add_default('LOFAR_virgo', 'cal_dir', '')
     add_default('LOFAR_virgo', 'data_dir', './')
@@ -538,6 +539,7 @@ class Scheduler():
         dry:            don't schedule job
         max_processors: max number of processors in a node (ignored if qsub=False)
         """
+        self.hostname = socket.gethostname()
         self.cluster = self.get_cluster()
         self.log_dir = log_dir
         self.qsub    = qsub
@@ -572,7 +574,7 @@ class Scheduler():
             self.max_processors = max_processors
 
         self.dry = dry
-        logger.info("Scheduler initialised for cluster " + self.cluster + " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
+        logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname + " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
                      str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
 
         self.action_list = []
@@ -583,7 +585,7 @@ class Scheduler():
         """
         Find in which computing cluster the pipeline is running
         """
-        hostname = socket.gethostname()
+        hostname = self.hostname
         if (hostname == 'lgc1' or hostname == 'lgc2'):
             return "Hamburg"
         elif ('r' == hostname[0] and 'c' == hostname[3] and 's' == hostname[6]):

@@ -149,10 +149,10 @@ RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git \
 RUN cd /opt/LSMTool && pip3 install .
 
 ####################################################################
-## LoSoTo (master 1/2022)
+## LoSoTo (master 7/2022)
 ###################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto && git checkout 2920438aa8cd3b5b7e316712969a490a64498438
+    && cd /opt/losoto && git checkout fee61fdd053306ecd8463dbc81bf3f146a669027
 RUN cd /opt/losoto && pip3 install .
 RUN pip3 install --upgrade scipy
 
@@ -199,8 +199,8 @@ RUN cd /opt/DDFacet/ && python3 setup.py build
 RUN cd /opt/DDFacet/ && python3 setup.py install
 
 # Set MeqTrees Cattery path to installation directory
-ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
-ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
+#ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
+#ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
 
 #####################################################################
 ## LiLF
