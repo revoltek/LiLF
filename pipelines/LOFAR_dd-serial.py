@@ -22,6 +22,7 @@ w = lib_util.Walker('pipeline-dd-serial.walker')
 
 # parse parset
 parset = lib_util.getParset()
+logger.info('Parset: '+str(dict(parset['LOFAR_dd-serial'])))
 parset_dir = parset.get('LOFAR_dd-serial','parset_dir')
 userReg = parset.get('model','userReg')
 maxIter = parset.getint('LOFAR_dd-serial','maxIter')
