@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # use idg to create a primary beam file for LOFAR
 # the output of wsclean is re-arranged to have a single beam file even if more channels are used

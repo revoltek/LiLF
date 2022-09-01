@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 # This script was written by Jakob Maljaars and
 # Reinout van Weeren.

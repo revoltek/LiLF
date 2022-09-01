@@ -18,6 +18,7 @@ w = lib_util.Walker('pipeline-timesplit.walker')
 
 # parse parset
 parset = lib_util.getParset()
+logger.info('Parset: '+str(dict(parset['LOFAR_timesplit'])))
 parset_dir = parset.get('LOFAR_timesplit','parset_dir')
 data_dir = parset.get('LOFAR_timesplit','data_dir')
 cal_dir = parset.get('LOFAR_timesplit','cal_dir')

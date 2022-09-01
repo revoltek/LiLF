@@ -15,6 +15,7 @@ w = lib_util.Walker('pipeline-preprocess.walker')
 
 # parse parset
 parset = lib_util.getParset()
+logger.info('Parset: '+str(dict(parset['LOFAR_preprocess'])))
 parset_dir = parset.get('LOFAR_preprocess','parset_dir')
 fix_table = parset.getboolean('LOFAR_preprocess','fix_table')
 renameavg = parset.getboolean('LOFAR_preprocess','renameavg')

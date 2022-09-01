@@ -17,6 +17,7 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-self.walker')
 
 parset = lib_util.getParset()
+logger.info('Parset: '+str(dict(parset['LOFAR_self'])))
 parset_dir = parset.get('LOFAR_self','parset_dir')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
