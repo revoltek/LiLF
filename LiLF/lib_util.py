@@ -741,6 +741,8 @@ class Scheduler():
             out += subprocess.check_output('grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Segmentation fault\|Killed" ' + log + ' ; exit 0', shell=True,
                                            stderr=subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "killed by signal" ' + log + ' ; exit 0', shell=True,
+                                           stderr=subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Aborted" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
 
         elif (commandType == "python"):
