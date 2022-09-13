@@ -95,8 +95,6 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_peel', 'predictReg', '')
     add_default('LOFAR_peel', 'cal_dir', '')
     add_default('LOFAR_peel', 'data_dir', './')
-    add_default('LOFAR_peel', 'fieldModel', '') # Field sources to "deproject" during demixing- not strictly necessary
-    add_default('LOFAR_peel', 'demixModel', '') # Model for soucres to demix
 
     ### uGMRT ###
     # init

@@ -27,14 +27,12 @@ cal_dir = parset.get('LOFAR_peel','cal_dir')
 data_dir = parset.get('LOFAR_peel','data_dir')
 peelReg = parset.get('LOFAR_peel','peelReg')  # default peel.reg
 predictReg = parset.get('LOFAR_peel','predictReg')  # default None
-fieldModel = parset.get('LOFAR_peel','fieldModel')  # default None
-demixModel = parset.get('LOFAR_peel','demixModel')  # default None
 sourcedb = parset.get('model','sourcedb')
 fits_model = parset.get('model','fits_model')
 bl2flag = parset.get('flag','stations')
 
 # Some script-wide definitions
-uvlambdamin = 80 # was 30 before.
+uvlambdamin = 30 # why not 100? What is used in ddf-pipeline?
 t_int = 8
 final_chan_per_sb = 2
 pixscale = '1.5arcsec'
@@ -161,9 +159,9 @@ def predict_fits_model(MSs_object, model_basename, stepname='init_model', predic
         if predict_reg:
             for model_img in glob.glob(model_basename + '*-model.fits'):
                 lib_img.blank_image_reg(model_img, predict_reg, inverse=True, blankval=0.)
-        assert (os.path.isfile(model_basename + '-0000-model.fits') or os.path.isfile(model_basename + '-0000-model-pb.fits'))
+        assert os.path.isfile(model_basename + '-0000-model.fits')
         logger.info(f'Using fits model {model_basename}.')
-        n = len(glob.glob(model_basename + '-[0-9]*-model*.fits'))
+        n = len(glob.glob(model_basename + '-[0-9]*-model.fits'))
         logger.info('Predict (wsclean: %s - chan: %i)...' % ('model', n))
         _str = ' -grid-with-beam -use-idg -use-differential-lofar-beam ' if apply_beam else '' # -use-idg '
         # -use-wgridder
@@ -259,7 +257,8 @@ phasecentre = MSs.getListObj()[0].getPhaseCentre()
 peelReg = lib_util.Region_helper(peelReg)
 # get Pointing centre from either fits model or sourcedb
 if fits_model != '':
-    model_hdr = fits.open(glob.glob(fits_model + '-[0-9]*-model*.fits')[0])[0].header
+    assert os.path.isfile(fits_model + '-0000-model.fits')
+    model_hdr = fits.open(glob.glob(fits_model + '-[0-9]*-model.fits')[0])[0].header
     model_centre = np.array([model_hdr['CRVAL1'], model_hdr['CRVAL2']])
 elif sourcedb != '':
     skymodel = lsm.load(sourcedb)
@@ -361,7 +360,7 @@ with pt.table(MSs.getListObj()[0].pathMS + "/OBSERVATION") as tab:
 ################################################################################################
 # Start peeling - Two different cases depending on MS - M87 separation
 sol_factor_f = 1 if pointing_distance < 3 else 2
-if 1/3600 < pointing_distance < 5: # CASE 1 -> model and MS not aligned, peel
+if 1/3600 < pointing_distance: # CASE 1 -> model and MS not aligned, peel
     if not os.path.exists('mss-shift'):
         timeint_init = MSs.getListObj()[0].getTimeInt()
         nchan_init = len(MSs.getFreqs())
@@ -426,7 +425,6 @@ if 1/3600 < pointing_distance < 5: # CASE 1 -> model and MS not aligned, peel
     ##################################################################################
     # solve+apply scalarphase and fulljones
     solve_and_apply(MSs_shiftavg, field, sol_factor_f=sol_factor_f)
-    # solve_and_apply(MSs_shiftavg, field, sol_factor_f=4, sol_factor_t=2)
     # do_testimage(MSs_shiftavg)
     # corrupt and subtract with above solutions
     # corrupt_subtract_testimage(MSs_shiftavg, field) # testing...
@@ -439,48 +437,46 @@ if 1/3600 < pointing_distance < 5: # CASE 1 -> model and MS not aligned, peel
     # Subtract the model
     corrupt_subtract_testimage(MSs_shift, field) # --> SUBTRACT_DATA
     MSs_subtracted = MSs_shift
-#### CASE 2: Model and MS are distant. Demix
-elif pointing_distance > 5:
-    logger.info(f'Large separation ({pointing_distance:2f}deg). Demixing using {demixModel} (assuming intrinsic fluxes).')
-    if not os.path.exists(peelMask):
-        logger.info('Create mask...')
-        # dummy clean to get image -> mask
-        lib_util.run_wsclean(s, 'wsclean-mask.log', MSs.getStrWsclean(), niter=0, channel_range='0 1',
-                             no_reorder='', interval='0 10', name='img/mask', scale=pixscale, size=imgsize, nmiter=0)
-        # create peelMask
-        copy2(f'img/mask-dirty.fits', f'{peelMask}')
-        lib_img.blank_image_reg(peelMask, peelReg.filename, inverse=True, blankval=0.)
-        lib_img.blank_image_reg(peelMask, peelReg.filename, inverse=False, blankval=1.)
-
-    sm_combined = lsm.load(demixModel)
-    demix_patches = sm_combined.getPatchNames()
-    if not os.path.exists('demix_combined.skydb'):
-        # get a rough field model (no beam applied)
-        # os.system(f'wget -O demix_field.skymodel \'http://tgssadr.strw.leidenuniv.nl/cgi-bin/gsmv4.cgi?coord={phasecentre[0]},'
-        #           f'{phasecentre[1]}&radius={MSs.getListObj()[0].getFWHM("min") / 2.}&unit=deg&deconv=y\' ')  # This assumes first MS is lowest in freq
-        if fieldModel:
-            sm_field = lsm.load(fieldModel, MSs.getListStr()[0])
-            # sm_field.remove('I<0.1', applyBeam=True) # remove faint sources
-            sm_field.remove(f'{peelMask} == True')  # This should remove the peel source from the field model.
-            sm_field.group('single', root=fieldModel.split('.sky')[0])
-            sm_field.setColValues('LogarithmicSI', ['true']*len(sm_field)) # only if downloaded
-            sm_combined.concatenate(sm_field)
-        sm_combined.write('demix_combined.skymodel', clobber=True)
-        lib_util.check_rm('demix_combined.skydb')
-        os.system('makesourcedb outtype="blob" format="<" in=demix_combined.skymodel out=demix_combined.skydb')
-        for MS in MSs.getListStr():
-            lib_util.check_rm(MS + '/demix_combined.skydb')
-            logger.debug('Copy: demix_combined.skydb -> ' + MS)
-            copy2('demix_combined.skydb', MS)
-
-    logger.debug(f'Demix sources: {demix_patches}')
-    with w.if_todo('demix'): # Demix CORRECTED_DATA -> SUBTRACTED_DATA
-        cmd = f'DP3 {parset_dir}/DP3-demix.parset msin=$pathMS demixer.skymodel=$pathMS/demix_combined.skydb ' \
-              f'demixer.instrumentmodel=$pathMS/instrument demixer.subtractsources=\[{",".join(demix_patches)}\] '
-        if fieldModel: # take into account target field
-            cmd += f'demixer.ignoretarget=False demixer.targetsource={fieldModel.split(".sky")[0]}'
-        MSs.run(cmd, log='$nameMS_demix.log', commandType='DP3')
-    MSs_subtracted = MSs
+# #### CASE 2: Model and MS are distant. Demix
+# elif pointing_distance > 5:
+#     logger.info(f'Large separation ({pointing_distance:2f}deg). Demixing using {demix_skymodel} (assuming intrinsic fluxes).')
+#     if not os.path.exists(peelMask):
+#         logger.info('Create mask...')
+#         # dummy clean to get image -> mask
+#         lib_util.run_wsclean(s, 'wsclean-mask.log', MSs.getStrWsclean(), niter=0, channel_range='0 1',
+#                              no_reorder='', interval='0 10', name='img/mask', scale=pixscale, size=imgsize, nmiter=0)
+#         # create peelMask
+#         copy2(f'img/mask-dirty.fits', f'{peelMask}')
+#         lib_img.blank_image_reg(peelMask, peelReg.filename, inverse=True, blankval=0.)
+#         lib_img.blank_image_reg(peelMask, peelReg.filename, inverse=False, blankval=1.)
+#
+#     sm_combined = lsmtool.load(demix_skymodel)
+#     demix_patches = sm_combined.getPatchNames()
+#     if not os.path.exists('demix_combined.skydb'):
+#         # get a rough field model (no beam applied)
+#         os.system(f'wget -O demix_field.skymodel \'http://tgssadr.strw.leidenuniv.nl/cgi-bin/gsmv4.cgi?coord={phasecentre[0]},'
+#                   f'{phasecentre[1]}&radius={MSs.getListObj()[0].getFWHM("min") / 2.}&unit=deg&deconv=y\' ')  # This assumes first MS is lowest in freq
+#         sm_field = lsmtool.load('demix_field.skymodel', MSs.getListStr()[0])
+#         sm_field.remove('I<0.1', applyBeam=True) # remove faint sources
+#         sm_field.remove(f'{peelMask} == True')  # This should remove the peel source from the field model.
+#         sm_field.group('single', root='field')
+#         sm_field.setColValues('LogarithmicSI', ['true']*len(sm_field))
+#         sm_combined.concatenate(sm_field)
+#         sm_combined.write('demix_combined.skymodel', clobber=True)
+#         lib_util.check_rm('demix_combined.skydb')
+#         os.system('makesourcedb outtype="blob" format="<" in=demix_combined.skymodel out=demix_combined.skydb')
+#         for MS in MSs.getListStr():
+#             lib_util.check_rm(MS + '/demix_combined.skydb')
+#             logger.debug('Copy: demix_combined.skydb -> ' + MS)
+#             copy2('demix_combined.skydb', MS)
+#
+#     logger.debug(f'Demix sources: {demix_patches}')
+#     with w.if_todo('demix'): # Demix CORRECTED_DATA -> SUBTRACTED_DATA
+#         MSs.run(f'DP3 {parset_dir}/DP3-demix.parset msin=$pathMS demixer.skymodel=$pathMS/demix_combined.skydb '
+#                 f'demixer.instrumentmodel=$pathMS/instrument_demix '
+#                 f'demixer.subtractsources=\[{",".join(demix_patches)}\]',
+#                 log='$nameMS_demix.log', commandType='DP3')
+#     MSs_subtracted = MSs
 #### CASE 2: Model and MS are aligned. Solve
 else:
     if fits_model != '':
@@ -549,44 +545,43 @@ with w.if_todo('peel-corrbeam'):
         MSs_peel.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS', log='$nameMS_beam.log', commandType='DP3')
 
 # If distant pointing -> derive and apply new phase-solutions against field model
-if fieldModel: #pointing_distance > 1.0:
-    with w.if_todo('get_field_model'):
-        field_sm = lsm.load(fieldModel, MSs_peel.getListStr()[0])
-        # os.system(f'wget -O field.skymodel \'http://tgssadr.strw.leidenuniv.nl/cgi-bin/gsmv4.cgi?coord={phasecentre[0]},'
-        #           f'{phasecentre[1]}&radius={MSs_peel.getListObj()[0].getFWHM("min") / 2.}&unit=deg&deconv=y\' ')  # This assumes first MS is lowest in freq
-        # lsm = lsm.load('field.skymodel', MSs_peel.getListStr()[0])
-        # lsm.remove('I<0.1', applyBeam=True)
-        # lsm.remove(f'{peelMask} == True')  # This should remove the peel source from the field model.
-        field_sm.group('single', root='field')
-        field_sm.write('field.skymodel', clobber=True)
-        lib_util.check_rm('field.skydb')
-        os.system('makesourcedb outtype="blob" format="<" in=field.skymodel out=field.skydb')
-        for MS in MSs_peel.getListStr():
-            lib_util.check_rm(MS + '/field.skydb')
-            logger.debug('Copy: field.skydb -> ' + MS)
-            copy2('field.skydb', MS)
-
-    with w.if_todo('sol_di'): # Solve DATA vs. MODEL_DATA
-        logger.info('Solving direction-independent (scalarphase)...')
-        MSs_peel.run(
-            f'DP3 {parset_dir}/DP3-sol-sourcedb.parset msin=$pathMS msin.datacolumn=DATA '
-            f'sol.h5parm=$pathMS/di.h5 sol.mode=scalarphase sol.uvlambdamin={uvlambdamin} sol.sourcedb=$pathMS/field.skydb',
-            log='$nameMS_sol_di.log', commandType="DP3")
-
-        lib_util.run_losoto(s, f'di', [ms + '/di.h5' for ms in MSs_peel.getListStr()], \
-                            [ # parset_dir+'/losoto-flag.parset',
-                              # parset_dir + '/losoto-plot-scalaramp.parset',
-                              parset_dir + '/losoto-plot-scalarph.parset'])
-        move(f'cal-di.h5', 'peel/solutions/')
-        move(f'plots-di', 'peel/plots/')
-
-    # Correct DATA -> CORRECTED_DATA
-    with w.if_todo('cor_di'):
-        logger.info('Direction-independent correction...')
-        MSs_peel.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.updateweights=False '
-                      f'cor.parmdb=peel/solutions/cal-di.h5 cor.correction=phase000', \
-                      log=f'$nameMS_cor_di.log', commandType='DP3')
-
+# if pointing_distance > 1.0:
+#     with w.if_todo('get_field_model'):
+#         os.system(f'wget -O field.skymodel \'http://tgssadr.strw.leidenuniv.nl/cgi-bin/gsmv4.cgi?coord={phasecentre[0]},'
+#                   f'{phasecentre[1]}&radius={MSs_peel.getListObj()[0].getFWHM("min") / 2.}&unit=deg&deconv=y\' ')  # This assumes first MS is lowest in freq
+#         lsm = lsmtool.load('field.skymodel', MSs_peel.getListStr()[0])
+#         lsm.remove('I<0.1', applyBeam=True)
+#         lsm.remove(f'{peelMask} == True')  # This should remove the peel source from the field model.
+#         lsm.group('single', root='field')
+#         lsm.write('field.skymodel', clobber=True)
+#         lib_util.check_rm('field.skydb')
+#         os.system('makesourcedb outtype="blob" format="<" in=field.skymodel out=field.skydb')
+#         for MS in MSs_peel.getListStr():
+#             lib_util.check_rm(MS + '/field.skydb')
+#             logger.debug('Copy: field.skydb -> ' + MS)
+#             copy2('field.skydb', MS)
+#
+#     with w.if_todo('sol_di'): # Solve DATA vs. MODEL_DATA
+#         logger.info('Solving direction-independent (scalarphase)...')
+#         MSs_peel.run(
+#             f'DP3 {parset_dir}/DP3-sol-sourcedb.parset msin=$pathMS msin.datacolumn=DATA '
+#             f'sol.h5parm=$pathMS/di.h5 sol.mode=scalarphase sol.uvlambdamin={uvlambdamin} sol.sourcedb=$pathMS/field.skydb',
+#             log='$nameMS_sol_di.log', commandType="DP3")
+#
+#         lib_util.run_losoto(s, f'di', [ms + '/di.h5' for ms in MSs_peel.getListStr()], \
+#                             [ # parset_dir+'/losoto-flag.parset',
+#                               # parset_dir + '/losoto-plot-scalaramp.parset',
+#                               parset_dir + '/losoto-plot-scalarph.parset'])
+#         move(f'cal-di.h5', 'peel/solutions/')
+#         move(f'plots-di', 'peel/plots/')
+#
+#     # Correct DATA -> CORRECTED_DATA
+#     with w.if_todo('cor_di'):
+#         logger.info('Direction-independent correction...')
+#         MSs_peel.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.updateweights=False '
+#                       f'cor.parmdb=peel/solutions/cal-di.h5 cor.correction=phase000', \
+#                       log=f'$nameMS_cor_di.log', commandType='DP3')
+#
 with w.if_todo(f'test-image-wide'):
     logger.info('Cleaning wide...') # IMAGING - either on DATA or if present, CORRECTED_DATA
     lib_util.run_wsclean(s, f'wsclean-wide.log', MSs_peel.getStrWsclean(), weight='briggs -0.0',
