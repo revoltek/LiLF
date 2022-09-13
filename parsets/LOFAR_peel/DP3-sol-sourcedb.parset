@@ -19,5 +19,6 @@ sol.usebeammodel = True
 sol.usechannelfreq = True
 sol.beammode = array_factor
 sol.onebeamperpatch = False
+sol.smoothnessconstraint = 2e6
 sol.nchan = 0
 sol.solint = 1
