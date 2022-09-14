@@ -51,7 +51,7 @@ def local_calibrator_dirs(searchdir='', obsid=None):
 
 def update_status_db(field, status):
     with SurveysDB(survey='lba',readonly=False) as sdb:
-        r = sdb.execute('UPDATE fields SET status="%s" WHERE id="%s"' % (status,field.upper()))
+        r = sdb.execute('UPDATE fields SET status="%s" WHERE id="%s"' % (status,field))
 
 
 def check_done(logfile):
