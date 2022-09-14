@@ -1,0 +1,13 @@
+msin = 
+msin.datacolumn = DATA
+#do not copy aucorr as they have too weird weights for dysco
+msin.baseline = [CR]S*&
+msout = .
+msout.datacolumn = DATA
+msout.writefullresflag = False
+msout.storagemanager = dysco
+
+steps = [shift]
+
+shift.type = phaseshifter
+shift.phasecenter =

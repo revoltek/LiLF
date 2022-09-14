@@ -1,0 +1,16 @@
+msin =
+msin.datacolumn = DATA
+msout = .
+
+steps = [sol]
+
+sol.type = ddecal
+sol.mode = complexgain
+sol.sourcedb =
+sol.h5parm =
+sol.tolerance = 1e-3
+sol.maxiter = 500
+sol.nchan = 30
+sol.solint = 2
+sol.propagatesolutions = True
+#sol.smoothnessconstraint = 1e6

@@ -1,0 +1,29 @@
+Ncpu = 0
+
+[plotPdir]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = dir
+prefix = plots/ph_
+refAnt = 'CS002LBA'
+minmax = [-3.14,3.14]
+
+[plotPant]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/ph_
+refAnt = 'CS002LBA'
+minmax = [-3.14,3.14]
+
+[plotPdirD]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
+prefix = plots/ph-dif
+refAnt = 'CS002LBA'
+minmax = [-1,+1]

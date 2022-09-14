@@ -1,0 +1,11 @@
+msin = 
+msin.datacolumn = DATA
+msout = .
+msout.datacolumn = MODEL_DATA
+
+steps = [pre]
+
+pre.type = predict
+pre.sourcedb = 
+pre.sources = 
+pre.usebeammodel = False
