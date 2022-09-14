@@ -1,8 +1,0 @@
-msin =
-msin.datacolumn = DATA
-msout = .
-msout.datacolumn = CORRECTED_DATA
-
-steps = [cor, count]
-
-cor.type = correct

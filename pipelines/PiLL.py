@@ -54,10 +54,11 @@ def update_status_db(field, status):
         r = sdb.execute('UPDATE fields SET status="%s" WHERE id="%s"' % (status,field))
 
 
-def check_done(logfile):
+def check_done(pipename):
     """
     check if "Done" is written in the last line of the log file, otherwise quit with error.
     """
+    logfile = sorted(grep.grep(pipename+'_*.logger'))[-1]
     with open(logfile, 'r') as f:
         last_line = f.readlines()[-1]
     if not "Done" in last_line:
@@ -263,8 +264,8 @@ for grouped_target in grouped_targets:
     with w.if_todo('dd_%s' % grouped_target):
         if survey: update_status_db(grouped_target, 'Ddcal')
         logger.info('### %s: Starting ddcal #####################################' % grouped_target)
-        os.system(LiLF_dir+'/pipelines/LOFAR_dd-serial.py')
-        check_done('pipeline-dd-serial.logger')
+        os.system(LiLF_dir+'/pipelines/LOFAR_dd.py')
+        check_done('pipeline-dd.logger')
 
         if survey: # only back up solutions if survey
             logger.info('Copy: ddcal/c0*/images/img/wideDD-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % grouped_target)

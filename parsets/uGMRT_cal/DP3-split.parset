@@ -1,8 +1,0 @@
-msin = 
-msin.datacolumn = CORRECTED_DATA
-msin.missingdata = True
-msin.orderms = False
-
-msout = 
-
-steps = [count]
