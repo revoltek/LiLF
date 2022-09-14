@@ -58,7 +58,11 @@ def check_done(pipename):
     """
     check if "Done" is written in the last line of the log file, otherwise quit with error.
     """
+<<<<<<< HEAD
     logfile = sorted(glob.glob(pipename+'_*.logger'))[-1]
+=======
+    logfile = sorted(grep.grep(pipename+'_*.logger'))[-1]
+>>>>>>> 83317abaa2817b5808db73dd34996f783f51901e
     with open(logfile, 'r') as f:
         last_line = f.readlines()[-1]
     if not "Done" in last_line:
@@ -265,7 +269,11 @@ for grouped_target in grouped_targets:
         if survey: update_status_db(grouped_target, 'Ddcal')
         logger.info('### %s: Starting ddcal #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_dd.py')
+<<<<<<< HEAD
         check_done('pipeline-dd')
+=======
+        check_done('pipeline-dd.logger')
+>>>>>>> 83317abaa2817b5808db73dd34996f783f51901e
 
         if survey: # only back up solutions if survey
             logger.info('Copy: ddcal/c0*/images/img/wideDD-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % grouped_target)

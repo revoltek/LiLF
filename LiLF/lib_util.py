@@ -71,14 +71,14 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_timesplit', 'initc', '0')
     # quick-self
     add_default('LOFAR_quick-self', 'data_dir', './data-bkp/')
-    # dd-parallel
-    add_default('LOFAR_dd-parallel', 'maxniter', '10')
-    add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
-    # dd-serial
-    add_default('LOFAR_dd-serial', 'maxIter', '2')
-    add_default('LOFAR_dd-serial', 'minCalFlux60', '1')
-    add_default('LOFAR_dd-serial', 'removeExtendedCutoff', '0.0005')
-    add_default('LOFAR_dd-serial', 'target_dir', '') # ra,dec
+    # dd-parallel - deprecated
+    #add_default('LOFAR_dd-parallel', 'maxniter', '10')
+    #add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
+    # dd
+    add_default('LOFAR_dd', 'maxIter', '2')
+    add_default('LOFAR_dd', 'minCalFlux60', '1')
+    add_default('LOFAR_dd', 'removeExtendedCutoff', '0.0005')
+    add_default('LOFAR_dd', 'target_dir', '') # ra,dec
     # extract
     add_default('LOFAR_extract', 'maxniter', '10')
     add_default('LOFAR_extract', 'extractRegion', 'target.reg')
@@ -97,10 +97,10 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_peel', 'data_dir', './')
 
     ### uGMRT ###
-    # init
-    add_default('uGMRT_init', 'data_dir', './datadir')
-    # cal
-    add_default('uGMRT_cal', 'skymodel', os.path.dirname(__file__)+'/../models/calib-simple.skydb')
+    # init - deprecated
+    #add_default('uGMRT_init', 'data_dir', './datadir')
+    # cal - deprecated
+    #add_default('uGMRT_cal', 'skymodel', os.path.dirname(__file__)+'/../models/calib-simple.skydb')
 
     ### General ###
 
