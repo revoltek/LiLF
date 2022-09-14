@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# Pipeline for extraction of target region after LOFAR_dd.
+# Pipeline for extraction of target region after LOFAR_dd-serial.
 # Provide a extractRegion in lilf.config. This pipeline will subtract
 # sources outside of the region and perform subsequent self-calibration.
 # Multiple pointings can be used for extraction.
@@ -233,7 +233,7 @@ with w.if_todo('cleaning'):
 
 for p in close_pointings:
     MSs = lib_ms.AllMSs( glob.glob('mss-extract/'+p+'/*MS'), s )
-    ch_out = MSs.getChout(4e6)  # chout from dd
+    ch_out = MSs.getChout(4e6)  # chout from dd-serial
     fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
     phase_center = MSs.getListObj()[0].getPhaseCentre()
     # read image, h5parm, make mask
