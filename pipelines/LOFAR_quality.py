@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys, os, glob, re
-import pyrap.tables as pt
-from astropy.time import Time
+import sys, os, glob, re, pickle
 from astropy.io.fits import getdata
 import numpy as np
 from astropy.stats import median_absolute_deviation
 
+# TODO: cross-match
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 logger_obj = lib_log.Logger('pipeline-quality.logger')
@@ -42,25 +41,33 @@ def get_noise(fitsfile):
 
 #############################################################
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s, check_flags=False)
-
+qdict = {'self_c0_rms': None, 'self_c1_rms': None, 'self_nvss_ratio':None, 'ddcal_c0_rms': None,
+                'ddcal_c1_rms': None, 'ddcal_nvss_ratio': None}
 # MS flags, count all flags and print %
 
 # self images [noise per cycle]
 if os.path.exists('self'):
     img_self_c0 = self_dir+'/images/wideM-0-MFS-residual.fits'
-    logger.info('Self residual rms noise (cycle 0): %.1f mJy/b' % (get_noise(img_self_c0)*1e3))
+    qdict['self_c0_rms'] = get_noise(img_self_c0)
+    logger.info(f'Self residual rms noise (cycle 0): %.1f mJy/b' % (qdict["self_c0_rms"]*1e3))
     img_self_c1 = self_dir+'/images/wideM-1-MFS-residual.fits'
-    logger.info('Self residual rms noise (cycle 1): %.1f mJy/b' % (get_noise(img_self_c1)*1e3))
+    qdict['self_c1_rms'] = get_noise(img_self_c1)
+    logger.info(f'Self residual rms noise (cycle 1): %.1f mJy/b' % (qdict["self_c1_rms"]*1e3))
 else:
     logger.warning('Skip "self" tests, missing dir.')
 
 # ddcal images [noise per cycle, astrometry, fluxscale]
 if os.path.exists('ddcal'):
     img_ddcal_c0 = sorted(glob.glob(ddcal_dir+'/c00/images/wideDD-c00.residual*.fits'))[-1]
-    logger.info('DDcal residual rms noise (cycle 0): %.1f mJy/b' % (get_noise(img_ddcal_c0)*1e3))
+    qdict['ddcal_c0_rms'] = get_noise(img_ddcal_c0)
+    logger.info('DDcal residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddcal_c0_rms']*1e3))
     img_ddcal_c1 = sorted(glob.glob(ddcal_dir+'/c01/images/wideDD-c01.residual*.fits'))[-1]
-    logger.info('DDcal residual rms noise (cycle 1): %.1f mJy/b' % (get_noise(img_ddcal_c1)*1e3))
+    qdict['ddcal_c1_rms'] = get_noise(img_ddcal_c1)
+    logger.info('DDcal residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddcal_c1_rms']*1e3))
 else:
     logger.warning('Skip "ddcal" tests, missing dir.')
+
+with open('quality.pickle', 'wb') as f:
+    pickle.dump(qdict, f)
 
 logger.info("Done.")

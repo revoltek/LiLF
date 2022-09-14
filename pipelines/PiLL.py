@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys, glob, getpass, socket, re
+import os, sys, glob, getpass, socket, re, pickle
 from LiLF.surveys_db import SurveysDB
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 logger_obj = lib_log.Logger('PiLL.logger')
@@ -289,6 +289,16 @@ for grouped_target in grouped_targets:
         logger.info('### %s: Starting quality check #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_quality.py')
         check_done('pipeline-quality.logger')
+
+        with open('quality.pickle', 'rb') as f:
+            qdict = pickle.load(f)
+        logger.info(f'Self residual rms noise (cycle 0): %.1f mJy/b' % (qdict["self_c0_rms"] * 1e3))
+        logger.info(f'Self residual rms noise (cycle 1): %.1f mJy/b' % (qdict["self_c1_rms"] * 1e3))
+        logger.info('DDcal residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddcal_c0_rms'] * 1e3))
+        logger.info('DDcal residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddcal_c1_rms'] * 1e3))
+        if survey:
+            with SurveysDB(survey='lba', readonly=False) as sdb:
+                r = sdb.execute('UPDATE fields SET rms_final="%s" WHERE id="%s"' % (qdict['ddcal_c1_rms'], grouped_target)) # remove upper?
     ### DONE
 
     if survey: update_status_db(grouped_target, 'Done')
