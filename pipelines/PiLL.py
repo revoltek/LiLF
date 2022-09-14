@@ -94,7 +94,9 @@ if download_file == '' and project == '' and target == '' and obsid == '':
     survey = True
     if os.path.exists('target.txt'):
         with open('target.txt', 'r') as file:
-                target = file.read().replace('\n', '')
+                target,target_ra,target_dec = file.read().replace('\n', '').split(',')
+                target_ra = float(target_ra)
+                target_dec = float(target_dec)
     else:
         logger.info('### Quering database...')
         with SurveysDB(survey='lba',readonly=True) as sdb:
@@ -104,9 +106,11 @@ if download_file == '' and project == '' and target == '' and obsid == '':
                 logger.warning('No field left in the db...')
                 sys.exit()
             target = r[0]['id'] # here we set $target
+            target_ra = r[0]['ra']
+            target_dec = r[0]['decl']
         # save target name
         with open("target.txt", "w") as file:
-                print(target, file=file)
+                print('%s,%f,%f' % (target,target_ra,target_dec), file=file)
 
     with SurveysDB(survey='lba',readonly=True) as sdb:
         sdb.execute('SELECT * FROM field_obs WHERE field_id="%s"' % target)
@@ -150,7 +154,9 @@ with w.if_todo('download'):
         cmd = LiLF_dir+'/scripts/LOFAR_stager.py --quiet --nocal'
         if target != '':
             if survey:
-                cmd += ' --target %s' % target[:-1] # remove the "o" or "s" at the end
+                #cmd += ' --target %s' % target[:-1] # remove the "o" or "s" at the end
+                # use coordinates
+                cmd += ' --radecdist %f,%f,0.1' % (target_ra, rarget_dec)
             else:
                 cmd += ' --target %s' % target
         if obsid != '':
