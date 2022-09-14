@@ -10,7 +10,7 @@ from astropy.stats import median_absolute_deviation
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
-logger_obj = lib_log.Logger('pipeline-quality.logger')
+logger_obj = lib_log.Logger('pipeline-quality')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 

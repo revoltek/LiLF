@@ -46,7 +46,7 @@ def get_ddf_parms_from_header(img):
 
 #######################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
-logger_obj = lib_log.Logger('pipeline-extract.logger')
+logger_obj = lib_log.Logger('pipeline-extract')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-extract.walker')
@@ -145,7 +145,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                              no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
                              parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
                              join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
-        os.system('cat logs/wscleanB-' + str(p) + '.log | grep "background noise"')
+        os.system('cat '+logger_obj.log_dir+'/wscleanB-' + str(p) + '.log | grep "background noise"')
 
 # parse parset
 parset = lib_util.getParset()

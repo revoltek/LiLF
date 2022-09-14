@@ -15,7 +15,7 @@ import lsmtool
 
 #######################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd, lib_h5
-logger_obj = lib_log.Logger('pipeline-dd-serial.logger')
+logger_obj = lib_log.Logger('pipeline-dd-serial')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-dd-serial.walker')
@@ -108,7 +108,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
                 baseline_averaging='', local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=im.maskname,
                 join_channels='', fit_spectral_pol=3, channels_out=ch_out)  #, deconvolution_channels=3)
 
-        os.system('cat logs/wscleanB-'+str(p)+'.log | grep "background noise"')
+        os.system('cat '+logger_obj.log_dir+'/wscleanB-'+str(p)+'.log | grep "background noise"')
 
 #############################################################
 with w.if_todo('cleaning'):

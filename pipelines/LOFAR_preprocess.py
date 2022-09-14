@@ -8,7 +8,7 @@ from astropy.time import Time
 
 ##########################################
 from LiLF import lib_ms, lib_util, lib_log
-logger_obj = lib_log.Logger('pipeline-preprocess.logger')
+logger_obj = lib_log.Logger('pipeline-preprocess')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-preprocess.walker')

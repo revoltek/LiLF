@@ -11,7 +11,7 @@ import lsmtool
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
-logger_obj = lib_log.Logger('pipeline-self.logger')
+logger_obj = lib_log.Logger('pipeline-self')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-self.walker')
@@ -298,7 +298,7 @@ for c in range(2):
                 multiscale='', multiscale_scale_bias=0.6,
                 deconvolution_channels=cc_fit_order, **kwargs)
 
-        os.system('cat logs/wscleanM-c'+str(c)+'.log | grep "background noise"')
+        os.system('cat '+logger_obj.log_dir+'/wscleanM-c'+str(c)+'.log | grep "background noise"')
 
         # when wasclean allow station selection, then we can remove MSsClean and this predict can go in the previous call with do_predict=True
         if c == 0:

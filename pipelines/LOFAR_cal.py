@@ -10,7 +10,7 @@ import numpy as np
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_h5
-logger_obj = lib_log.Logger('pipeline-cal.logger')
+logger_obj = lib_log.Logger('pipeline-cal')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-cal.walker')
@@ -341,7 +341,7 @@ if imaging:
        # lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec',
        #         weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85,
        #         baseline_averaging='', auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=12)
-       # os.system('cat logs/wscleanB.log | grep "background noise"')
+       # os.system('cat %s/wscleanB.log | grep "background noise"' % logger_obj.log_dir)
 
     ### DONE
 
