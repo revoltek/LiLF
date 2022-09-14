@@ -263,8 +263,8 @@ for grouped_target in grouped_targets:
     with w.if_todo('dd_%s' % grouped_target):
         if survey: update_status_db(grouped_target, 'Ddcal')
         logger.info('### %s: Starting ddcal #####################################' % grouped_target)
-        os.system(LiLF_dir+'/pipelines/LOFAR_dd-serial.py')
-        check_done('pipeline-dd-serial.logger')
+        os.system(LiLF_dir+'/pipelines/LOFAR_dd.py')
+        check_done('pipeline-dd.logger')
 
         if survey: # only back up solutions if survey
             logger.info('Copy: ddcal/c0*/images/img/wideDD-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % grouped_target)
