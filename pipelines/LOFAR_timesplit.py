@@ -119,8 +119,13 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
        for j in range(num_init, num_fin+1):
            msg.append(prefix+'SB%03i.MS' % j)
 
+       # check that nchan is divisible by 48 - necessary in dd pipeline; discard high freq unused channels
+       nchan_init = MSs.getListObj()[0].getNchan()*len(msg)
+       nchan = nchan_init - nchan_init % 48
+       logger.info('Reducing total channels: %ich -> %ich)' % (nchan_init, nchan))
+
        # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected)
-       s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(msg)+']"  msout='+groupname+'/'+groupname+'.MS', \
+       s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(msg)+']" msin.nchan='+str(nchan)+'  msout='+groupname+'/'+groupname+'.MS', \
                    log=groupname+'_DP3_concat.log', commandType='DP3')
        s.run(check=True)
 

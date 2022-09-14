@@ -91,10 +91,10 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_virgo', 'cal_dir', '')
     add_default('LOFAR_virgo', 'data_dir', './')
     # peel
-    add_default('LOFAR_peel', 'peelReg', 'peel.reg')
-    add_default('LOFAR_peel', 'predictReg', '')
-    add_default('LOFAR_peel', 'cal_dir', '')
-    add_default('LOFAR_peel', 'data_dir', './')
+    #add_default('LOFAR_peel', 'peelReg', 'peel.reg')
+    #add_default('LOFAR_peel', 'predictReg', '')
+    #add_default('LOFAR_peel', 'cal_dir', '')
+    #add_default('LOFAR_peel', 'data_dir', './')
 
     ### uGMRT ###
     # init - deprecated

@@ -58,11 +58,7 @@ def check_done(pipename):
     """
     check if "Done" is written in the last line of the log file, otherwise quit with error.
     """
-<<<<<<< HEAD
     logfile = sorted(glob.glob(pipename+'_*.logger'))[-1]
-=======
-    logfile = sorted(grep.grep(pipename+'_*.logger'))[-1]
->>>>>>> 83317abaa2817b5808db73dd34996f783f51901e
     with open(logfile, 'r') as f:
         last_line = f.readlines()[-1]
     if not "Done" in last_line:
@@ -104,6 +100,9 @@ if download_file == '' and project == '' and target == '' and obsid == '':
         with SurveysDB(survey='lba',readonly=True) as sdb:
             sdb.execute('SELECT * FROM fields WHERE status="Observed" order by priority asc')
             r = sdb.cur.fetchall()
+            if len(r) == 0:
+                logger.warning('No field left in the db...')
+                sys.exit()
             target = r[0]['id'] # here we set $target
         # save target name
         with open("target.txt", "w") as file:
@@ -150,7 +149,10 @@ with w.if_todo('download'):
     if download_file == '':
         cmd = LiLF_dir+'/scripts/LOFAR_stager.py --quiet --nocal'
         if target != '':
-            cmd += ' --target %s' % target
+            if survey:
+                cmd += ' --target %s' % target[:-1] # remove the "o" or "s" at the end
+            else:
+                cmd += ' --target %s' % target
         if obsid != '':
             cmd += ' --obsID %s' % obsid
         logger.debug("Exec: %s" % cmd)
@@ -269,11 +271,7 @@ for grouped_target in grouped_targets:
         if survey: update_status_db(grouped_target, 'Ddcal')
         logger.info('### %s: Starting ddcal #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_dd.py')
-<<<<<<< HEAD
         check_done('pipeline-dd')
-=======
-        check_done('pipeline-dd.logger')
->>>>>>> 83317abaa2817b5808db73dd34996f783f51901e
 
         if survey: # only back up solutions if survey
             logger.info('Copy: ddcal/c0*/images/img/wideDD-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % grouped_target)

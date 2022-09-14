@@ -43,9 +43,10 @@ class Logger():
         timestamp = time.strftime('%Y-%m-%d_%H:%M', time.localtime())
         self.logfile = pipename+'_'+timestamp+'.logger'
         self.log_dir = 'logs_'+pipename+'_'+timestamp
+        os.makedirs(self.log_dir)
         #self.backup(logfile, log_dir)
         self.set_logger(self.logfile)
-        
+
 
 #    def backup(self, logfile, log_dir):
 #

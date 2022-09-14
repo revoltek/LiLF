@@ -120,7 +120,7 @@ with w.if_todo('cleaning'):
     lib_util.check_rm('mss-avg')
 ### DONE
 
-# goes down to 8 seconds and multiple of 4 chans
+# goes down to 8 seconds and multiple of 48 chans (this should be already the case as it's done in timesplit)
 if not os.path.exists('mss-avg'):
     MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
     timeint = MSs.getListObj()[0].getTimeInt()
@@ -149,8 +149,6 @@ ch_out_idg = 12  # better 24, but slow
 imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
-#MSs.getListObj()[0].makeBeamReg('ddcal/beam.reg', freq='mid')
-#beamReg = 'ddcal/beam.reg'
 
 logger.info('Add columns...')
 MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
