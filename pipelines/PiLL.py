@@ -3,7 +3,7 @@
 import os, sys, glob, getpass, socket, re, pickle
 from LiLF.surveys_db import SurveysDB
 from LiLF import lib_ms, lib_img, lib_util, lib_log
-logger_obj = lib_log.Logger('PiLL.logger')
+logger_obj = lib_log.Logger('PiLL')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('PiLL.walker')
@@ -54,10 +54,11 @@ def update_status_db(field, status):
         r = sdb.execute('UPDATE fields SET status="%s" WHERE id="%s"' % (status,field))
 
 
-def check_done(logfile):
+def check_done(pipename):
     """
     check if "Done" is written in the last line of the log file, otherwise quit with error.
     """
+    logfile = sorted(glob.glob(pipename+'_*.logger'))[-1]
     with open(logfile, 'r') as f:
         last_line = f.readlines()[-1]
     if not "Done" in last_line:
@@ -93,16 +94,23 @@ if download_file == '' and project == '' and target == '' and obsid == '':
     survey = True
     if os.path.exists('target.txt'):
         with open('target.txt', 'r') as file:
-                target = file.read().replace('\n', '')
+                target,target_ra,target_dec = file.read().replace('\n', '').split(',')
+                target_ra = float(target_ra)
+                target_dec = float(target_dec)
     else:
         logger.info('### Quering database...')
         with SurveysDB(survey='lba',readonly=True) as sdb:
             sdb.execute('SELECT * FROM fields WHERE status="Observed" order by priority asc')
             r = sdb.cur.fetchall()
+            if len(r) == 0:
+                logger.warning('No field left in the db...')
+                sys.exit()
             target = r[0]['id'] # here we set $target
+            target_ra = r[0]['ra']
+            target_dec = r[0]['decl']
         # save target name
         with open("target.txt", "w") as file:
-                print(target, file=file)
+                print('%s,%f,%f' % (target,target_ra,target_dec), file=file)
 
     with SurveysDB(survey='lba',readonly=True) as sdb:
         sdb.execute('SELECT * FROM field_obs WHERE field_id="%s"' % target)
@@ -145,7 +153,12 @@ with w.if_todo('download'):
     if download_file == '':
         cmd = LiLF_dir+'/scripts/LOFAR_stager.py --quiet --nocal'
         if target != '':
-            cmd += ' --target %s' % target
+            if survey:
+                #cmd += ' --target %s' % target[:-1] # remove the "o" or "s" at the end
+                # use coordinates
+                cmd += ' --radecdist %f,%f,0.1' % (target_ra, rarget_dec)
+            else:
+                cmd += ' --target %s' % target
         if obsid != '':
             cmd += ' --obsID %s' % obsid
         logger.debug("Exec: %s" % cmd)
@@ -153,7 +166,7 @@ with w.if_todo('download'):
 
     logger.info('Downloaded %i files' % len(glob.glob('*MS')))
     os.system(LiLF_dir+'/pipelines/LOFAR_preprocess.py')
-    check_done('pipeline-preprocess.logger')
+    check_done('pipeline-preprocess')
     os.system('mv mss/* ../')
 ### DONE
 
@@ -181,7 +194,7 @@ for target_dir in target_dirs:
                 os.chdir(working_dir+'/download-cal_id%i' % obsid)
                 os.system(LiLF_dir+'/scripts/LOFAR_stager.py --quiet --cal --obsID %i >> stager.log' % (obsid))
                 os.system(LiLF_dir+'/pipelines/LOFAR_preprocess.py')
-                check_done('pipeline-preprocess.logger')
+                check_done('pipeline-preprocess')
                 os.system('mv mss/* ../')
 
             os.chdir(local_calibrator_dirs(working_dir, obsid)[0])
@@ -189,7 +202,7 @@ for target_dir in target_dirs:
                 os.makedirs('data-bkp')
                 os.system('mv *MS data-bkp')
             os.system(LiLF_dir+'/pipelines/LOFAR_cal.py')
-            check_done('pipeline-cal.logger')
+            check_done('pipeline-cal')
 
             if survey: # only backup solutions if survey
                 # copy solutions in the repository
@@ -230,7 +243,7 @@ for target_dir in target_dirs:
             os.system('mv *MS data-bkp')
 
         os.system(LiLF_dir+'/pipelines/LOFAR_timesplit.py')
-        check_done('pipeline-timesplit.logger')
+        check_done('pipeline-timesplit')
     ### DONE
 
 # group targets with same name, assuming they are different pointings in the same direction
@@ -256,15 +269,15 @@ for grouped_target in grouped_targets:
         if survey: update_status_db(grouped_target, 'Self')
         logger.info('### %s: Starting selfcal #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_self.py')
-        check_done('pipeline-self.logger')
+        check_done('pipeline-self')
     ### DONE
 
     # DD-cal
     with w.if_todo('dd_%s' % grouped_target):
         if survey: update_status_db(grouped_target, 'Ddcal')
         logger.info('### %s: Starting ddcal #####################################' % grouped_target)
-        os.system(LiLF_dir+'/pipelines/LOFAR_dd-serial.py')
-        check_done('pipeline-dd-serial.logger')
+        os.system(LiLF_dir+'/pipelines/LOFAR_dd.py')
+        check_done('pipeline-dd')
 
         if survey: # only back up solutions if survey
             logger.info('Copy: ddcal/c0*/images/img/wideDD-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % grouped_target)
@@ -288,7 +301,7 @@ for grouped_target in grouped_targets:
         if survey: update_status_db(grouped_target, 'QualityCheck')
         logger.info('### %s: Starting quality check #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_quality.py')
-        check_done('pipeline-quality.logger')
+        check_done('pipeline-quality')
 
         with open('quality.pickle', 'rb') as f:
             qdict = pickle.load(f)

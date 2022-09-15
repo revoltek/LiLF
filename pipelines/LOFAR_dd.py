@@ -15,20 +15,20 @@ import lsmtool
 
 #######################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd, lib_h5
-logger_obj = lib_log.Logger('pipeline-dd-serial.logger')
+logger_obj = lib_log.Logger('pipeline-dd')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
-w = lib_util.Walker('pipeline-dd-serial.walker')
+w = lib_util.Walker('pipeline-dd.walker')
 
 # parse parset
 parset = lib_util.getParset()
-logger.info('Parset: '+str(dict(parset['LOFAR_dd-serial'])))
-parset_dir = parset.get('LOFAR_dd-serial','parset_dir')
+logger.info('Parset: '+str(dict(parset['LOFAR_dd'])))
+parset_dir = parset.get('LOFAR_dd','parset_dir')
 userReg = parset.get('model','userReg')
-maxIter = parset.getint('LOFAR_dd-serial','maxIter')
-min_cal_flux60 = parset.getfloat('LOFAR_dd-serial','minCalFlux60')
-removeExtendedCutoff = parset.getfloat('LOFAR_dd-serial','removeExtendedCutoff')
-target_dir = parset.get('LOFAR_dd-serial','target_dir')
+maxIter = parset.getint('LOFAR_dd','maxIter')
+min_cal_flux60 = parset.getfloat('LOFAR_dd','minCalFlux60')
+removeExtendedCutoff = parset.getfloat('LOFAR_dd','removeExtendedCutoff')
+target_dir = parset.get('LOFAR_dd','target_dir')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
     """
@@ -108,7 +108,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
                 baseline_averaging='', local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=im.maskname,
                 join_channels='', fit_spectral_pol=3, channels_out=ch_out)  #, deconvolution_channels=3)
 
-        os.system('cat logs/wscleanB-'+str(p)+'.log | grep "background noise"')
+        os.system('cat '+logger_obj.log_dir+'/wscleanB-'+str(p)+'.log | grep "background noise"')
 
 #############################################################
 with w.if_todo('cleaning'):
@@ -120,7 +120,7 @@ with w.if_todo('cleaning'):
     lib_util.check_rm('mss-avg')
 ### DONE
 
-# goes down to 8 seconds and multiple of 4 chans
+# goes down to 8 seconds and multiple of 48 chans (this should be already the case as it's done in timesplit)
 if not os.path.exists('mss-avg'):
     MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
     timeint = MSs.getListObj()[0].getTimeInt()
@@ -149,8 +149,6 @@ ch_out_idg = 12  # better 24, but slow
 imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
-#MSs.getListObj()[0].makeBeamReg('ddcal/beam.reg', freq='mid')
-#beamReg = 'ddcal/beam.reg'
 
 logger.info('Add columns...')
 MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')

@@ -16,6 +16,7 @@ from awlofar.main.aweimports import CorrelatedDataProduct, \
 from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
 import stager_access as stager
 from casacore import tables
+from astropy.coordinates import SkyCoord
 from download_file import download_file
 
 #project = 'LC9_017' # 3c first part
@@ -26,6 +27,7 @@ parser = argparse.ArgumentParser(description='Stage and download MS from the LOF
 parser.add_argument('--projects', '-p', dest='projects', help='Comma separated list of project names.')
 parser.add_argument('--obsID', '-o', dest='obsID', help='Comma separated list of project ids.')
 parser.add_argument('--target', '-t', dest='target', help='Target name.')
+parser.add_argument('--radecdist', '-r', dest='radecdist', help='ra,dec,dist in deg (no spaces, separated by commas)')
 parser.add_argument('--calonly', '-c', dest='calonly', action='store_true', help='Get only calibrator data.')
 parser.add_argument('--nocal', '-n', dest='nocal', action='store_true', help='Do not download calibrator data.')
 parser.add_argument('--nobug', '-b', dest='nobug', action='store_true', help='Remove observations taken turing the correlator bag in 2021.')
@@ -44,6 +46,7 @@ if args.obsID is not None:
     projects = ['all'] # obsID defined, project is not used
 
 target = args.target
+radecdist = args.radecdist
 calonly = args.calonly
 nocal = args.nocal
 nobug = args.nobug
@@ -107,6 +110,14 @@ if not os.path.exists('uris.pickle'):
                 if nocal and re_cal.match(name): continue
                 if calonly and not re_cal.match(name): continue
                 if target is not None and not target in name: continue
+                if radecdist is not None:
+                    ra_p = dataproduct.subArrayPointing.pointing.rightAscension
+                    dec_p = dataproduct.subArrayPointing.pointing.declination
+                    ra,dec,distmax = radecdist.split(',')
+                    ra = float(ra); dec = float(dec); dist = float(dist)
+                    dist = SkyCoord(ra_p*u.deg,dec_p*u.deg).separation(SkyCoord(ra*u.deg,dec*u.deg))
+                    if dist*u.deg > distmax*u.deg:
+                        continue
 
                 # This DataProduct should have an associated URL
                 fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')

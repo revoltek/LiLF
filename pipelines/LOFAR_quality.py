@@ -10,7 +10,7 @@ import bdsf
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_cat
-logger_obj = lib_log.Logger('pipeline-quality.logger')
+logger_obj = lib_log.Logger('pipeline-quality')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-quality.walker')
@@ -57,7 +57,6 @@ qdict = {'self_c0_rms': None, 'self_c1_rms': None, 'ddcal_c0_rms': None,
 # MS flags, count all flags and print %
 
 # self images [noise per cycle]
-
 if os.path.exists('self'):
     img_self_c0 = self_dir+'/images/wideM-0-MFS-residual.fits'
     qdict['self_c0_rms'] = get_noise(img_self_c0)
