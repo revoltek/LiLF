@@ -89,15 +89,14 @@ if os.path.exists('ddcal'):
         img.write_catalog(outfile='quality/wideDD-c01.int.cat.fits', catalog_type='srl', format='fits', correct_proj='True',
                           clobber=True)
 
-    with w.if_todo('find_sources'):
-        nvss = lib_cat.RadioCat(f'{parset_dir}/NVSS_small.fits', 'NVSS', log=logger, col_pflux=None, col_maj=None)
-        nvss.filter(sigma=5, circle=[ra, dec, fwhm/2], isolation=90)
-        lofar = lib_cat.RadioCat('quality/wideDD-c01.int.cat.fits', 'LOFAR', log=logger)
-        lofar.filter(sigma=5, circle=[ra, dec, fwhm/2], isolation=30, minflux=0.06, size=25)
-        lofar.match(nvss, 10)
-        lofar.write('quality/wideDD-c01.int.cat_match_nvss.fits', overwrite=True)
-        median_nvss_ratio = lofar.flux_ratios('NVSS')
-        qdict['nvss_ratio'] = median_nvss_ratio
+    nvss = lib_cat.RadioCat(f'{parset_dir}/NVSS_small.fits', 'NVSS', log=logger, col_pflux=None, col_maj=None)
+    nvss.filter(sigma=5, circle=[ra, dec, fwhm/2], isolation=90)
+    lofar = lib_cat.RadioCat('quality/wideDD-c01.int.cat.fits', 'LOFAR', log=logger)
+    lofar.filter(sigma=5, circle=[ra, dec, fwhm/2], isolation=30, minflux=0.06, size=25)
+    lofar.match(nvss, 10)
+    lofar.write('quality/wideDD-c01.int.cat_match_nvss.fits', overwrite=True)
+    median_nvss_ratio = lofar.flux_ratio('NVSS')
+    qdict['nvss_ratio'] = median_nvss_ratio
 else:
     logger.warning('Skip "ddcal" tests, missing dir.')
 

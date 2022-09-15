@@ -296,9 +296,10 @@ for grouped_target in grouped_targets:
         logger.info(f'Self residual rms noise (cycle 1): %.1f mJy/b' % (qdict["self_c1_rms"] * 1e3))
         logger.info('DDcal residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddcal_c0_rms'] * 1e3))
         logger.info('DDcal residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddcal_c1_rms'] * 1e3))
+        logger.info('DDcal NVSS ratio (cycle 1): %.1f mJy/b' % (qdict['nvss_ratio'] * 1e3))
         if survey:
             with SurveysDB(survey='lba', readonly=False) as sdb:
-                r = sdb.execute('UPDATE fields SET rms_final="%s" WHERE id="%s"' % (qdict['ddcal_c1_rms'], grouped_target)) # remove upper?
+                r = sdb.execute('UPDATE fields SET noise="%s", nvss_ratio="%s" WHERE id="%s"' % (qdict['ddcal_c1_rms'],qdict['nvss_ratio'], grouped_target)) # remove upper?
     ### DONE
 
     if survey: update_status_db(grouped_target, 'Done')

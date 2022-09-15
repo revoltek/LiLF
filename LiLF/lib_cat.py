@@ -34,6 +34,7 @@ class Cat():
             log = logging.getLogger('lib_catalog.logger')
             log.setLevel('INFO')
 
+        self.log = log
         if isinstance(cat, str):
             cat = Table.read(cat)
         elif isinstance(cat, Table):
@@ -159,7 +160,7 @@ class Cat():
             cat=cat[cat['NN_dist']> isolation]
             logstr += f'->isolation:{len(cat)}'
         # log.info(logstr)
-        print(logstr)
+        self.log.info(logstr)
         self.cat = cat
 
     def match(self, cat2, radius, cols=[], unique=True):
@@ -211,7 +212,7 @@ class Cat():
                 r[label + '_match'] = True
                 r[label + '_dRA'] =  (np.cos(r['DEC']*np.pi/180) * (r['RA']*u.deg - stab[0]['RA']*u.deg)).to_value('arcsec')
                 r[label + '_dDEC'] =  (r['DEC']*u.deg - stab[0]['DEC']*u.deg).to_value('arcsec')
-        print(f'{label}: matched {matches} sources')
+        self.log.info(f'{label}: matched {matches} sources')
         return self.get_matches(label)
 
     def get_matches(self, labels):
@@ -232,7 +233,7 @@ class Cat():
                 matched = self[key].copy()
             else:
                 matched &= self[key]
-        print(f'Found {np.sum(matched)} common matches')
+        self.log.info(f'Found {np.sum(matched)} common matches')
         return Cat(self.cat[matched], self.catname)
 
     def write(self, path, overwrite=False, format=None):
@@ -250,7 +251,7 @@ class RadioCat(Cat):
     """ Wrapper class to include filtering and cross-matching utilities for astropy tables"""
     def __init__(self, cat, catname, log=None, col_tflux='Total_flux', col_pflux='Peak_flux', col_maj='Maj', ra=None, dec=None, wcs=None, resolution=None, scale=1.0):
         # super class
-        Cat.__init__(self, cat, catname, ra, dec, wcs, log)
+        Cat.__init__(self, cat, catname, log, ra, dec, wcs)
         cat = self.cat
         # fix column names and units
         if col_tflux:
@@ -330,8 +331,7 @@ class RadioCat(Cat):
         if peak_to_total:
             cat = cat[cat['Peak_flux'] / sigma*cat['Total_flux'] < peak_to_total]
             logstr += f'->peak_to_total:{len(cat)}'
-        # log.info(logstr)
-        print(logstr)
+        self.log.info(logstr)
         self.cat = cat
 
     def match(self, cat2, radius, cols=[], **kwargs):
@@ -354,10 +354,10 @@ class RadioCat(Cat):
     def flux_ratio(self, label):
         t = self.get_matches(label)
         ratios = t['Total_flux'] / t[label + '_Total_flux']
-        print(f"{self.catname}/{label}")
+        self.log.info(f"{self.catname}/{label}")
         median = np.median(ratios)
-        print(f"median: {median}")
-        print(f"percentiles/median: 16%:{np.percentile(ratios, 16)/median}, 84%:{np.percentile(ratios, 84)/median}")
+        self.log.info(f"median: {median}")
+        self.log.info(f"percentiles/median: 16%:{np.percentile(ratios, 16)/median}, 84%:{np.percentile(ratios, 84)/median}")
         return median
 
 
