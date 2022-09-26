@@ -77,6 +77,7 @@ for MS in MSs.getListObj():
     t = table(MS.pathMS)
     for i in range(6): # ASSUME 60 MIN time-split MSs and query in each 10 min interval
         f = t.query(query=f'(TIME<{t_start+i*t_diff}) AND ({t_start+(i+1)*t_diff}<TIME)', columns='FLAG').getcol('FLAG')
+        f[np.isnan(f)] = 1
         this_flag_frac = np.mean(f)
         if f < 0.2:
             logger.info(f'{MS.nameMS}: {this_flag_frac:.1%} flagged in interval {i}')
