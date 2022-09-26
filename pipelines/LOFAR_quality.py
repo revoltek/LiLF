@@ -4,6 +4,7 @@
 import sys, os, glob, re, pickle
 from astropy.io.fits import getdata
 import numpy as np
+from casacore.tables import table
 from astropy.table import Table
 from astropy.stats import median_absolute_deviation
 import bdsf
@@ -49,11 +50,11 @@ with w.if_todo('cleaning'):
 
 ### DONE
 
-MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s, check_flags=False)
+MSs = lib_ms.AllMSs( glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False)
 ra, dec = MSs.getListObj()[0].getPhaseCentre()
 fwhm = MSs.getListObj()[0].getFWHM()
 qdict = {'self_c0_rms': None, 'self_c1_rms': None, 'ddcal_c0_rms': None,
-                'ddcal_c1_rms': None, 'nvss_ratio': None}
+                'ddcal_c1_rms': None, 'nvss_ratio': None, 'nvss_match': None, 'flag_frac':None}
 # MS flags, count all flags and print %
 
 # self images [noise per cycle]
@@ -66,6 +67,30 @@ if os.path.exists('self'):
     logger.info(f'Self residual rms noise (cycle 1): %.1f mJy/b' % (qdict["self_c1_rms"]*1e3))
 else:
     logger.warning('Skip "self" tests, missing dir.')
+
+# flag fraction
+flags = []
+weights = []
+for MS in MSs.getListObj():
+    t_start, t_end = MS.getTimeRange()
+    t_diff = t_end - t_start
+    t = table(MS.pathMS)
+    for i in range(6): # ASSUME 60 MIN time-split MSs and query in each 10 min interval
+        f = t.query(query=f'(TIME<{t_start+i*t_diff}) AND ({t_start+(i+1)*t_diff}<TIME)', columns='FLAG').getcol('FLAG')
+        this_flag_frac = np.mean(f)
+        if f < 0.2:
+            logger.info(f'{MS.nameMS}: {this_flag_frac:.1%} flagged in interval {i}')
+        else:
+            logger.warning(f'{MS.nameMS}: {this_flag_frac:.1%} flagged in interval {i}')
+        flags.append(this_flag_frac)
+        weights.append(t_diff)
+
+flag_frac = np.average(flags, weights=weights) # weighting just in case the MSs are not the same length
+if flag_frac < 0.2:
+    logger.info(f'Total flagged: {flag_frac:.1%}')
+else:
+    logger.warning(f'Total flagged: {flag_frac:.1%}')
+qdict['flag_frac'] = flag_frac
 
 # ddcal images [noise per cycle, astrometry, fluxscale]
 if os.path.exists('ddcal'):
@@ -93,11 +118,14 @@ if os.path.exists('ddcal'):
     lofar = lib_cat.RadioCat('quality/wideDD-c01.int.cat.fits', 'LOFAR', log=logger)
     lofar.filter(sigma=5, circle=[ra, dec, fwhm/2], isolation=30, minflux=0.06, size=25)
     lofar.match(nvss, 10)
+    n_match = len(lofar.get_matches('NVSS'))
     lofar.write('quality/wideDD-c01.int.cat_match_nvss.fits', overwrite=True)
     median_nvss_ratio = lofar.flux_ratio('NVSS')
     qdict['nvss_ratio'] = median_nvss_ratio
+    qdict['nvss_match'] = n_match
 else:
     logger.warning('Skip "ddcal" tests, missing dir.')
+
 
 with open('quality/quality.pickle', 'wb') as f:
     pickle.dump(qdict, f)
