@@ -156,7 +156,7 @@ with w.if_todo('download'):
             if survey:
                 #cmd += ' --target %s' % target[:-1] # remove the "o" or "s" at the end
                 # use coordinates
-                cmd += ' --radecdist %f,%f,0.1' % (target_ra, rarget_dec)
+                cmd += ' --radecdist %f,%f,0.1' % (target_ra, target_dec)
             else:
                 cmd += ' --target %s' % target
         if obsid != '':
@@ -290,6 +290,8 @@ for grouped_target in grouped_targets:
             os.system('scp -q ddcal/c0*/images/wideDD-c*.int.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q '+sorted(glob.glob('ddcal/c00/images/wideDD-c00.residual*.fits'))[-1]+' herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q '+sorted(glob.glob('ddcal/c01/images/wideDD-c01.residual*.fits'))[-1]+' herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q ddcal/c01/images/wideDD-c01.DicoModel herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q ddcal/c00/images/wideDD-c00.app.restored.fits.ddfmask.fits herts:/beegfs/lofar/lba/products/%s/wideDD-c01.mask.fits' % grouped_target)
             os.system('scp -q ddcal/c01/solutions/interp.h5 herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/c0*/skymodels/all*reg herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/primarybeam.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)

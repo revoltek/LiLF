@@ -17,6 +17,7 @@ from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
 import stager_access as stager
 from casacore import tables
 from astropy.coordinates import SkyCoord
+from astropy import units as u
 from download_file import download_file
 
 #project = 'LC9_017' # 3c first part
@@ -114,9 +115,9 @@ if not os.path.exists('uris.pickle'):
                     ra_p = dataproduct.subArrayPointing.pointing.rightAscension
                     dec_p = dataproduct.subArrayPointing.pointing.declination
                     ra,dec,distmax = radecdist.split(',')
-                    ra = float(ra); dec = float(dec); dist = float(dist)
+                    ra = float(ra); dec = float(dec); distmax = float(distmax)
                     dist = SkyCoord(ra_p*u.deg,dec_p*u.deg).separation(SkyCoord(ra*u.deg,dec*u.deg))
-                    if dist*u.deg > distmax*u.deg:
+                    if dist > distmax*u.deg:
                         continue
 
                 # This DataProduct should have an associated URL
