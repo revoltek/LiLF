@@ -32,7 +32,7 @@ axisInTable = ant
 prefix = plots/clock
 #minmax = [-2e-7,2e-7]
 plotFlag = False
-refAnt = 'CS001HBA0'
+refAnt = auto
 
 [plotClockMed]
 operation = PLOT
@@ -42,7 +42,7 @@ axisInTable = ant
 prefix = plots/clockMed
 #minmax = [-2e-7,2e-7]
 plotFlag = False
-refAnt = 'CS001HBA0'
+refAnt = auto
 
 [plotTEC]
 operation = PLOT
@@ -52,8 +52,7 @@ axisInTable = ant
 prefix = plots/tec
 #minmax = [-0.5,0.5]
 plotFlag = False
-refAnt = 'CS001HBA0'
-#refAnt = 'CS002HBA0'
+refAnt = auto
 
 [residuals]
 operation = RESIDUALS
@@ -67,6 +66,5 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/phMedClockSubtracted
-refAnt = 'CS001HBA0'
-#refAnt = 'CS002HBA0'
+refAnt = auto
 minmax = [-3.14,3.14]

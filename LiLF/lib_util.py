@@ -53,7 +53,6 @@ def getParset(parsetFile='../lilf.config'):
     # preprocess
     add_default('LOFAR_preprocess', 'fix_table', 'True') # fix bug in some old observations
     add_default('LOFAR_preprocess', 'renameavg', 'True')
-    add_default('LOFAR_preprocess', 'flag_elev', 'True')
     add_default('LOFAR_preprocess', 'keep_IS', 'False')
     add_default('LOFAR_preprocess', 'backup_full_res', 'False')
     # demix
@@ -71,36 +70,36 @@ def getParset(parsetFile='../lilf.config'):
     add_default('LOFAR_timesplit', 'initc', '0')
     # quick-self
     add_default('LOFAR_quick-self', 'data_dir', './data-bkp/')
-    # dd-parallel
-    add_default('LOFAR_dd-parallel', 'maxniter', '10')
-    add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
-    # dd-serial
-    add_default('LOFAR_dd-serial', 'maxIter', '2')
-    add_default('LOFAR_dd-serial', 'minCalFlux60', '1')
-    add_default('LOFAR_dd-serial', 'removeExtendedCutoff', '0.0005')
-    add_default('LOFAR_dd-serial', 'target_dir', '') # ra,dec
-    # ddfacet
-    add_default('LOFAR_ddfacet', 'maxniter', '10')
-    add_default('LOFAR_ddfacet', 'calFlux', '2.0')
+    # dd-parallel - deprecated
+    #add_default('LOFAR_dd-parallel', 'maxniter', '10')
+    #add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
+    # dd
+    add_default('LOFAR_dd', 'maxIter', '2')
+    add_default('LOFAR_dd', 'minCalFlux60', '1')
+    add_default('LOFAR_dd', 'removeExtendedCutoff', '0.0005')
+    add_default('LOFAR_dd', 'target_dir', '') # ra,dec
     # extract
     add_default('LOFAR_extract', 'maxniter', '10')
     add_default('LOFAR_extract', 'extractRegion', 'target.reg')
     add_default('LOFAR_extract', 'phSolMode', 'phase') # tecandphase, phase
     add_default('LOFAR_extract', 'beam_cut', '0.3') # up to which distance a pointing will be considered
+    # quality
+    add_default('LOFAR_quality', 'self_dir', 'self')
+    add_default('LOFAR_quality', 'ddcal_dir', 'ddcal')
     # virgo
     add_default('LOFAR_virgo', 'cal_dir', '')
     add_default('LOFAR_virgo', 'data_dir', './')
     # peel
-    add_default('LOFAR_peel', 'peelReg', 'peel.reg')
-    add_default('LOFAR_peel', 'predictReg', '')
-    add_default('LOFAR_peel', 'cal_dir', '')
-    add_default('LOFAR_peel', 'data_dir', './')
+    #add_default('LOFAR_peel', 'peelReg', 'peel.reg')
+    #add_default('LOFAR_peel', 'predictReg', '')
+    #add_default('LOFAR_peel', 'cal_dir', '')
+    #add_default('LOFAR_peel', 'data_dir', './')
 
     ### uGMRT ###
-    # init
-    add_default('uGMRT_init', 'data_dir', './datadir')
-    # cal
-    add_default('uGMRT_cal', 'skymodel', os.path.dirname(__file__)+'/../models/calib-simple.skydb')
+    # init - deprecated
+    #add_default('uGMRT_init', 'data_dir', './datadir')
+    # cal - deprecated
+    #add_default('uGMRT_cal', 'skymodel', os.path.dirname(__file__)+'/../models/calib-simple.skydb')
 
     ### General ###
 
@@ -539,6 +538,7 @@ class Scheduler():
         dry:            don't schedule job
         max_processors: max number of processors in a node (ignored if qsub=False)
         """
+        self.hostname = socket.gethostname()
         self.cluster = self.get_cluster()
         self.log_dir = log_dir
         self.qsub    = qsub
@@ -552,7 +552,7 @@ class Scheduler():
         else:
             if ((self.qsub is False and self.cluster == "Hamburg") or
                (self.qsub is True and (self.cluster == "Leiden" or self.cluster == "CEP3" or
-                                       self.cluster == "Hamburg_fat" or self.cluster == "IRA" or self.cluster == "Herts"))):
+                                       self.cluster == "Hamburg_fat" or self.cluster == "Pleiadi" or self.cluster == "Herts"))):
                 logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
                 sys.exit(1)
 
@@ -573,7 +573,7 @@ class Scheduler():
             self.max_processors = max_processors
 
         self.dry = dry
-        logger.info("Scheduler initialised for cluster " + self.cluster + " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
+        logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname + " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
                      str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
 
         self.action_list = []
@@ -584,11 +584,11 @@ class Scheduler():
         """
         Find in which computing cluster the pipeline is running
         """
-        hostname = socket.gethostname()
+        hostname = self.hostname
         if (hostname == 'lgc1' or hostname == 'lgc2'):
             return "Hamburg"
-        elif ('ira' in hostname):
-            return "IRA"
+        elif ('r' == hostname[0] and 'c' == hostname[3] and 's' == hostname[6]):
+            return "Pleiadi"
         elif ('node3' in hostname):
             return "Hamburg_fat"
         elif ('node' in hostname):
@@ -608,7 +608,7 @@ class Scheduler():
         cmd:         the command to run
         log:         log file name that can be checked at the end
         logAppend:  if True append, otherwise replace
-        commandType: can be a list of known command types as "BBS", "DP3", ...
+        commandType: can be a list of known command types as "wsclean", "DP3", ...
         processors:  number of processors to use, can be "max" to automatically use max number of processors per node
         """
 
@@ -626,9 +626,11 @@ class Scheduler():
             logger.debug('Running wsclean: %s' % cmd)
         elif commandType == 'DP3':
             logger.debug('Running DP3: %s' % cmd)
-        elif commandType == 'singularity':
-            cmd = 'SINGULARITY_TMPDIR=/dev/shm singularity exec -B /tmp,/dev/shm,/localwork,/localwork.ssd,/home /home/fdg/node31/opt/src/lofar_sksp_ddf.simg ' + cmd
-            logger.debug('Running singularity: %s' % cmd)
+        #elif commandType == 'singularity':
+        #    cmd = 'SINGULARITY_TMPDIR=/dev/shm singularity exec -B /tmp,/dev/shm,/localwork,/localwork.ssd,/home /home/fdg/node31/opt/src/lofar_sksp_ddf.simg ' + cmd
+        #    logger.debug('Running singularity: %s' % cmd)
+        elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
+            logger.debug('Running DDFacet: %s' % cmd)
         elif commandType == 'python':
             logger.debug('Running python: %s' % cmd)
 
@@ -704,7 +706,6 @@ class Scheduler():
         """
         Produce a warning if a command didn't close the log properly i.e. it crashed
         NOTE: grep, -L inverse match, -l return only filename
-        # TODO add commandType=DDFacet consistently to pipelines, check for keywords
         """
 
         if (not os.path.exists(log)):
@@ -739,6 +740,8 @@ class Scheduler():
             out += subprocess.check_output('grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Segmentation fault\|Killed" ' + log + ' ; exit 0', shell=True,
                                            stderr=subprocess.STDOUT)
+            out += subprocess.check_output('grep -l "killed by signal" ' + log + ' ; exit 0', shell=True,
+                                           stderr=subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Aborted" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
 
         elif (commandType == "python"):
@@ -749,10 +752,10 @@ class Scheduler():
             out += subprocess.check_output('grep -l "ERROR" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
-        elif (commandType == "singularity"):
-            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+#        elif (commandType == "singularity"):
+#            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+#            out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+#            out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "general"):
             out = subprocess.check_output('grep -l -i "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)

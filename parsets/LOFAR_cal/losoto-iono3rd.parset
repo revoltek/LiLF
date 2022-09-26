@@ -55,7 +55,7 @@ axisInTable = ant
 prefix = plots/clock
 #minmax = [-2e-7,2e-7]
 plotFlag = False
-refAnt = 'CS002LBA'
+refAnt = auto
 
 [plotTEC]
 operation = PLOT
@@ -65,7 +65,7 @@ axisInTable = ant
 prefix = plots/tec
 minmax = [-0.5,0.5]
 plotFlag = False
-refAnt = 'CS002LBA'
+refAnt = auto
 
 [plotTEC3]
 operation = PLOT
@@ -75,7 +75,7 @@ axisInTable = ant
 prefix = plots/tec3rd
 minmax = [-300,300]
 plotFlag = False
-refAnt = 'CS002LBA'
+refAnt = auto
 
 [residuals]
 operation = RESIDUALS
@@ -89,7 +89,7 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/phRes
-refAnt = 'CS002LBA'
+refAnt = auto
 minmax = [-3.14,3.14]
 
 #[smooth]
@@ -97,7 +97,7 @@ minmax = [-3.14,3.14]
 #soltab = sol000/phase000
 #axesToSmooth = [time,freq]
 #mode = median
-#refAnt = 'CS001LBA'
+#refAnt = auto
 #
 #[PlotPr2]
 #operation = PLOT
@@ -106,6 +106,5 @@ minmax = [-3.14,3.14]
 #axisInTable = ant
 #plotFlag = True
 #prefix = plots/phResSmooth
-#refAnt = 'CS001LBA'
-##refAnt = 'CS002LBA'
+#refAnt = auto
 #minmax = [-3.14,3.14]

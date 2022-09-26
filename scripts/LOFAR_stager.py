@@ -16,6 +16,7 @@ from awlofar.main.aweimports import CorrelatedDataProduct, \
 from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
 import stager_access as stager
 from casacore import tables
+from astropy.coordinates import SkyCoord
 from download_file import download_file
 
 #project = 'LC9_017' # 3c first part
@@ -23,24 +24,33 @@ from download_file import download_file
 #project = 'LC13_011' # cluster
 
 parser = argparse.ArgumentParser(description='Stage and download MS from the LOFAR LTA.')
-parser.add_argument('--projects', '-p', dest='projects', help='Comma separated list of project names')
-parser.add_argument('--obsID', '-o', dest='obsID', help='Comma separated list of project ids')
-parser.add_argument('--target', '-t', dest='target', help='')
-parser.add_argument('--calonly', '-c', dest='calonly', action='store_true', help='')
-parser.add_argument('--nocal', '-n', dest='nocal', action='store_true', help='')
+parser.add_argument('--projects', '-p', dest='projects', help='Comma separated list of project names.')
+parser.add_argument('--obsID', '-o', dest='obsID', help='Comma separated list of project ids.')
+parser.add_argument('--target', '-t', dest='target', help='Target name.')
+parser.add_argument('--radecdist', '-r', dest='radecdist', help='ra,dec,dist in deg (no spaces, separated by commas)')
+parser.add_argument('--calonly', '-c', dest='calonly', action='store_true', help='Get only calibrator data.')
+parser.add_argument('--nocal', '-n', dest='nocal', action='store_true', help='Do not download calibrator data.')
+parser.add_argument('--nobug', '-b', dest='nobug', action='store_true', help='Remove observations taken turing the correlator bag in 2021.')
+parser.add_argument('--quiet', '-q', dest='quiet', action='store_true', help='Limit the output.')
 args = parser.parse_args()
 
-if args.projects is None:
-    print('ERROR: --project needs to be specified.')
+if args.projects is None and args.obsID is None:
+    print('ERROR: --project or --obsID needs to be specified.')
     sys.exit()
-projects = args.projects.split(',')
+
+if args.projects is not None:
+    projects = args.projects.split(',')
 
 if args.obsID is not None:
     obsIDs = [int(obsID) for obsID in args.obsID.split(',')]
+    projects = ['all'] # obsID defined, project is not used
 
 target = args.target
+radecdist = args.radecdist
 calonly = args.calonly
 nocal = args.nocal
+nobug = args.nobug
+quiet = args.quiet
 
 # Login/Passwd for LTA
 login = None
@@ -67,30 +77,53 @@ if not os.path.exists('uris.pickle'):
     uris = set() # All URIS to stage
     for project in projects:
         print("Quering project: %s" % project)
-        query_observations = Observation.select_all().project_only(project)
-        for observation in query_observations :
+
+        # using only certain obsID
+        if args.obsID is not None:
+            query_observations = (Observation.observationId==obsIDs[0])
+            if len(obsIDs)>1:
+                for obsID in obsIDs[1:]:
+                    query_observations |= (Observation.observationId==obsID)
+        # select all obsID in a project
+        else:
+            query_observations = Observation.select_all().project_only(project)
+
+        for observation in query_observations:
             obsID = int(observation.observationId)
-            if args.obsID is not None:
-                if obsID not in obsIDs:
+            # remove buggy observations
+            if nobug:
+                timeobs = observation.as_dict()['Observation.startTime']
+                if timeobs.year == 2021 and ( (timeobs.month==2 and timeobs.day>=8) or (timeobs.month>2 and timeobs.month<8) or ( timeobs.month==8 and timeobs.day<=3) ):
                     continue
             print("Querying ObservationID %i" % obsID, end='')
+
             # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
             dataproduct_query = cls.observations.contains(observation)
             # isValid = 1 means there should be an associated URI
             dataproduct_query &= cls.isValid == 1
             #if target is not None: dataproduct_query &= CorrelatedDataProduct.subArrayPointing.targetName == target
 
-            for i, dataproduct in enumerate(dataproduct_query):
+            i=0
+            for dataproduct in dataproduct_query:
                 # apply selections
                 name = dataproduct.subArrayPointing.targetName
-                if re_cal.match(name) and nocal: continue
-                if not re_cal.match(name) and calonly: continue
+                if nocal and re_cal.match(name): continue
+                if calonly and not re_cal.match(name): continue
                 if target is not None and not target in name: continue
+                if radecdist is not None:
+                    ra_p = dataproduct.subArrayPointing.pointing.rightAscension
+                    dec_p = dataproduct.subArrayPointing.pointing.declination
+                    ra,dec,distmax = radecdist.split(',')
+                    ra = float(ra); dec = float(dec); dist = float(dist)
+                    dist = SkyCoord(ra_p*u.deg,dec_p*u.deg).separation(SkyCoord(ra*u.deg,dec*u.deg))
+                    if dist*u.deg > distmax*u.deg:
+                        continue
 
                 # This DataProduct should have an associated URL
                 fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
                 if fileobject:
                     uris.add(fileobject.URI)
+                    i += 1
                     if i%10 == 0:
                         print(".", end='')
                         sys.stdout.flush()
@@ -103,6 +136,7 @@ if not os.path.exists('uris.pickle'):
      
         pickle.dump(uris, open('uris.pickle', 'wb'))
 else:
+    print('WARNING: using uris.pickle')
     uris = pickle.load(open('uris.pickle','rb'))
 
 # remove files already downloaded/renamed
@@ -293,16 +327,18 @@ w_downloader2.start()
 
 # this part creates some output to monitor the progress
 while True:
-    sys.stdout.write("\r%s: To stage: %i -- In staging: %i (blocks) -- To download: %i -- In downloading: %i || " % \
+    if not quiet:
+        sys.stdout.write("\r%s: To stage: %i -- In staging: %i (blocks) -- To download: %i -- In downloading: %i || " % \
             ( time.ctime(), len(L_toStage), len(L_inStage), len(L_toDownload), len(L_inDownload) ) )
-    #print(L_toStage,L_inStage,L_toDownload,L_inDownload)
-    sys.stdout.flush()
-    time.sleep(2)
-    
+        #print(L_toStage,L_inStage,L_toDownload,L_inDownload)
+        sys.stdout.flush()
+
     # if all queues are empty, kill children and exit
     if len(L_toStage) + len(L_toDownload) + len(L_inStage) + len(L_inDownload) == 0 :
         print("Done.")
         break
+
+    time.sleep(2)
 
 w_stager.terminate()
 w_checker.terminate()

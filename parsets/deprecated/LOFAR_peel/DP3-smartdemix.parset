@@ -1,0 +1,21 @@
+msin = 
+msin.datacolumn = CAL_CORRECTED_DATA
+msin.baseline = [CR]S*&
+msout = .
+msout.datacolumn = SUBTRACTED_DATA
+
+steps = [demixer] 
+
+demixer.type = demixer 
+demixer.demixfreqstep = 8 # 16 if possible
+demixer.demixtimestep = 10
+demixer.ntimechunk = 0
+demixer.freqstep = 1
+demixer.timestep = 1
+demixer.instrumentmodel =
+
+demixer.ateam.skymodel = # detailed model
+demixer.estimate.skymodel # rough demix model
+demixer.defaultgain = 1e-3
+demixer.target.skymodel
+

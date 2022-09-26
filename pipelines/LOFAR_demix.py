@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # demix of a set of SBs from a given dir, output is in the local dir
 
@@ -7,7 +7,7 @@ import lsmtool
 
 ###############################################
 from LiLF import lib_ms, lib_util, lib_log
-logger_obj = lib_log.Logger('pipeline-demix.logger')
+logger_obj = lib_log.Logger('pipeline-demix')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 

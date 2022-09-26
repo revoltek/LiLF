@@ -33,36 +33,38 @@ class _ColorStreamHandler(logging.StreamHandler):
 
 class Logger():
 
-    def __init__(self, logfile = "pipeline.logging", log_dir = "logs"):
+    def __init__(self, pipename):# logfile = "pipeline.logging", log_dir = "logs"):
 
         # hopefully kill other loggers
         logger = logging.getLogger()
         logger.propagate = False
         logger.handlers = []
  
-        self.logfile = logfile
-        self.log_dir = log_dir
-        self.backup(logfile, log_dir)
-        self.set_logger(logfile, log_dir)
-        
+        timestamp = time.strftime('%Y-%m-%d_%H:%M', time.localtime())
+        self.logfile = pipename+'_'+timestamp+'.logger'
+        self.log_dir = 'logs_'+pipename+'_'+timestamp
+        os.makedirs(self.log_dir)
+        #self.backup(logfile, log_dir)
+        self.set_logger(self.logfile)
 
-    def backup(self, logfile, log_dir):
 
-        # bkp old log dir
-        if os.path.isdir(log_dir):
-            current_time = time.localtime()
-            log_dir_old = time.strftime(log_dir+'_bkp_%Y-%m-%d_%H:%M', current_time)
-            os.system('mv %s %s' % ( log_dir, log_dir_old ))
-        os.makedirs(log_dir)
-
-        # bkp old log file
-        if os.path.exists(logfile):
-            current_time = time.localtime()
-            logfile_old = time.strftime(logfile+'_bkp_%Y-%m-%d_%H:%M', current_time)
-            os.system('mv %s %s' % ( logfile, logfile_old ))
+#    def backup(self, logfile, log_dir):
+#
+#        # bkp old log dir
+#        if os.path.isdir(log_dir):
+#            current_time = time.localtime()
+#            log_dir_old = time.strftime(log_dir+'_bkp_%Y-%m-%d_%H:%M', current_time)
+#            os.system('mv %s %s' % ( log_dir, log_dir_old ))
+#        os.makedirs(log_dir)
+#
+#        # bkp old log file
+#        if os.path.exists(logfile):
+#            current_time = time.localtime()
+#            logfile_old = time.strftime(logfile+'_bkp_%Y-%m-%d_%H:%M', current_time)
+#            os.system('mv %s %s' % ( logfile, logfile_old ))
             
 
-    def set_logger(self, logfile, log_dir):
+    def set_logger(self, logfile):
       
         logger = logging.getLogger("LiLF")
         logger.setLevel(logging.DEBUG)

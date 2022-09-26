@@ -165,8 +165,21 @@ class SurveysDB(object):
                                                          local_bind_address=('127.0.0.1',))
 
                 self.tunnel.start()
-                localport=self.tunnel.local_bind_port
-                self.con = mdb.connect(host='127.0.0.1', user='survey_user', password=self.password, database=self.database, port=localport, cursorclass=mdbcursors.DictCursor)
+                localport = self.tunnel.local_bind_port
+
+                connected=False
+                retry=0
+                while not connected and retry<10:
+                    try:
+                        self.con = mdb.connect(host='127.0.0.1', user='survey_user', password=self.password, database=self.database, port=localport, cursorclass=mdbcursors.DictCursor)
+                        connected=True
+                    except mdb.OperationalError as e:
+                        print('Database temporary error! Sleep to retry',e)
+                        retry+=1
+                        sleep(10)
+                if not connected:
+                    raise RuntimeError("Cannot connect to database server")
+
             else:
                 connected=False
                 retry=0

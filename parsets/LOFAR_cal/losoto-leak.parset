@@ -35,7 +35,7 @@ axesInPlot = [time,freq]
 axisInTable = ant
 prefix = plots/phG_
 minmax = [-3.14,3.14]
-refAnt = CS002LBA
+refAnt = auto
 
 [plotDp]
 operation = PLOT
@@ -44,7 +44,7 @@ axesInPlot = [time,freq]
 axisInTable = ant
 prefix = plots/phD_
 minmax = [-3.14,3.14]
-refAnt = CS002LBA
+refAnt = auto
 
 [smooth]
 operation = SMOOTH

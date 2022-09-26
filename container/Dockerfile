@@ -138,21 +138,21 @@ ENV LD_LIBRARY_PATH /usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 ## Pybdsf (master 1/2021)
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
-    && cd /opt/PyBDSF; git checkout 8f75efa
+    && cd /opt/PyBDSF; git checkout tags/v1.10.1
 RUN cd /opt/PyBDSF && pip3 install .
 
 #####################################################################
-## LSMtool
+## LSMtool (1.4.5)
 #####################################################################
-RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git
-#   && cd /opt/LSMTool
+RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git \
+    && cd /opt/LSMTool; git checkout tags/v1.4.5
 RUN cd /opt/LSMTool && pip3 install .
 
 ####################################################################
-## LoSoTo (master 1/2022)
+## LoSoTo (master 7/2022)
 ###################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto && git checkout 2920438aa8cd3b5b7e316712969a490a64498438
+    && cd /opt/losoto && git checkout fee61fdd053306ecd8463dbc81bf3f146a669027
 RUN cd /opt/losoto && pip3 install .
 RUN pip3 install --upgrade scipy
 
@@ -191,14 +191,16 @@ RUN rm -rf /opt/DDFacet/DDFacet/cbuild
 
 # Force numba <0.55 otherwise it breaks for numpy
 RUN pip3 install numba==0.54.1
+# Forse ipython not to be upgraded too much otherwise we lose compatibility with come astropy
+RUN pip3 install ipython==7.17.0
 
 RUN python3 -m pip install -U "/opt/DDFacet/[moresane-support,testing-requirements,fits-beam-support]"
 RUN cd /opt/DDFacet/ && python3 setup.py build
 RUN cd /opt/DDFacet/ && python3 setup.py install
 
 # Set MeqTrees Cattery path to installation directory
-ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
-ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
+#ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
+#ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
 
 #####################################################################
 ## LiLF
@@ -212,5 +214,6 @@ ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN ln -s /usr/bin/ipython3 /usr/bin/ipython
+ENV HDF5_USE_FILE_LOCKING FALSE
 ENV OMP_NUM_THREADS 1
 RUN ulimit -n 4000

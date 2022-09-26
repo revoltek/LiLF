@@ -20,8 +20,7 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/ph_
-refAnt = 'CS001LBA'
-#refAnt = 'CS002LBA'
+refAnt = auto
 minmax = [-3.14,3.14]
 NColFig = 4
 figSize = [20,20]
@@ -35,8 +34,7 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/ph_
-refAnt = 'CS001LBA'
-#refAnt = 'CS002LBA'
+refAnt = auto
 minmax = [-3.14,3.14]
 
 [plotP3]
@@ -46,17 +44,16 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/ph_
-refAnt = 'CS001LBA'
 pol = XX
-#refAnt = 'CS002LBA'
+refAnt = auto
 minmax = [-3.14,3.14]
 
 [faraday]
 operation = FARADAY
 soltab = sol000/phase000
-refAnt = CS001LBA
+refAnt = auto
 maxResidual = 1.
-freq.minmaxstep = [15e6,1e9] # should this start form 30 MHz or does 15 MHz work?
+freq.minmaxstep = [20e6,1e9] # should this start form 30 MHz or does 20 MHz work?
 
 [plotFR]
 operation = PLOT
@@ -78,5 +75,5 @@ AxisInTable = ant
 AxisDiff = pol
 plotFlag = True
 prefix = plots/phRes-rot
-refAnt = CS001LBA
+refAnt = auto
 minmax = [-1.,1.]

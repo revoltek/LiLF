@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# Pipeline for extraction of target region after LOFAR_dd-serial.
+# Pipeline for extraction of target region after LOFAR_dd.
 # Provide a extractRegion in lilf.config. This pipeline will subtract
 # sources outside of the region and perform subsequent self-calibration.
 # Multiple pointings can be used for extraction.
@@ -46,7 +46,7 @@ def get_ddf_parms_from_header(img):
 
 #######################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
-logger_obj = lib_log.Logger('pipeline-extract.logger')
+logger_obj = lib_log.Logger('pipeline-extract')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-extract.walker')
@@ -145,10 +145,11 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                              no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
                              parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
                              join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
-        os.system('cat logs/wscleanB-' + str(p) + '.log | grep "background noise"')
+        os.system('cat '+logger_obj.log_dir+'/wscleanB-' + str(p) + '.log | grep "background noise"')
 
 # parse parset
 parset = lib_util.getParset()
+logger.info('Parset: '+str(dict(parset['LOFAR_extract'])))
 parset_dir = parset.get('LOFAR_extract','parset_dir')
 maxniter = parset.getint('LOFAR_extract','maxniter')
 target_reg_file = parset.get('LOFAR_extract','extractRegion')  # default 'target.reg'
@@ -232,7 +233,7 @@ with w.if_todo('cleaning'):
 
 for p in close_pointings:
     MSs = lib_ms.AllMSs( glob.glob('mss-extract/'+p+'/*MS'), s )
-    ch_out = MSs.getChout(4e6)  # chout from dd-serial
+    ch_out = MSs.getChout(4e6)  # chout from dd
     fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
     phase_center = MSs.getListObj()[0].getPhaseCentre()
     # read image, h5parm, make mask

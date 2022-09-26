@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # Data preparation for selfcal, apply cal solutions
@@ -11,13 +11,14 @@ import casacore.tables as pt
 
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log
-logger_obj = lib_log.Logger('pipeline-timesplit.logger')
+logger_obj = lib_log.Logger('pipeline-timesplit')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-timesplit.walker')
 
 # parse parset
 parset = lib_util.getParset()
+logger.info('Parset: '+str(dict(parset['LOFAR_timesplit'])))
 parset_dir = parset.get('LOFAR_timesplit','parset_dir')
 data_dir = parset.get('LOFAR_timesplit','data_dir')
 cal_dir = parset.get('LOFAR_timesplit','cal_dir')
@@ -118,8 +119,13 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
        for j in range(num_init, num_fin+1):
            msg.append(prefix+'SB%03i.MS' % j)
 
+       # check that nchan is divisible by 48 - necessary in dd pipeline; discard high freq unused channels
+       nchan_init = MSs.getListObj()[0].getNchan()*len(msg)
+       nchan = nchan_init - nchan_init % 48
+       logger.info('Reducing total channels: %ich -> %ich)' % (nchan_init, nchan))
+
        # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected)
-       s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(msg)+']"  msout='+groupname+'/'+groupname+'.MS', \
+       s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(msg)+']" msin.nchan='+str(nchan)+'  msout='+groupname+'/'+groupname+'.MS', \
                    log=groupname+'_DP3_concat.log', commandType='DP3')
        s.run(check=True)
 
