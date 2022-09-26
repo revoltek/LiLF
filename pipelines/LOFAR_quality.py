@@ -73,13 +73,12 @@ flags = []
 weights = []
 for MS in MSs.getListObj():
     t_start, t_end = MS.getTimeRange()
-    t_diff = t_end - t_start
-    t = table(MS.pathMS)
+    t_diff = (t_end - t_start)/6
+    t = table(MS.pathMS, ack=False)
     for i in range(6): # ASSUME 60 MIN time-split MSs and query in each 10 min interval
-        f = t.query(query=f'(TIME<{t_start+i*t_diff}) AND ({t_start+(i+1)*t_diff}<TIME)', columns='FLAG').getcol('FLAG')
-        f[np.isnan(f)] = 1
+        f = t.query(query=f'(TIME>{t_start+i*t_diff}) AND ({t_start+(i+1)*t_diff}>TIME)', columns='FLAG').getcol('FLAG')
         this_flag_frac = np.mean(f)
-        if f < 0.2:
+        if this_flag_frac < 0.2:
             logger.info(f'{MS.nameMS}: {this_flag_frac:.1%} flagged in interval {i}')
         else:
             logger.warning(f'{MS.nameMS}: {this_flag_frac:.1%} flagged in interval {i}')

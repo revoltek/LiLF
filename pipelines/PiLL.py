@@ -280,7 +280,7 @@ for grouped_target in grouped_targets:
         check_done('pipeline-dd')
 
         if survey: # only back up solutions if survey
-            logger.info('Copy: ddcal/c0*/images/img/wideDD-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % grouped_target)
+            logger.info('Copy ddcal products -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('ssh herts "rm -rf /beegfs/lofar/lba/products/%s"' % grouped_target)
             os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s"' % grouped_target)
             os.system('scp -q self/images/wideP*.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
@@ -292,6 +292,7 @@ for grouped_target in grouped_targets:
             os.system('scp -q '+sorted(glob.glob('ddcal/c01/images/wideDD-c01.residual*.fits'))[-1]+' herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/c01/solutions/interp.h5 herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/c0*/skymodels/all*reg herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q ddcal/primarybeam.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/plots"' % grouped_target)
             os.system('scp -q -r ddcal/c0*/plots/* herts:/beegfs/lofar/lba/products/%s/plots' % grouped_target)
     ### DONE
