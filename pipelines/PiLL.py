@@ -286,6 +286,8 @@ for grouped_target in grouped_targets:
             os.system('scp -q self/images/wideP*.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q self/images/wideM-1-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q self/images/wide-largescale-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/plots"' % grouped_target)
+            os.system('scp -q -r self/plots/* herts:/beegfs/lofar/lba/products/%s/plots' % grouped_target)
             os.system('scp -q ddcal/c0*/images/wideDD-c*.app.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/c0*/images/wideDD-c*.int.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q '+sorted(glob.glob('ddcal/c00/images/wideDD-c00.residual*.fits'))[-1]+' herts:/beegfs/lofar/lba/products/%s' % grouped_target)
@@ -295,8 +297,8 @@ for grouped_target in grouped_targets:
             os.system('scp -q ddcal/c01/solutions/interp.h5 herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/c0*/skymodels/all*reg herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/primarybeam.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
-            os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/plots"' % grouped_target)
-            os.system('scp -q -r ddcal/c0*/plots/* herts:/beegfs/lofar/lba/products/%s/plots' % grouped_target)
+            os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/init"' % grouped_target)
+            os.system('scp -q -r ddcal/init/*model.fits ddcal/init/wideM-1-sources.txt herts:/beegfs/lofar/lba/products/%s/init' % grouped_target)
     ### DONE
 
     # Quality check
