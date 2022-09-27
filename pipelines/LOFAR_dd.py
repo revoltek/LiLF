@@ -153,6 +153,7 @@ if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 logger.info('Add columns...')
 MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
 MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
 
 ##############################################################
 # setup initial model
@@ -947,6 +948,12 @@ with w.if_todo('output_PB'):
     s.add('makepb.py -o ddcal/primarybeam.fits -s 10 -p 120 %s' % MSs.getStrDDF(),
           log='makepb.log', commandType='python', processors='max')
     s.run(check=True)
+### DONE
+
+# remove unwanted columns
+with w.if_todo('cleanup'):
+    logger.info('Removing unwanted columns...')
+    MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN FLAG_BKP,SUBTRACTED_DATA,MODEL_DATA', log='$nameMS_delcol.log', commandType='python')
 ### DONE
 
 logger.info("Done.")
