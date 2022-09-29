@@ -314,6 +314,11 @@ for cmaj in range(maxIter):
         if d.size > 0.5: logger.warning('Patch size large: %f' % d.size)
         logstring = 'c%02i-%s' % (cmaj, d.name)
 
+        # either faint sources that were not detected before or residuals of peeled sources - skip?
+        if cmaj == 1 and d.peel_off:
+            logger.info('This sources is far in the outkirts - skip.')
+            continue
+
         with w.if_todo('%s-predict' % logstring):
 
             if cmaj == 0:
@@ -329,11 +334,6 @@ for cmaj in range(maxIter):
                         log='$nameMS_taql.log', commandType='general')
     
             else:
-
-                # either faint sources that were not detected before or residuals of peeled sources - skip?
-                if d.peel_off:
-                    logger.info('This sources is far in the outkirts - skip.')
-                    continue
 
                 # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
                 indico = full_image.root+'.DicoModel'
@@ -951,9 +951,9 @@ with w.if_todo('output_PB'):
 ### DONE
 
 # remove unwanted columns
-with w.if_todo('cleanup'):
+with w.if_todo('remove_col'):
     logger.info('Removing unwanted columns...')
-    MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN FLAG_BKP,SUBTRACTED_DATA,MODEL_DATA', log='$nameMS_delcol.log', commandType='python')
+    MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN FLAG_BKP,SUBTRACTED_DATA,MODEL_DATA"', log='$nameMS_delcol.log', commandType='python')
 ### DONE
 
 logger.info("Done.")
