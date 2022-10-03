@@ -92,7 +92,7 @@ with w.if_todo('predict'):
 with w.if_todo('cal_pa'):
     # Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run(f'BLsmooth.py -r -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log',
+    MSs.run(f'BLsmooth.py -r -q -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth1.log',
             commandType='python', maxThreads=8)
 
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
@@ -121,7 +121,7 @@ with w.if_todo('cal_fr'):
     # Smooth data CORRECTED_DATA -> CIRC_PHASEDIFF_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
     MSs.addcol('CIRC_PHASEDIFF_DATA', 'CORRECTED_DATA', usedysco=False) # need this to make sure no dysco, if we have dyso we cannot set values to zero
-    MSs.run(f'BLsmooth.py -r -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CIRC_PHASEDIFF_DATA -o CIRC_PHASEDIFF_DATA $pathMS', log='$nameMS_smooth2.log',
+    MSs.run(f'BLsmooth.py -r -q -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CIRC_PHASEDIFF_DATA -o CIRC_PHASEDIFF_DATA $pathMS', log='$nameMS_smooth2.log',
             commandType='python', maxThreads=8)
 
     logger.info('Converting to circular...')
@@ -157,7 +157,7 @@ with w.if_todo('cal_fr'):
     # msin.modelcolumn=FR_MODEL_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint='+str(4*base_solint)+' sol.nchan=0 \
     # sol.coreconstraint=2e3', log='$nameMS_solFR.log', commandType="DP3")
     MSs_concat.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA \
-     msin.modelcolumn=FR_MODEL_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint='+str(4*base_solint)+' sol.nchan='+str(4*base_solint)+' \
+     msin.modelcolumn=FR_MODEL_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint='+str(4*base_solint)+' sol.nchan='+str(4*base_nchan)+' \
      sol.coreconstraint=2e3 sol.smoothnessconstraint=5e6 sol.smoothnessreffrequency=54e6', log='$nameMS_solFR.log', commandType="DP3")
     lib_util.run_losoto(s, 'fr', ['concat.MS/fr.h5'], [parset_dir + '/losoto-fr.parset'])
     lib_util.check_rm('concat.MS')
@@ -179,13 +179,13 @@ with w.if_todo('cal_fr'):
 with w.if_todo('cal_bp'):
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run(f'BLsmooth.py -r -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log',
+    MSs.run(f'BLsmooth.py -r -q -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log',
             commandType ='python', maxThreads=8)
 
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating BP...')
     MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/amp.h5 sol.mode=diagonal \
-            sol.solint='+str(base_solint)+' sol.nchan='+str(base_nchan), \
+            sol.solint='+str(base_solint)+' sol.nchan=1', \
             log='$nameMS_solAMP.log', commandType="DP3")
 
     lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()],
@@ -228,7 +228,7 @@ with w.if_todo('apply_all'):
 with w.if_todo('cal_iono'):
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
-    MSs.run(f'BLsmooth.py -r -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
+    MSs.run(f'BLsmooth.py -r -q -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
             commandType ='python', maxThreads=8)
 
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
@@ -298,7 +298,7 @@ if imaging:
 
         # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
         logger.info('BL-smooth...')
-        MSs.run('BLsmooth.py -r -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
+        MSs.run('BLsmooth.py -r -q -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
                 commandType ='python', maxThreads=8)
         
         # Solve cal_SB.MS:SMOOTHED_DATA (only solve)

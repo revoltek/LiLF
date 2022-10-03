@@ -548,6 +548,14 @@ class MS(object):
         #return int(round(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcseconds
         return float('%.1f'%(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcsec
 
+    def getAntennas(self):
+        """
+        Return a list of antenna names
+        """
+        pathAntennaTable = self.pathMS + "/ANTENNA"
+        antennas = (tables.taql('select NAME from $pathAntennaTable')).getcol('NAME')
+        return antennas
+
     def isAllFlagged(self):
         """
         Is the dataset fully flagged?

@@ -144,7 +144,7 @@ with w.if_todo('flag'):
     MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
     logger.info('Plot weights...')
-    MSs.run(f'reweight.py $pathMS -v -p -a {"CS001HBA0" if MSs.isHBA else "CS001LBA"}',
+    MSs.run('reweight.py $pathMS -v -p -a %s' % (MSs.getListObj()[0].getAntennas()[0]),
             log='$nameMS_weights.log', commandType='python')
     lib_util.check_rm('plots-weights')
     os.system('mkdir plots-weights; mv *png plots-weights')
