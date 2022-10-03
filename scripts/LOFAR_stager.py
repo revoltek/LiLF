@@ -149,7 +149,7 @@ if os.path.exists('renamed.txt'):
             
 len_all_uris = len(uris)
 uris = [uri for uri in uris if uri.split('/')[-1][:-13] not in downloaded_mss]
-print(("Total URI's: %i (after removal of already downloaded: %i)" % (len_all_uris,len(uris))))
+print(("%s: Total URI's: %i (after removal of already downloaded: %i)" % (time.ctime(),len_all_uris,len(uris))))
 if len(uris) == 0:
     print("Done.")
     sys.exit()
@@ -195,7 +195,7 @@ class Worker_stager(Worker):
             if len(self.L_inStage) < 5 and len(self.L_toStage) > 0:
                 uris = self.L_toStage[:200]
                 #uris = [self.L_toStage[0]] # debug to stage 1 uri at a time
-                print("Stager -- Staging %i uris" % len(uris))
+                print("%s: Stager -- Staging %i uris" % (time.ctime(), len(uris)))
                 try:
                     sids = self.stager.stage(uris)
                     self.L_inStage.append( sids )
@@ -222,7 +222,7 @@ class Worker_checker(Worker):
                 except:
                     status = ""
                     surls = []
-                    print("Checker -- Failed to get status for sid %i. Continue." % sid)
+                    print("%s: Checker -- Failed to get status for sid %i. Continue." % (time.ctime(), sid))
 
                 for surl in surls:
                     if not surl in self.L_toDownload and not surl in self.L_inDownload and not surl in self.L_Downloaded:
@@ -233,16 +233,16 @@ class Worker_checker(Worker):
 
                 # pass to download
                 if status == 'success' or status == 'partial success':
-                    print("Checker -- Sid %i completed." % sid)
+                    print("%s: Checker -- Sid %i completed." % (time.ctime(), sid))
                     self.L_inStage.remove(sid)
 
                 elif status == 'in progress' or status == 'new' or status == 'scheduled' or status == '':
-                    print("Checker -- WARNING: Sid %i status is: '%s'" % (sid, status) )
+                    print("%s: Checker -- WARNING: Sid %i status is: '%s'" % (time.ctime(), sid, status) )
                     continue
     
                 # reschedule
                 else:
-                    print("Checker -- ERROR: Sid %i status is: '%s' (reschedule submitted)" % (sid, status) )
+                    print("%s: Checker -- ERROR: Sid %i status is: '%s' (reschedule submitted)" % (time.ctime(), sid, status) )
                     self.stager.reschedule(sid)
     
             time.sleep(300)
@@ -275,7 +275,7 @@ class Worker_downloader(Worker):
                     print('ERROR: unknown archive for %s...' % surl)
                     sys.exit()
 
-                print("Downloader -- Download: %s (from: %s) " % (tar_file, LTA_site))
+                print("%s: Downloader -- Download: %s (from: %s) " % (time.ctime(), tar_file, LTA_site))
 
                 # loop until the sanity check on the downloaded MS is ok
                 while True:
@@ -336,7 +336,7 @@ while True:
 
     # if all queues are empty, kill children and exit
     if len(L_toStage) + len(L_toDownload) + len(L_inStage) + len(L_inDownload) == 0 :
-        print("Done.")
+        print("%s: Done." % time.ctime())
         break
 
     time.sleep(2)
