@@ -113,7 +113,6 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
        max_nu = pt.table(MSs.getListStr()[0]).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MAX']
        num_init = lib_util.lofar_nu2num(min_nu)+1  # +1 because FREQ_MIN/MAX somewhat have the lowest edge of the SB freq
        num_fin = lib_util.lofar_nu2num(max_nu)+1
-       ms_name_init = msg[0]
        prefix = re.sub('SB[0-9]*.MS','',msg[0])
        msg = []
        for j in range(num_init, num_fin+1):

@@ -12,4 +12,4 @@ sol.maxiter = 300
 sol.tolerance = 1e-3
 sol.propagatesolutions = True
 sol.propagateconvergedonly = True
-sol.usemodelcolumn = True
+sol.modeldatacolumns = [MODEL_DATA]

@@ -20,4 +20,4 @@ sol.propagatesolutions = True
 sol.approximatetec = True
 sol.maxapproxiter = 300
 sol.approxtolerance = 1e-3
-sol.usemodelcolumn = True
+sol.modeldatacolumns=[MODEL_DATA]
