@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # To do a second run, rename the uris.pickle
 
+# To download survey's calibrators: ~/storage/LiLF/scripts/LOFAR_stager.py --projects LT16_004,LT14_002,LC18_020 -c
+
 # Idea of the code:
 # The code crates 4 suprocesses:
 # - 1 stager

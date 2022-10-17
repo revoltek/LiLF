@@ -20,12 +20,15 @@ mpl.use("Agg")
 
 from LiLF.lib_log import logger
 
-def getParset(parsetFile='../lilf.config'):
+def getParset(parsetFile=''):
     """
     Get parset file and return dict of values
     """
     def add_default(section, option, val):
         if not config.has_option(section, option): config.set(section, option, val)
+    
+    if parsetFile is '' and os.path.exists('lilf.config'): parsetFile='lilf.config'
+    if parsetFile is '' and os.path.exists('../lilf.config'): parsetFile='../lilf.config'
 
     config = ConfigParser(defaults=None)
     config.read(parsetFile)
