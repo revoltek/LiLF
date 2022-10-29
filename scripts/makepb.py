@@ -60,7 +60,7 @@ def make_beam(mss, outfile='beam.fits', pixscale=10, size=5, nchans=1, keep=Fals
 
 if __name__=='__main__':
     import optparse
-    opt = optparse.OptionParser(usage='%prog [-v|-V] image-root-name \n Francesco de Gasperin', version='1.0')
+    opt = optparse.OptionParser(usage='%prog [-v|-V] MSs \n Francesco de Gasperin', version='1.0')
     opt.add_option('-o', '--outfile', help='Filename for the beam fits (default=beam.fits)', default='beam.fits')
     opt.add_option('-f', '--fromimg', help='Image to use to get size/pixscale (default=None)', default=None)
     opt.add_option('-s', '--size', help='Image size (deg) (default=5)', default=5)
