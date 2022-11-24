@@ -815,7 +815,6 @@ for cmaj in range(maxIter):
                     #s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetamp.parset ', log='h5parm_collector.log', commandType='python' )
                     #s.run()
                 if typ == 'tec':
-                    lib_h5.addpol(h5parmFile, 'tec000') # TODO: Not sure if this is required / works!
                     #lib_h5.addpol(h5parmFile, 'amplitude000')
                     s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-reftec.parset ', log='h5parm_collector.log', commandType='python' )
                     s.run()
