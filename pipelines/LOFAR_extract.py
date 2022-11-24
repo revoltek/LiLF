@@ -141,20 +141,22 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                 arg_dict['fits_mask'] = mask + '.mask.fits'
 
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
-                             size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=100000, local_rms='',
+                             size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=100000,
                              no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
                              parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
-                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
+                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3), local_rms='',
         os.system('cat '+logger_obj.log_dir+'/wscleanB-' + str(p) + '.log | grep "background noise"')
 
 # parse parset
 parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_extract'])))
 parset_dir = parset.get('LOFAR_extract','parset_dir')
-maxniter = parset.getint('LOFAR_extract','maxniter')
-target_reg_file = parset.get('LOFAR_extract','extractRegion')  # default 'target.reg'
-phSolMode = parset.get('LOFAR_extract','phSolMode')  # default: tecandphase
+maxniter = parset.getint('LOFAR_extract','max_niter')
+target_reg_file = parset.get('LOFAR_extract','extract_region')  # default 'target.reg'
+subtract_reg_file = parset.get('LOFAR_extract','subtract_region')  # default None - use only if you want to subtract individual sources which are in extractReg
+phSolMode = parset.get('LOFAR_extract','ph_sol_mode')  # default: tecandphase
 beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.3
+no_selfcal = parset.getboolean('LOFAR_extract','no_selfcal')  # Only extract, no selfcal?
 if phSolMode not in ['tecandphase', 'phase']:
     logger.error('phSolMode {} not supported. Choose tecandphase, phase.')
     sys.exit()
@@ -250,6 +252,9 @@ for p in close_pointings:
         inmask = sorted(glob.glob(wideDD_image.root + '*_mask-ddcal.fits'))[-1]
         outmask = outdico + '.mask'
         lib_img.blank_image_reg(inmask, target_reg_file, outfile=outmask, inverse=False, blankval=0.)
+        # if we have subtract reg, unmask that part again to predict+subtract it.
+        if subtract_reg_file != '':
+            lib_img.blank_image_reg(outmask, subtract_reg_file, inverse=False, blankval=1.)
         s.add('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask, indico, outdico),
               log='MaskDicoModel.log', commandType='DDFacet', processors='max')
         s.run(check=True)
@@ -320,6 +325,10 @@ for p in close_pointings:
                     log='$nameMS_init-correct.log', commandType='DP3')
         h5init.close()
     ### DONE
+
+if no_selfcal: # finish here
+    logger.info('Done.')
+    sys.exit(0)
 
 MSs_extract = lib_ms.AllMSs(glob.glob('mss-extract/shiftavg/*.MS-extract'), s)
 

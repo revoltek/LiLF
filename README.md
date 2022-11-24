@@ -62,7 +62,7 @@ as the pipeline requires to open many files at the same time.
     
     5. In your target directory, run the dd pipeline that performs the direction-dependent calibration: `python3 /opt/LiLF/pipelines/LOFAR_dd.py`. The pipeline selects the DD-calibrators, calibrates them one after the other (check the plots in `ddcal/` and the images of the varius steps of self-calibration), then it transfers the solutions to the associated facet and with DDFacet creates an image of the widefield. It performs two major cycles called c00 and c01. In the `/ddcal/c00/skymodels/` directory you can find the `all-c00.reg` file that indicates all the source selected as DD-calibrators, load it on the image you obtain from the previous step to check which sources it selects, they are indicated with a red circle and named ddcal000. To have a good image of your source is important that it is selected as a calibrator. The images of the single calibrators are named as `ddcalM-c01-ddcal0059-cdd00-MFS-image.fits, ddcalM-c01-ddcal0059-cdd01-MFS-image.fits` where cdd are the different steps of selfcal. You can use the best of them as final image of your source. The image of the widefield instead is `wideDD-c01.app.restored.fits`. You can re-image it using DDFacet with your prefered parameters (for example try to use --Deconv-Mode SSD).
     
-    6. Extra: if you want to extract your source visibilities, by subtracting all the sources outside a region of ~10arcmin, to have a smaller dataset easier to re-image the source. Draw a ds9 circle around the target on which you want to perform the extraction and futher self calibration, the region should contain sufficient flux for calibration. Something roughly in the order of 10 arcmin should work. This region should be called 'target.reg' and saved in the TARGET directory. Then you can run: `python3 /opt/LiLF/pipelines/LOFAR_extract.py`. For this step, to have a good calibration of the source would be usefull to specify a region around the source so it is included in the mask used for the cleaning. Create a ds9 region around your source called userReg.reg and put it in the TARGET directory. Then specify it in the configuration file called lilf.config that should be put in `Download/mss/`,  using the following parameter:    
+    6. Extra: if you want to extract your source visibilities, by subtracting all the sources outside a region of some 10arcmin, to have a smaller dataset easier to re-image the source. Draw a ds9 circle around the target on which you want to perform the extraction and futher self calibration, the region should contain sufficient flux for calibration. Something roughly in the order of 10 arcmin should work. This region should be called 'target.reg' and saved in the TARGET directory. Then you can run: `python3 /opt/LiLF/pipelines/LOFAR_extract.py`. For this step, to have a good calibration of the source would be usefull to specify a region around the source so it is included in the mask used for the cleaning. Create a ds9 region around your source called userReg.reg and put it in the TARGET directory. Then specify it in the configuration file called lilf.config that should be put in `Download/mss/`,  using the following parameter:
             `[model]`         
             `userReg = userReg.reg`
             
@@ -134,8 +134,14 @@ minCalFlux60: float [1.5] # apparent flux [Jy] at 60 MHz to be considered a cali
 removeExtendedCutoff: float [0.0001] # remove extended sources from possible DD-calibrator list
 
 ### LOFAR_extract
-maxniter: int [10] # maximum number of iterations to perform
+max_niter: int [10] # maximum number of iterations to perform
 
-extractRegion: str [target.reg] # ds9 region defining the extract target
+extract_region: str [target.reg] # ds9 region defining the extract target
 
-phSolMode: str [tecandphase] # mode to use for phase solutions, either 'tecandphase' (to reduce number of free parameters) or 'phase' (to allow for more accurate solutions)
+subtract_region: str [''] # # Sources inside extract-reg that should still be subtracted with DD-correction! Use e.g. if you have a large extraction-region with some problematic sources
+
+ph_sol_mode: str [tecandphase] # mode to use for phase solutions, either 'tecandphase' (to reduce number of free parameters) or 'phase' (to allow for more accurate solutions)
+
+beam_cut: float [0.3] # at which beam value to stop considering fields for extraction
+
+no_selfcal: bool [False] # Do not perform selfcal, use if you just want the small data set or of you want to use [Reinout van Weeren's facet_selfcal script]()https://github.com/rvweeren/lofar_facet_selfcal)
