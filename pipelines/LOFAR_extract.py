@@ -51,7 +51,7 @@ logger = lib_log.logger
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-extract.walker')
 
-def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False):
+def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, fits_mask=None, apply_beam=False):
     """
     p = patch name
     mss = list of mss to clean
@@ -107,7 +107,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
                                  size=imsize, scale=str(pixscale) + 'arcsec',
                                  weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
-                                 mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
+                                 mgain=0.85, auto_threshold=5, join_channels='',
                                  fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, baseline_averaging='',
                                  **arg_dict)
 
@@ -125,6 +125,8 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
         # TODO: add deconvolution_channels when bug fixed
         if userReg:
             logger.info('Cleaning w/ mask (' + str(p) + ')...')
+        elif fits_mask:
+            logger.info(f'Cleaning w/ user mask {fits_mask} ({p})...')
         else:
             logger.info('Cleaning (' + str(p) + ')...')
         imagenameM = 'img/extractM-' + str(p)
@@ -139,11 +141,13 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                 arg_dict['reuse_psf'] = imagename
                 arg_dict['reuse_dirty'] = imagename
                 arg_dict['fits_mask'] = mask + '.mask.fits'
+            elif fits_mask:
+                arg_dict['fits_mask'] = fits_mask
 
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
                              size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=100000,
                              no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
-                             parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
+                             auto_threshold=0.5, auto_mask=3.0, save_source_list='',
                              join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3), local_rms='',
         os.system('cat '+logger_obj.log_dir+'/wscleanB-' + str(p) + '.log | grep "background noise"')
 
@@ -156,11 +160,16 @@ target_reg_file = parset.get('LOFAR_extract','extract_region')  # default 'targe
 subtract_reg_file = parset.get('LOFAR_extract','subtract_region')  # default None - use only if you want to subtract individual sources which are in extractReg
 phSolMode = parset.get('LOFAR_extract','ph_sol_mode')  # default: tecandphase
 beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.3
+fits_mask = parset.get('LOFAR_extract','fits_mask')  # fits mask for cleaning
 no_selfcal = parset.getboolean('LOFAR_extract','no_selfcal')  # Only extract, no selfcal?
+userReg = parset.get('model','userReg')
+
 if phSolMode not in ['tecandphase', 'phase']:
     logger.error('phSolMode {} not supported. Choose tecandphase, phase.')
     sys.exit()
-userReg = parset.get('model','userReg')
+
+if (not userReg) and (not fits_mask):
+    raise ValueError("Cannot provide both userReg and fits mask at the same time.")
 
 ##########
 
@@ -254,6 +263,7 @@ for p in close_pointings:
         lib_img.blank_image_reg(inmask, target_reg_file, outfile=outmask, inverse=False, blankval=0.)
         # if we have subtract reg, unmask that part again to predict+subtract it.
         if subtract_reg_file != '':
+            logger.info(f"Re-adding sources in subtract-region {subtract_reg_file} to subtraction model.")
             lib_img.blank_image_reg(outmask, subtract_reg_file, inverse=False, blankval=1.)
         s.add('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask, indico, outdico),
               log='MaskDicoModel.log', commandType='DDFacet', processors='max')
@@ -336,7 +346,7 @@ MSs_extract = lib_ms.AllMSs(glob.glob('mss-extract/shiftavg/*.MS-extract'), s)
 do_beam = len(close_pointings) > 1 # if > 1 pointing, correct beam every cycle, otherwise only at the end.
 with w.if_todo('image_init'):
     logger.info('Initial imaging...')
-    clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam)
+    clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg, fits_mask=fits_mask)
     ### DONE;
 
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
@@ -367,7 +377,7 @@ if total_flux > 10:
     ph_int.append(1)
 iter_ph_solint = lib_util.Sol_iterator(ph_int)
 iter_amp_solint = lib_util.Sol_iterator([60, 30, 15])
-iter_amp2_solint = lib_util.Sol_iterator([60, 30])
+iter_amp2_solint = lib_util.Sol_iterator([60, 30, 15])
 logger.info('RMS noise (init): %f' % (rms_noise_pre))
 logger.info('MM ratio (init): %f' % (mm_ratio_pre))
 logger.info('Total flux (init): %f Jy' % (total_flux))
@@ -474,7 +484,7 @@ for c in range(maxniter):
     with w.if_todo('image-c%02i' % c):
         logger.info('Imaging...')
         # if we have more than one close pointing, need to apply idg beam each iteration
-        clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg) # size 2 times radius  , apply_beam = c==maxniter
+        clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg, fits_mask=fits_mask) # size 2 times radius  , apply_beam = c==maxniter
     ### DONE
 
     # get noise, if larger than 98% of prev cycle: break
@@ -493,7 +503,8 @@ for c in range(maxniter):
     else: best_iter = c - 1
 
     if rms_noise > 0.98 * rms_noise_pre and mm_ratio < 1.01 * mm_ratio_pre and c >3:
-        break
+        logger.warning("Skip break")
+        #break
 
     if c >= 3 and mm_ratio >= 20:
         logger.info('Start amplitude calibration in next cycle...')
@@ -540,5 +551,5 @@ with w.if_todo('final_apply'):
 
 with w.if_todo('imaging_final'):
     logger.info('Final imaging w/ beam correction...')
-    clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg)  # size 2 times radius  , apply_beam = c==maxniter
+    clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, fits_mask=fits_mask)  # size 2 times radius  , apply_beam = c==maxniter
     logger.info('Done.')
