@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # To do a second run, rename the uris.pickle
 
-# To download survey's calibrators: ~/storage/LiLF/scripts/LOFAR_stager.py --projects LT16_004,LT14_002,LC18_020 -c
+# To download survey's calibrators: ~/storage/LiLF/scripts/LOFAR_stager.py --projects LT16_004,LT14_002,LC12_017,LC9_016,LC8_031,LC18_020,LC18_007 -c
 
 # Idea of the code:
 # The code crates 4 suprocesses:
@@ -21,6 +21,7 @@ from casacore import tables
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from download_file import download_file
+from itertools import chain
 
 #project = 'LC9_017' # 3c first part
 #project = 'LC10_020' # 3c second part
@@ -75,72 +76,78 @@ cls = CorrelatedDataProduct
 re_cal = re.compile('.*3[c|C](196|295|380).*')
 
 # First: collect all uris
-# This part of the code simply selects the uris to stage starting from the project names and the target name
+# This part of the code simply selects the uris to stage starting from the project names and the target name/coord
 if not os.path.exists('uris.pickle'):
-    uris = set() # All URIS to stage
-    for project in projects:
-        print("Quering project: %s" % project)
-
-        # using only certain obsID
-        if args.obsID is not None:
-            query_observations = (Observation.observationId==obsIDs[0])
-            if len(obsIDs)>1:
-                for obsID in obsIDs[1:]:
-                    query_observations |= (Observation.observationId==obsID)
-        # select all obsID in a project
-        else:
-            query_observations = Observation.select_all().project_only(project)
-
-        for observation in query_observations:
-            obsID = int(observation.observationId)
-            # remove buggy observations
-            if nobug:
-                timeobs = observation.as_dict()['Observation.startTime']
-                if timeobs.year == 2021 and ( (timeobs.month==2 and timeobs.day>=8) or (timeobs.month>2 and timeobs.month<8) or ( timeobs.month==8 and timeobs.day<=3) ):
-                    continue
-            print("Querying ObservationID %i" % obsID, end='')
-
-            # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
-            dataproduct_query = cls.observations.contains(observation)
-            # isValid = 1 means there should be an associated URI
-            dataproduct_query &= cls.isValid == 1
-            #if target is not None: dataproduct_query &= CorrelatedDataProduct.subArrayPointing.targetName == target
-
-            i=0
-            for dataproduct in dataproduct_query:
-                # apply selections
-                name = dataproduct.subArrayPointing.targetName
-                if nocal and re_cal.match(name): continue
-                if calonly and not re_cal.match(name): continue
-                if target is not None and not target in name: continue
-                if radecdist is not None:
-                    ra_p = dataproduct.subArrayPointing.pointing.rightAscension
-                    dec_p = dataproduct.subArrayPointing.pointing.declination
-                    ra,dec,distmax = radecdist.split(',')
-                    ra = float(ra); dec = float(dec); distmax = float(distmax)
-                    dist = SkyCoord(ra_p*u.deg,dec_p*u.deg).separation(SkyCoord(ra*u.deg,dec*u.deg))
-                    if dist > distmax*u.deg:
-                        continue
-
-                # This DataProduct should have an associated URL
-                fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
-                if fileobject:
-                    uris.add(fileobject.URI)
-                    i += 1
-                    if i%10 == 0:
-                        print(".", end='')
-                        sys.stdout.flush()
-                else :
-                    print("No URI found for %s with dataProductIdentifier %d" % (dataproduct.__class__.__name__, dataproduct.dataProductIdentifier))
-            print("")
-                
-                #if len(uris) == 1: break # TEST
-            #break # TEST
-     
-        pickle.dump(uris, open('uris.pickle', 'wb'))
+    uris = {} # All URIS to stage in format {obsID1:[uri1,uri2,...],...}
 else:
     print('WARNING: using uris.pickle')
     uris = pickle.load(open('uris.pickle','rb'))
+    print(uris)
+
+for project in projects:
+    print("Quering project: %s" % project)
+
+    # using only certain obsID
+    if args.obsID is not None:
+        query_observations = (Observation.observationId==obsIDs[0])
+        if len(obsIDs)>1:
+            for obsID in obsIDs[1:]:
+                query_observations |= (Observation.observationId==obsID)
+    # select all obsID in a project
+    else:
+        query_observations = Observation.select_all().project_only(project)
+
+    for observation in query_observations:
+        obsID = int(observation.observationId)
+        # skip if already in the uris dict
+        if obsID in uris.keys(): continue
+        else: uris[obsID] = []
+
+        # remove buggy observations
+        if nobug:
+            timeobs = observation.as_dict()['Observation.startTime']
+            if timeobs.year == 2021 and ( (timeobs.month==2 and timeobs.day>=8) or (timeobs.month>2 and timeobs.month<8) or ( timeobs.month==8 and timeobs.day<=3) ):
+                continue
+        print("Querying ObservationID %i" % obsID, end='')
+
+        # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
+        dataproduct_query = cls.observations.contains(observation)
+        # isValid = 1 means there should be an associated URI
+        dataproduct_query &= cls.isValid == 1
+        #if target is not None: dataproduct_query &= CorrelatedDataProduct.subArrayPointing.targetName == target
+
+        i=0
+        for dataproduct in dataproduct_query:
+            # apply selections
+            name = dataproduct.subArrayPointing.targetName
+            if nocal and re_cal.match(name): continue
+            if calonly and not re_cal.match(name): continue
+            if target is not None and not target in name: continue
+            if radecdist is not None:
+                ra_p = dataproduct.subArrayPointing.pointing.rightAscension
+                dec_p = dataproduct.subArrayPointing.pointing.declination
+                ra,dec,distmax = radecdist.split(',')
+                ra = float(ra); dec = float(dec); distmax = float(distmax)
+                dist = SkyCoord(ra_p*u.deg,dec_p*u.deg).separation(SkyCoord(ra*u.deg,dec*u.deg))
+                if dist > distmax*u.deg:
+                    continue
+
+            # This DataProduct should have an associated URL
+            fileobject = ((FileObject.data_object == dataproduct) & (FileObject.isValid > 0)).max('creation_date')
+            if fileobject:
+                uris[obsID].append(fileobject.URI)
+                i += 1
+                if i%10 == 0:
+                    print(".", end='')
+                    sys.stdout.flush()
+            else :
+                print("No URI found for %s with dataProductIdentifier %d" % (dataproduct.__class__.__name__, dataproduct.dataProductIdentifier))
+        print("")
+            
+            #if len(uris) == 1: break # TEST
+        #break # TEST
+ 
+        pickle.dump(uris, open('uris.pickle', 'ab+'))
 
 # remove files already downloaded/renamed
 downloaded_mss = glob.glob('*MS')
@@ -149,6 +156,9 @@ if os.path.exists('renamed.txt'):
         for line in flog:
             downloaded_mss.append(line[:-1])
             
+# concatenate uris of various ids
+uris = list(chain(*uris.values()))
+
 len_all_uris = len(uris)
 uris = [uri for uri in uris if uri.split('/')[-1][:-13] not in downloaded_mss]
 print(("%s: Total URI's: %i (after removal of already downloaded: %i)" % (time.ctime(),len_all_uris,len(uris))))
