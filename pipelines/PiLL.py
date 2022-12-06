@@ -278,8 +278,11 @@ for grouped_target in grouped_targets:
         logger.info('### %s: Starting ddcal #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_dd.py')
         check_done('pipeline-dd')
+    ### DONE
 
-        if survey: # only back up solutions if survey
+    if survey: # only back up solutions if survey
+        with w.if_todo('saveproducts_%s' % grouped_target):
+            if survey: update_status_db(grouped_target, 'SaveProducts')
             # copy images in herts
             logger.info('Copy ddcal products -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('ssh herts "rm -rf /beegfs/lofar/lba/products/%s"' % grouped_target)
@@ -300,13 +303,16 @@ for grouped_target in grouped_targets:
             os.system('scp -q ddcal/primarybeam.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/init"' % grouped_target)
             os.system('scp -q -r ddcal/init/*model.fits ddcal/init/wideM-1-sources.txt herts:/beegfs/lofar/lba/products/%s/init' % grouped_target)
+            # logs
+            os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/logs"' % grouped_target)
+            os.system('scp -q ../*logger ../*walker ../*%s*/*logger ../*%s*/*walker herts:/beegfs/lofar/lba/products/%s/logs' % (grouped_target, grouped_target, grouped_target))
             # copy ms in Bologna
             logger.info('Copy mss -> pleiadi:/iranet/lofarfs2/lofar2/fdg/surveytgts/%s' % grouped_target)
             os.system('tar zcf %s.tgz mss-avg' % grouped_target)
             os.system('ssh pleiadi "rm -rf /iranet/lofarfs2/lofar2/fdg/surveytgts/%s"' % grouped_target)
             os.system('ssh pleiadi "mkdir -p /iranet/lofarfs2/lofar2/fdg/surveytgts/%s"' % grouped_target)
             os.system('scp -q %s.tgz pleiadi:/iranet/lofarfs2/lofar2/fdg/surveytgts/%s' % (grouped_target,grouped_target))
-    ### DONE
+        ### DONE
 
     # Quality check
     with w.if_todo('quality_%s' % grouped_target):
