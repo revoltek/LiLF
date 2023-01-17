@@ -82,7 +82,7 @@ if not os.path.exists('uris.pickle'):
 else:
     print('WARNING: using uris.pickle')
     uris = pickle.load(open('uris.pickle','rb'))
-    print(uris)
+    print("Adding %i obs IDs." % len(uris))
 
 for project in projects:
     print("Quering project: %s" % project)
@@ -144,10 +144,7 @@ for project in projects:
                 print("No URI found for %s with dataProductIdentifier %d" % (dataproduct.__class__.__name__, dataproduct.dataProductIdentifier))
         print("")
             
-            #if len(uris) == 1: break # TEST
-        #break # TEST
- 
-        pickle.dump(uris, open('uris.pickle', 'ab+'))
+        pickle.dump(uris, open('uris.pickle', 'wb'))
 
 # remove files already downloaded/renamed
 downloaded_mss = glob.glob('*MS')

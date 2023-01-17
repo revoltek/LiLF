@@ -27,8 +27,8 @@ def getParset(parsetFile=''):
     def add_default(section, option, val):
         if not config.has_option(section, option): config.set(section, option, val)
     
-    if parsetFile is '' and os.path.exists('lilf.config'): parsetFile='lilf.config'
-    if parsetFile is '' and os.path.exists('../lilf.config'): parsetFile='../lilf.config'
+    if parsetFile == '' and os.path.exists('lilf.config'): parsetFile='lilf.config'
+    if parsetFile == '' and os.path.exists('../lilf.config'): parsetFile='../lilf.config'
 
     config = ConfigParser(defaults=None)
     config.read(parsetFile)
