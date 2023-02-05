@@ -1,0 +1,14 @@
+msin = 
+msin.datacolumn = DATA
+msout = .
+msout.datacolumn = MODEL_DATA
+
+steps = [pre]
+
+pre.type = predict
+pre.sourcedb = 
+pre.sources = 
+pre.usebeammodel = True
+pre.usechannelfreq = True
+pre.beammode = array_factor
+pre.onebeamperpatch = True
