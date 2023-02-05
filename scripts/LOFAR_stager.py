@@ -120,6 +120,7 @@ for project in projects:
         for dataproduct in dataproduct_query:
             # apply selections
             name = dataproduct.subArrayPointing.targetName
+            if dataproduct.pipeline is None: continue # skip raw data (saved in old obs)
             if nocal and re_cal.match(name): continue
             if calonly and not re_cal.match(name): continue
             if target is not None and not target in name: continue

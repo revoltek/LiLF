@@ -164,7 +164,6 @@ if renameavg:
                 if avg_factor_t < 1: avg_factor_t = 1
 
                 MSout = getName(MS.pathMS)
-                flog.write(MS.nameMS+'.MS\n')
                 if avg_factor_f != 1 or avg_factor_t != 1:
                     logger.info('%s->%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, avg_factor_f, avg_factor_t))
                     if keep_IS:
@@ -188,5 +187,7 @@ if renameavg:
                 else:
                     logger.info('%s->%s: Move data - no averaging...' % (MS.nameMS, MSout))
                     MS.move(MSout)
+
+                flog.write(MS.nameMS+'.MS\n')
 
 logger.info("Done.")
