@@ -143,8 +143,9 @@ class Image(object):
         """
         Return the rms of all the non-masked pixels in an image
         boxsize : limit to central box of this pixelsize
-        """   
-        self.makeMask()
+        """
+        if not os.path.exists(self.maskname):
+            self.makeMask()
 
         with pyfits.open(self.imagename) as fits:
             with pyfits.open(self.maskname) as mask:
