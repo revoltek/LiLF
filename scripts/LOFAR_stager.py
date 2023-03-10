@@ -34,7 +34,7 @@ parser.add_argument('--target', '-t', dest='target', help='Target name.')
 parser.add_argument('--radecdist', '-r', dest='radecdist', help='ra,dec,dist in deg (no spaces, separated by commas)')
 parser.add_argument('--calonly', '-c', dest='calonly', action='store_true', help='Get only calibrator data.')
 parser.add_argument('--nocal', '-n', dest='nocal', action='store_true', help='Do not download calibrator data.')
-parser.add_argument('--nobug', '-b', dest='nobug', action='store_true', help='Remove observations taken turing the correlator bag in 2021.')
+parser.add_argument('--nobug', '-b', dest='nobug', action='store_true', help='Remove observations taken turing the correlator bug in 2021.')
 parser.add_argument('--quiet', '-q', dest='quiet', action='store_true', help='Limit the output.')
 args = parser.parse_args()
 
