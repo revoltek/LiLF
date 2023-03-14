@@ -184,10 +184,12 @@ if renameavg:
                             MS.move('data-bkp/' + MS.nameMS + '.MS', keepOrig=False, overwrite=False)
                     else:
                         lib_util.check_rm(MS.pathMS)
+                    flog.write(MS.nameMS+'.MS\n') # after averaging to be sure no log is written if an error occurs
                 else:
                     logger.info('%s->%s: Move data - no averaging...' % (MS.nameMS, MSout))
+                    flog.write(MS.nameMS+'.MS\n') # before move or the filenmae is changed
                     MS.move(MSout)
 
-                flog.write(MS.nameMS+'.MS\n')
+
 
 logger.info("Done.")
