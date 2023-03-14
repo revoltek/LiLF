@@ -39,7 +39,7 @@ parser.add_argument('--quiet', '-q', dest='quiet', action='store_true', help='Li
 args = parser.parse_args()
 
 if args.projects is None and args.obsID is None:
-    print('ERROR: --project or --obsID needs to be specified.')
+    print('ERROR: --projects or --obsID needs to be specified.')
     sys.exit()
 
 if args.projects is not None:
