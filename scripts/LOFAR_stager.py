@@ -3,6 +3,9 @@
 
 # To download survey's calibrators: ~/storage/LiLF/scripts/LOFAR_stager.py --projects LT16_004,LT14_002,LC12_017,LC9_016,LC8_031,LC18_020,LC18_007 -c
 
+# Need: .wgetrc .stagingrc and .awe/Environment.cfg
+# see https://www.astron.nl/lofarwiki/doku.php?id=public:lta_tricks
+
 # Idea of the code:
 # The code crates 4 suprocesses:
 # - 1 stager
