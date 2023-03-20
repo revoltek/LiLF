@@ -6,11 +6,13 @@
 # Need: .wgetrc .stagingrc and .awe/Environment.cfg
 # see https://www.astron.nl/lofarwiki/doku.php?id=public:lta_tricks
 
-# Idea of the code:
-# The code crates 4 suprocesses:
-# - 1 stager
-# - 1 checker
-# - 2 downlaoders
+# The ~/.awe/Environment.cfg, containing the lines:
+# [global]
+# database_user : <your username>
+# database_password : <your password>
+# The .wgetrc and .stagingrc, containg the lines:
+# user=<your username>
+# password=<your password>
 
 import os, sys, time, glob, pickle, argparse, re
 import subprocess, multiprocessing
