@@ -27,8 +27,8 @@ def getParset(parsetFile=''):
     def add_default(section, option, val):
         if not config.has_option(section, option): config.set(section, option, val)
     
-    if parsetFile is '' and os.path.exists('lilf.config'): parsetFile='lilf.config'
-    if parsetFile is '' and os.path.exists('../lilf.config'): parsetFile='../lilf.config'
+    if parsetFile == '' and os.path.exists('lilf.config'): parsetFile='lilf.config'
+    if parsetFile == '' and os.path.exists('../lilf.config'): parsetFile='../lilf.config'
 
     config = ConfigParser(defaults=None)
     config.read(parsetFile)
@@ -97,6 +97,8 @@ def getParset(parsetFile=''):
     # virgo
     add_default('LOFAR_virgo', 'cal_dir', '')
     add_default('LOFAR_virgo', 'data_dir', './')
+    # m87
+    add_default('LOFAR_m87', 'data_dir', './')
     # peel
     #add_default('LOFAR_peel', 'peelReg', 'peel.reg')
     #add_default('LOFAR_peel', 'predictReg', '')

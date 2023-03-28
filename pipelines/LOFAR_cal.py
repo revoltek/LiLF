@@ -42,7 +42,7 @@ calname = MSs.getListObj()[0].getNameField()
 nchan = MSs.mssListObj[0].getNchan()
 tint = MSs.mssListObj[0].getTimeInt()
 if nchan > 4:
-    base_nchan = int(np.rint(nchan / 4)) # this is 1 for ducth observations, and larger (2,4) for IS observations 
+    base_nchan = int(np.rint(nchan / 4)) # this is 1 for ducth observations (2 for SPARSE), and larger (2,4) for IS observations 
 else: base_nchan = 1
 if tint < 4:
     base_solint = int(np.rint(4/tint)) # this is 1 for dutch observations and 2 for IS observations

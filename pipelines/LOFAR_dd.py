@@ -27,7 +27,6 @@ parset_dir = parset.get('LOFAR_dd','parset_dir')
 userReg = parset.get('model','userReg')
 maxIter = parset.getint('LOFAR_dd','maxIter')
 min_cal_flux60 = parset.getfloat('LOFAR_dd','minCalFlux60')
-removeExtendedCutoff = parset.getfloat('LOFAR_dd','removeExtendedCutoff')
 target_dir = parset.get('LOFAR_dd','target_dir')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
