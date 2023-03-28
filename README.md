@@ -134,8 +134,16 @@ minCalFlux60: float [1.5] # apparent flux [Jy] at 60 MHz to be considered a cali
 removeExtendedCutoff: float [0.0001] # remove extended sources from possible DD-calibrator list
 
 ### LOFAR_extract
-maxniter: int [10] # maximum number of iterations to perform
+max_niter: int [10] # maximum number of iterations to perform
 
-extractRegion: str [target.reg] # ds9 region defining the extract target
+extract_region: str [target.reg] # ds9 region defining the extract target
 
-phSolMode: str [tecandphase] # mode to use for phase solutions, either 'tecandphase' (to reduce number of free parameters) or 'phase' (to allow for more accurate solutions)
+subtract_region: str [''] # # Sources inside extract-reg that should still be subtracted with DD-correction! Use e.g. if you have a large extraction-region with some problematic sources
+
+ph_sol_mode: str [tecandphase] # mode to use for phase solutions, either 'tecandphase' (to reduce number of free parameters) or 'phase' (to allow for more accurate solutions)
+
+ph_sol_mode: str [diagonal] # mode to use for amplitude solutions, either 'diagonal' or 'fulljones'.
+
+beam_cut: float [0.3] # at which beam value to stop considering fields for extraction
+
+no_selfcal: bool [False] # Do not perform selfcal, use if you just want the small data set or of you want to use [Reinout van Weeren's facet_selfcal script]()https://github.com/rvweeren/lofar_facet_selfcal)
