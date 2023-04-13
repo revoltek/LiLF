@@ -51,7 +51,7 @@ logger = lib_log.logger
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-extract.walker')
 
-def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False):
+def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, fits_mask=None, apply_beam=False):
     """
     p = patch name
     mss = list of mss to clean
@@ -107,7 +107,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
                                  size=imsize, scale=str(pixscale) + 'arcsec',
                                  weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
-                                 mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
+                                 mgain=0.85, auto_threshold=5, join_channels='',
                                  fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, baseline_averaging='',
                                  **arg_dict)
 
@@ -125,6 +125,8 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
         # TODO: add deconvolution_channels when bug fixed
         if userReg:
             logger.info('Cleaning w/ mask (' + str(p) + ')...')
+        elif fits_mask:
+            logger.info(f'Cleaning w/ user mask {fits_mask} ({p})...')
         else:
             logger.info('Cleaning (' + str(p) + ')...')
         imagenameM = 'img/extractM-' + str(p)
@@ -139,26 +141,39 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                 arg_dict['reuse_psf'] = imagename
                 arg_dict['reuse_dirty'] = imagename
                 arg_dict['fits_mask'] = mask + '.mask.fits'
+            elif fits_mask:
+                arg_dict['fits_mask'] = fits_mask
 
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
-                             size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=100000, local_rms='',
+                             size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=100000,
                              no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
-                             parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
-                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
+                             auto_threshold=0.5, auto_mask=3.0, save_source_list='',
+                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3), local_rms='',
         os.system('cat '+logger_obj.log_dir+'/wscleanB-' + str(p) + '.log | grep "background noise"')
 
 # parse parset
 parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_extract'])))
 parset_dir = parset.get('LOFAR_extract','parset_dir')
-maxniter = parset.getint('LOFAR_extract','maxniter')
-target_reg_file = parset.get('LOFAR_extract','extractRegion')  # default 'target.reg'
-phSolMode = parset.get('LOFAR_extract','phSolMode')  # default: tecandphase
+maxniter = parset.getint('LOFAR_extract','max_niter')
+target_reg_file = parset.get('LOFAR_extract','extract_region')  # default 'target.reg'
+subtract_reg_file = parset.get('LOFAR_extract','subtract_region')  # default None - use only if you want to subtract individual sources which are in extractReg
+phSolMode = parset.get('LOFAR_extract','ph_sol_mode')  # default: tecandphase
+ampSolMode = parset.get('LOFAR_extract', 'amp_sol_mode') # default: diagonal
 beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.3
+fits_mask = parset.get('LOFAR_extract','fits_mask')  # fits mask for cleaning
+no_selfcal = parset.getboolean('LOFAR_extract','no_selfcal')  # Only extract, no selfcal?
+userReg = parset.get('model','userReg')
+
 if phSolMode not in ['tecandphase', 'phase']:
     logger.error('phSolMode {} not supported. Choose tecandphase, phase.')
     sys.exit()
-userReg = parset.get('model','userReg')
+if ampSolMode not in ['diagonal', 'fulljones']:
+    logger.error('ampSolMode {} not supported. Choose diagonal, fulljones.')
+    sys.exit()
+
+if (not userReg) and (not fits_mask):
+    raise ValueError("Cannot provide both userReg and fits mask at the same time.")
 
 ##########
 
@@ -250,6 +265,10 @@ for p in close_pointings:
         inmask = sorted(glob.glob(wideDD_image.root + '*_mask-ddcal.fits'))[-1]
         outmask = outdico + '.mask'
         lib_img.blank_image_reg(inmask, target_reg_file, outfile=outmask, inverse=False, blankval=0.)
+        # if we have subtract reg, unmask that part again to predict+subtract it.
+        if subtract_reg_file != '':
+            logger.info(f"Re-adding sources in subtract-region {subtract_reg_file} to subtraction model.")
+            lib_img.blank_image_reg(outmask, subtract_reg_file, inverse=False, blankval=1.)
         s.add('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask, indico, outdico),
               log='MaskDicoModel.log', commandType='DDFacet', processors='max')
         s.run(check=True)
@@ -321,13 +340,17 @@ for p in close_pointings:
         h5init.close()
     ### DONE
 
+if no_selfcal: # finish here
+    logger.info('Done.')
+    sys.exit(0)
+
 MSs_extract = lib_ms.AllMSs(glob.glob('mss-extract/shiftavg/*.MS-extract'), s)
 
 # initial imaging to get the model in the MODEL_DATA (could also be done using the Dico DDFacet model)
 do_beam = len(close_pointings) > 1 # if > 1 pointing, correct beam every cycle, otherwise only at the end.
 with w.if_todo('image_init'):
     logger.info('Initial imaging...')
-    clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam)
+    clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg, fits_mask=fits_mask)
     ### DONE;
 
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
@@ -374,6 +397,7 @@ for c in range(maxniter):
         solint_amp = next(iter_amp_solint)
         h5amp2 = 'extract/cal-amp2-c%02i.h5' % c
         solint_amp2 = next(iter_amp2_solint)
+        h5fj = 'extract/cal-fulljones-c%02i.h5' % c
 
     if phSolMode == 'phase':
         logger.info('Phase calibration...')
@@ -418,54 +442,81 @@ for c in range(maxniter):
                     log='$nameMS_correct-c%02i.log' % c, commandType='DP3')
 
     if doamp:
-        with w.if_todo('cal-amp1-c%02i' % c):
-            logger.info('Gain amp calibration 1 (solint: %i)...' % solint_amp)
-            # Calibration - ms:CORRECTED_DATA
-            # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
-            MSs_extract.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
-                sol.mode=diagonal sol.solint=' + str(solint_amp) + ' sol.nchan=1 sol.smoothnessconstraint=4e6 sol.minvisratio=0.5 \
-                sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
-                        log='$nameMS_solGamp1-c%02i.log' % c, commandType='DP3')
+        if ampSolMode == 'diagonal':
+            with w.if_todo('cal-amp1-c%02i' % c):
+                logger.info('Gain amp calibration 1 (solint: %i)...' % solint_amp)
+                # Calibration - ms:CORRECTED_DATA
+                # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
+                MSs_extract.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
+                    sol.mode=diagonal sol.solint=' + str(solint_amp) + ' sol.nchan=1 sol.smoothnessconstraint=4e6 sol.minvisratio=0.5 \
+                    sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
+                            log='$nameMS_solGamp1-c%02i.log' % c, commandType='DP3')
 
-            losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-norm.parset',
-                                  parset_dir + '/losoto-plot2.parset']
-            lib_util.run_losoto(s, 'amp1', [ms + '/cal-amp1.h5' for ms in MSs_extract.getListStr()], losoto_parsets,
-                                plots_dir='extract/plots-%s' % c)
-            os.system('mv cal-amp1.h5 %s' % h5amp1)
+                losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-norm.parset',
+                                      parset_dir + '/losoto-plot2.parset']
+                lib_util.run_losoto(s, 'amp1', [ms + '/cal-amp1.h5' for ms in MSs_extract.getListStr()], losoto_parsets,
+                                    plots_dir='extract/plots-%s' % c)
+                os.system('mv cal-amp1.h5 %s' % h5amp1)
 
-        with w.if_todo('cor-amp1-c%02i' % c):
-            logger.info('Correct amp 1...')
-            # correct amp - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
-            MSs_extract.run('DP3 ' + parset_dir + '/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-                cor.parmdb=' + h5amp1 + ' cor.correction=amplitude000',
-                        log='$nameMS_correct-c%02i.log' % c, commandType='DP3')
+            with w.if_todo('cor-amp1-c%02i' % c):
+                logger.info('Correct amp 1...')
+                # correct amp - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
+                MSs_extract.run('DP3 ' + parset_dir + '/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                    cor.parmdb=' + h5amp1 + ' cor.correction=amplitude000',
+                            log='$nameMS_correct-c%02i.log' % c, commandType='DP3')
 
-        with w.if_todo('cal-amp2-c%02i' % c):
-            logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
-            # Calibration - ms:SMOOTHED_DATA
-            MSs_extract.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                sol.mode=diagonal sol.solint=' + str(
-                solint_amp2) + ' sol.nchan=6  sol.smoothnessconstraint=10e6 sol.minvisratio=0.5', \
-                        log='$nameMS_solGamp2-c%02i.log' % c, commandType='DP3')
+            with w.if_todo('cal-amp2-c%02i' % c):
+                logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
+                # Calibration - ms:SMOOTHED_DATA
+                MSs_extract.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
+                    sol.mode=diagonal sol.solint=' + str(
+                    solint_amp2) + ' sol.nchan=1  sol.smoothnessconstraint=10e6 sol.minvisratio=0.5', \
+                            log='$nameMS_solGamp2-c%02i.log' % c, commandType='DP3')
 
-            losoto_parsets = [parset_dir + '/losoto-clip2.parset', parset_dir + '/losoto-norm.parset',
-                              parset_dir + '/losoto-plot3.parset']
-            lib_util.run_losoto(s, 'amp2', [ms + '/cal-amp2.h5' for ms in MSs_extract.getListStr()], losoto_parsets,
-                                plots_dir='extract/plots-%s' % c)
-            os.system('mv cal-amp2.h5 %s' % h5amp2)
+                losoto_parsets = [parset_dir + '/losoto-clip2.parset', parset_dir + '/losoto-norm.parset',
+                                  parset_dir + '/losoto-plot3.parset']
+                lib_util.run_losoto(s, 'amp2', [ms + '/cal-amp2.h5' for ms in MSs_extract.getListStr()], losoto_parsets,
+                                    plots_dir='extract/plots-%s' % c)
+                os.system('mv cal-amp2.h5 %s' % h5amp2)
 
-        with w.if_todo('cor-amp2-c%02i' % c):
-            logger.info('Correct amp 2...')
-            # correct amp2 - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
-            MSs_extract.run('DP3 ' + parset_dir + '/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-                cor.parmdb=' + h5amp2 + ' cor.correction=amplitude000',
-                        log='$nameMS_correct-c%02i.log' % c, commandType='DP3')
-    ### DONE
+            with w.if_todo('cor-amp2-c%02i' % c):
+                logger.info('Correct amp 2...')
+                # correct amp2 - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
+                MSs_extract.run('DP3 ' + parset_dir + '/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                    cor.parmdb=' + h5amp2 + ' cor.correction=amplitude000',
+                            log='$nameMS_correct-c%02i.log' % c, commandType='DP3')
+        ### DONE
+
+        elif ampSolMode == 'fulljones':
+            # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
+            with w.if_todo('smooth-c%02i' % c):
+                logger.info('BL-based smoothing...')
+                MSs_extract.run('BLsmooth.py -c 1 -n 8 -r -i CORRECTED_DATA -o SMOOTHED_CORRECTED_DATA $pathMS',
+                                log='$nameMS_smooth.log',
+                                commandType='python', maxThreads=1)
+                ### DONE
+
+            with w.if_todo('cal_fulljones_%02i' % c):
+                logger.info('Solving full-Jones...')
+                MSs_extract.run(f'DP3 {parset_dir}/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_CORRECTED_DATA '
+                        f'sol.h5parm=$pathMS/cal-fulljones.h5 sol.mode=fulljones sol.smoothnessconstraint=5e6 sol.nchan=1 sol.solint={solint_amp2}',
+                        log=f'$nameMS_solFulljones-c{c}.log', commandType="DP3")
+
+                lib_util.run_losoto(s, f'fulljones', [ms + '/cal-fulljones.h5' for ms in MSs_extract.getListStr()], \
+                                    [parset_dir + '/losoto-fulljones.parset'], plots_dir='extract/plots-%s' % c)
+                os.system('mv cal-fulljones.h5 %s' % h5fj)
+
+            # Correct gain amp and ph CORRECTED_DATA -> CORRECTED_DATA
+            with w.if_todo('cor_fulljones_c%02i' % c):
+                logger.info('Full-Jones correction...')
+                MSs_extract.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA '
+                        f'cor.correction=fulljones cor.parmdb={h5fj} cor.soltab=\[amplitude000,phase000\]',
+                        log=f'$nameMS_cor_gain-c{c:02}.log', commandType='DP3')
 
     with w.if_todo('image-c%02i' % c):
         logger.info('Imaging...')
         # if we have more than one close pointing, need to apply idg beam each iteration
-        clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg) # size 2 times radius  , apply_beam = c==maxniter
+        clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg, fits_mask=fits_mask) # size 2 times radius  , apply_beam = c==maxniter
     ### DONE
 
     # get noise, if larger than 98% of prev cycle: break
@@ -531,5 +582,5 @@ with w.if_todo('final_apply'):
 
 with w.if_todo('imaging_final'):
     logger.info('Final imaging w/ beam correction...')
-    clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg)  # size 2 times radius  , apply_beam = c==maxniter
+    clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, fits_mask=fits_mask)  # size 2 times radius  , apply_beam = c==maxniter
     logger.info('Done.')
