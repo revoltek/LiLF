@@ -1,9 +1,11 @@
 from __future__ import print_function
+from future.utils import itervalues
 from builtins import object
 import sshtunnel
 import socket
 import os
 import datetime
+import numpy as np
 from time import sleep
 try:
     import MySQLdb as mdb
@@ -12,11 +14,10 @@ except ImportError:
     import pymysql as mdb
     import pymysql.cursors as mdbcursors
 
-
 def get_next():
     # return the name of the top-priority field with appropriate status
     sdb=SurveysDB(readonly=True)
-    sdb.cur.execute('select fields.id as id,sum(nsb*integration/232) as s,count(observations.id) as c,fields.priority,fields.lotss_field from fields left join observations on (observations.field=fields.id) where fields.status="Not started" and (observations.status="Archived" or observations.status="DI_processed") and (gal_b>10 or gal_b<-10 or gal_b is NULL or fields.priority>9) group by fields.id having (s>7 or lotss_field=0) order by fields.priority desc,ra desc')
+    sdb.cur.execute('select fields.id as id,sum(nsb*integration/232) as s,count(observations.id) as c,fields.priority,fields.lotss_field,fields.required_integration from fields left join observations on (observations.field=fields.id) where fields.status="Not started" and (observations.status="Archived" or observations.status="DI_processed") and (gal_b>10 or gal_b<-10 or gal_b is NULL or fields.priority>9) group by fields.id having (s>(0.95*fields.required_integration) or lotss_field=0) order by fields.priority desc,ra desc')
     results=sdb.cur.fetchall()
     sdb.close()
     if len(results)>0:
@@ -37,13 +38,48 @@ def get_next_selfcalibration():
 def get_next_extraction():
     # return the name of the top-priority field with appropriate status
     sdb=SurveysDB(readonly=True)
-    sdb.cur.execute('select reprocessing.id,reprocessing.priority,reprocessing.fields,reprocessing.extract_status from reprocessing where reprocessing.extract_status like "%EREADY%" group by reprocessing.priority desc')
+    sdb.cur.execute('select * from reprocessing where reprocessing.extract_status like "%EREADY%" group by reprocessing.priority desc')
     results=sdb.cur.fetchall()
+    #print(results[0])
     sdb.close()
-    if len(results)>0:
-        return results[0]
-    else:
+
+    if len(results)==0:
         return None
+    
+    # Find next field for target
+    fields = results[0]['fields'].split(',')
+    extract_status = results[0]['extract_status'].split(',')
+    try:
+        bad_pointings = results[0]['bad_pointings'].split(',')
+    except (AttributeError,KeyError):
+        bad_pointings = ['']
+
+    for i in range(0,len(fields)):
+        if extract_status[i] != 'EREADY':
+            continue
+        field = fields[i]
+        if field in bad_pointings:
+            print('Field',field,'in bad pointings -- skipping and setting to BADP')
+            sdb=SurveysDB()
+            extractdict = sdb.get_reprocessing(results[0]['id'])
+            extract_status[i] = 'BADP'
+            extractdict['extract_status'] = ','.join(extract_status)
+            sdb.db_set('reprocessing',extractdict)
+            sdb.close()
+            continue
+        seli = i
+    print('Next extraction:',results[0]['id'],fields[seli])
+
+    return  results[0]['id'],fields[seli],results[0]['ra'],results[0]['decl'],results[0]['size']    
+    
+def update_reprocessing_extract(name,field,status):
+    with SurveysDB() as sdb:
+        extractdict = sdb.get_reprocessing(name)
+        desindex = extractdict['fields'].split(',').index(field)
+        splitstatus = extractdict['extract_status'].split(',')
+        splitstatus[desindex] = status
+        extractdict['extract_status'] = ','.join(splitstatus)
+        sdb.db_set('reprocessing',extractdict)
 
 def update_status(name,status,time=None,workdir=None,av=None,survey=None):
     # utility function to just update the status of a field
@@ -107,7 +143,7 @@ class SurveysDB(object):
     def __exit__(self, type, value, tb):
         self.close()
 
-    def __init__(self,readonly=False,verbose=False,survey=None):
+    def __init__(self,readonly=False,verbose=False,survey=None,retrynumber=10,sleeptime=60):
 
         if survey is None:
             survey='hba' # preserve old default behaviour
@@ -135,10 +171,8 @@ class SurveysDB(object):
         self.survey=survey
         if self.survey=='hba':
             self.database='surveys'
-            self.tables=['fields','observations','quality','transients','reprocessing']
         elif self.survey=='lba':
             self.database='lba'
-            self.tables=['fields','observations','field_obs']
         else:
             raise NotImplementedError('Survey "%s" not known' % self.survey)
         
@@ -158,42 +192,60 @@ class SurveysDB(object):
                 self.usetunnel=True
 
             if self.usetunnel:
-                self.tunnel=sshtunnel.SSHTunnelForwarder('lofar.herts.ac.uk',
-                                                         ssh_username=self.ssh_user,
-                                                         ssh_pkey=home+'/.ssh/%s'%self.ssh_key,
-                                                         remote_bind_address=('127.0.0.1',3306),
-                                                         local_bind_address=('127.0.0.1',))
-
-                self.tunnel.start()
-                localport = self.tunnel.local_bind_port
-
+                if verbose:
+                    logger=sshtunnel.create_logger(loglevel=10)
+                else:
+                    logger=None
+                # Reading the key ensures an error if it doesn't exist
+                self.pkey=sshtunnel.SSHTunnelForwarder.read_private_key_file(home+'/.ssh/'+self.ssh_key)
                 connected=False
                 retry=0
-                while not connected and retry<10:
+                while not connected and retry<retrynumber:
+                    self.tunnel=sshtunnel.SSHTunnelForwarder('lofar.herts.ac.uk',
+                                                             ssh_username=self.ssh_user,
+                                                             ssh_pkey=self.pkey,
+                                                             remote_bind_address=('127.0.0.1',3306),
+                                                             local_bind_address=('127.0.0.1',),
+                                                             host_pkey_directories=[],
+                                                             allow_agent=True,
+                                                             logger=logger
+                                                             )
+
+                    try:
+                        self.tunnel.start()
+                    except sshtunnel.BaseSSHTunnelForwarderError as e:
+                        print('ssh tunnel temporary error %s! Sleep %i seconds to retry' % (e,sleeptime))
+                        retry+=1
+                        sleep(sleeptime)
+                        continue
+                    localport=self.tunnel.local_bind_port
                     try:
                         self.con = mdb.connect(host='127.0.0.1', user='survey_user', password=self.password, database=self.database, port=localport, cursorclass=mdbcursors.DictCursor)
                         connected=True
                     except mdb.OperationalError as e:
-                        print('Database temporary error! Sleep to retry',e)
+                        print('Database temporary error %s! Sleep %i seconds to retry\n' % (e,sleeptime))
                         retry+=1
-                        sleep(10)
-                if not connected:
-                    raise RuntimeError("Cannot connect to database server")
-
+                        sleep(sleeptime)
             else:
                 connected=False
                 retry=0
-                while not connected and retry<10:
+                while not connected and retry<retrynumber:
                     try:
-                        self.con = mdb.connect(mysql_host, 'survey_user', self.password, self.database ,cursorclass=mdbcursors.DictCursor)
+                        self.con = mdb.connect(mysql_host, 'survey_user', self.password, self.database, cursorclass=mdbcursors.DictCursor)
                         connected=True
                     except mdb.OperationalError as e:
-                        print('Database temporary error! Sleep to retry',e)
+                        print('Database temporary error! Sleep %i seconds to retry\n' % sleeptime,e)
                         retry+=1
-                        sleep(20)
+                        sleep(sleeptime)
                 if not connected:
-                    raise RuntimeError("Cannot connect to database server")
+                    raise RuntimeError("Cannot connect to database server after repeated retry")
         self.cur = self.con.cursor()
+
+        # get the tables list for locking
+        self.cur.execute('show tables')
+        result=self.cur.fetchall()
+        self.tables=[list(itervalues(d))[0] for d in result]
+        
         if self.readonly:
             pass
             #can't use this feature on lofar's version of MariaDB
@@ -249,6 +301,8 @@ class SurveysDB(object):
             if k=='id':
                 continue
             if record[k] is not None:
+                if isinstance(record[k],float) and np.isnan(record[k]):
+                    record[k]=None # should work for NULL
                 self.execute('update '+table+' set '+k+'=%s where id=%s',(record[k],id))
 
     def db_create(self,table,id):
@@ -259,7 +313,7 @@ class SurveysDB(object):
 
     def db_delete(self,table,id):
         table=self.check_table(table)
-        if self.readonly: raise RuntimeError('Create requested in read-only mode')
+        if self.readonly: raise RuntimeError('Delete requested in read-only mode')
         self.execute('delete from '+table+' where id=%s',(id,))
         return None
     
@@ -308,6 +362,39 @@ class SurveysDB(object):
         
     def create_reprocessing(self,id):
         self.db_create('reprocessing',id)
+
+    def get_ffr(self,id,operation):
+        table='full_field_reprocessing'
+        self.execute('select * from '+table+' where id=%s and operation=%s',(id,operation))
+        result=self.cur.fetchall()
+        if len(result)==0:
+            return None
+        else:
+            return result[0]
+
+    def set_ffr(self,record):
+        table='full_field_reprocessing'
+        if self.readonly: raise RuntimeError('Write requested in read-only mode')
+        id=record['id']
+        operation=record['operation']
+        for k in record:
+            if k=='id' or k=='operation':
+                continue
+            if record[k] is not None:
+                self.execute('update '+table+' set '+k+'=%s where id=%s and operation=%s',(record[k],id,operation))
+
+
+    def create_ffr(self,id,operation):
+        table='full_field_reprocessing'
+        if self.readonly: raise RuntimeError('Create requested in read-only mode')
+        self.execute('insert into '+table+'(id,operation) values (%s,%s)',(id,operation))
+        return self.get_ffr(id,operation)
+
+    def delete_ffr(self,id,operation):
+        table='full_field_reprocessing'
+        if self.readonly: raise RuntimeError('Delete requested in read-only mode')
+        self.execute('delete from '+table+' where id=%s and operation=%s',(id,operation))
+        
 
 
 if __name__=='__main__':
