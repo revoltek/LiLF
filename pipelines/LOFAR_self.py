@@ -67,7 +67,7 @@ if int(np.rint(fullband / nchan < 195.3e3/4)):
 else: base_nchan = 1
 if MSs.hasIS:
     base_solint = 1
-else tint < 4:
+elif tint < 4:
     base_solint = int(np.rint(4/tint)) # this is 2 for dutch SPARSE observations
 else: base_solint = 1
 
