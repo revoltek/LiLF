@@ -65,8 +65,10 @@ tint = MSs.mssListObj[0].getTimeInt()
 if int(np.rint(fullband / nchan < 195.3e3/4)):
     base_nchan = int(np.rint((195.3e3/4)/(fullband/nchan))) # this is 1 for ducth observations, and larger (2,4) for IS observations
 else: base_nchan = 1
-if tint < 4:
-    base_solint = int(np.rint(4/tint)) # this is 1 for dutch observations and 2 for IS observations
+if MSs.hasIS:
+    base_solint = 1
+else tint < 4:
+    base_solint = int(np.rint(4/tint)) # this is 2 for dutch SPARSE observations
 else: base_solint = 1
 
 #################################################################
