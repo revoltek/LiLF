@@ -1,17 +1,17 @@
 FROM ubuntu:22.04
 ARG DEBIAN_FRONTEND=noninteractive
 LABEL maintainer="Francesco de Gasperin"
-LABEL version="1.0"
+LABEL version="20230417"
 
 USER root
 
 # Support large mlocks
 RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
-RUN apt-get update
+RUN apt-get update;
 RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename python3-magic \
     python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm python3-numba \
-    libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
+    libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
 # Some python packages
@@ -110,10 +110,10 @@ RUN cd /opt/wsclean && mkdir build && cd build \
     && make -j 64 && make install
 
 #####################################################################
-## Dp3 master 19/4/23
+## Dp3 master 21/4/23
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/DP3.git \
-    && cd /opt/DP3 && git checkout a6f5b2588e3efebf4c99427afe179b8c617c8ecb
+    && cd /opt/DP3 && git checkout 4fbb6120a702397d81429c3b13fabcfa5962110b
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
 RUN cd /opt/DP3 && mkdir build && cd build \
@@ -143,10 +143,10 @@ RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git \
 RUN cd /opt/LSMTool && pip3 install .
 
 ####################################################################
-## LoSoTo master
+## LoSoTo master 19/4/23
 ###################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto && git checkout 82b2d2a1fa4b977bb204e2de66c2ed2d85addcfe
+    && cd /opt/losoto && git checkout 74becaae02d44889b27af739b79bf4bbbe31a367
 RUN cd /opt/losoto && pip3 install .
 RUN pip3 install --upgrade scipy
 
@@ -210,4 +210,5 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN ln -s /usr/bin/ipython3 /usr/bin/ipython
 ENV HDF5_USE_FILE_LOCKING FALSE
 ENV OMP_NUM_THREADS 1
+ENV OPENBLAS_NUM_THREADS 1
 RUN ulimit -n 4000

@@ -143,10 +143,10 @@ RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git \
 RUN cd /opt/LSMTool && pip3 install .
 
 ####################################################################
-## LoSoTo master
+## LoSoTo master 19/4/23
 ###################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto && git checkout 82b2d2a1fa4b977bb204e2de66c2ed2d85addcfe
+    && cd /opt/losoto && git checkout 74becaae02d44889b27af739b79bf4bbbe31a367
 RUN cd /opt/losoto && pip3 install .
 RUN pip3 install --upgrade scipy
 
