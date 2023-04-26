@@ -100,10 +100,10 @@ RUN cd /opt/LofarStMan && mkdir build && cd build \
     && make -j 64 && make install
 
 #####################################################################
-## Wsclean master 19/4/23
+## Wsclean master 26/4/23
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-    && cd /opt/wsclean && git checkout 69cba6c20dc6b6596481e4bb11e4d5ad2d0673d6
+    && cd /opt/wsclean && git checkout 1bba0e60afd12f707e38f2be8390db90d48b2fc5
 #    && cd /opt/wsclean && git checkout tags/v2.10.1
 RUN cd /opt/wsclean && mkdir build && cd build \
     && cmake -DPORTABLE=True .. \
