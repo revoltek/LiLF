@@ -13,6 +13,3 @@ elev.elevation = 0deg..15deg
 
 uvmin.type = uvwflag
 uvmin.uvlambdamin = 30
-
-ears.type = preflagger
-ears.baseline = /(.*)HBA0&\1HBA1/

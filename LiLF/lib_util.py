@@ -99,6 +99,8 @@ def getParset(parsetFile=''):
     add_default('LOFAR_virgo', 'data_dir', './')
     # m87
     add_default('LOFAR_m87', 'data_dir', './')
+    add_default('LOFAR_m87', 'updateweights', 'False')
+    add_default('LOFAR_m87', 'skipmodel', 'False')
     # peel
     #add_default('LOFAR_peel', 'peelReg', 'peel.reg')
     #add_default('LOFAR_peel', 'predictReg', '')
