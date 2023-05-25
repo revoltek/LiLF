@@ -24,6 +24,7 @@ parset_dir = parset.get('LOFAR_m87','parset_dir')
 data_dir = parset.get('LOFAR_m87','data_dir')
 updateweights = parset.getboolean('LOFAR_m87','updateweights')
 skipmodel = parset.getboolean('LOFAR_m87','skipmodel')
+model_dir = parset.get('LOFAR_m87','model_dir')
 bl2flag = parset.get('flag','stations')
 
 ##########################################################
@@ -49,6 +50,11 @@ with w.if_todo('clean'):
 
 MSs = lib_ms.AllMSs( glob.glob('mss/*MS'), s )
 
+if MSs.isLBA and not MSs.hasIS:
+    channels_out = 20
+else:
+    channels_out = 12
+
 ########################################################   
 # flag bad stations, and low-elev
 with w.if_todo('flag'):
@@ -61,8 +67,8 @@ with w.if_todo('flag'):
                 ant.baseline=\"'+bl2flag+'\" ears.type=preflagger ears.baseline=\"/(.*)HBA0&\\1HBA1/\"', \
                 log='$nameMS_flag.log', commandType='DP3')
 
-if MSs.isHBA: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
-else: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
+if model_dir == '' and MSs.isHBA: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
+if model_dir == '' and MSs.isLBA: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 
 with w.if_todo('model'):
     if not skipmodel and os.path.exists(model_dir+'/img-MFS-model.fits'):
@@ -167,8 +173,12 @@ for c in range(100):
     
         # Solve MS:CORRECTED_DATA (only solve)
         logger.info('Solving BP...')
-        MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/bp.h5 sol.mode=fulljones \
+        if MSs.isLBA:
+            MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/bp.h5 sol.mode=fulljones \
                 sol.uvlambdarange='+str(nouseblrange)+' sol.smoothnessconstraint=2e6 sol.nchan=1 sol.solint=50', log='$nameMS_solBP3.log', commandType="DP3")
+        else:
+            MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/bp.h5 sol.mode=fulljones \
+                sol.uvlambdarange='+str(nouseblrange)+' sol.nchan='+str(channels_out)+' sol.solint=10', log='$nameMS_solBP3.log', commandType="DP3")
         
         lib_util.run_losoto(s, 'bp-c'+str(c), [ms+'/bp.h5' for ms in MSs.getListStr()], \
                 [parset_dir+'/losoto-plot-amp-nopol.parset',parset_dir+'/losoto-plot-ph-nopol.parset'])
@@ -190,36 +200,31 @@ for c in range(100):
         imagename = 'img/img-c%02i' % c
         
         if MSs.isLBA and not MSs.hasIS:
-            channels_out = 20
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=8, parallel_gridding=4,\
                     reorder='', parallel_reordering=4, gridder='wgridder', size=1500, scale='2arcsec', padding=1.2, \
                     weight='briggs -1.0', niter=50000, nmiter=50, mgain=0.4, \
                     multiscale='', multiscale_scale_bias=0.6, \
                     fits_mask='/home/baq1889/LiLF/parsets/LOFAR_ateam/masks/VirAlba.fits', auto_threshold=1, \
                     join_channels='', channels_out=channels_out)
-       #     for modelfile in glob.glob(imagename+'*model*'):
-       #         rev_reg(modelfile,'/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/virgohole.reg')
 
         if MSs.isLBA and  MSs.hasIS:
-            channels_out = 12
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=8, parallel_gridding=4,\
                     reorder='', parallel_reordering=4, gridder='wgridder', size=2000, scale='1arcsec', padding=1.2, \
                     weight='briggs 0', taper_gaussian='0.5arcsec', niter=15000, nmiter=50, mgain=0.4, \
                     multiscale='', multiscale_scale_bias=0.6, \
-                    auto_mask=2.5, auto_threshold=0.5, \
+                    fits_mask='/home/baq1889/LiLF/parsets/LOFAR_ateam/masks/VirAlbaIS.fits', auto_threshold=1, \
                     join_channels='', channels_out=channels_out)
     
         if MSs.isHBA:
-            channels_out = 12
             #lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
             #        weight='briggs -0.2', niter=350, update_model_required='', mgain=0.5, \
             #        fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
             #        join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=channels_out) # use cont=True
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=6, minuv_l=30, \
-                    reorder='', parallel_reordering=4, use_wgridder='', size=1600, scale='1.5arcsec', padding=1.6, \
-                    weight='briggs -0.6', niter=1000000, nmiter=100, mgain=0.85, \
+                    reorder='', parallel_reordering=4, use_wgridder='', size=1600, scale='1arcsec', padding=1.6, \
+                    weight='briggs -2', niter=1000000, nmiter=100, mgain=0.85, \
                     multiscale='', multiscale_scales='0,20,40,80,160,320', \
-                    auto_mask=3, auto_threshold=1, \
+                    fits_mask='/home/baq1889/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', auto_threshold=1, \
                     join_channels='',  channels_out=channels_out)
 
     with w.if_todo('predict_c%02i' % c):
