@@ -1,14 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Pipeline for extraction of target region after LOFAR_dd-serial.
-# Provide a extractRegion in lilf.config. This pipeline will subtract
-# sources outside of the region and perform subsequent self-calibration.
-# Multiple pointings can be used for extraction.
-# A userReg may be specified as clean mask.
-# phSolMode can be used to solve either using phases or phaseandtec.
-
-import sys, os, glob, re
+import sys, os, glob, re, argparse
 import numpy as np
 import lsmtool as lsm
 from astropy.io import fits
@@ -17,6 +10,17 @@ import astropy.wcs
 from losoto.h5parm import h5parm
 from pathlib import Path
 import warnings
+import pyrap.tables as pt
+from astropy.cosmology import FlatLambdaCDM
+from astropy.cosmology import FlatLambdaCDM
+from LiLF import lib_ms, lib_img, lib_util, lib_log
+import colorama
+
+colorama.init()
+
+cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
+
+warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
 
 def get_ddf_parms_from_header(img):
     """
@@ -44,14 +48,16 @@ def get_ddf_parms_from_header(img):
     return params_dict
 
 
-#######################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log
-logger_obj = lib_log.Logger('pipeline-extract.logger')
-logger = lib_log.logger
-s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
-w = lib_util.Walker('pipeline-extract.walker')
+################################
+##These two functions are to avoid excess printing from pyrap.tables.
+def blockPrint():
+    sys.stdout = open(os.devnull, 'w')
 
-def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False):
+def enablePrint():
+    sys.stdout = sys.__stdout__
+################################
+
+def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False, do_predict=False, datacol='DATA', minuv=30, numiter=100000, fitsmask=None):
     """
     p = patch name
     mss = list of mss to clean
@@ -63,6 +69,8 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
     if res == 'normal':
         pixscale = float('%.1f' % (pixscale / 2.5))
     elif res == 'high':
+        pixscale = float('%.1f' % (pixscale / 3.5))
+    elif res == 'ultrahigh':
         pixscale = float('%.1f' % (pixscale / 3.5))
     elif res == 'low':
         pass  # no change
@@ -80,6 +88,9 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
         maxuv_l = None
     elif res == 'high':
         weight = 'briggs -0.6'
+        maxuv_l = None
+    elif res == 'ultrahigh':
+        weight = 'briggs -1'
         maxuv_l = None
     elif res == 'low':
         weight = 'briggs 0'
@@ -107,14 +118,15 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
                                  size=imsize, scale=str(pixscale) + 'arcsec',
                                  weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
-                                 mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
-                                 fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, baseline_averaging='',
+                                 mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='', data_column=datacol,
+                                 fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, baseline_averaging='', fits_mask=fitsmask,
                                  **arg_dict)
 
             # New mask method using Makemask.py
             mask = imagename + '-MFS-image.fits'
             try:
-                os.system(f'MakeMask.py --RestoredIm {mask} --Th 4 --Box 150,5')
+                os.system(f'MakeMask.py --RestoredIm {mask} --Th 5 --Box 150,5')
+
             except:
                 logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
                 return
@@ -138,55 +150,129 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             if userReg:
                 arg_dict['reuse_psf'] = imagename
                 arg_dict['reuse_dirty'] = imagename
-                arg_dict['fits_mask'] = mask + '.mask.fits'
+                #arg_dict['fits_mask'] = mask + '.mask.fits'
 
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
+                             size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter, local_rms='',
+                             no_update_model_required='', minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
+                             parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
+                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, data_column=datacol, fits_mask=fitsmask,
+                             **arg_dict)  # , deconvolution_channels=3)
+        os.system('cat logs/wscleanB-' + str(p) + '.log | grep "background noise"')
+
+    if do_predict:
+        imagename= 'img/extract-forpredict'
+        lib_util.run_wsclean(s, 'wscleanS-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename, do_predict=True,
                              size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=100000, local_rms='',
                              no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
                              parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
-                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
-        os.system('cat logs/wscleanB-' + str(p) + '.log | grep "background noise"')
+                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, data_column=datacol, **arg_dict)
 
-# parse parset
+
+logger_obj = lib_log.Logger('pipeline-extract.logger')
+logger = lib_log.logger
+s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
+w = lib_util.Walker('pipeline-extract.walker')
+
+parser = argparse.ArgumentParser(description='Extraction of targets of interest from LBA survey observations.')
+parser.add_argument('-p', '--path', dest='path', action='store', default='', type=str, help='Path where to look for observations.')
+
+args = parser.parse_args()
+pathdir = args.path
+
+
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_extract','parset_dir')
 maxniter = parset.getint('LOFAR_extract','maxniter')
-target_reg_file = parset.get('LOFAR_extract','extractRegion')  # default 'target.reg'
 phSolMode = parset.get('LOFAR_extract','phSolMode')  # default: tecandphase
-beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.5
+beam_cut = parset.getfloat('LOFAR_extract','beam_cut')# default: 0.3
+ampcal = parset.get('LOFAR_extract','ampcal')
+if ampcal.lower() not in ['false', 'true', 'auto']:
+    logger.error('ampcal must be true, false or auto.')
+    sys.exit()
 if phSolMode not in ['tecandphase', 'phase']:
     logger.error('phSolMode {} not supported. Choose tecandphase, phase.')
     sys.exit()
-userReg = parset.get('model','userReg')
 
-##########
+#userReg = parset.get('model','userReg')
 
-# region must be a list of ds9 circles and polygons (other shapes can be implemented in lib_util.Rgion_helper()
+ext_region_extent = 0.25 #deg. This is where we start to get pointings, then we can increase the radius depending on the flux density threshold.
+data_temp = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[0,1,2])
+clname_temp = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[3], dtype=np.str)
+
+try:
+    extreg_temp = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[4], dtype=np.str)
+    if str(extreg_temp) == 'None':
+        extreg = 0
+        maskreg = 0
+    else:
+        extreg=1
+        try:
+            mask_reg = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[5], dtype=np.str)
+            if str(mask_reg) == 'None':
+                maskreg = 0
+            else:
+                maskreg = 1
+        except:
+            maskreg = 0
+except:
+    extreg = 0
+    maskreg = 0
+
+z = data_temp[0]
+if z == -99: #Avoid source subtraction if no redshift info
+    sourcesub = 1
+    logger.info('Redshift information not found. Source subtraction will be skipped...')
+else:
+    sourcesub = 0
+
+ra = data_temp[1]
+dec = data_temp[2]
+cluster = clname_temp
+
+if maskreg == 1:
+    userReg = str(mask_reg)
+else:
+    userReg = None
+
+
+if extreg==1:
+    target_reg_file = str(extreg_temp)
+    logger.info('Extraction region provided. No automatic region will be drawn...')
+else:
+    logger.info('Extraction region not set by the user. It will be created automatically...')
+    target = lib_util.create_extregion(ra, dec, ext_region_extent)
+    if os.path.exists('target.reg'):
+        os.remove('target.reg')
+    with open('target.reg', 'w') as f:
+        f.write(target)
+        target_reg_file = parset.get('LOFAR_extract','extractRegion')  # default 'target.reg'
+
 target_reg = lib_util.Region_helper(target_reg_file)
 center = target_reg.get_center() # center of the extract region
 
-warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
-
-# check for directories in same hierachy that contain 'ddcal' and 'mss-avg' - assume these are processed LBA observations
-list_dirs = [_d for _d in Path('../').iterdir() if _d.is_dir()]
+list_dirs = [_d for _d in Path(str(pathdir)).iterdir() if _d.is_dir()]
 tocheck = []
 for dir in list_dirs:
     if dir/'ddcal' in dir.iterdir() and dir/'mss-avg' in dir.iterdir():
         tocheck.append(dir)
 close_pointings = []
-## TODO add beam sensitivity criteria to pointing checker
+
 if not os.path.exists('pointinglist.txt'):
     for pointing in tocheck:
         with fits.open(pointing/'ddcal/c01/images/wideDD-c01.MeanSmoothNorm.fits') as f:
             header, data = lib_img.flatten(f)
             wcs = WCS(header)
             c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
-            try:
-                beam_value = data[c_pix[1]][c_pix[0]]  # Checked -  1 and 0 are correct here.
-            except IndexError:
+            if np.all(c_pix > 0):
+                try:
+                    beam_value = data[c_pix[1]][c_pix[0]]  # Checked -  1 and 0 are correct here.
+                except IndexError:
+                    continue
+            else:
                 continue
-
-            if beam_value > beam_cut:
+            #beam_cut = 0.15
+            if beam_value > beam_cut**2: # square since Norm is sqrt(beam response)
                 close_pointings.append(str(pointing).split('/')[-1])
 
     with open('pointinglist.txt', 'w') as f:
@@ -196,8 +282,22 @@ else:
         close_pointings = f.readlines()
         close_pointings = [line.rstrip() for line in close_pointings]
 
-if len(close_pointings) == 0:
-    raise ValueError(f"Did not find any pointing with primary beam response > {beam_cut}")
+if os.path.exists('error_checker.txt'):
+    os.remove('error_checker.txt')
+
+with open('error_checker.txt', 'w') as g:
+    if len(close_pointings) == 0:
+        num=0
+        g.write(str(num))
+        sys.tracebacklimit = 0
+        error_msg = f"Did not find any pointing covering coordinates {ra}, {dec} with primary beam response > {beam_cut} in {str(pathdir)} ."
+        #print(f"{colorama.Fore.RED}{error_msg}{colorama.Style.RESET_ALL}")
+        raise ValueError(f"{colorama.Fore.RED}{error_msg}{colorama.Style.RESET_ALL}")
+        #raise ValueError(f"Did not find any pointing covering {ra}, {dec} with primary beam response > {beam_cut} in {str(pathdir)}")
+        sys.tracebacklimit = None
+    else:
+        num=1
+        g.write(str(num))
 print('')
 logger.info('The following pointings will be used:')
 print('')
@@ -206,6 +306,12 @@ for name in close_pointings:
         logger.info(f'Pointing {name};')
 print('')
 
+#Compute minuv for source subtraction. Assume to subtract everything below 400 kpc?
+if sourcesub == 0:
+    sourceLLS=0.25 #Mpc. TODO Should this be tuned for each cluster? Not sure how..
+    oneradinmpc = cosmo.angular_diameter_distance(z) / (360. / (2. * np.pi))
+    scalebarlengthdeg = sourceLLS / oneradinmpc.value
+    minuv_forsub = 1./(scalebarlengthdeg*np.pi/180.)
 
 with w.if_todo('cleaning'):
     logger.info('Cleaning...')
@@ -217,15 +323,58 @@ with w.if_todo('cleaning'):
     os.makedirs('mss-extract/shiftavg')
     for i, p in enumerate(close_pointings):
             os.makedirs('extract/init/'+p)
-            os.system(f'cp ../{p}/ddcal/c01/images/wideDD-c01.app.restored.fits extract/init/{p}')  # copy ddcal images
-            os.system(f'cp ../{p}/ddcal/c01/images/wideDD-c01.DicoModel extract/init/{p}')  # copy dico models
-            os.system(f'cp ../{p}/ddcal/c01/solutions/interp.h5 extract/init/{p}')  # copy final dde sols
+            os.system(f'cp {str(pathdir)}/{p}/ddcal/c01/images/wideDD-c01.app.restored.fits extract/init/{p}')  # copy ddcal images
+            os.system(f'cp {str(pathdir)}/{p}/ddcal/c01/images/wideDD-c01.DicoModel extract/init/{p}')  # copy dico models
+            os.system(f'cp {str(pathdir)}/{p}/ddcal/c01/solutions/interp.h5 extract/init/{p}')  # copy final dde sols
             lib_util.check_rm('mss-extract/'+p)
             if not os.path.exists('mss-extract/'+p):
                 logger.info('Copying MS of '+p+'...')
                 os.makedirs('mss-extract/' + p)
-                os.system(f'cp -r ../{p}/mss-avg/* mss-extract/{p}')
+                os.system(f'cp -r {str(pathdir)}/{p}/mss-avg/* mss-extract/{p}')
 
+if extreg != 1:
+    for p in close_pointings:
+        image_tocheck = 'extract/init/'+p+'/wideDD-c01.app.restored.fits'
+        flux_check = lib_img.Image(image_tocheck)
+        reg_flux = flux_check.calc_flux(image_tocheck, target_reg_file)
+        flux_thresh = 5 #Jy. If flux is lower than this, the extent of the extraction region gets increased.
+        param=1
+
+        #LET IT CREATE THE EXT REGION
+        while reg_flux < flux_thresh:
+            #logger.info('Flux too low, increasing extraction region radius...')
+            ext_region_extent += 0.084 #We add 5 arcmin every cycle
+            if ext_region_extent <= 0.75:
+                param = 1
+                target = lib_util.create_extregion(ra, dec, ext_region_extent)
+                if os.path.exists('target.reg'):
+                    os.remove('target.reg')
+                with open('target.reg', 'w') as f:
+                    f.write(target)
+                target_reg_file = parset.get('LOFAR_extract', 'extractRegion')
+                target_reg = lib_util.Region_helper(target_reg_file)
+                center = target_reg.get_center()  # center of the extract region
+                reg_flux = flux_check.calc_flux(image_tocheck, target_reg_file)
+                #logger.info(f'Flux inside region of {round(ext_region_extent * 60)} arcmin radius: {round(reg_flux)}')
+
+            else:
+                param = 0
+                ext_region_extent = 0.75
+                target = lib_util.create_extregion(ra, dec, ext_region_extent)
+                if os.path.exists('target.reg'):
+                    os.remove('target.reg')
+                with open('target.reg', 'w') as f:
+                    f.write(target)
+                target_reg_file = parset.get('LOFAR_extract', 'extractRegion')
+                target_reg = lib_util.Region_helper(target_reg_file)
+                center = target_reg.get_center()  # center of the extract region
+                break
+
+    if param == 0:
+        logger.info('Low flux (<5 Jy) detected around the target in one or more pointings.')
+        logger.info('A maximum radius of 45 arcmin was chosen for the extraction region.')
+    else:
+        logger.info(f'The extraction region will have a radius of {int(ext_region_extent * 60)} arcmin.')
 
 for p in close_pointings:
     MSs = lib_ms.AllMSs( glob.glob('mss-extract/'+p+'/*MS'), s )
@@ -252,6 +401,8 @@ for p in close_pointings:
 
         # get DDF parameters used to create the image/model
         ddf_parms = get_ddf_parms_from_header(wideDD_image.imagename)
+        h5init = h5parm(dde_h5parm)
+        solset_dde = h5init.getSolset('sol000')
         # change for PREDICT
         ddf_parms['Data_MS'] = MSs.getStrDDF()
         ddf_parms['Data_ColName'] = 'CORRECTED_DATA'
@@ -260,13 +411,15 @@ for p in close_pointings:
         ddf_parms['Predict_InitDicoModel'] = outdico
         ddf_parms['Beam_Smooth'] = 1
         ddf_parms['Cache_Reset'] = 1
-        ddf_parms['DDESolutions_DDSols'] = dde_h5parm + ':sol000/phase000+amplitude000'
+        if 'amplitude000' in solset_dde.getSoltabNames():
+            ddf_parms['DDESolutions_DDSols'] = dde_h5parm + ':sol000/phase000+amplitude000'
+        else:
+            ddf_parms['DDESolutions_DDSols'] = dde_h5parm + ':sol000/phase000'
         if 'Misc_ParsetVersion' in ddf_parms.keys(): del ddf_parms['Misc_ParsetVersion']
         if 'Mask_External' in ddf_parms.keys(): del ddf_parms['Mask_External']
 
         logger.info('Predict corrupted rest-of-the-sky for '+p+'...')
         lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms)
-        ### DONE
 
     with w.if_todo('subtract_rest_'+p):
         # Remove corrupted data from CORRECTED_DATA
@@ -275,11 +428,7 @@ for p in close_pointings:
         logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
                 log='$nameMS_subtract.log', commandType='general')
-        ### DONE
 
-    ## TTESTTESTTEST: empty image
-    #if not os.path.exists('img/'+p+'_empty-but-target-image.fits'):
-        #clean('img/'+p+'but-target', MSs, size=(fwhm,fwhm), res='normal', empty=True)
 
     # Phase shift in the target location
     with w.if_todo('phaseshift_'+p):
@@ -288,7 +437,6 @@ for p in close_pointings:
         MSs.run(f'DP3 {parset_dir}/DP3-shiftavg.parset msin=$pathMS msout=mss-extract/shiftavg/{p}_$nameMS.MS-extract msin.datacolumn=SUBTRACTED_DATA '
                 f'shift.phasecenter=[{center[0]}deg,{center[1]}deg\] avg.freqstep=8 avg.timestep={t_avg_factor}',
                 log=p+'$nameMS_shiftavg.log', commandType='DP3')
-        ### DONE
 
     MSs_extract = lib_ms.AllMSs( glob.glob('mss-extract/shiftavg/'+p+'_*.MS-extract'), s )
     with w.if_todo('beamcorr_'+p):
@@ -324,13 +472,11 @@ do_beam = len(close_pointings) > 1 # if > 1 pointing, correct beam every cycle, 
 with w.if_todo('image_init'):
     logger.info('Initial imaging...')
     clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam)
-    ### DONE;
 
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
 with w.if_todo('smooth'):
     logger.info('BL-based smoothing...')
     MSs_extract.run('BLsmooth.py -c 1 -n 8 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python', maxThreads=1)
-    ### DONE
 
 # get initial noise and set iterators for timeint solutions
 image = lib_img.Image('img/extractM-init-MFS-image.fits', userReg=userReg)
@@ -341,7 +487,6 @@ doamp = False
 image.selectCC(checkBeam=False)
 sm = lsm.load(image.skymodel_cut)
 total_flux = np.sum(sm.getColValues('I', aggregate='sum'))
-
 
 # Per default we have 32s exposure
 # shortest time interval for phase solutions as a function of total flux
@@ -460,8 +605,7 @@ for c in range(maxniter):
 
     with w.if_todo('image-c%02i' % c):
         logger.info('Imaging...')
-        # if we have more than one close pointing, need to apply idg beam each iteration
-        clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg) # size 2 times radius  , apply_beam = c==maxniter
+        clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg, datacol='CORRECTED_DATA') # size 2 times radius  , apply_beam = c==maxniter
     ### DONE
 
     # get noise, if larger than 98% of prev cycle: break
@@ -479,16 +623,30 @@ for c in range(maxniter):
         best_iter = c
     else: best_iter = c - 1
 
-    if rms_noise > 0.98 * rms_noise_pre and mm_ratio < 1.01 * mm_ratio_pre and c >3:
-        break
+    if ampcal.lower =='true':
+        if (rms_noise > 0.98 * rms_noise_pre and mm_ratio < 1.01 * mm_ratio_pre) or rms_noise > 1.2 * rms_noise_pre:
+            if (mm_ratio < 10 and c >= 2) or (mm_ratio < 20 and c >= 3) or (c >= 5):
+                break
+    elif ampcal.lower == 'false':
+        pass
+    else:
+        if (rms_noise > 0.98 * rms_noise_pre and mm_ratio < 1.01 * mm_ratio_pre) or rms_noise > 1.2 * rms_noise_pre:
+            if (mm_ratio < 10 and c >= 2) or (mm_ratio < 20 and c >= 3) or (c >= 4):
+                break
 
     if c >= 3 and mm_ratio >= 20:
-        logger.info('Start amplitude calibration in next cycle...')
-        doamp = True
+        if ampcal.lower == 'true':
+            logger.info('Start amplitude calibration in next cycle...')
+            doamp = True
+        elif ampcal.lower == 'false':
+            logger.info('Amplitude calibration set to false. Just using phase...')
+            doamp = False
+        else:
+            logger.info('Start amplitude calibration in next cycle...')
+            doamp = True
 
     rms_noise_pre = rms_noise
     mm_ratio_pre = mm_ratio
-    ### DONE
 
 # Finally:
 with w.if_todo('final_apply'):
@@ -527,5 +685,64 @@ with w.if_todo('final_apply'):
 
 with w.if_todo('imaging_final'):
     logger.info('Final imaging w/ beam correction...')
-    clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg)  # size 2 times radius  , apply_beam = c==maxniter
-    logger.info('Done.')
+    clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, datacol='CORRECTED_DATA')  # size 2 times radius  , apply_beam = c==maxniter
+    #logger.info('Done.')
+
+with w.if_todo('imaging_highres'):
+     logger.info('Producing high resolution image...')
+     clean('highres', MSs_extract, res='high', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, datacol='CORRECTED_DATA')
+
+if sourcesub == 0:
+
+    with w.if_todo('find_compact_sources'):
+        clean('sub-highres', MSs_extract, res='ultrahigh', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), datacol='CORRECTED_DATA', userReg=userReg, minuv = minuv_forsub)
+
+    with w.if_todo('produce_mask'):
+
+        makemask='MakeMask.py'
+        logger.info('Subtracting compact sources...')
+        highimagename  = 'extractM-sub-highres-MFS-image.fits'
+        os.system(f'MakeMask.py --RestoredIm img/{highimagename} --Th 3')
+        fits_mask = highimagename + '.mask.fits'
+        clean('compactmask', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), fitsmask='img/'+fits_mask,
+              do_predict=True, minuv = minuv_forsub, res='ultrahigh', datacol='CORRECTED_DATA')
+
+    with w.if_todo('source_subtraction'):
+        logger.info('Adding DIFFUSE_SUB column to datasets...')
+
+        mslist = MSs_extract.mssListStr
+
+        blockPrint()
+
+        outcolumn='DIFFUSE_SUB'
+        for ms in mslist:
+            ts  = pt.table(ms, readonly=False)
+            colnames = ts.colnames()
+            if outcolumn not in colnames:
+                desc = ts.getcoldesc('DATA')
+                desc['name']=outcolumn
+                ts.addcols(desc)
+                ts.close()
+            else:
+                ts.close()
+
+        for ms in mslist:
+            ts  = pt.table(ms, readonly=False)
+            colnames = ts.colnames()
+            if 'CORRECTED_DATA' in colnames:
+                data = ts.getcol('CORRECTED_DATA')
+            else:
+                data = ts.getcol('DATA')
+            model = ts.getcol('MODEL_DATA')
+            ts.putcol(outcolumn,data-model)
+            ts.close()
+
+        enablePrint()
+
+        logger.info('Final imaging with compact sources subtracted...')
+        clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg,
+              datacol='DIFFUSE_SUB', res='low')
+
+os.system('rm redshift_temp.txt')
+logger.info('Done.')
+
