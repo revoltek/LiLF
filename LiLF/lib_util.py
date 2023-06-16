@@ -86,7 +86,6 @@ def getParset(parsetFile=''):
     add_default('LOFAR_dd', 'removeExtendedCutoff', '0.0005')
     add_default('LOFAR_dd', 'target_dir', '') # ra,dec
     # extract
-<<<<<<< HEAD
     add_default('LOFAR_extract', 'max_niter', '10')
     add_default('LOFAR_extract', 'extract_region', 'target.reg')
     add_default('LOFAR_extract', 'subtract_region', '') # Sources inside extract-reg that should still be subtracted! Use this e.g. for individual problematic sources in a large extractReg
@@ -98,13 +97,8 @@ def getParset(parsetFile=''):
     # quality
     add_default('LOFAR_quality', 'self_dir', 'self')
     add_default('LOFAR_quality', 'ddcal_dir', 'ddcal')
-=======
-    add_default('LOFAR_extract', 'maxniter', '10')
-    add_default('LOFAR_extract', 'phSolMode', 'phase') # tecandphase, phase
-    add_default('LOFAR_extract', 'beam_cut', '0.3') # up to which distance a pointing will be considered
     add_default('LOFAR_extract', 'ampcal', 'auto')
     add_default('LOFAR_extract', 'extractRegion', 'target.reg')
->>>>>>> master
     # virgo
     add_default('LOFAR_virgo', 'cal_dir', '')
     add_default('LOFAR_virgo', 'data_dir', './')
@@ -621,13 +615,10 @@ class Scheduler():
             self.max_processors = max_processors
 
         self.dry = dry
-<<<<<<< HEAD
+
         logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname + " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
                      str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
-=======
-        #logger.info("Scheduler initialised for cluster " + self.cluster + " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
-                    # str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
->>>>>>> master
+
 
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-<<<<<<< HEAD
 # Pipeline for extraction of target region after LOFAR_dd.
 # Provide a extractRegion in lilf.config. This pipeline will subtract
 # sources outside of the region and perform subsequent self-calibration.
@@ -56,7 +55,6 @@ def get_ddf_parms_from_header(img):
     return params_dict
 
 
-<<<<<<< HEAD
 #######################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 logger_obj = lib_log.Logger('pipeline-extract')
@@ -168,7 +166,6 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             if userReg:
                 arg_dict['reuse_psf'] = imagename
                 arg_dict['reuse_dirty'] = imagename
-<<<<<<< HEAD
                 arg_dict['fits_mask'] = mask + '.mask.fits'
             elif fits_mask:
                 arg_dict['fits_mask'] = fits_mask
@@ -204,7 +201,6 @@ pathdir = args.path
 parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_extract'])))
 parset_dir = parset.get('LOFAR_extract','parset_dir')
-<<<<<<< HEAD
 maxniter = parset.getint('LOFAR_extract','max_niter')
 target_reg_file = parset.get('LOFAR_extract','extract_region')  # default 'target.reg'
 subtract_reg_file = parset.get('LOFAR_extract','subtract_region')  # default None - use only if you want to subtract individual sources which are in extractReg
@@ -228,8 +224,8 @@ if ampSolMode not in ['diagonal', 'fulljones']:
     logger.error('ampSolMode {} not supported. Choose diagonal, fulljones.')
     sys.exit()
 
-if (not userReg) and (not fits_mask):
-    raise ValueError("Cannot provide both userReg and fits mask at the same time.")
+# if (not userReg) and (not fits_mask):
+#     raise ValueError("Cannot provide both userReg and fits mask at the same time.")
 
 
 ext_region_extent = 0.25 #deg. This is where we start to get pointings, then we can increase the radius depending on the flux density threshold.
