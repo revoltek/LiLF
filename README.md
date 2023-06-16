@@ -14,6 +14,13 @@ password = <password>
 ```
 - ~/.surveys >> with the pass for the surveydb
 
+- ~/.awe/Environment.cfg >> if you want to use the LiLF/scripts/LOFAR_stager.py to stage and download, your LTA credentials should be also in this file, for example:
+```
+[global]
+database_user : <your username>
+database_password : <your password>
+```
+
 ### Container:
 Check here if you want a container that can run the pipeline:
 LiLF/container/docker_build.sh
@@ -60,14 +67,27 @@ as the pipeline requires to open many files at the same time.
     
     4. In your target directory, run the self pipeline that performs the direction-indipendent calibration: `python3 /opt/LiLF/pipelines/LOFAR_self.py`. In the self directory you can find some plots useful to understand the quality of the ionosphere and calibration solutions, you can find some examples in the papers mentioned below. The images are in the `img` directory.
     
-    5. In your target directory, run the dd pipeline that performs the direction-dependent calibration: `python3 /opt/LiLF/pipelines/LOFAR_dd.py`. The pipeline selects the DD-calibrators, calibrates them one after the other (check the plots in `ddcal/` and the images of the varius steps of self-calibration), then it transfers the solutions to the associated facet and with DDFacet creates an image of the widefield. It performs two major cycles called c00 and c01. In the `/ddcal/c00/skymodels/` directory you can find the `all-c00.reg` file that indicates all the source selected as DD-calibrators, load it on the image you obtain from the previous step to check which sources it selects, they are indicated with a red circle and named ddcal000. To have a good image of your source is important that it is selected as a calibrator. The images of the single calibrators are named as `ddcalM-c01-ddcal0059-cdd00-MFS-image.fits, ddcalM-c01-ddcal0059-cdd01-MFS-image.fits` where cdd are the different steps of selfcal. You can use the best of them as final image of your source. The image of the widefield instead is `wideDD-c01.app.restored.fits`. You can re-image it using DDFacet with your prefered parameters (for example try to use --Deconv-Mode SSD).
-    
-    6. Extra: if you want to extract your source visibilities, by subtracting all the sources outside a region of ~10arcmin, to have a smaller dataset easier to re-image the source. Draw a ds9 circle around the target on which you want to perform the extraction and futher self calibration, the region should contain sufficient flux for calibration. Something roughly in the order of 10 arcmin should work. This region should be called 'target.reg' and saved in the TARGET directory. Then you can run: `python3 /opt/LiLF/pipelines/LOFAR_extract.py`. For this step, to have a good calibration of the source would be usefull to specify a region around the source so it is included in the mask used for the cleaning. Create a ds9 region around your source called userReg.reg and put it in the TARGET directory. Then specify it in the configuration file called lilf.config that should be put in `Download/mss/`,  using the following parameter:    
-            `[model]`         
-            `userReg = userReg.reg`
-            
+    5. In your target directory, run the dd-serial pipeline that performs the direction-dependent calibration: `python3 /opt/LiLF/pipelines/LOFAR_dd-serial.py`. The pipeline selects the DD-calibrators, calibrates them one after the other (check the plots in `ddcal/` and the images of the varius steps of self-calibration), then it transfers the solutions to the associated facet and with DDFacet creates an image of the widefield. It performs two major cycles called c00 and c01. In the `/ddcal/c00/skymodels/` directory you can find the `all-c00.reg` file that indicates all the source selected as DD-calibrators, load it on the image you obtain from the previous step to check which sources it selects, they are indicated with a red circle and named ddcal000. To have a good image of your source is important that it is selected as a calibrator. The images of the single calibrators are named as `ddcalM-c01-ddcal0059-cdd00-MFS-image.fits, ddcalM-c01-ddcal0059-cdd01-MFS-image.fits` where cdd are the different steps of selfcal. You can use the best of them as final image of your source. The image of the widefield instead is `wideDD-c01.app.restored.fits`. You can re-image it using DDFacet with your prefered parameters (for example try to use --Deconv-Mode SSD).
 
-If you want to change any parameters, you can specify them in the lilf.config file.
+            
+# Extraction of LBA Survey data:
+
+Usage: python LiLF/pipelines/Cluster_extraction.py -l [.fits file name] -p [/path/to/observation]
+
+You can extract a source visibilities to improve selfcalibration and try to get rid of ionospheric effects.
+To do so, prepare a .fits file with a minimum of 4 columns: Name, RA, DEC, z (the column names must exactly match these ones, but the order can be different). Coordinates must be in degrees, while the purpose of the name is just to create a subdirectory in which all the results will be stored. The coordinates denote where the phase center will be shifted - it is not necessary to point them at the center of the target of interest. An optional column can also be added with the name EXTREG. This must be a .reg file that the pipeline uses as extraction region. The script is usually able to create a good one by itself, use this option just if needed - always try a run without it first. 
+Another optional .reg file can be provided in a column named 'MASKREG'; the script will use it as cleaning mask. 
+The .fits file can contain more than one entry, the extraction will be run for each object in a different directory named after the 'Name' column.  
+The pipeline is able to process multiple pointings of the same target altogether: it will look in the working directory for directories calibrated with LiLF (see previous steps), check if the provided coordinates are covered by that specific pointing, and move on to the next ones. All pointings for which the beam sensitivity does not drop below 30% at the coordinates position will be used for the extraction. The code will then create an extraction region based on the flux density within the same region (larger if low flux and vice-versa), run the selfcalibration and produce images. Outputs will be stored in the /img subdirectory within the target directory, while extracted .MS files can be found in the /mss-extract subdirectory. A final, nominal-resolution image will be produced, as well as high-resolution, low-resolution and source-subtracted images. The source subtraction is still on beta version, please check it carefully before using it.
+Specific passages can be repeated without re-running the whole extraction by deleting the relative entry from the pipeline-extract.walker file within the target directory. The extraction of a single target can also be repeated by deleting the relative entry from the cluster-extraction.walker file within the working directory. IMPORTANT: in case of failures/errors, always delete the relative entry from the cluster-extraction.walker, otherwise the code will skip it.
+Some parameters can be tuned by adding them in the lilf.config file:
+
+
+- Force/avoid amplitude calibration (keep it to auto as per default unless needed):
+
+  `[ampcal]`         
+`ampcal = true/false/auto`
+
 
 # lilf.config specifications:
 
