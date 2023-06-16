@@ -9,10 +9,7 @@
 # A userReg may be specified as clean mask.
 # phSolMode can be used to solve either using phases or phaseandtec.
 
-import sys, os, glob, re
-=======
 import sys, os, glob, re, argparse
->>>>>>> master
 import numpy as np
 import lsmtool as lsm
 from astropy.io import fits
@@ -67,8 +64,6 @@ logger = lib_log.logger
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-extract.walker')
 
-def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, fits_mask=None, apply_beam=False):
-=======
 ################################
 ##These two functions are to avoid excess printing from pyrap.tables.
 def blockPrint():
@@ -79,7 +74,7 @@ def enablePrint():
 ################################
 
 def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False, do_predict=False, datacol='DATA', minuv=30, numiter=100000, fitsmask=None):
->>>>>>> master
+
     """
     p = patch name
     mss = list of mss to clean
@@ -179,21 +174,12 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                 arg_dict['fits_mask'] = fits_mask
 
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
-                             size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=100000,
-                             no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
-                             auto_threshold=0.5, auto_mask=3.0, save_source_list='',
-                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3), local_rms='',
-        os.system('cat '+logger_obj.log_dir+'/wscleanB-' + str(p) + '.log | grep "background noise"')
-=======
-                #arg_dict['fits_mask'] = mask + '.mask.fits'
-
-        lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
                              size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter, local_rms='',
                              no_update_model_required='', minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
                              parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
                              join_channels='', fit_spectral_pol=3, channels_out=ch_out, data_column=datacol, fits_mask=fitsmask,
                              **arg_dict)  # , deconvolution_channels=3)
-        os.system('cat logs/wscleanB-' + str(p) + '.log | grep "background noise"')
+        os.system('cat '+logger_obj.log_dir+'/wscleanB-' + str(p) + '.log | grep "background noise"')
 
     if do_predict:
         imagename= 'img/extract-forpredict'
@@ -214,8 +200,6 @@ parser.add_argument('-p', '--path', dest='path', action='store', default='', typ
 
 args = parser.parse_args()
 pathdir = args.path
-
->>>>>>> master
 
 parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_extract'])))
@@ -842,4 +826,3 @@ if sourcesub == 0:
 os.system('rm redshift_temp.txt')
 logger.info('Done.')
 
->>>>>>> master
