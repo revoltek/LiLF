@@ -14,6 +14,13 @@ password = <password>
 ```
 - ~/.surveys >> with the pass for the surveydb
 
+- ~/.awe/Environment.cfg >> if you want to use the LiLF/scripts/LOFAR_stager.py to stage and download, your LTA credentials should be also in this file, for example:
+```
+[global]
+database_user : <your username>
+database_password : <your password>
+```
+
 ### Container:
 Check here if you want a container that can run the pipeline:
 LiLF/container/docker_build.sh

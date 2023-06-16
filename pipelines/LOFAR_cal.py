@@ -29,7 +29,10 @@ MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags=False)
 
 if skymodel == '':  # default case
     if MSs.isLBA:
-        skymodel = os.path.dirname(__file__) + '/../models/calib-simple.skydb'
+        if MSs.hasIS:
+            skymodel = os.path.dirname(__file__) + '/../models/calib-highres.skydb'
+        else:
+            skymodel = os.path.dirname(__file__) + '/../models/calib-simple.skydb'
     elif MSs.isHBA:
         skymodel = os.path.dirname(__file__) + '/../models/calib-hba.skydb'
 

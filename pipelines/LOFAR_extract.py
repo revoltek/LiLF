@@ -185,11 +185,14 @@ parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_extract','parset_dir')
 maxniter = parset.getint('LOFAR_extract','maxniter')
 phSolMode = parset.get('LOFAR_extract','phSolMode')  # default: tecandphase
+
 beam_cut = parset.getfloat('LOFAR_extract','beam_cut')# default: 0.3
 ampcal = parset.get('LOFAR_extract','ampcal')
+
 if ampcal.lower() not in ['false', 'true', 'auto']:
     logger.error('ampcal must be true, false or auto.')
     sys.exit()
+
 if phSolMode not in ['tecandphase', 'phase']:
     logger.error('phSolMode {} not supported. Choose tecandphase, phase.')
     sys.exit()
@@ -271,8 +274,10 @@ if not os.path.exists('pointinglist.txt'):
                     continue
             else:
                 continue
+
             #beam_cut = 0.15
             if beam_value > beam_cut**2: # square since Norm is sqrt(beam response)
+
                 close_pointings.append(str(pointing).split('/')[-1])
 
     with open('pointinglist.txt', 'w') as f:
