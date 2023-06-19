@@ -71,7 +71,7 @@ def enablePrint():
     sys.stdout = sys.__stdout__
 ################################
 
-def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False, do_predict=False, datacol='DATA', minuv=30, numiter=100000, fitsmask=None):
+def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False, do_predict=False, datacol='DATA', minuv=30, numiter=100000, fits_mask=None):
 
     """
     p = patch name
@@ -170,12 +170,23 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             elif fits_mask:
                 arg_dict['fits_mask'] = fits_mask
 
-        lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
+        if fits_mask:
+            lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
                              size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter, local_rms='',
                              no_update_model_required='', minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
                              parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
                              join_channels='', fit_spectral_pol=3, channels_out=ch_out, data_column=datacol, fits_mask=fitsmask,
                              **arg_dict)  # , deconvolution_channels=3)
+
+        else:
+            lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM,
+                                 do_predict=True,
+                                 size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter,
+                                 local_rms='',
+                                 no_update_model_required='', minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
+                                 parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
+                                 join_channels='', fit_spectral_pol=3, channels_out=ch_out, data_column=datacol, **arg_dict)  # , deconvolution_channels=3)
+
         os.system('cat '+logger_obj.log_dir+'/wscleanB-' + str(p) + '.log | grep "background noise"')
 
     if do_predict:
@@ -187,11 +198,6 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                              join_channels='', fit_spectral_pol=3, channels_out=ch_out, data_column=datacol, **arg_dict)
 
 
-logger_obj = lib_log.Logger('pipeline-extract.logger')
-logger = lib_log.logger
-s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
-w = lib_util.Walker('pipeline-extract.walker')
-
 parser = argparse.ArgumentParser(description='Extraction of targets of interest from LBA survey observations.')
 parser.add_argument('-p', '--path', dest='path', action='store', default='', type=str, help='Path where to look for observations.')
 
@@ -202,7 +208,7 @@ parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_extract'])))
 parset_dir = parset.get('LOFAR_extract','parset_dir')
 maxniter = parset.getint('LOFAR_extract','max_niter')
-target_reg_file = parset.get('LOFAR_extract','extract_region')  # default 'target.reg'
+#target_reg_file = parset.get('LOFAR_extract','extract_region')  # default 'target.reg'
 subtract_reg_file = parset.get('LOFAR_extract','subtract_region')  # default None - use only if you want to subtract individual sources which are in extractReg
 phSolMode = parset.get('LOFAR_extract','ph_sol_mode')  # default: tecandphase
 ampSolMode = parset.get('LOFAR_extract', 'amp_sol_mode') # default: diagonal
@@ -513,8 +519,13 @@ MSs_extract = lib_ms.AllMSs(glob.glob('mss-extract/shiftavg/*.MS-extract'), s)
 do_beam = len(close_pointings) > 1 # if > 1 pointing, correct beam every cycle, otherwise only at the end.
 with w.if_todo('image_init'):
     logger.info('Initial imaging...')
-    clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg, fits_mask=fits_mask)
-
+    if userReg:
+        clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg)
+    elif fits_mask:
+        clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()),
+              apply_beam=do_beam, fits_mask=fits_mask)
+    else:
+        clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=do_beam)
 
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
 with w.if_todo('smooth'):
@@ -678,7 +689,10 @@ for c in range(maxniter):
         logger.info('Imaging...')
 
         # if we have more than one close pointing, need to apply idg beam each iteration
-        clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg, fits_mask=fits_mask) # size 2 times radius  , apply_beam = c==maxniter
+        if fits_mask:
+            clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg, fits_mask=fits_mask) # size 2 times radius  , apply_beam = c==maxniter
+        else:
+            clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg) # size 2 times radius  , apply_beam = c==maxniter
 
 
     # get noise, if larger than 98% of prev cycle: break
@@ -759,7 +773,11 @@ with w.if_todo('final_apply'):
 with w.if_todo('imaging_final'):
     logger.info('Final imaging w/ beam correction...')
 
-    clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, fits_mask=fits_mask)  # size 2 times radius  , apply_beam = c==maxniter
+    if fits_mask:
+        clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, fits_mask=fits_mask)# size 2 times radius  , apply_beam = c==maxniter
+    else:
+        clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg)# size 2 times radius  , apply_beam = c==maxniter
+
     logger.info('Done.')
 
 
@@ -780,7 +798,7 @@ if sourcesub == 0:
         highimagename  = 'extractM-sub-highres-MFS-image.fits'
         os.system(f'MakeMask.py --RestoredIm img/{highimagename} --Th 3')
         fits_mask = highimagename + '.mask.fits'
-        clean('compactmask', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), fitsmask='img/'+fits_mask,
+        clean('compactmask', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), fits_mask='img/'+fits_mask,
               do_predict=True, minuv = minuv_forsub, res='ultrahigh', datacol='CORRECTED_DATA')
 
     with w.if_todo('source_subtraction'):
