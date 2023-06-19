@@ -38,25 +38,24 @@ def get_data(fname,colname):
 
 parser = argparse.ArgumentParser(description='Extraction of HETDEX LBA Clusters')
 parser.add_argument('-lp', '--lilfpath', dest='lilfpath', action='store', default='', type=str, help='Path where to look for LiLF.')
-parser.add_argument('-p', '--path', dest='path', action='store', default='', type=str, help='Path where to look for observations. It must lead to a directory where there are directories containing /ddcal and /mss-avg subdirectories.')
-parser.add_argument('-l', '--list', dest='cllist', action='store', default='', type=str, help='Name of .fits file which lists Name, RA, DEC and z. Optionally an extraction region and a mask region can be added.')
-parser.add_argument('--radec', dest='radec', nargs='+', type=float, help='RA/DEC where to center the extraction in deg. Use if you wish to extract only one target.')
+parser.add_argument('-p', '--path', dest='path', action='store', default='', type=str, help='Path where to look for observations. It must lead to a directory where there are subdirectories containing /ddcal and /mss-avg derived from calibration.')
+parser.add_argument('-l', '--list', dest='cllist', action='store', default=None, type=str, help='Name of .fits file which lists Name, RA, DEC and z. Optionally an extraction region and a mask region can be added.')
+parser.add_argument('--radec', dest='radec', nargs='+', type=float, default=None, help='RA/DEC where to center the extraction in deg. Use if you wish to extract only one target.')
 parser.add_argument('--z', dest='redshift', type=float, default=-99, help='Redshift of the target.')
 parser.add_argument('--name', dest='name', type=str, default='target_extracted', help='Name of the target. Will be used to create the directory containing the extracted data.')
 
 args = parser.parse_args()
 
-try:
-    cluster_list = args.cllist
-    try:
-        coords = args.radec
-        if cllist and radec:
-            logger.error('Provide either a fits file (-l) with Name, RA, DEC, z, or RA and DEC (--radec) in deg.')
-            sys.exit()
-    except:
-        pass
-except:
-    coords = args.radec
+cluster_list = args.cllist
+coords = args.radec
+
+if cluster_list is not None and coords is not None:
+    logger.error('Provide either a fits file (-l) with Name, RA, DEC, z, or RA and DEC (--radec) in deg.')
+    sys.exit()
+
+if cluster_list is None and coords is None:
+    logger.error('Provide either a fits file (-l) with Name, RA, DEC, z, or RA and DEC (--radec) in deg.')
+    sys.exit()
 
 pathlilf = args.lilfpath
 pathdir = args.path
