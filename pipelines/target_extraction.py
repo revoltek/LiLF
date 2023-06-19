@@ -126,7 +126,9 @@ if multiple == True:
                 logger.error(f'Error: no observation covers object {str(cluster)} in path {str(pathdir)}.')
                 logger.error(f'If this is somehow unexpected, check the path (-p) and the coordinates and try again.')
                 logger.error(f'If you wish to force the extraction, you can lower the beam sensitivity threshold (default = 0.3) in lilf.config.')
-                os.system(f'rm cluster_extraction.walker')
+                os.system(f'rm ../cluster_extraction.walker')
+                os.system('rm ../cluster_extraction.logger*')
+                os.system('rm -r ../logs_cluster_extraction.logger*')
                 sys.exit()
             else:
                 logger.info('Cluster '+str(cluster)+' has been extracted.')
@@ -151,7 +153,9 @@ else:
             logger.error(f'Error: no observation covers object {str(cluster)} in path {str(pathdir)}, or the beam sensitivity at its position is too low.')
             logger.error(f'If this is somehow unexpected, check the path (-p) and the coordinates and try again.')
             logger.error(f'If you wish to force the extraction, you can lower the beam sensitivity threshold (default = 0.3) in lilf.config.')
-            os.system(f'rm cluster_extraction.walker')
+            os.system(f'rm ../cluster_extraction.walker')
+            os.system('rm ../cluster_extraction.logger*')
+            os.system('rm -r ../logs_cluster_extraction.logger*')
             sys.exit()
         else:
             logger.info('Target '+str(cluster)+' has been extracted.')
