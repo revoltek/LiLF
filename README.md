@@ -72,21 +72,32 @@ as the pipeline requires to open many files at the same time.
             
 # Extraction of LBA data:
 
-Usage: python LiLF/pipelines/Cluster_extraction.py -l [.fits file name] -p [/path/to/observation]
+Usage: python LiLF/pipelines/Cluster_extraction.py -lp [\path\to\lilf] -p [/path/to/observation] --radec [RA and DEC in deg] -l [\path\to\fitsfile] --z [redshift] --name [target name]
 
 You can extract a target of interest to improve selfcalibration and try to get rid of ionospheric effects.
-To do so, prepare a .fits file with a minimum of 4 columns: Name, RA, DEC, z (the column names must exactly match these ones, but the order can be different). Coordinates must be in degrees, while the purpose of the name is just to create a subdirectory in which all the results will be stored. The coordinates denote where the phase center will be shifted - it is not necessary to point them at the center of the target of interest. An optional column can also be added with the name EXTREG. This must be a .reg file that the pipeline uses as extraction region. The script is usually able to create a good one by itself, use this option only if needed - always try a run without it first. 
+If you wish to extract only one target, simply run the command above indicating the path to LiLF [-lp], the path to the observation [-p],
+RA and DEC where to center the extraction (--radec), and optionally redshift [--z] and target name [--name].
+In this case you don't need to provide a .fits file through -l, which is necessary only for multiple extractions.
+The pipeline is able to process multiple pointings of the same target altogether: it will look in the path specified with -p for directories
+calibrated with LiLF (see previous steps), check if the provided coordinates are covered by that specific observation, and move on to the next ones.
+All observations for which the beam sensitivity does not drop below 30% at the coordinates position will be used for the extraction. 
+The code will then create an extraction region based on the flux density within the same region (larger if low flux and vice-versa), 
+run the selfcalibration and produce images. Outputs will be stored in the /img subdirectory within the target directory, while extracted .MS files 
+can be found in the /mss-extract subdirectory. A final, nominal-resolution image will be produced, as well as high-resolution, 
+low-resolution and source-subtracted images. The source subtraction is still on beta version, please check it carefully before using the relative image.
+Specific passages can be repeated without re-running the whole extraction by deleting the relative entry from the pipeline-extract.walker 
+file within the target directory. 
+The user can also change some calibration parameters by creating a lilf.config file (see below for a description).
+
+If you wish to extract more than one target, prepare a .fits file with a minimum of 4 columns: Name, RA, DEC, z (the column names must exactly match these ones, 
+but the order can be different). Coordinates must be in degrees, while the purpose of the name is just to create a subdirectory 
+in which all the results will be stored. 
+The coordinates denote where the phase center will be shifted. 
+An optional column can also be added with the name EXTREG. 
+This must be a .reg file that the pipeline uses as extraction region. The script is usually able to create a good one by itself, 
+use this option only if needed - always try a run without it first. 
 Another optional .reg file can be provided in a column named 'MASKREG'; the script will use it as cleaning mask. 
-The .fits file can contain more than one entry, the extraction will be run for each object in a different directory named after the 'Name' column.  
-The pipeline is able to process multiple pointings of the same target altogether: it will look in the path specified with -p for directories calibrated with LiLF (see previous steps), check if the provided coordinates are covered by that specific observation, and move on to the next ones. All observations for which the beam sensitivity does not drop below 30% at the coordinates position will be used for the extraction. The code will then create an extraction region based on the flux density within the same region (larger if low flux and vice-versa), run the selfcalibration and produce images. Outputs will be stored in the /img subdirectory within the target directory, while extracted .MS files can be found in the /mss-extract subdirectory. A final, nominal-resolution image will be produced, as well as high-resolution, low-resolution and source-subtracted images. The source subtraction is still on beta version, please check it carefully before using it.
-Specific passages can be repeated without re-running the whole extraction by deleting the relative entry from the pipeline-extract.walker file within the target directory. The extraction of a single target can also be repeated by deleting the relative entry from the cluster-extraction.walker file within the working directory. IMPORTANT: in case of failures/errors, always delete the relative entry from the cluster-extraction.walker, otherwise the code will skip it.
-Some parameters can be tuned by adding them in the lilf.config file:
-
-
-- Force/avoid amplitude calibration (keep it to auto as per default unless needed):
-
-  `[ampcal]`         
-`ampcal = true/false/auto`
+The extraction will be run for each object in a different directory named after the 'Name' column.  
 
 
 # lilf.config specifications:
@@ -167,3 +178,5 @@ ph_sol_mode: str [diagonal] # mode to use for amplitude solutions, either 'diago
 beam_cut: float [0.3] # at which beam value to stop considering fields for extraction
 
 no_selfcal: bool [False] # Do not perform selfcal, use if you just want the small data set or of you want to use [Reinout van Weeren's facet_selfcal script]()https://github.com/rvweeren/lofar_facet_selfcal)
+
+ampcal: str [auto] # Force or avoid amplitude calibration. Can be set to false (no ampcal), true (force ampcal) or auto (decide automatically).
