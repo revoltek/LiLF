@@ -134,7 +134,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                                  size=imsize, scale=str(pixscale) + 'arcsec',
                                  weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
                                  mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='', data_column=datacol,
-                                 fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, baseline_averaging='', fits_mask=fitsmask,**arg_dict)
+                                 fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, baseline_averaging='', fits_mask=userReg,**arg_dict)
 
             # New mask method using Makemask.py
             mask = imagename + '-MFS-image.fits'
@@ -146,6 +146,28 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                 return
             lib_img.blank_image_reg(mask + '.mask.fits', userReg, inverse=False, blankval=1.)
 
+        elif fits_mask:
+            # clean 1
+            logger.info('Cleaning (' + str(p) + ')...')
+            imagename = 'img/extract-' + str(p)
+
+            lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
+                                 size=imsize, scale=str(pixscale) + 'arcsec',
+                                 weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
+                                 mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
+                                 data_column=datacol,
+                                 fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3,
+                                 baseline_averaging='', fits_mask=fits_mask, **arg_dict)
+
+            # New mask method using Makemask.py
+            mask = imagename + '-MFS-image.fits'
+            try:
+                os.system(f'MakeMask.py --RestoredIm {mask} --Th 5 --Box 150,5')
+
+            except:
+                logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
+                return
+            lib_img.blank_image_reg(mask + '.mask.fits', userReg, inverse=False, blankval=1.)
 
         # clean 2
         # TODO: add deconvolution_channels when bug fixed
@@ -175,7 +197,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                              size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter, local_rms='',
                              no_update_model_required='', minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
                              parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
-                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, data_column=datacol, fits_mask=fitsmask,
+                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, data_column=datacol, fits_mask=fits_mask,
                              **arg_dict)  # , deconvolution_channels=3)
 
         else:
@@ -520,7 +542,7 @@ do_beam = len(close_pointings) > 1 # if > 1 pointing, correct beam every cycle, 
 with w.if_todo('image_init'):
     logger.info('Initial imaging...')
     if userReg:
-        clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg)
+        clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=mask_reg)
     elif fits_mask:
         clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()),
               apply_beam=do_beam, fits_mask=fits_mask)
@@ -776,7 +798,7 @@ with w.if_todo('imaging_final'):
     if fits_mask:
         clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, fits_mask=fits_mask)# size 2 times radius  , apply_beam = c==maxniter
     else:
-        clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg)# size 2 times radius  , apply_beam = c==maxniter
+        clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, fits_mask=None)# size 2 times radius  , apply_beam = c==maxniter
 
     logger.info('Done.')
 
