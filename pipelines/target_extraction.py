@@ -107,9 +107,11 @@ if multiple == True:
             with open(str(cluster)+'/redshift_temp.txt', 'w') as f:
                 writer = csv.writer(f, delimiter=" ", quoting=csv.QUOTE_NONE, escapechar=' ')
                 if ext==1:
+                    os.system(f'cp {cl_extractreg[n]} {cluster}')
                     if mreg==0:
                         writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n], cl_extractreg[n]])
                     else:
+                        os.system(f'mv {cl_maskreg[n]} {cluster}')
                         writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n], cl_extractreg[n], cl_maskreg[n]])
                 else:
                     if mreg==0:

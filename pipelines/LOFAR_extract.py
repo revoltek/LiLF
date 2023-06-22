@@ -299,9 +299,15 @@ dec = data_temp[2]
 cluster = clname_temp
 
 if maskreg == 1:
-    userReg = str(mask_reg)
+    if str(mask_reg).endswith('.reg'):
+        userReg = str(mask_reg)
+        fitsmask = None
+    else:
+        userReg = None
+        fitsmask = str(mask_reg)
 else:
     userReg = None
+    fitsmask = None
 
 
 if extreg==1:
