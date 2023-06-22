@@ -108,6 +108,7 @@ if multiple == True:
                 writer = csv.writer(f, delimiter=" ", quoting=csv.QUOTE_NONE, escapechar=' ')
                 if ext==1:
                     os.system(f'cp {cl_extractreg[n]} {cluster}')
+                    cl_extractreg[n] = os.path.basename(cl_extractreg[n])
                     if mreg==0:
                         writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n], cl_extractreg[n]])
                     else:
