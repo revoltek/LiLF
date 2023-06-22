@@ -71,7 +71,7 @@ def enablePrint():
     sys.stdout = sys.__stdout__
 ################################
 
-def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False, do_predict=False, datacol='DATA', minuv=30, numiter=100000, fits_mask=None):
+def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False, do_predict=False, datacol='DATA', minuv=30, numiter=100000, fitsmask=None):
 
     """
     p = patch name
@@ -134,7 +134,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                                  size=imsize, scale=str(pixscale) + 'arcsec',
                                  weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
                                  mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='', data_column=datacol,
-                                 fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, baseline_averaging='', fits_mask=userReg,**arg_dict)
+                                 fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, baseline_averaging='',**arg_dict)
 
             # New mask method using Makemask.py
             mask = imagename + '-MFS-image.fits'
@@ -145,6 +145,14 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                 logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
                 return
             lib_img.blank_image_reg(mask + '.mask.fits', userReg, inverse=False, blankval=1.)
+
+            lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
+                                 size=imsize, scale=str(pixscale) + 'arcsec',
+                                 weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
+                                 mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
+                                 data_column=datacol,
+                                 fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3,
+                                 baseline_averaging='', fits_mask=mask + '.mask.fits', **arg_dict)
 
         elif fits_mask:
             # clean 1
@@ -157,24 +165,24 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                                  mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
                                  data_column=datacol,
                                  fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3,
-                                 baseline_averaging='', fits_mask=fits_mask, **arg_dict)
+                                 baseline_averaging='', fits_mask=fitsmask, **arg_dict)
 
-            # New mask method using Makemask.py
-            mask = imagename + '-MFS-image.fits'
-            try:
-                os.system(f'MakeMask.py --RestoredIm {mask} --Th 5 --Box 150,5')
-
-            except:
-                logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
-                return
-            lib_img.blank_image_reg(mask + '.mask.fits', userReg, inverse=False, blankval=1.)
+            # # New mask method using Makemask.py
+            # mask = imagename + '-MFS-image.fits'
+            # try:
+            #     os.system(f'MakeMask.py --RestoredIm {mask} --Th 5 --Box 150,5')
+            #
+            # except:
+            #     logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
+            #     return
+            # lib_img.blank_image_reg(mask + '.mask.fits', userReg, inverse=False, blankval=1.)
 
         # clean 2
         # TODO: add deconvolution_channels when bug fixed
         if userReg:
             logger.info('Cleaning w/ mask (' + str(p) + ')...')
-        elif fits_mask:
-            logger.info(f'Cleaning w/ user mask {fits_mask} ({p})...')
+        elif fitsmask is not None:
+            logger.info(f'Cleaning w/ user mask {fitsmask} ({p})...')
         else:
             logger.info('Cleaning (' + str(p) + ')...')
         imagenameM = 'img/extractM-' + str(p)
@@ -189,15 +197,15 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                 arg_dict['reuse_psf'] = imagename
                 arg_dict['reuse_dirty'] = imagename
                 arg_dict['fits_mask'] = mask + '.mask.fits'
-            elif fits_mask:
-                arg_dict['fits_mask'] = fits_mask
+            # elif fitsmask:
+            #     arg_dict['fits_mask'] = fitsmask
 
-        if fits_mask:
+        if fitsmask:
             lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
                              size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter, local_rms='',
                              no_update_model_required='', minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
                              parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
-                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, data_column=datacol, fits_mask=fits_mask,
+                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, data_column=datacol, fits_mask=fitsmask,
                              **arg_dict)  # , deconvolution_channels=3)
 
         else:
@@ -542,10 +550,10 @@ do_beam = len(close_pointings) > 1 # if > 1 pointing, correct beam every cycle, 
 with w.if_todo('image_init'):
     logger.info('Initial imaging...')
     if userReg:
-        clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=mask_reg)
-    elif fits_mask:
+        clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg)
+    elif fitsmask:
         clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()),
-              apply_beam=do_beam, fits_mask=fits_mask)
+              apply_beam=do_beam, fits_mask=fitsmask)
     else:
         clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=do_beam)
 
@@ -711,8 +719,8 @@ for c in range(maxniter):
         logger.info('Imaging...')
 
         # if we have more than one close pointing, need to apply idg beam each iteration
-        if fits_mask:
-            clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg, fits_mask=fits_mask) # size 2 times radius  , apply_beam = c==maxniter
+        if fitsmask:
+            clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg, fits_mask=fitsmask) # size 2 times radius  , apply_beam = c==maxniter
         else:
             clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg) # size 2 times radius  , apply_beam = c==maxniter
 
@@ -795,13 +803,10 @@ with w.if_todo('final_apply'):
 with w.if_todo('imaging_final'):
     logger.info('Final imaging w/ beam correction...')
 
-    if fits_mask:
-        clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, fits_mask=fits_mask)# size 2 times radius  , apply_beam = c==maxniter
+    if fitsmask:
+        clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, fits_mask=fitsmask)# size 2 times radius  , apply_beam = c==maxniter
     else:
         clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, fits_mask=None)# size 2 times radius  , apply_beam = c==maxniter
-
-    logger.info('Done.')
-
 
 
 with w.if_todo('imaging_highres'):
@@ -820,7 +825,7 @@ if sourcesub == 0:
         highimagename  = 'extractM-sub-highres-MFS-image.fits'
         os.system(f'MakeMask.py --RestoredIm img/{highimagename} --Th 3')
         fits_mask = highimagename + '.mask.fits'
-        clean('compactmask', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), fits_mask='img/'+fits_mask,
+        clean('compactmask', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), fitsmask='img/'+fits_mask,
               do_predict=True, minuv = minuv_forsub, res='ultrahigh', datacol='CORRECTED_DATA')
 
     with w.if_todo('source_subtraction'):
