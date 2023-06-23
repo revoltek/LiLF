@@ -491,6 +491,7 @@ for p in close_pointings:
         ddf_parms['Predict_InitDicoModel'] = outdico
         ddf_parms['Beam_Smooth'] = 1
         ddf_parms['Cache_Reset'] = 1
+
         if 'amplitude000' in solset_dde.getSoltabNames():
             ddf_parms['DDESolutions_DDSols'] = dde_h5parm + ':sol000/phase000+amplitude000'
         else:
