@@ -76,7 +76,7 @@ if not download_file is None:
                     downloaded += [line.rstrip('\n') for line in flog]
 
             for i, line in enumerate(df):
-                ms = re.findall(r'L*', line)[0]
+                ms = re.findall(r'L[0-9]*.*_SB[0-9]*_uv', line)[0]
                 if ms+'.MS' in downloaded or ms+'.dppp.MS' in downloaded: continue
                 if ms+'.MS' in glob.glob('*MS') or ms+'.dppp.MS' in glob.glob('*MS'): continue
                 s.add('wget -nv "'+line[:-1]+'" -O - | tar -x', log=ms+'_download.log', commandType='general')

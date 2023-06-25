@@ -464,7 +464,12 @@ for p in close_pointings:
     mask_ddcal = wideDD_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
     wideDD_image.makeMask(threshpix=5, atrous_do=True, maskname=mask_ddcal, write_srl=True, write_ds9=True)
 
+
     with w.if_todo('predict_rest_'+p):
+
+        # Add empty MODEL column to avoid DDFacet overflow
+        MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA -d', log='$nameMS_addmodelcol.log', commandType='python')
+
         # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
         indico = wideDD_image.root + '.DicoModel'
         outdico = indico + '-' + target_reg_file.split('.')[0] # use prefix of target reg
@@ -810,7 +815,7 @@ with w.if_todo('final_apply'):
 with w.if_todo('imaging_final'):
     logger.info('Final imaging w/ beam correction...')
 
-    if fitsmask:
+    if fitsmask is not None:
         clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, fits_mask=fitsmask)# size 2 times radius  , apply_beam = c==maxniter
     else:
         clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, fits_mask=None)# size 2 times radius  , apply_beam = c==maxniter
