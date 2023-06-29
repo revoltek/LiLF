@@ -13,7 +13,7 @@ import astropy.io.fits as fits
 class Image(object):
     def __init__(self, imagename, userReg = None, beamReg= None ):
         """
-        userMask: keep this region when making masks
+        userReg: keep this region when making masks
         BeamReg: ds9 region file of the beam
         """
         if 'MFS' in imagename: suffix = '-MFS-image.fits'

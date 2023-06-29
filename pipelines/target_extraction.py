@@ -112,7 +112,7 @@ if multiple == True:
                     if mreg==0:
                         writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n], cl_extractreg[n]])
                     else:
-                        os.system(f'mv {cl_maskreg[n]} {cluster}')
+                        os.system(f'cp {cl_maskreg[n]} {cluster}')
                         writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n], cl_extractreg[n], cl_maskreg[n]])
                 else:
                     if mreg==0:

@@ -75,8 +75,11 @@ as the pipeline requires to open many files at the same time.
 Usage: python LiLF/pipelines/Cluster_extraction.py -lp [\path\to\lilf] -p [/path/to/observation] --radec [RA and DEC in deg] -l [\path\to\fitsfile] --z [redshift] --name [target name]
 
 You can extract a target of interest to improve selfcalibration and try to get rid of ionospheric effects.
-If you wish to extract only one target, simply run the command above indicating the path to LiLF [-lp], the path to the observation [-p],
-RA and DEC where to center the extraction (--radec), and optionally redshift [--z] and target name [--name].
+If you wish to extract only one target, simply run the command above indicating the path to LiLF [-lp] (e.g.
+if /LiLF is in /example1/example2/LiLF, it will be [-lp /example1/example2]), the path to the directory of
+the observation [-p], which must contain /ddcal and /mss-avg obtained from the calibration pipeline (e.g. if one
+has /example1/example2/myobs/ddcal, it will be [-p /example1/example2], and RA and DEC where to center the extraction (--radec). 
+Optionally one can add redshift [--z] and target name [--name].
 In this case you don't need to provide a .fits file through -l, which is necessary only for multiple extractions.
 The pipeline is able to process multiple pointings of the same target altogether: it will look in the path specified with -p for directories
 calibrated with LiLF (see previous steps), check if the provided coordinates are covered by that specific observation, and move on to the next ones.

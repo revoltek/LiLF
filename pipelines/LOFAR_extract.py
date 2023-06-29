@@ -305,6 +305,15 @@ if maskreg == 1:
     else:
         userReg = None
         fitsmask = str(mask_reg)
+        openmask = fits.open(fitsmask)
+        getheader = openmask[0].data
+        wcs = WCS(openmask[0].header)
+        naxis1 = openmask[0].header['NAXIS1']
+        naxis2 = openmask[0].header['NAXIS2']
+        pixtodeg1 =  openmask[0].header['CDELT1']
+        pixtodeg2 = openmask[0].header['CDELT2']
+        mask_width = round(naxis1*abs(pixtodeg1),2)
+        mask_height = round(naxis2 * abs(pixtodeg2),2)
 else:
     userReg = None
     fitsmask = None
@@ -507,6 +516,9 @@ for p in close_pointings:
         logger.info('Predict corrupted rest-of-the-sky for '+p+'...')
         lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms)
 
+        MSs.run('DP3 msin=$pathMS msin.datacolumn=MODEL_DATA msout=. steps=count', log='$nameMS_colcheck.log',
+                commandType='DP3')
+
     with w.if_todo('subtract_rest_'+p):
         # Remove corrupted data from CORRECTED_DATA
         logger.info('Add columns...')
@@ -523,6 +535,7 @@ for p in close_pointings:
         MSs.run(f'DP3 {parset_dir}/DP3-shiftavg.parset msin=$pathMS msout=mss-extract/shiftavg/{p}_$nameMS.MS-extract msin.datacolumn=SUBTRACTED_DATA '
                 f'shift.phasecenter=[{center[0]}deg,{center[1]}deg\] avg.freqstep=8 avg.timestep={t_avg_factor}',
                 log=p+'$nameMS_shiftavg.log', commandType='DP3')
+
 
     MSs_extract = lib_ms.AllMSs( glob.glob('mss-extract/shiftavg/'+p+'_*.MS-extract'), s )
     with w.if_todo('beamcorr_'+p):
@@ -552,7 +565,7 @@ for p in close_pointings:
     ### DONE
 
 if no_selfcal: # finish here
-    logger.info('Done.')
+    logger.info('No selfcal option set in lilf.config. Done.')
     sys.exit(0)
 
 MSs_extract = lib_ms.AllMSs(glob.glob('mss-extract/shiftavg/*.MS-extract'), s)
@@ -564,8 +577,7 @@ with w.if_todo('image_init'):
     if userReg:
         clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg)
     elif fitsmask:
-        clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()),
-              apply_beam=do_beam, fits_mask=fitsmask)
+        clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, fitsmask=fitsmask)
     else:
         clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=do_beam)
 
@@ -818,7 +830,7 @@ with w.if_todo('imaging_final'):
     if fitsmask is not None:
         clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, fits_mask=fitsmask)# size 2 times radius  , apply_beam = c==maxniter
     else:
-        clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, fits_mask=None)# size 2 times radius  , apply_beam = c==maxniter
+        clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg)# size 2 times radius  , apply_beam = c==maxniter
 
 
 with w.if_todo('imaging_highres'):
