@@ -429,7 +429,7 @@ if extreg != 1:
         while reg_flux < flux_thresh:
             #logger.info('Flux too low, increasing extraction region radius...')
             ext_region_extent += 0.084 #We add 5 arcmin every cycle
-            if ext_region_extent <= 0.75:
+            if ext_region_extent < 0.75:
                 param = 1
                 target = lib_util.create_extregion(ra, dec, ext_region_extent)
                 if os.path.exists('target.reg'):
@@ -456,7 +456,7 @@ if extreg != 1:
                 break
 
     if param == 0:
-        logger.info('Low flux (<5 Jy) detected around the target in one or more pointings.')
+        logger.info('Low flux (<5 Jy) detected around the target in one or more pointings. Selfcalibration could be not optimal.')
         logger.info('A maximum radius of 45 arcmin was chosen for the extraction region.')
     else:
         logger.info(f'The extraction region will have a radius of {int(ext_region_extent * 60)} arcmin.')
@@ -473,11 +473,33 @@ for p in close_pointings:
     mask_ddcal = wideDD_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
     wideDD_image.makeMask(threshpix=5, atrous_do=True, maskname=mask_ddcal, write_srl=True, write_ds9=True)
 
+    # Delete old columns to avoid dysco issues
+    # with w.if_todo('remove_columns_' + p):
+    #     logger.info('Removing old MODEL_DATA and SUBTRACTED_DATA columns...')
+    #     datadir = os.listdir(f'mss-extract/{p}/')
+    #     for dir in datadir:
+    #         ts = pt.table(f'mss-extract/{p}/{dir}', readonly=False)
+    #         if 'MODEL_DATA' in ts.colnames():
+    #             MSs.run(f'taql "ALTER TABLE mss-extract/{p}/{dir} DELETE COLUMN MODEL_DATA"',
+    #                         log='$nameMS_delmodelcol.log', commandType='python')
+    #             ts.close()
+    #         ts = pt.table(f'mss-extract/{p}/{dir}', readonly=False)
+    #         if 'SUBTRACTED_DATA' in ts.colnames():
+    #             MSs.run(f'taql "ALTER TABLE mss-extract/{p}/{dir} DELETE COLUMN SUBTRACTED_DATA"',
+    #                     log='$nameMS_delsubcol.log', commandType='python')
+    #             ts.close()
+
+    with w.if_todo('remove_columns_' + p):
+        logger.info('Removing old MODEL_DATA and SUBTRACTED_DATA columns...')
+        datadir = os.listdir(f'mss-extract/{p}/')
+        for dir in datadir:
+            MSs.run(f'taql "ALTER TABLE mss-extract/{p}/{dir} DELETE COLUMN MODEL_DATA, SUBTRACTED_DATA"', log=f'{dir}_deloldcols.log', commandType='python')
+
 
     with w.if_todo('predict_rest_'+p):
 
         # Add empty MODEL column to avoid DDFacet overflow
-        MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA -d', log='$nameMS_addmodelcol.log', commandType='python')
+        MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA -i CORRECTED_DATA', log='$nameMS_addmodelcol.log', commandType='python')
 
         # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
         indico = wideDD_image.root + '.DicoModel'
@@ -516,17 +538,19 @@ for p in close_pointings:
         logger.info('Predict corrupted rest-of-the-sky for '+p+'...')
         lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms)
 
-        MSs.run('DP3 msin=$pathMS msin.datacolumn=MODEL_DATA msout=. steps=count', log='$nameMS_colcheck.log',
-                commandType='DP3')
+        MSs.run(f'DP3 msin=mss-extract/data/TC00.MS msout=. msin.datacolumn=MODEL_DATA steps=count',
+                log='countflagpost.log', commandType='general')
+
 
     with w.if_todo('subtract_rest_'+p):
+
+
         # Remove corrupted data from CORRECTED_DATA
         logger.info('Add columns...')
-        MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+        MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i CORRECTED_DATA', log='$nameMS_addcol.log', commandType='python')
         logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
                 log='$nameMS_subtract.log', commandType='general')
-
 
     # Phase shift in the target location
     with w.if_todo('phaseshift_'+p):
@@ -565,7 +589,7 @@ for p in close_pointings:
     ### DONE
 
 if no_selfcal: # finish here
-    logger.info('No selfcal option set in lilf.config. Done.')
+    logger.info('No selfcal option is set in lilf.config. Done.')
     sys.exit(0)
 
 MSs_extract = lib_ms.AllMSs(glob.glob('mss-extract/shiftavg/*.MS-extract'), s)

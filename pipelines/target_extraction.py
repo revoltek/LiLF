@@ -134,6 +134,8 @@ if multiple == True:
                 os.system('rm -r ../logs_cluster_extraction.logger*')
                 sys.exit()
             else:
+                os.system('rm -r ../logs_cluster_extraction.logger*')
+                os.system('rm ../cluster_extraction.logger*')
                 logger.info('Cluster '+str(cluster)+' has been extracted.')
             os.chdir('../')
             size = float(os.path.getsize(str(cluster))/1e+9) #get directory size in GB, delete if too small
@@ -161,6 +163,8 @@ else:
             os.system('rm -r ../logs_cluster_extraction.logger*')
             sys.exit()
         else:
+            os.system('rm -r ../logs_cluster_extraction.logger*')
+            os.system('rm ../cluster_extraction.logger*')
             logger.info('Target '+str(cluster)+' has been extracted.')
         os.chdir('../')
         size = float(os.path.getsize(str(cluster))/1e+9) #get directory size in GB, delete if too small
