@@ -41,7 +41,7 @@ with w.if_todo('clean'):
     # copy data (avg to 1ch/sb and 10 sec)
     nchan = 1 #int(MSs.getListObj()[0].getNchan()) # no avg in freq
     timeint = MSs.getListObj()[0].getTimeInt()
-    avg_time = int(np.rint(24./timeint)) # average to 24 s
+    avg_time = int(np.rint(12./timeint)) # average to 12 s
     
     logger.info('Copy data...')
     mss_bkp = sorted(glob.glob(data_dir+'/*MS'))
@@ -210,7 +210,7 @@ for c in range(100):
         if MSs.isLBA and  MSs.hasIS:
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=8, parallel_gridding=4,\
                     reorder='', parallel_reordering=4, gridder='wgridder', size=2000, scale='1arcsec', padding=1.2, \
-                    weight='briggs 0', taper_gaussian='0.5arcsec', niter=15000, nmiter=50, mgain=0.4, \
+                    weight='briggs 0', taper_gaussian='0.75arcsec', niter=15000, nmiter=50, mgain=0.4, \
                     multiscale='', multiscale_scale_bias=0.6, \
                     fits_mask='/home/baq1889/LiLF/parsets/LOFAR_ateam/masks/VirAlbaIS.fits', auto_threshold=1, \
                     join_channels='', channels_out=channels_out)
@@ -222,7 +222,7 @@ for c in range(100):
             #        join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=channels_out) # use cont=True
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=6, minuv_l=30, \
                     reorder='', parallel_reordering=4, use_wgridder='', size=1600, scale='1arcsec', padding=1.6, \
-                    weight='briggs -2', niter=1000000, nmiter=100, mgain=0.85, \
+                    weight='briggs -1', niter=1000000, nmiter=100, mgain=0.85, \
                     multiscale='', multiscale_scales='0,20,40,80,160,320', \
                     fits_mask='/home/baq1889/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', auto_threshold=1, \
                     join_channels='',  channels_out=channels_out)
