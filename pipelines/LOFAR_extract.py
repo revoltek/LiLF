@@ -474,21 +474,6 @@ for p in close_pointings:
     wideDD_image.makeMask(threshpix=5, atrous_do=True, maskname=mask_ddcal, write_srl=True, write_ds9=True)
 
     # Delete old columns to avoid dysco issues
-    # with w.if_todo('remove_columns_' + p):
-    #     logger.info('Removing old MODEL_DATA and SUBTRACTED_DATA columns...')
-    #     datadir = os.listdir(f'mss-extract/{p}/')
-    #     for dir in datadir:
-    #         ts = pt.table(f'mss-extract/{p}/{dir}', readonly=False)
-    #         if 'MODEL_DATA' in ts.colnames():
-    #             MSs.run(f'taql "ALTER TABLE mss-extract/{p}/{dir} DELETE COLUMN MODEL_DATA"',
-    #                         log='$nameMS_delmodelcol.log', commandType='python')
-    #             ts.close()
-    #         ts = pt.table(f'mss-extract/{p}/{dir}', readonly=False)
-    #         if 'SUBTRACTED_DATA' in ts.colnames():
-    #             MSs.run(f'taql "ALTER TABLE mss-extract/{p}/{dir} DELETE COLUMN SUBTRACTED_DATA"',
-    #                     log='$nameMS_delsubcol.log', commandType='python')
-    #             ts.close()
-
     with w.if_todo('remove_columns_' + p):
         logger.info('Removing old MODEL_DATA and SUBTRACTED_DATA columns...')
         datadir = os.listdir(f'mss-extract/{p}/')
@@ -537,9 +522,6 @@ for p in close_pointings:
 
         logger.info('Predict corrupted rest-of-the-sky for '+p+'...')
         lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms)
-
-        # MSs.run(f'DP3 msin=mss-extract/data/TC00.MS msout=. msin.datacolumn=MODEL_DATA steps=count',
-        #         log='countflagpost.log', commandType='general')
 
 
     with w.if_todo('subtract_rest_'+p):
