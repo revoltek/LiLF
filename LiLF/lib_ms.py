@@ -45,6 +45,7 @@ class AllMSs(object):
             else:
                 self.mssListObj.append(MS(pathMS))
 
+
         if len(self.mssListObj) == 0:
             raise('ALL MS files flagged.')
 
@@ -215,6 +216,7 @@ class MS(object):
                 #                nameFieldNew + "'...")
                 self.setNameField(nameFieldNew)
 
+
         telescope = self.getTelescope()
         if telescope == 'LOFAR':
             telescope_coords = EarthLocation(lat=52.90889*u.deg, lon=6.86889*u.deg, height=0*u.m)
@@ -222,7 +224,7 @@ class MS(object):
             telescope_coords = EarthLocation(lat=19.0948*u.deg, lon=74.0493*u.deg, height=0*u.m)
         else:
             raise('Unknown Telescope.')
- 
+
         time = np.mean(self.getTimeRange())
         time = Time( time/86400, format='mjd')
         time.delta_ut1_utc = 0. # no need to download precise table for leap seconds

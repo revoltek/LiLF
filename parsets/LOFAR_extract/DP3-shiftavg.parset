@@ -6,7 +6,7 @@ msout =
 msout.writefullresflag = False
 msout.storagemanager = dysco
 
-steps = [shift, avg]
+steps = [shift, avg, count]
 
 shift.type = phaseshifter
 shift.phasecenter =

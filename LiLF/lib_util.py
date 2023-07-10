@@ -8,6 +8,9 @@ from threading import Thread
 from queue import Queue
 import pyregion
 import gc
+import warnings
+from astropy import wcs
+from LiLF.lib_img import flatten
 
 if (sys.version_info > (3, 0)):
     from configparser import ConfigParser
@@ -94,6 +97,8 @@ def getParset(parsetFile=''):
     # quality
     add_default('LOFAR_quality', 'self_dir', 'self')
     add_default('LOFAR_quality', 'ddcal_dir', 'ddcal')
+    add_default('LOFAR_extract', 'ampcal', 'auto')
+    add_default('LOFAR_extract', 'extractRegion', 'target.reg')
     # virgo
     add_default('LOFAR_virgo', 'cal_dir', '')
     add_default('LOFAR_virgo', 'data_dir', './')
@@ -125,7 +130,31 @@ def getParset(parsetFile=''):
     add_default('model', 'apparent', 'False')
     add_default('model', 'userReg', '')
 
+
     return config
+
+def create_extregion(ra, dec, extent):
+    """
+    Parameters
+    ----------
+    ra
+    dec
+    extent
+
+    Returns
+    -------
+    DS9 region centered on ra, dec with radius = extent
+    """
+
+    regtext = ['# Region file format: DS9 version 4.1']
+    regtext.append(
+        'global color=yellow dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1')
+    regtext.append('fk5')
+    regtext.append('circle(' + str(ra) + ',' + str(dec) + f',{extent})')
+    nline = '\n'
+    target = f"{nline}{nline.join(regtext)}"
+
+    return target
 
 
 def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithOnes = True, comment = "", verbose = False):
@@ -396,7 +425,7 @@ def run_DDF(s, logfile, **kwargs):
     ddf_parms = []
 
     # basic parms
-    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i ' % (s.max_processors) )
+    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i --Misc-IgnoreDeprecationMarking=1 ' % (s.max_processors) )
 
     # cache dir
     if not 'Cache_Dir' in list(kwargs.keys()):
@@ -586,8 +615,10 @@ class Scheduler():
             self.max_processors = max_processors
 
         self.dry = dry
+
         logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname + " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
                      str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
+
 
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
@@ -783,3 +814,159 @@ class Scheduler():
             raise RuntimeError(commandType+' run problem on:\n'+out)
 
         return 0
+
+
+class radiomap:
+    """As from Martin Hardcastle's radioflux script"""
+
+    def __init__(self, fitsfile, verbose=False):
+        # Catch warnings to avoid datfix errors
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            gfactor = 2.0 * np.sqrt(2.0 * np.log(2.0))
+            self.f = fitsfile[0]
+            self.prhd = fitsfile[0].header
+
+            # Get units and resolution
+            self.units = self.prhd.get('BUNIT')
+            if self.units is None:
+                self.units = self.prhd.get('UNIT')
+            if self.units != 'JY/BEAM' and self.units != 'Jy/beam':
+                print('Warning: units are', self.units, 'but code expects JY/BEAM')
+            self.bmaj = self.prhd.get('BMAJ')
+            self.bmin = self.prhd.get('BMIN')
+            if self.bmaj is None:
+                # Try RESOL1 and RESOL2
+                self.bmaj = self.prhd.get('RESOL1')
+                self.bmin = self.prhd.get('RESOL2')
+            if self.bmaj is None:
+                if verbose:
+                    print('Can\'t find BMAJ in headers, checking history')
+                try:
+                    history = self.prhd['HISTORY']
+                except KeyError:
+                    history = None
+                if history is not None:
+                    for line in history:
+                        if 'HISTORY' in line:
+                            continue  # stops it finding nested history
+                        if 'CLEAN BMAJ' in line:
+                            bits = line.split()
+                            self.bmaj = float(bits[3])
+                            self.bmin = float(bits[5])
+
+            if self.bmaj is None:
+                raise RadioError('No beam information found')
+
+            w = wcs.WCS(self.prhd)
+            cd1 = -w.wcs.cdelt[0]
+            cd2 = w.wcs.cdelt[1]
+            if ((cd1 - cd2) / cd1) > 1.0001 and ((self.bmaj - self.bmin) / self.bmin) > 1.0001:
+                raise RadioError('Pixels are not square (%g, %g) and beam is elliptical' % (cd1, cd2))
+
+            self.bmaj /= cd1
+            self.bmin /= cd2
+            if verbose:
+                print('beam is', self.bmaj, 'by', self.bmin, 'pixels')
+
+            self.area = 2.0 * np.pi * (self.bmaj * self.bmin) / (gfactor * gfactor)
+            if verbose:
+                print('beam area is', self.area, 'pixels')
+
+            # Remove any PC... keywords we may have, they confuse the pyregion WCS
+            for i in range(1, 5):
+                for j in range(1, 5):
+                    self.quiet_remove('PC0%i_0%i' % (i, j))
+
+            # Now check what sort of a map we have
+            naxis = len(fitsfile[0].data.shape)
+            if verbose: print('We have', naxis, 'axes')
+            self.cube = False
+            if naxis < 2 or naxis > 4:
+                raise RadioError('Too many or too few axes to proceed (%i)' % naxis)
+            if naxis > 2:
+                # a cube, what sort?
+                frequency = 0
+                self.cube = True
+                freqaxis = -1
+                stokesaxis = -1
+                for i in range(3, naxis + 1):
+                    ctype = self.prhd.get('CTYPE%i' % i)
+                    if 'FREQ' in ctype:
+                        freqaxis = i
+                    elif 'STOKES' in ctype:
+                        stokesaxis = i
+                    elif 'VOPT' in ctype:
+                        pass
+                    else:
+                        print('Warning: unknown CTYPE %i = %s' % (i, ctype))
+                if verbose:
+                    print('This is a cube with freq axis %i and Stokes axis %i' % (freqaxis, stokesaxis))
+                if stokesaxis > 0:
+                    nstokes = self.prhd.get('NAXIS%i' % stokesaxis)
+                    if nstokes > 1:
+                        raise RadioError('Multiple Stokes parameters present, not handled')
+                if freqaxis > 0:
+                    nchans = self.prhd.get('NAXIS%i' % freqaxis)
+                    if verbose:
+                        print('There are %i channel(s)' % nchans)
+                    self.nchans = nchans
+            else:
+                self.nchans = 1
+
+            # Various possibilities for the frequency. It's possible
+            # that a bad (zero) value will be present, so keep
+            # checking if one is found.
+
+            if not (self.cube) or freqaxis < 0:
+                # frequency, if present, must be in another keyword
+                frequency = self.prhd.get('RESTFRQ')
+                if frequency is None or frequency == 0:
+                    frequency = self.prhd.get('RESTFREQ')
+                if frequency is None or frequency == 0:
+                    frequency = self.prhd.get('FREQ')
+                if frequency is None or frequency == 0:
+                    # It seems some maps present with a FREQ ctype
+                    # even if they don't have the appropriate axes!
+                    # The mind boggles.
+                    for i in range(5):
+                        type_s = self.prhd.get('CTYPE%i' % i)
+                        if type_s is not None and type_s[0:4] == 'FREQ':
+                            frequency = self.prhd.get('CRVAL%i' % i)
+                self.frq = [frequency]
+                if self.cube:
+                    # a cube with no freq axis, e.g. VOPT. need to flatten
+                    header, data = flatten(fitsfile, freqaxis=freqaxis)
+                    self.headers = [header]
+                    self.d = [data]
+                    self.nchans = 1
+                else:
+                    # now if there _are_ extra headers, get rid of them so pyregion WCS can work
+                    for i in range(3, 5):
+                        for k in ['CTYPE', 'CRVAL', 'CDELT', 'CRPIX', 'CROTA', 'CUNIT']:
+                            self.quiet_remove(k + '%i' % i)
+                    self.headers = [self.prhd]
+                    self.d = [fitsfile[0].data]
+            else:
+                # if this is a cube, frequency/ies should be in freq header
+                basefreq = self.prhd.get('CRVAL%i' % freqaxis)
+                deltafreq = self.prhd.get('CDELT%i' % freqaxis)
+                self.frq = [basefreq + deltafreq * i for i in range(nchans)]
+                self.d = []
+                self.headers = []
+                for i in range(nchans):
+                    header, data = flatten(fitsfile, freqaxis=freqaxis, channel=i)
+                    self.d.append(data)
+                    self.headers.append(header)
+            for i, f in enumerate(self.frq):
+                if f is None:
+                    print('Warning, can\'t get frequency %i -- set to zero' % i)
+                    self.frq[i] = 0
+            if verbose:
+                print('Frequencies are', self.frq, 'Hz')
+
+    def quiet_remove(self, keyname):
+        if self.prhd.get(keyname, None) is not None:
+            self.prhd.remove(keyname)
+
+#            self.fhead,self.d=flatten(fitsfile)

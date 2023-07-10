@@ -14,6 +14,13 @@ password = <password>
 ```
 - ~/.surveys >> with the pass for the surveydb
 
+- ~/.awe/Environment.cfg >> if you want to use the LiLF/scripts/LOFAR_stager.py to stage and download, your LTA credentials should be also in this file, for example:
+```
+[global]
+database_user : <your username>
+database_password : <your password>
+```
+
 ### Container:
 Check here if you want a container that can run the pipeline:
 LiLF/container/docker_build.sh
@@ -60,14 +67,41 @@ as the pipeline requires to open many files at the same time.
     
     4. In your target directory, run the self pipeline that performs the direction-indipendent calibration: `python3 /opt/LiLF/pipelines/LOFAR_self.py`. In the self directory you can find some plots useful to understand the quality of the ionosphere and calibration solutions, you can find some examples in the papers mentioned below. The images are in the `img` directory.
     
-    5. In your target directory, run the dd pipeline that performs the direction-dependent calibration: `python3 /opt/LiLF/pipelines/LOFAR_dd.py`. The pipeline selects the DD-calibrators, calibrates them one after the other (check the plots in `ddcal/` and the images of the varius steps of self-calibration), then it transfers the solutions to the associated facet and with DDFacet creates an image of the widefield. It performs two major cycles called c00 and c01. In the `/ddcal/c00/skymodels/` directory you can find the `all-c00.reg` file that indicates all the source selected as DD-calibrators, load it on the image you obtain from the previous step to check which sources it selects, they are indicated with a red circle and named ddcal000. To have a good image of your source is important that it is selected as a calibrator. The images of the single calibrators are named as `ddcalM-c01-ddcal0059-cdd00-MFS-image.fits, ddcalM-c01-ddcal0059-cdd01-MFS-image.fits` where cdd are the different steps of selfcal. You can use the best of them as final image of your source. The image of the widefield instead is `wideDD-c01.app.restored.fits`. You can re-image it using DDFacet with your prefered parameters (for example try to use --Deconv-Mode SSD).
-    
-    6. Extra: if you want to extract your source visibilities, by subtracting all the sources outside a region of ~10arcmin, to have a smaller dataset easier to re-image the source. Draw a ds9 circle around the target on which you want to perform the extraction and futher self calibration, the region should contain sufficient flux for calibration. Something roughly in the order of 10 arcmin should work. This region should be called 'target.reg' and saved in the TARGET directory. Then you can run: `python3 /opt/LiLF/pipelines/LOFAR_extract.py`. For this step, to have a good calibration of the source would be usefull to specify a region around the source so it is included in the mask used for the cleaning. Create a ds9 region around your source called userReg.reg and put it in the TARGET directory. Then specify it in the configuration file called lilf.config that should be put in `Download/mss/`,  using the following parameter:    
-            `[model]`         
-            `userReg = userReg.reg`
-            
+    5. In your target directory, run the dd-serial pipeline that performs the direction-dependent calibration: `python3 /opt/LiLF/pipelines/LOFAR_dd-serial.py`. The pipeline selects the DD-calibrators, calibrates them one after the other (check the plots in `ddcal/` and the images of the varius steps of self-calibration), then it transfers the solutions to the associated facet and with DDFacet creates an image of the widefield. It performs two major cycles called c00 and c01. In the `/ddcal/c00/skymodels/` directory you can find the `all-c00.reg` file that indicates all the source selected as DD-calibrators, load it on the image you obtain from the previous step to check which sources it selects, they are indicated with a red circle and named ddcal000. To have a good image of your source is important that it is selected as a calibrator. The images of the single calibrators are named as `ddcalM-c01-ddcal0059-cdd00-MFS-image.fits, ddcalM-c01-ddcal0059-cdd01-MFS-image.fits` where cdd are the different steps of selfcal. You can use the best of them as final image of your source. The image of the widefield instead is `wideDD-c01.app.restored.fits`. You can re-image it using DDFacet with your prefered parameters (for example try to use --Deconv-Mode SSD).
 
-If you want to change any parameters, you can specify them in the lilf.config file.
+            
+# Extraction of LBA data:
+
+Usage: python LiLF/pipelines/Cluster_extraction.py -lp [\path\to\lilf] -p [/path/to/observation] --radec [RA and DEC in deg] -l [\path\to\fitsfile] --z [redshift] --name [target name]
+
+You can extract a target of interest to improve selfcalibration and try to get rid of ionospheric effects.
+If you wish to extract only one target, simply run the command above indicating the path to LiLF [-lp] (e.g.
+if /LiLF is in /example1/example2/LiLF, it will be [-lp /example1/example2]), the path to the directory of
+the observation [-p], which must contain /ddcal and /mss-avg obtained from the calibration pipeline (e.g. if one
+has /example1/example2/myobs/ddcal, it will be [-p /example1/example2], and RA and DEC where to center the extraction (--radec). 
+Optionally one can add redshift [--z] and target name [--name].
+In this case you don't need to provide a .fits file through -l, which is necessary only for multiple extractions.
+The pipeline is able to process multiple pointings of the same target altogether: it will look in the path specified with -p for directories
+calibrated with LiLF (see previous steps), check if the provided coordinates are covered by that specific observation, and move on to the next ones.
+All observations for which the beam sensitivity does not drop below 30% at the coordinates position will be used for the extraction. 
+The code will then create an extraction region based on the flux density within the same region (larger if low flux and vice-versa), 
+run the selfcalibration and produce images. Outputs will be stored in the /img subdirectory within the target directory, while extracted .MS files 
+can be found in the /mss-extract subdirectory. A final, nominal-resolution image will be produced, as well as high-resolution, 
+low-resolution and source-subtracted images. The source subtraction is still on beta version, please check it carefully before using the relative image.
+Specific passages can be repeated without re-running the whole extraction by deleting the relative entry from the pipeline-extract.walker 
+file within the target directory. 
+The user can also change some calibration parameters by creating a lilf.config file (see below for a description).
+
+If you wish to extract more than one target, prepare a .fits file with a minimum of 4 columns: Name, RA, DEC, z (the column names must exactly match these ones, 
+but the order can be different). Coordinates must be in degrees, while the purpose of the name is just to create a subdirectory 
+in which all the results will be stored. 
+The coordinates denote where the phase center will be shifted. 
+An optional column can also be added with the name EXTREG. 
+This must be a .reg file that the pipeline uses as extraction region. The script is usually able to create a good one by itself, 
+use this option only if needed - always try a run without it first. 
+Another optional .reg file can be provided in a column named 'MASKREG'; the script will use it as cleaning mask. 
+The extraction will be run for each object in a different directory named after the 'Name' column.  
+
 
 # lilf.config specifications:
 
@@ -147,3 +181,5 @@ ph_sol_mode: str [diagonal] # mode to use for amplitude solutions, either 'diago
 beam_cut: float [0.3] # at which beam value to stop considering fields for extraction
 
 no_selfcal: bool [False] # Do not perform selfcal, use if you just want the small data set or of you want to use [Reinout van Weeren's facet_selfcal script]()https://github.com/rvweeren/lofar_facet_selfcal)
+
+ampcal: str [auto] # Force or avoid amplitude calibration. Can be set to false (no ampcal), true (force ampcal) or auto (decide automatically).

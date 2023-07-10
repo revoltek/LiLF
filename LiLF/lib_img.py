@@ -8,11 +8,12 @@ import pyregion
 from scipy.ndimage.measurements import label
 from LiLF import make_mask, lib_util
 from LiLF.lib_log import logger
+import astropy.io.fits as fits
 
 class Image(object):
     def __init__(self, imagename, userReg = None, beamReg= None ):
         """
-        userMask: keep this region when making masks
+        userReg: keep this region when making masks
         BeamReg: ds9 region file of the beam
         """
         if 'MFS' in imagename: suffix = '-MFS-image.fits'
@@ -30,6 +31,27 @@ class Image(object):
         self.skydb        = imagename.replace(suffix, '-sources-cut.skydb')
         self.userReg      = userReg
         self.beamReg      = beamReg
+
+    def calc_flux(self, img, mask):
+        """
+        Get flux inside given region
+        """
+
+        fitsfile = img
+        extract = mask
+
+        hdu = fits.open(fitsfile)
+        image = lib_util.radiomap(hdu)
+
+        region = pyregion.open(extract).as_imagecoord(image.headers[0])
+
+        for i, d in enumerate(image.d):
+            mask = region.get_mask(hdu=image.f, shape=np.shape(d))
+            data = np.extract(mask, d)
+            nndata = data[~np.isnan(data)]
+
+            flux = np.sum(nndata) / image.area
+            return flux
 
     def rescaleModel(self, funct_flux):
         """
