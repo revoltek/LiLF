@@ -498,8 +498,8 @@ for p in close_pointings:
 
     with w.if_todo('predict_rest_'+p):
 
-        # Add empty MODEL column to avoid DDFacet overflow
-        MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA -i CORRECTED_DATA', log='$nameMS_addmodelcol.log', commandType='python')
+        # Add mock MODEL column to avoid DDFacet overflow
+        MSs.addcol('MODEL_DATA', 'DATA', usedysco=False, log='$nameMS_addmodelcol.log')
 
         # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
         indico = wideDD_image.root + '.DicoModel'
@@ -538,12 +538,11 @@ for p in close_pointings:
         logger.info('Predict corrupted rest-of-the-sky for '+p+'...')
         lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms)
 
-        MSs.run(f'DP3 msin=mss-extract/data/TC00.MS msout=. msin.datacolumn=MODEL_DATA steps=count',
-                log='countflagpost.log', commandType='general')
+        # MSs.run(f'DP3 msin=mss-extract/data/TC00.MS msout=. msin.datacolumn=MODEL_DATA steps=count',
+        #         log='countflagpost.log', commandType='general')
 
 
     with w.if_todo('subtract_rest_'+p):
-
 
         # Remove corrupted data from CORRECTED_DATA
         logger.info('Add columns...')
@@ -560,11 +559,11 @@ for p in close_pointings:
                 f'shift.phasecenter=[{center[0]}deg,{center[1]}deg\] avg.freqstep=8 avg.timestep={t_avg_factor}',
                 log=p+'$nameMS_shiftavg.log', commandType='DP3')
 
-
     MSs_extract = lib_ms.AllMSs( glob.glob('mss-extract/shiftavg/'+p+'_*.MS-extract'), s )
+
     with w.if_todo('beamcorr_'+p):
         logger.info('Correcting beam...')
-        MSs_extract.run('DP3 ' + parset_dir + '/DP3-beam.parset msin=$pathMS', log='$nameMS_beam-.log', commandType='DP3')
+        MSs_extract.run('DP3 ' + parset_dir + '/DP3-beam.parset msin=$pathMS', log='$nameMS_beam.log', commandType='DP3')
 
     # apply init - closest DDE sol
     # TODO: this assumes phase000 and optionally, amplitude000
@@ -801,13 +800,13 @@ for c in range(maxniter):
 
     if c >= 3 and mm_ratio >= 20:
         if ampcal.lower == 'true':
-            logger.info('Start amplitude calibration in next cycle...')
+            logger.info('Starting amplitude calibration in next cycle...')
             doamp = True
         elif ampcal.lower == 'false':
             logger.info('Amplitude calibration set to false. Just using phase...')
             doamp = False
         else:
-            logger.info('Start amplitude calibration in next cycle...')
+            logger.info('Starting amplitude calibration in next cycle...')
             doamp = True
 
     rms_noise_pre = rms_noise

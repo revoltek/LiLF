@@ -127,7 +127,7 @@ if multiple == True:
             error_check = np.loadtxt('error_checker.txt')
             if error_check == 0:
                 logger.error(f'Error: no observation covers object {str(cluster)} in path {str(pathdir)}.')
-                logger.error(f'If this is somehow unexpected, check the path (-p) and the coordinates and try again.')
+                logger.error(f'If this is somehow unexpected, check the path (-p) and coordinates and try again.')
                 logger.error(f'If you wish to force the extraction, you can lower the beam sensitivity threshold (default = 0.3) in lilf.config.')
                 os.system(f'rm ../cluster_extraction.walker')
                 os.system('rm ../cluster_extraction.logger*')
@@ -165,6 +165,7 @@ else:
         else:
             os.system('rm -r ../logs_cluster_extraction.logger*')
             os.system('rm ../cluster_extraction.logger*')
+            os.system('rm ../cluster_extraction.walker')
             logger.info('Target '+str(cluster)+' has been extracted.')
         os.chdir('../')
         size = float(os.path.getsize(str(cluster))/1e+9) #get directory size in GB, delete if too small
