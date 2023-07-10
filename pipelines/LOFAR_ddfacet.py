@@ -58,7 +58,10 @@ if not os.path.exists('mss-dd'):
 MSs = lib_ms.AllMSs( glob.glob('mss-dd/TC*[0-9]-n[0-9].MS'), s )
        
 logger.info('Add columns...')
-MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+#MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+
+MSs.addcol('CORRECTED_DATA', 'DATA', log='$nameMS_addcol.log')
+MSs.addcol('SUBTRACTED_DATA', 'DATA', log='$nameMS_addcol.log')
 
 ##############################################################
 # setup initial model

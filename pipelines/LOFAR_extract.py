@@ -528,7 +528,8 @@ for p in close_pointings:
 
         # Remove corrupted data from CORRECTED_DATA
         logger.info('Add columns...')
-        MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i CORRECTED_DATA', log='$nameMS_addcol.log', commandType='python')
+        #MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i CORRECTED_DATA', log='$nameMS_addcol.log', commandType='python')
+        MSs.addcol('SUBTRACTED_DATA', 'CORRECTED_DATA', log='$nameMS_addcol.log')
         logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
                 log='$nameMS_subtract.log', commandType='general')
