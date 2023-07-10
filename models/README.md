@@ -8,3 +8,6 @@ The models are:
 * *A-Team_lowres.skymodel* : lowres skymodel for A-Team clipping in HBA in prefactor.
 
 For convenience, all models are also available in the compiled version.
+
+To re-create compiled version:
+% makesourcedb outtype="blob" format="<" in="xxx" out="xxx"
