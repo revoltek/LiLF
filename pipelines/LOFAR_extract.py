@@ -19,7 +19,6 @@ from pathlib import Path
 import warnings
 import pyrap.tables as pt
 from astropy.cosmology import FlatLambdaCDM
-from astropy.cosmology import FlatLambdaCDM
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 import colorama
 
@@ -238,7 +237,6 @@ parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_extract'])))
 parset_dir = parset.get('LOFAR_extract','parset_dir')
 maxniter = parset.getint('LOFAR_extract','max_niter')
-#target_reg_file = parset.get('LOFAR_extract','extract_region')  # default 'target.reg'
 subtract_reg_file = parset.get('LOFAR_extract','subtract_region')  # default None - use only if you want to subtract individual sources which are in extractReg
 phSolMode = parset.get('LOFAR_extract','ph_sol_mode')  # default: tecandphase
 ampSolMode = parset.get('LOFAR_extract', 'amp_sol_mode') # default: diagonal

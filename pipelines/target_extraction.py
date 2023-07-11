@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Pipeline for extraction of target region after LOFAR_dd-serial.
 # This pipeline will subtract sources outside of the region and
 # perform subsequent self-calibration.
@@ -37,7 +39,6 @@ def get_data(fname,colname):
     return data[colname]
 
 parser = argparse.ArgumentParser(description='Extraction of HETDEX LBA Clusters')
-parser.add_argument('-lp', '--lilfpath', dest='lilfpath', action='store', default='', type=str, help='Path where to look for LiLF.')
 parser.add_argument('-p', '--path', dest='path', action='store', default='', type=str, help='Path where to look for observations. It must lead to a directory where there are subdirectories containing /ddcal and /mss-avg derived from calibration.')
 parser.add_argument('-l', '--list', dest='cllist', action='store', default=None, type=str, help='Name of .fits file which lists Name, RA, DEC and z. Optionally an extraction region and a mask region can be added.')
 parser.add_argument('--radec', dest='radec', nargs='+', type=float, default=None, help='RA/DEC where to center the extraction in deg. Use if you wish to extract only one target.')
@@ -57,14 +58,9 @@ if cluster_list is None and coords is None:
     logger.error('Provide either a fits file (-l) with Name, RA, DEC, z, or RA and DEC (--radec) in deg.')
     sys.exit()
 
-pathlilf = args.lilfpath
 pathdir = args.path
 ztarget = args.redshift
 targetname = args.name
-
-if not pathlilf:
-    logger.error('Provide a path (-lp) where to look for LiLF.')
-    sys.exit()
 
 if not pathdir:
     logger.error('Provide a path (-p) where to look for LBA observations.')
@@ -122,7 +118,7 @@ if multiple == True:
                         logger.error('To specify a mask region, an extraction region must also be provided.')
                         break
             os.chdir(str(cluster))
-            cmd = f'{pathlilf}/LiLF/pipelines/LOFAR_extract.py -p ' + str(pathdir)
+            cmd = f'LOFAR_extract.py -p ' + str(pathdir)
             os.system(cmd)
             error_check = np.loadtxt('error_checker.txt')
             if error_check == 0:
@@ -151,7 +147,7 @@ else:
             writer = csv.writer(f, delimiter=" ", quoting=csv.QUOTE_NONE, escapechar=' ')
             writer.writerow([cl_z, cl_ra, cl_dec, cl_name])
         os.chdir(str(cluster))
-        cmd = f'{pathlilf}/LiLF/pipelines/LOFAR_extract.py -p ' + str(pathdir)
+        cmd = f'LOFAR_extract.py -p ' + str(pathdir)
         os.system(cmd)
         error_check = np.loadtxt('error_checker.txt')
         if error_check == 0:
