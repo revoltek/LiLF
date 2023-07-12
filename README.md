@@ -176,7 +176,7 @@ subtract_region: str [''] # # Sources inside extract-reg that should still be su
 
 ph_sol_mode: str [tecandphase] # mode to use for phase solutions, either 'tecandphase' (to reduce number of free parameters) or 'phase' (to allow for more accurate solutions)
 
-ph_sol_mode: str [diagonal] # mode to use for amplitude solutions, either 'diagonal' or 'fulljones'.
+amp_sol_mode: str [diagonal] # mode to use for amplitude solutions, either 'diagonal' or 'fulljones'.
 
 beam_cut: float [0.3] # at which beam value to stop considering fields for extraction
 
