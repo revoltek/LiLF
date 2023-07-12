@@ -352,35 +352,23 @@ if not os.path.exists('pointinglist.txt'):
                     continue
             else:
                 continue
-
-            #beam_cut = 0.15
             if beam_value > beam_cut**2: # square since Norm is sqrt(beam response)
-
                 close_pointings.append(str(pointing).split('/')[-1])
 
-    with open('pointinglist.txt', 'w') as f:
-        f.write('\n'.join(close_pointings))
+    if len(close_pointings): # only write if we find something
+        with open('pointinglist.txt', 'w') as f:
+            f.write('\n'.join(close_pointings))
 else:
     with open('pointinglist.txt', 'r') as f:
         close_pointings = f.readlines()
         close_pointings = [line.rstrip() for line in close_pointings]
 
-if os.path.exists('error_checker.txt'):
-    os.remove('error_checker.txt')
+if not len(close_pointings): # raise error if none are found!
+    logger.error(f'Did not find any pointing covering coordinates {ra}, {dec} with primary beam response > {beam_cut} in {pathdir}.')
+    logger.error(f'If this is somehow unexpected, check the path (-p) and coordinates and try again.')
+    logger.error(f'If you wish to force the extraction, you can lower the beam sensitivity threshold (default = 0.3) in lilf.config.')
+    sys.exit(1)
 
-with open('error_checker.txt', 'w') as g:
-    if len(close_pointings) == 0:
-        num=0
-        g.write(str(num))
-        sys.tracebacklimit = 0
-        error_msg = f"Did not find any pointing covering coordinates {ra}, {dec} with primary beam response > {beam_cut} in {str(pathdir)} ."
-        #print(f"{colorama.Fore.RED}{error_msg}{colorama.Style.RESET_ALL}")
-        raise ValueError(f"{colorama.Fore.RED}{error_msg}{colorama.Style.RESET_ALL}")
-        #raise ValueError(f"Did not find any pointing covering {ra}, {dec} with primary beam response > {beam_cut} in {str(pathdir)}")
-        sys.tracebacklimit = None
-    else:
-        num=1
-        g.write(str(num))
 print('')
 logger.info('The following pointings will be used:')
 print('')

@@ -11,7 +11,7 @@
 # A userReg may be specified as clean mask.
 # phSolMode can be used to solve either using phases or phaseandtec.
 
-import os, argparse, sys
+import os, argparse, sys, glob
 from LiLF import lib_util, lib_log
 import astropy.io.fits as pyfits
 import csv
@@ -67,17 +67,16 @@ if not pathdir:
     sys.exit()
 
 if cluster_list:
-    multiple = True
     cl_name = get_data(cluster_list,'Name')
     cl_ra = get_data(cluster_list,'RA')
     cl_dec = get_data(cluster_list,'DEC')
     cl_z = get_data(cluster_list, 'z')
 else:
-    multiple = False
-    cl_name = targetname
-    cl_ra = coords[0]
-    cl_dec = coords[1]
-    cl_z = ztarget
+    cl_name = [targetname]
+    cl_ra = [coords[0]]
+    cl_dec = [coords[1]]
+    cl_z = [ztarget]
+cl_failed = [] # this is a list of targets where extraction failed to print at the end
 
 try:
     cl_extractreg =  get_data(cluster_list,'EXTREG')
@@ -93,15 +92,18 @@ except:
     mreg=0
     pass
 
-if multiple == True:
-    for n, cluster in enumerate(cl_name):
-        print('')
-        with w.if_todo('Extraction object ' + str(cluster)):
-            if not os.path.exists(str(cluster)):
-                os.system('mkdir '+str(cluster))
-            os.system('cd '+str(cluster))
-            with open(str(cluster)+'/redshift_temp.txt', 'w') as f:
-                writer = csv.writer(f, delimiter=" ", quoting=csv.QUOTE_NONE, escapechar=' ')
+for n, cluster in enumerate(cl_name):
+    print('')
+    with w.if_todo(f'Extraction object {cluster}'):
+        if not os.path.exists(cluster):
+            os.system(f'mkdir {cluster}')
+        os.system(f'cd {cluster}')
+        with open(f'{cluster}/redshift_temp.txt', 'w') as f:
+            writer = csv.writer(f, delimiter=" ", quoting=csv.QUOTE_NONE, escapechar=' ')
+            if len(cl_name) == 1: # case if only one target to extract:
+                writer.writerow([cl_z, cl_ra, cl_dec, cl_name])
+            else: # case if multiple targets
+                # TODO: see if we can simplify the following lines here
                 if ext==1:
                     os.system(f'cp {cl_extractreg[n]} {cluster}')
                     cl_extractreg[n] = os.path.basename(cl_extractreg[n])
@@ -117,58 +119,35 @@ if multiple == True:
                         #writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n]], cl_maskreg[n])
                         logger.error('To specify a mask region, an extraction region must also be provided.')
                         break
-            os.chdir(str(cluster))
-            cmd = f'LOFAR_extract.py -p ' + str(pathdir)
-            os.system(cmd)
-            error_check = np.loadtxt('error_checker.txt')
-            if error_check == 0:
-                logger.error(f'Error: no observation covers object {str(cluster)} in path {str(pathdir)}.')
-                logger.error(f'If this is somehow unexpected, check the path (-p) and coordinates and try again.')
-                logger.error(f'If you wish to force the extraction, you can lower the beam sensitivity threshold (default = 0.3) in lilf.config.')
-                os.system(f'rm ../cluster_extraction.walker')
-                os.system('rm ../cluster_extraction.logger*')
-                os.system('rm -r ../logs_cluster_extraction.logger*')
-                sys.exit()
-            else:
-                os.system('rm -r ../logs_cluster_extraction.logger*')
-                os.system('rm ../cluster_extraction.logger*')
-                logger.info('Cluster '+str(cluster)+' has been extracted.')
-            os.chdir('../')
-            size = float(os.path.getsize(str(cluster))/1e+9) #get directory size in GB, delete if too small
-
-else:
-    print('')
-    cluster = cl_name
-    with w.if_todo('Extraction object ' + str(cluster)):
-        if not os.path.exists(str(cluster)):
-            os.system('mkdir '+str(cluster))
-        os.system('cd '+str(cluster))
-        with open(str(cluster)+'/redshift_temp.txt', 'w') as f:
-            writer = csv.writer(f, delimiter=" ", quoting=csv.QUOTE_NONE, escapechar=' ')
-            writer.writerow([cl_z, cl_ra, cl_dec, cl_name])
         os.chdir(str(cluster))
-        cmd = f'LOFAR_extract.py -p ' + str(pathdir)
-        os.system(cmd)
-        error_check = np.loadtxt('error_checker.txt')
-        if error_check == 0:
-            logger.error(f'Error: no observation covers object {str(cluster)} in path {str(pathdir)}, or the beam sensitivity at its position is too low.')
-            logger.error(f'If this is somehow unexpected, check the path (-p) and the coordinates and try again.')
-            logger.error(f'If you wish to force the extraction, you can lower the beam sensitivity threshold (default = 0.3) in lilf.config.')
-            os.system(f'rm ../cluster_extraction.walker')
-            os.system('rm ../cluster_extraction.logger*')
-            os.system('rm -r ../logs_cluster_extraction.logger*')
-            sys.exit()
-        else:
-            os.system('rm -r ../logs_cluster_extraction.logger*')
-            os.system('rm ../cluster_extraction.logger*')
-            os.system('rm ../cluster_extraction.walker')
-            logger.info('Target '+str(cluster)+' has been extracted.')
+        os.system(f'LOFAR_extract.py -p {pathdir}')
+        # check LOFAR_extract log if pipeline finished as expected
+        logfile = sorted(glob.glob('pipeline_extract_*.logger'))[-1]
+        with open(logfile, 'r') as f:
+            last_line = f.readlines()[-1]
+            if not "Done" in last_line:
+                logger.error(f'Something went wrong in the extraction of {cluster} - check the logfile {cluster}/{logfile}.')
+                cl_failed.append(cluster)
+                if (len(cl_name) > 1) and (n < len(cl_name) -1):
+                    logger.warning(f'Continuing with the next extraction target.')
+                # TODO: we do not want a failed extract to be written in the walker - check if this "continue" statement
+                # is enough to skip writing to the walker, otherwise we need to manually delete it.
+                continue
+            else:
+                logger.info(f'Cluster {cluster} has been extracted.')
         os.chdir('../')
         size = float(os.path.getsize(str(cluster))/1e+9) #get directory size in GB, delete if too small
 
 
-logger.info('Concluded. Extracted datasets are in the mss-extract directory of each target.')
-logger.info('A new column DIFFUSE_SUB has been added to each extracted .ms file.')
-logger.info('It contains the compact-source-subtracted visibilities.')
-logger.info('Nominal, high and source-subtracted low resolution images are in the /img directory of each target.')
+if len(cl_failed) < len(cl_name): # if all or some are successfull
+    logger.info('Concluded. Extracted datasets are in the mss-extract directory of each target.')
+    logger.info('A new column DIFFUSE_SUB has been added to each successfully extracted .ms file.')
+    logger.info('It contains the compact-source-subtracted visibilities.')
+    logger.info('Nominal, high and source-subtracted low resolution images are in the /img directory of each target.')
+else: # none worked :(
+    logger.error(f'Extraction of all target(s): {",".join(cl_failed)} failed')
+if (len(cl_failed) < len(cl_name)) and len(cl_failed): # case some but not all failed
+    logger.warning(f'Extraction of target(s): {",".join(cl_failed)} failed')
 
+os.system('rm -r logs_cluster_extraction.logger*') # directory not used in target_extract
+#os.system('rm cluster_extraction.logger*')
