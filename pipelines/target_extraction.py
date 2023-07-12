@@ -101,7 +101,7 @@ for n, cluster in enumerate(cl_name):
         with open(f'{cluster}/redshift_temp.txt', 'w') as f:
             writer = csv.writer(f, delimiter=" ", quoting=csv.QUOTE_NONE, escapechar=' ')
             if len(cl_name) == 1: # case if only one target to extract:
-                writer.writerow([cl_z, cl_ra, cl_dec, cl_name])
+                writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n]])
             else: # case if multiple targets
                 # TODO: see if we can simplify the following lines here
                 if ext==1:
@@ -122,7 +122,7 @@ for n, cluster in enumerate(cl_name):
         os.chdir(str(cluster))
         os.system(f'LOFAR_extract.py -p {pathdir}')
         # check LOFAR_extract log if pipeline finished as expected
-        logfile = sorted(glob.glob('pipeline_extract_*.logger'))[-1]
+        logfile = sorted(glob.glob('pipeline-extract_*.logger'))[-1]
         with open(logfile, 'r') as f:
             last_line = f.readlines()[-1]
             if not "Done" in last_line:
@@ -130,12 +130,11 @@ for n, cluster in enumerate(cl_name):
                 cl_failed.append(cluster)
                 if (len(cl_name) > 1) and (n < len(cl_name) -1):
                     logger.warning(f'Continuing with the next extraction target.')
-                # TODO: we do not want a failed extract to be written in the walker - check if this "continue" statement
-                # is enough to skip writing to the walker, otherwise we need to manually delete it.
-                continue
+                os.chdir('../')
+                raise lib_util.Skip
             else:
                 logger.info(f'Cluster {cluster} has been extracted.')
-        os.chdir('../')
+                os.chdir('../')
         size = float(os.path.getsize(str(cluster))/1e+9) #get directory size in GB, delete if too small
 
 
