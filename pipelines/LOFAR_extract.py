@@ -20,9 +20,7 @@ import warnings
 import pyrap.tables as pt
 from astropy.cosmology import FlatLambdaCDM
 from LiLF import lib_ms, lib_img, lib_util, lib_log
-import colorama
 
-colorama.init()
 
 cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
 
