@@ -508,10 +508,11 @@ class Region_helper():
     def __len__(self):
         return len(self.reg_list)
 
-
 class Skip(Exception):
     pass
 
+class Exit(Exception):
+    pass
 
 class Walker():
     """
@@ -570,6 +571,9 @@ class Walker():
         if issubclass(type, Skip):
             logger.warning('>> skip << {}'.format(self.__step__))
             return True  # Suppress special SkipWithBlock exception
+        if issubclass(type, Exit):
+            logger.error('<< exit << {}'.format(self.__step__))
+            return True
 
 class Scheduler():
     def __init__(self, qsub = None, maxThreads = None, max_processors = None, log_dir = 'logs', dry = False):

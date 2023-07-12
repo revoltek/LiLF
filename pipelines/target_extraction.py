@@ -131,7 +131,7 @@ for n, cluster in enumerate(cl_name):
                 if (len(cl_name) > 1) and (n < len(cl_name) -1):
                     logger.warning(f'Continuing with the next extraction target.')
                 os.chdir('../')
-                raise lib_util.Skip
+                raise lib_util.Exit
             else:
                 logger.info(f'Cluster {cluster} has been extracted.')
                 os.chdir('../')
