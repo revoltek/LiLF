@@ -82,11 +82,11 @@ has /example1/example2/myobs/ddcal, it will be [-p /example1/example2], and RA a
 Optionally one can add redshift [--z] and target name [--name].
 In this case you don't need to provide a .fits file through -l, which is necessary only for multiple extractions.
 The pipeline is able to process multiple pointings of the same target altogether: it will look in the path specified with -p for directories
-calibrated with LiLF (see previous steps), check if the provided coordinates are covered by that specific observation, and move on to the next ones.
+calibrated with LiLF (see previous steps), check if the input coordinates are covered by a specific observation, and move on to the next ones.
 All observations for which the beam sensitivity does not drop below 30% at the coordinates position will be used for the extraction. 
 The code will then create an extraction region based on the flux density within the same region (larger if low flux and vice-versa), 
 run the selfcalibration and produce images. Outputs will be stored in the /img subdirectory within the target directory, while extracted .MS files 
-can be found in the /mss-extract subdirectory. A final, nominal-resolution image will be produced, as well as high-resolution, 
+can be found in the /mss-extract subdirectory. A final, nominal-resolution image will be produced (extractM-final-MFS-image.fits), as well as high-resolution, 
 low-resolution and source-subtracted images. The source subtraction is still on beta version, please check it carefully before using the relative image.
 Specific passages can be repeated without re-running the whole extraction by deleting the relative entry from the pipeline-extract.walker 
 file within the target directory. 
