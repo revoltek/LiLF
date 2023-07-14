@@ -151,29 +151,6 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                                  fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3,
                                  baseline_averaging='', fits_mask=mask + '.mask.fits', **arg_dict)
 
-        elif fits_mask:
-            # clean 1
-            logger.info('Cleaning (' + str(p) + ')...')
-            imagename = 'img/extract-' + str(p)
-
-            lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
-                                 size=imsize, scale=str(pixscale) + 'arcsec',
-                                 weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
-                                 mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
-                                 data_column=datacol,
-                                 fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3,
-                                 baseline_averaging='', fits_mask=fitsmask, **arg_dict)
-
-            # # New mask method using Makemask.py
-            # mask = imagename + '-MFS-image.fits'
-            # try:
-            #     os.system(f'MakeMask.py --RestoredIm {mask} --Th 5 --Box 150,5')
-            #
-            # except:
-            #     logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
-            #     return
-            # lib_img.blank_image_reg(mask + '.mask.fits', userReg, inverse=False, blankval=1.)
-
         # clean 2
         # TODO: add deconvolution_channels when bug fixed
         if userReg:
@@ -184,6 +161,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             logger.info('Cleaning (' + str(p) + ')...')
         imagenameM = 'img/extractM-' + str(p)
         if apply_beam:
+            imsize[0] = imsize[1]
             arg_dict['use_idg'] = ''
             arg_dict['idg_mode'] = 'cpu'
             arg_dict['grid_with_beam'] = ''
@@ -194,8 +172,6 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                 arg_dict['reuse_psf'] = imagename
                 arg_dict['reuse_dirty'] = imagename
                 arg_dict['fits_mask'] = mask + '.mask.fits'
-            # elif fitsmask:
-            #     arg_dict['fits_mask'] = fitsmask
 
         if fitsmask:
             lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
@@ -239,7 +215,6 @@ subtract_reg_file = parset.get('LOFAR_extract','subtract_region')  # default Non
 phSolMode = parset.get('LOFAR_extract','ph_sol_mode')  # default: tecandphase
 ampSolMode = parset.get('LOFAR_extract', 'amp_sol_mode') # default: diagonal
 beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.3
-fits_mask = parset.get('LOFAR_extract','fits_mask')  # fits mask for cleaning
 no_selfcal = parset.getboolean('LOFAR_extract','no_selfcal')  # Only extract, no selfcal?
 userReg = parset.get('model','userReg')
 ampcal = parset.get('LOFAR_extract','ampcal')
@@ -255,9 +230,6 @@ if phSolMode not in ['tecandphase', 'phase']:
 if ampSolMode not in ['diagonal', 'fulljones']:
     logger.error('ampSolMode {} not supported. Choose diagonal, fulljones.')
     sys.exit()
-
-# if (not userReg) and (not fits_mask):
-#     raise ValueError("Cannot provide both userReg and fits mask at the same time.")
 
 
 ext_region_extent = 0.25 #deg. This is where we start to get pointings, then we can increase the radius depending on the flux density threshold.
@@ -468,7 +440,8 @@ for p in close_pointings:
     with w.if_todo('predict_rest_'+p):
 
         # Add mock MODEL column to avoid DDFacet overflow
-        MSs.addcol('MODEL_DATA', 'DATA', usedysco=False, log='$nameMS_addmodelcol.log')
+        #MSs.addcol('MODEL_DATA', 'DATA', usedysco=False, log='$nameMS_addmodelcol.log')
+        MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA', log='$nameMS_addmodelcol.log', commandType='python')
 
         # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
         indico = wideDD_image.root + '.DicoModel'
@@ -478,6 +451,7 @@ for p in close_pointings:
         lib_img.blank_image_reg(inmask, target_reg_file, outfile=outmask, inverse=False, blankval=0.)
         # if we have subtract reg, unmask that part again to predict+subtract it.
         if subtract_reg_file != '':
+            os.system(f'cp ../{subtract_reg_file} .')
             logger.info(f"Re-adding sources in subtract-region {subtract_reg_file} to subtraction model.")
             lib_img.blank_image_reg(outmask, subtract_reg_file, inverse=False, blankval=1.)
         s.add('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask, indico, outdico),
@@ -566,8 +540,6 @@ with w.if_todo('image_init'):
     logger.info('Initial imaging...')
     if userReg:
         clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg)
-    elif fitsmask:
-        clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, fitsmask=fitsmask)
     else:
         clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=do_beam)
 
@@ -731,13 +703,8 @@ for c in range(maxniter):
 
     with w.if_todo('image-c%02i' % c):
         logger.info('Imaging...')
-
         # if we have more than one close pointing, need to apply idg beam each iteration
-        if fitsmask:
-            clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg, fits_mask=fitsmask) # size 2 times radius  , apply_beam = c==maxniter
-        else:
-            clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg) # size 2 times radius  , apply_beam = c==maxniter
-
+        clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg) # size 2 times radius  , apply_beam = c==maxniter
 
     # get noise, if larger than 98% of prev cycle: break
     extract_image = lib_img.Image('img/extractM-c%02i-MFS-image.fits' % c, userReg=userReg)
@@ -814,14 +781,10 @@ with w.if_todo('final_apply'):
     else:
         logger.info('Best ieration: last cycle ({})'.format(best_iter))
 
+
 with w.if_todo('imaging_final'):
     logger.info('Final imaging w/ beam correction...')
-
-    if fitsmask is not None:
-        clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, fits_mask=fitsmask)# size 2 times radius  , apply_beam = c==maxniter
-    else:
-        clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg)# size 2 times radius  , apply_beam = c==maxniter
-
+    clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg)# size 2 times radius  , apply_beam = c==maxniter
 
 with w.if_todo('imaging_highres'):
      logger.info('Producing high resolution image...')

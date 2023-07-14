@@ -92,7 +92,6 @@ def getParset(parsetFile=''):
     add_default('LOFAR_extract', 'ph_sol_mode', 'phase') # tecandphase, phase
     add_default('LOFAR_extract', 'amp_sol_mode', 'diagonal') # diagonal, fulljones
     add_default('LOFAR_extract', 'beam_cut', '0.3') # up to which distance a pointing will be considered
-    add_default('LOFAR_extract', 'fits_mask', '') # use a fits mask for cleaning - needs to have same dimensions as output image, cannot be combined with userReg
     add_default('LOFAR_extract', 'no_selfcal', 'False') # just extract the data, do not perform selfcal - use this if u want to use e.g. Reinout van Weeren's facet_seflcal script
     # quality
     add_default('LOFAR_quality', 'self_dir', 'self')

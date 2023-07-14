@@ -36,6 +36,7 @@ def main(options):
             return
     cols = options.cols
     incol = options.incol
+    dysco = options.dysco
     
     t = pt.table(ms, readonly=False, ack=False)
 
@@ -46,16 +47,16 @@ def main(options):
                 # prepare col metadata
                 cd = t.getcoldesc('DATA')
                 coldmi = t.getdminfo('DATA')
-                if options.dysco:
+                if dysco:
                     cd['dataManagerType'] = 'DyscoStMan'
                     cd['dataManagerGroup'] = 'DyscoData'
                     coldmi = {'NAME': col,'SEQNR': 3,'SPEC': {'dataBitCount': 10,'distribution': 'TruncatedGaussian','distributionTruncation': 2.5,'normalization': 'AF','studentTNu': 0.0,'weightBitCount': 12},'TYPE': 'DyscoStMan'}
                 # not as performing as standard DATA
                 else:
                     coldmi["NAME"] = col
-                #    cd['dataManagerType'] = 'StandardStMan'
-                #    cd['dataManagerGroup'] = 'SSMVar'
-                #    coldmi = {'NAME': col,'SEQNR': 0,'SPEC': {'ActualCacheSize': 2,'BUCKETSIZE': 32768,'IndexLength': 799832,'PERSCACHESIZE': 2},'TYPE': 'StandardStMan'}
+                    cd['dataManagerType'] = 'StandardStMan'
+                    cd['dataManagerGroup'] = 'SSMVar'
+                    coldmi = {'NAME': col,'SEQNR': 0,'SPEC': {'ActualCacheSize': 2,'BUCKETSIZE': 32768,'IndexLength': 799832,'PERSCACHESIZE': 2},'TYPE': 'StandardStMan'}
 
                 cd['comment'] = 'Added by addcol2ms'
                 t.addcols(pt.makecoldesc(col, cd), coldmi)
