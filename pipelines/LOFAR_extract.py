@@ -508,7 +508,7 @@ do_beam = len(close_pointings) > 1 # if > 1 pointing, correct beam every cycle, 
 with w.if_todo('image_init'):
     logger.info('Initial imaging...')
     clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=do_beam,
-          userReg=userReg, datacol='DATA')
+          userReg=userReg)
 
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
 with w.if_todo('smooth'):
