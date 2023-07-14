@@ -22,9 +22,9 @@ from astropy.cosmology import FlatLambdaCDM
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 
 
+warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
 cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
 
-warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
 
 def get_ddf_parms_from_header(img):
     """
@@ -53,7 +53,6 @@ def get_ddf_parms_from_header(img):
 
 
 #######################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log
 logger_obj = lib_log.Logger('pipeline-extract')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
@@ -68,7 +67,7 @@ def enablePrint():
     sys.stdout = sys.__stdout__
 ################################
 
-def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False, do_predict=False, datacol='DATA', minuv=30, numiter=100000, fitsmask=None):
+def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False, datacol=None, minuv=30, numiter=100000, fits_mask=None):
 
     """
     p = patch name
@@ -76,6 +75,8 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
     size = in deg of the image
     """
     # set pixscale and imsize
+    if userReg and fits_mask:
+        raise ValueError('Cannot provide both fits_mask and UserReg.')
     pixscale = MSs.resolution
 
     if res == 'normal':
@@ -121,42 +122,32 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                              baseline_averaging='')
     else:
         arg_dict = dict()
+        if datacol:
+            arg_dict['data_column'] = datacol
         # in case userReg is provided -> shallow clean, mask, merge mask with userReg, deep clean with mask
         if userReg:
-            # clean 1
+            # clean 1 -- only if userReg
             logger.info('Cleaning (' + str(p) + ')...')
             imagename = 'img/extract-' + str(p)
 
             lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
                                  size=imsize, scale=str(pixscale) + 'arcsec',
                                  weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
-                                 mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='', data_column=datacol,
+                                 mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
                                  fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, baseline_averaging='',**arg_dict)
-
             # New mask method using Makemask.py
             mask = imagename + '-MFS-image.fits'
             try:
                 os.system(f'MakeMask.py --RestoredIm {mask} --Th 5 --Box 150,5')
-
             except:
                 logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
                 return
             lib_img.blank_image_reg(mask + '.mask.fits', userReg, inverse=False, blankval=1.)
 
-            lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
-                                 size=imsize, scale=str(pixscale) + 'arcsec',
-                                 weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
-                                 mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
-                                 data_column=datacol,
-                                 fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3,
-                                 baseline_averaging='', fits_mask=mask + '.mask.fits', **arg_dict)
-
         # clean 2
         # TODO: add deconvolution_channels when bug fixed
         if userReg:
             logger.info('Cleaning w/ mask (' + str(p) + ')...')
-        elif fitsmask is not None:
-            logger.info(f'Cleaning w/ user mask {fitsmask} ({p})...')
         else:
             logger.info('Cleaning (' + str(p) + ')...')
         imagenameM = 'img/extractM-' + str(p)
@@ -168,37 +159,21 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             arg_dict['beam_aterm_update'] = 800
         else:
             arg_dict['baseline_averaging'] = ''
-            if userReg:
-                arg_dict['reuse_psf'] = imagename
-                arg_dict['reuse_dirty'] = imagename
-                arg_dict['fits_mask'] = mask + '.mask.fits'
+        if userReg:
+            arg_dict['reuse_psf'] = imagename
+            arg_dict['reuse_dirty'] = imagename
+            arg_dict['fits_mask'] = mask + '.mask.fits'
+        if fits_mask:
+            arg_dict['fits_mask'] = mask
 
-        if fitsmask:
-            lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
-                             size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter, local_rms='',
+        lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM,
+                             do_predict=True,
+                             size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter,
                              no_update_model_required='', minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
                              parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
-                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, data_column=datacol, fits_mask=fitsmask,
-                             **arg_dict)  # , deconvolution_channels=3)
-
-        else:
-            lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM,
-                                 do_predict=True,
-                                 size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter,
-                                 local_rms='',
-                                 no_update_model_required='', minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
-                                 parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
-                                 join_channels='', fit_spectral_pol=3, channels_out=ch_out, data_column=datacol, **arg_dict)  # , deconvolution_channels=3)
+                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
 
         os.system('cat '+logger_obj.log_dir+'/wscleanB-' + str(p) + '.log | grep "background noise"')
-
-    if do_predict:
-        imagename= 'img/extract-forpredict'
-        lib_util.run_wsclean(s, 'wscleanS-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename, do_predict=True,
-                             size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=100000, local_rms='',
-                             no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
-                             parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
-                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, data_column=datacol, **arg_dict)
 
 
 parser = argparse.ArgumentParser(description='Extraction of targets of interest from LBA survey observations.')
@@ -285,7 +260,6 @@ if maskreg == 1:
 else:
     userReg = None
     fitsmask = None
-
 
 if extreg==1:
     target_reg_file = str(extreg_temp)
@@ -440,7 +414,8 @@ for p in close_pointings:
     with w.if_todo('predict_rest_'+p):
 
         # Add mock MODEL column to avoid DDFacet overflow
-        #MSs.addcol('MODEL_DATA', 'DATA', usedysco=False, log='$nameMS_addmodelcol.log')
+        # TODO: use MSs.addcol() to add MODEL_DATA w/o dysco?
+        # MSs.addcol('MODEL_DATA', 'DATA', usedysco=False, log='$nameMS_addmodelcol.log')
         MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA', log='$nameMS_addmodelcol.log', commandType='python')
 
         # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
@@ -538,10 +513,8 @@ MSs_extract = lib_ms.AllMSs(glob.glob('mss-extract/shiftavg/*.MS-extract'), s)
 do_beam = len(close_pointings) > 1 # if > 1 pointing, correct beam every cycle, otherwise only at the end.
 with w.if_todo('image_init'):
     logger.info('Initial imaging...')
-    if userReg:
-        clean('init', MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg)
-    else:
-        clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=do_beam)
+    clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=do_beam,
+          userReg=userReg, datacol='DATA')
 
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
 with w.if_todo('smooth'):
@@ -788,58 +761,29 @@ with w.if_todo('imaging_final'):
 
 with w.if_todo('imaging_highres'):
      logger.info('Producing high resolution image...')
-     clean('highres', MSs_extract, res='high', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, datacol='CORRECTED_DATA')
+     clean('highres', MSs_extract, res='high', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg)
 
 if sourcesub == 0:
-
+    logger.info('Do compact source subtraction + lowres imaging')
     with w.if_todo('find_compact_sources'):
-        clean('sub-highres', MSs_extract, res='ultrahigh', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), datacol='CORRECTED_DATA', userReg=userReg, minuv = minuv_forsub)
+        clean('sub-highres', MSs_extract, res='ultrahigh', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()),  userReg=userReg, minuv=minuv_forsub)
 
     with w.if_todo('produce_mask'):
-
         makemask='MakeMask.py'
         logger.info('Subtracting compact sources...')
         highimagename  = 'extractM-sub-highres-MFS-image.fits'
         os.system(f'MakeMask.py --RestoredIm img/{highimagename} --Th 3')
         fits_mask = highimagename + '.mask.fits'
         clean('compactmask', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), fitsmask='img/'+fits_mask,
-              do_predict=True, minuv = minuv_forsub, res='ultrahigh', datacol='CORRECTED_DATA')
+              minuv=minuv_forsub, res='ultrahigh')
 
     with w.if_todo('source_subtraction'):
         logger.info('Adding DIFFUSE_SUB column to datasets...')
-
-        mslist = MSs_extract.mssListStr
-
-        blockPrint()
-
-        outcolumn='DIFFUSE_SUB'
-        for ms in mslist:
-            ts  = pt.table(ms, readonly=False)
-            colnames = ts.colnames()
-            if outcolumn not in colnames:
-                desc = ts.getcoldesc('DATA')
-                desc['name']=outcolumn
-                ts.addcols(desc)
-                ts.close()
-            else:
-                ts.close()
-
-        for ms in mslist:
-            ts  = pt.table(ms, readonly=False)
-            colnames = ts.colnames()
-            if 'CORRECTED_DATA' in colnames:
-                data = ts.getcol('CORRECTED_DATA')
-            else:
-                data = ts.getcol('DATA')
-            model = ts.getcol('MODEL_DATA')
-            ts.putcol(outcolumn,data-model)
-            ts.close()
-
-        enablePrint()
+        MSs_extract.addcol('DIFFUSE_SUB', 'DATA', usedysco=True, log='$nameMS_adddiffsubcol.log')
+        MSs_extract.run('taql "update $pathMS set DIFFUSE_SUB=CORRECTED_DATA-MODEL_DATA"', log='$nameMS_hressubtract.log', commandType='general')
 
         logger.info('Final imaging with compact sources subtracted...')
-        clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg,
-              datacol='DIFFUSE_SUB', res='low')
+        clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, datatacol='DIFFUSE_SUB', res='low')
 
 os.system('rm redshift_temp.txt')
 logger.info('Done.')
