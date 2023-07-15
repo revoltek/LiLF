@@ -8,7 +8,7 @@
 # A userReg may be specified as clean mask.
 # phSolMode can be used to solve either using phases or phaseandtec.
 
-import sys, os, glob, re, argparse
+import sys, os, glob, argparse
 import numpy as np
 import lsmtool as lsm
 from astropy.io import fits
@@ -17,11 +17,15 @@ import astropy.wcs
 from losoto.h5parm import h5parm
 from pathlib import Path
 import warnings
-import pyrap.tables as pt
 from astropy.cosmology import FlatLambdaCDM
+
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 
-
+################################
+logger_obj = lib_log.Logger('pipeline-extract')
+logger = lib_log.logger
+s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
+w = lib_util.Walker('pipeline-extract.walker')
 warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
 cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
 
@@ -52,12 +56,6 @@ def get_ddf_parms_from_header(img):
     return params_dict
 
 
-#######################################################
-logger_obj = lib_log.Logger('pipeline-extract')
-logger = lib_log.logger
-s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
-w = lib_util.Walker('pipeline-extract.walker')
-
 ################################
 ##These two functions are to avoid excess printing from pyrap.tables.
 def blockPrint():
@@ -67,7 +65,7 @@ def enablePrint():
     sys.stdout = sys.__stdout__
 ################################
 
-def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False, datacol=None, minuv=30, numiter=100000, fitsmask=None):
+def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False, datacol=None, minuv=30, numiter=100000, fits_mask=None, update_model=True):
 
     """
     p = patch name
@@ -157,8 +155,14 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             arg_dict['idg_mode'] = 'cpu'
             arg_dict['grid_with_beam'] = ''
             arg_dict['beam_aterm_update'] = 800
+            if update_model:
+                arg_dict['update_model_required'] = ''
+            else:
+                arg_dict['no_update_model_required'] = ''
         else:
             arg_dict['baseline_averaging'] = ''
+            if update_model:
+                arg_dict['do_predict'] = True
         if userReg:
             arg_dict['reuse_psf'] = imagename
             arg_dict['reuse_dirty'] = imagename
@@ -167,7 +171,6 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             arg_dict['fits_mask'] = fitsmask
 
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM,
-                             do_predict=True,
                              size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter,
                              no_update_model_required='', minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
                              parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
@@ -513,8 +516,8 @@ MSs_extract = lib_ms.AllMSs(glob.glob('mss-extract/shiftavg/*.MS-extract'), s)
 do_beam = len(close_pointings) > 1 # if > 1 pointing, correct beam every cycle, otherwise only at the end.
 with w.if_todo('image_init'):
     logger.info('Initial imaging...')
-    clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=do_beam,
-          userReg=userReg, datacol='CORRECTED_DATA')
+    clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=do_beam, userReg=userReg, datacol='CORRECTED_DATA')
+
 
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
 with w.if_todo('smooth'):
@@ -761,18 +764,23 @@ with w.if_todo('imaging_final'):
 
 with w.if_todo('imaging_highres'):
      logger.info('Producing high resolution image...')
-     clean('highres', MSs_extract, res='high', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, datacol='CORRECTED_DATA')
+
+     clean('highres', MSs_extract, res='high', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg,
+           datacol='CORRECTED_DATA', update_model=False)
 
 if sourcesub == 0:
     logger.info('Do compact source subtraction + lowres imaging')
     with w.if_todo('find_compact_sources'):
-        clean('sub-highres', MSs_extract, res='ultrahigh', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()),  userReg=userReg, minuv=minuv_forsub, datacol='CORRECTED_DATA')
+
+        clean('sub-highres', MSs_extract, res='ultrahigh', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), userReg=userReg, minuv=minuv_forsub,
+              datacol='CORRECTED_DATA', update_model=False)
 
     with w.if_todo('produce_mask'):
         makemask='MakeMask.py'
         logger.info('Subtracting compact sources...')
         highimagename  = 'extractM-sub-highres-MFS-image.fits'
         os.system(f'MakeMask.py --RestoredIm img/{highimagename} --Th 3')
+
         fitsmask = highimagename + '.mask.fits'
         clean('compactmask', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), fitsmask='img/'+fitsmask,
               minuv=minuv_forsub, res='ultrahigh', datacol='CORRECTED_DATA')
@@ -783,7 +791,9 @@ if sourcesub == 0:
         MSs_extract.run('taql "update $pathMS set DIFFUSE_SUB=CORRECTED_DATA-MODEL_DATA"', log='$nameMS_hressubtract.log', commandType='general')
 
         logger.info('Final imaging with compact sources subtracted...')
-        clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, datacol='DIFFUSE_SUB', res='low')
+
+        clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, datacol='DIFFUSE_SUB', res='low', update_model=False)
+
 
 os.system('rm redshift_temp.txt')
 logger.info('Done.')
