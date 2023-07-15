@@ -67,7 +67,7 @@ def enablePrint():
     sys.stdout = sys.__stdout__
 ################################
 
-def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False, datacol=None, minuv=30, numiter=100000, fits_mask=None):
+def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False, datacol=None, minuv=30, numiter=100000, fitsmask=None):
 
     """
     p = patch name
@@ -163,8 +163,8 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             arg_dict['reuse_psf'] = imagename
             arg_dict['reuse_dirty'] = imagename
             arg_dict['fits_mask'] = mask + '.mask.fits'
-        if fits_mask:
-            arg_dict['fits_mask'] = mask
+        if fitsmask:
+            arg_dict['fits_mask'] = fitsmask
 
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM,
                              do_predict=True,
@@ -514,7 +514,7 @@ do_beam = len(close_pointings) > 1 # if > 1 pointing, correct beam every cycle, 
 with w.if_todo('image_init'):
     logger.info('Initial imaging...')
     clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=do_beam,
-          userReg=userReg, datacol='DATA')
+          userReg=userReg, datacol='CORRECTED_DATA')
 
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
 with w.if_todo('smooth'):
@@ -677,7 +677,7 @@ for c in range(maxniter):
     with w.if_todo('image-c%02i' % c):
         logger.info('Imaging...')
         # if we have more than one close pointing, need to apply idg beam each iteration
-        clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg) # size 2 times radius  , apply_beam = c==maxniter
+        clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg, datacol='CORRECTED_DATA') # size 2 times radius  , apply_beam = c==maxniter
 
     # get noise, if larger than 98% of prev cycle: break
     extract_image = lib_img.Image('img/extractM-c%02i-MFS-image.fits' % c, userReg=userReg)
@@ -757,25 +757,25 @@ with w.if_todo('final_apply'):
 
 with w.if_todo('imaging_final'):
     logger.info('Final imaging w/ beam correction...')
-    clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg)# size 2 times radius  , apply_beam = c==maxniter
+    clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, datacol='CORRECTED_DATA')# size 2 times radius  , apply_beam = c==maxniter
 
 with w.if_todo('imaging_highres'):
      logger.info('Producing high resolution image...')
-     clean('highres', MSs_extract, res='high', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg)
+     clean('highres', MSs_extract, res='high', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, datacol='CORRECTED_DATA')
 
 if sourcesub == 0:
     logger.info('Do compact source subtraction + lowres imaging')
     with w.if_todo('find_compact_sources'):
-        clean('sub-highres', MSs_extract, res='ultrahigh', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()),  userReg=userReg, minuv=minuv_forsub)
+        clean('sub-highres', MSs_extract, res='ultrahigh', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()),  userReg=userReg, minuv=minuv_forsub, datacol='CORRECTED_DATA')
 
     with w.if_todo('produce_mask'):
         makemask='MakeMask.py'
         logger.info('Subtracting compact sources...')
         highimagename  = 'extractM-sub-highres-MFS-image.fits'
         os.system(f'MakeMask.py --RestoredIm img/{highimagename} --Th 3')
-        fits_mask = highimagename + '.mask.fits'
-        clean('compactmask', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), fitsmask='img/'+fits_mask,
-              minuv=minuv_forsub, res='ultrahigh')
+        fitsmask = highimagename + '.mask.fits'
+        clean('compactmask', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), fitsmask='img/'+fitsmask,
+              minuv=minuv_forsub, res='ultrahigh', datacol='CORRECTED_DATA')
 
     with w.if_todo('source_subtraction'):
         logger.info('Adding DIFFUSE_SUB column to datasets...')
@@ -783,7 +783,7 @@ if sourcesub == 0:
         MSs_extract.run('taql "update $pathMS set DIFFUSE_SUB=CORRECTED_DATA-MODEL_DATA"', log='$nameMS_hressubtract.log', commandType='general')
 
         logger.info('Final imaging with compact sources subtracted...')
-        clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, datatacol='DIFFUSE_SUB', res='low')
+        clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, datacol='DIFFUSE_SUB', res='low')
 
 os.system('rm redshift_temp.txt')
 logger.info('Done.')
