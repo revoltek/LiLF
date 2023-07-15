@@ -779,7 +779,7 @@ if sourcesub == 0:
         MSs_extract.run('taql "update $pathMS set DIFFUSE_SUB=CORRECTED_DATA-MODEL_DATA"', log='$nameMS_hressubtract.log', commandType='general')
 
         logger.info('Final imaging with compact sources subtracted...')
-        clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, datatacol='DIFFUSE_SUB', res='low', update_model=False)
+        clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, datacol='DIFFUSE_SUB', res='low', update_model=False)
 
 os.system('rm redshift_temp.txt')
 logger.info('Done.')
