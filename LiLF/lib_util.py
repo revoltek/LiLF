@@ -87,17 +87,16 @@ def getParset(parsetFile=''):
     add_default('LOFAR_dd', 'target_dir', '') # ra,dec
     # extract
     add_default('LOFAR_extract', 'max_niter', '10')
-    add_default('LOFAR_extract', 'extract_region', 'target.reg')
     add_default('LOFAR_extract', 'subtract_region', '') # Sources inside extract-reg that should still be subtracted! Use this e.g. for individual problematic sources in a large extractReg
     add_default('LOFAR_extract', 'ph_sol_mode', 'phase') # tecandphase, phase
     add_default('LOFAR_extract', 'amp_sol_mode', 'diagonal') # diagonal, fulljones
     add_default('LOFAR_extract', 'beam_cut', '0.3') # up to which distance a pointing will be considered
     add_default('LOFAR_extract', 'no_selfcal', 'False') # just extract the data, do not perform selfcal - use this if u want to use e.g. Reinout van Weeren's facet_seflcal script
+    add_default('LOFAR_extract', 'ampcal', 'auto')
+    add_default('LOFAR_extract', 'extractRegion', 'target.reg')
     # quality
     add_default('LOFAR_quality', 'self_dir', 'self')
     add_default('LOFAR_quality', 'ddcal_dir', 'ddcal')
-    add_default('LOFAR_extract', 'ampcal', 'auto')
-    add_default('LOFAR_extract', 'extractRegion', 'target.reg')
     # virgo
     add_default('LOFAR_virgo', 'cal_dir', '')
     add_default('LOFAR_virgo', 'data_dir', './')

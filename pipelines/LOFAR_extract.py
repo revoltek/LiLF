@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 
 # Pipeline for extraction of target region after LOFAR_dd.
-# Provide a extractRegion in lilf.config. This pipeline will subtract
+# This pipeline will create an extraction region, subtract
 # sources outside of the region and perform subsequent self-calibration.
 # Multiple pointings can be used for extraction.
-# A userReg may be specified as clean mask.
-# phSolMode can be used to solve either using phases or phaseandtec.
+# Check README file for additional detail and parameters.
 
 import sys, os, glob, argparse
 import numpy as np
@@ -167,7 +166,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             arg_dict['reuse_psf'] = imagename
             arg_dict['reuse_dirty'] = imagename
             arg_dict['fits_mask'] = mask + '.mask.fits'
-        if fitsmask:
+        if fits_mask:
             arg_dict['fits_mask'] = fitsmask
 
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM,
@@ -245,24 +244,9 @@ dec = data_temp[2]
 cluster = clname_temp
 
 if maskreg == 1:
-    if str(mask_reg).endswith('.reg'):
-        userReg = str(mask_reg)
-        fitsmask = None
-    else:
-        userReg = None
-        fitsmask = str(mask_reg)
-        openmask = fits.open(fitsmask)
-        getheader = openmask[0].data
-        wcs = WCS(openmask[0].header)
-        naxis1 = openmask[0].header['NAXIS1']
-        naxis2 = openmask[0].header['NAXIS2']
-        pixtodeg1 =  openmask[0].header['CDELT1']
-        pixtodeg2 = openmask[0].header['CDELT2']
-        mask_width = round(naxis1*abs(pixtodeg1),2)
-        mask_height = round(naxis2 * abs(pixtodeg2),2)
+    userReg = str(mask_reg)
 else:
     userReg = None
-    fitsmask = None
 
 if extreg==1:
     target_reg_file = str(extreg_temp)
@@ -792,8 +776,8 @@ if sourcesub == 0:
 
         logger.info('Final imaging with compact sources subtracted...')
 
-        clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, datacol='DIFFUSE_SUB', res='low', update_model=False)
-
+        clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, datacol='DIFFUSE_SUB',
+              res='low', update_model=False)
 
 os.system('rm redshift_temp.txt')
 logger.info('Done.')
