@@ -100,25 +100,30 @@ for n, cluster in enumerate(cl_name):
         os.system(f'cd {cluster}')
         with open(f'{cluster}/redshift_temp.txt', 'w') as f:
             writer = csv.writer(f, delimiter=" ", quoting=csv.QUOTE_NONE, escapechar=' ')
-            if len(cl_name) == 1: # case if only one target to extract:
-                writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n]])
-            else: # case if multiple targets
-                # TODO: see if we can simplify the following lines here
-                if ext==1:
-                    os.system(f'cp {cl_extractreg[n]} {cluster}')
-                    cl_extractreg[n] = os.path.basename(cl_extractreg[n])
-                    if mreg==0:
-                        writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n], cl_extractreg[n]])
-                    else:
-                        os.system(f'cp {cl_maskreg[n]} {cluster}')
-                        writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n], cl_extractreg[n], cl_maskreg[n]])
+            #if len(cl_name) == 1: # case if only one target to extract:
+            if ext == 0:
+                if mreg == 1:
+                    logger.error('To specify a mask region, an extraction region must also be provided.')
+                    break
                 else:
-                    if mreg==0:
-                        writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n]])
-                    else:
-                        #writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n]], cl_maskreg[n])
-                        logger.error('To specify a mask region, an extraction region must also be provided.')
-                        break
+                    writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n]])
+            else:
+                # TODO: see if we can simplify the following lines here
+                #if ext==1:
+                os.system(f'cp {cl_extractreg[n]} {cluster}')
+                cl_extractreg[n] = os.path.basename(cl_extractreg[n])
+                if mreg==0:
+                    writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n], cl_extractreg[n]])
+                else:
+                    os.system(f'cp {cl_maskreg[n]} {cluster}')
+                    writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n], cl_extractreg[n], cl_maskreg[n]])
+                # else:
+                #     if mreg==0:
+                #         writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n]])
+                #     else:
+                #         #writer.writerow([cl_z[n], cl_ra[n], cl_dec[n], cl_name[n]], cl_maskreg[n])
+                #         logger.error('To specify a mask region, an extraction region must also be provided.')
+                #         break
         os.chdir(str(cluster))
         os.system(f'LOFAR_extract.py -p {pathdir}')
         # check LOFAR_extract log if pipeline finished as expected
