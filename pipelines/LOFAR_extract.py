@@ -768,7 +768,7 @@ with w.if_todo('final_apply'):
                 cor.parmdb=' + h5amp2 + ' cor.correction=amplitude000',
                     log='$nameMS_correct-final.log', commandType='DP3')
     else:
-        logger.info('Best ieration: last cycle ({})'.format(best_iter))
+        logger.info('Best iteration: last cycle ({})'.format(best_iter))
 
 
 with w.if_todo('imaging_final'):
