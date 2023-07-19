@@ -160,6 +160,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
                 arg_dict['no_update_model_required'] = ''
         else:
             arg_dict['baseline_averaging'] = ''
+            arg_dict['no_update_model_required'] = ''
             if update_model:
                 arg_dict['do_predict'] = True
         if userReg:
@@ -167,34 +168,61 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             arg_dict['reuse_dirty'] = imagename
             arg_dict['fits_mask'] = mask + '.mask.fits'
         if fits_mask:
-            arg_dict['fits_mask'] = fitsmask
+            arg_dict['fits_mask'] = fits_mask
 
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM,
                              size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter,
-                             no_update_model_required='', minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
+                             minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
                              parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
                              join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
 
         os.system('cat '+logger_obj.log_dir+'/wscleanB-' + str(p) + '.log | grep "background noise"')
 
 
-parser = argparse.ArgumentParser(description='Extraction of targets of interest from LBA survey observations.')
+parser = argparse.ArgumentParser(description='Extraction of targets of interest from LBA survey observations. Works through target_extraction.py')
 parser.add_argument('-p', '--path', dest='path', action='store', default='', type=str, help='Path where to look for observations.')
+parser.add_argument('--beamcut', dest='beamcut', type=float, default=0.3, help='Beam sensitivity threshold.')
+parser.add_argument('--noselfcal', dest='noselfcal', help='Do not perform selfcalibration.', action='store_true')
+parser.add_argument('--extreg', dest='extreg', action='store', default=None, type=str, help='Provide an extraction region.')
+parser.add_argument('--maskreg', dest='maskreg', action='store', default=None, type=str, help='Provide a user mask for cleaning.')
+parser.add_argument('--ampcal', dest='ampcal', action='store', default='auto', type=str, help='Perform amplitude calibration. Can be set to True, False or auto.')
+parser.add_argument('--ampsol', dest='ampsol', action='store', default='diagonal', type=str, help='How to solve for amplitudes. Can be set to diagonal or fulljones.')
+parser.add_argument('--phsol', dest='phsol', action='store', default='tecandphase', type=str, help='How to solve for phases. Can be set to tecandphase or phase.')
+parser.add_argument('--maxniter', dest='maxniter', type=int, default=10, help='Maximum number of selfcalibration cycles to perform.')
+parser.add_argument('--subreg', dest='subreg', action='store', default=None, type=str, help='Provide an optional mask for sources that need to be removed.')
 
 args = parser.parse_args()
 pathdir = args.path
+beam_cut = args.beamcut
+no_selfcal = args.noselfcal
+cl_extractreg = args.extreg
+userReg = args.maskreg
+ampcal = args.ampcal
+ampSolMode = args.ampsol
+phSolMode = args.phsol
+maxniter = args.maxniter
+subtract_reg_file = args.subreg
+
+logger.info(f'Beam sensitivity cut: {beam_cut}')
+if no_selfcal:
+    logger.info('No selfcal option is set. No selfcalibration will be performed..')
+logger.info(f'Amplitude calibration set to: {ampcal}.')
+logger.info(f'Type of amplitude solver: {ampSolMode}.')
+logger.info(f'Type of phase solver: {phSolMode}.')
+logger.info(f'Max number of selfcalibration cycles: {maxniter}')
+logger.info(f'Subtraction region set: {subtract_reg_file}.')
 
 parset = lib_util.getParset()
-logger.info('Parset: '+str(dict(parset['LOFAR_extract'])))
 parset_dir = parset.get('LOFAR_extract','parset_dir')
-maxniter = parset.getint('LOFAR_extract','max_niter')
-subtract_reg_file = parset.get('LOFAR_extract','subtract_region')  # default None - use only if you want to subtract individual sources which are in extractReg
-phSolMode = parset.get('LOFAR_extract','ph_sol_mode')  # default: tecandphase
-ampSolMode = parset.get('LOFAR_extract', 'amp_sol_mode') # default: diagonal
-beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.3
-no_selfcal = parset.getboolean('LOFAR_extract','no_selfcal')  # Only extract, no selfcal?
-userReg = parset.get('model','userReg')
-ampcal = parset.get('LOFAR_extract','ampcal')
+# logger.info('Parset: '+str(dict(parset['LOFAR_extract'])))
+# maxniter = parset.getint('LOFAR_extract','max_niter')
+# subtract_reg_file = parset.get('LOFAR_extract','subtract_region')  # default None - use only if you want to subtract individual sources which are in extractReg
+# phSolMode = parset.get('LOFAR_extract','ph_sol_mode')  # default: tecandphase
+# ampSolMode = parset.get('LOFAR_extract', 'amp_sol_mode') # default: diagonal
+# beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.3
+# no_selfcal = parset.getboolean('LOFAR_extract','no_selfcal')  # Only extract, no selfcal?
+# userReg = parset.get('model','userReg')
+# ampcal = parset.get('LOFAR_extract','ampcal')
 
 if ampcal.lower() not in ['false', 'true', 'auto']:
     logger.error('ampcal must be true, false or auto.')
@@ -258,7 +286,10 @@ else:
         os.remove('target.reg')
     with open('target.reg', 'w') as f:
         f.write(target)
-        target_reg_file = parset.get('LOFAR_extract','extractRegion')  # default 'target.reg'
+        target_reg_file = 'target.reg'
+
+if userReg:
+    logger.info("A mask for cleaning was provided.")
 
 target_reg = lib_util.Region_helper(target_reg_file)
 center = target_reg.get_center() # center of the extract region
@@ -293,6 +324,7 @@ else:
     with open('pointinglist.txt', 'r') as f:
         close_pointings = f.readlines()
         close_pointings = [line.rstrip() for line in close_pointings]
+
 
 if not len(close_pointings): # raise error if none are found!
     logger.error(f'Did not find any pointing covering coordinates {ra}, {dec} with primary beam response > {beam_cut} in {pathdir}.')
@@ -353,7 +385,7 @@ if extreg != 1:
                     os.remove('target.reg')
                 with open('target.reg', 'w') as f:
                     f.write(target)
-                target_reg_file = parset.get('LOFAR_extract', 'extractRegion')
+                target_reg_file = 'target.reg'
                 target_reg = lib_util.Region_helper(target_reg_file)
                 center = target_reg.get_center()  # center of the extract region
                 reg_flux = flux_check.calc_flux(image_tocheck, target_reg_file)
@@ -367,7 +399,7 @@ if extreg != 1:
                     os.remove('target.reg')
                 with open('target.reg', 'w') as f:
                     f.write(target)
-                target_reg_file = parset.get('LOFAR_extract', 'extractRegion')
+                target_reg_file = 'target.reg'
                 target_reg = lib_util.Region_helper(target_reg_file)
                 center = target_reg.get_center()  # center of the extract region
                 break
@@ -401,8 +433,6 @@ for p in close_pointings:
     with w.if_todo('predict_rest_'+p):
 
         # Add mock MODEL column to avoid DDFacet overflow
-        # TODO: use MSs.addcol() to add MODEL_DATA w/o dysco?
-        # MSs.addcol('MODEL_DATA', 'DATA', usedysco=False, log='$nameMS_addmodelcol.log')
         MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA', log='$nameMS_addmodelcol.log', commandType='python')
 
         # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
@@ -412,7 +442,7 @@ for p in close_pointings:
         outmask = outdico + '.mask'
         lib_img.blank_image_reg(inmask, target_reg_file, outfile=outmask, inverse=False, blankval=0.)
         # if we have subtract reg, unmask that part again to predict+subtract it.
-        if subtract_reg_file != '':
+        if subtract_reg_file != 'None':
             os.system(f'cp ../{subtract_reg_file} .')
             logger.info(f"Re-adding sources in subtract-region {subtract_reg_file} to subtraction model.")
             lib_img.blank_image_reg(outmask, subtract_reg_file, inverse=False, blankval=1.)
@@ -501,7 +531,6 @@ do_beam = len(close_pointings) > 1 # if > 1 pointing, correct beam every cycle, 
 with w.if_todo('image_init'):
     logger.info('Initial imaging...')
     clean('init', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=do_beam, userReg=userReg, datacol='CORRECTED_DATA')
-
 
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
 with w.if_todo('smooth'):
@@ -766,7 +795,7 @@ if sourcesub == 0:
         os.system(f'MakeMask.py --RestoredIm img/{highimagename} --Th 3')
 
         fitsmask = highimagename + '.mask.fits'
-        clean('compactmask', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), fitsmask='img/'+fitsmask,
+        clean('compactmask', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), fits_mask=f'img/{fitsmask}',
               minuv=minuv_forsub, res='ultrahigh', datacol='CORRECTED_DATA')
 
     with w.if_todo('source_subtraction'):
