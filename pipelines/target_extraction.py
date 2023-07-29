@@ -4,18 +4,11 @@
 # This pipeline will subtract sources outside of the region and
 # perform subsequent self-calibration.
 # It can work with multiple pointings.
-# An extraction region can be provided. If not,
-# an automatic region will be produced based on the amount of
-# flux around the source of interest.
-# Amplitude calibration can be forced, excluded or set to auto.
-# A userReg may be specified as clean mask.
-# phSolMode can be used to solve either using phases or phaseandtec.
 
 import os, argparse, sys, glob
 from LiLF import lib_util, lib_log
 import astropy.io.fits as pyfits
 import csv
-import numpy as np
 
 logger_obj = lib_log.Logger('cluster_extraction.logger')
 logger = lib_log.logger
@@ -142,7 +135,7 @@ cl_failed = [] # this is a list of targets where extraction failed to print at t
 
 for n, cluster in enumerate(cl_name):
     print('')
-    with w.if_todo(f'Extraction object {cluster}'):
+    with w.if_todo(f'Extraction target {cluster}'):
         if not os.path.exists(cluster):
             os.system(f'mkdir {cluster}')
         os.system(f'cd {cluster}')
@@ -202,7 +195,7 @@ for n, cluster in enumerate(cl_name):
                 os.chdir('../')
                 raise lib_util.Exit
             else:
-                logger.info(f'Cluster {cluster} has been extracted.')
+                logger.info(f'Target {cluster} has been extracted.')
                 os.chdir('../')
         size = float(os.path.getsize(str(cluster))/1e+9) #get directory size in GB, delete if too small
 

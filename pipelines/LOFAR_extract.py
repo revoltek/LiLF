@@ -329,7 +329,7 @@ else:
 if not len(close_pointings): # raise error if none are found!
     logger.error(f'Did not find any pointing covering coordinates {ra}, {dec} with primary beam response > {beam_cut} in {pathdir}.')
     logger.error(f'If this is somehow unexpected, check the path (-p) and coordinates and try again.')
-    logger.error(f'If you wish to force the extraction, you can lower the beam sensitivity threshold (default = 0.3) in lilf.config.')
+    logger.error(f'If you wish to force the extraction, you can lower the beam sensitivity threshold (default = 0.3).')
     sys.exit(1)
 
 print('')
