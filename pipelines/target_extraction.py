@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
-# Pipeline for extraction of target region after LOFAR_dd-serial.
+# Pipeline for extraction of target region after LOFAR_dd.
 # This pipeline will subtract sources outside of the region and
 # perform subsequent self-calibration.
 # It can work with multiple pointings.
+# Check README file for additional detail and parameters.
 
 import os, argparse, sys, glob
 from LiLF import lib_util, lib_log

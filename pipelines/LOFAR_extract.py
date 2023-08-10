@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# Pipeline for extraction of target region after LOFAR_dd.
-# This pipeline will create an extraction region, subtract
-# sources outside of the region and perform subsequent self-calibration.
-# Multiple pointings can be used for extraction.
-# Check README file for additional detail and parameters.
-
 import sys, os, glob, argparse
 import numpy as np
 import lsmtool as lsm
@@ -340,9 +334,9 @@ for name in close_pointings:
         logger.info(f'Pointing {name};')
 print('')
 
-#Compute minuv for source subtraction. Assume to subtract everything below 400 kpc?
+
 if sourcesub == 0:
-    sourceLLS=0.25 #Mpc. TODO Should this be tuned for each cluster? Not sure how..
+    sourceLLS=0.25 #Mpc.
     oneradinmpc = cosmo.angular_diameter_distance(z) / (360. / (2. * np.pi))
     scalebarlengthdeg = sourceLLS / oneradinmpc.value
     minuv_forsub = 1./(scalebarlengthdeg*np.pi/180.)
@@ -376,7 +370,6 @@ if extreg != 1:
 
         #LET IT CREATE THE EXT REGION
         while reg_flux < flux_thresh:
-            #logger.info('Flux too low, increasing extraction region radius...')
             ext_region_extent += 0.084 #We add 5 arcmin every cycle
             if ext_region_extent < 0.75:
                 param = 1
