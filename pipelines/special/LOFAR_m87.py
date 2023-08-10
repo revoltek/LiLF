@@ -220,8 +220,8 @@ for c in range(100):
             #        weight='briggs -0.2', niter=350, update_model_required='', mgain=0.5, \
             #        fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
             #        join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=channels_out) # use cont=True
-            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=6, minuv_l=30, \
-                    reorder='', parallel_reordering=4, use_wgridder='', size=1600, scale='1arcsec', padding=1.6, \
+            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=6, minuv_l=175, \
+                    reorder='', parallel_reordering=4, wgridder='wgridder', size=1600, scale='1arcsec', padding=1.6, \
                     weight='briggs -1', niter=1000000, nmiter=100, mgain=0.85, \
                     multiscale='', multiscale_scales='0,20,40,80,160,320', \
                     fits_mask='/home/baq1889/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', auto_threshold=1, \
