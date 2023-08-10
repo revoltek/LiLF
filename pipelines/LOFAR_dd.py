@@ -599,7 +599,6 @@ for cmaj in range(maxIter):
         elif cmaj >= 1:
             d.converged = True
             logger.info('%s: converged.' % d.name)
-            continue
         else:
             d.converged = True
             logger.info('%s: converged.' % d.name)

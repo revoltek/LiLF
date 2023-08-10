@@ -316,12 +316,12 @@ for cmaj in range(maxIter):
         logger.info('Set CORRECTED_DATA = DATA...')
         MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"',
                     log='$nameMS_taql.log', commandType='general')
-    ### DONE
 
         ### TESTTESTTEST: empty image
-        #if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-        #    clean('init', MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
+        if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
+            clean('init', MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
         ###
+    ### DONE
 
     for dnum, d in enumerate(directions):
 
@@ -571,7 +571,6 @@ for cmaj in range(maxIter):
         elif cmaj >= 1:
             d.converged = True
             logger.info('%s: converged.' % d.name)
-            continue
         else:
             d.converged = True
             logger.info('%s: converged.' % d.name)
@@ -598,19 +597,19 @@ for cmaj in range(maxIter):
             # Predict - ms:MODEL_DATA
             logger.info('Add best model to MODEL_DATA...')
             MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+model_skydb,
-                    log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
+                log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
 
             # Store FLAGS - just for sources to peel as they might be visible only for a fraction of the band
             if d.peel_off:
                 MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"',
                          log='$nameMS_taql.log', commandType='general')
-
+    
             # Corrput now model - ms:MODEL_DATA -> MODEL_DATA
             logger.info('Corrupt ph...')
             MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                         cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=phase000',
                         log='$nameMS_corruping'+logstring+'.log', commandType='DP3')
-
+    
             if not d.get_h5parm('amp1',-2) is None:
                 logger.info('Corrupt amp...')
                 MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
@@ -620,7 +619,7 @@ for cmaj in range(maxIter):
                 MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                        cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000',
                        log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
-
+    
             if not d.peel_off:
                 # Corrupt for the beam
                 logger.info('Corrupting beam...')
@@ -632,7 +631,7 @@ for cmaj in range(maxIter):
                 MSs.run('DP3 '+parset_dir+'/DP3-beam2.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA steps=corrbeam \
                        corrbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] corrbeam.beammode=element corrbeam.invert=True', \
                        log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
-
+    
             if d.peel_off:
                 # Set MODEL_DATA = 0 where data are flagged, then unflag everything
                 MSs.run('taql "update $pathMS set MODEL_DATA[FLAG] = 0"',
@@ -641,22 +640,22 @@ for cmaj in range(maxIter):
                 MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"',
                         log='$nameMS_taql.log', commandType='general')
 
+            # if it's a source to peel, remove it from the data column used for imaging
+            if d.peel_off:
+                logger.info('Source to peel: set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA')
+                MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
+                    log='$nameMS_taql.log', commandType='general')
+
             # Remove the ddcal again
             logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
             MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
                     log='$nameMS_taql.log', commandType='general')
 
-            # if it's a source to peel, remove it from the data column used for imaging
-            if d.peel_off:
-                logger.info('Source to peel: set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA')
-                MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
-                        log='$nameMS_taql.log', commandType='general')
-
         ### DONE
 
         ### TTESTTESTTEST: empty image
-        #if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
-        #    clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
+            clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
     #####################################################
