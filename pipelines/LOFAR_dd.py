@@ -327,10 +327,11 @@ for cmaj in range(maxIter):
 
         with w.if_todo('%s-predict' % logstring):
 
+            logger.info('Predict model...')
             if cmaj == 0:
                 # Predict - ms:MODEL_DATA
-                logger.info('Predict model...')
-                s.add('wsclean -predict -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' '+MSs.getStrWsclean(), \
+                s.add('wsclean -predict -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+                        -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                         log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
                 s.run(check=True)
     
@@ -625,7 +626,7 @@ for cmaj in range(maxIter):
             # Predict - ms:MODEL_DATA
             logger.info('Add best model to MODEL_DATA...')
             MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+model_skydb,
-                    log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
+                log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
 
             # Store FLAGS - just for sources to peel as they might be visible only for a fraction of the band
             if d.peel_off:
@@ -668,16 +669,16 @@ for cmaj in range(maxIter):
                 MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"',
                         log='$nameMS_taql.log', commandType='general')
 
-            # Remove the ddcal again
-            logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
-                    log='$nameMS_taql.log', commandType='general')
-
             # if it's a source to peel, remove it from the data column used for imaging
             if d.peel_off:
                 logger.info('Source to peel: set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA')
                 MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
-                        log='$nameMS_taql.log', commandType='general')
+                    log='$nameMS_taql.log', commandType='general')
+
+            # Remove the ddcal again
+            logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
 
         ### DONE
 
