@@ -11,10 +11,10 @@ from LiLF import lib_util, lib_log
 import astropy.io.fits as pyfits
 import csv
 
-logger_obj = lib_log.Logger('cluster_extraction.logger')
+logger_obj = lib_log.Logger('target_extraction.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
-w = lib_util.Walker('cluster_extraction.walker')
+w = lib_util.Walker('target_extraction.walker')
 
 print("""
 
@@ -28,7 +28,8 @@ print("""
 """)
 
 def get_data(fname,colname):
-    data=pyfits.open(fname)
+    data=pyfits.open(fname).
+
     data=data[1].data
     return data[colname]
 
@@ -198,7 +199,7 @@ for n, cluster in enumerate(cl_name):
             else:
                 logger.info(f'Target {cluster} has been extracted.')
                 os.chdir('../')
-        size = float(os.path.getsize(str(cluster))/1e+9) #get directory size in GB, delete if too small
+        size = float(os.path.getsize(str(cluster))/1e+9) #get directory size in GB, delete if too small?
 
 
 if len(cl_failed) < len(cl_name): # if all or some are successfull
@@ -211,5 +212,5 @@ else: # none worked :(
 if (len(cl_failed) < len(cl_name)) and len(cl_failed): # case some but not all failed
     logger.warning(f'Extraction of target(s): {",".join(cl_failed)} failed')
 
-os.system('rm -r logs_cluster_extraction.logger*') # directory not used in target_extract
+os.system('rm -r logs_target_extraction.logger*') # directory not used in target_extract
 #os.system('rm cluster_extraction.logger*')
