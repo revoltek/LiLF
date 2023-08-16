@@ -145,7 +145,7 @@ phase_center = MSs.getListObj()[0].getPhaseCentre()
 timeint = MSs.getListObj()[0].getTimeInt()
 ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 ch_out_idg = 12  # better 24, but slow
-imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
+imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 4.)
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 
@@ -172,6 +172,7 @@ for cmaj in range(maxIter):
     # cycle specific variables
     picklefile = 'ddcal/directions-c%02i.pickle' % cmaj
     interp_h5parm = 'ddcal/c%02i/solutions/interp.h5' % cmaj
+    interp_h5parm_old = 'ddcal/c%02i/solutions/interp.h5' % (cmaj-1)
     #aterm_config_file = 'ddcal/c%02i/aterm/aterm.config' % cmaj
     #mask_ddcal = full_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
     mask_ddcal = 'ddcal/c%02i/skymodels/mask-ddcal-c%02i.fits' % (cmaj, cmaj)  # this is used to find calibrators
@@ -247,7 +248,7 @@ for cmaj in range(maxIter):
             d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
             d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
             model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
-            for model_file in glob.glob(full_image.root+'*[0-9]-model.fits'):
+            for model_file in glob.glob(full_image.root+'*[0-9]-model.fits') + glob.glob(full_image.root+'*[0-9]-model-pb.fits'):
                 os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
             d.set_model(model_root, typ='init', apply_region=True)
 
@@ -287,32 +288,40 @@ for cmaj in range(maxIter):
     else:
         directions = pickle.load( open( picklefile, "rb" ) )
 
-    if cmaj == 0:
-        with w.if_todo('c%02i-fullpredict' % cmaj):
-            # wsclean predict
-            logger.info('Predict full model...')
-            if cmaj == 0:
-                s.add('wsclean -predict -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
-                        -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                        log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
-                s.run(check=True)
-        ### DONE
+    # do a full predict of the sky (if c>0, corrupted with solutions of prev cycle)
+    with w.if_todo('c%02i-fullpredict' % cmaj):
+        # wsclean predict
+        logger.info('Predict full model...')
+        if cmaj == 0:
+            s.add('wsclean -predict -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+                    -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
+                    log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
+            s.run(check=True)
+        else:
+            s.add('wsclean -predict -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+                    -apply-facet-beam -facet-beam-update 120 \
+                    -facet-regions '+full_image.root+'_facets.reg -diagonal-solutions \
+                    -apply-facet-solutions '+interp_h5parm_old+' amplitude000,phase000 \
+                    -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
+                    log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
+            s.run(check=True)
+    ### DONE
     
-        with w.if_todo('c%02i-fullsub' % cmaj):
-            # subtract - ms:SUBTRACTED_DATA = DATA - MODEL_DATA
-            logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"',
-                        log='$nameMS_taql.log', commandType='general')
-            # reset - ms:CORRECTED_DATA = DATA
-            logger.info('Set CORRECTED_DATA = DATA...')
-            MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"',
-                        log='$nameMS_taql.log', commandType='general')
-        ### DONE
+    with w.if_todo('c%02i-fullsub' % cmaj):
+        # subtract - ms:SUBTRACTED_DATA = DATA - MODEL_DATA
+        logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
+        # reset - ms:CORRECTED_DATA = DATA
+        logger.info('Set CORRECTED_DATA = DATA...')
+        MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"',
+                    log='$nameMS_taql.log', commandType='general')
 
         ### TESTTESTTEST: empty image
-        #if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-        #    clean('init', MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
+        if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
+            clean('init', MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
         ###
+    ### DONE
 
     for dnum, d in enumerate(directions):
 
@@ -334,62 +343,24 @@ for cmaj in range(maxIter):
                         -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                         log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
                 s.run(check=True)
-    
-                # Add back the model previously subtracted for this dd-cal
-                logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA...')
-                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA"',
-                        log='$nameMS_taql.log', commandType='general')
-    
             else:
-
-                # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
-                indico = full_image.root+'.DicoModel'
-                outdico = indico+'-'+d.name
-                inmask = sorted(glob.glob(full_image.root+'.mask*.fits'))[-1]
-                outmask = outdico+'.mask'
-                lib_img.blank_image_reg(inmask, d.get_region(), outfile=outmask, inverse=False, blankval=0.)
-                s.add('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask, indico, outdico),
-                       log='MaskDicoModel-'+logstring+'.log', commandType='python', processors='max')
+                # Predict - ms:MODEL_DATA
+                s.add('wsclean -predict -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+                    -apply-facet-beam -facet-beam-update 120 \
+                    -facet-regions '+full_image.root+'_facets.reg -diagonal-solutions \
+                    -apply-facet-solutions '+interp_h5parm_old+' amplitude000,phase000 \
+                    -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
+                    log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
                 s.run(check=True)
-
-                ddf_parms = {
-                    'Data_MS':MSs.getStrDDF(),
-                    'Data_ColName':'CORRECTED_DATA',
-                    'Data_Sort':1,
-                    'Output_Mode':'Predict',
-                    'Predict_InitDicoModel':outdico,
-                    'Predict_ColName':'MODEL_DATA',
-                    'Deconv_Mode':'SSD2',
-                    'Image_NPix':imgsizepix,
-                    'CF_wmax':50000,
-                    'CF_Nw':100,
-                    'Beam_CenterNorm':1,
-                    'Beam_Smooth':1,
-                    'Beam_Model':'LOFAR',
-                    'Beam_LOFARBeamMode':'A',
-                    'Beam_NBand':6,
-                    'Image_Cell':3.,
-                    'Freq_NDegridBand':ch_out,
-                    'Freq_NBand':ch_out,
-                    'Facets_DiamMax':1.5,
-                    'Facets_DiamMin':0.1,
-                    'Weight_ColName':'WEIGHT_SPECTRUM',
-                    'Comp_BDAMode':1,
-                    'DDESolutions_DDModeGrid':'AP',
-                    'DDESolutions_DDModeDeGrid':'AP',
-                    'DDESolutions_DDSols':interp_h5parm.replace('c%02i' % cmaj, 'c%02i' % (cmaj-1))+':sol000/'+correct_for
-                    }
-                logger.info('Predict corrupted rest-of-the-sky...')
-                lib_util.run_DDF(s, 'ddfacet-pre-'+logstring+'.log', **ddf_parms, Cache_Reset=1)
-
-                # Remove corrupted data from CORRECTED_DATA
-                logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
-                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
-                        log='$nameMS_taql.log', commandType='general')
-
+    
+            # Add back the model previously subtracted for this dd-cal
+            logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA...')
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
+    
             ### TTESTTESTTEST: empty image but with the DD cal
-            #if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
-            #    clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+            if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
+                clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
         ### DONE
 
@@ -632,13 +603,13 @@ for cmaj in range(maxIter):
             if d.peel_off:
                 MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"',
                          log='$nameMS_taql.log', commandType='general')
-
+    
             # Corrput now model - ms:MODEL_DATA -> MODEL_DATA
             logger.info('Corrupt ph...')
             MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                         cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=phase000',
                         log='$nameMS_corruping'+logstring+'.log', commandType='DP3')
-
+    
             if not d.get_h5parm('amp1',-2) is None:
                 logger.info('Corrupt amp...')
                 MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
@@ -648,7 +619,7 @@ for cmaj in range(maxIter):
                 MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                        cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000',
                        log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
-
+    
             if not d.peel_off:
                 # Corrupt for the beam
                 logger.info('Corrupting beam...')
@@ -660,7 +631,7 @@ for cmaj in range(maxIter):
                 MSs.run('DP3 '+parset_dir+'/DP3-beam2.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA steps=corrbeam \
                        corrbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] corrbeam.beammode=element corrbeam.invert=True', \
                        log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
-
+    
             if d.peel_off:
                 # Set MODEL_DATA = 0 where data are flagged, then unflag everything
                 MSs.run('taql "update $pathMS set MODEL_DATA[FLAG] = 0"',
@@ -683,8 +654,8 @@ for cmaj in range(maxIter):
         ### DONE
 
         ### TTESTTESTTEST: empty image
-        #if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
-        #    clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
+            clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
     #####################################################
@@ -781,98 +752,78 @@ for cmaj in range(maxIter):
         logger.info('Interpolating solutions...')
         s.add('H5parm_interpolator.py -o '+interp_h5parm+' '+' '.join(h5parms['ph']+h5parms['amp1']+h5parms['amp2']), log='h5parm_interpolator.log', commandType='python' )
         s.run()
-    # parameters for DDF widefield clean + predict
-    ddf_parms_common = {
-        'Data_MS': MSs.getStrDDF(),
-        'Data_Sort': 1,
-        'Weight_Robust': -0.5,
-        'Image_NPix': imgsizepix,
-        'Image_Cell': 3.,
-        'CF_wmax': 50000,
-        'Beam_CenterNorm': 1,
-        'Beam_Smooth': 1,
-        'Beam_Model': 'LOFAR',
-        'Beam_LOFARBeamMode': 'A',
-        'Beam_NBand': 6,
-        'Freq_NDegridBand': ch_out,
-        'Freq_NBand': ch_out,
-        'Facets_DiamMax': 1.5,
-        'Facets_DiamMin': 0.1,
-        'DDESolutions_DDSols': interp_h5parm + ':sol000/' + correct_for,
-    }
-    # params for clean
-    ddf_parms_clean = {
-        'Deconv_MaxMinorIter': 1000000,
-        'Deconv_RMSFactor': 0.0,
-        'GAClean_MaxMinorIterInitHMP': 1000000,
-        'GAClean_AllowNegativeInitHMP':1,
-        'GAClean_RMSFactorInitHMP':1.0,
-        'Output_Mode': 'Clean',
-        'Output_Also': 'onNedsR',
-        'Deconv_Mode': 'SSD2',
-        'SSD2_PolyFreqOrder': 2
-    }
+#    # parameters for DDF widefield clean + predict
+#    ddf_parms_common = {
+#        'Data_MS': MSs.getStrDDF(),
+#        'Data_Sort': 1,
+#        'Weight_Robust': -0.5,
+#        'Image_NPix': imgsizepix,
+#        'Image_Cell': 3.,
+#        'CF_wmax': 50000,
+#        'Beam_CenterNorm': 1,
+#        'Beam_Smooth': 1,
+#        'Beam_Model': 'LOFAR',
+#        'Beam_LOFARBeamMode': 'A',
+#        'Beam_NBand': 6,
+#        'Freq_NDegridBand': ch_out,
+#        'Freq_NBand': ch_out,
+#        'Facets_DiamMax': 1.5,
+#        'Facets_DiamMin': 0.1,
+#        'DDESolutions_DDSols': interp_h5parm + ':sol000/' + correct_for,
+#    }
+#    # params for clean
+#    ddf_parms_clean = {
+#        'Deconv_MaxMinorIter': 1000000,
+#        'Deconv_RMSFactor': 0.0,
+#        'GAClean_MaxMinorIterInitHMP': 1000000,
+#        'GAClean_AllowNegativeInitHMP':1,
+#        'GAClean_RMSFactorInitHMP':1.0,
+#        'Output_Mode': 'Clean',
+#        'Output_Also': 'onNedsR',
+#        'Deconv_Mode': 'SSD2',
+#        'SSD2_PolyFreqOrder': 2
+#    }
+
 
     with w.if_todo('c%02i-imaging' % cmaj):
+        logger.info('Cleaning...')
+
         if cmaj == 0:
-            # initial shallow clean to make a mask
-            logger.info('Cleaning (shallow)...')
-            lib_util.run_DDF(s, 'ddfacet-c'+str(cmaj)+'.log', **{**ddf_parms_common, **ddf_parms_clean},
-                Data_ColName='CORRECTED_DATA', # this is a default setting and could be removed
-                Deconv_MaxMajorIter=1,
-                Deconv_PeakFactor=0.02,
-                Cache_Reset=1,
-                Mask_Auto=1,
-                Mask_SigTh=5.0,
-                Output_RestoringBeam=15.,
-                Output_Name=imagename
-                )
-            #im = lib_img.Image(imagename+'.app.restored.fits', userReg=userReg)
-            #im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False)
-            #maskname = im.maskname
-            image4mask = imagename+'.app.restored.fits'
-            s.add('MakeMask.py --RestoredIm=%s --Th=4 --Box=150,15 --OutName=ddfmask' % image4mask, \
-                        log='makemask.log', commandType='python')
+            s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+' --h5 '+interp_h5parm+' --imsize '+str(imgsizepix)+' \
+                    --pixelscale 4 --writevoronoipoints --output '+imagename+'_facets.reg',
+                    log='facet_generator.log', commandType='python')
             s.run()
-            maskname = image4mask+'.ddfmask.fits'
+            lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
+                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
+                auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
+                multiscale='', multiscale_scale_bias=0.6, pol='i',
+                apply_facet_beam='', facet_beam_update=120, facet_regions=imagename+'_facets.reg', diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
+ 
         else:
-            # make mask from previous cycle (low res)
-#            maskname_ext = imagename+'.mask-ext.fits'
-#            im = lib_img.Image('ddcal/c%02i/images/wideDD-lres-c%02i.app.restored.fits' % (cmaj-1,cmaj-1), userReg=userReg)
-#            im.makeMask(threshpix=3, atrous_do=False, maskname=maskname_ext)
-            # make mask from previous cycle (high res) and combine with low res
-#            maskname = imagename+'.mask.fits'
-#            im = lib_img.Image('ddcal/c%02i/images/wideDD-c%02i.app.restored.fits' % (cmaj-1,cmaj-1), userReg=userReg)
-#            im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False, maskname=maskname, mask_combine=maskname_ext)
-#            im.makeMask(threshpix=4, rmsbox=(150, 15), atrous_do=False, maskname=maskname) # To remove when activating mask_ext
-            # DDF MakeMask.py
-            image4mask = 'ddcal/c%02i/images/wideDD-c%02i.app.restored.fits' % (cmaj-1,cmaj-1)
-            s.add('MakeMask.py --RestoredIm=%s --Th=4 --Box=150,15 --OutName=ddfmask' % image4mask, \
+            image4mask = 'ddcal/c%02i/images/wideDD-c%02i-MFS-image.fits' % (cmaj-1,cmaj-1)
+            s.add('MakeMask.py --RestoredIm=%s --Th=4 --Box=150,15 --OutName=mask' % image4mask, \
                         log='makemask.log', commandType='python')
             s.run()
-            maskname = image4mask+'.ddfmask.fits'
+            maskname = image4mask+'.mask.fits'
 
-            # additional output for final DDF call
-            ddf_parms_clean['Output_Cubes'] = 'iI' # this will also generate lowres-cubes - do we want this?
-            # ddf_parms_clean['Output_StokesResidues'] = 'I,V' # this could be used to get stokes V residual
+            s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+' --h5 '+interp_h5parm+' --imsize '+str(imgsizepix)+' \
+                    --pixelscale 4 --writevoronoipoints --output '+imagename+'_facets.reg',
+                    log='facet_generator.log', commandType='python')
+            s.run()
 
-        # if defined, add userReg to the mask
-        if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
+            # if defined, add userReg to the mask
+            if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
 
-        logger.info('Cleaning (deep)...')
-        lib_util.run_DDF(s, 'ddfacetM-c'+str(cmaj)+'.log', **{**ddf_parms_common, **ddf_parms_clean},
-                Data_ColName='CORRECTED_DATA', # This is a default setting and could be removed
-                Deconv_MaxMajorIter=3, # 3 for SSD, 10 for HMP
-                Deconv_PeakFactor=0.0, # 0 for SSD
-                Mask_External=maskname,
-                Cache_Reset=0, # This is a default setting and could be removed
-                Output_RestoringBeam=15.,
-                Output_Name=imagename
-                )
+            lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
+                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
+                auto_threshold=3.0, fits_mask=maskname, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
+                multiscale='', multiscale_scale_bias=0.6, pol='iv',
+                apply_facet_beam='', facet_beam_update=120, facet_regions=imagename+'_facets.reg', diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
+ 
         os.system('mv %s* ddcal/c%02i/images' % (imagename, cmaj))
     ### DONE
 
-    full_image = lib_img.Image('ddcal/c%02i/images/%s.app.restored.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
+    full_image = lib_img.Image('ddcal/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
     min_cal_flux60 *= 0.8  # go a bit deeper
 
 ##############################################################################################################
@@ -883,69 +834,69 @@ with w.if_todo('output-lres'):
     logger.info('Cleaning low-res...')
     # now make a low res and source subtracted map for masking extended sources
     logger.info('Predicting DD-corrupted...')
-    lib_util.run_DDF(s, 'ddfacet-pre-c' + str(cmaj) + '.log',
-                     Output_Mode='Predict',
-                     Predict_InitDicoModel='ddcal/c%02i/images/%s.DicoModel' % (cmaj, imagename.split('/')[-1]),
-                     Predict_ColName='MODEL_DATA',
-                     Deconv_Mode='SSD2',
-                     Cache_Reset=1,
-                     **ddf_parms_common
-                     )
+#    lib_util.run_DDF(s, 'ddfacet-pre-c' + str(cmaj) + '.log',
+#                     Output_Mode='Predict',
+#                     Predict_InitDicoModel='ddcal/c%02i/images/%s.DicoModel' % (cmaj, imagename.split('/')[-1]),
+#                     Predict_ColName='MODEL_DATA',
+#                     Deconv_Mode='SSD2',
+#                     Cache_Reset=1,
+#                     **ddf_parms_common
+#                     )
 
     logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
         log='$nameMS_taql.log', commandType='general')
     imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
     logger.info('Cleaning (low res)...')
-    lib_util.run_DDF(s, 'ddfacet-lres-c'+str(cmaj)+'.log', **{**ddf_parms_common, **ddf_parms_clean},
-        Data_ColName='SUBTRACTED_DATA',
-        Deconv_MaxMajorIter=3,
-        Deconv_PeakFactor=0.0, # 0 for SSD
-        Cache_Reset=1,
-        Mask_Auto=1,
-        Mask_SigTh=5.0,
-        Selection_UVRangeKm='0,20',
-        # This can be added instead of the hard uv-cut once the DDF branches are merged:
-        # Weight_EnableSigmoidTaper=1,
-        # Weight_SigmoidTaperOuterCutoff=3600,
-        Output_RestoringBeam=60.,
-        Output_Name=imagenameL
-        )
+#    lib_util.run_DDF(s, 'ddfacet-lres-c'+str(cmaj)+'.log', **{**ddf_parms_common, **ddf_parms_clean},
+#        Data_ColName='SUBTRACTED_DATA',
+#        Deconv_MaxMajorIter=3,
+#        Deconv_PeakFactor=0.0, # 0 for SSD
+#        Cache_Reset=1,
+#        Mask_Auto=1,
+#        Mask_SigTh=5.0,
+#        Selection_UVRangeKm='0,20',
+#        # This can be added instead of the hard uv-cut once the DDF branches are merged:
+#        # Weight_EnableSigmoidTaper=1,
+#        # Weight_SigmoidTaperOuterCutoff=3600,
+#        Output_RestoringBeam=60.,
+#        Output_Name=imagenameL
+#        )
     os.system('mv %s* ddcal/c%02i/images' % (imagenameL, cmaj))
 ### DONE
 
 with w.if_todo('output_stokesV'):
     logger.info('Cleaning Stokes V...')
     imagenameV = 'img/wideDD-V-c%02i' % (cmaj)
-    lib_util.run_DDF(s, 'ddfacet-v-c' + str(cmaj) + '.log',
-                     Data_MS=MSs.getStrDDF(),
-                     Data_ColName='CORRECTED_DATA',
-                     Data_Sort=1,
-                     Deconv_Mode='SSD',
-                     GAClean_AllowNegativeInitHMP=1,
-                     Output_Mode='Dirty',
-                     Weight_Robust=-0.5,
-                     Image_NPix=imgsizepix,
-                     CF_wmax=50000,
-                     CF_Nw=100,
-                     Beam_CenterNorm=1,
-                     Beam_Smooth=1,
-                     Beam_Model='LOFAR',
-                     Beam_LOFARBeamMode='A',
-                     Beam_NBand=6,
-                     Beam_DtBeamMin=5,
-                     Image_Cell=3.,
-                     Freq_NDegridBand=ch_out,
-                     Freq_NBand=ch_out,
-                     Facets_DiamMax=1.5,
-                     Facets_DiamMin=0.1,
-                     DDESolutions_DDSols=interp_h5parm + ':sol000/' + correct_for,
-                     Output_RestoringBeam=15.,
-                     Output_Also='DdSsR',
-                     Output_Name=imagenameV,
-                     RIME_PolMode='IV',
-                     Cache_Reset=1
-                     )
+#    lib_util.run_DDF(s, 'ddfacet-v-c' + str(cmaj) + '.log',
+#                     Data_MS=MSs.getStrDDF(),
+#                     Data_ColName='CORRECTED_DATA',
+#                     Data_Sort=1,
+#                     Deconv_Mode='SSD',
+#                     GAClean_AllowNegativeInitHMP=1,
+#                     Output_Mode='Dirty',
+#                     Weight_Robust=-0.5,
+#                     Image_NPix=imgsizepix,
+#                     CF_wmax=50000,
+#                     CF_Nw=100,
+#                     Beam_CenterNorm=1,
+#                     Beam_Smooth=1,
+#                     Beam_Model='LOFAR',
+#                     Beam_LOFARBeamMode='A',
+#                     Beam_NBand=6,
+#                     Beam_DtBeamMin=5,
+#                     Image_Cell=3.,
+#                     Freq_NDegridBand=ch_out,
+#                     Freq_NBand=ch_out,
+#                     Facets_DiamMax=1.5,
+#                     Facets_DiamMin=0.1,
+#                     DDESolutions_DDSols=interp_h5parm + ':sol000/' + correct_for,
+#                     Output_RestoringBeam=15.,
+#                     Output_Also='DdSsR',
+#                     Output_Name=imagenameV,
+#                     RIME_PolMode='IV',
+#                     Cache_Reset=1
+#                     )
     os.system('mv %s* ddcal/c%02i/images' % (imagenameV, cmaj))
 ### DONE
 
