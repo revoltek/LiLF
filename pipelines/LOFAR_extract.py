@@ -184,6 +184,7 @@ parser.add_argument('--ampsol', dest='ampsol', action='store', default='diagonal
 parser.add_argument('--phsol', dest='phsol', action='store', default='tecandphase', type=str, help='How to solve for phases. Can be set to tecandphase or phase.')
 parser.add_argument('--maxniter', dest='maxniter', type=int, default=10, help='Maximum number of selfcalibration cycles to perform.')
 parser.add_argument('--subreg', dest='subreg', action='store', default=None, type=str, help='Provide an optional mask for sources that need to be removed.')
+parser.add_argument('--idg', dest='idg', action='store', default='True', type=str, help='Use image domain gridding for beam correction. Set to False only in case of memory issues.')
 
 args = parser.parse_args()
 pathdir = args.path
@@ -196,6 +197,7 @@ ampSolMode = args.ampsol
 phSolMode = args.phsol
 maxniter = args.maxniter
 subtract_reg_file = args.subreg
+use_idg = args.idg
 
 logger.info(f'Beam sensitivity cut: {beam_cut}')
 if no_selfcal:
@@ -766,13 +768,17 @@ with w.if_todo('final_apply'):
 
 with w.if_todo('imaging_final'):
     logger.info('Final imaging w/ beam correction...')
-    clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, datacol='CORRECTED_DATA')# size 2 times radius  , apply_beam = c==maxniter
+    if use_idg == 'True':
+        clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, datacol='CORRECTED_DATA')# size 2 times radius  , apply_beam = c==maxniter
+    else:
+        clean('final', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), userReg=userReg, datacol='CORRECTED_DATA')  # size 2 times radius  , apply_beam = c==maxniter
 
 with w.if_todo('imaging_highres'):
      logger.info('Producing high resolution image...')
-
-     clean('highres', MSs_extract, res='high', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg,
-           datacol='CORRECTED_DATA', update_model=False)
+     if use_idg == 'True':
+        clean('highres', MSs_extract, res='high', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, userReg=userReg, datacol='CORRECTED_DATA', update_model=False)
+     else:
+         clean('highres', MSs_extract, res='high', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), userReg=userReg, datacol='CORRECTED_DATA', update_model=False)
 
 if sourcesub == 0:
     logger.info('Do compact source subtraction + lowres imaging')
@@ -798,7 +804,7 @@ if sourcesub == 0:
 
         logger.info('Final imaging with compact sources subtracted...')
 
-        clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), apply_beam=True, datacol='DIFFUSE_SUB',
+        clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), datacol='DIFFUSE_SUB',
               res='low', update_model=False)
 
 os.system('rm redshift_temp.txt')

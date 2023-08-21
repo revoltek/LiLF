@@ -11,10 +11,10 @@ from LiLF import lib_util, lib_log
 import astropy.io.fits as pyfits
 import csv
 
-logger_obj = lib_log.Logger('cluster_extraction.logger')
+logger_obj = lib_log.Logger('target_extraction.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
-w = lib_util.Walker('cluster_extraction.walker')
+w = lib_util.Walker('target_extraction.walker')
 
 print("""
 
@@ -47,6 +47,7 @@ parser.add_argument('--ampsol', dest='ampsol', action='store', default='diagonal
 parser.add_argument('--phsol', dest='phsol', action='store', default='tecandphase', type=str, help='How to solve for phases. Can be set to tecandphase or phase.')
 parser.add_argument('--maxniter', dest='maxniter', type=float, default=10, help='Maximum number of selfcalibration cycles to perform.')
 parser.add_argument('--subreg', dest='subreg', action='store', default=None, type=str, help='Provide an optional mask for sources that need to be removed.')
+parser.add_argument('--idg', dest='idg', action='store', default='True', type=str, help='Use image domain gridding for beam correction. Set to False only in case of memory issues.')
 
 args = parser.parse_args()
 
@@ -73,6 +74,7 @@ ampsol = args.ampsol
 phsol = args.phsol
 maxniter = args.maxniter
 subtract_reg_file = args.subreg
+use_idg = args.idg
 
 if not pathdir:
     logger.error('Provide a path (-p) where to look for LBA observations.')
@@ -181,9 +183,9 @@ for n, cluster in enumerate(cl_name):
 
         os.chdir(str(cluster))
         if no_selfcal:
-            os.system(f'LOFAR_extract.py -p {pathdir} --beamcut {beam_cut} --extreg {cl_extractreg} --maskreg {userReg} --ampcal {ampcal} --ampsol {ampsol} --phsol {phsol} --maxniter {maxniter} --subreg {subtract_reg_file} --no_selfcal')
+            os.system(f'LOFAR_extract.py -p {pathdir} --beamcut {beam_cut} --extreg {cl_extractreg} --maskreg {userReg} --ampcal {ampcal} --ampsol {ampsol} --phsol {phsol} --maxniter {maxniter} --subreg {subtract_reg_file} --idg {use_idg} --no_selfcal')
         else:
-            os.system(f'LOFAR_extract.py -p {pathdir} --beamcut {beam_cut} --extreg {cl_extractreg} --maskreg {userReg} --ampcal {ampcal} --ampsol {ampsol} --phsol {phsol} --maxniter {int(maxniter)} --subreg {subtract_reg_file}')
+            os.system(f'LOFAR_extract.py -p {pathdir} --beamcut {beam_cut} --extreg {cl_extractreg} --maskreg {userReg} --ampcal {ampcal} --ampsol {ampsol} --phsol {phsol} --maxniter {int(maxniter)} --idg {use_idg} --subreg {subtract_reg_file}')
         # check LOFAR_extract log if pipeline finished as expected
         logfile = sorted(glob.glob('pipeline-extract_*.logger'))[-1]
         with open(logfile, 'r') as f:
@@ -198,7 +200,7 @@ for n, cluster in enumerate(cl_name):
             else:
                 logger.info(f'Target {cluster} has been extracted.')
                 os.chdir('../')
-        size = float(os.path.getsize(str(cluster))/1e+9) #get directory size in GB, delete if too small
+        size = float(os.path.getsize(str(cluster))/1e+9) #get directory size in GB, delete if too small?
 
 
 if len(cl_failed) < len(cl_name): # if all or some are successfull
@@ -211,5 +213,5 @@ else: # none worked :(
 if (len(cl_failed) < len(cl_name)) and len(cl_failed): # case some but not all failed
     logger.warning(f'Extraction of target(s): {",".join(cl_failed)} failed')
 
-os.system('rm -r logs_cluster_extraction.logger*') # directory not used in target_extract
+os.system('rm -r logs_target_extraction.logger*') # directory not used in target_extract
 #os.system('rm cluster_extraction.logger*')
