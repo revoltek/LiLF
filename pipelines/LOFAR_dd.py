@@ -586,20 +586,21 @@ for cmaj in range(maxIter):
         ##################################
 
         # if divergency or died the first cycle, don't subtract
-        if cdd == 0:
+        if cdd == 0 or rms_noise_pre*0.98 > rms_noise_init:
             d.converged = False
-            logger.warning('%s: something went wrong during the first self-cal cycle in this direction.' % (d.name))
+            logger.warning('%s: something went wrong during the first self-cal cycle in this direction or noise did not decrease.' % (d.name))
             d.clean()
-            continue
-        elif rms_noise_pre*0.98 > rms_noise_init:
-            d.converged = False
-            logger.warning('%s: noise did not decresed (%f -> %f), do not further use this source.' % (d.name, rms_noise_init, rms_noise_pre))
-            d.clean()
+            if cmaj == 0:
+                # Remove the MODEL of the dd-cal that was added before
+                logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA...')
+                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
             continue
         # second cycle, no peeling
         elif cmaj >= 1:
             d.converged = True
             logger.info('%s: converged.' % d.name)
+            continue # not need to subtract the best model as DDF re-creates the SUBTRACTED_DATA each time
         else:
             d.converged = True
             logger.info('%s: converged.' % d.name)

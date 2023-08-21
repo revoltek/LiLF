@@ -556,21 +556,16 @@ for cmaj in range(maxIter):
         # End calibration cycle
         ##################################
 
-        # if divergency or died the first cycle, don't subtract
-        if cdd == 0:
+        # if died the first cycle or diverged
+        if cdd == 0 or rms_noise_pre*0.98 > rms_noise_init:
             d.converged = False
-            logger.warning('%s: something went wrong during the first self-cal cycle in this direction.' % (d.name))
+            logger.warning('%s: something went wrong during the first self-cal cycle or noise did not decrease.' % (d.name))
             d.clean()
-            continue
-        elif rms_noise_pre*0.98 > rms_noise_init:
-            d.converged = False
-            logger.warning('%s: noise did not decresed (%f -> %f), do not further use this source.' % (d.name, rms_noise_init, rms_noise_pre))
-            d.clean()
-            continue
-        # second cycle, no peeling
-        elif cmaj >= 1:
-            d.converged = True
-            logger.info('%s: converged.' % d.name)
+            # Remove the ddcal to clean up the SUBTRACTED_DATA
+            logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
+        # converged
         else:
             d.converged = True
             logger.info('%s: converged.' % d.name)
@@ -591,67 +586,66 @@ for cmaj in range(maxIter):
             s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (model_skymodel, model_skydb), log='makesourcedb_cl.log', commandType='general' )
             s.run()
 
-        # remove the DD-cal from original dataset using new solutions
-        with w.if_todo('%s-subtract' % logstring):
-
-            # Predict - ms:MODEL_DATA
-            logger.info('Add best model to MODEL_DATA...')
-            MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+model_skydb,
-                log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
-
-            # Store FLAGS - just for sources to peel as they might be visible only for a fraction of the band
-            if d.peel_off:
-                MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"',
-                         log='$nameMS_taql.log', commandType='general')
+            # remove the DD-cal from original dataset using new solutions
+            with w.if_todo('%s-subtract' % logstring):
     
-            # Corrput now model - ms:MODEL_DATA -> MODEL_DATA
-            logger.info('Corrupt ph...')
-            MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                        cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=phase000',
-                        log='$nameMS_corruping'+logstring+'.log', commandType='DP3')
+                # Predict - ms:MODEL_DATA
+                logger.info('Add best model to MODEL_DATA...')
+                MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+model_skydb,
+                    log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
     
-            if not d.get_h5parm('amp1',-2) is None:
-                logger.info('Corrupt amp...')
+                # Store FLAGS - just for sources to peel as they might be visible only for a fraction of the band
+                if d.peel_off:
+                    MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"',
+                             log='$nameMS_taql.log', commandType='general')
+        
+                # Corrput now model - ms:MODEL_DATA -> MODEL_DATA
+                logger.info('Corrupt ph...')
                 MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                       cor.invert=False cor.parmdb='+d.get_h5parm('amp1',-2)+' cor.correction=amplitude000',
-                       log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
-            if not d.get_h5parm('amp2',-2) is None:
-                MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                       cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000',
-                       log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
+                            cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=phase000',
+                            log='$nameMS_corruping'+logstring+'.log', commandType='DP3')
+        
+                if not d.get_h5parm('amp1',-2) is None:
+                    logger.info('Corrupt amp...')
+                    MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                           cor.invert=False cor.parmdb='+d.get_h5parm('amp1',-2)+' cor.correction=amplitude000',
+                           log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
+                if not d.get_h5parm('amp2',-2) is None:
+                    MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                           cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000',
+                           log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
+        
+                if not d.peel_off:
+                    # Corrupt for the beam
+                    logger.info('Corrupting beam...')
+                    # Convince DP3 that MODELDATA is corrected for the beam in the dd-cal direction, so I can corrupt
+                    MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                           setbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] \
+                           corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=False', \
+                           log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
+                    MSs.run('DP3 '+parset_dir+'/DP3-beam2.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA steps=corrbeam \
+                           corrbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] corrbeam.beammode=element corrbeam.invert=True', \
+                           log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
+        
+                if d.peel_off:
+                    # Set MODEL_DATA = 0 where data are flagged, then unflag everything
+                    MSs.run('taql "update $pathMS set MODEL_DATA[FLAG] = 0"',
+                            log='$nameMS_taql.log', commandType='general')
+                    # Restore of FLAGS
+                    MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"',
+                            log='$nameMS_taql.log', commandType='general')
     
-            if not d.peel_off:
-                # Corrupt for the beam
-                logger.info('Corrupting beam...')
-                # Convince DP3 that MODELDATA is corrected for the beam in the dd-cal direction, so I can corrupt
-                MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                       setbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] \
-                       corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=False', \
-                       log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
-                MSs.run('DP3 '+parset_dir+'/DP3-beam2.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA steps=corrbeam \
-                       corrbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] corrbeam.beammode=element corrbeam.invert=True', \
-                       log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
+                    # if it's a source to peel, remove it from the data column used for imaging
+                    logger.info('Source to peel: set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA')
+                    MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
+                        log='$nameMS_taql.log', commandType='general')
     
-            if d.peel_off:
-                # Set MODEL_DATA = 0 where data are flagged, then unflag everything
-                MSs.run('taql "update $pathMS set MODEL_DATA[FLAG] = 0"',
-                        log='$nameMS_taql.log', commandType='general')
-                # Restore of FLAGS
-                MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"',
+                # Remove the ddcal again
+                logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
+                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
                         log='$nameMS_taql.log', commandType='general')
 
-            # if it's a source to peel, remove it from the data column used for imaging
-            if d.peel_off:
-                logger.info('Source to peel: set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA')
-                MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
-                    log='$nameMS_taql.log', commandType='general')
-
-            # Remove the ddcal again
-            logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
-                    log='$nameMS_taql.log', commandType='general')
-
-        ### DONE
+            ### DONE
 
         ### TTESTTESTTEST: empty image
         if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
@@ -752,38 +746,6 @@ for cmaj in range(maxIter):
         logger.info('Interpolating solutions...')
         s.add('H5parm_interpolator.py -o '+interp_h5parm+' '+' '.join(h5parms['ph']+h5parms['amp1']+h5parms['amp2']), log='h5parm_interpolator.log', commandType='python' )
         s.run()
-#    # parameters for DDF widefield clean + predict
-#    ddf_parms_common = {
-#        'Data_MS': MSs.getStrDDF(),
-#        'Data_Sort': 1,
-#        'Weight_Robust': -0.5,
-#        'Image_NPix': imgsizepix,
-#        'Image_Cell': 3.,
-#        'CF_wmax': 50000,
-#        'Beam_CenterNorm': 1,
-#        'Beam_Smooth': 1,
-#        'Beam_Model': 'LOFAR',
-#        'Beam_LOFARBeamMode': 'A',
-#        'Beam_NBand': 6,
-#        'Freq_NDegridBand': ch_out,
-#        'Freq_NBand': ch_out,
-#        'Facets_DiamMax': 1.5,
-#        'Facets_DiamMin': 0.1,
-#        'DDESolutions_DDSols': interp_h5parm + ':sol000/' + correct_for,
-#    }
-#    # params for clean
-#    ddf_parms_clean = {
-#        'Deconv_MaxMinorIter': 1000000,
-#        'Deconv_RMSFactor': 0.0,
-#        'GAClean_MaxMinorIterInitHMP': 1000000,
-#        'GAClean_AllowNegativeInitHMP':1,
-#        'GAClean_RMSFactorInitHMP':1.0,
-#        'Output_Mode': 'Clean',
-#        'Output_Also': 'onNedsR',
-#        'Deconv_Mode': 'SSD2',
-#        'SSD2_PolyFreqOrder': 2
-#    }
-
 
     with w.if_todo('c%02i-imaging' % cmaj):
         logger.info('Cleaning...')
@@ -834,70 +796,26 @@ with w.if_todo('output-lres'):
     logger.info('Cleaning low-res...')
     # now make a low res and source subtracted map for masking extended sources
     logger.info('Predicting DD-corrupted...')
-#    lib_util.run_DDF(s, 'ddfacet-pre-c' + str(cmaj) + '.log',
-#                     Output_Mode='Predict',
-#                     Predict_InitDicoModel='ddcal/c%02i/images/%s.DicoModel' % (cmaj, imagename.split('/')[-1]),
-#                     Predict_ColName='MODEL_DATA',
-#                     Deconv_Mode='SSD2',
-#                     Cache_Reset=1,
-#                     **ddf_parms_common
-#                     )
+    s.add('wsclean -predict -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+                    -apply-facet-beam -facet-beam-update 120 \
+                    -facet-regions '+full_image.root+'_facets.reg -diagonal-solutions \
+                    -apply-facet-solutions '+interp_h5parm+' amplitude000,phase000 \
+                    -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
+                    log='wscleanPRE4LR-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
+    s.run(check=True)
 
     logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
         log='$nameMS_taql.log', commandType='general')
     imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
     logger.info('Cleaning (low res)...')
-#    lib_util.run_DDF(s, 'ddfacet-lres-c'+str(cmaj)+'.log', **{**ddf_parms_common, **ddf_parms_clean},
-#        Data_ColName='SUBTRACTED_DATA',
-#        Deconv_MaxMajorIter=3,
-#        Deconv_PeakFactor=0.0, # 0 for SSD
-#        Cache_Reset=1,
-#        Mask_Auto=1,
-#        Mask_SigTh=5.0,
-#        Selection_UVRangeKm='0,20',
-#        # This can be added instead of the hard uv-cut once the DDF branches are merged:
-#        # Weight_EnableSigmoidTaper=1,
-#        # Weight_SigmoidTaperOuterCutoff=3600,
-#        Output_RestoringBeam=60.,
-#        Output_Name=imagenameL
-#        )
+    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=int(imgsizepix/4), scale='12arcsec',
+                weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
+                auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
+                multiscale='', multiscale_scale_bias=0.6, pol='i', taper_gaussian='60srcsec',
+                apply_facet_beam='', facet_beam_update=120, facet_regions=imagename+'_facets.reg', diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
+ 
     os.system('mv %s* ddcal/c%02i/images' % (imagenameL, cmaj))
-### DONE
-
-with w.if_todo('output_stokesV'):
-    logger.info('Cleaning Stokes V...')
-    imagenameV = 'img/wideDD-V-c%02i' % (cmaj)
-#    lib_util.run_DDF(s, 'ddfacet-v-c' + str(cmaj) + '.log',
-#                     Data_MS=MSs.getStrDDF(),
-#                     Data_ColName='CORRECTED_DATA',
-#                     Data_Sort=1,
-#                     Deconv_Mode='SSD',
-#                     GAClean_AllowNegativeInitHMP=1,
-#                     Output_Mode='Dirty',
-#                     Weight_Robust=-0.5,
-#                     Image_NPix=imgsizepix,
-#                     CF_wmax=50000,
-#                     CF_Nw=100,
-#                     Beam_CenterNorm=1,
-#                     Beam_Smooth=1,
-#                     Beam_Model='LOFAR',
-#                     Beam_LOFARBeamMode='A',
-#                     Beam_NBand=6,
-#                     Beam_DtBeamMin=5,
-#                     Image_Cell=3.,
-#                     Freq_NDegridBand=ch_out,
-#                     Freq_NBand=ch_out,
-#                     Facets_DiamMax=1.5,
-#                     Facets_DiamMin=0.1,
-#                     DDESolutions_DDSols=interp_h5parm + ':sol000/' + correct_for,
-#                     Output_RestoringBeam=15.,
-#                     Output_Also='DdSsR',
-#                     Output_Name=imagenameV,
-#                     RIME_PolMode='IV',
-#                     Cache_Reset=1
-#                     )
-    os.system('mv %s* ddcal/c%02i/images' % (imagenameV, cmaj))
 ### DONE
 
 with w.if_todo('output_PB'):

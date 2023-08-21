@@ -60,20 +60,20 @@ def getParset(parsetFile=''):
     add_default('LOFAR_preprocess', 'keep_IS', 'False')
     add_default('LOFAR_preprocess', 'backup_full_res', 'False')
     # demix
-    add_default('LOFAR_demix', 'data_dir', './data-bkp/')
+    add_default('LOFAR_demix', 'data_dir', 'data-bkp/')
     add_default('LOFAR_demix', 'include_target', 'False')
     add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skymodel')
     # cal
-    add_default('LOFAR_cal', 'data_dir', './data-bkp/')
+    add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
     add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
     add_default('LOFAR_cal', 'imaging', 'False')
     # timesplit
-    add_default('LOFAR_timesplit', 'data_dir', './data-bkp/')
+    add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
     # quick-self
-    add_default('LOFAR_quick-self', 'data_dir', './data-bkp/')
+    add_default('LOFAR_quick-self', 'data_dir', 'data-bkp/')
     # dd-parallel - deprecated
     #add_default('LOFAR_dd-parallel', 'maxniter', '10')
     #add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
