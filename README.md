@@ -74,17 +74,17 @@ as the pipeline requires to open many files at the same time.
 
 Usage: python LiLF/pipelines/target_extraction.py -p [/path/to/observation] --radec [RA and DEC in deg]
 
-You can extract a target of interest to improve selfcalibration and try to get rid of ionospheric effects.
+You can extract a target of interest to improve selfcalibration and try to fix ionospheric effects.
 If you wish to extract only one target, simply run the command above indicating the path to the directory of
-the observation [-p], which must contain /ddcal and /mss-avg obtained from the calibration pipeline (e.g. if one
+the observation [-p], which must contain the subdirectories /ddcal and /mss-avg obtained from the calibration pipeline (e.g. if one
 has /example1/example2/myobs/ddcal, it will be [-p /example1/example2], and RA and DEC where to center the extraction (--radec). 
 Optionally one can add redshift [--z] and target name [--name].
 The pipeline is able to process multiple pointings of the same target altogether: it will look in the path specified with -p for directories
 calibrated with LiLF (see previous steps), check if the input coordinates are covered by a specific observation, and move on to the next ones.
-All observations for which the beam sensitivity does not drop below 30% at the coordinates position will be used for the extraction. 
-The code will then create an extraction region based on the flux density within the same region (larger if low flux and vice-versa), 
+All observations for which the beam sensitivity is above 30% at the coordinates position will be used for the extraction. 
+The code will then create an extraction region based on the flux density within a given area (larger if low flux and vice-versa), 
 run the selfcalibration and produce images. Outputs will be stored in the /img subdirectory within the target directory, while extracted .MS files 
-can be found in the /mss-extract subdirectory. A final, nominal-resolution image will be produced (extractM-final-MFS-image.fits), as well as high-resolution, 
+can be found in the /mss-extract subdirectory. A final, nominal-resolution image will be produced ('extractM-final-MFS-image.fits'), as well as high-resolution, 
 low-resolution and source-subtracted images. The source subtraction is still on beta version, please check it carefully before using the relative image.
 Multiple default parameters can be changed through the command line - see below for a brief description.
 
@@ -94,7 +94,7 @@ but the order can be different). Run the extraction script through:
 python LiLF/pipelines/target_extraction.py -p [/path/to/observation] --l [/path/to/fits/file]
 
 Coordinates must be in degrees, while the purpose of the name is just to create a subdirectory 
-in which all the results will be stored. Redshift is mandatory only if one wants to perform the subtraction of compact sources.
+in which all the results will be stored. Redshift is mandatory only if one wants to perform the subtraction of compact sources, otherwise just put -99.
 An optional column can also be added with the name EXTREG. This must be a .reg file that the pipeline uses as extraction region. The script is usually able to create a good one by itself, 
 use this option only if needed - always try a run without it first. 
 Another optional .reg file can be provided in a column named 'MASKREG'; the script will use it as cleaning mask.
