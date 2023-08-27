@@ -344,7 +344,7 @@ if sourcesub == 0:
     minuv_forsub = 1./(scalebarlengthdeg*np.pi/180.)
 
 with w.if_todo('cleaning'):
-    logger.info('Cleaning...')
+    logger.info('Cleaning and copying data...')
     lib_util.check_rm('extract')
     lib_util.check_rm('img')
     lib_util.check_rm('mss-extract/shiftavg')

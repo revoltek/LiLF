@@ -9,6 +9,7 @@ from scipy.ndimage.measurements import label
 from LiLF import make_mask, lib_util
 from LiLF.lib_log import logger
 import astropy.io.fits as fits
+import astropy.wcs as wcs
 
 class Image(object):
     def __init__(self, imagename, userReg = None, beamReg= None ):
