@@ -9,6 +9,7 @@ from scipy.ndimage.measurements import label
 from LiLF import make_mask, lib_util
 from LiLF.lib_log import logger
 import astropy.io.fits as fits
+import astropy.wcs as wcs
 
 class Image(object):
     def __init__(self, imagename, userReg = None, beamReg= None ):
@@ -34,24 +35,49 @@ class Image(object):
 
     def calc_flux(self, img, mask):
         """
-        Get flux inside given region
+        Get flux inside given region. Adapted from Martin Hardcastle's radiomap class
         """
 
         fitsfile = img
         extract = mask
 
-        hdu = fits.open(fitsfile)
-        image = lib_util.radiomap(hdu)
+        phdu = fits.open(fitsfile)
+        head, lhdu = flatten(phdu)
+        gfactor = 2.0 * np.sqrt(2.0 * np.log(2.0))
+        f = phdu[0]
+        prhd = phdu[0].header
+        units = prhd.get('BUNIT')
+        if units is None:
+            units = prhd.get('UNIT')
+        if units != 'JY/BEAM' and units != 'Jy/beam':
+            print('Warning: units are', units, 'but code expects JY/BEAM')
+        bmaj = prhd.get('BMAJ')
+        bmin = prhd.get('BMIN')
 
-        region = pyregion.open(extract).as_imagecoord(image.headers[0])
+        bmaj = np.abs(bmaj)
+        bmin = np.abs(bmin)
 
-        for i, d in enumerate(image.d):
-            mask = region.get_mask(hdu=image.f, shape=np.shape(d))
+        w = wcs.WCS(prhd)
+        cd1 = -w.wcs.cdelt[0]
+        cd2 = w.wcs.cdelt[1]
+        if ((cd1 - cd2) / cd1) > 1.0001 and ((bmaj - bmin) / bmin) > 1.0001:
+            print('Pixels are not square (%g, %g) and beam is elliptical' % (cd1, cd2))
+
+        bmaj /= cd1
+        bmin /= cd2
+        area = 2.0 * np.pi * (bmaj * bmin) / (gfactor * gfactor)
+
+        d = [lhdu]
+
+        region = pyregion.open(extract).as_imagecoord(prhd)
+
+        for i, n in enumerate(d):
+            mask = region.get_mask(hdu=f, shape=np.shape(n))
             data = np.extract(mask, d)
             nndata = data[~np.isnan(data)]
+            flux = np.sum(nndata) / area
 
-            flux = np.sum(nndata) / image.area
-            return flux
+        return flux
 
     def rescaleModel(self, funct_flux):
         """
