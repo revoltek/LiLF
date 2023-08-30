@@ -86,15 +86,24 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
                 join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
     
         # make mask
-        im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-        try:
-            im.makeMask(threshpix=10, rmsbox=(70, 5))
-        except:
-            logger.warning('Fail to create mask for %s.' % imagename+'-MFS-image.fits')
-            return
+        #im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
+        #try:
+        #    im.makeMask(threshpix=10, rmsbox=(70, 5))
+        #except:
+        #    logger.warning('Fail to create mask for %s.' % imagename+'-MFS-image.fits')
+        #    return
+        #if imagereg is not None:
+        #    lib_img.blank_image_reg(im.maskname, imagereg, inverse=True, blankval=0.,)
 
         if imagereg is not None:
-            lib_img.blank_image_reg(im.maskname, imagereg, inverse=True, blankval=0.,)
+            s.add('breizorro.py -t 6.5 -r %s -b 50 -o %s --merge %s' % (imagename+'-MFS-image.fits', imagename+'-mask.fits', imagereg), 
+                    log='makemask-'+str(p)+'.log', commandType='python' )
+            s.run()        
+        else:
+            s.add('breizorro.py -t 6.5 -r %s -b 50 -o %s' % (imagename+'-MFS-image.fits', imagename+'-mask.fits'), 
+                    log='makemask-'+str(p)+'.log', commandType='python' )
+            s.run()        
+
     
         # clean 2
         # TODO: add deconvolution_channels when bug fixed
@@ -397,7 +406,7 @@ for cmaj in range(maxIter):
         if not d.peel_off:
             with w.if_todo('%s-beamcorr' % logstring):
                 logger.info('Correcting beam...')
-                # Convince DP3 that DATA is corrected for the beam in the phase centre
+                # Convince DP3 that DATA is corrected for the beam in the phase centre and correct for the new direction
                 MSs_dir.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
                         setbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] \
                         corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=True',
@@ -561,10 +570,12 @@ for cmaj in range(maxIter):
             d.converged = False
             logger.warning('%s: something went wrong during the first self-cal cycle or noise did not decrease.' % (d.name))
             d.clean()
-            # Remove the ddcal to clean up the SUBTRACTED_DATA
-            logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
-                    log='$nameMS_taql.log', commandType='general')
+            with w.if_todo('%s-subtract' % logstring):
+                # Remove the ddcal to clean up the SUBTRACTED_DATA
+                logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
+                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
+                        log='$nameMS_taql.log', commandType='general')
+            ### DONE
         # converged
         else:
             d.converged = True
