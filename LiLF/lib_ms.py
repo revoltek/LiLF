@@ -152,17 +152,17 @@ class AllMSs(object):
         log: string, logfile name
         """
 
+        check=0
         for ms_file in self.mssListStr:
             with tables.table(ms_file, ack=False) as t:
                 if newcol in t.colnames() and overwrite==False:
                     logger.info(f'Column {newcol} already exists in {ms_file} and overwrite=False. Skipping..')
-                    check = True
                     continue
                 else:
-                    check=False
-                    pass
+                    check += 1
+                    break
 
-        if check == False:
+        if check != 0:
             sm = '' # storagemanager
             if usedysco == 'auto': # if col is dysco compressed in first MS, assume it is for all MSs
                 with tables.table(self.mssListStr[0], ack=False) as t:
