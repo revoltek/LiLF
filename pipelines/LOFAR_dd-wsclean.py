@@ -86,15 +86,6 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
                 join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
     
         # make mask
-        #im = lib_img.Image(imagename+'-MFS-image.fits', userReg=userReg)
-        #try:
-        #    im.makeMask(threshpix=10, rmsbox=(70, 5))
-        #except:
-        #    logger.warning('Fail to create mask for %s.' % imagename+'-MFS-image.fits')
-        #    return
-        #if imagereg is not None:
-        #    lib_img.blank_image_reg(im.maskname, imagereg, inverse=True, blankval=0.,)
-
         if imagereg is not None:
             s.add('breizorro.py -t 6.5 -r %s -b 50 -o %s --merge %s' % (imagename+'-MFS-image.fits', imagename+'-mask.fits', imagereg), 
                     log='makemask-'+str(p)+'.log', commandType='python' )
@@ -104,7 +95,6 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
                     log='makemask-'+str(p)+'.log', commandType='python' )
             s.run()        
 
-    
         # clean 2
         # TODO: add deconvolution_channels when bug fixed
         logger.info('Cleaning w/ mask ('+str(p)+')...')
@@ -113,7 +103,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
                 size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', reuse_psf=imagename, reuse_dirty=imagename,
                 weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', 
-                baseline_averaging='', local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=im.maskname,
+                baseline_averaging='', local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=imagename+'-mask.fits',
                 join_channels='', fit_spectral_pol=3, channels_out=ch_out)  #, deconvolution_channels=3)
 
         os.system('cat '+logger_obj.log_dir+'/wscleanB-'+str(p)+'.log | grep "background noise"')
@@ -158,17 +148,16 @@ imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 4.)
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 
-logger.info('Add columns...')
-# TODO using mix of ms.addcol and addcol2ms because ms.addcol does not work with non-data columns
-# MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
-# MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
-# MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
-
-MSs.addcol('CORRECTED_DATA', 'DATA', log='$nameMS_addcol.log')
-MSs.addcol('SUBTRACTED_DATA', 'DATA', log='$nameMS_addcol.log')
-MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
-MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
-
+with w.if_todo('add_columns'):
+    logger.info('Add columns...')
+    # TODO using mix of ms.addcol and addcol2ms because ms.addcol does not work with non-data columns
+    # MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+    # MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+    # MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
+    MSs.addcol('CORRECTED_DATA', 'DATA', log='$nameMS_addcol.log')
+    MSs.addcol('SUBTRACTED_DATA', 'DATA', log='$nameMS_addcol.log')
+    MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+    MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
 
 ##############################################################
 # setup initial model
@@ -328,7 +317,7 @@ for cmaj in range(maxIter):
 
         ### TESTTESTTEST: empty image
         if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-            clean('init', MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
+            clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
         ###
     ### DONE
 
@@ -634,7 +623,7 @@ for cmaj in range(maxIter):
                            setbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] \
                            corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=False', \
                            log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
-                    MSs.run('DP3 '+parset_dir+'/DP3-beam2.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA steps=corrbeam \
+                    MSs.run('DP3 '+parset_dir+'/DP3-beam2.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                            corrbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] corrbeam.beammode=element corrbeam.invert=True', \
                            log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
         
@@ -708,6 +697,7 @@ for cmaj in range(maxIter):
     MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
     
     imagename = 'img/wideDD-c%02i' % (cmaj)
+    maskname = imagename+'.mask.fits'
 
     # combine the h5parms
     h5parms = {'ph':[], 'amp1':[], 'amp2':[]}
@@ -760,37 +750,31 @@ for cmaj in range(maxIter):
 
     with w.if_todo('c%02i-imaging' % cmaj):
         logger.info('Cleaning...')
-
-        if cmaj == 0:
-            s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+' --h5 '+interp_h5parm+' --imsize '+str(imgsizepix)+' \
-                    --pixelscale 4 --writevoronoipoints --output '+imagename+'_facets.reg',
-                    log='facet_generator.log', commandType='python')
-            s.run()
-            lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
-                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
+        
+        s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+' --h5 '+interp_h5parm+' --imsize '+str(imgsizepix)+' \
+                --pixelscale 4 --writevoronoipoints --output '+imagename+'_facets.reg',
+                log='facet_generator.log', commandType='python')
+        s.run()
+ 
+        # update_model=True to make continue after masking
+        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
+                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
-                multiscale='', multiscale_scale_bias=0.6, pol='i',
+                multiscale='', multiscale_scale_bias=0.6, pol='i', nmiter=1,
                 apply_facet_beam='', facet_beam_update=120, facet_regions=imagename+'_facets.reg', diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
  
-        else:
-            image4mask = 'ddcal/c%02i/images/wideDD-c%02i-MFS-image.fits' % (cmaj-1,cmaj-1)
-            s.add('MakeMask.py --RestoredIm=%s --Th=4 --Box=150,15 --OutName=mask' % image4mask, \
-                        log='makemask.log', commandType='python')
-            s.run()
-            maskname = image4mask+'.mask.fits'
+        # masking
+        s.add('breizorro.py -t 6.5 -r %s -b 50 -o %s' % (imagename+'-MFS-image.fits', maskname), 
+                log='makemask-'+str(p)+'.log', commandType='python' )
+        s.run()        
 
-            s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+' --h5 '+interp_h5parm+' --imsize '+str(imgsizepix)+' \
-                    --pixelscale 4 --writevoronoipoints --output '+imagename+'_facets.reg',
-                    log='facet_generator.log', commandType='python')
-            s.run()
+        # if defined, add userReg to the mask
+        if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
 
-            # if defined, add userReg to the mask
-            if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
-
-            lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
+        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
                 weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
                 auto_threshold=3.0, fits_mask=maskname, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
-                multiscale='', multiscale_scale_bias=0.6, pol='iv',
+                multiscale='', multiscale_scale_bias=0.6, pol='i', cont=True,
                 apply_facet_beam='', facet_beam_update=120, facet_regions=imagename+'_facets.reg', diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
  
         os.system('mv %s* ddcal/c%02i/images' % (imagename, cmaj))
@@ -801,6 +785,17 @@ for cmaj in range(maxIter):
 
 ##############################################################################################################
 ### Calibration finished - additional images with scientific value
+
+with w.if_todo('output-vstokes'):
+    imagenameV = 'img/wideDD-v-c%02i' % (cmaj)
+    logger.info('Cleaning (V-stokes)...')
+    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
+                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
+                auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
+                pol='v')
+
+    os.system('mv %s*MFS*.fits ddcal/c%02i/images' % (imagenameV, cmaj))
+### DONE
 
 # TODO: the model to subtract should be done from a high-res image to remove only point sources
 with w.if_todo('output-lres'):
@@ -826,7 +821,7 @@ with w.if_todo('output-lres'):
                 multiscale='', multiscale_scale_bias=0.6, pol='i', taper_gaussian='60srcsec',
                 apply_facet_beam='', facet_beam_update=120, facet_regions=imagename+'_facets.reg', diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
  
-    os.system('mv %s* ddcal/c%02i/images' % (imagenameL, cmaj))
+    os.system('mv %s*MFS*.fits ddcal/c%02i/images' % (imagenameL, cmaj))
 ### DONE
 
 with w.if_todo('output_PB'):

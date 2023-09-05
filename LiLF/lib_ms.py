@@ -158,6 +158,7 @@ class AllMSs(object):
                     sm = 'dysco'
         elif usedysco:
             sm = 'dysco'
+
         self.run(f'DP3 msin=$pathMS msin.datacolumn={fromcol} msout=. msout.datacolumn={newcol} \
                  msout.storagemanager={sm} steps=[]', log=log, commandType="DP3")
 

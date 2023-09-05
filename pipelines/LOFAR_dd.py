@@ -149,16 +149,16 @@ imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 
-logger.info('Add columns...')
-# TODO using mix of ms.addcol and addcol2ms because ms.addcol does not work with non-data columns
-# MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
-# MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
-# MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
-
-MSs.addcol('CORRECTED_DATA', 'DATA', log='$nameMS_addcol.log')
-MSs.addcol('SUBTRACTED_DATA', 'DATA', log='$nameMS_addcol.log')
-MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
-MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
+with w.if_todo('add_columns'):
+    logger.info('Add columns...')
+    # TODO using mix of ms.addcol and addcol2ms because ms.addcol does not work with non-data columns
+    # MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+    # MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+    # MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
+    MSs.addcol('CORRECTED_DATA', 'DATA', log='$nameMS_addcol.log')
+    MSs.addcol('SUBTRACTED_DATA', 'DATA', log='$nameMS_addcol.log')
+    MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+    MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
 
 
 ##############################################################
