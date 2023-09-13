@@ -45,6 +45,7 @@ class AllMSs(object):
             else:
                 self.mssListObj.append(MS(pathMS))
 
+
         if len(self.mssListObj) == 0:
             raise('ALL MS files flagged.')
 
@@ -139,7 +140,7 @@ class AllMSs(object):
 
         self.scheduler.run(check = True, maxThreads = maxThreads)
 
-    def addcol(self, newcol, fromcol, usedysco='auto', log='$nameMS_addcol.log'):
+    def addcol(self, newcol, fromcol, usedysco='auto', log='$nameMS_addcol.log', overwrite=True):
         """
         # TODO: it might be that if col exists and is dysco, forcing no dysco will not work. Maybe force TiledColumnStMan in such cases?
         Use DP3 to add a new data column using values from an existing column.
@@ -150,15 +151,28 @@ class AllMSs(object):
         usedysco: bool or string, if bool: use dysco? if 'auto', use dysco if fromcol uses dysco.
         log: string, logfile name
         """
-        sm = '' # storagemanager
-        if usedysco == 'auto': # if col is dysco compressed in first MS, assume it is for all MSs
-            with tables.table(self.mssListStr[0], ack=False) as t:
-                if t.getdminfo(fromcol)['TYPE'] == 'DyscoStMan':
-                    sm = 'dysco'
-        elif usedysco:
-            sm = 'dysco'
-        self.run(f'DP3 msin=$pathMS msin.datacolumn={fromcol} msout=. msout.datacolumn={newcol} \
-                 msout.storagemanager={sm} steps=[]', log=log, commandType="DP3")
+
+        check=0
+        for ms_file in self.mssListStr:
+            with tables.table(ms_file, ack=False) as t:
+                if newcol in t.colnames() and overwrite==False:
+                    logger.info(f'Column {newcol} already exists in {ms_file} and overwrite=False. Skipping..')
+                    continue
+                else:
+                    check += 1
+                    break
+
+        if check != 0:
+            sm = '' # storagemanager
+            if usedysco == 'auto': # if col is dysco compressed in first MS, assume it is for all MSs
+                with tables.table(self.mssListStr[0], ack=False) as t:
+                    if t.getdminfo(fromcol)['TYPE'] == 'DyscoStMan':
+                        sm = 'dysco'
+            elif usedysco:
+                sm = 'dysco'
+
+            self.run(f'DP3 msin=$pathMS msin.datacolumn={fromcol} msout=. msout.datacolumn={newcol} \
+                     msout.storagemanager={sm} steps=[]', log=log, commandType="DP3")
 
     def print_HAcov(self, png=None):
         """
@@ -215,6 +229,7 @@ class MS(object):
                 #                nameFieldNew + "'...")
                 self.setNameField(nameFieldNew)
 
+
         telescope = self.getTelescope()
         if telescope == 'LOFAR':
             telescope_coords = EarthLocation(lat=52.90889*u.deg, lon=6.86889*u.deg, height=0*u.m)
@@ -222,7 +237,7 @@ class MS(object):
             telescope_coords = EarthLocation(lat=19.0948*u.deg, lon=74.0493*u.deg, height=0*u.m)
         else:
             raise('Unknown Telescope.')
- 
+
         time = np.mean(self.getTimeRange())
         time = Time( time/86400, format='mjd')
         time.delta_ut1_utc = 0. # no need to download precise table for leap seconds

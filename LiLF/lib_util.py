@@ -60,20 +60,20 @@ def getParset(parsetFile=''):
     add_default('LOFAR_preprocess', 'keep_IS', 'False')
     add_default('LOFAR_preprocess', 'backup_full_res', 'False')
     # demix
-    add_default('LOFAR_demix', 'data_dir', './data-bkp/')
+    add_default('LOFAR_demix', 'data_dir', 'data-bkp/')
     add_default('LOFAR_demix', 'include_target', 'False')
     add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skymodel')
     # cal
-    add_default('LOFAR_cal', 'data_dir', './data-bkp/')
+    add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
     add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
     add_default('LOFAR_cal', 'imaging', 'False')
     # timesplit
-    add_default('LOFAR_timesplit', 'data_dir', './data-bkp/')
+    add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
     # quick-self
-    add_default('LOFAR_quick-self', 'data_dir', './data-bkp/')
+    add_default('LOFAR_quick-self', 'data_dir', 'data-bkp/')
     # dd-parallel - deprecated
     #add_default('LOFAR_dd-parallel', 'maxniter', '10')
     #add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
@@ -84,13 +84,13 @@ def getParset(parsetFile=''):
     add_default('LOFAR_dd', 'target_dir', '') # ra,dec
     # extract
     add_default('LOFAR_extract', 'max_niter', '10')
-    add_default('LOFAR_extract', 'extract_region', 'target.reg')
     add_default('LOFAR_extract', 'subtract_region', '') # Sources inside extract-reg that should still be subtracted! Use this e.g. for individual problematic sources in a large extractReg
     add_default('LOFAR_extract', 'ph_sol_mode', 'phase') # tecandphase, phase
     add_default('LOFAR_extract', 'amp_sol_mode', 'diagonal') # diagonal, fulljones
     add_default('LOFAR_extract', 'beam_cut', '0.3') # up to which distance a pointing will be considered
-    add_default('LOFAR_extract', 'fits_mask', '') # use a fits mask for cleaning - needs to have same dimensions as output image, cannot be combined with userReg
     add_default('LOFAR_extract', 'no_selfcal', 'False') # just extract the data, do not perform selfcal - use this if u want to use e.g. Reinout van Weeren's facet_seflcal script
+    add_default('LOFAR_extract', 'ampcal', 'auto')
+    add_default('LOFAR_extract', 'extractRegion', 'target.reg')
     # quality
     add_default('LOFAR_quality', 'self_dir', 'self')
     add_default('LOFAR_quality', 'ddcal_dir', 'ddcal')
@@ -99,6 +99,9 @@ def getParset(parsetFile=''):
     add_default('LOFAR_virgo', 'data_dir', './')
     # m87
     add_default('LOFAR_m87', 'data_dir', './')
+    add_default('LOFAR_m87', 'updateweights', 'False')
+    add_default('LOFAR_m87', 'skipmodel', 'False')
+    add_default('LOFAR_m87', 'model_dir', '')
     # peel
     #add_default('LOFAR_peel', 'peelReg', 'peel.reg')
     #add_default('LOFAR_peel', 'predictReg', '')
@@ -122,7 +125,31 @@ def getParset(parsetFile=''):
     add_default('model', 'apparent', 'False')
     add_default('model', 'userReg', '')
 
+
     return config
+
+def create_extregion(ra, dec, extent):
+    """
+    Parameters
+    ----------
+    ra
+    dec
+    extent
+
+    Returns
+    -------
+    DS9 region centered on ra, dec with radius = extent
+    """
+
+    regtext = ['# Region file format: DS9 version 4.1']
+    regtext.append(
+        'global color=yellow dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1')
+    regtext.append('fk5')
+    regtext.append('circle(' + str(ra) + ',' + str(dec) + f',{extent})')
+    nline = '\n'
+    target = f"{nline}{nline.join(regtext)}"
+
+    return target
 
 
 def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithOnes = True, comment = "", verbose = False):
@@ -393,7 +420,7 @@ def run_DDF(s, logfile, **kwargs):
     ddf_parms = []
 
     # basic parms
-    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i ' % (s.max_processors) )
+    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i --Misc-IgnoreDeprecationMarking=1 ' % (s.max_processors) )
 
     # cache dir
     if not 'Cache_Dir' in list(kwargs.keys()):
@@ -476,10 +503,11 @@ class Region_helper():
     def __len__(self):
         return len(self.reg_list)
 
-
 class Skip(Exception):
     pass
 
+class Exit(Exception):
+    pass
 
 class Walker():
     """
@@ -538,6 +566,9 @@ class Walker():
         if issubclass(type, Skip):
             logger.warning('>> skip << {}'.format(self.__step__))
             return True  # Suppress special SkipWithBlock exception
+        if issubclass(type, Exit):
+            logger.error('<< exit << {}'.format(self.__step__))
+            return True
 
 class Scheduler():
     def __init__(self, qsub = None, maxThreads = None, max_processors = None, log_dir = 'logs', dry = False):
@@ -583,8 +614,10 @@ class Scheduler():
             self.max_processors = max_processors
 
         self.dry = dry
+
         logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname + " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
                      str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
+
 
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
@@ -780,3 +813,4 @@ class Scheduler():
             raise RuntimeError(commandType+' run problem on:\n'+out)
 
         return 0
+

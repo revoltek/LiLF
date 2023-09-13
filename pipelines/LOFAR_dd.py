@@ -149,10 +149,17 @@ imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 
-logger.info('Add columns...')
-MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
-MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
-MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
+with w.if_todo('add_columns'):
+    logger.info('Add columns...')
+    # TODO using mix of ms.addcol and addcol2ms because ms.addcol does not work with non-data columns
+    # MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+    # MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+    # MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
+    MSs.addcol('CORRECTED_DATA', 'DATA', log='$nameMS_addcol.log')
+    MSs.addcol('SUBTRACTED_DATA', 'DATA', log='$nameMS_addcol.log')
+    MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+    MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
+
 
 ##############################################################
 # setup initial model
@@ -320,10 +327,11 @@ for cmaj in range(maxIter):
 
         with w.if_todo('%s-predict' % logstring):
 
+            logger.info('Predict model...')
             if cmaj == 0:
                 # Predict - ms:MODEL_DATA
-                logger.info('Predict model...')
-                s.add('wsclean -predict -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' '+MSs.getStrWsclean(), \
+                s.add('wsclean -predict -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+                        -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                         log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
                 s.run(check=True)
     
@@ -578,21 +586,21 @@ for cmaj in range(maxIter):
         ##################################
 
         # if divergency or died the first cycle, don't subtract
-        if cdd == 0:
+        if cdd == 0 or rms_noise_pre*0.98 > rms_noise_init:
             d.converged = False
-            logger.warning('%s: something went wrong during the first self-cal cycle in this direction.' % (d.name))
+            logger.warning('%s: something went wrong during the first self-cal cycle in this direction or noise did not decrease.' % (d.name))
             d.clean()
-            continue
-        elif rms_noise_pre*0.98 > rms_noise_init:
-            d.converged = False
-            logger.warning('%s: noise did not decresed (%f -> %f), do not further use this source.' % (d.name, rms_noise_init, rms_noise_pre))
-            d.clean()
+            if cmaj == 0:
+                # Remove the MODEL of the dd-cal that was added before
+                logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA...')
+                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
             continue
         # second cycle, no peeling
         elif cmaj >= 1:
             d.converged = True
             logger.info('%s: converged.' % d.name)
-            continue
+            continue # not need to subtract the best model as DDF re-creates the SUBTRACTED_DATA each time
         else:
             d.converged = True
             logger.info('%s: converged.' % d.name)
@@ -619,7 +627,7 @@ for cmaj in range(maxIter):
             # Predict - ms:MODEL_DATA
             logger.info('Add best model to MODEL_DATA...')
             MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+model_skydb,
-                    log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
+                log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
 
             # Store FLAGS - just for sources to peel as they might be visible only for a fraction of the band
             if d.peel_off:
@@ -662,16 +670,16 @@ for cmaj in range(maxIter):
                 MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"',
                         log='$nameMS_taql.log', commandType='general')
 
-            # Remove the ddcal again
-            logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
-                    log='$nameMS_taql.log', commandType='general')
-
             # if it's a source to peel, remove it from the data column used for imaging
             if d.peel_off:
                 logger.info('Source to peel: set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA')
                 MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
-                        log='$nameMS_taql.log', commandType='general')
+                    log='$nameMS_taql.log', commandType='general')
+
+            # Remove the ddcal again
+            logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
 
         ### DONE
 
