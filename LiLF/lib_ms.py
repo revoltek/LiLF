@@ -140,7 +140,7 @@ class AllMSs(object):
 
         self.scheduler.run(check = True, maxThreads = maxThreads)
 
-    def addcol(self, newcol, fromcol, usedysco='auto', log='$nameMS_addcol.log'):
+    def addcol(self, newcol, fromcol, usedysco='auto', log='$nameMS_addcol.log', overwrite=True):
         """
         # TODO: it might be that if col exists and is dysco, forcing no dysco will not work. Maybe force TiledColumnStMan in such cases?
         Use DP3 to add a new data column using values from an existing column.
@@ -151,16 +151,28 @@ class AllMSs(object):
         usedysco: bool or string, if bool: use dysco? if 'auto', use dysco if fromcol uses dysco.
         log: string, logfile name
         """
-        sm = '' # storagemanager
-        if usedysco == 'auto': # if col is dysco compressed in first MS, assume it is for all MSs
-            with tables.table(self.mssListStr[0], ack=False) as t:
-                if t.getdminfo(fromcol)['TYPE'] == 'DyscoStMan':
-                    sm = 'dysco'
-        elif usedysco:
-            sm = 'dysco'
 
-        self.run(f'DP3 msin=$pathMS msin.datacolumn={fromcol} msout=. msout.datacolumn={newcol} \
-                 msout.storagemanager={sm} steps=[]', log=log, commandType="DP3")
+        check=0
+        for ms_file in self.mssListStr:
+            with tables.table(ms_file, ack=False) as t:
+                if newcol in t.colnames() and overwrite==False:
+                    logger.info(f'Column {newcol} already exists in {ms_file} and overwrite=False. Skipping..')
+                    continue
+                else:
+                    check += 1
+                    break
+
+        if check != 0:
+            sm = '' # storagemanager
+            if usedysco == 'auto': # if col is dysco compressed in first MS, assume it is for all MSs
+                with tables.table(self.mssListStr[0], ack=False) as t:
+                    if t.getdminfo(fromcol)['TYPE'] == 'DyscoStMan':
+                        sm = 'dysco'
+            elif usedysco:
+                sm = 'dysco'
+
+            self.run(f'DP3 msin=$pathMS msin.datacolumn={fromcol} msout=. msout.datacolumn={newcol} \
+                     msout.storagemanager={sm} steps=[]', log=log, commandType="DP3")
 
     def print_HAcov(self, png=None):
         """
