@@ -185,7 +185,7 @@ with w.if_todo('cal_bp'):
             log='$nameMS_solAMP.log', commandType="DP3")
 
     lib_util.run_losoto(s, 'amp', [ms+'/amp.h5' for ms in MSs.getListStr()],
-            [parset_dir + '/losoto-flag.parset', parset_dir+'/losoto-plot-amp.parset',
+             [parset_dir + '/losoto-flag.parset', parset_dir+'/losoto-plot-amp.parset',
              parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-bp.parset'])
 
 ### DONE

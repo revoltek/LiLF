@@ -17,7 +17,7 @@ def make_beam(mss, outfile='beam.fits', pixscale=10, size=5, nchans=1, keep=Fals
     mss_string = ' '.join(mss)
     size = size*3600/pixscale
     # niter=1 otherwise no beam is created
-    cmd = 'wsclean -j 64 -data-column DATA -parallel-reordering 4 -name __beam -use-idg -idg-mode cpu -channels-out %i \
+    cmd = 'wsclean -j 64 -data-column DATA -parallel-reordering 4 -name __beam -gridder idg -idg-mode cpu -channels-out %i \
             -grid-with-beam -use-differential-lofar-beam -beam-aterm-update 400 \
             -size %i %i -scale %farcsec -niter 1 -weight briggs 0 -no-update-model-required --no-dirty -pol I %s' \
             % (int(nchans), int(size), int(size), float(pixscale), mss_string)
@@ -26,10 +26,10 @@ def make_beam(mss, outfile='beam.fits', pixscale=10, size=5, nchans=1, keep=Fals
 
     if nchans == 1:
         print("Writing: "+outfile+'.fits')
-        os.system('mv __beam-beam-I.fits %s' % outfile+'.fits')
+        os.system('mv __beam-beam.fits %s' % outfile+'.fits')
     else:
         imagefiles = sorted(glob.glob('__beam-[0-9]*-image.fits'))
-        beamfiles = sorted(glob.glob('__beam-[0-9]*-beam-I.fits'))
+        beamfiles = sorted(glob.glob('__beam-[0-9]*-beam*.fits'))
 
         # get weight
         weights = []
@@ -55,7 +55,7 @@ def make_beam(mss, outfile='beam.fits', pixscale=10, size=5, nchans=1, keep=Fals
             for i, beamfile in enumerate(beamfiles):
                 os.system('mv %s %s-%04i.fits' % (beamfile, outfile, i))
 
-        os.system('rm __beam*')
+    os.system('rm __beam*')
 
 
 if __name__=='__main__':

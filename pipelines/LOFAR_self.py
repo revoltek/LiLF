@@ -305,7 +305,7 @@ for c in range(2):
         # when wasclean allow station selection, then we can remove MSsClean and this predict can go in the previous call with do_predict=True
         if c == 0:
             logger.info('Predict model...')
-            s.add('wsclean -predict -name img/wideM-'+str(c)+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(4e6))+' '+MSs.getStrWsclean(), \
+            s.add('wsclean -predict -padding 1.8 -name img/wideM-'+str(c)+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(4e6))+' '+MSs.getStrWsclean(), \
                    log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
             s.run(check=True)
     ### DONE
@@ -336,7 +336,7 @@ for c in range(2):
                     local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits',
                     join_channels='', channels_out=MSs.getChout(2.e6))
 
-            s.add('wsclean -predict -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(2e6))+' '+MSs.getStrWsclean(), \
+            s.add('wsclean -predict -padding 1.8 -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(2e6))+' '+MSs.getStrWsclean(), \
                   log='wscleanLR-PRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
             s.run(check=True)
         ### DONE
@@ -401,7 +401,7 @@ for c in range(2):
         with w.if_todo('lowres_predict_c%02i' % c):
             # Recreate MODEL_DATA for next calibration cycle
             logger.info('Predict model...')
-            s.add('wsclean -predict -name img/wideM-'+str(c)+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(4e6))+' '+MSs.getStrWsclean(), \
+            s.add('wsclean -predict -padding 1.8 -name img/wideM-'+str(c)+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(4e6))+' '+MSs.getStrWsclean(), \
                    log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
             s.run(check=True)
         ### DONE

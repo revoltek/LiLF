@@ -27,7 +27,7 @@ parset_dir = parset.get('LOFAR_dd','parset_dir')
 userReg = parset.get('model','userReg')
 maxIter = parset.getint('LOFAR_dd','maxIter')
 min_cal_flux60 = parset.getfloat('LOFAR_dd','minCalFlux60')
-target_dir = parset.get('LOFAR_dd','target_dir')
+#target_dir = parset.get('LOFAR_dd','target_dir')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
     """
@@ -235,22 +235,20 @@ for cmaj in range(maxIter):
             if d.get_flux(60e6) < min_cal_flux60:
                 logger.debug("%s: flux density @ 60 MHz: %.1f mJy (skip)" % (name, 1e3 * d.get_flux(60e6)))
                 cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
-                continue
             else:
                 logger.debug("%s: flux density @ 60 MHz: %.1f mJy (good)" % (name, 1e3 * d.get_flux(60e6)))
-
-            #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,freq_mid,size,img_beam,lsm.getColValues('MajorAxis')[idx])
-            ra = np.mean(cal['RA'][cluster_idxs])
-            dec = np.mean(cal['DEC'][cluster_idxs])
-            d.set_position([ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center)
-            d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
-            d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
-            model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
-            for model_file in glob.glob(full_image.root+'*[0-9]-model.fits') + glob.glob(full_image.root+'*[0-9]-model-pb.fits'):
-                os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
-            d.set_model(model_root, typ='init', apply_region=True)
-
-            directions.append(d)
+                #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,freq_mid,size,img_beam,lsm.getColValues('MajorAxis')[idx])
+                ra = np.mean(cal['RA'][cluster_idxs])
+                dec = np.mean(cal['DEC'][cluster_idxs])
+                d.set_position([ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center)
+                d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
+                d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
+                model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
+                for model_file in glob.glob(full_image.root+'*[0-9]-model.fits') + glob.glob(full_image.root+'*[0-9]-model-pb.fits'):
+                    os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
+                d.set_model(model_root, typ='init', apply_region=True)
+    
+                directions.append(d)
 
         # create a concat region for debugging
         os.system('cat ddcal/c%02i/skymodels/ddcal*reg > ddcal/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj,cmaj))
@@ -261,19 +259,19 @@ for cmaj in range(maxIter):
         directions = [x for _, x in sorted(zip([d.get_flux(freq_mid) for d in directions],directions))][::-1]
 
         # If there's a preferential direciotn, get the closer direction to the final target and put it to the end
-        if target_dir != '':
-            ra_t, dec_t = [float(x) for x in target_dir.split(',')]
-            sep_min = np.inf
-            for i, d in enumerate(directions):
-                ra, dec = d.position
-                sep = SkyCoord( ra*u.deg, dec*u.deg, frame='fk5' ).separation( SkyCoord(ra_t*u.deg, dec_t*u.deg, frame='fk5') ).deg
-                #print ("%s: %f", (d.name,sep))
-                if sep < sep_min:
-                    sep_min = float(sep)
-                    target_idx = i
-            logger.info('Move "%s" to the end of the target list...' % directions[target_idx].name)
-            d = directions.pop(target_idx)
-            directions.insert(len(directions),d)
+        #if target_dir != '':
+        #    ra_t, dec_t = [float(x) for x in target_dir.split(',')]
+        #    sep_min = np.inf
+        #    for i, d in enumerate(directions):
+        #        ra, dec = d.position
+        #        sep = SkyCoord( ra*u.deg, dec*u.deg, frame='fk5' ).separation( SkyCoord(ra_t*u.deg, dec_t*u.deg, frame='fk5') ).deg
+        #        #print ("%s: %f", (d.name,sep))
+        #        if sep < sep_min:
+        #            sep_min = float(sep)
+        #            target_idx = i
+        #    logger.info('Move "%s" to the end of the target list...' % directions[target_idx].name)
+        #    d = directions.pop(target_idx)
+        #    directions.insert(len(directions),d)
 
         logger.info('Found {} cals brighter than {} Jy (expected at 60 MHz):'.format(len(directions), min_cal_flux60))
         for d in directions:
@@ -291,12 +289,12 @@ for cmaj in range(maxIter):
         # wsclean predict
         logger.info('Predict full model...')
         if cmaj == 0:
-            s.add('wsclean -predict -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+            s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
                     -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                     log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
             s.run(check=True)
         else:
-            s.add('wsclean -predict -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+            s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
                     -apply-facet-beam -facet-beam-update 120 \
                     -facet-regions '+full_image.root+'_facets.reg -diagonal-solutions \
                     -apply-facet-solutions '+interp_h5parm_old+' amplitude000,phase000 \
@@ -337,13 +335,13 @@ for cmaj in range(maxIter):
             logger.info('Predict model...')
             if cmaj == 0:
                 # Predict - ms:MODEL_DATA
-                s.add('wsclean -predict -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+                s.add('wsclean -predict -padding 1.8 -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
                         -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                         log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
                 s.run(check=True)
             else:
                 # Predict - ms:MODEL_DATA
-                s.add('wsclean -predict -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+                s.add('wsclean -predict -padding 1.8 -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
                     -apply-facet-beam -facet-beam-update 120 \
                     -facet-regions '+full_image.root+'_facets.reg -diagonal-solutions \
                     -apply-facet-solutions '+interp_h5parm_old+' amplitude000,phase000 \
@@ -415,8 +413,8 @@ for cmaj in range(maxIter):
         # usually there are 3600/32=112 or 3600/16=225 or 3600/8=450 timesteps and \
         # 60 (halfband)/120 (fullband) chans, try to use multiple numbers
         iter_ph_solint = lib_util.Sol_iterator([8, 4, 1])  # 32 or 16 or 8 * [8,4,1] s
-        iter_amp_solint = lib_util.Sol_iterator([30, 10, 5])  # 32 or 16 or 8 * [30,10,5] s
-        iter_amp2_solint = lib_util.Sol_iterator([60, 30])
+        iter_amp_solint = lib_util.Sol_iterator([30, 20, 10])  # 32 or 16 or 8 * [30,20,10] s
+        iter_amp2_solint = lib_util.Sol_iterator([120, 60])
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
         logger.info('MM ratio (init): %f' % (mm_ratio_pre))
 
@@ -450,8 +448,9 @@ for cmaj in range(maxIter):
                 # Calibration - ms:SMOOTHED_DATA
                 logger.info('Gain phase calibration (solint: %i)...' % solint_ph)
                 MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
-                    sol.mode=scalarphase sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=5e6 sol.smoothnessreffrequency=54e6 \
-                    sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
+                    sol.mode=scalarphase sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=3e6 sol.smoothnessreffrequency=54e6 \
+                    sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]',
+                    #sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
                     log='$nameMS_solGph-'+logstringcal+'.log', commandType='DP3')
                 lib_util.run_losoto(s, 'ph', [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()],
                     [parset_dir+'/losoto-plot1.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
@@ -697,7 +696,8 @@ for cmaj in range(maxIter):
     MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
     
     imagename = 'img/wideDD-c%02i' % (cmaj)
-    maskname = imagename+'.mask.fits'
+    maskname = imagename+'_mask.fits'
+    facetregname = 'ddcal/c%02i/solutions/wideDD-c%02i_facets.reg' % (cmaj, cmaj)
 
     # combine the h5parms
     h5parms = {'ph':[], 'amp1':[], 'amp2':[]}
@@ -749,35 +749,37 @@ for cmaj in range(maxIter):
         s.run()
 
     with w.if_todo('c%02i-imaging' % cmaj):
-        logger.info('Cleaning...')
-        
+
+        logger.info('Preparing region file...')
         s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+' --h5 '+interp_h5parm+' --imsize '+str(imgsizepix)+' \
-                --pixelscale 4 --writevoronoipoints --output '+imagename+'_facets.reg',
+                --pixelscale 4 --writevoronoipoints --output '+facetregname,
                 log='facet_generator.log', commandType='python')
         s.run()
  
         # update_model=True to make continue after masking
+        logger.info('Cleaning 1...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
-                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
-                auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
-                multiscale='', multiscale_scale_bias=0.6, pol='i', nmiter=1,
-                apply_facet_beam='', facet_beam_update=120, facet_regions=imagename+'_facets.reg', diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
+                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=512,
+                auto_threshold=3.0, auto_mask=5.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
+                multiscale='', multiscale_scale_bias=0.6, pol='i', nmiter=1, dd_psf_grid='5 5',
+                apply_facet_beam='', facet_beam_update=120, facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
  
         # masking
-        s.add('breizorro.py -t 6.5 -r %s -b 50 -o %s' % (imagename+'-MFS-image.fits', maskname), 
-                log='makemask-'+str(p)+'.log', commandType='python' )
+        s.add('breizorro.py -t 6 -r %s -b 50 -o %s' % (imagename+'-MFS-image.fits', maskname), 
+                log='makemask-'+str(cmaj)+'.log', commandType='python' )
         s.run()        
 
         # if defined, add userReg to the mask
         if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
 
+        logger.info('Cleaning 2...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
-                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
-                auto_threshold=3.0, fits_mask=maskname, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
-                multiscale='', multiscale_scale_bias=0.6, pol='i', cont=True,
-                apply_facet_beam='', facet_beam_update=120, facet_regions=imagename+'_facets.reg', diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
+                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=512,
+                auto_threshold=3.0, auto_mask=5.0, fits_mask=maskname, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
+                multiscale='', multiscale_scale_bias=0.6, pol='i', dd_psf_grid='5 5', cont=True,
+                apply_facet_beam='', facet_beam_update=120, facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
  
-        os.system('mv %s* ddcal/c%02i/images' % (imagename, cmaj))
+        os.system('mv %s*fits ddcal/c%02i/images' % (imagename, cmaj))
     ### DONE
 
     full_image = lib_img.Image('ddcal/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
@@ -789,7 +791,7 @@ for cmaj in range(maxIter):
 with w.if_todo('output-vstokes'):
     imagenameV = 'img/wideDD-v-c%02i' % (cmaj)
     logger.info('Cleaning (V-stokes)...')
-    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
+    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagenameV, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
                 weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
                 pol='v')
@@ -799,12 +801,12 @@ with w.if_todo('output-vstokes'):
 
 # TODO: the model to subtract should be done from a high-res image to remove only point sources
 with w.if_todo('output-lres'):
-    logger.info('Cleaning low-res...')
+
     # now make a low res and source subtracted map for masking extended sources
     logger.info('Predicting DD-corrupted...')
-    s.add('wsclean -predict -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+    s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
                     -apply-facet-beam -facet-beam-update 120 \
-                    -facet-regions '+full_image.root+'_facets.reg -diagonal-solutions \
+                    -facet-regions '+facetregname+' -diagonal-solutions \
                     -apply-facet-solutions '+interp_h5parm+' amplitude000,phase000 \
                     -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                     log='wscleanPRE4LR-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
@@ -813,13 +815,14 @@ with w.if_todo('output-lres'):
     logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
         log='$nameMS_taql.log', commandType='general')
+
     imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
     logger.info('Cleaning (low res)...')
-    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=int(imgsizepix/4), scale='12arcsec',
-                weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
+    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagenameL, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale='16arcsec',
+                weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
-                multiscale='', multiscale_scale_bias=0.6, pol='i', taper_gaussian='60srcsec',
-                apply_facet_beam='', facet_beam_update=120, facet_regions=imagename+'_facets.reg', diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
+                multiscale='', multiscale_scale_bias=0.6, pol='i', dd_psf_grid='5 5', taper_gaussian='60arcsec',
+                apply_facet_beam='', facet_beam_update=120, facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
  
     os.system('mv %s*MFS*.fits ddcal/c%02i/images' % (imagenameL, cmaj))
 ### DONE
