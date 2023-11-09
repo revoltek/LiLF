@@ -183,7 +183,7 @@ for n, cluster in enumerate(cl_name):
 
         os.chdir(str(cluster))
         if no_selfcal:
-            os.system(f'LOFAR_extract.py -p {pathdir} --beamcut {beam_cut} --extreg {cl_extractreg} --maskreg {userReg} --ampcal {ampcal} --ampsol {ampsol} --phsol {phsol} --maxniter {maxniter} --subreg {subtract_reg_file} --idg {use_idg} --no_selfcal')
+            os.system(f'LOFAR_extract.py -p {pathdir} --beamcut {beam_cut} --extreg {cl_extractreg} --maskreg {userReg} --ampcal {ampcal} --ampsol {ampsol} --phsol {phsol} --maxniter {maxniter} --subreg {subtract_reg_file} --idg {use_idg} --noselfcal')
         else:
             os.system(f'LOFAR_extract.py -p {pathdir} --beamcut {beam_cut} --extreg {cl_extractreg} --maskreg {userReg} --ampcal {ampcal} --ampsol {ampsol} --phsol {phsol} --maxniter {int(maxniter)} --idg {use_idg} --subreg {subtract_reg_file}')
         # check LOFAR_extract log if pipeline finished as expected
