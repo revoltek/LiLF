@@ -103,6 +103,15 @@ class Image(object):
             fits.writeto(model_img, overwrite=True)
             fits.close()
 
+    def nantozeroModel(self):
+        """
+        Set nan to 0 in all model images
+        """
+        for modelimage in sorted(glob.glob(self.root+'*model*.fits')):
+            with pyfits.open(modelimage, mode='update') as fits:
+                for hdu in fits:
+                    hdu.data[hdu.data != hdu.data] = 0
+
     # TODO: separate makemask (using breizorro) and makecat (using bdsf)
     def makeMask(self, threshpix=5, atrous_do=False, rmsbox=(100,10), remove_extended_cutoff=0., only_beam=False, maskname=None,
                  write_srl=False, write_gaul=False, write_ds9=False, mask_combine=None):

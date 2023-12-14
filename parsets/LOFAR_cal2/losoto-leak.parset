@@ -1,0 +1,62 @@
+Ncpu = 0
+
+[splitA]
+operation = SPLITLEAK
+soltab = sol000/amplitude000
+soltabOutG = amplitudeG
+soltabOutD = amplitudeD
+
+[splitP]
+operation = SPLITLEAK
+soltab = sol000/phase000
+soltabOutG = phaseG
+soltabOutD = phaseD
+
+[plotGa]
+operation = PLOT
+soltab = sol000/amplitudeG
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/ampG_
+#minmax = [100,300]
+
+[plotDa]
+operation = PLOT
+soltab = sol000/amplitudeD
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/ampD_
+#minmax = [100,300]
+
+[plotGp]
+operation = PLOT
+soltab = sol000/phaseG
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/phG_
+minmax = [-3.14,3.14]
+refAnt = auto
+
+[plotDp]
+operation = PLOT
+soltab = sol000/phaseD
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/phD_
+minmax = [-3.14,3.14]
+refAnt = auto
+
+[smooth]
+operation = SMOOTH
+soltab = sol000/amplitudeD
+pol = XY, YX
+axesToSmooth = [ant]
+mode = median
+
+[plotDsmooth]
+operation = PLOT
+soltab = sol000/amplitudeD
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/ampDsmooth_
+#minmax = [100,300]

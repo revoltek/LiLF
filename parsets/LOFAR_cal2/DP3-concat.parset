@@ -1,0 +1,11 @@
+msin = 
+msin.datacolumn = DATA
+#do not copy aucorr as they have too weird weights for dysco
+msin.baseline = CS*&
+msin.missingdata = True
+msin.orderms = False
+
+msout = 
+msout.storagemanager = dysco
+
+steps = []

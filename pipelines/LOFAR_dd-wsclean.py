@@ -161,8 +161,9 @@ with w.if_todo('add_columns'):
 
 ##############################################################
 # setup initial model
-os.system('cp self/images/wideM-1* ddcal/init/')
-full_image = lib_img.Image('ddcal/init/wideM-1-MFS-image.fits', userReg=userReg)
+# TEST: use wideM-0 as wideM-1 has only a sub-region of the sky
+os.system('cp self/images/wideM-0* ddcal/init/')
+full_image = lib_img.Image('ddcal/init/wideM-0-MFS-image.fits', userReg=userReg)
 
 for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
@@ -225,7 +226,7 @@ for cmaj in range(maxIter):
             except ContinueI:
                 continue
 
-            d = lib_dd.Direction(name)
+            d = lib_dd.Direction(name, soltypes=['ph1','fr','amp1','amp2'])
             d.fluxes = fluxes
             d.spidx_coeffs = spidx_coeffs
             d.ref_freq = freq_mid
@@ -294,9 +295,10 @@ for cmaj in range(maxIter):
                     log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
             s.run(check=True)
         else:
+            full_image.nantozeroModel()
             s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
                     -apply-facet-beam -facet-beam-update 120 \
-                    -facet-regions '+full_image.root+'_facets.reg -diagonal-solutions \
+                    -facet-regions '+facetregname+' -diagonal-solutions \
                     -apply-facet-solutions '+interp_h5parm_old+' amplitude000,phase000 \
                     -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                     log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
@@ -314,8 +316,8 @@ for cmaj in range(maxIter):
                     log='$nameMS_taql.log', commandType='general')
 
         ### TESTTESTTEST: empty image
-        if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-            clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
+        #if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
+        #    clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
         ###
     ### DONE
 
@@ -415,6 +417,7 @@ for cmaj in range(maxIter):
         iter_ph_solint = lib_util.Sol_iterator([8, 4, 1])  # 32 or 16 or 8 * [8,4,1] s
         iter_amp_solint = lib_util.Sol_iterator([30, 20, 10])  # 32 or 16 or 8 * [30,20,10] s
         iter_amp2_solint = lib_util.Sol_iterator([120, 60])
+        iter_ph_soltype = 'scalarphase' if d.get_flux(freq_mid) < 5 else 'diagonalphase'
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
         logger.info('MM ratio (init): %f' % (mm_ratio_pre))
 
@@ -426,10 +429,10 @@ for cmaj in range(maxIter):
             ################################################################
             # Calibrate
             solint_ph = next(iter_ph_solint)
-            d.add_h5parm('ph', 'ddcal/c%02i/solutions/cal-ph-%s.h5' % (cmaj,logstringcal) )
+            d.add_h5parm('ph1', 'ddcal/c%02i/solutions/cal-ph1-%s.h5' % (cmaj,logstringcal) )
             if doamp:
                 solint_amp1 = next(iter_amp_solint)
-                solch_amp1 = int(round(MSs_dir.getListObj()[0].getNchan() / ch_out))
+                solch_amp1 = int(round(MSs_dir.getListObj()[0].getNchan() / ch_out / 4)) # TEST /4
                 d.add_h5parm('amp1', 'ddcal/c%02i/solutions/cal-amp1-%s.h5' % (cmaj,logstringcal) )
                 solint_amp2 = next(iter_amp2_solint)
                 d.add_h5parm('amp2', 'ddcal/c%02i/solutions/cal-amp2-%s.h5' % (cmaj,logstringcal) )
@@ -439,42 +442,45 @@ for cmaj in range(maxIter):
                 d.add_h5parm('amp2', None )
    
             with w.if_todo('%s-calibrate' % logstringcal):
-                if cdd == 0:
-                    logger.info('BL-based smoothing...')
-                    # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
-                    MSs_dir.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS',
-                        log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')
+                logger.info('BL-based smoothing...')
+                # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
+                MSs_dir.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS',
+                            log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')
 
                 # Calibration - ms:SMOOTHED_DATA
-                logger.info('Gain phase calibration (solint: %i)...' % solint_ph)
-                MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
-                    sol.mode=scalarphase sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=3e6 sol.smoothnessreffrequency=54e6 \
-                    sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]',
-                    #sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
-                    log='$nameMS_solGph-'+logstringcal+'.log', commandType='DP3')
-                lib_util.run_losoto(s, 'ph', [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()],
-                    [parset_dir+'/losoto-plot1.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
-                os.system('mv cal-ph.h5 %s' % d.get_h5parm('ph'))
+                logger.info('Gain phase1 calibration (solint: %i)...' % solint_ph)
+                MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph1.h5 \
+                            sol.mode='+iter_ph_soltype+' sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=3e6 sol.smoothnessreffrequency=54e6',
+                            log='$nameMS_solGph1-'+logstringcal+'.log', commandType='DP3')
+                lib_util.run_losoto(s, 'ph1', [ms+'/cal-ph1.h5' for ms in MSs_dir.getListStr()],
+                    [parset_dir+'/losoto-plot-ph1.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                os.system('mv cal-ph1.h5 %s' % d.get_h5parm('ph1'))
 
                 # correct ph - ms:DATA -> ms:CORRECTED_DATA
-                logger.info('Correct ph...')
+                logger.info('Correct ph1...')
                 MSs_dir.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
-                             cor.parmdb='+d.get_h5parm('ph')+' cor.correction=phase000',
+                             cor.parmdb='+d.get_h5parm('ph1')+' cor.correction=phase000',
                              log='$nameMS_correct-'+logstringcal+'.log', commandType='DP3')
-
+                
                 if doamp:
+
+                    logger.info('BL-based smoothing...')
+                   # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
+                    MSs_dir.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
+                            log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')
+
                     logger.info('Gain amp calibration 1 (solint: %i, solch: %i)...' % (solint_amp1, solch_amp1))
                     # Calibration - ms:CORRECTED_DATA
                     # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
-                    MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
+                    MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
                         sol.mode=diagonal sol.solint='+str(solint_amp1)+' sol.nchan='+str(solch_amp1)+' sol.minvisratio=0.5 \
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DP3')
 
                     #if d.peel_off:
-                        #losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset']
+                        #losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
                     #else:
-                    losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset']
+                    losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
                     lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
                         plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp1.h5 %s' % d.get_h5parm('amp1'))
@@ -485,17 +491,21 @@ for cmaj in range(maxIter):
                         cor.parmdb='+d.get_h5parm('amp1')+' cor.correction=amplitude000',
                         log='$nameMS_correct-'+logstringcal+'.log', commandType='DP3')
 
+                    logger.info('BL-based smoothing...')
+                   # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
+                    MSs_dir.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
+                            log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')
+
                     logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
                     # Calibration - ms:CORRECTED_DATA
-                    #sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]
                     MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
                         sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.minvisratio=0.5',
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DP3')
 
                     #if d.peel_off:
-                        #losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset']
+                        #losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
                     #else:
-                    losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset']
+                    losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
                     lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
                         plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp2.h5 %s' % d.get_h5parm('amp2'))
@@ -599,9 +609,10 @@ for cmaj in range(maxIter):
                              log='$nameMS_taql.log', commandType='general')
         
                 # Corrput now model - ms:MODEL_DATA -> MODEL_DATA
+                # note that these are all scalar or diagonal, so they commute
                 logger.info('Corrupt ph...')
                 MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                            cor.invert=False cor.parmdb='+d.get_h5parm('ph',-2)+' cor.correction=phase000',
+                            cor.invert=False cor.parmdb='+d.get_h5parm('ph1',-2)+' cor.correction=phase000',
                             log='$nameMS_corruping'+logstring+'.log', commandType='DP3')
         
                 if not d.get_h5parm('amp1',-2) is None:
@@ -666,7 +677,7 @@ for cmaj in range(maxIter):
         for ic, (rms_noise, mm_ratio) in enumerate(zip(d.rms_noise,d.mm_ratio)):
 
             tables_to_print = '['
-            for sol_type in ['ph','fr','amp1','amp2']:
+            for sol_type in ['ph1','fr','amp1','amp2']:
                 if d.get_h5parm(sol_type, pos=ic) is not None:
                     tables_to_print += sol_type+','
             tables_to_print = tables_to_print[:-1] + ']'
@@ -708,13 +719,13 @@ for cmaj in range(maxIter):
         if not d.converged:
             continue
 
-        h5parms['ph'].append(d.get_h5parm('ph',-2))
+        h5parms['ph'].append(d.get_h5parm('ph1',-2))
         if d.get_h5parm('amp1',-2) is not None:
             h5parms['amp1'].append(d.get_h5parm('amp1',-2))
         if d.get_h5parm('amp2',-2) is not None:
             h5parms['amp2'].append(d.get_h5parm('amp2',-2))
 
-        log = '%s: Phase (%s)' % (d.name, d.get_h5parm('ph',-2))
+        log = '%s: Phase (%s)' % (d.name, d.get_h5parm('ph1',-2))
         log += ' Amp1 (%s)' % (d.get_h5parm('amp1',-2))
         log += ' Amp2 (%s)' % (d.get_h5parm('amp2',-2))
         logger.info(log)
@@ -761,7 +772,7 @@ for cmaj in range(maxIter):
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
                 weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=512,
                 auto_threshold=3.0, auto_mask=5.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
-                multiscale='', multiscale_scale_bias=0.6, pol='i', nmiter=1, dd_psf_grid='5 5',
+                multiscale='', multiscale_scale_bias=0.6, pol='i', nmiter=1, dd_psf_grid='25 25', beam_size=15,
                 apply_facet_beam='', facet_beam_update=120, facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
  
         # masking
@@ -776,7 +787,7 @@ for cmaj in range(maxIter):
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
                 weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=512,
                 auto_threshold=3.0, auto_mask=5.0, fits_mask=maskname, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
-                multiscale='', multiscale_scale_bias=0.6, pol='i', dd_psf_grid='5 5', cont=True,
+                multiscale='', multiscale_scale_bias=0.6, pol='i', dd_psf_grid='25 25', beam_size=15, cont=True,
                 apply_facet_beam='', facet_beam_update=120, facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
  
         os.system('mv %s*fits ddcal/c%02i/images' % (imagename, cmaj))
