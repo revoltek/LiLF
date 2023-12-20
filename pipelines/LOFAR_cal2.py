@@ -371,7 +371,7 @@ if imaging:
         # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Calibrating LEAK...')
         MSs_concat.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/leak_'+c+'.h5 sol.mode=fulljones sol.solint=1 sol.nchan=1 sol.minvisratio=0.8 \
-                sol.solint='+str(base_solint)+' sol.nchan='+str(base_nchan), \
+                sol.solint=1 sol.nchan=1', \
                 log='$nameMS_solLEAK.log', commandType="DP3")
     
         lib_util.run_losoto(s, 'leak_'+c, [ms+'/leak_'+c+'.h5' for ms in MSs_concat.getListStr()], \
