@@ -46,7 +46,7 @@ calname = MSs.getListObj()[0].getNameField()
 nchan = MSs.mssListObj[0].getNchan()
 tint = MSs.mssListObj[0].getTimeInt()
 
-#if nchan > 4 and not MSs_concat.hasIS:
+#if nchan > 4:
 #    base_nchan = int(np.rint(nchan / 4)) # brings down to 4ch/sb for 
 #else: base_nchan = 1
 #if tint < 4:
@@ -55,7 +55,7 @@ tint = MSs.mssListObj[0].getTimeInt()
 
 for c in ['core','all']:
 
-    with w.if_todo('concat_+%s' % c):
+    with w.if_todo('concat_%s' % c):
         
         if c == "core":
             freqstep = nchan # brings down to 1ch/sb for 
@@ -65,7 +65,7 @@ for c in ['core','all']:
             logger.info('Concatenate data...')
             lib_util.check_rm('concat_core.MS')
             s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(MSs.getListStr())+']" msout=concat_core.MS \
-                  msin.baseline="CS*&" avg.freqstep='+freqstep+' avg.timestep='+timestep, 
+                  msin.baseline="CS*&" avg.freqstep='+str(freqstep)+' avg.timestep='+str(timestep), 
                   log='concat.log', commandType='DP3')
             s.run(check=True)
         else:
@@ -76,7 +76,7 @@ for c in ['core','all']:
             logger.info('Concatenate data...')
             lib_util.check_rm('concat_all.MS')
             s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(MSs.getListStr())+']" msout=concat_all.MS \
-                  msin.baseline="*&" avg.freqstep='+freqstep+' avg.timestep='+timestep, 
+                  msin.baseline="*&" avg.freqstep='+str(freqstep)+' avg.timestep='+str(timestep), 
                   log='concat.log', commandType='DP3')
             s.run(check=True)
 
@@ -164,7 +164,7 @@ for c in ['core','all']:
         if c == 'core': smoothnessconstraint = 1e6
         else: smoothnessconstraint = 0.2e6
         MSs_concat.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa_'+c+'.h5 sol.mode=rotation+diagonal \
-                sol.solint=1 sol.smoothnessconstraint='+smoothnessconstraint+' sol.smoothnessreffrequency=54e6',
+                sol.solint=1 sol.smoothnessconstraint='+str(smoothnessconstraint)+' sol.smoothnessreffrequency=54e6',
                 log='$nameMS_solPA.log', commandType="DP3")
 
         lib_util.run_losoto(s, 'pa_'+c, [ms+'/pa_'+c+'.h5' for ms in MSs_concat.getListStr()],
@@ -212,7 +212,7 @@ for c in ['core','all']:
         else: smoothnessconstraint = 2e6
         MSs_concat.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA \
         sol.modeldatacolumns=[FR_MODEL_DATA] sol.h5parm=$pathMS/fr_'+c+'.h5 sol.mode=phaseonly \
-        sol.solint=4 sol.nchan=4 sol.smoothnessconstraint='+smoothnessconstraint+' sol.smoothnessreffrequency=54e6', 
+        sol.solint=4 sol.nchan=4 sol.smoothnessconstraint='+str(smoothnessconstraint)+' sol.smoothnessreffrequency=54e6', 
         log='$nameMS_solFR.log', commandType="DP3")
         
         lib_util.run_losoto(s, 'fr_'+c, [ms+'/fr_'+c+'.h5' for ms in MSs_concat.getListStr()], 
@@ -298,7 +298,7 @@ for c in ['core','all']:
         if c == 'core': smoothnessconstraint = 1e6
         else: smoothnessconstraint = 0.1e6
         MSs_concat.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/iono_'+c+'.h5 sol.mode=scalarphase \
-                sol.solint=1 sol.nchan=1 sol.smoothnessconstraint='+smoothnessconstraint+' sol.smoothnessreffrequency=54e6', \
+                sol.solint=1 sol.nchan=1 sol.smoothnessconstraint='+str(smoothnessconstraint)+' sol.smoothnessreffrequency=54e6', \
                 log='$nameMS_solIONO.log', commandType="DP3")
 
         if iono3rd:
