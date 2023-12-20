@@ -120,9 +120,12 @@ for c in ['core','all']:
         with w.if_todo('phaseupCS'):
             # Phasing up the cose stations
             logger.info('Phasing up Core Stations...')
-            MSs_concat.run('DP3 ' + parset_dir + '/DP3-phaseup.parset msin=$pathMS msout=.', log='$nameMS_phaseup.log', commandType="DP3")
-    
+            lib_util.check_rm('concat_all-phaseup.MS')
+            MSs_concat.run('DP3 ' + parset_dir + '/DP3-phaseup.parset msin=$pathMS msout=concat_all-phaseup.MS', log='$nameMS_phaseup.log', commandType="DP3")
+            
         ### DONE
+        
+        MSs_concat = lib_ms.AllMSs( ['concat_all-phaseup.MS'], s, check_flags=False )
 
     ######################################################
     # flag bad stations, flags will propagate
@@ -131,10 +134,10 @@ for c in ['core','all']:
         MSs_concat.run("DP3 " + parset_dir + "/DP3-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag+"\"", 
                     log="$nameMS_flag.log", commandType="DP3")
 
-        logger.info("Flagging...")
-        flag_strat = '/HBAdefaultwideband.lua' if MSs.isHBA else '/LBAdefaultwideband.lua'
-        MSs_concat.run("DP3 " + parset_dir + "/DP3-flag2.parset msin=$pathMS aoflagger.strategy=" + parset_dir + flag_strat, 
-                    log="$nameMS_flag.log", commandType="DP3")
+        #logger.info("Flagging...")
+        #flag_strat = '/HBAdefaultwideband.lua' if MSs.isHBA else '/LBAdefaultwideband.lua'
+        #MSs_concat.run("DP3 " + parset_dir + "/DP3-flag2.parset msin=$pathMS aoflagger.strategy=" + parset_dir + flag_strat, 
+        #            log="$nameMS_flag.log", commandType="DP3")
 
         # extend flags
         logger.info('Remove bad time/freq stamps...')
