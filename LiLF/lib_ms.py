@@ -306,6 +306,27 @@ class MS(object):
         pathFieldTable = self.pathMS + "/FIELD"
         tables.taql("update $pathFieldTable set NAME=$nameField")
 
+    def setObsID(self, ObsID):
+        """
+        Set ObsID.
+        """
+        pathObsIDTable = self.pathMS + "/OBSERVATION"
+        tables.taql("update $pathObsIDTable set LOFAR_OBSERVATION_ID=$ObsID")
+
+    def setSpwName(self, SpwName):
+        """
+        Set Spw Name.
+        """
+        pathSpwTable = self.pathMS + "/SPECTRAL_WINDOW"
+        tables.taql("update $pathSpwTable set NAME=$SpwName")
+
+    def setCode(self, code):
+        """
+        Set Observation Code.
+        """
+        pathcodeTable = self.pathMS + "/FIELD"
+        tables.taql("update $pathcodeTable set CODE=$code")
+
 
     def getNameField(self):
         """
