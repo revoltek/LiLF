@@ -128,13 +128,14 @@ def getParset(parsetFile=''):
 
     return config
 
-def create_extregion(ra, dec, extent):
+def create_extregion(ra, dec, extent, color='yellow'):
     """
     Parameters
     ----------
     ra
     dec
     extent
+    color
 
     Returns
     -------
@@ -143,7 +144,7 @@ def create_extregion(ra, dec, extent):
 
     regtext = ['# Region file format: DS9 version 4.1']
     regtext.append(
-        'global color=yellow dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1')
+        f'global color={color} dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1')
     regtext.append('fk5')
     regtext.append('circle(' + str(ra) + ',' + str(dec) + f',{extent})')
     nline = '\n'
