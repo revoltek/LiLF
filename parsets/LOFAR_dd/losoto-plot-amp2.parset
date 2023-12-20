@@ -1,0 +1,37 @@
+Ncpu = 0
+
+[plotA]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/amp2_
+
+[plotA2]
+operation = PLOT
+soltab = sol000/amplitude000
+freq.minmaxstep = [55e6,100e6,1000]
+axesInPlot = [time]
+axisInTable = ant
+axisInCol = pol
+prefix = plots/amp2_
+
+[plotP]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/pha2_
+refAnt = auto
+minmax = [-1,1]
+
+[plotP2]
+operation = PLOT
+soltab = sol000/phase000
+freq.minmaxstep = [55e6,100e6,1000]
+axesInPlot = [time]
+axisInTable = ant
+axisInCol = pol
+prefix = plots/pha2_
+refAnt = auto
+minmax = [-1,1]

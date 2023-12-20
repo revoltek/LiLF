@@ -1,7 +1,7 @@
 FROM ubuntu:22.04
 ARG DEBIAN_FRONTEND=noninteractive
 LABEL maintainer="Francesco de Gasperin"
-LABEL version="20230417"
+LABEL version="20230819"
 
 USER root
 
@@ -9,7 +9,7 @@ USER root
 RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update;
-RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename python3-magic \
+RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename subversion python3-magic \
     python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm python3-numba \
     libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
@@ -52,15 +52,14 @@ RUN cd /opt/python-casacore && pip3 install .
 #    && make -j 64 && make install
 #
 #ENV PYTHONPATH /usr/local/lib/python3.8/site-packages/:$PYTHONPATH
-#ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
 
 #####################################################################
-## EveryBeam v0.4.0
+## EveryBeam v0.5.2
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
-    && cd /opt/EveryBeam && git checkout tags/v0.4.0
+    && cd /opt/EveryBeam && git checkout tags/v0.5.2
 RUN cd /opt/EveryBeam && mkdir build && cd build \
-    && cmake -DDOWNLOAD_LOBES=Off .. \
+    && cmake -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
     && make -j 64 && make install
     
 #####################################################################
@@ -100,20 +99,20 @@ RUN cd /opt/LofarStMan && mkdir build && cd build \
     && make -j 64 && make install
 
 #####################################################################
-## Wsclean master 26/4/23
+## Wsclean 3.4
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-    && cd /opt/wsclean && git checkout 1bba0e60afd12f707e38f2be8390db90d48b2fc5
+    && cd /opt/wsclean && git checkout tags/v3.4
 #    && cd /opt/wsclean && git checkout tags/v2.10.1
 RUN cd /opt/wsclean && mkdir build && cd build \
     && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
 #####################################################################
-## Dp3 master 21/4/23
+## Dp3 master 15/6/23
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/DP3.git \
-    && cd /opt/DP3 && git checkout 4fbb6120a702397d81429c3b13fabcfa5962110b
+    && cd /opt/DP3 && git checkout 2e989c5610ebaa32f589f402f425d9aa9f39bacd
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
 RUN cd /opt/DP3 && mkdir build && cd build \
@@ -136,10 +135,10 @@ RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
 RUN cd /opt/PyBDSF && pip3 install .
 
 #####################################################################
-## LSMtool (1.4.5)
+## LSMtool (1.4.11)
 #####################################################################
 RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git \
-    && cd /opt/LSMTool; git checkout tags/v1.4.5
+    && cd /opt/LSMTool; git checkout tags/v1.4.11
 RUN cd /opt/LSMTool && pip3 install .
 
 ####################################################################
@@ -148,12 +147,11 @@ RUN cd /opt/LSMTool && pip3 install .
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
     && cd /opt/losoto && git checkout 74becaae02d44889b27af739b79bf4bbbe31a367
 RUN cd /opt/losoto && pip3 install .
-RUN pip3 install --upgrade scipy
+#RUN pip3 install --upgrade scipy
 
 #####################################################################
 # msoverview
 #####################################################################
-RUN apt-get install -y subversion
 RUN cd /opt && mkdir -p msoverview/src && cd msoverview/src && svn export https://svn.astron.nl/LOFAR/tags/LOFAR-Release-4_0_17/CEP/MS/src/msoverview.cc \
     && gcc -I/usr/local/include/casacore -L/usr/local/lib msoverview.cc -o /usr/local/bin/msoverview -lcasa_casa -lcasa_ms -lcasa_tables -lstdc++
 
@@ -206,6 +204,7 @@ RUN cd /opt/DDFacet/ && python3 setup.py install
    
 #####################################################################
 
+ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN ln -s /usr/bin/ipython3 /usr/bin/ipython
 ENV HDF5_USE_FILE_LOCKING FALSE

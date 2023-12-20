@@ -1,4 +1,4 @@
-import os, sys, itertools
+import os, sys
 import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy.io import fits as pyfits

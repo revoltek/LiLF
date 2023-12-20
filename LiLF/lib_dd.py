@@ -12,8 +12,9 @@ from LiLF import lib_img, lib_util
 
 class Direction(object):
 
-    def __init__(self, name):
+    def __init__(self, name, soltypes=['ph','ph1','ph2','fr','amp1','amp2']):
         self.name = name 
+        self.soltypes = soltypes
         self.position = None  # [deg, deg]
         self.size = None  # deg (1 value)
         self.localrms = None  # Jy/b (1 value)
@@ -26,7 +27,7 @@ class Direction(object):
         self.region_file = None
 
         self.model = {}
-        self.h5parms = {'ph':[],'fr':[],'amp1':[],'amp2':[]}
+        self.h5parms = {soltype:[] for soltype in self.soltypes}
 
         # for debug
         self.avg_t = 0
@@ -38,7 +39,7 @@ class Direction(object):
         # TODO: remove files?
 
         # associated h5parms
-        self.h5parms = {'ph':[],'fr':[],'amp1':[],'amp2':[]}
+        self.h5parms = {soltype:[] for soltype in self.soltypes}
 
     def set_region(self, loc):
         """
@@ -93,15 +94,14 @@ class Direction(object):
         typ can be 'ph', 'fr', 'amp1', or 'amp2'
         h5parmFile: filename
         """
-        assert (typ == 'ph' or typ == 'fr' or typ == 'amp1' or typ == 'amp2')
+        assert typ in self.soltypes
         self.h5parms[typ].append(h5parmFile)
 
     def get_h5parm(self, typ, pos=-1):
         """
-        typ can be 'ph', 'fr', 'amp1', or 'amp2'
         pos: the cycle from 0 to last added, negative numbers to search backwards, if non exists returns None
         """
-        assert (typ == 'ph' or typ == 'fr' or typ == 'amp1' or typ == 'amp2')
+        assert typ in self.soltypes
         l = self.h5parms[typ]
         try:
             return l[pos]
@@ -177,7 +177,7 @@ class Grouper( object ):
         look_distance: max distance to look for nearby sources [deg]
         grouping_distance: [deg]
         """
-        self.coords = np.array(coords)
+        self.coords = np.array([SkyCoord(ra=ra*u.deg, dec=dec*u.deg, frame='fk5') for ra,dec in coords])
         self.fluxes = fluxes
         self.kernel_size = kernel_size # deg
         self.look_distance = look_distance # deg
@@ -187,17 +187,20 @@ class Grouper( object ):
         self.clusters = []
         logger.debug("Grouper: kernel_size=%.1f; look_distance=%.1f; grouping_distance=%.2f" % (kernel_size,look_distance,grouping_distance) )
 
-    def euclid_distance(self, coord, coords):
+    def sky_distance(self, coord, coords):
         """
         Simple ditance from coord to all coords
         """
-        return np.sqrt(np.sum((coord - coords)**2, axis=1))
+        #dist1 = np.sqrt(np.sum((coord - coords)**2, axis=1))
+        catalogue = SkyCoord(ra = [c.ra for c in coords], dec = [c.dec for c in coords])
+        dist = np.array([d.deg for d in coord.separation(catalogue)])
+        return dist
     
     def neighbourhood_points(self, centroid, coords, max_distance):
         """
         Find close points, this reduces the load
         """
-        distances = self.euclid_distance(centroid, coords)
+        distances = self.sky_distance(centroid, coords)
         #print('Evaluating: [%s vs %s] yield dist=%.2f' % (x, x_centroid, distance_between))
         return np.flatnonzero(distances < max_distance)
     
@@ -206,6 +209,31 @@ class Grouper( object ):
         """
         return (1/(self.kernel_size*np.sqrt(2*np.pi))) * np.exp(-0.5*((distance / self.kernel_size))**2)
     
+    def weighted_spherical_mean(self, coords_list, weights):
+        """
+        Calculate the weighted spherical mean of a list of SkyCoord objects.
+
+        Parameters:
+        - coords_list: List of SkyCoord objects.
+        - weights: List of weights corresponding to each coordinate.
+
+        Returns:
+        - Weighted spherical mean SkyCoord object.
+        """
+        # Convert coordinates to Cartesian representation
+        cartesian_coords = np.array([coord.represent_as('cartesian').xyz.value for coord in coords_list])
+
+        # Apply weights to Cartesian coordinates
+        weighted_cartesian_coords = cartesian_coords * np.array(weights)[:, np.newaxis]
+
+        # Calculate the weighted mean Cartesian coordinates
+        weighted_mean_cartesian = np.sum(weighted_cartesian_coords, axis=0) / np.sum(weights)
+
+        # Convert back to spherical coordinates
+        mean_coord = SkyCoord(x=weighted_mean_cartesian[0], y=weighted_mean_cartesian[1], z=weighted_mean_cartesian[2], representation_type='cartesian').represent_as('spherical')
+
+        return SkyCoord(ra=mean_coord.lon.deg*u.deg, dec=mean_coord.lat.deg*u.deg, frame='fk5')
+
     def run(self):
         """
         Run the algorithm
@@ -216,27 +244,23 @@ class Grouper( object ):
             for i, x in enumerate(self.coords):
                 ### Step 1. For each datapoint x in X, find the neighbouring points N(x) of x.
                 idx_neighbours = self.neighbourhood_points(x, self.coords, max_distance = self.look_distance)
-                
+
                 ### Step 2. For each datapoint x in X, calculate the mean shift m(x).
-                distances = self.euclid_distance(self.coords[idx_neighbours], x)
+                distances = self.sky_distance(x, self.coords[idx_neighbours])
                 weights = self.gaussian_kernel(distances)
                 weights *= self.fluxes[idx_neighbours]**2 # multiply by flux**1.5 to make bright sources more important
-                numerator = np.sum(weights[:,np.newaxis] * self.coords[idx_neighbours], axis=0)
-                denominator = np.sum(weights)
-                new_x = numerator / denominator
-                
+                new_x = self.weighted_spherical_mean(self.coords[idx_neighbours], weights)
+                #print("xnewx",x,new_x)
+
                 ### Step 3. For each datapoint x in X, update x <- m(x).
                 self.coords[i] = new_x
 
             self.past_coords.append(np.copy(self.coords))
 
-            #if it>1: 
-            #    print (np.max(self.euclid_distance(self.coords,self.past_coords[-2])))
-
-            # if things changes little, brak
-            if it > 1 and np.max(self.euclid_distance(self.coords, self.past_coords[-2])) < self.grouping_distance/2.:
-                break
-            
+            if it > 1:
+                dists = [self.coords[i].separation(self.past_coords[-2][i]).deg for i in range(len(self.coords))]
+                if np.max(dists) < self.grouping_distance/2.:
+                    break
 
     def grouping(self):
         """
@@ -299,31 +323,29 @@ class Grouper( object ):
         for i, X in enumerate(self.past_coords):
             fig = plt.figure(figsize=(8, 8))
             fig.subplots_adjust(wspace=0)
-            ax = fig.add_subplot(111)
+            ax = fig.add_subplot(111, polar=True)
 
-            initial_x = self.past_coords[0][:,0]
-            initial_y = self.past_coords[0][:,1]
-
+            initial_x = np.array([s.ra.wrap_at(180 * u.deg).rad for s in self.past_coords[0]])
+            initial_y = np.array([np.pi/2 - s.dec.rad for s in self.past_coords[0]])
             ax.plot(initial_x,initial_y,'k.')
-            ax.plot(X[:,0],X[:,1],'ro')
+            ax.plot([s.ra.wrap_at(180 * u.deg).rad for s in X], [np.pi/2-s.dec.rad for s in X],'ro')
 
             ax.set_xlim( np.min(initial_x), np.max(initial_x) )
             ax.set_ylim( np.min(initial_y), np.max(initial_y) )
+            ax.set_rorigin(-1*np.min(initial_y))
 
-            #print ('Saving plot_%i.png' % i)
-            ax.set_xlim(ax.get_xlim()[::-1]) # reverse RA
             fig.savefig('grouping_%00i.png' % i, bbox_inches='tight')
 
         # plot clustering
         fig = plt.figure(figsize=(8, 8))
         fig.subplots_adjust(wspace=0)
-        ax = fig.add_subplot(111)
+        ax = fig.add_subplot(111, polar=True)
         for cluster in self.clusters:
             ax.plot(initial_x[cluster],initial_y[cluster], marker='.', linestyle='')
 
         ax.set_xlim( np.min(initial_x), np.max(initial_x) )
         ax.set_ylim( np.min(initial_y), np.max(initial_y) )
-        ax.set_xlim(ax.get_xlim()[::-1]) # reverse RA
+        ax.set_rorigin(-1*np.min(initial_y))
 
         logger.info('Plotting: grouping_clusters.png')
         fig.savefig('grouping_clusters.png', bbox_inches='tight')

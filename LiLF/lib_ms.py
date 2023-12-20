@@ -522,13 +522,13 @@ class MS(object):
 
     def makeBeamReg(self, outfile, pb_cut=None, to_null=False, freq='mid'):
         """
-        Create a ds9 region of the beam
+        Create a ds9 region of the beam to FWHM by default
         outfile : str
             output file
         pb_cut : float, optional
-            diameter of the beam
+            diameter of the beam in deg
         to_null : bool, optional
-            arrive to the first null, not the FWHM
+            arrive to the first null, not the FWHM (pb_cut must be None)
         freq: min,max,med 
             which frequency to use to estimate the beam size
         """
@@ -537,10 +537,10 @@ class MS(object):
 
         if pb_cut is None:
             radius = self.getFWHM(freq=freq)/2.
+            if to_null: radius *= 2 # rough estimation
         else:
             radius = pb_cut/2.
 
-        if to_null: radius *= 2 # rough estimation
 
         s = Shape('circle', None)
         s.coord_format = 'fk5'
