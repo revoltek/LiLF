@@ -24,6 +24,10 @@ skymodel = parset.get('LOFAR_cal2','skymodel')
 imaging = parset.getboolean('LOFAR_cal2','imaging')
 bl2flag = parset.get('flag','stations')
 
+RSISlist = ['RS106LBA','RS205LBA','RS208LBA','RS210LBA','RS305LBA','RS306LBA','RS307LBA','RS310LBA','RS406LBA','RS407LBA',
+            'RS409LBA','RS503LBA','RS508LBA','RS509LBA','DE601LBA','DE602LBA','DE603LBA','DE604LBA','DE605LBA','DE609LBA',
+            'FR606LBA','SE607LBA','UK608LBA','PL610LBA','PL611LBA','PL612LBA','IE613LBA','LV614LBA']
+
 #############################################################
 
 MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags=False)
@@ -84,7 +88,6 @@ for c in ['core','all']:
 
     if c == "core": MSs_concat = lib_ms.AllMSs( ['concat_core.MS'], s, check_flags=False )
     else: MSs_concat = lib_ms.AllMSs( ['concat_all.MS'], s, check_flags=False )
-    os.system('cp -r %s %s' % (skymodel, MSs_concat.getListObj()[0].pathMS))
 
     if c == "all":
         with w.if_todo('correctCS'):
@@ -101,9 +104,10 @@ for c in ['core','all']:
                 cor.correction=amplitudeSmooth cor.updateweights=True', log='$nameMS_corAMP.log', commandType="DP3")
 
             # Beam correction CORRECTED_DATA -> CORRECTED_DATA
-            #logger.info('Beam correction...')
-            #MSs_concat.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', 
-            #               log='$nameMS_beam2.log', commandType="DP3")
+            logger.info('Beam correction...')
+            MSs_concat.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True \
+                           corrbeam.noapplystations="['+','.join(RSISlist)+']"', 
+                           log='$nameMS_beam.log', commandType="DP3")
 
             # Correct FR CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Faraday rotation correction...')
@@ -148,6 +152,7 @@ for c in ['core','all']:
     with w.if_todo('predict_%s' % c):
         # predict to save time ms:MODEL_DATA
         logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
+        os.system('cp -r %s %s' % (skymodel, MSs_concat.getListObj()[0].pathMS))
         MSs_concat.run("DP3 " + parset_dir + "/DP3-predict.parset msin=$pathMS pre.sourcedb=$pathMS/" + os.path.basename(skymodel) + " pre.sources=" + calname, \
                 log="$nameMS_pre.log", commandType="DP3")
 
@@ -184,8 +189,8 @@ for c in ['core','all']:
     with w.if_todo('cal_fr_%s' % c):
         # Beam correction CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Beam correction...')
-        MSs_concat.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log',
-                commandType="DP3")
+        MSs_concat.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True \
+                       corrbeam.noapplystations=[SuperStLBA]', log='$nameMS_beam.log', commandType="DP3")
 
         # Smooth data CORRECTED_DATA -> CIRC_PHASEDIFF_DATA (BL-based smoothing)
         logger.info('BL-smooth...')
@@ -213,7 +218,7 @@ for c in ['core','all']:
         logger.info('Calibrating FR...')
         if c == 'core': smoothnessconstraint = 5e6
         else: smoothnessconstraint = 2e6
-        MSs_concat.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA \
+        MSs_concat.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=CIRC_PHASEDIFF_DATA \
         sol.modeldatacolumns=[FR_MODEL_DATA] sol.h5parm=$pathMS/fr_'+c+'.h5 sol.mode=phaseonly \
         sol.solint=4 sol.nchan=4 sol.smoothnessconstraint='+str(smoothnessconstraint)+' sol.smoothnessreffrequency=54e6', 
         log='$nameMS_solFR.log', commandType="DP3")

@@ -8,7 +8,7 @@ numthreads = 1 # leave this to 1 as it is called with s.run() and IO limited
 steps = [stationadd, filter]
 
 stationadd.type = stationadd
-stationadd.stations = {SuperST:'CS*'}
+stationadd.stations = {SuperStLBA:'CS*'}
 
 filter.type = filter
 filter.baseline = ^CS*&&
