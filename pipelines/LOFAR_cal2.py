@@ -105,7 +105,7 @@ for c in ['core','all']:
 
             # Beam correction CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Beam correction...')
-            MSs_concat.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True \
+            MSs_concat.run('DP3 ' + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True \
                            corrbeam.noapplystations="['+','.join(RSISlist)+']"', 
                            log='$nameMS_beam.log', commandType="DP3")
 
@@ -189,8 +189,10 @@ for c in ['core','all']:
     with w.if_todo('cal_fr_%s' % c):
         # Beam correction CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Beam correction...')
+        if c == 'core': noapplystations=''
+        else: noapplystations='"[SuperStLBA]"'
         MSs_concat.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True \
-                       corrbeam.noapplystations=[SuperStLBA]', log='$nameMS_beam.log', commandType="DP3")
+                       corrbeam.noapplystations='+noapplystations, log='$nameMS_beam.log', commandType="DP3")
 
         # Smooth data CORRECTED_DATA -> CIRC_PHASEDIFF_DATA (BL-based smoothing)
         logger.info('BL-smooth...')
@@ -279,7 +281,8 @@ for c in ['core','all']:
 
         # Beam correction CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Beam correction...')
-        MSs_concat.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False', log='$nameMS_beam2.log', commandType="DP3")
+        MSs_concat.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False \
+                       corrbeam.noapplystations="[SuperStLBA]"', log='$nameMS_beam2.log', commandType="DP3")
 
         # Correct FR CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Faraday rotation correction...')
