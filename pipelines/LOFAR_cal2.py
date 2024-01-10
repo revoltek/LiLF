@@ -96,12 +96,12 @@ for c in ['core','all']:
             # Pol align correction DATA -> CORRECTED_DATA
             logger.info('Polalign correction...')
             MSs_concat.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
-                           cor.parmdb=cal-pa_core.h5 cor.correction=polalign', log='$nameMS_corPA2.log', commandType="DP3")
+                           cor.parmdb=cal-pa_core.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DP3")
 
             # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
             logger.info('AmpBP correction...')
             MSs_concat.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.parmdb=cal-amp_core.h5 \
-                cor.correction=amplitudeSmooth cor.updateweights=True', log='$nameMS_corAMP.log', commandType="DP3")
+                cor.correction=amplitude000 cor.updateweights=True', log='$nameMS_corAMP.log', commandType="DP3")
 
             # Beam correction CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Beam correction...')
@@ -112,7 +112,7 @@ for c in ['core','all']:
             # Correct FR CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Faraday rotation correction...')
             MSs_concat.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fr_core.h5 \
-                           cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DP3")
+                           cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
 
             # Correct Iono CORRECTED_DATA -> CORRECTED_DATA
             logger.info('IONO correction...')
@@ -125,7 +125,8 @@ for c in ['core','all']:
             # Phasing up the cose stations
             logger.info('Phasing up Core Stations...')
             lib_util.check_rm('concat_all-phaseup.MS')
-            MSs_concat.run('DP3 ' + parset_dir + '/DP3-phaseup.parset msin=$pathMS msout=concat_all-phaseup.MS', log='$nameMS_phaseup.log', commandType="DP3")
+            MSs_concat.run('DP3 ' + parset_dir + '/DP3-phaseup.parset msin=$pathMS msout=concat_all-phaseup.MS', 
+                           log='$nameMS_phaseup.log', commandType="DP3")
             
         ### DONE
         
@@ -189,10 +190,8 @@ for c in ['core','all']:
     with w.if_todo('cal_fr_%s' % c):
         # Beam correction CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Beam correction...')
-        if c == 'core': noapplystations=''
-        else: noapplystations='"[SuperStLBA]"'
         MSs_concat.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True \
-                       corrbeam.noapplystations='+noapplystations, log='$nameMS_beam.log', commandType="DP3")
+                       corrbeam.noapplystations="[SuperStLBA]"', log='$nameMS_beam.log', commandType="DP3")
 
         # Smooth data CORRECTED_DATA -> CIRC_PHASEDIFF_DATA (BL-based smoothing)
         logger.info('BL-smooth...')
