@@ -79,7 +79,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
         logger.info('Cleaning empty ('+str(p)+')...')
         imagename = 'img/empty-'+str(p)
         lib_util.run_wsclean(s, 'wscleanE-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, data_column='SUBTRACTED_DATA',
-                size=imsize, scale=str(pixscale)+'arcsec',
+                size=[int(imsize[0]/2), int(imsize[1]/2)], scale=str(1.5*pixscale)+'arcsec',
                 weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0,
                 baseline_averaging='')
     else:
@@ -254,6 +254,7 @@ for cmaj in range(maxIter):
 
             directions.append(d)
         # take care of manually provided region to include in cal
+        print('man', manual_dd_cal)
         if manual_dd_cal != '':
             logger.warning('Using manually provided DS9 region for custom dd-calibrator (experimental). We assume this '
                            'calibrator is brighter than all other sources in the FoV.')
@@ -343,10 +344,9 @@ for cmaj in range(maxIter):
                         log='$nameMS_taql.log', commandType='general')
         ### DONE
 
-        ### TESTTESTTEST: empty image
-        #if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-        #    clean('init', MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
-        ###
+    ### TESTTESTTEST: empty image
+    if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
+       clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
 
     for dnum, d in enumerate(directions):
 
@@ -421,9 +421,8 @@ for cmaj in range(maxIter):
                         log='$nameMS_taql.log', commandType='general')
 
             ### TTESTTESTTEST: empty image but with the DD cal
-            #if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
-            #    clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
-    
+            if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
+               clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ### DONE
 
         with w.if_todo('%s-shift' % logstring):
@@ -522,9 +521,10 @@ for cmaj in range(maxIter):
                 else:
                     # Calibration - ms:SMOOTHED_DATA
                     logger.info('Iono calibration (scalarphase, solint: %i)...' % solint_ph)
+                    # less smoothing, only superterp constraint for bright sources
                     MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph.h5 \
-                        sol.mode=scalarphase sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=5e6 sol.smoothnessreffrequency=54e6 \
-                        sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
+                        sol.mode=scalarphase sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 \
+                        sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA]]',
                                 log='$nameMS_solGph-'+logstringcal+'.log', commandType='DP3')
                     lib_util.run_losoto(s, 'ph', [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()],
                                         [parset_dir+'/losoto-plot1.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
@@ -725,8 +725,8 @@ for cmaj in range(maxIter):
         ### DONE
 
         ### TTESTTESTTEST: empty image
-        #if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
-        #    clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        # if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
+        #     clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
     #####################################################
