@@ -807,6 +807,11 @@ if sourcesub == 0:
         clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), datacol='DIFFUSE_SUB',
               res='low', update_model=False)
 
+os.makedirs('extract-images')
+os.system('mv img/extractM-final-MFS-image.fits extract-images/')
+os.system('mv img/extractM-highres-MFS-image.fits extract-images/')
+os.system('mv img/extractM-sourcesubtracted-MFS-image.fits extract-images/')
+
 os.system('rm redshift_temp.txt')
 logger.info('Done.')
 
