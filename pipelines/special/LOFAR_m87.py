@@ -34,21 +34,34 @@ with w.if_todo('clean'):
     lib_util.check_rm('plots*')
     lib_util.check_rm('img')
     lib_util.check_rm('mss')
+    lib_util.check_rm('mssIS')
     os.makedirs('img')
     os.makedirs('mss')
+    os.makedirs('mssIS')
 
-    MSs = lib_ms.AllMSs( sorted(glob.glob(data_dir+'/*MS')), s )
-    # copy data (avg to 1ch/sb and 10 sec)
-    nchan = 1 #int(MSs.getListObj()[0].getNchan()) # no avg in freq
-    timeint = MSs.getListObj()[0].getTimeInt()
-    avg_time = int(np.rint(12./timeint)) # average to 12 s
-    
-    logger.info('Copy data...')
+MSs = lib_ms.AllMSs( sorted(glob.glob(data_dir+'/*MS')), s )
+# copy data (avg to 1ch/sb and 10 sec)
+nchan = 1 #int(MSs.getListObj()[0].getNchan()) # no avg in freq
+timeint = MSs.getListObj()[0].getTimeInt()
+avg_time = int(np.rint(2./timeint)) # average to 2 s
+
+with w.if_todo('AveragingDutch...'):
+    logger.info('Copy data dutch...')
     mss_bkp = sorted(glob.glob(data_dir+'/*MS'))
-    MSs.run('DP3 '+parset_dir+'/DP3-avg.parset msin=$pathMS msout=mss/$nameMS.MS avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time),\
+    MSs.run('DP3 '+parset_dir+'/DP3-avg.parset msin=$pathMS msin.baselines=[CR]S*& \
+            msout=mss/$nameMS.MS avg.freqstep=1 avg.timestep=2' % (nchan, avg_time),\
                 log='$nameMS_avg.log', commandType='DP3')
 
-MSs = lib_ms.AllMSs( glob.glob('mss/*MS'), s )
+with w.if_todo('AveragingIS'):
+    logger.info('Copy data IS...')
+    mss_bkp = sorted(glob.glob(data_dir+'/*MS'))
+    MSs.run('DP3 '+parset_dir+'/DP3-avg.parset msin=$pathMS msin.baselines=*& msin.startchan=1200 msin.nchan=2000 \
+             msout=mssIS/$nameMS.MS avg.freqstep=1 avg.timestep=1' % (nchan, avg_time),\
+            log='$nameMS_avg.log', commandType='DP3')
+
+
+MSs_dutch = lib_ms.AllMSs( glob.glob('mss/*MS'), s )
+MSs_IS = lib_ms.AllMSs( glob.glob('mssIS/*MS'), s )
 
 if MSs.isLBA and not MSs.hasIS:
     channels_out = 20
@@ -60,12 +73,20 @@ else:
 with w.if_todo('flag'):
     logger.info('Flagging...')
     if MSs.isLBA:
-        MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS msout=. steps=[ant,uvmin,elev,count] ant.baseline=\"'+bl2flag+'\"', \
+        MSs_dutch.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS msout=. steps=[ant,uvmin,elev,count] ant.baseline=\"'+bl2flag+'\"', \
+                log='$nameMS_flag.log', commandType='DP3')
+        MSs_IS.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS msout=. steps=[ant,uvmin,elev,count] ant.baseline=\"'+bl2flag+'\"', \
                 log='$nameMS_flag.log', commandType='DP3')
     else:
-        MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS msout=. steps=[ears,ant,uvmin,elev,count] \
+        MSs_dutch.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS msout=. steps=[ears,ant,uvmin,elev,count] \
                 ant.baseline=\"'+bl2flag+'\" ears.type=preflagger ears.baseline=\"/(.*)HBA0&\\1HBA1/\"', \
                 log='$nameMS_flag.log', commandType='DP3')
+        MSs_IS.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS msout=. steps=[ears,ant,uvmin,elev,count] \
+                ant.baseline=\"'+bl2flag+'\" ears.type=preflagger ears.baseline=\"/(.*)HBA0&\\1HBA1/\"', \
+                log='$nameMS_flag.log', commandType='DP3')
+        
+    MSs_dutch.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+    MSs_IS.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
 if model_dir == '' and MSs.isHBA: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 if model_dir == '' and MSs.isLBA: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
@@ -75,28 +96,52 @@ with w.if_todo('model'):
         im = lib_img.Image(model_dir+'/img-MFS-image.fits')
         im.rescaleModel(f)
         n = len(glob.glob(model_dir+'/img-[0-9]*-model.fits'))
-        logger.info('Predict (wsclean: %s - chan: %i)...' % (model_dir, n))
-        s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channels-out '+str(n)+' '+MSs.getStrWsclean(), \
+        logger.info('Predict Dutch (wsclean: %s - chan: %i)...' % (model_dir, n))
+        s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channels-out '+str(n)+' '+MSs_dutch.getStrWsclean(), \
+              log='wscleanPRE-init.log', commandType='wsclean', processors='max')
+        s.run(check=True)
+        logger.info('Predict IS (wsclean: %s - chan: %i)...' % (model_dir, n))
+        s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channels-out '+str(n)+' '+MSs_IS.getStrWsclean(), \
               log='wscleanPRE-init.log', commandType='wsclean', processors='max')
         s.run(check=True)
     elif not skipmodel:
         logger.info('Predict (DP3)...')
         MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DP3')
 
-# TESTTESTTEST
-# BL Smooth DATA -> DATA
-#if MSs.isHBA:
-#    logger.info('BL-based smoothing...')
-#    MSs.run('BLsmooth.py -r -s 0.7 -i DATA -o DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
-
+logger.info('Calibrating Dutch...')
+MSs_dutch.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
+            sol.h5parm=$pathMS/cal.h5 sol.mode=fulljones \
+            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=.5e6', \
+            log='$nameMS_sol.log', commandType="DP3")
+lib_util.run_losoto(s, '%i' % c, [ms+'/cal.h5' for ms in MSs_dutch.getListStr()],
+                [parset_dir+'/losoto-plot-fullj.parset'])
+MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.parmdb=cal-'+str(c)+'.h5 \
+                cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.updateweights=True', log='$nameMS_cor.log', commandType="DP3")
+ 
 for c in range(100):
 
     logger.info('== Start cycle: %s ==' % c)
+    
+    with w.if_todo('cal_c%02i' % c):
+        logger.info('Calibrating...')
+        MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
+                sol.h5parm=$pathMS/cal.h5 sol.mode=fulljones \
+                sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=.5e6', \
+                log='$nameMS_sol.log', commandType="DP3")
 
-    with w.if_todo('flag_c%02i' % c):
-        #logger.info('Remove bad timestamps...')
-        MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+        lib_util.run_losoto(s, '%i' % c, [ms+'/cal.h5' for ms in MSs.getListStr()],
+                [parset_dir+'/losoto-plot-fullj.parset'])
+                
+        logger.info('Correcting...')
+        if c==1:
+            MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.parmdb=cal-'+str(c)+'.h5 \
+                cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.updateweights=True', log='$nameMS_cor.log', commandType="DP3")
+        else:
+            MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.parmdb=cal-'+str(c)+'.h5 \
+                cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.updateweights=False', log='$nameMS_cor.log', commandType="DP3")
 
+        
+    """
     ####################################################
     # 1: find PA and remove it
 
@@ -194,6 +239,7 @@ for c in range(100):
             MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.updateweights=False cor.parmdb=cal-bp-c'+str(c)+'.h5 cor.correction=fulljones \
                    cor.soltab=\[amplitude000,phase000\]', \
                    log='$nameMS_corBP3.log', commandType='DP3')
+    """
 
     with w.if_todo('image_c%02i' % c):
         logger.info('Cleaning (cycle %02i)...' % c)
