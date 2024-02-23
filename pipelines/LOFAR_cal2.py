@@ -203,6 +203,11 @@ with w.if_todo('cal_pa'):
 # 2: find FR
 with w.if_todo('cal_fr'):
  
+    # Correct beam DATA -> CORRECTED_DATA
+    logger.info('Beam correction...')
+    MSs_concat_phaseup.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True \
+                           corrbeam.noapplystations=[SuperStLBA]', log='$nameMS_beam.log', commandType="DP3")
+
     # Smooth data CORRECTED_DATA -> CIRC_PHASEDIFF_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
     MSs_concat_phaseup.addcol('CIRC_PHASEDIFF_DATA', 'CORRECTED_DATA', usedysco=False) # need this to make sure no dysco, if we have dysco we cannot set values to zero
