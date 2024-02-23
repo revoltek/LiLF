@@ -5,6 +5,15 @@ operation = DUPLICATE
 soltab = sol000/amplitude000
 soltabOut = amplitudeSmooth
 
+[duplicateP]
+operation = DUPLICATE
+soltab = sol000/phase000
+soltabOut = phaseNull
+
+[reset]
+operation = RESET
+soltab = sol000/phaseNull 
+
 [smooth]
 operation = SMOOTH
 soltab = sol000/amplitudeSmooth
@@ -16,6 +25,7 @@ log = True
 [flagstation]
 operation = FLAGSTATION
 soltab = sol000/amplitudeSmooth
+pol = XX, YY
 mode = bandpass
 ampRange = [0.3,2.0]
 skipInternational = True

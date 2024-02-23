@@ -1,0 +1,53 @@
+[beam]
+operation = LOFARBEAM
+soltab = sol000/amplitude000
+allChan = True
+ms = concat_core.MS
+
+[reset]
+operation = RESET
+soltab = sol000/phase000
+
+[duplicateCore]
+operation = DUPLICATE
+soltab = sol000/amplitude000
+soltabOut = amplitudeCore
+
+[duplicateNoCore]
+operation = DUPLICATE
+soltab = sol000/amplitude000
+soltabOut = amplitudeNoCore
+
+[reset1]
+soltab = amplitudeNoCore
+operation = RESET
+ant = CS*
+
+[reset2]
+soltab = amplitudeCore
+operation = RESET
+ant = !CS*
+
+[plotP]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ph_
+
+[plotAcore]
+operation = PLOT
+soltab = sol000/amplitudeCore
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ampCore_
+
+[plotAnocore]
+operation = PLOT
+soltab = sol000/amplitudeNoCore
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ampNoCore_
