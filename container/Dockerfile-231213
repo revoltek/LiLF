@@ -109,12 +109,13 @@ RUN cd /opt/wsclean && mkdir build && cd build \
     && make -j 64 && make install
 
 #####################################################################
-## Dp3 master 15/6/23
+## Dp3 applybeam_filter 20/12/23
 #####################################################################
-RUN cd /opt && git clone https://github.com/lofar-astron/DP3.git \
-    && cd /opt/DP3 && git checkout 2e989c5610ebaa32f589f402f425d9aa9f39bacd
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
+#RUN cd /opt && git clone https://github.com/lofar-astron/DP3.git \
+RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
+    && cd /opt/DP3 && git checkout applybeam_filter
 RUN cd /opt/DP3 && mkdir build && cd build \
     && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
@@ -142,10 +143,10 @@ RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git \
 RUN cd /opt/LSMTool && pip3 install .
 
 ####################################################################
-## LoSoTo master 19/4/23
+## LoSoTo master 20/12/23
 ###################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto && git checkout 74becaae02d44889b27af739b79bf4bbbe31a367
+    && cd /opt/losoto && git checkout 6743cf175097dcf86dcb2d05fa893abb7728f140
 RUN cd /opt/losoto && pip3 install .
 #RUN pip3 install --upgrade scipy
 
@@ -203,6 +204,9 @@ RUN cd /opt/DDFacet/ && python3 setup.py install
 #ENV PATH /opt/LiLF/scripts:$PATH
    
 #####################################################################
+
+RUN mkdir /usr/share/casacore/
+RUN ln -s /usr/share/casacore/data/ /opt/casacore/data
 
 ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
 RUN ln -s /usr/bin/python3 /usr/bin/python
