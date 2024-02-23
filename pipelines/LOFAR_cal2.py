@@ -7,6 +7,7 @@
 
 import sys, os, glob, re
 import numpy as np
+import casacore.tables as pt
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_h5
@@ -31,6 +32,18 @@ RSISlist = ['RS106LBA','RS205LBA','RS208LBA','RS210LBA','RS305LBA','RS306LBA','R
 #############################################################
 
 MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s, check_flags=False)
+
+### This part is so that missing subbands get concatenated correctly.
+for i, msg in enumerate(np.array_split(sorted(glob.glob(data_dir+'/*MS')), 1)):
+    min_nu = pt.table(MSs.getListStr()[0]).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MIN']
+    max_nu = pt.table(MSs.getListStr()[0]).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MAX']
+    num_init = lib_util.lofar_nu2num(min_nu) + 1  # +1 because FREQ_MIN/MAX somewhat have the lowest edge of the SB freq
+    num_fin = lib_util.lofar_nu2num(max_nu) + 1
+    prefix = re.sub('SB[0-9]*.MS', '', msg[0])
+    msg = []
+    for j in range(num_init, num_fin + 1):
+        msg.append(prefix + 'SB%03i.MS' % j)
+################
 
 if min(MSs.getFreqs()) < 35.e6:
     iono3rd = True
@@ -68,8 +81,12 @@ for c in ['core','all']:
             # SB.MS:DATA -> concat.MS:DATA
             logger.info('Concatenate data...')
             lib_util.check_rm('concat_core.MS')
-            s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(MSs.getListStr())+']" msout=concat_core.MS \
-                  msin.baseline="CS*&" avg.freqstep='+str(freqstep)+' avg.timestep='+str(timestep), 
+            #Old DP3 call with no missing subbands
+            # s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(MSs.getListStr())+']" msout=concat_core.MS \
+            #       msin.baseline="CS*&" avg.freqstep='+str(freqstep)+' avg.timestep='+str(timestep),
+            #       log='concat.log', commandType='DP3')
+            s.add('DP3 ' + parset_dir + '/DP3-concat.parset msin="['+','.join(msg)+']" msout=concat_core.MS \
+                              msin.baseline="CS*&" avg.freqstep=' + str(freqstep) + ' avg.timestep=' + str(timestep),
                   log='concat.log', commandType='DP3')
             s.run(check=True)
         else:
@@ -165,7 +182,7 @@ for c in ['core','all']:
     with w.if_todo('cal_pa_%s' % c):
         # Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
         logger.info('BL-smooth...')
-        MSs_concat.run(f'BLsmooth.py -r -q -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i DATA -o SMOOTHED_DATA $pathMS', 
+        MSs_concat.run(f'BLsmooth.py -r -q -c 4 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i DATA -o SMOOTHED_DATA $pathMS',
                        log='$nameMS_smooth1.log', commandType='python', maxThreads=8)
 
         # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
@@ -196,7 +213,7 @@ for c in ['core','all']:
         # Smooth data CORRECTED_DATA -> CIRC_PHASEDIFF_DATA (BL-based smoothing)
         logger.info('BL-smooth...')
         MSs_concat.addcol('CIRC_PHASEDIFF_DATA', 'CORRECTED_DATA', usedysco=False) # need this to make sure no dysco, if we have dyso we cannot set values to zero
-        MSs_concat.run(f'BLsmooth.py -r -q -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CIRC_PHASEDIFF_DATA -o CIRC_PHASEDIFF_DATA $pathMS', log='$nameMS_smooth2.log',
+        MSs_concat.run(f'BLsmooth.py -r -q -c 4 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CIRC_PHASEDIFF_DATA -o CIRC_PHASEDIFF_DATA $pathMS', log='$nameMS_smooth2.log',
                 commandType='python', maxThreads=8)
 
         logger.info('Converting to circular...')
@@ -249,7 +266,7 @@ for c in ['core','all']:
 
         # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
         logger.info('BL-smooth...')
-        MSs_concat.run(f'BLsmooth.py -r -q -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log',
+        MSs_concat.run(f'BLsmooth.py -r -q -c 4 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth3.log',
                 commandType ='python', maxThreads=8)
 
         # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
@@ -300,7 +317,7 @@ for c in ['core','all']:
     with w.if_todo('cal_iono_%s' % c):
         # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
         logger.info('BL-smooth...')
-        MSs_concat.run(f'BLsmooth.py -r -q -c 1 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
+        MSs_concat.run(f'BLsmooth.py -r -q -c 4 -n 8 -f {1e-2 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
                 commandType ='python', maxThreads=8)
 
         # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
@@ -320,6 +337,7 @@ for c in ['core','all']:
         else:
             lib_util.run_losoto(s, 'iono_'+c, [ms+'/iono_'+c+'.h5' for ms in MSs_concat.getListStr()],
                 [parset_dir+'/losoto-plot-scalarph.parset', parset_dir+'/losoto-iono.parset'])
+
 
     ### DONE
 
@@ -372,7 +390,7 @@ if imaging:
 
         # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
         logger.info('BL-smooth...')
-        MSs_concat.run('BLsmooth.py -r -q -c 1 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
+        MSs_concat.run('BLsmooth.py -r -q -c 4 -n 8 -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth4.log',
                 commandType ='python', maxThreads=8)
         
         # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
