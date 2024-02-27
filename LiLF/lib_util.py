@@ -355,7 +355,41 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     args : parameters for wsclean, "_" are replaced with "-", any parms=None is ignored.
            To pass a parameter with no values use e.g. " no_update_model_required='' "
     """
-    
+
+    import LiLF.lib_ms, re
+    mslist = MSs_files.split()
+
+    #The following lines check whether we can combine MS files in time, if some (or all) of them have the same antennas. This speeds up WSClean significantly.
+    antennae = []
+    for dataset in mslist:
+        singleMS = LiLF.lib_ms.MS(dataset)
+        antennalist = singleMS.getAntennas()
+        antennae.append(antennalist)
+
+    if all(x == antennae[0] for x in antennae):
+        logger.info('All the MS files have the same antennas. Concatenating them in time...')
+        os.system(f'taql select from {mslist} giving wsclean_concat.MS as plain')
+        MSs_files = 'wsclean_concat.MS'
+    else:
+        different_indices = [i for i, lst in enumerate(antennae) if lst != antennae[0]]
+        filelist_sameants = []
+        filelist_diffants = []
+        for i, lst in enumerate(antennae):
+            if i not in different_indices:
+                filelist_sameants.append(mslist[i])
+            else:
+                filelist_diffants.append(mslist[i])
+        if not filelist_diffants:
+            logger.info('All the MS files have different antennas between each other. They will not be concatenated in time...')
+        else:
+            logger.info('Some MS files have different antennas from each other. Combining in time those with same antennas...')
+        #logger.info(f'The following MS files have the same antennas: {filelist_sameants}')
+            os.system(f'taql select from {filelist_sameants} giving wsclean_concat.MS as plain')
+            dirty_MSs_files = ['wsclean_concat.MS', f'{filelist_diffants}']
+            MSs_files_list = [re.sub(r'[\[\]\'\"]', '', element) for element in dirty_MSs_files]
+            MSs_files = ' '.join(MSs_files_list)
+
+
     wsc_parms = []
     reordering_processors = np.min([len(MSs_files),s.max_processors])
 
@@ -394,6 +428,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
     # create command string
     command_string = 'wsclean '+' '.join(wsc_parms)
     s.add(command_string, log=logfile, commandType='wsclean', processors='max')
+    logger.info('Running WSClean...')
     s.run(check=True)
 
     # Predict in case update_model_required cannot be used
@@ -414,6 +449,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
                          '-j '+str(s.max_processors)+' '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean', processors='max')
         s.run(check=True)
+    os.system('rm -rf wsclean_concat.MS')
 
 def run_DDF(s, logfile, **kwargs):
     """
