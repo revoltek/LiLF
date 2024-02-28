@@ -91,6 +91,7 @@ with w.if_todo('flag'):
 if model_dir == '' and MSs.isHBA: model_dir = '/home/fdg/scripts/model/AteamHBA/'+patch
 if model_dir == '' and MSs.isLBA: model_dir = '/home/fdg/scripts/model/AteamLBA/'+patch
 
+####################################################################
 with w.if_todo('model'):
     if not skipmodel and os.path.exists(model_dir+'/img-MFS-model.fits'):
         im = lib_img.Image(model_dir+'/img-MFS-image.fits')
@@ -108,16 +109,44 @@ with w.if_todo('model'):
         logger.info('Predict (DP3)...')
         MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+skymodel+' pre.sources='+patch, log='$nameMS_pre.log', commandType='DP3')
 
-logger.info('Calibrating Dutch...')
-MSs_dutch.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
-            sol.h5parm=$pathMS/cal.h5 sol.mode=fulljones \
-            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=.5e6', \
-            log='$nameMS_sol.log', commandType="DP3")
-lib_util.run_losoto(s, '%i' % c, [ms+'/cal.h5' for ms in MSs_dutch.getListStr()],
-                [parset_dir+'/losoto-plot-fullj.parset'])
-MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS cor.parmdb=cal-'+str(c)+'.h5 \
-                cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.updateweights=True', log='$nameMS_cor.log', commandType="DP3")
- 
+########################################################################
+with w.if_todo('phaseupcore'):
+    MSs_dutch.run(
+        "DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.updateweights=True',
+        log='$nameMS_beam.log', commandType="DP3")
+
+    # Smooth data concat_core.MS:DATA -> SMOOTHED_DATA (BL-based smoothing)
+    logger.info('BL-smooth...')
+    MSs_dutch.run(
+        f'BLsmooth.py -r -q -c 1 -n 8 -f {1e-3 if MSs.isLBA else .2e-3} -i DATA -o SMOOTHED_DATA $pathMS',
+        log='$nameMS_smooth3.log', commandType='python', maxThreads=8)
+
+    # Solve concat_core.MS:SMOOTHED_DATA (only solve)
+    logger.info('Calibrating fullj cores...')
+    MSs_dutch.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
+            sol.h5parm=$pathMS/fullj.h5 sol.mode=fulljones \
+            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=1e6', \
+                        log='$nameMS_solBP.log', commandType="DP3")
+    lib_util.run_losoto(s, 'core_fullj', [ms + '/fullj.h5' for ms in MSs_dutch.getListStr()],
+                        [parset_dir + '/losoto-flag.parset', parset_dir + '/losoto-plot-fullj.parset'])
+
+    # Correct cores concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA (for cores)
+    logger.info('FullJ correction...')
+    MSs_IS.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.updateweights=True \
+                       corrbeam.noapplystations=[' + ','.join(RSISlist) + ']', log='$nameMS_beam.log',
+                       commandType="DP3")
+    MSs_IS.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-core_fullj.h5 \
+                cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.updateweights=True',
+                       log='$nameMS_corFullJ.log', commandType="DP3")
+
+    # Phasing up the cose stations
+    logger.info('Phasing up Core Stations...')
+    lib_util.check_rm('concat_all-phaseup.MS')
+    MSs_IS.run('DP3 ' + parset_dir + '/DP3-phaseup.parset msin=$pathMS msout=concat_all-phaseup.MS',
+                       log='$nameMS_phaseup.log', commandType="DP3")
+
+### DONE
+
 for c in range(100):
 
     logger.info('== Start cycle: %s ==' % c)

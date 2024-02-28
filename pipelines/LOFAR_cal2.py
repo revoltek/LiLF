@@ -196,9 +196,9 @@ with w.if_todo('predict_all-phaseup'):
 
 with w.if_todo('cal_pa'):
     # Correct beam DATA -> CORRECTED_DATA
-    logger.info('Beam correction...')
-    MSs_concat_phaseup.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.updateweights=True \
-                           corrbeam.noapplystations=[SuperStLBA]', log='$nameMS_beam.log', commandType="DP3")
+    logger.info('Beam corruption...')
+    MSs_concat_phaseup.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.updateweights=False \
+                           corrbeam.invert=False setbeam.beammode=element corrbeam.noapplystations=[' + ','.join(RSISlist) + ']', log='$nameMS_beam.log', commandType="DP3")
 
     # Smooth data concat_all-phaseup CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
@@ -219,9 +219,9 @@ with w.if_todo('cal_pa'):
                         [parset_dir + '/losoto-plot-ph.parset', parset_dir + '/losoto-plot-rot.parset',
                          parset_dir + '/losoto-plot-amp.parset', parset_dir + '/losoto-pa.parset'])
 
-    # Pol align correction CORRECTED_DATA -> CORRECTED_DATA
+    # Pol align correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
-    MSs_concat_phaseup.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+    MSs_concat_phaseup.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
                    cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DP3")
     ### DONE
 
@@ -229,7 +229,7 @@ with w.if_todo('cal_pa'):
 # 2: find FR
 with w.if_todo('cal_fr'):
  
-    # Correct beam DATA -> CORRECTED_DATA
+    # Correct beam CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
     MSs_concat_phaseup.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True \
                            corrbeam.noapplystations=[SuperStLBA]', log='$nameMS_beam.log', commandType="DP3")

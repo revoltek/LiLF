@@ -1,0 +1,15 @@
+msin = 
+msin.datacolumn = CORRECTED_DATA
+msout = 
+msout.storagemanager = dysco
+
+numthreads = 1 # leave this to 1 as it is called with s.run() and IO limited
+
+steps = [stationadd, filter]
+
+stationadd.type = stationadd
+stationadd.stations = {SuperStLBA:'CS00[2-6]LBA'}
+
+filter.type = filter
+filter.baseline = ^CS00[2-6]*&&
+filter.remove = True
