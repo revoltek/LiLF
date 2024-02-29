@@ -435,7 +435,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=True, **kwar
                          '-j '+str(s.max_processors)+' '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean', processors='max')
         s.run(check=True)
-    os.system('rm -rf wsclean_concat.MS')
+    os.system(f'rm -rf wsclean_concat_*.MS')
 
 def run_DDF(s, logfile, **kwargs):
     """
