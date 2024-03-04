@@ -368,7 +368,11 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=True, **kwar
         groups = []
         for k, g in groupby(MSs_list, keyfunct):
             groups.append(list(g))
-        logger.info("Wsclean MS groups: ", groups)
+        logger.info(f"Found {len(groups)} groups of datasets with same antennas.")
+        for i, group in enumerate(groups, start=1):
+            antennas = ', '.join(lib_ms.MS(group[0]).getAntennas())
+            logger.info(f"WSClean MS group {i}: {group}")
+            logger.debug(f"List of antennas: {antennas}")
         
         MSs_files_clean = []
         for g, group in enumerate(groups):
