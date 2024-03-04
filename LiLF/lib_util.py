@@ -370,14 +370,16 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=True, **kwar
             groups.append(list(g))
         logger.info("Wsclean MS groups: ", groups)
         
-        MSs_files = []
+        MSs_files_clean = []
         for g, group in enumerate(groups):
             os.system(f'taql select from {group} giving wsclean_concat_{g}.MS as plain')
-            MSs_files.append(f'wsclean_concat_{g}.MS')
-        MSs_files = ' '.join(MSs_files)
+            MSs_files_clean.append(f'wsclean_concat_{g}.MS')
+        MSs_files_clean = ' '.join(MSs_files_clean)
+    else:
+        MSs_files_clean = MSs_files
 
     wsc_parms = []
-    reordering_processors = np.min([len(MSs_files),s.max_processors])
+    reordering_processors = np.min([len(MSs_files_clean),s.max_processors])
 
     # basic parms
     wsc_parms.append( '-j '+str(s.max_processors)+' -reorder -parallel-reordering 4 ' )
@@ -409,7 +411,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=True, **kwar
         wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
 
     # files
-    wsc_parms.append( MSs_files )
+    wsc_parms.append( MSs_files_clean )
 
     # create command string
     command_string = 'wsclean '+' '.join(wsc_parms)
@@ -427,7 +429,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=True, **kwar
             if parm == 'name' or parm == 'channels_out' or parm == 'use_wgridder' or parm == 'wgridder_accuracy':
                 wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
 
-        # files
+        # files (the original, not the concatenated)
         wsc_parms.append( MSs_files )
         # Test without reorder as it apperas to be faster
         # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
@@ -435,7 +437,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=True, **kwar
                          '-j '+str(s.max_processors)+' '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean', processors='max')
         s.run(check=True)
-    os.system('rm -rf wsclean_concat.MS')
+        
+    check_rm('wsclean_concat_*.MS')
 
 def run_DDF(s, logfile, **kwargs):
     """
