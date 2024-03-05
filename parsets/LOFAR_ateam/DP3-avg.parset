@@ -4,8 +4,7 @@ msin.missingdata = True
 msin.orderms = False
 #do not copy aucorr as they have too weird weights for dysco
 msin.baseline = [CR]S*&
-msout =
-msout.writefullresflag = False
+msout = 
 msout.storagemanager = dysco
 
 numthreads = 1 # leave this to 1 as it is called with s.run() and IO limited

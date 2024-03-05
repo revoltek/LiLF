@@ -207,7 +207,7 @@ if len(cl_failed) < len(cl_name): # if all or some are successfull
     logger.info('Concluded. Extracted datasets are in the mss-extract directory of each target.')
     logger.info('A new column DIFFUSE_SUB has been added to each successfully extracted .ms file.')
     logger.info('It contains the compact-source-subtracted visibilities.')
-    logger.info('Nominal, high and source-subtracted low resolution images are in the /img directory of each target.')
+    logger.info('Nominal, high and source-subtracted low resolution images are in the extract-images/ directory of each target.')
 else: # none worked :(
     logger.error(f'Extraction of all target(s): {",".join(cl_failed)} failed')
 if (len(cl_failed) < len(cl_name)) and len(cl_failed): # case some but not all failed

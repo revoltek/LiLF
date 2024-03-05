@@ -2,7 +2,6 @@ msin =
 msin.datacolumn = DATA
 #do not copy aucorr as they have too weird weights for dysco
 msout =
-msout.writefullresflag = False
 
 numthreads = 1 # leave this to 1 as it is called with s.run() and IO limited
 

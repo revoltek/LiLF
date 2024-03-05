@@ -1,0 +1,27 @@
+[beamA]
+operation = LOFARBEAM
+soltab = sol000/amplitude000
+allChan = True
+ms = concat_core.MS
+
+[beamP]
+operation = LOFARBEAM
+soltab = sol000/phase000
+allChan = True
+ms = concat_core.MS
+
+[plotA]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/amp_
+
+[plotP]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ph_

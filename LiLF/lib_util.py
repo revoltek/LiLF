@@ -134,13 +134,14 @@ def getParset(parsetFile=''):
 
     return config
 
-def create_extregion(ra, dec, extent):
+def create_extregion(ra, dec, extent, color='yellow'):
     """
     Parameters
     ----------
     ra
     dec
     extent
+    color
 
     Returns
     -------
@@ -149,7 +150,7 @@ def create_extregion(ra, dec, extent):
 
     regtext = ['# Region file format: DS9 version 4.1']
     regtext.append(
-        'global color=yellow dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1')
+        f'global color={color} dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1')
     regtext.append('fk5')
     regtext.append('circle(' + str(ra) + ',' + str(dec) + f',{extent})')
     nline = '\n'
@@ -350,15 +351,41 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
         check_rm('plots')
 
 
-def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
+def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=True, **kwargs):
     """
     s : scheduler
+    concat_mss : try to concatenate mss files to speed up wsclean
     args : parameters for wsclean, "_" are replaced with "-", any parms=None is ignored.
            To pass a parameter with no values use e.g. " no_update_model_required='' "
     """
-    
+
+    # Check whether we can combine MS files in time, if some (or all) of them have the same antennas.
+    # This speeds up WSClean significantly.
+    if concat_mss:
+        from LiLF import lib_ms
+        from itertools import groupby
+
+        keyfunct = lambda x: ' '.join(sorted(lib_ms.MS(x).getAntennas()))
+        MSs_list = sorted(MSs_files.split(), key=keyfunct) # needs to be sorted
+        groups = []
+        for k, g in groupby(MSs_list, keyfunct):
+            groups.append(list(g))
+        logger.info(f"Found {len(groups)} groups of datasets with same antennas.")
+        for i, group in enumerate(groups, start=1):
+            antennas = ', '.join(lib_ms.MS(group[0]).getAntennas())
+            logger.info(f"WSClean MS group {i}: {group}")
+            logger.debug(f"List of antennas: {antennas}")
+        
+        MSs_files_clean = []
+        for g, group in enumerate(groups):
+            os.system(f'taql select from {group} giving wsclean_concat_{g}.MS as plain')
+            MSs_files_clean.append(f'wsclean_concat_{g}.MS')
+        MSs_files_clean = ' '.join(MSs_files_clean)
+    else:
+        MSs_files_clean = MSs_files
+
     wsc_parms = []
-    reordering_processors = np.min([len(MSs_files),s.max_processors])
+    reordering_processors = np.min([len(MSs_files_clean),s.max_processors])
 
     # basic parms
     wsc_parms.append( '-j '+str(s.max_processors)+' -reorder -parallel-reordering 4 ' )
@@ -390,11 +417,12 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
         wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
 
     # files
-    wsc_parms.append( MSs_files )
+    wsc_parms.append( MSs_files_clean )
 
     # create command string
     command_string = 'wsclean '+' '.join(wsc_parms)
     s.add(command_string, log=logfile, commandType='wsclean', processors='max')
+    logger.info('Running WSClean...')
     s.run(check=True)
 
     # Predict in case update_model_required cannot be used
@@ -407,7 +435,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
             if parm == 'name' or parm == 'channels_out' or parm == 'use_wgridder' or parm == 'wgridder_accuracy':
                 wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
 
-        # files
+        # files (the original, not the concatenated)
         wsc_parms.append( MSs_files )
         # Test without reorder as it apperas to be faster
         # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
@@ -415,6 +443,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
                          '-j '+str(s.max_processors)+' '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean', processors='max')
         s.run(check=True)
+        
+    check_rm('wsclean_concat_*.MS')
 
 def run_DDF(s, logfile, **kwargs):
     """
