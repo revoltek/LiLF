@@ -10,6 +10,9 @@ import numpy as np
 from astropy.table import Table as astrotab
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.io import fits
+from astropy.wcs import WCS
+import regions
 import pyrap.tables as pt
 import lsmtool
 
@@ -27,7 +30,7 @@ parset_dir = parset.get('LOFAR_dd','parset_dir')
 userReg = parset.get('model','userReg')
 maxIter = parset.getint('LOFAR_dd','maxIter')
 min_cal_flux60 = parset.getfloat('LOFAR_dd','minCalFlux60')
-#target_dir = parset.get('LOFAR_dd','target_dir')
+manual_dd_cal = parset.get('LOFAR_dd','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
     """
@@ -103,8 +106,8 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
                 size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', reuse_psf=imagename, reuse_dirty=imagename,
                 weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', 
-                baseline_averaging='', local_rms='', auto_threshold=0.75, auto_mask=1.5, fits_mask=imagename+'-mask.fits',
-                join_channels='', fit_spectral_pol=3, channels_out=ch_out)  #, deconvolution_channels=3)
+                baseline_averaging='',  auto_threshold=0.75, auto_mask=1.5, fits_mask=imagename+'-mask.fits',
+                join_channels='', fit_spectral_pol=3, channels_out=ch_out)  #, deconvolution_channels=3) #local_rms
 
         os.system('cat '+logger_obj.log_dir+'/wscleanB-'+str(p)+'.log | grep "background noise"')
 
@@ -113,6 +116,7 @@ with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('ddcal')
     os.makedirs('ddcal/init')
+    os.system('cp self/images/wideM-1* ddcal/init/')
     lib_util.check_rm('img')
     os.makedirs('img')
     lib_util.check_rm('mss-avg')
@@ -160,10 +164,7 @@ with w.if_todo('add_columns'):
     MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
 
 ##############################################################
-# setup initial model
-# TEST: use wideM-0 as wideM-1 has only a sub-region of the sky
-os.system('cp self/images/wideM-0* ddcal/init/')
-full_image = lib_img.Image('ddcal/init/wideM-0-MFS-image.fits', userReg=userReg)
+full_image = lib_img.Image('ddcal/init/wideM-1-MFS-image.fits', userReg=userReg)
 
 for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
@@ -248,9 +249,43 @@ for cmaj in range(maxIter):
                 for model_file in glob.glob(full_image.root+'*[0-9]-model.fits') + glob.glob(full_image.root+'*[0-9]-model-pb.fits'):
                     os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
                 d.set_model(model_root, typ='init', apply_region=True)
-    
                 directions.append(d)
 
+        # take care of manually provided region to include in cal
+        # TODO: if this clutters the pipeline, we can move it to lib_dd!
+        if manual_dd_cal != '':
+            man_cal = regions.read_ds9(manual_dd_cal)
+            logger.warning(
+                f'Using DS9 region {manual_dd_cal} for manual dd-calibrator (experimental).')
+            assert len(man_cal) == 1
+            # get flux in manual reg
+            reg_flux = full_image.calc_flux(manual_dd_cal)
+            logger.info(f'Flux in manual region: {reg_flux:.1f} Jy')
+            full_residual_image = fits.open(full_image.imagename.replace('image','residual'))  # use residual so we can get data for rms
+            hdr, data_res = lib_img.flatten(full_residual_image)
+            wcs = WCS(hdr)
+            for i, d in enumerate(directions):  # remove dd-cals that are already in region
+                ra, dec = d.position
+                sc = SkyCoord(ra * u.deg, dec * u.deg, frame='fk5')
+                if man_cal[0].contains(sc, wcs):
+                    logger.info(f'{d.name} containted in manual region, remove auto-found direction.')
+                    directions.pop(i)
+            name = f'ddcal-' + manual_dd_cal.split('.')[0]
+            d = lib_dd.Direction(name)
+            d.fluxes = reg_flux
+            d.spidx_coeffs = -0.8
+            d.ref_freq = freq_mid
+            # get rms in manual reg
+            d.localrms = np.std(man_cal[0].to_pixel(wcs).to_mask().cutout(data_res))
+            ra, dec = man_cal[0].center.ra.to_value('deg'), man_cal[0].center.dec.to_value('deg')
+            d.set_position([ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center)
+            d.set_size([ra], [dec], [man_cal[0].radius.to_value('deg')], img_beam[0] / 3600)
+            d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
+            model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
+            for model_file in glob.glob(full_image.root + '*[0-9]-model.fits'):
+                os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
+            d.set_model(model_root, typ='init', apply_region=True)
+            directions.insert(0, d)
         # create a concat region for debugging
         os.system('cat ddcal/c%02i/skymodels/ddcal*reg > ddcal/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj,cmaj))
         # save catalogue for debugging
@@ -259,20 +294,6 @@ for cmaj in range(maxIter):
         # order directions from the fluxiest one
         directions = [x for _, x in sorted(zip([d.get_flux(freq_mid) for d in directions],directions))][::-1]
 
-        # If there's a preferential direciotn, get the closer direction to the final target and put it to the end
-        #if target_dir != '':
-        #    ra_t, dec_t = [float(x) for x in target_dir.split(',')]
-        #    sep_min = np.inf
-        #    for i, d in enumerate(directions):
-        #        ra, dec = d.position
-        #        sep = SkyCoord( ra*u.deg, dec*u.deg, frame='fk5' ).separation( SkyCoord(ra_t*u.deg, dec_t*u.deg, frame='fk5') ).deg
-        #        #print ("%s: %f", (d.name,sep))
-        #        if sep < sep_min:
-        #            sep_min = float(sep)
-        #            target_idx = i
-        #    logger.info('Move "%s" to the end of the target list...' % directions[target_idx].name)
-        #    d = directions.pop(target_idx)
-        #    directions.insert(len(directions),d)
 
         logger.info('Found {} cals brighter than {} Jy (expected at 60 MHz):'.format(len(directions), min_cal_flux60))
         for d in directions:
@@ -357,8 +378,8 @@ for cmaj in range(maxIter):
                     log='$nameMS_taql.log', commandType='general')
     
             ### TTESTTESTTEST: empty image but with the DD cal
-            if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
-                clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+            # if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
+            #     clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
         ### DONE
 
@@ -658,8 +679,8 @@ for cmaj in range(maxIter):
             ### DONE
 
         ### TTESTTESTTEST: empty image
-        if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
-            clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        # if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
+        #     clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
     #####################################################

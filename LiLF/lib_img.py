@@ -33,51 +33,49 @@ class Image(object):
         self.userReg      = userReg
         self.beamReg      = beamReg
 
-    def calc_flux(self, img, mask):
+    def calc_flux(self, mask):
         """
         Get flux inside given region. Adapted from Martin Hardcastle's radiomap class
         """
-
-        fitsfile = img
         extract = mask
 
-        phdu = fits.open(fitsfile)
-        head, lhdu = flatten(phdu)
-        gfactor = 2.0 * np.sqrt(2.0 * np.log(2.0))
-        f = phdu[0]
-        prhd = phdu[0].header
-        units = prhd.get('BUNIT')
-        if units is None:
-            units = prhd.get('UNIT')
-        if units != 'JY/BEAM' and units != 'Jy/beam':
-            print('Warning: units are', units, 'but code expects JY/BEAM')
-        bmaj = prhd.get('BMAJ')
-        bmin = prhd.get('BMIN')
+        with fits.open(self.imagename) as phdu:
+            head, lhdu = flatten(phdu)
+            gfactor = 2.0 * np.sqrt(2.0 * np.log(2.0))
+            f = phdu[0]
+            prhd = phdu[0].header
+            units = prhd.get('BUNIT')
+            if units is None:
+                units = prhd.get('UNIT')
+            if units != 'JY/BEAM' and units != 'Jy/beam':
+                print('Warning: units are', units, 'but code expects JY/BEAM')
+            bmaj = prhd.get('BMAJ')
+            bmin = prhd.get('BMIN')
 
-        bmaj = np.abs(bmaj)
-        bmin = np.abs(bmin)
+            bmaj = np.abs(bmaj)
+            bmin = np.abs(bmin)
 
-        w = wcs.WCS(prhd)
-        cd1 = -w.wcs.cdelt[0]
-        cd2 = w.wcs.cdelt[1]
-        if ((cd1 - cd2) / cd1) > 1.0001 and ((bmaj - bmin) / bmin) > 1.0001:
-            print('Pixels are not square (%g, %g) and beam is elliptical' % (cd1, cd2))
+            w = wcs.WCS(prhd)
+            cd1 = -w.wcs.cdelt[0]
+            cd2 = w.wcs.cdelt[1]
+            if ((cd1 - cd2) / cd1) > 1.0001 and ((bmaj - bmin) / bmin) > 1.0001:
+                print('Pixels are not square (%g, %g) and beam is elliptical' % (cd1, cd2))
 
-        bmaj /= cd1
-        bmin /= cd2
-        area = 2.0 * np.pi * (bmaj * bmin) / (gfactor * gfactor)
+            bmaj /= cd1
+            bmin /= cd2
+            area = 2.0 * np.pi * (bmaj * bmin) / (gfactor * gfactor)
 
-        d = [lhdu]
+            d = [lhdu]
 
-        region = pyregion.open(extract).as_imagecoord(prhd)
+            region = pyregion.open(extract).as_imagecoord(prhd)
 
-        for i, n in enumerate(d):
-            mask = region.get_mask(hdu=f, shape=np.shape(n))
-            data = np.extract(mask, d)
-            nndata = data[~np.isnan(data)]
-            flux = np.sum(nndata) / area
+            for i, n in enumerate(d):
+                mask = region.get_mask(hdu=f, shape=np.shape(n))
+                data = np.extract(mask, d)
+                nndata = data[~np.isnan(data)]
+                flux = np.sum(nndata) / area
 
-        return flux
+            return flux
 
     def rescaleModel(self, funct_flux):
         """

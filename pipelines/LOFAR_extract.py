@@ -366,7 +366,7 @@ if extreg != 1:
     for p in close_pointings:
         image_tocheck = 'extract/init/'+p+'/wideDD-c01.app.restored.fits'
         flux_check = lib_img.Image(image_tocheck)
-        reg_flux = flux_check.calc_flux(image_tocheck, target_reg_file)
+        reg_flux = flux_check.calc_flux(target_reg_file)
         flux_thresh = 5 #Jy. If flux is lower than this, the extent of the extraction region gets increased.
         param=1
 
@@ -383,7 +383,7 @@ if extreg != 1:
                 target_reg_file = 'target.reg'
                 target_reg = lib_util.Region_helper(target_reg_file)
                 center = target_reg.get_center()  # center of the extract region
-                reg_flux = flux_check.calc_flux(image_tocheck, target_reg_file)
+                reg_flux = flux_check.calc_flux(target_reg_file)
                 #logger.info(f'Flux inside region of {round(ext_region_extent * 60)} arcmin radius: {round(reg_flux)}')
 
             else:
