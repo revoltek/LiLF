@@ -512,6 +512,9 @@ class MS(object):
                 return 4.85*scale
             elif 'INNER' in self.getAntennaSet():
                 return 9.77*scale
+            else:
+                logger.info('Unknown antenna configuration, assuming SPARSE...')
+                return 4.85*scale #same configuration of SPARSE
                 
         elif self.getTelescope() == 'GMRT':
             # equation from http://gmrt.ncra.tifr.res.in/gmrt_hpage/Users/doc/manual/Manual_2013/manual_20Sep2013.pdf    
