@@ -59,10 +59,9 @@ def getParset(parsetFile=''):
     add_default('LOFAR_preprocess', 'flag_elev', 'True')
     add_default('LOFAR_preprocess', 'keep_IS', 'False')
     add_default('LOFAR_preprocess', 'backup_full_res', 'False')
-    # demix
-    add_default('LOFAR_demix', 'data_dir', 'data-bkp/')
-    add_default('LOFAR_demix', 'include_target', 'False')
-    add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skymodel')
+    add_default('LOFAR_preprocess', 'demix_sources', '')  # Demix  sources in these patches (e.g. [VirA,TauA], default: No demix
+    add_default('LOFAR_preprocess', 'demix_skymodel')  # Use non-default demix skymodel
+    add_default('LOFAR_preprocess', 'demix_field_skymodel')  # provide a custom target skymodel instead of online gsm model
     # cal
     add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
     add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
