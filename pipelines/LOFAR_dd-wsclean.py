@@ -164,6 +164,8 @@ with w.if_todo('add_columns'):
     MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
 
 ##############################################################
+# temp change HE
+# full_image = lib_img.Image('ddcal/init/wideM-2-MFS-image.fits', userReg=userReg)
 full_image = lib_img.Image('ddcal/init/wideM-1-MFS-image.fits', userReg=userReg)
 
 for cmaj in range(maxIter):
@@ -787,15 +789,19 @@ for cmaj in range(maxIter):
                 --pixelscale 4 --writevoronoipoints --output '+facetregname,
                 log='facet_generator.log', commandType='python')
         s.run()
- 
+
+        # might want to add non-circ beam at low dec eventually
+        # if phase_center[1] < 24:
+        #     logger.info(f'Low-declination observation ({phase_center[1]}deg). Use non-circular PSF')
+
         # update_model=True to make continue after masking
         logger.info('Cleaning 1...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
                 weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=512,
                 auto_threshold=3.0, auto_mask=5.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.6, pol='i', nmiter=1, dd_psf_grid='25 25', beam_size=15,
-                apply_facet_beam='', facet_beam_update=120, facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
- 
+                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
+
         # masking
         s.add('breizorro.py -t 6 -r %s -b 50 -o %s' % (imagename+'-MFS-image.fits', maskname), 
                 log='makemask-'+str(cmaj)+'.log', commandType='python' )
@@ -804,12 +810,14 @@ for cmaj in range(maxIter):
         # if defined, add userReg to the mask
         if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
 
+        # TODO: Add force-reuse psf (and beam) once wsclean bug is fixed.
+        # To be tested: how does the speed change if we use less subimages? Is cleaning to 3sigma enough?
         logger.info('Cleaning 2...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
                 weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=512,
                 auto_threshold=3.0, auto_mask=5.0, fits_mask=maskname, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.6, pol='i', dd_psf_grid='25 25', beam_size=15, cont=True,
-                apply_facet_beam='', facet_beam_update=120, facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
+                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
  
         os.system('mv %s*fits ddcal/c%02i/images' % (imagename, cmaj))
     ### DONE
