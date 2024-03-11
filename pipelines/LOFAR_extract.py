@@ -106,7 +106,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
     if empty:
         logger.info('Cleaning empty (' + str(p) + ')...')
         imagename = 'img/empty-' + str(p)
-        lib_util.run_wsclean(s, 'wscleanE-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
+        lib_util.run_wsclean(s, 'wscleanE-' + str(p) + '.log', MSs.getStrWsclean(), concat_mss = False, name=imagename,
                              data_column='SUBTRACTED_DATA',
                              size=imsize, scale=str(pixscale) + 'arcsec',
                              weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0,
@@ -121,7 +121,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             logger.info('Cleaning (' + str(p) + ')...')
             imagename = 'img/extract-' + str(p)
 
-            lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename,
+            lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename, concat_mss = False,
                                  size=imsize, scale=str(pixscale) + 'arcsec',
                                  weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
                                  mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
@@ -164,7 +164,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
         if fits_mask:
             arg_dict['fits_mask'] = fits_mask
 
-        lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), name=imagenameM,
+        lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), concat_mss = False, name=imagenameM,
                              size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter,
                              minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
                              parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
