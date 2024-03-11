@@ -175,9 +175,10 @@ if renameavg:
 
                 MSout = getName(MS.pathMS)
 
-                if avg_factor_f != 1 or avg_factor_t != 1 or demix_skymodel:
+                if avg_factor_f != 1 or avg_factor_t != 1 or demix_sources:
+                    print(demix_sources)
                     # normal case: no demixing, just averaging
-                    if not demix_skymodel:
+                    if not demix_sources:
                         logger.info('%s->%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, avg_factor_f, avg_factor_t))
 
                         s.add(f'DP3 {parset_dir}/DP3-avg.parset msin={MS.pathMS} msin.baseline={bl_sel} msout={MSout} '
@@ -195,9 +196,10 @@ if renameavg:
                         # Check demix sources
                         demix_sm = lsmtool.load(demix_sm_file, beamMS=MS.pathMS)
                         demix_sm_patches = demix_sm.getPatchPositions()
-                        ra, dec = MSs.getPhaseCentre() # to calculate distance
+                        ra, dec = MS.getPhaseCentre() # to calculate distance
                         demix_sm_sources = demix_sm_patches.keys()
-                        demix_sources = demix_sources.replace('[','').replace(']','').split(',')
+                        if not isinstance(demix_sources, list):
+                            demix_sources = demix_sources.replace('[','').replace(']','').split(',')
                         # check distances and that all sources in config are actually in skymodel.
                         for demix_source in demix_sources:
                             if demix_source not in demix_sm_sources:
@@ -225,15 +227,19 @@ if renameavg:
                         # join with ateam skymodel
                         lsm.concatenate(demix_sm)
                         # let's try to apply the beam, will probably be more accurate?
-                        lsm.write('demix_combined.skymodel', clobber=True, applyBeam=True)
-                        os.system(f'cp -r demix_combined.skymodel {MS.pathMS}')
+                        # TODO apply beam probably better, but creates bug?
+                        lsm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)
+                        # lsm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=True)
                         logger.info('%s->%s: Demix %s and average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, demix_sources ,avg_factor_f, avg_factor_t))
-                        # TODO: demixtimestep and demixfreqstep dependent on initial resolution?
-                        s.add(f'DP3 {parset_dir}/DP3-demix.parset msin=$pathMS msin.baseline={bl_sel} msout={MSout} '
-                              f'demixer.skymodel=$pathMS/demix.skymodel demixer.instrumentmodel=$pathMS/instrument_demix '
-                              f'demixer.targetsource=target demixer.subtractsources=\[{",".join(demix_sources)}\] '
-                              f'demixer.freqstep={avg_factor_f} demixer.timestep={avg_factor_t} ',
-                              log='$nameMS_demix.log', commandType='DP3')
+                        demix_f_step = nchan
+                        demix_t_step = int(np.round(8/timeint))
+
+                        s.add(f'DP3 {parset_dir}/DP3-demix.parset msin={MS.pathMS} msin.baseline={bl_sel} msout={MSout} '
+                              f'demix.skymodel={MS.pathMS}/demix_combined.skymodel demix.instrumentmodel={MS.pathMS}/instrument_demix.parmdb '
+                              f'demix.targetsource=target demix.subtractsources=\[{",".join(demix_sources)}\] '
+                              f'demix.freqstep={avg_factor_f} demix.timestep={avg_factor_t} '
+                              f'demix.demixfreqstep={demix_f_step} demix.demixtimestep={demix_t_step}',
+                              log=MS.nameMS+'_demix.log', commandType='DP3')
                         s.run(check=True, maxThreads=None) # We do not want to limit threads since this is CPU limited?
                     if backup_full_res:
                         logger.info('Backup full resolution data...')
