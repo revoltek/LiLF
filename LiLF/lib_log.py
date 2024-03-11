@@ -46,6 +46,12 @@ class Logger():
         os.makedirs(self.log_dir)
         #self.backup(logfile, log_dir)
         self.set_logger(self.logfile)
+        # Here we create symlinks for easier debugging and checking of the newest logs
+        # we create temp-symlinks and rename them so that we can overwrite existing symlinks.
+        os.symlink( self.log_dir, f'logs_{pipename}.tmp')
+        os.rename(f'logs_{pipename}.tmp',f'logs_{pipename}')
+        os.symlink(self.logfile, pipename+'.logger.tmp')
+        os.rename(pipename+'.logger.tmp', pipename+'.logger')
 
 
 #    def backup(self, logfile, log_dir):
