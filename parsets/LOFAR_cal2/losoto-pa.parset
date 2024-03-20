@@ -3,21 +3,26 @@ Ncpu = 0
 [bkp]
 operation = DUPLICATE
 soltab = sol000/phase000
-soltabOut = phaseOrig000
+soltabOut = phaseCut000
+pol = [XX,YY]
+
+[plotPr]
+operation = PLOT
+soltab = sol000/phaseCut000
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
+plotFlag = True
+prefix = plots/ph-diff_
+refAnt = auto
+minmax = [-3.14,+3.14]
 
 [align]
-soltab = sol000/phase000
+soltab = sol000/phaseCut000
 operation = POLALIGN
 soltabOut = polalign
 minFreq = 30e6
 refAnt = auto
-
-# copy flags on polalign (this is because diag+rot is good at flagging bad points)
-[merge]
-operation = REWEIGHT
-mode = copy
-soltab = sol000/polalign
-soltabImport = phase000
 
 [plotAlign]
 operation = PLOT
@@ -32,12 +37,12 @@ minmax = [-3.14,+3.14]
 
 [residual]
 operation = RESIDUALS
-soltab = sol000/phase000
+soltab = sol000/phaseCut000
 soltabsToSub = polalign
 
-[plotPr]
+[plotPr1]
 operation = PLOT
-soltab = sol000/phase000
+soltab = sol000/phaseCut000
 axesInPlot = [time,freq]
 axisInTable = ant
 axisDiff = pol
@@ -46,9 +51,9 @@ prefix = plots/ph-res_
 refAnt = auto
 minmax = [-3.14,+3.14]
 
-[plotPr1]
+[plotPr2]
 operation = PLOT
-soltab = sol000/phase000
+soltab = sol000/phaseCut000
 freq.minmaxstep = [0,300e6,100]
 axesInPlot = time
 axisInTable = ant
@@ -60,9 +65,9 @@ minmax = [-3.14,3.14]
 NColFig = 4
 figSize = [20,20]
 
-[plotPr2]
+[plotPr3]
 operation = PLOT
-soltab = sol000/phase000
+soltab = sol000/phaseCut000
 time.minmaxstep = [0,1e20,500]
 axesInPlot = freq
 axisInTable = ant

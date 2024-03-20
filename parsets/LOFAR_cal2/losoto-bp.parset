@@ -22,14 +22,6 @@ axesToSmooth = [time]
 mode = median
 log = True
 
-[flagstation]
-operation = FLAGSTATION
-soltab = sol000/amplitudeSmooth
-pol = XX, YY
-mode = bandpass
-ampRange = [0.3,2.0]
-skipInternational = True
-
 [plotAs]
 operation = PLOT
 soltab = sol000/amplitudeSmooth

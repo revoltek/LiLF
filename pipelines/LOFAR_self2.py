@@ -89,7 +89,6 @@ if sourcedb == '':
         os.system('makesourcedb outtype="blob" format="<" in=tgts.skymodel out=tgts.skydb')
         apparent = False
     sourcedb = 'tgts.skydb'
-sys.exit()
 
 #################################################################################################
 # Add model to MODEL_DATA
