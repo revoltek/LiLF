@@ -56,7 +56,6 @@ def getParset(parsetFile=''):
     # preprocess
     add_default('LOFAR_preprocess', 'fix_table', 'True') # fix bug in some old observations
     add_default('LOFAR_preprocess', 'renameavg', 'True')
-    add_default('LOFAR_preprocess', 'flag_elev', 'True')
     add_default('LOFAR_preprocess', 'keep_IS', 'False')
     add_default('LOFAR_preprocess', 'backup_full_res', 'False')
     add_default('LOFAR_preprocess', 'demix_sources', '')  # Demix  sources in these patches (e.g. [VirA,TauA], default: No demix

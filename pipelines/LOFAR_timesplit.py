@@ -48,8 +48,8 @@ MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 ##################################################
 # Find solutions to apply
+obsid = MSs.getListObj()[0].getObsID()
 if cal_dir == '':
-    obsid = MSs.getListObj()[0].getObsID()
     # try standard location
     cal_dir = glob.glob('../id%i_-_*3[c|C]196' % obsid)+glob.glob('../id%i_-_*3[c|C]295' % obsid)+glob.glob('../id%i_-_*3[c|C]380' % obsid)
     if len(cal_dir) > 0:
@@ -59,6 +59,10 @@ if cal_dir == '':
         sys.exit()
 else:
     cal_dir = '../'+cal_dir
+    # cal_dir can either be a path to the directory containing multiple calibrator observation or one specifies an exact directory.
+    subdirs = glob.glob(f'{cal_dir}/id{obsid}_-_*3[c|C]196')+glob.glob(f'{cal_dir}/id{obsid}_-_*3[c|C]295')+glob.glob(f'{cal_dir}/id{obsid}_-_*3[c|C]380')
+    if len(subdirs) > 0:
+        cal_dir = subdirs[0]
 
 logger.info('Calibrator directory: %s' % cal_dir)
 h5_pa = cal_dir+'/cal-pa.h5'

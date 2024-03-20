@@ -164,8 +164,6 @@ with w.if_todo('add_columns'):
     MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
 
 ##############################################################
-# temp change HE
-# full_image = lib_img.Image('ddcal/init/wideM-2-MFS-image.fits', userReg=userReg)
 full_image = lib_img.Image('ddcal/init/wideM-1-MFS-image.fits', userReg=userReg)
 
 for cmaj in range(maxIter):
@@ -263,7 +261,7 @@ for cmaj in range(maxIter):
             # get flux in manual reg
             reg_flux = full_image.calc_flux(manual_dd_cal)
             logger.info(f'Flux in manual region: {reg_flux:.1f} Jy')
-            full_residual_image = fits.open(full_image.imagename.replace('image','residual'))  # use residual so we can get data for rms
+            full_residual_image = fits.open(full_image.imagename.replace('MFS-image','MFS-residual'))  # use residual so we can get data for rms
             hdr, data_res = lib_img.flatten(full_residual_image)
             wcs = WCS(hdr)
             for i, d in enumerate(directions):  # remove dd-cals that are already in region
