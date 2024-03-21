@@ -9,7 +9,7 @@ USER root
 RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update;
-RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename subversion python3-magic \
+RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename subversion python3-magic htop \
     python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm python3-numba \
     libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
@@ -54,10 +54,10 @@ RUN cd /opt/python-casacore && pip3 install .
 #ENV PYTHONPATH /usr/local/lib/python3.8/site-packages/:$PYTHONPATH
 
 #####################################################################
-## EveryBeam v0.5.2
+## EveryBeam v0.5.7
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
-    && cd /opt/EveryBeam && git checkout tags/v0.5.2
+    && cd /opt/EveryBeam && git checkout tags/v0.5.7
 RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
     && make -j 64 && make install
@@ -141,7 +141,7 @@ RUN cd /opt/PyBDSF && pip3 install .
 #####################################################################
 # Not using pip here since this seems to create some C issue with python-casacore for beam attenuation.
 RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git \
-    && cd /opt/LSMTool; git checkout tags/v1.4.11 \
+    && cd /opt/LSMTool; git checkout tags/v1.4.11
 RUN cd /opt/LSMTool && python3 setup.py install --build_c_extentions
 
 ####################################################################
