@@ -1,7 +1,11 @@
+import logging
 import os, sys, glob
 import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.convolution import convolve_fft
+from astropy.wcs import WCS
+import matplotlib.pyplot as plt
 import pyregion
 from pyregion.parser_helper import Shape
 import lsmtool
@@ -365,3 +369,122 @@ def cut_skymodel(skymodel_in, skymodel_out, d, do_skydb=True, do_regions=False):
     lib_util.check_rm(dir_skydb)
     s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (dir_skymodel, dir_skydb), log='makesourcedb_cl.log', commandType='general' )
     s.run(check=True)
+
+def find_calibration_subfield(MS, sm, min_flux, prefix='self/skymodel/'):
+    """
+    Identify the smallest region of sky model sources that contains a certain flux.
+
+    Parameters
+    ----------
+    MS: lib_ms.MS object, MS to find center and size of field of view
+    sma: lsmtool.skymodel, apparent skymodel of the field
+    min_flux: float, minimum flux in calibration subfield in Jy
+
+    Returns
+    -------
+    ra:
+    """
+    c_ra, c_dec = MS.getPhaseCentre()
+    fwhm = MS.getFWHM(freq='min')
+    cellsize  = 1/60 # 1 arcmin
+    # TODO padding?/offset?
+    size_pix = int(np.round(1.3*fwhm/cellsize)) # size in pix, 10% pad
+    freq = np.mean(MS.getFreqs())
+    steps = 40 # how many scales to consider
+    boxsizes = np.linspace(fwhm/(steps),fwhm,steps)
+
+    # iterate over box sizes and convolve with boxcar kernel to find per scale the location of the box containing the
+    # maximum flux
+    sm = lsmtool.load(sm)
+    smt = sm.table
+    type, ra, dec, I, si = smt['Type'], smt['Ra'], smt['Dec'], smt['I'], smt['SpectralIndex']
+    reff = sm.getColValues('ReferenceFrequency')
+    sc = SkyCoord(ra, dec)
+    # NOTE: ignore higher order SI terms for now...
+    assert len(np.unique(reff)) == 1
+    fluxes = I*(freq/reff[0])**si[:,0]
+
+    def create_cone_kernel(size, edge_value=0.9):
+        # helper function to create the kernel. The kernel is 1 at the center and radially drops to edge_value at the edge
+        # Create a meshgrid to represent the indices of the kernel
+        x, y = np.meshgrid(np.arange(size), np.arange(size))
+        # Calculate the distance of each point from the center
+        distance = np.sqrt((x - size // 2) ** 2 + (y - size // 2) ** 2)
+        distance_factor = distance/np.max(distance)
+        cell_value = 1 - (1-edge_value)*distance_factor
+
+        return cell_value
+    max_location, max_flux_in_field = np.zeros((len(boxsizes),2)), np.zeros_like(boxsizes)
+
+    # iterate over box sizes, for each boxsize find the best region (center location = maximum of convolved map)
+    for i,boxsize in enumerate(boxsizes):
+        kernel_size = int(np.rint(boxsize/cellsize))
+        if kernel_size % 2 == 0:
+            kernel_size += 1
+        # Kernel is not perfect 2D box, but slightly drops towards the edges to center bright sources.
+        kernel = create_cone_kernel(kernel_size)
+        # create template image object
+        hdu = lib_util.get_template_image(c_ra, c_dec, size_pix, size_pix, cellsize)
+        imdata = hdu[0].data
+        w = WCS(hdu[0].header)
+        pixcrd = np.rint(sc.to_pixel(w)).astype(int)
+        if np.min(pixcrd) < 0 or np.max(pixcrd) > size_pix:
+            logger.warning('There are skymodel sources outside the region considered for calibration!')
+            #sys.exit()
+        for flux, pix in zip(fluxes, pixcrd.T):
+            imdata[pix[0],pix[1]] = flux
+
+        hdu[0].data = convolve_fft(imdata,kernel,normalize_kernel=False)
+        hdu.writeto(f'{prefix}/flux_region_map_{int(np.rint(boxsize*60)):03}amin.fits', overwrite=True)
+        max_location[i] = np.unravel_index(np.argmax(hdu[0].data), hdu[0].data.shape)
+        max_flux_in_field[i] = np.max(hdu[0].data)
+    mask = max_flux_in_field > min_flux # points above min flux
+    id_min = np.argwhere(mask)[0,0]
+    # find smallest region containing min flux
+    bestbox_coord = w.wcs_pix2world([max_location[id_min]], 0)[0]
+    bestbox_flux = max_flux_in_field[id_min]
+    bestbox_size = boxsizes[id_min]
+    logging.info(f'Flux {bestbox_flux:.1f}Jy > min_flux ({min_flux:.1f}Jy) in {bestbox_size:.2f}deg box at ra={bestbox_coord[0]:.2f}d dec={bestbox_coord[1]:.2f}d.')
+
+
+    # search for points with strong jumps using gradient and boxsize^eidx
+    # eidx - linear case: gradient in Jy per box diameter (finds larger boxes)
+    #      - square case: gradient in Jy per box area ( finds smaller boxes)
+    # eidx = 1.0
+    # grad = (max_flux_in_field[1:] - max_flux_in_field[:-2]) / (boxsizes[1:]**eidx - boxsizes[:-2]**eidx)
+    # print(grad)
+    # maxgrad, boxsize_maxgrad, flux_maxgrad = np.max(grad), boxsizes[np.argmax(grad)+1], fluxes[np.argmax(grad)+1]
+    # if fluxes[0] > min_flux:
+    #     logging.info(' flux.')
+    # if flux_maxgrad <= min_flux:
+    #     logging.info('Box size with max gradient <= min flux. Use box containing min flux.')
+    # else:
+
+    #
+    # fig, ax1 = plt.subplots()
+    # ax1.plot(boxsizes, max_flux_in_field, marker='x')
+    # ax1.hlines(min_flux, boxsizes[0], boxsizes[-1], label='minflux', c='k')
+    # ax2 = ax1.twinx()
+    # ax2.plot(boxsizes, np.gradient(max_flux_in_field, boxsizes), marker='x', c='C1')
+    # ax1.set_xlabel('box size [deg]')
+    # ax1.set_ylabel('flux [Jy]')
+    # ax2.set_ylabel('gradient [Jy/deg]')
+    # plt.legend()
+    # plt.savefig('flux_size.png')
+    # plt.close()
+    # fig, ax1 = plt.subplots()
+    # ax1.plot(boxsizes**2, max_flux_in_field, marker='x')
+    # ax1.hlines(min_flux, (boxsizes**2)[0], (boxsizes**2)[-1], label='minflux', c='k')
+    # ax2 = ax1.twinx()
+    # ax2.plot(boxsizes**2, np.gradient(max_flux_in_field, boxsizes**2), marker='x', c='C1')
+    # # ax2.plot(boxsizes**2, max_flux_in_field/boxsizes**2, marker='x')
+    # ax1.set_xlabel('box area [degree^2]')
+    # ax1.set_ylabel('flux [Jy]')
+    # ax2.set_ylabel('gradient [Jy/deg^2]')
+    # plt.legend()
+    # plt.savefig('flux_area.png')
+
+    return bestbox_coord, bestbox_size, bestbox_flux
+
+
+

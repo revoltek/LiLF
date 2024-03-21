@@ -7,6 +7,7 @@ import multiprocessing, subprocess
 from threading import Thread
 from queue import Queue
 import pyregion
+from astropy.io import fits
 import gc
 
 if (sys.version_info > (3, 0)):
@@ -82,10 +83,11 @@ def getParset(parsetFile=''):
     # dd
     add_default('LOFAR_dd', 'maxIter', '2')
     add_default('LOFAR_dd', 'minCalFlux60', '1')
-    add_default('LOFAR_dd', 'removeExtendedCutoff', '0.0005')
+    add_default('LOFAR_dd', 'solve_amp', 'True') # to disable amp sols
+    # add_default('LOFAR_dd', 'removeExtendedCutoff', '0.0005')
     add_default('LOFAR_dd', 'target_dir', '') # ra,dec
     add_default('LOFAR_dd', 'manual_dd_cal', '')
-    add_default('LOFAR_dd', 'solve_tec', 'False') # per default, solve each dd for scalarphase. if solve_tec==True, solve for TEC instead.
+    # add_default('LOFAR_dd', 'solve_tec', 'False') # per default, solve each dd for scalarphase. if solve_tec==True, solve for TEC instead.
     # extract
     add_default('LOFAR_extract', 'max_niter', '10')
     add_default('LOFAR_extract', 'subtract_region', '') # Sources inside extract-reg that should still be subtracted! Use this e.g. for individual problematic sources in a large extractReg
@@ -848,3 +850,53 @@ class Scheduler():
 
         return 0
 
+def get_template_image(reference_ra_deg, reference_dec_deg, ximsize=512, yimsize=512, cellsize_deg=0.000417, fill_val=0):
+    """
+    Make a blank image and return
+    adapted from https://github.com/darafferty/LSMTool/blob/master/lsmtool/operations_lib.py#L619
+
+    Parameters
+    ----------
+    reference_ra_deg : float
+        RA for center of output image
+    reference_dec_deg : float
+        Dec for center of output image
+    ximsize : int, optional
+        Size of output image
+    yimsize : int, optional
+        Size of output image
+    cellsize_deg : float, optional
+        Size of a pixel in degrees
+    fill_val : int, optional
+        Value with which to fill the image
+    """
+
+    # Make fits hdu
+    # Axis order is [STOKES, FREQ, DEC, RA]
+    shape_out = [yimsize, ximsize]
+    hdu = fits.PrimaryHDU(np.ones(shape_out, dtype=np.float32)*fill_val)
+    hdulist = fits.HDUList([hdu])
+    header = hdulist[0].header
+
+    # Add RA, Dec info
+    i = 1
+    header['CRVAL{}'.format(i)] = reference_ra_deg
+    header['CDELT{}'.format(i)] = -cellsize_deg
+    header['CRPIX{}'.format(i)] = ximsize / 2.0
+    header['CUNIT{}'.format(i)] = 'deg'
+    header['CTYPE{}'.format(i)] = 'RA---SIN'
+    i += 1
+    header['CRVAL{}'.format(i)] = reference_dec_deg
+    header['CDELT{}'.format(i)] = cellsize_deg
+    header['CRPIX{}'.format(i)] = yimsize / 2.0
+    header['CUNIT{}'.format(i)] = 'deg'
+    header['CTYPE{}'.format(i)] = 'DEC--SIN'
+
+    # Add equinox
+    header['EQUINOX'] = 2000.0
+
+    # Add telescope
+    header['TELESCOP'] = 'LOFAR'
+
+    hdulist[0].header = header
+    return hdulist
