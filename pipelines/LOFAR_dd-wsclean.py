@@ -30,6 +30,7 @@ parset_dir = parset.get('LOFAR_dd','parset_dir')
 userReg = parset.get('model','userReg')
 maxIter = parset.getint('LOFAR_dd','maxIter')
 min_cal_flux60 = parset.getfloat('LOFAR_dd','minCalFlux60')
+solve_amp = parset.getboolean('LOFAR_dd','solve_amp')
 manual_dd_cal = parset.get('LOFAR_dd','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
@@ -227,7 +228,7 @@ for cmaj in range(maxIter):
             except ContinueI:
                 continue
 
-            d = lib_dd.Direction(name, soltypes=['ph1','fr','amp1','amp2'])
+            d = lib_dd.Direction(name, soltypes=['ph1','amp1','amp2'])
             d.fluxes = fluxes
             d.spidx_coeffs = spidx_coeffs
             d.ref_freq = freq_mid
@@ -282,7 +283,7 @@ for cmaj in range(maxIter):
             d.set_size([ra], [dec], [man_cal[0].radius.to_value('deg')], img_beam[0] / 3600)
             d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
             model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
-            for model_file in glob.glob(full_image.root + '*[0-9]-model.fits'):
+            for model_file in glob.glob(full_image.root + '*[0-9]-model.fits') + glob.glob(full_image.root + '*[0-9]-model-pb.fits'):
                 os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
             d.set_model(model_root, typ='init', apply_region=True)
             directions.insert(0, d)
@@ -318,7 +319,7 @@ for cmaj in range(maxIter):
         else:
             full_image.nantozeroModel()
             s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
-                    -apply-facet-beam -facet-beam-update 120 \
+                    -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                     -facet-regions '+facetregname+' -diagonal-solutions \
                     -apply-facet-solutions '+interp_h5parm_old+' amplitude000,phase000 \
                     -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
@@ -365,7 +366,7 @@ for cmaj in range(maxIter):
             else:
                 # Predict - ms:MODEL_DATA
                 s.add('wsclean -predict -padding 1.8 -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
-                    -apply-facet-beam -facet-beam-update 120 \
+                    -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                     -facet-regions '+full_image.root+'_facets.reg -diagonal-solutions \
                     -apply-facet-solutions '+interp_h5parm_old+' amplitude000,phase000 \
                     -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
@@ -566,14 +567,14 @@ for cmaj in range(maxIter):
                        logger.debug('BREAK ddcal self cycle with noise: %f, noise_pre: %f, mmratio: %f, mmratio_pre: %f' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
                        break
 
-            if cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or d.get_flux(freq_mid) > 5):
+            if cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or d.get_flux(freq_mid) > 5) and solve_amp:
                 logger.debug('START AMP WITH MODE 1 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
             # correct more amp in the outskirts
-            elif d.dist_from_centre >= fwhm/4. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 25) or d.get_flux(freq_mid) > 3):
+            elif d.dist_from_centre >= fwhm/4. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 25) or d.get_flux(freq_mid) > 3) and solve_amp:
                 logger.debug('START AMP WITH MODE 2 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
-            elif d.dist_from_centre >= fwhm/2. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 20) or d.get_flux(freq_mid) > 2):
+            elif d.dist_from_centre >= fwhm/2. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 20) or d.get_flux(freq_mid) > 2) and solve_amp:
                 logger.debug('START AMP WITH MODE 3 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
 
@@ -753,7 +754,7 @@ for cmaj in range(maxIter):
 
     # it might happens that no directions ended up with amp solutions, restrict to phase only correction
     correct_for = 'phase000'
-    if len(h5parms['amp1']) != 0: correct_for += '+amplitude000'
+    if len(h5parms['amp1']) != 0: correct_for += ',amplitude000'
 
     with w.if_todo('c%02i-interpsol' % cmaj):
         logger.info("Imaging - preparing solutions:")
@@ -795,10 +796,10 @@ for cmaj in range(maxIter):
         # update_model=True to make continue after masking
         logger.info('Cleaning 1...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
-                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=512,
+                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=8, update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=1024,
                 auto_threshold=3.0, auto_mask=5.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.6, pol='i', nmiter=1, dd_psf_grid='25 25', beam_size=15,
-                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
+                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=f'{interp_h5parm} {correct_for}' )
 
         # masking
         s.add('breizorro.py -t 6 -r %s -b 50 -o %s' % (imagename+'-MFS-image.fits', maskname), 
@@ -809,13 +810,13 @@ for cmaj in range(maxIter):
         if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
 
         # TODO: Add force-reuse psf (and beam) once wsclean bug is fixed.
-        # To be tested: how does the speed change if we use less subimages? Is cleaning to 3sigma enough?
+        # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
         logger.info('Cleaning 2...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
-                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=512,
+                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=8, no_update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=1024,
                 auto_threshold=3.0, auto_mask=5.0, fits_mask=maskname, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.6, pol='i', dd_psf_grid='25 25', beam_size=15, cont=True,
-                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
+                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=f'{interp_h5parm} {correct_for}')
  
         os.system('mv %s*fits ddcal/c%02i/images' % (imagename, cmaj))
     ### DONE
@@ -843,7 +844,7 @@ with w.if_todo('output-lres'):
     # now make a low res and source subtracted map for masking extended sources
     logger.info('Predicting DD-corrupted...')
     s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
-                    -apply-facet-beam -facet-beam-update 120 \
+                    -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                     -facet-regions '+facetregname+' -diagonal-solutions \
                     -apply-facet-solutions '+interp_h5parm+' amplitude000,phase000 \
                     -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
@@ -860,7 +861,7 @@ with w.if_todo('output-lres'):
                 weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.6, pol='i', dd_psf_grid='5 5', taper_gaussian='60arcsec',
-                apply_facet_beam='', facet_beam_update=120, facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=interp_h5parm+' amplitude000,phase000')
+                apply_facet_beam='', use_differential_lofar_beam='', facet_beam_update=120, facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=f'{interp_h5parm} {correct_for}')
  
     os.system('mv %s*MFS*.fits ddcal/c%02i/images' % (imagenameL, cmaj))
 ### DONE

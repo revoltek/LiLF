@@ -35,6 +35,7 @@ with w.if_todo('cleaning'):
     if not os.path.exists('self/images'): os.makedirs('self/images')
     if not os.path.exists('self/solutions'): os.makedirs('self/solutions')
     if not os.path.exists('self/plots'): os.makedirs('self/plots')
+    if not os.path.exists('self/skymodel'): os.makedirs('self/skymodel')
 
 ### DONE
 
@@ -246,6 +247,7 @@ for c in range(2):
 
     # AMP DIE correction
     if c == 0:
+        # TODO move to cycle 1
         with w.if_todo('solve_g_c%02i' % c):
             # DIE Calibration - ms:CORRECTED_DATA (8m, 4SB)
             logger.info('Solving slow G...')
@@ -402,6 +404,9 @@ for c in range(2):
             logger.info('Subtracting low-res model (CORRECTED_DATA = DATA - MODEL_DATA)...')
             MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         ### DONE
+
+        # TODO add here field finder function
+        sys.exit()
 
         with w.if_todo('extreg_preapre_c%02i' % c):
             # prepare model of central/external regions
