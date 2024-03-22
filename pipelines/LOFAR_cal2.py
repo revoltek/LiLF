@@ -25,7 +25,7 @@ data_dir = parset.get('LOFAR_cal2', 'data_dir')
 skymodel = parset.get('LOFAR_cal2', 'skymodel')
 imaging = parset.getboolean('LOFAR_cal2', 'imaging')
 bl2flag = parset.get('flag', 'stations')
-debugplots = False
+debugplots = True
 
 #############################################################
 
@@ -291,6 +291,12 @@ with w.if_todo('cal_iono'):
     
     MSs_concat_phaseupIONO = lib_ms.AllMSs(['concat_all-phaseupIONO.MS'], s, check_flags=False)
 
+    logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
+    os.system('cp -r %s %s' % (skymodel, MSs_concat_phaseupIONO.getListObj()[0].pathMS))
+    MSs_concat_phaseupIONO.run("DP3 " + parset_dir + "/DP3-predict.parset msin=$pathMS pre.sourcedb=$pathMS/"
+                           + os.path.basename(skymodel) + " pre.sources=" + calname, log="$nameMS_pre.log",
+                           commandType="DP3")   
+
     # Solve cal_SB.MS:DATA (only solve)
     logger.info('Calibrating IONO...')
     MSs_concat_phaseupIONO.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA \
@@ -329,6 +335,7 @@ with w.if_todo('cal_bp'):
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cat cor.parmdb=cal-fr.h5 \
                    cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
     # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('Iono correction...')
     MSs_concat_all.run("DP3 " + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
                 cor.correction=phaseOrig000', log='$nameMS_corIONO.log', commandType="DP3")
     
@@ -347,7 +354,7 @@ with w.if_todo('cal_bp'):
             sol.solint='+str(timestep)+' sol.nchan='+str(freqstep),
             log='$nameMS_solBP.log', commandType="DP3")
     
-    lib_util.run_losoto(s, 'bp', [ms + '/bp.h5' for ms in MSs_concat_phaseup.getListStr()],
+    lib_util.run_losoto(s, 'bp', [ms + '/bp.h5' for ms in MSs_concat_all.getListStr()],
                         [parset_dir + '/losoto-flag.parset', parset_dir + '/losoto-plot-fullj.parset',
                          parset_dir + '/losoto-bp.parset', parset_dir + '/losoto-flagstations.parset'])
 ### DONE
