@@ -359,84 +359,84 @@ with w.if_todo('apply_all'):
 
     # Pol align correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
-    MSs_concat_phaseup.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 \
+    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 \
                    cor.correction=polalign', log='$nameMS_corPA2.log', commandType="DP3")
     
     if debugplots:
         logger.info('BL-smooth...')
-        MSs_concat_phaseup.run(
+        MSs_concat_all.run(
             f'BLsmooth.py -r -q -c 8 -n 8 -f {1e-3 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
             log='$nameMS_smooth3.log', commandType='python', maxThreads=8)
         # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Calibrating test...')
-        MSs_concat_phaseup.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
+        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
                 sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
                 sol.solint=1 sol.nchan=1', \
                 log='$nameMS_solTEST.log', commandType="DP3")
-        lib_util.run_losoto(s, 'test-pa', [ms + '/test.h5' for ms in MSs_concat_phaseup.getListStr()],
+        lib_util.run_losoto(s, 'test-pa', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
 
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
-    MSs_concat_phaseup.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False', 
+    MSs_concat_all.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False', 
                            log='$nameMS_beam2.log', commandType="DP3")
 
     if debugplots:
         logger.info('BL-smooth...')
-        MSs_concat_phaseup.run(
+        MSs_concat_all.run(
             f'BLsmooth.py -r -q -c 8 -n 8 -f {1e-3 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
             log='$nameMS_smooth3.log', commandType='python', maxThreads=8)
         # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Calibrating test...')
-        MSs_concat_phaseup.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
+        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
                 sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
                 sol.solint=1 sol.nchan=1', \
                 log='$nameMS_solTEST.log', commandType="DP3")
-        lib_util.run_losoto(s, 'test-pabeam', [ms + '/test.h5' for ms in MSs_concat_phaseup.getListStr()],
+        lib_util.run_losoto(s, 'test-pabeam', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
 
     # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
     logger.info('BP correction...')
-    MSs_concat_phaseup.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp.h5 \
+    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp.h5 \
             cor.correction=fulljones cor.soltab=[amplitudeSmooth,phaseNull] cor.updateweights=True',
                            log='$nameMS_corBP.log', commandType="DP3")
     
     if debugplots:
         logger.info('BL-smooth...')
-        MSs_concat_phaseup.run(
+        MSs_concat_all.run(
             f'BLsmooth.py -r -q -c 8 -n 8 -f {1e-3 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
             log='$nameMS_smooth3.log', commandType='python', maxThreads=8)
         # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Calibrating test...')
-        MSs_concat_phaseup.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
+        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
                 sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
                 sol.solint=1 sol.nchan=1', \
                 log='$nameMS_solTEST.log', commandType="DP3")
-        lib_util.run_losoto(s, 'test-pabeambp', [ms + '/test.h5' for ms in MSs_concat_phaseup.getListStr()],
+        lib_util.run_losoto(s, 'test-pabeambp', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
     
     # Correct FR CORRECTED_DATA -> CORRECTED_DATA
-    #logger.info('Faraday rotation correction...')
-    #MSs_concat_phaseup.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 \
-    #               cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DP3")
+    logger.info('Faraday rotation correction...')
+    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 \
+                   cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DP3")
 
     if debugplots:
         logger.info('BL-smooth...')
-        MSs_concat_phaseup.run(
+        MSs_concat_all.run(
             f'BLsmooth.py -r -q -c 8 -n 8 -f {1e-3 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
             log='$nameMS_smooth3.log', commandType='python', maxThreads=8)
         # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Calibrating test...')
-        MSs_concat_phaseup.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
+        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
                 sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
                 sol.solint=1 sol.nchan=1', \
                 log='$nameMS_solTEST.log', commandType="DP3")
-        lib_util.run_losoto(s, 'test-pabeambpfr', [ms + '/test.h5' for ms in MSs_concat_phaseup.getListStr()],
+        lib_util.run_losoto(s, 'test-pabeambpfr', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
 
 ### DONE
 
-
+sys.exit()
 
 if debugplots:
     MSs_concat_phaseup.run("DP3 " + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
