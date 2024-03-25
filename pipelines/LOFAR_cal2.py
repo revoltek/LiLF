@@ -61,28 +61,28 @@ calname = MSs.getListObj()[0].getNameField()
 nchan = MSs.mssListObj[0].getNchan()
 tint = MSs.mssListObj[0].getTimeInt()
 
-with w.if_todo('concat_core'):
-    freqstep = nchan  # brings down to 1ch/sb for
-    timestep = int(np.rint(8 / tint))  # brings down to 8s
-    # concat all SBs
-    # SB.MS:DATA -> concat.MS:DATA
-    logger.info('Concatenating data core...')
-    lib_util.check_rm('concat_core.MS')
-    s.add('DP3 ' + parset_dir + '/DP3-concat.parset msin="[' + ','.join(msg) + ']" msout=concat_core.MS \
-                      msin.baseline="CS*&" avg.freqstep=' + str(freqstep) + ' avg.timestep=' + str(timestep),
-          log='concat.log', commandType='DP3')
-
-    s.run(check=True)
+#with w.if_todo('concat_core'):
+#    freqstep = nchan  # brings down to 1ch/sb for
+#    timestep = int(np.rint(8 / tint))  # brings down to 8s
+#    # concat all SBs
+#    # SB.MS:DATA -> concat.MS:DATA
+#    logger.info('Concatenating data core...')
+#    lib_util.check_rm('concat_core.MS')
+#    s.add('DP3 ' + parset_dir + '/DP3-concat.parset msin="[' + ','.join(msg) + ']" msout=concat_core.MS \
+#                      msin.baseline="CS*&" avg.freqstep=' + str(freqstep) + ' avg.timestep=' + str(timestep),
+#          log='concat.log', commandType='DP3')
+#
+#    s.run(check=True)
 ### DONE
-MSs_concat_core = lib_ms.AllMSs(['concat_core.MS'], s, check_flags=False)
+#MSs_concat_core = lib_ms.AllMSs(['concat_core.MS'], s, check_flags=False)
 
-with w.if_todo('predict_core'):
-    # predict to save time ms:MODEL_DATA
-    logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
-    os.system('cp -r %s %s' % (skymodel, MSs_concat_core.getListObj()[0].pathMS))
-    MSs_concat_core.run("DP3 " + parset_dir + "/DP3-predict.parset msin=$pathMS pre.sourcedb=$pathMS/"
-                        + os.path.basename(skymodel) + " pre.sources=" + calname, log="$nameMS_pre.log",
-                        commandType="DP3")
+#with w.if_todo('predict_core'):
+#    # predict to save time ms:MODEL_DATA
+#    logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
+#    os.system('cp -r %s %s' % (skymodel, MSs_concat_core.getListObj()[0].pathMS))
+#    MSs_concat_core.run("DP3 " + parset_dir + "/DP3-predict.parset msin=$pathMS pre.sourcedb=$pathMS/"
+#                        + os.path.basename(skymodel) + " pre.sources=" + calname, log="$nameMS_pre.log",
+#                        commandType="DP3")
 ### DONE
 
 with w.if_todo('concat_all'):
@@ -103,8 +103,8 @@ MSs_concat_all = lib_ms.AllMSs(['concat_all.MS'], s, check_flags=False)
 # flag bad stations, flags will propagate
 with w.if_todo('flag'):
     logger.info("Flagging...")
-    MSs_concat_core.run("DP3 " + parset_dir + "/DP3-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag + "\"",
-                        log="$nameMS_flag.log", commandType="DP3")
+    #MSs_concat_core.run("DP3 " + parset_dir + "/DP3-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag + "\"",
+    #                    log="$nameMS_flag.log", commandType="DP3")
     MSs_concat_all.run("DP3 " + parset_dir + "/DP3-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag + "\"",
                        log="$nameMS_flag.log", commandType="DP3")
     # logger.info("Flagging...")
@@ -113,7 +113,7 @@ with w.if_todo('flag'):
     #            log="$nameMS_flag.log", commandType="DP3")
     # extend flags
     logger.info('Remove bad time/freq stamps...')
-    MSs_concat_core.run('flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+    #MSs_concat_core.run('flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
     MSs_concat_all.run('flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
 ### DONE
@@ -439,6 +439,25 @@ with w.if_todo('apply_all'):
                 sol.solint=1 sol.nchan=1', \
                 log='$nameMS_solTEST.log', commandType="DP3")
         lib_util.run_losoto(s, 'test-pabeambpfr', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
+                [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
+
+    # Correct iono CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('Iono correction...')
+    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
+                   cor.correction=phaseOrig000', log='$nameMS_corIONO2.log', commandType="DP3")
+
+    if debugplots:
+        logger.info('BL-smooth...')
+        MSs_concat_all.run(
+            f'BLsmooth.py -r -q -c 8 -n 8 -f {1e-3 if MSs.isLBA else .2e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
+            log='$nameMS_smooth3.log', commandType='python', maxThreads=8)
+        # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+        logger.info('Calibrating test...')
+        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
+                sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
+                sol.solint=1 sol.nchan=1', \
+                log='$nameMS_solTEST.log', commandType="DP3")
+        lib_util.run_losoto(s, 'test-pabeambpfriono', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
 
 ### DONE

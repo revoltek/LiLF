@@ -11,6 +11,7 @@ prefix = plots/ampBF_
 [flag]
 operation = FLAG
 soltab = sol000/amplitude000
+pol = XX,YY
 axesToFlag = [time,freq]
 order = [100,40]
 maxCycles = 1
@@ -22,6 +23,7 @@ mode = smooth
 [flagextend]
 operation = FLAGEXTEND
 soltab = sol000/amplitude000
+pol = XX,YY
 axesToExt = [time,freq]
 size = [200,80]
 percent = 50
