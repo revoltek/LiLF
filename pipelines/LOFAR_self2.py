@@ -106,8 +106,6 @@ for MS in MSs.getListStr():
 # Here the model is added only to CS+RS, IS used only for FR and model is not needed
 with w.if_todo('init_model'):
     # NOTE: do not add MODEL_DATA or the beam is transported from DATA, while we want it without beam applied
-    # logger.info('Creating CORRECTED_DATA...')
-    # MSs.addcol('CORRECTED_DATA', 'DATA')
 
     logger.info('Add model to MODEL_DATA...')
     if apparent:
@@ -125,8 +123,10 @@ for c in range(maxIter):
     logger.info('Start selfcal cycle: '+str(c))
     if c == 0:
         with w.if_todo('set_corrected_data_c%02i' % c):
-            logger.info('Set CORRECTED_DATA = DATA...')
-            MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+            logger.info('Creating CORRECTED_DATA...')
+            MSs.addcol('CORRECTED_DATA', 'DATA')
+            # logger.info('Set CORRECTED_DATA = DATA...')
+            # MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
     else:
         with w.if_todo('set_corrected_data_c%02i' % c):
             logger.info('Set CORRECTED_DATA = SUBFIELD_DATA...')
