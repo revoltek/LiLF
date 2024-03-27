@@ -106,7 +106,6 @@ for MS in MSs.getListStr():
 # Here the model is added only to CS+RS, IS used only for FR and model is not needed
 with w.if_todo('init_model'):
     # NOTE: do not add MODEL_DATA or the beam is transported from DATA, while we want it without beam applied
-
     logger.info('Add model to MODEL_DATA...')
     if apparent:
         MSs.run(
@@ -123,10 +122,8 @@ for c in range(maxIter):
     logger.info('Start selfcal cycle: '+str(c))
     if c == 0:
         with w.if_todo('set_corrected_data_c%02i' % c):
-            logger.info('Creating CORRECTED_DATA...')
+            logger.info('Creating CORRECTED_DATA from DATA...')
             MSs.addcol('CORRECTED_DATA', 'DATA')
-            # logger.info('Set CORRECTED_DATA = DATA...')
-            # MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
     else:
         with w.if_todo('set_corrected_data_c%02i' % c):
             logger.info('Set CORRECTED_DATA = SUBFIELD_DATA...')
@@ -235,8 +232,8 @@ for c in range(maxIter):
         logger.info('Cleaning (cycle: '+str(c)+')...')
         if c == 0:
             # make temp mask for cycle 0, in cycle 1 use the maske made from cycle 0 image
-            lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(), name=imagename,
-                                 size=imgsizepix, scale='10arcsec',
+            lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(), concat_mss=False,
+                                 name=imagename, size=imgsizepix, scale='10arcsec',
                                  weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
                                  parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
                                  parallel_deconvolution=512, local_rms='', auto_threshold=4,
@@ -249,8 +246,8 @@ for c in range(maxIter):
         else: 
             kwargs = {}
 
-        lib_util.run_wsclean(s, 'wscleanM-c'+str(c)+'.log', MSsClean.getStrWsclean(), name=imagenameM, save_source_list='',
-                size=imgsizepix, scale='10arcsec',
+        lib_util.run_wsclean(s, 'wscleanM-c'+str(c)+'.log', MSsClean.getStrWsclean(), concat_mss=False,
+                name=imagenameM, save_source_list='', size=imgsizepix, scale='10arcsec',
                 weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
                 parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
                 parallel_deconvolution=512, auto_threshold=3., fits_mask=maskname,
@@ -287,16 +284,16 @@ for c in range(maxIter):
             # reclean low-resolution
             logger.info('Cleaning low-res...')
             imagename_lr = 'img/wide-lr'
-            lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=False,
+            lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(),  concat_mss=False, name=imagename_lr, do_predict=True,
                     parallel_gridding=4, temp_dir='./', size=imgsizepix, scale='30arcsec',
                     weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                     taper_gaussian='200arcsec', mgain=0.85, parallel_deconvolution=512, baseline_averaging='',
                     local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits',
                     join_channels='', channels_out=MSs.getChout(2.e6))
-
-            s.add('wsclean -predict -padding 1.8 -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(2e6))+' '+MSs.getStrWsclean(), \
-                  log='wscleanLR-PRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-            s.run(check=True)
+            # Test of we cam just do a do_predict
+            # s.add('wsclean -predict -padding 1.8 -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(2e6))+' '+MSs.getStrWsclean(), \
+            #       log='wscleanLR-PRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+            # s.run(check=True)
         ### DONE
 
         with w.if_todo('lowres_sub_c%02i' % c):
@@ -310,7 +307,7 @@ for c in range(maxIter):
             imagename_ls = 'img/wide-largescale'
             #                     intervals_out=len(MSs.mssListObj)*4,
             #use_idg = '', aterm_kernel_size = 16, aterm_config = parset_dir + '/aconfig.txt',
-            lib_util.run_wsclean(s, 'wscleanLS.log', MSs.getStrWsclean(), name=imagename_ls, do_predict=False,
+            lib_util.run_wsclean(s, 'wscleanLS.log', MSs.getStrWsclean(), concat_mss=False, name=imagename_ls, do_predict=False,
                                  temp_dir='./', size=2000, scale='20arcsec',
                                  no_fit_beam='', circular_beam='', beam_size='200arcsec',
                                  multiscale='', multiscale_scales='0,4,8,16,32,64',
@@ -442,7 +439,7 @@ with w.if_todo('final_correct'):
 with w.if_todo('imaging-pol'):
     logger.info('Cleaning (Pol)...')
     imagenameP = 'img/wideP'
-    lib_util.run_wsclean(s, 'wscleanP.log', MSs.getStrWsclean(), name=imagenameP, pol='QUV',
+    lib_util.run_wsclean(s, 'wscleanP.log', MSs.getStrWsclean(), concat_mss=False, name=imagenameP, pol='QUV',
         size=imgsizepix, scale='10arcsec', weight='briggs -0.3', niter=0, no_update_model_required='',
         parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500,
         join_channels='', channels_out=MSs.getChout(4.e6))
