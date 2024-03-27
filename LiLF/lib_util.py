@@ -379,7 +379,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=True, **kwar
         
         MSs_files_clean = []
         for g, group in enumerate(groups):
-            os.system(f'taql select from {group} giving wsclean_concat_{g}.MS as plain')
+            s.add(f'taql select from {group} giving wsclean_concat_{g}.MS as plain', log=logfile, commandType='general')
+            s.run(check=True)
             MSs_files_clean.append(f'wsclean_concat_{g}.MS')
         MSs_files_clean = ' '.join(MSs_files_clean)
     else:

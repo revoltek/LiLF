@@ -148,7 +148,7 @@ if debugplots:
                            commandType="DP3")    
     logger.info('BL-smooth...')
     MSs_concat_all.run(
-        f'BLsmooth.py -r -q -c {12 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i DATA -o SMOOTHED_DATA $pathMS',
+        f'BLsmooth.py -r -q -c {16 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i DATA -o SMOOTHED_DATA $pathMS',
         log='$nameMS_smooth3.log', commandType='python', maxThreads=1)
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating test...')
@@ -167,7 +167,7 @@ with w.if_todo('cal_pa'):
     # Smooth data concat_all-all DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
     MSs_concat_all.run(
-        f'BLsmooth.py -r -q -c {12 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i DATA -o SMOOTHED_DATA $pathMS',
+        f'BLsmooth.py -r -q -c {16 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i DATA -o SMOOTHED_DATA $pathMS',
         log='$nameMS_smooth1.log', commandType='python', maxThreads=1)
 
     # Get phase diff SMOOTHED_DATA -> SMOOTHED_DATA
@@ -213,7 +213,7 @@ with w.if_todo('cal_fr'):
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
     MSs_concat_all.run(
-        f'BLsmooth.py -r -q -c {12 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
+        f'BLsmooth.py -r -q -c {16 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
         log='$nameMS_smooth2.log', commandType='python', maxThreads=1)
     
     # Convert to circular SMOOTHED_DATA -> SMOOTHED_DATA
@@ -272,7 +272,7 @@ with w.if_todo('cal_iono'):
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
     MSs_concat_all.run(
-        f'BLsmooth.py -r -q -c {12 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
+        f'BLsmooth.py -r -q -c {16 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
         log='$nameMS_smooth2.log', commandType='python', maxThreads=1)
     
     # Phasing up the cose stations SMOOTHED_DATA -> concat_all-phaseupFR.MS:DATA
@@ -340,7 +340,7 @@ with w.if_todo('cal_bp'):
     # Smooth data concat_all-phaseup.MS:CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
     MSs_concat_all.run(
-        f'BLsmooth.py -r -q -c {12 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
+        f'BLsmooth.py -r -q -c {16 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
         log='$nameMS_smooth3.log', commandType='python', maxThreads=1)
     
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
@@ -366,7 +366,7 @@ if debugplots:
     
     logger.info('BL-smooth...')
     MSs_concat_all.run(
-            f'BLsmooth.py -r -q -c {12 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
+            f'BLsmooth.py -r -q -c {16 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
             log='$nameMS_smooth3.log', commandType='python', maxThreads=1)
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating test...')
@@ -384,7 +384,7 @@ if debugplots:
 
     logger.info('BL-smooth...')
     MSs_concat_all.run(
-            f'BLsmooth.py -r -q -c {12 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
+            f'BLsmooth.py -r -q -c {16 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
             log='$nameMS_smooth3.log', commandType='python', maxThreads=1)
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating test...')
@@ -403,7 +403,7 @@ if debugplots:
     
     logger.info('BL-smooth...')
     MSs_concat_all.run(
-            f'BLsmooth.py -r -q -c {12 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
+            f'BLsmooth.py -r -q -c {16 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
             log='$nameMS_smooth3.log', commandType='python', maxThreads=1)
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating test...')
@@ -421,7 +421,7 @@ if debugplots:
 
     logger.info('BL-smooth...')
     MSs_concat_all.run(
-            f'BLsmooth.py -r -q -c {12 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
+            f'BLsmooth.py -r -q -c {16 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
             log='$nameMS_smooth3.log', commandType='python', maxThreads=1)
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating test...')
@@ -439,7 +439,7 @@ if debugplots:
 
     logger.info('BL-smooth...')
     MSs_concat_all.run(
-            f'BLsmooth.py -r -q -c {12 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
+            f'BLsmooth.py -r -q -c {16 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
             log='$nameMS_smooth3.log', commandType='python', maxThreads=1)
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating test...')
