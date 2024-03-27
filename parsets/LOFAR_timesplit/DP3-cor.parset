@@ -6,4 +6,4 @@ msout.datacolumn = CORRECTED_DATA
 steps = [cor]
 
 cor.type = correct
-cor.missingantennabehavior=flag
+cor.missingantennabehavior=unit
