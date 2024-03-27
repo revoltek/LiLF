@@ -66,35 +66,43 @@ else:
 
 logger.info('Calibrator directory: %s' % cal_dir)
 h5_pa = cal_dir+'/cal-pa.h5'
-h5_amp = cal_dir+'/cal-amp.h5'
+h5_bp = cal_dir+'/cal-bp.h5'
 h5_iono = cal_dir+'/cal-iono.h5'
-if not os.path.exists(h5_pa) or not os.path.exists(h5_amp) or not os.path.exists(h5_iono):
+if not os.path.exists(h5_pa) or not os.path.exists(h5_bp) or not os.path.exists(h5_iono):
     logger.error("Missing solutions in %s" % cal_dir)
     sys.exit()
 
 ####################################################
-# Correct fist for BP(diag)+TEC+Clock and then for beam
+# Correct fist for PA+beam+BP(diag)+TEC+Clock and then for beam
 with w.if_todo('apply'):
 
     # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign corrected)
     logger.info('Apply solutions (pa)...')
-    MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS \
-            cor.parmdb='+h5_pa+' cor.correction=polalign', log='$nameMS_cor1.log', commandType='DP3')
-
-    # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, calibrator corrected+reweight, beam corrected+reweight)
-    logger.info('Apply solutions (amp/ph)...')
-    if MSs.isLBA:
-        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,ph] \
-                cor.amp.parmdb='+h5_amp+' cor.amp.correction=amplitudeSmooth cor.amp.updateweights=True\
-                cor.ph.parmdb='+h5_iono+' cor.ph.correction=phaseOrig000', log='$nameMS_cor2.log', commandType='DP3')
-    elif MSs.isHBA:
-        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.steps=[amp,clock] \
-                cor.amp.parmdb='+h5_amp+' cor.amp.correction=amplitudeSmooth cor.amp.updateweights=True\
-                cor.clock.parmdb='+h5_iono+' cor.clock.correction=clockMed000', log='$nameMS_cor2.log', commandType='DP3')
-
+    MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
+            cor.parmdb='+h5_pa+' cor.correction=polalign', log='$nameMS_corPA.log', commandType='DP3')
+    
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
     logger.info('Beam correction...')
-    MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_beam.log', commandType='DP3')
+    MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM.log', commandType='DP3')
+
+    # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, calibrator corrected+reweight)
+    if MSs.isLBA:
+        logger.info('Iono correction...')
+        MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb='+h5_iono+' msin.datacolumn=CORRECTED_DATA \
+                    cor.correction=phaseOrig000', log='$nameMS_corIONO.log', commandType="DP3")
+        logger.info('BP correction...')
+        MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb='+h5_bp+' msin.datacolumn=CORRECTED_DATA \
+                    cor.correction=fulljones cor.soltab=[amplitudeSmooth,phaseNull] cor.updateweights=True',
+                    log='$nameMS_corBP.log', commandType="DP3")
+    elif MSs.isHBA:
+        logger.info('Clock correction...')
+        MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb='+h5_iono+' msin.datacolumn=CORRECTED_DATA \
+                    cor.correction=clockMed000', log='$nameMS_corCLOCK.log', commandType="DP3")
+        logger.info('BP correction...')
+        MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb='+h5_bp+' msin.datacolumn=CORRECTED_DATA \
+                    cor.correction=fulljones cor.soltab=[amplitudeSmooth,phaseNull] cor.updateweights=True',
+                    log='$nameMS_corBP.log', commandType="DP3")
+
 ### DONE
 
 ###################################################################################################

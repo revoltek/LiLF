@@ -2,13 +2,13 @@
 operation = LOFARBEAM
 soltab = sol000/amplitude000
 allChan = True
-ms = concat_core.MS
+ms = concat_all-phaseup.MS
 
 [beamP]
 operation = LOFARBEAM
 soltab = sol000/phase000
 allChan = True
-ms = concat_core.MS
+ms = concat_all-phaseup.MS
 
 [plotA]
 operation = PLOT

@@ -67,6 +67,7 @@ if skymodel == '':  # default case
 for MS in MSs.getListObj():
     os.system('cp -r %s %s' % (skymodel, MS.pathMS))
 
+
 ######################################################
 # flag bad stations, flags will propagate
 with w.if_todo('flag'):
