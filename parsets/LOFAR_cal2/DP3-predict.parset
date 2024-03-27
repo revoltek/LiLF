@@ -9,6 +9,6 @@ steps = [pre]
 pre.type = predict
 pre.sourcedb = 
 pre.sources = 
-pre.usebeammodel = False # TODO: put to true for large sky
+pre.usebeammodel = False
 #pre.usechannelfreq = False
 #pre.beammode = array_factor

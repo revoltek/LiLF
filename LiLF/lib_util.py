@@ -76,7 +76,8 @@ def getParset(parsetFile=''):
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
     # quick-self
-    add_default('LOFAR_quick-self', 'data_dir', 'data-bkp/')
+    add_default('LOFAR_self', 'maxIter', '2')
+    add_default('LOFAR_self', 'subfield_min_flux', '40') # min flux within calibration subfield
     # dd-parallel - deprecated
     #add_default('LOFAR_dd-parallel', 'maxniter', '10')
     #add_default('LOFAR_dd-parallel', 'calFlux', '1.5')

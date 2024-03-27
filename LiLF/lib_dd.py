@@ -370,7 +370,7 @@ def cut_skymodel(skymodel_in, skymodel_out, d, do_skydb=True, do_regions=False):
     s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (dir_skymodel, dir_skydb), log='makesourcedb_cl.log', commandType='general' )
     s.run(check=True)
 
-def find_calibration_subfield(MS, sm, min_flux, prefix='self/skymodel/'):
+def make_subfield_region(name, MS, sm, min_flux):
     """
     Identify the smallest region of sky model sources that contains a certain flux.
 
@@ -446,7 +446,6 @@ def find_calibration_subfield(MS, sm, min_flux, prefix='self/skymodel/'):
     bestbox_size = boxsizes[id_min]
     logging.info(f'Flux {bestbox_flux:.1f}Jy > min_flux ({min_flux:.1f}Jy) in {bestbox_size:.2f}deg box at ra={bestbox_coord[0]:.2f}d dec={bestbox_coord[1]:.2f}d.')
 
-
     # search for points with strong jumps using gradient and boxsize^eidx
     # eidx - linear case: gradient in Jy per box diameter (finds larger boxes)
     #      - square case: gradient in Jy per box area ( finds smaller boxes)
@@ -483,8 +482,10 @@ def find_calibration_subfield(MS, sm, min_flux, prefix='self/skymodel/'):
     # ax2.set_ylabel('gradient [Jy/deg^2]')
     # plt.legend()
     # plt.savefig('flux_area.png')
-
-    return bestbox_coord, bestbox_size, bestbox_flux
+    region_string = f"fk5;box({bestbox_coord[0]},{bestbox_coord[1]},{1.05*bestbox_size},{1.05*bestbox_size},0.0)"
+    region = pyregion.parse(region_string)
+    region.write(name)
+    return bestbox_coord, bestbox_size
 
 
 
