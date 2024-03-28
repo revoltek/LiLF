@@ -112,6 +112,7 @@ for MS in MSs.getListStr():
     logger.debug('Copy: ' + sourcedb + ' -> ' + MS)
     os.system('cp -r ' + sourcedb + ' ' + MS)
 
+
 # Here the model is added only to CS+RS, IS used only for FR and model is not needed
 with w.if_todo('init_model'):
     logger.info('Add model to MODEL_DATA...')
@@ -122,7 +123,49 @@ with w.if_todo('init_model'):
     else:
         MSs.run('DP3 ' + parset_dir + '/DP3-predict.parset msin=$pathMS pre.usebeammodel=true pre.usechannelfreq=True \
                  pre.beammode=array_factor pre.onebeamperpatch=True pre.sourcedb=$pathMS/' + sourcedb_basename,
-                 log='$nameMS_pre.log', commandType='DP3')
+                log='$nameMS_pre.log', commandType='DP3')
+### DONE
+
+with w.if_todo('solve_cor_fr'):
+        logger.info('Add column CIRC_PHASEDIFF_DATA...')
+        MSs.addcol('CIRC_PHASEDIFF_DATA', 'DATA', usedysco=False)  # No dysco here as off diag elements are 0 and dysco does not like 0s
+        # Probably we do not need smoothing since we have long time intervals and smoothnessconstraint?
+
+        logger.info('Converting to circular...')
+        MSs.run('mslin2circ.py -s -i $pathMS:CIRC_PHASEDIFF_DATA -o $pathMS:CIRC_PHASEDIFF_DATA',
+                log='$nameMS_lincirc.log', commandType='python', maxThreads=2)
+
+        # Get circular phase diff CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
+        logger.info('Get circular phase difference...')
+        MSs.run('taql "UPDATE $pathMS SET\
+             CIRC_PHASEDIFF_DATA[,0]=0.5*EXP(1.0i*(PHASE(CIRC_PHASEDIFF_DATA[,0])-PHASE(CIRC_PHASEDIFF_DATA[,3]))), \
+             CIRC_PHASEDIFF_DATA[,3]=CIRC_PHASEDIFF_DATA[,0], \
+             CIRC_PHASEDIFF_DATA[,1]=0+0i, \
+             CIRC_PHASEDIFF_DATA[,2]=0+0i"', log='$nameMS_taql_phdiff.log', commandType='general')
+
+        logger.info('Creating FR_MODEL_DATA...')  # take from MODEL_DATA but overwrite
+        MSs.addcol('FR_MODEL_DATA', 'MODEL_DATA', usedysco=False)
+        MSs.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
+             FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
+
+        # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve - solint=2m nchan=0 as it has the smoothnessconstrain)
+        logger.info('Solving circ phase difference ...')
+        MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint=' + str(
+            30 * base_solint),
+                log='$nameMS_solFR.log', commandType="DP3")
+        lib_util.run_losoto(s, f'fr', [ms + '/fr.h5' for ms in MSs.getListStr()],
+                            [parset_dir + '/losoto-fr.parset'])
+        os.system('mv cal-fr.h5 self/solutions/')
+        os.system('mv plots-fr self/plots/')
+        # Delete cols again to not waste space
+        MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN CIRC_PHASEDIFF_DATA, FR_MODEL_DATA"',
+                log='$nameMS_taql_delcol.log', commandType='general')
+
+        # Correct FR with results of solve - group*_TC.MS:DATA -> group*_TC.MS:DATA
+        logger.info('Correcting FR...')
+        MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
+                    cor.parmdb=self/solutions/cal-fr.h5 cor.correction=rotationmeasure000',
+                log='$nameMS_corFR.log', commandType='DP3')
 ### DONE
 
 #####################################################################################################
