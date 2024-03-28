@@ -25,9 +25,9 @@ fix_table = parset.getboolean('LOFAR_preprocess','fix_table')
 renameavg = parset.getboolean('LOFAR_preprocess','renameavg')
 keep_IS = parset.getboolean('LOFAR_preprocess','keep_IS')
 backup_full_res = parset.getboolean('LOFAR_preprocess','backup_full_res')
-demix_sources = parset.get('LOFAR_preprocess','demix_sources') # Demix  sources in these patches (e.g. CasA or [VirA,TauA]), default: No demix
+demix_sources = parset.get('LOFAR_preprocess','demix_sources') # demix the sources in these patches (e.g. CasA or [VirA,TauA]), default: No demix. Assumes intrinsic sky
 demix_skymodel = parset.get('LOFAR_preprocess','demix_skymodel') # Use non-default demix skymodel
-demix_field_skymodel = parset.get('LOFAR_preprocess','demix_field_skymodel') # provide a custom target skymodel instead of online gsm model
+demix_field_skymodel = parset.get('LOFAR_preprocess','demix_field_skymodel') # provide a custom target skymodel instead of online gsm model - assumes intrinsic sky.
 
 
 ###########################################
@@ -226,16 +226,15 @@ if renameavg:
                         lsm.setColValues('LogarithmicSI', ['true'] * len(lsm))
                         # join with ateam skymodel
                         lsm.concatenate(demix_sm)
-                        # let's try to apply the beam, will probably be more accurate?
-                        # TODO apply beam probably better, but creates bug?
-                        lsm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)
-                        # lsm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=True)
+                        # let's try to apply the beam, will probably be more accurate (especially for the field)
+                        # lsm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)
+                        lsm.write(f'{MS.pathMS}/demix_combined_apparent.skymodel', clobber=True, applyBeam=True)
                         logger.info('%s->%s: Demix %s and average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, demix_sources ,avg_factor_f, avg_factor_t))
                         demix_f_step = nchan
                         demix_t_step = int(np.round(8/timeint))
 
                         s.add(f'DP3 {parset_dir}/DP3-demix.parset msin={MS.pathMS} msin.baseline={bl_sel} msout={MSout} '
-                              f'demix.skymodel={MS.pathMS}/demix_combined.skymodel demix.instrumentmodel={MS.pathMS}/instrument_demix.parmdb '
+                              f'demix.skymodel={MS.pathMS}/demix_combined_apparent.skymodel demix.instrumentmodel={MS.pathMS}/instrument_demix.parmdb '
                               f'demix.targetsource=target demix.subtractsources=\[{",".join(demix_sources)}\] '
                               f'demix.freqstep={avg_factor_f} demix.timestep={avg_factor_t} '
                               f'demix.demixfreqstep={demix_f_step} demix.demixtimestep={demix_t_step}',

@@ -61,13 +61,13 @@ imgsizepix = imgsizepix_wide # iteration 0 - start with wide.
 imgcenter = phasecentre
 
 # set BLsmooth params
-if MSs.hasIS: 
+if MSs.hasIS:
     bls_chunks = 16
     bls_ncpu = s.max_processors
     bls_maxthreads = 1
 else:
     bls_chunks = min([len(MSs.getListObj()),8]) # number of chunks increses with MSs with a max of 8
-    bls_ncpu = int(np.rint(s.max_processors/min([len(MSs.getListObj()), 8]))) # cpu max_proc / N_MSs 
+    bls_ncpu = int(np.rint(s.max_processors/min([len(MSs.getListObj()), 8]))) # cpu max_proc / N_MSs
     bls_maxthreads = 8
 
 # set clean componet fit order (use 5 for large BW)
@@ -124,17 +124,15 @@ with w.if_todo('init_model'):
                  pre.beammode=array_factor pre.onebeamperpatch=True pre.sourcedb=$pathMS/' + sourcedb_basename,
                  log='$nameMS_pre.log', commandType='DP3')
 ### DONE
-        
+
 #####################################################################################################
 # Self-cal cycle
 for c in range(maxIter):
     logger.info('Start selfcal cycle: '+str(c))
     if c == 0:
         with w.if_todo('set_corrected_data_c%02i' % c):
-            logger.info('Creating CORRECTED_DATA...')
+            logger.info('Creating CORRECTED_DATA from DATA...')
             MSs.addcol('CORRECTED_DATA', 'DATA')
-            # logger.info('Set CORRECTED_DATA = DATA...')
-            # MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
     else:
         with w.if_todo('set_corrected_data_c%02i' % c):
             logger.info('Set CORRECTED_DATA = SUBFIELD_DATA...')
@@ -145,9 +143,9 @@ for c in range(maxIter):
     with w.if_todo('solve_tec1_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
-        MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', 
+        MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
                 log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
-        MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i MODEL_DATA -o MODEL_DATA $pathMS', 
+        MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i MODEL_DATA -o MODEL_DATA $pathMS',
                 log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
 
         # solve TEC - ms:SMOOTHED_DATA (1m 2SB)
@@ -177,9 +175,9 @@ for c in range(maxIter):
     with w.if_todo('solve_tec2_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
-        MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', 
+        MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
                 log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
-        
+
         # solve TEC - ms:SMOOTHED_DATA (4s, 1SB)
         logger.info('Solving TEC2...')
         MSs.run('DP3 '+parset_dir+'/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec2.h5 \
@@ -246,8 +244,8 @@ for c in range(maxIter):
         logger.info('Cleaning (cycle: '+str(c)+')...')
         if c == 0:
             # make temp mask for cycle 0, in cycle 1 use the maske made from cycle 0 image
-            lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(), name=imagename,
-                                 size=imgsizepix, scale='10arcsec',
+            lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(),
+                                 name=imagename, size=imgsizepix, scale='10arcsec',
                                  weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
                                  parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
                                  parallel_deconvolution=512, local_rms='', auto_threshold=4,
@@ -260,8 +258,8 @@ for c in range(maxIter):
         else: 
             kwargs = {}
 
-        lib_util.run_wsclean(s, 'wscleanM-c'+str(c)+'.log', MSsClean.getStrWsclean(), name=imagenameM, save_source_list='',
-                size=imgsizepix, scale='10arcsec',
+        lib_util.run_wsclean(s, 'wscleanM-c'+str(c)+'.log', MSsClean.getStrWsclean(), concat_mss=True,
+                name=imagenameM, save_source_list='', size=imgsizepix, scale='10arcsec',
                 weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
                 parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
                 parallel_deconvolution=512, auto_threshold=3., fits_mask=maskname,
@@ -298,16 +296,17 @@ for c in range(maxIter):
             # reclean low-resolution
             logger.info('Cleaning low-res...')
             imagename_lr = 'img/wide-lr'
-            lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=False,
+            logger.warning('False')
+            lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True,
                     parallel_gridding=4, temp_dir='./', size=imgsizepix, scale='30arcsec',
                     weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                     taper_gaussian='200arcsec', mgain=0.85, parallel_deconvolution=512, baseline_averaging='',
                     local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits',
                     join_channels='', channels_out=MSs.getChout(2.e6))
-
-            s.add('wsclean -predict -padding 1.8 -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(2e6))+' '+MSs.getStrWsclean(), \
-                  log='wscleanLR-PRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-            s.run(check=True)
+            # Test of we cam just do a do_predict
+            # s.add('wsclean -predict -padding 1.8 -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(2e6))+' '+MSs.getStrWsclean(), \
+            #       log='wscleanLR-PRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+            # s.run(check=True)
         ### DONE
 
         with w.if_todo('lowres_sub_c%02i' % c):
@@ -358,7 +357,7 @@ for c in range(maxIter):
             # This could be done from DATA, but the we can't restart the pipeline as easily.
             MSs.addcol('SUBTRACTED_DATA','DATA')
             logger.info('Subtracting low-res sidelobe model (SUBTRACTED_DATA = DATA - MODEL_DATA)...')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', 
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"',
                     log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         ### DONE
 
