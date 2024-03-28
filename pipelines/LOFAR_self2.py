@@ -57,9 +57,18 @@ beamReg = 'self/beam.reg'
 # set image size
 imgsizepix_wide = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/10.)
 if imgsizepix_wide%2 != 0: imgsizepix_wide += 1 # prevent odd img sizes
-
 imgsizepix = imgsizepix_wide # iteration 0 - start with wide.
 imgcenter = phasecentre
+
+# set BLsmooth params
+if MSs.hasIS:
+    bls_chunks = 16
+    bls_ncpu = s.max_processors
+    bls_maxthreads = 1
+else:
+    bls_chunks = min([len(MSs.getListObj()),8]) # number of chunks increses with MSs with a max of 8
+    bls_ncpu = int(np.rint(s.max_processors/min([len(MSs.getListObj()), 8]))) # cpu max_proc / N_MSs
+    bls_maxthreads = 8
 
 # set clean componet fit order (use 5 for large BW)
 bandwidth = MSs.getBandwidth()
@@ -105,7 +114,6 @@ for MS in MSs.getListStr():
 
 # Here the model is added only to CS+RS, IS used only for FR and model is not needed
 with w.if_todo('init_model'):
-    # NOTE: do not add MODEL_DATA or the beam is transported from DATA, while we want it without beam applied
     logger.info('Add model to MODEL_DATA...')
     if apparent:
         MSs.run(
@@ -116,6 +124,7 @@ with w.if_todo('init_model'):
                  pre.beammode=array_factor pre.onebeamperpatch=True pre.sourcedb=$pathMS/' + sourcedb_basename,
                  log='$nameMS_pre.log', commandType='DP3')
 ### DONE
+
 #####################################################################################################
 # Self-cal cycle
 for c in range(maxIter):
@@ -134,8 +143,10 @@ for c in range(maxIter):
     with w.if_todo('solve_tec1_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -c 8 -n 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
-        MSs.run('BLsmooth.py -c 8 -n 8 -r -i MODEL_DATA -o MODEL_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+        MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
+                log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
+        MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i MODEL_DATA -o MODEL_DATA $pathMS',
+                log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
 
         # solve TEC - ms:SMOOTHED_DATA (1m 2SB)
         logger.info('Solving TEC1...')
@@ -164,7 +175,8 @@ for c in range(maxIter):
     with w.if_todo('solve_tec2_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
-        MSs.run('BLsmooth.py -c 8 -n 8 -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth-c'+str(c)+'.log', commandType='python')
+        MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
+                log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
 
         # solve TEC - ms:SMOOTHED_DATA (4s, 1SB)
         logger.info('Solving TEC2...')
@@ -345,14 +357,15 @@ for c in range(maxIter):
             # This could be done from DATA, but the we can't restart the pipeline as easily.
             MSs.addcol('SUBTRACTED_DATA','DATA')
             logger.info('Subtracting low-res sidelobe model (SUBTRACTED_DATA = DATA - MODEL_DATA)...')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"',
+                    log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         ### DONE
 
         with w.if_todo('extreg_preapre_c%02i' % c):
             sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
-            sm.remove('./wide-lr-mask.fits=1') # remove sidelobe sources that were subtracted
+            sm.remove('img/wide-lr-mask.fits=1') # remove sidelobe sources that were subtracted
             subfield_reg = 'self/skymodel/subfield.reg'
-            field_center, field_size = lib_dd.make_subfield_region(MSs.getListObj()[0], sm, subfield_min_flux, name=subfield_reg)
+            field_center, field_size = lib_dd.make_subfield_region(subfield_reg, MSs.getListObj()[0], sm, subfield_min_flux)
             # prepare model of central/external regions
             logger.info('Blanking central region of model files and reverse...')
             for im in glob.glob('img/wideM-0*model.fits'):
@@ -440,7 +453,7 @@ with w.if_todo('final_correct'):
 with w.if_todo('imaging-pol'):
     logger.info('Cleaning (Pol)...')
     imagenameP = 'img/wideP'
-    lib_util.run_wsclean(s, 'wscleanP.log', MSs.getStrWsclean(), concat_mss=False, name=imagenameP, pol='QUV',
+    lib_util.run_wsclean(s, 'wscleanP.log', MSs.getStrWsclean(), name=imagenameP, pol='QUV',
         size=imgsizepix, scale='10arcsec', weight='briggs -0.3', niter=0, no_update_model_required='',
         parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500,
         join_channels='', channels_out=MSs.getChout(4.e6))

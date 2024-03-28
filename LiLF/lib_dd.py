@@ -388,14 +388,13 @@ def make_subfield_region(name, MS, sm, min_flux):
     fwhm = MS.getFWHM(freq='min')
     cellsize  = 1/60 # 1 arcmin
     # TODO padding?/offset?
-    size_pix = int(np.round(1.3*fwhm/cellsize)) # size in pix, 10% pad
+    size_pix = int(np.round(1.5*fwhm/cellsize)) # size in pix, 10% pad
     freq = np.mean(MS.getFreqs())
     steps = 40 # how many scales to consider
     boxsizes = np.linspace(fwhm/(steps),fwhm,steps)
 
     # iterate over box sizes and convolve with boxcar kernel to find per scale the location of the box containing the
     # maximum flux
-    sm = lsmtool.load(sm)
     smt = sm.table
     type, ra, dec, I, si = smt['Type'], smt['Ra'], smt['Dec'], smt['I'], smt['SpectralIndex']
     reff = sm.getColValues('ReferenceFrequency')
@@ -414,6 +413,7 @@ def make_subfield_region(name, MS, sm, min_flux):
         cell_value = 1 - (1-edge_value)*distance_factor
 
         return cell_value
+    
     max_location, max_flux_in_field = np.zeros((len(boxsizes),2)), np.zeros_like(boxsizes)
 
     # iterate over box sizes, for each boxsize find the best region (center location = maximum of convolved map)
@@ -435,7 +435,7 @@ def make_subfield_region(name, MS, sm, min_flux):
             imdata[pix[0],pix[1]] = flux
 
         hdu[0].data = convolve_fft(imdata,kernel,normalize_kernel=False)
-        hdu.writeto(f'{prefix}/flux_region_map_{int(np.rint(boxsize*60)):03}amin.fits', overwrite=True)
+        hdu.writeto(f'img/flux_region_map_{int(np.rint(boxsize*60)):03}amin.fits', overwrite=True)
         max_location[i] = np.unravel_index(np.argmax(hdu[0].data), hdu[0].data.shape)
         max_flux_in_field[i] = np.max(hdu[0].data)
     mask = max_flux_in_field > min_flux # points above min flux
