@@ -24,7 +24,7 @@ maxIter = parset.getint('LOFAR_self','maxIter')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
-subfield_min_flux = 20.
+subfield_min_flux = 50.
 
 #############################################################################
 # Clear
@@ -408,7 +408,7 @@ for c in range(maxIter):
             sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
             sm.remove('img/wide-lr-mask.fits=1') # remove sidelobe sources that were subtracted
             subfield_reg = 'self/skymodel/subfield.reg'
-            field_center, field_size = lib_dd.make_subfield_region(subfield_reg, MSs.getListObj()[0], sm, subfield_min_flux)
+            field_center, field_size = lib_dd.make_subfield_region(subfield_reg, MSs.getListObj()[0], sm, subfield_min_flux, debug_dir='self/skymodel')
             # prepare model of central/external regions
             logger.info('Blanking central region of model files and reverse...')
             for im in glob.glob('img/wideM-0*model.fits'):
