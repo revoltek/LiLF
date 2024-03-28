@@ -177,7 +177,6 @@ if renameavg:
                 MSout = getName(MS.pathMS)
 
                 if avg_factor_f != 1 or avg_factor_t != 1 or demix_sources:
-                    print(demix_sources)
                     # normal case: no demixing, just averaging
                     if not demix_sources:
                         logger.info('%s->%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, avg_factor_f, avg_factor_t))
@@ -194,23 +193,7 @@ if renameavg:
                             demix_sm_file = os.path.dirname(__file__) + '/../models/A-Team_lowres.skymodel' if not demix_skymodel else demix_skymodel
                         else:
                             demix_sm_file = os.path.dirname(__file__) + '/../models/demix_all.skymodel' if not demix_skymodel else demix_skymodel
-                        # Check demix sources
-                        demix_sm = lsmtool.load(demix_sm_file, beamMS=MS.pathMS)
-                        demix_sm_patches = demix_sm.getPatchPositions()
-                        ra, dec = MS.getPhaseCentre() # to calculate distance
-                        demix_sm_sources = demix_sm_patches.keys()
-                        if not isinstance(demix_sources, list):
-                            demix_sources = demix_sources.replace('[','').replace(']','').split(',')
-                        # check distances and that all sources in config are actually in skymodel.
-                        for demix_source in demix_sources:
-                            if demix_source not in demix_sm_sources:
-                                logger.error(f'demix_source={demix_source} not in demix skymodel sources {demix_sm_sources}!')
-                                sys.exit()
-                            else:
-                                coord_demix = SkyCoord(ra=demix_sm_patches[demix_source][0], dec=demix_sm_patches[demix_source][1])
-                                sep = coord_demix.separation(SkyCoord(ra * u.deg, dec * u.deg)).deg
-                                logger.info(f'Demix source: {demix_source} separation: {sep:.2f}deg')
-
+                        demix_sm = lsmtool.load(demix_sm_file, beamMS=MS.pathMS) # load demix sm
                         # check target field skymodel
                         # if not provided, use GSM
                         if demix_field_skymodel == '':
@@ -229,17 +212,42 @@ if renameavg:
                         # let's try to apply the beam, will probably be more accurate (especially for the field)
                         # lsm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)
                         lsm.write(f'{MS.pathMS}/demix_combined_apparent.skymodel', clobber=True, applyBeam=True)
-                        logger.info('%s->%s: Demix %s and average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, demix_sources ,avg_factor_f, avg_factor_t))
+                        lsm = lsmtool.load(f'{MS.pathMS}/demix_combined_apparent.skymodel') # to not calulate beam twice
+
+                        # Get debug info about demix skymodel
+                        logger.info('%s->%s: Demix and average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, avg_factor_f, avg_factor_t))
+                        demix_sm_patches = demix_sm.getPatchPositions()
+                        ra, dec = MS.getPhaseCentre() # to calculate distance
+                        demix_sm_sources = demix_sm_patches.keys()
+                        if not isinstance(demix_sources, list):
+                            demix_sources = demix_sources.replace('[','').replace(']','').split(',')
+                        # check distances and that all sources in config are actually in skymodel.
+                        for demix_source in demix_sources:
+                            if demix_source not in demix_sm_sources:
+                                logger.error(f'demix_source={demix_source} not in demix skymodel sources {demix_sm_sources}!')
+                                sys.exit()
+                            else:
+                                coord_demix = SkyCoord(ra=demix_sm_patches[demix_source][0], dec=demix_sm_patches[demix_source][1])
+                                sep = coord_demix.separation(SkyCoord(ra * u.deg, dec * u.deg)).deg
+                                app_flux = lsm.getColValues('I', aggregate='sum')[lsm.getPatchNames() == demix_source].item() # convert to float
+                                # For now auto-remove faint sources in demix_sources form the demix.
+                                if app_flux > 4:
+                                    logger.info(f'Demix source {demix_source}: sep={sep:.2f}deg, app. flux={app_flux:.2f}Jy')
+                                else:
+                                    logger.warning(f'Demix source {demix_source}: sep={sep:.2f}deg, app. flux={app_flux:.2f}Jy -> faint, removing from demix!')
+                                    demix_sources.remove(demix_source)
+
+                        # RUN demixing
                         demix_f_step = nchan
                         demix_t_step = int(np.round(8/timeint))
-
                         s.add(f'DP3 {parset_dir}/DP3-demix.parset msin={MS.pathMS} msin.baseline={bl_sel} msout={MSout} '
                               f'demix.skymodel={MS.pathMS}/demix_combined_apparent.skymodel demix.instrumentmodel={MS.pathMS}/instrument_demix.parmdb '
                               f'demix.targetsource=target demix.subtractsources=\[{",".join(demix_sources)}\] '
                               f'demix.freqstep={avg_factor_f} demix.timestep={avg_factor_t} '
                               f'demix.demixfreqstep={demix_f_step} demix.demixtimestep={demix_t_step}',
                               log=MS.nameMS+'_demix.log', commandType='DP3')
-                        s.run(check=True, maxThreads=None) # We do not want to limit threads since this is CPU limited?
+                        s.run(check=True, maxThreads=None)
+
                     if backup_full_res:
                         logger.info('Backup full resolution data...')
                         if not os.path.exists('data-bkp'):
