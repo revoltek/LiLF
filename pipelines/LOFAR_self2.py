@@ -24,7 +24,7 @@ maxIter = parset.getint('LOFAR_self','maxIter')
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
-subfield_min_flux = 50.
+subfield_min_flux = 20.
 
 #############################################################################
 # Clear
