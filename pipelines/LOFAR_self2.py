@@ -232,7 +232,7 @@ for c in range(maxIter):
         logger.info('Cleaning (cycle: '+str(c)+')...')
         if c == 0:
             # make temp mask for cycle 0, in cycle 1 use the maske made from cycle 0 image
-            lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(), concat_mss=False,
+            lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(),
                                  name=imagename, size=imgsizepix, scale='10arcsec',
                                  weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
                                  parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
@@ -246,7 +246,7 @@ for c in range(maxIter):
         else: 
             kwargs = {}
 
-        lib_util.run_wsclean(s, 'wscleanM-c'+str(c)+'.log', MSsClean.getStrWsclean(), concat_mss=False,
+        lib_util.run_wsclean(s, 'wscleanM-c'+str(c)+'.log', MSsClean.getStrWsclean(), concat_mss=True,
                 name=imagenameM, save_source_list='', size=imgsizepix, scale='10arcsec',
                 weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
                 parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
@@ -284,7 +284,8 @@ for c in range(maxIter):
             # reclean low-resolution
             logger.info('Cleaning low-res...')
             imagename_lr = 'img/wide-lr'
-            lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(),  concat_mss=False, name=imagename_lr, do_predict=True,
+            logger.warning('False')
+            lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True,
                     parallel_gridding=4, temp_dir='./', size=imgsizepix, scale='30arcsec',
                     weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                     taper_gaussian='200arcsec', mgain=0.85, parallel_deconvolution=512, baseline_averaging='',
@@ -307,7 +308,7 @@ for c in range(maxIter):
             imagename_ls = 'img/wide-largescale'
             #                     intervals_out=len(MSs.mssListObj)*4,
             #use_idg = '', aterm_kernel_size = 16, aterm_config = parset_dir + '/aconfig.txt',
-            lib_util.run_wsclean(s, 'wscleanLS.log', MSs.getStrWsclean(), concat_mss=False, name=imagename_ls, do_predict=False,
+            lib_util.run_wsclean(s, 'wscleanLS.log', MSs.getStrWsclean(), name=imagename_ls, do_predict=False,
                                  temp_dir='./', size=2000, scale='20arcsec',
                                  no_fit_beam='', circular_beam='', beam_size='200arcsec',
                                  multiscale='', multiscale_scales='0,4,8,16,32,64',

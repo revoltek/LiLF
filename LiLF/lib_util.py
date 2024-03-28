@@ -352,7 +352,7 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
         check_rm('plots')
 
 
-def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=True, **kwargs):
+def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, **kwargs):
     """
     s : scheduler
     concat_mss : try to concatenate mss files to speed up wsclean

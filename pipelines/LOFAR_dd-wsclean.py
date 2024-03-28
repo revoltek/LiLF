@@ -795,7 +795,7 @@ for cmaj in range(maxIter):
 
         # update_model=True to make continue after masking
         logger.info('Cleaning 1...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
+        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
                 weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=8, update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=1024,
                 auto_threshold=3.0, auto_mask=5.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.6, pol='i', nmiter=1, dd_psf_grid='25 25', beam_size=15,
@@ -812,7 +812,7 @@ for cmaj in range(maxIter):
         # TODO: Add force-reuse psf (and beam) once wsclean bug is fixed.
         # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
         logger.info('Cleaning 2...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
+        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
                 weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=8, no_update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=1024,
                 auto_threshold=3.0, auto_mask=5.0, fits_mask=maskname, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.6, pol='i', dd_psf_grid='25 25', beam_size=15, cont=True,
@@ -830,7 +830,7 @@ for cmaj in range(maxIter):
 with w.if_todo('output-vstokes'):
     imagenameV = 'img/wideDD-v-c%02i' % (cmaj)
     logger.info('Cleaning (V-stokes)...')
-    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagenameV, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
+    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
                 weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
                 pol='v')
@@ -857,7 +857,7 @@ with w.if_todo('output-lres'):
 
     imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
     logger.info('Cleaning (low res)...')
-    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagenameL, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale='16arcsec',
+    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameL, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale='16arcsec',
                 weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=2, no_update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.6, pol='i', dd_psf_grid='5 5', taper_gaussian='60arcsec',
