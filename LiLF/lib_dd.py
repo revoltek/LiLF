@@ -442,7 +442,7 @@ def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
             hdu.writeto(f'{debug_dir}/flux_region_map_{int(np.rint(boxsize*60)):03}amin.fits', overwrite=True)
         max_location[i] = np.unravel_index(np.argmax(hdu[0].data), hdu[0].data.shape)
         max_flux_in_field[i] = np.max(hdu[0].data)
-    print(max_flux_in_field)
+    # print(max_flux_in_field)
     mask = max_flux_in_field > min_flux # points above min flux
     id_min = np.argwhere(mask)[0,0]
     # find smallest region containing min flux

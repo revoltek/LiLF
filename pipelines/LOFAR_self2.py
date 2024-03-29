@@ -20,7 +20,7 @@ parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_self'])))
 parset_dir = parset.get('LOFAR_self','parset_dir')
 subfield_min_flux = parset.getfloat('LOFAR_self','subfield_min_flux') # default 40 Jy
-backup = parset.get('LOFAR_self','backup') # backuo the initial MS (default = True)
+backup = parset.getboolean('LOFAR_self','backup') # backuo the initial MS (default = True)
 maxIter = parset.getint('LOFAR_self','maxIter') # default = 2 (try also 3)
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
