@@ -78,6 +78,7 @@ def getParset(parsetFile=''):
     # quick-self
     add_default('LOFAR_self', 'maxIter', '2')
     add_default('LOFAR_self', 'subfield_min_flux', '40') # min flux within calibration subfield
+    add_default('LOFAR_self', 'backup', 'True') # backup data before running pipeline
     # dd-parallel - deprecated
     #add_default('LOFAR_dd-parallel', 'maxniter', '10')
     #add_default('LOFAR_dd-parallel', 'calFlux', '1.5')

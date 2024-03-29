@@ -19,12 +19,12 @@ w = lib_util.Walker('pipeline-self.walker')
 parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_self'])))
 parset_dir = parset.get('LOFAR_self','parset_dir')
-subfield_min_flux = parset.get('LOFAR_self','subfield_min_flux')
-maxIter = parset.getint('LOFAR_self','maxIter')
+subfield_min_flux = parset.getfloat('LOFAR_self','subfield_min_flux') # default 40 Jy
+backup = parset.get('LOFAR_self','backup') # backuo the initial MS (default = True)
+maxIter = parset.getint('LOFAR_self','maxIter') # default = 2 (try also 3)
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
-subfield_min_flux = 50.
 
 #############################################################################
 # Clear
@@ -43,6 +43,13 @@ with w.if_todo('cleaning'):
 ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+
+if backup:
+    logger.info('Create backup MSs -> mss-self-bkp ')
+    if not os.path.exists('mss-self-bkp'):
+        os.makedirs('mss-self-bkp')
+    for MS in MSs.getListObj():
+        MS.move('mss-self-bkp/' + MS.nameMS + '.MS', keepOrig=True, overwrite=False)
 
 try:
     MSs.print_HAcov()
@@ -286,7 +293,7 @@ for c in range(maxIter):
     with w.if_todo('imaging_c%02i' % c):
         logger.info('Cleaning (cycle: '+str(c)+')...')
         if c == 0:
-            # make temp mask for cycle 0, in cycle 1 use the maske made from cycle 0 image
+            # make temp mask for cycle 0, in cycle 1 use the mask made from cycle 0 image
             lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(),
                                  name=imagename, size=imgsizepix, scale='10arcsec',
                                  weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
@@ -407,6 +414,7 @@ for c in range(maxIter):
         with w.if_todo('extreg_preapre_c%02i' % c):
             sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
             sm.remove('img/wide-lr-mask.fits=1') # remove sidelobe sources that were subtracted
+            sm.remove('MajorAxis > 80') # remove largest scales
             subfield_reg = 'self/skymodel/subfield.reg'
             field_center, field_size = lib_dd.make_subfield_region(subfield_reg, MSs.getListObj()[0], sm, subfield_min_flux, debug_dir='self/skymodel')
             # prepare model of central/external regions
