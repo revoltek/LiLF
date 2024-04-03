@@ -8,6 +8,7 @@ import sys, os, glob, re
 import numpy as np
 import casacore.tables as pt
 import lsmtool
+from astropy.coordinates import Angle
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd
@@ -22,11 +23,34 @@ parset_dir = parset.get('LOFAR_self','parset_dir')
 subfield_min_flux = parset.getfloat('LOFAR_self','subfield_min_flux') # default 40 Jy
 backup = parset.getboolean('LOFAR_self','backup') # backuo the initial MS (default = True)
 maxIter = parset.getint('LOFAR_self','maxIter') # default = 2 (try also 3)
+# phaseSolMode = parset.get('LOFAR_self', 'phaseSolMode') # tecandphase, tec, phase
+phaseSolMode = 'tec'
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
 
 #############################################################################
+
+def clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_kwargs):
+    """ Do normal (hres) imaging of the self-calibrated data. """
+    lib_util.run_wsclean(s, 'wscleanM-c' + str(c) + '.log', MSsClean.getStrWsclean(),
+                         name=imagenameM, save_source_list='', size=imgsizepix, scale='4arcsec',
+                         weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
+                         parallel_gridding=8, baseline_averaging='', maxuv_l=4500, mgain=0.85,
+                         parallel_deconvolution=512, auto_mask=4, auto_threshold=3., join_channels='',
+                         fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6), multiscale='',
+                         multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order, **subfield_kwargs)
+
+    os.system('cat ' + logger_obj.log_dir + '/wscleanM-c' + str(c) + '.log | grep "background noise"')
+
+    # when wasclean allow station selection, then we can remove MSsClean and this predict can go in the previous call with do_predict=True
+    logger.info('Predict model...')
+    pred_str = f'wsclean -predict -padding 1.8 -name img/wideM-{c} -j {s.max_processors} -channels-out {MSs.getChout(4e6)}'
+    if 'shift' in subfield_kwargs:
+        pred_str += f' -shift {shift}'
+    s.add(f'{pred_str} {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
+    s.run(check=True)
+
 # Clear
 with w.if_todo('cleaning'):
     logger.info('Cleaning...')
@@ -56,16 +80,13 @@ try:
 except:
     logger.error('Problem with HAcov, continue anyway.')
 
-# make beam to the first mid null and central 1deg region
+# make beam to the first mid null
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
 MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='mid', to_null=True)
 beamReg = 'self/beam.reg'
 
 # set image size
-imgsizepix_wide = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/10.)
-if imgsizepix_wide%2 != 0: imgsizepix_wide += 1 # prevent odd img sizes
-imgsizepix = imgsizepix_wide # iteration 0 - start with wide.
-imgcenter = phasecentre
+imgsizepix_wide = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/4.)
 
 # set BLsmooth params
 if MSs.hasIS:
@@ -200,11 +221,13 @@ for c in range(maxIter):
 
         # solve TEC - ms:SMOOTHED_DATA (1m 2SB)
         logger.info('Solving TEC1...')
-        MSs.run('DP3 '+parset_dir+'/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 \
-                msin.baseline="[CR]*&&;!RS208LBA;!RS210LBA;!RS307LBA;!RS310LBA;!RS406LBA;!RS407LBA;!RS409LBA;!RS508LBA;!RS509LBA;!PL*;!IE*;!UK*;!DE*;!FR*;!SE*" \
-                sol.solint='+str(15*base_solint), \
-                #+' sol.nchan='+str(8*base_nchan), sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
+        MSs.run(f"DP3 {parset_dir}/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 sol.solint={base_solint} sol.mode={phaseSolMode}",
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
+        # MSs.run('DP3 '+parset_dir+'/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 \
+        #         msin.baseline="[CR]*&&;!RS208LBA;!RS210LBA;!RS307LBA;!RS310LBA;!RS406LBA;!RS407LBA;!RS409LBA;!RS508LBA;!RS509LBA;!PL*;!IE*;!UK*;!DE*;!FR*;!SE*" \
+        #         sol.solint='+str(15*base_solint), \
+        #         #+' sol.nchan='+str(8*base_nchan), sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
+        #         log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
         lib_util.run_losoto(s, 'tec1-c'+str(c), [ms+'/tec1.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
         os.system('mv cal-tec1-c'+str(c)+'.h5 self/solutions/')
@@ -217,40 +240,41 @@ for c in range(maxIter):
         MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
                 cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000',
                 log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DP3')
-        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
-                cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=phase000',
-                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DP3')
+        if phaseSolMode == 'tecandphase':
+            MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
+                    cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=phase000',
+                    log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DP3')
     ### DONE
 
-    with w.if_todo('solve_tec2_c%02i' % c):
-        # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-        logger.info('BL-based smoothing...')
-        MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
-                log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
-
-        # solve TEC - ms:SMOOTHED_DATA (4s, 1SB)
-        logger.info('Solving TEC2...')
-        MSs.run('DP3 '+parset_dir+'/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec2.h5 \
-                sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]] \
-                sol.solint='+str(base_solint), \
-                #+' sol.nchan='+str(4*base_nchan), \
-                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
-
-        lib_util.run_losoto(s, 'tec2-c'+str(c), [ms+'/tec2.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
-        os.system('mv cal-tec2-c'+str(c)+'.h5 self/solutions/')
-        os.system('mv plots-tec2-c'+str(c)+' self/plots/')
-    ### DONE
-
-    with w.if_todo('cor_tec2_c%02i' % c):
-        # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-        logger.info('Correcting TEC2...')
-        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
-                cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000',
-                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DP3')
-        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
-                cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=phase000',
-                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DP3')
-    ### DONE
+    # with w.if_todo('solve_tec2_c%02i' % c):
+    #     # Smooth CORRECTED_DATA -> SMOOTHED_DATA
+    #     logger.info('BL-based smoothing...')
+    #     MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
+    #             log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
+    #
+    #     # solve TEC - ms:SMOOTHED_DATA (4s, 1SB)
+    #     logger.info('Solving TEC2...')
+    #     MSs.run('DP3 '+parset_dir+'/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec2.h5 \
+    #             sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]] \
+    #             sol.solint='+str(base_solint), \
+    #             #+' sol.nchan='+str(4*base_nchan), \
+    #             log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
+    #
+    #     lib_util.run_losoto(s, 'tec2-c'+str(c), [ms+'/tec2.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
+    #     os.system('mv cal-tec2-c'+str(c)+'.h5 self/solutions/')
+    #     os.system('mv plots-tec2-c'+str(c)+' self/plots/')
+    # ### DONE
+    #
+    # with w.if_todo('cor_tec2_c%02i' % c):
+    #     # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
+    #     logger.info('Correcting TEC2...')
+    #     MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
+    #             cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000',
+    #             log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DP3')
+    #     MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
+    #             cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=phase000',
+    #             log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DP3')
+    # ### DONE
 
     # AMP DIE correction in last iteration
     if c == maxIter-1:
@@ -287,44 +311,19 @@ for c in range(maxIter):
     else:
         MSsClean = MSs
 
-    imagename = 'img/wide-0'
-    maskname = imagename + '-mask.fits'
     imagenameM = 'img/wideM-'+str(c)
-    with w.if_todo('imaging_c%02i' % c):
-        logger.info('Cleaning (cycle: '+str(c)+')...')
-        if c == 0:
-            # make temp mask for cycle 0, in cycle 1 use the mask made from cycle 0 image
-            lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(),
-                                 name=imagename, size=imgsizepix, scale='10arcsec',
-                                 weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
-                                 parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
-                                 parallel_deconvolution=512, local_rms='', auto_threshold=4,
-                                 join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6),
-                                 deconvolution_channels=cc_fit_order)
-            im = lib_img.Image(imagename + '-MFS-image.fits', userReg=userReg)
-            im.makeMask(threshpix=5, atrous_do=True)
+    if (c == 0) or (c == maxIter - 1): # make wide image
+        imgsizepix = imgsizepix_wide
+        subfield_kwargs = {}
+    else: # make small image (field subtracted)
+        imgsizepix = int(1.3 * field_size * 3600 / 4.)
+        img_ra, img_dec = Angle(f'{field_center[0]}deg').hms, Angle(f'{field_center[1]}deg').dms
+        shift = f'{int(img_ra.h)}h{int(img_ra.m)}m{img_ra.s:.4f}s {int(img_dec.d)}d{int(img_dec.m)}m{img_dec.s:.4f}s'
+        subfield_kwargs = {'shift': shift}
 
-            kwargs = {'do_predict':False, 'reuse_dirty':imagename, 'reuse_psf':imagename}
-        else: 
-            kwargs = {}
-
-        lib_util.run_wsclean(s, 'wscleanM-c'+str(c)+'.log', MSsClean.getStrWsclean(), concat_mss=True,
-                name=imagenameM, save_source_list='', size=imgsizepix, scale='10arcsec',
-                weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
-                parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
-                parallel_deconvolution=512, auto_threshold=3., fits_mask=maskname,
-                join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6),
-                multiscale='', multiscale_scale_bias=0.6,
-                deconvolution_channels=cc_fit_order, **kwargs)
-
-        os.system('cat '+logger_obj.log_dir+'/wscleanM-c'+str(c)+'.log | grep "background noise"')
-
-        # when wasclean allow station selection, then we can remove MSsClean and this predict can go in the previous call with do_predict=True
-        if c == 0:
-            logger.info('Predict model...')
-            s.add('wsclean -predict -padding 1.8 -name img/wideM-'+str(c)+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(4e6))+' '+MSs.getStrWsclean(), \
-                   log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
-            s.run(check=True)
+    if c < maxIter - 1: # final imaging with non-subtracted data
+        with w.if_todo('imaging_c%02i' % c):
+            clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_kwargs)
     ### DONE
 
     if c == 0:
@@ -386,21 +385,17 @@ for c in range(maxIter):
             MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
                     cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DP3')
-            MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                    cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=phase000 cor.invert=False',
-                    log='$nameMS_corrupt.log', commandType='DP3')
-            logger.info('Corrupt low-res model: TEC+Ph 2...')
-            MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                    cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
-                    log='$nameMS_corrupt.log', commandType='DP3')
-            MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                    cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=phase000 cor.invert=False',
-                    log='$nameMS_corrupt.log', commandType='DP3')
-        #     logger.info('Corrupt low-res model: G...')
-        #     MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-        #             cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitudeSmooth cor.invert=False',
-        #             log='$nameMS_corrupt.log', commandType='DP3')
-        # ### DONE
+            if phaseSolMode == 'tecandphase':
+                MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                        cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=phase000 cor.invert=False',
+                        log='$nameMS_corrupt.log', commandType='DP3')
+            # logger.info('Corrupt low-res model: TEC+Ph 2...')
+            # MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+            #         cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
+            #         log='$nameMS_corrupt.log', commandType='DP3')
+            # MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+            #         cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=phase000 cor.invert=False',
+            #         log='$nameMS_corrupt.log', commandType='DP3')
 
         with w.if_todo('lowres_subtract_c%02i' % c):
             # Permanently subtract low-res sidelobe model - SUBTRACTED_DATA = DATA - MODEL_DATA.
@@ -411,12 +406,14 @@ for c in range(maxIter):
                     log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         ### DONE
 
+        sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
+        sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted
+        # TODO
+        # sm.remove('MajorAxis > 80')  # remove largest scales
+        subfield_reg = 'self/skymodel/subfield.reg'
+        field_center, field_size = lib_dd.make_subfield_region(subfield_reg, MSs.getListObj()[0], sm, subfield_min_flux,
+                                                               debug_dir='self/skymodel')
         with w.if_todo('extreg_preapre_c%02i' % c):
-            sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
-            sm.remove('img/wide-lr-mask.fits=1') # remove sidelobe sources that were subtracted
-            sm.remove('MajorAxis > 80') # remove largest scales
-            subfield_reg = 'self/skymodel/subfield.reg'
-            field_center, field_size = lib_dd.make_subfield_region(subfield_reg, MSs.getListObj()[0], sm, subfield_min_flux, debug_dir='self/skymodel')
             # prepare model of central/external regions
             logger.info('Blanking central region of model files and reverse...')
             for im in glob.glob('img/wideM-0*model.fits'):
@@ -443,13 +440,13 @@ for c in range(maxIter):
             MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
                     cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=phase000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DP3')
-            logger.info('Corrupt low-res model: TEC+Ph 2...')
-            MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                    cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
-                    log='$nameMS_corrupt.log', commandType='DP3')
-            MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                    cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=phase000 cor.invert=False',
-                    log='$nameMS_corrupt.log', commandType='DP3')
+            # logger.info('Corrupt low-res model: TEC+Ph 2...')
+            # MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+            #         cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
+            #         log='$nameMS_corrupt.log', commandType='DP3')
+            # MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+            #         cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=phase000 cor.invert=False',
+            #         log='$nameMS_corrupt.log', commandType='DP3')
             # logger.info('Corrupt low-res model: G...')
             # MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
             #         cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitudeSmooth cor.invert=False',
@@ -477,7 +474,7 @@ for c in range(maxIter):
         ### DONE
 
 with w.if_todo('final_correct'):
-    # corrupt model with TEC+FR+Beam2ord solutions - ms:MODEL_DATA -> ms:MODEL_DATA
+    # correct model with TEC+Beam2ord solutions - ms:DATA -> ms:CORRECTED_DATA
     logger.info('Correct low-res model: G...')
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
             cor.parmdb=self/solutions/cal-g-c{c}.h5 cor.correction=amplitudeSmooth',
@@ -486,19 +483,21 @@ with w.if_todo('final_correct'):
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
             cor.parmdb=self/solutions/cal-tec1-c{c}.h5 cor.correction=tec000',
             log='$nameMS_finalcor.log', commandType='DP3')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
-            cor.parmdb=self/solutions/cal-tec1-c{c}.h5 cor.correction=phase000',
-            log='$nameMS_finalcor.log', commandType='DP3')
-    logger.info('Correct low-res model: TEC+Ph 2...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
-            cor.parmdb=self/solutions/cal-tec2-c{c}.h5 cor.correction=tec000',
-            log='$nameMS_finalcor.log', commandType='DP3')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
-            cor.parmdb=self/solutions/cal-tec2-c{c}.h5 cor.correction=phase000',
-            log='$nameMS_finalcor.log', commandType='DP3')
+    if phaseSolMode == 'tecandphase':
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
+                cor.parmdb=self/solutions/cal-tec1-c{c}.h5 cor.correction=phase000',
+                log='$nameMS_finalcor.log', commandType='DP3')
+    # logger.info('Correct low-res model: TEC+Ph 2...')
+    # MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
+    #         cor.parmdb=self/solutions/cal-tec2-c{c}.h5 cor.correction=tec000',
+    #         log='$nameMS_finalcor.log', commandType='DP3')
+    # MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
+    #         cor.parmdb=self/solutions/cal-tec2-c{c}.h5 cor.correction=phase000',
+    #         log='$nameMS_finalcor.log', commandType='DP3')
 ### DONE
 
-#TODO: Final imaging
+with w.if_todo('imaging-final'):
+    clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_kwargs)
 
 # polarisation imaging
 with w.if_todo('imaging-pol'):
@@ -509,12 +508,15 @@ with w.if_todo('imaging-pol'):
         parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500,
         join_channels='', channels_out=MSs.getChout(4.e6))
 
+MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN SUBFIELD_DATA, SUBTRACTED_DATA"',
+        log='$nameMS_taql_delcol.log', commandType='general')
+
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits self/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits self/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(maxIter) ]
 os.system('mv img/wideP-MFS-*-image.fits self/images')
-os.system('mv img/wideM-0-*-model.fits self/images')
+os.system(f'mv img/wideM-{maxIter}-*-model.fits self/images')
 os.system('mv img/wide-lr-MFS-image.fits self/images')
 os.system('mv img/wide-largescale-MFS-image.fits self/images')
 

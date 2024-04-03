@@ -100,7 +100,7 @@ if len(MSs.getListStr()) == 0:
 ######################################
 with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
     t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
-    time = np.int(t.iso.replace('-','')[0:8])
+    time = int(t.iso.replace('-','')[0:8])
 
 if fix_table:
     with w.if_todo('fix_table'):
@@ -180,7 +180,6 @@ if renameavg:
                     # normal case: no demixing, just averaging
                     if not demix_sources:
                         logger.info('%s->%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, avg_factor_f, avg_factor_t))
-
                         s.add(f'DP3 {parset_dir}/DP3-avg.parset msin={MS.pathMS} msin.baseline={bl_sel} msout={MSout} '
                               f'msin.datacolumn=DATA avg.timestep={avg_factor_t} avg.freqstep={avg_factor_f}',
                               log=MS.nameMS+'_avg.log', commandType='DP3')
@@ -196,22 +195,26 @@ if renameavg:
                         demix_sm = lsmtool.load(demix_sm_file, beamMS=MS.pathMS) # load demix sm
                         # check target field skymodel
                         # if not provided, use GSM
-                        if demix_field_skymodel == '':
-                            logger.info('Include target from GSM...')
-                            # get model the size of the image (radius=fwhm/2)
-                            os.system('wget -O demix_tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (
-                                    ra, dec, fwhm/2))  # ASTRON
-                            lsm = lsmtool.load('demix_tgts.skymodel', beamMS=MS.pathMS)
-                            lsm.remove('I<1')
-                        else:
-                            lsm = lsmtool.load(demix_field_skymodel, beamMS=MS.pathMS)
-                        lsm.group('single', root='target')
-                        lsm.setColValues('LogarithmicSI', ['true'] * len(lsm))
-                        # join with ateam skymodel
-                        lsm.concatenate(demix_sm)
-                        # let's try to apply the beam, will probably be more accurate (especially for the field)
-                        # lsm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)
-                        lsm.write(f'{MS.pathMS}/demix_combined_apparent.skymodel', clobber=True, applyBeam=True)
+                        if demix_field_skymodel:
+                            if demix_field_skymodel == 'gsm':
+                                logger.info('Include target from GSM...')
+                                # get model the size of the image (radius=fwhm/2)
+                                os.system('wget -O demix_tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (
+                                        ra, dec, fwhm/2))  # ASTRON
+                                lsm = lsmtool.load('demix_tgts.skymodel', beamMS=MS.pathMS)
+                                lsm.remove('I<1')
+                            else:
+                                lsm = lsmtool.load(demix_field_skymodel, beamMS=MS.pathMS)
+                            lsm.group('single', root='target')
+                            lsm.setColValues('LogarithmicSI', ['true'] * len(lsm))
+                            # join with ateam skymodel
+                            lsm.concatenate(demix_sm)
+                            # let's try to apply the beam, will probably be more accurate (especially for the field)
+                            # lsm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)
+                            lsm.write(f'{MS.pathMS}/demix_combined_apparent.skymodel', clobber=True, applyBeam=True)
+                        else: # ignore target
+                            logger.info('Ignoring target...')
+                            demix_sm.write(f'{MS.pathMS}/demix_combined_apparent.skymodel', clobber=True, applyBeam=True)
                         lsm = lsmtool.load(f'{MS.pathMS}/demix_combined_apparent.skymodel') # to not calulate beam twice
 
                         # Get debug info about demix skymodel
@@ -222,6 +225,7 @@ if renameavg:
                         if not isinstance(demix_sources, list):
                             demix_sources = demix_sources.replace('[','').replace(']','').split(',')
                         # check distances and that all sources in config are actually in skymodel.
+                        this_ms_demix_sources = demix_sources.copy()
                         for demix_source in demix_sources:
                             if demix_source not in demix_sm_sources:
                                 logger.error(f'demix_source={demix_source} not in demix skymodel sources {demix_sm_sources}!')
@@ -235,25 +239,29 @@ if renameavg:
                                     logger.info(f'Demix source {demix_source}: sep={sep:.2f}deg, app. flux={app_flux:.2f}Jy')
                                 else:
                                     logger.warning(f'Demix source {demix_source}: sep={sep:.2f}deg, app. flux={app_flux:.2f}Jy -> faint, removing from demix!')
-                                    demix_sources.remove(demix_source)
+                                    this_ms_demix_sources.remove(demix_source) # only remove for this MS, not for the following
 
                         # RUN demixing
                         demix_f_step = nchan
                         demix_t_step = int(np.round(8/timeint))
-                        s.add(f'DP3 {parset_dir}/DP3-demix.parset msin={MS.pathMS} msin.baseline={bl_sel} msout={MSout} '
-                              f'demix.skymodel={MS.pathMS}/demix_combined_apparent.skymodel demix.instrumentmodel={MS.pathMS}/instrument_demix.parmdb '
-                              f'demix.targetsource=target demix.subtractsources=\[{",".join(demix_sources)}\] '
-                              f'demix.freqstep={avg_factor_f} demix.timestep={avg_factor_t} '
-                              f'demix.demixfreqstep={demix_f_step} demix.demixtimestep={demix_t_step}',
-                              log=MS.nameMS+'_demix.log', commandType='DP3')
+
+                        cmd = f"""DP3 {parset_dir}/DP3-demix.parset msin={MS.pathMS} msin.baseline={bl_sel} msout={MSout} 
+                              demix.skymodel={MS.pathMS}/demix_combined_apparent.skymodel demix.instrumentmodel={MS.pathMS}/instrument_demix.parmdb 
+                              demix.subtractsources=\[{",".join(this_ms_demix_sources)}\] 
+                              demix.freqstep={avg_factor_f} demix.timestep={avg_factor_t} 
+                              demix.demixfreqstep={demix_f_step} demix.demixtimestep={demix_t_step} """
+                        if demix_field_skymodel:
+                            cmd += ' demix.targetsource=target demix.ignoretarget=False '
+                        else:
+                            cmd += 'demix.ignoretarget=True demix.targetsource="" '
+                        s.add(cmd, log=MS.nameMS+'_demix.log', commandType='DP3')
                         s.run(check=True, maxThreads=None)
 
                     if backup_full_res:
                         logger.info('Backup full resolution data...')
                         if not os.path.exists('data-bkp'):
                             os.makedirs('data-bkp')
-                        for MS in MSs.getListObj():
-                            MS.move('data-bkp/' + MS.nameMS + '.MS', keepOrig=False, overwrite=False)
+                        MS.move('data-bkp/' + MS.nameMS + '.MS', keepOrig=False, overwrite=False)
                     else:
                         lib_util.check_rm(MS.pathMS)
                     flog.write(MS.nameMS+'.MS\n') # after averaging to be sure no log is written if an error occurs
