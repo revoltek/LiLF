@@ -23,8 +23,7 @@ parset_dir = parset.get('LOFAR_self','parset_dir')
 subfield_min_flux = parset.getfloat('LOFAR_self','subfield_min_flux') # default 40 Jy
 backup = parset.getboolean('LOFAR_self','backup') # backuo the initial MS (default = True)
 maxIter = parset.getint('LOFAR_self','maxIter') # default = 2 (try also 3)
-# phaseSolMode = parset.get('LOFAR_self', 'phaseSolMode') # tecandphase, tec, phase
-phaseSolMode = 'tec'
+phaseSolMode = parset.get('LOFAR_self', 'ph_sol_mode') # tecandphase, tec, phase
 sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
@@ -36,7 +35,7 @@ def clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_
     lib_util.run_wsclean(s, 'wscleanM-c' + str(c) + '.log', MSsClean.getStrWsclean(),
                          name=imagenameM, save_source_list='', size=imgsizepix, scale='4arcsec',
                          weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
-                         parallel_gridding=8, baseline_averaging='', maxuv_l=4500, mgain=0.85,
+                         parallel_gridding=8, baseline_averaging='', mgain=0.85,
                          parallel_deconvolution=512, auto_mask=4, auto_threshold=3., join_channels='',
                          fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6), multiscale='',
                          multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order, **subfield_kwargs)
