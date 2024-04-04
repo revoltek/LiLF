@@ -370,25 +370,28 @@ def cut_skymodel(skymodel_in, skymodel_out, d, do_skydb=True, do_regions=False):
     s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (dir_skymodel, dir_skydb), log='makesourcedb_cl.log', commandType='general' )
     s.run(check=True)
 
-def make_subfield_region(name, MS, sm, min_flux):
+def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
     """
     Identify the smallest region of sky model sources that contains a certain flux.
 
     Parameters
     ----------
+    name: name of the ds9 region file to be created
     MS: lib_ms.MS object, MS to find center and size of field of view
-    sma: lsmtool.skymodel, apparent skymodel of the field
+    sm: lsmtool.skymodel, apparent skymodel of the field
     min_flux: float, minimum flux in calibration subfield in Jy
+    debug_dir: str, default=None. Save debug fits files in this dir.
 
     Returns
     -------
-    ra:
+    bestbox_coord: nparray (float), ra and dec of bestbox center in deg
+    bestbox_size: float, size of bestbox in deg
     """
     c_ra, c_dec = MS.getPhaseCentre()
-    fwhm = MS.getFWHM(freq='min')
+    fwhm = 2*MS.getFWHM(freq='mid')
     cellsize  = 1/60 # 1 arcmin
     # TODO padding?/offset?
-    size_pix = int(np.round(1.5*fwhm/cellsize)) # size in pix, 10% pad
+    size_pix = int(np.round(1.1*fwhm/cellsize)) # size in pix, 10% pad
     freq = np.mean(MS.getFreqs())
     steps = 40 # how many scales to consider
     boxsizes = np.linspace(fwhm/(steps),fwhm,steps)
@@ -432,13 +435,14 @@ def make_subfield_region(name, MS, sm, min_flux):
             logger.warning('There are skymodel sources outside the region considered for calibration!')
             #sys.exit()
         for flux, pix in zip(fluxes, pixcrd.T):
-            imdata[pix[0],pix[1]] = flux
+            imdata[pix[0],pix[1]] += flux
 
         hdu[0].data = convolve_fft(imdata,kernel,normalize_kernel=False)
-        hdu.writeto(f'img/flux_region_map_{int(np.rint(boxsize*60)):03}amin.fits', overwrite=True)
+        if debug_dir:
+            hdu.writeto(f'{debug_dir}/flux_region_map_{int(np.rint(boxsize*60)):03}amin.fits', overwrite=True)
         max_location[i] = np.unravel_index(np.argmax(hdu[0].data), hdu[0].data.shape)
         max_flux_in_field[i] = np.max(hdu[0].data)
-    print(max_flux_in_field)
+    # print(max_flux_in_field)
     mask = max_flux_in_field > min_flux # points above min flux
     id_min = np.argwhere(mask)[0,0]
     # find smallest region containing min flux
@@ -483,7 +487,9 @@ def make_subfield_region(name, MS, sm, min_flux):
     # ax2.set_ylabel('gradient [Jy/deg^2]')
     # plt.legend()
     # plt.savefig('flux_area.png')
-    region_string = f"fk5;box({bestbox_coord[0]},{bestbox_coord[1]},{1.05*bestbox_size},{1.05*bestbox_size},0.0)"
+    region_string = f"""# Region file format: DS9 version 4.1
+                        fk5
+                        box({bestbox_coord[0]},{bestbox_coord[1]},{1.02*bestbox_size},{1.02*bestbox_size},0.0)"""
     region = pyregion.parse(region_string)
     region.write(name)
     return bestbox_coord, bestbox_size

@@ -60,8 +60,8 @@ def getParset(parsetFile=''):
     add_default('LOFAR_preprocess', 'keep_IS', 'False')
     add_default('LOFAR_preprocess', 'backup_full_res', 'False')
     add_default('LOFAR_preprocess', 'demix_sources', '')  # Demix  sources in these patches (e.g. [VirA,TauA], default: No demix
-    add_default('LOFAR_preprocess', 'demix_skymodel', '')  # Use non-default demix skymodel
-    add_default('LOFAR_preprocess', 'demix_field_skymodel', '')  # provide a custom target skymodel instead of online gsm model
+    add_default('LOFAR_preprocess', 'demix_skymodel', '')  # Use non-default demix skymodel.
+    add_default('LOFAR_preprocess', 'demix_field_skymodel', 'gsm')  # Provide a custom target skymodel instead of online gsm model. Set to '' to ignore target.
     # cal
     add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
     add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
@@ -75,9 +75,11 @@ def getParset(parsetFile=''):
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
-    # quick-self
+    # self
     add_default('LOFAR_self', 'maxIter', '2')
     add_default('LOFAR_self', 'subfield_min_flux', '40') # min flux within calibration subfield
+    add_default('LOFAR_self', 'backup', 'True') # backup data before running pipeline
+    add_default('LOFAR_self', 'ph_sol_mode', 'True') # phase or tecandphase
     # dd-parallel - deprecated
     #add_default('LOFAR_dd-parallel', 'maxniter', '10')
     #add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
