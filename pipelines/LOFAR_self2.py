@@ -73,6 +73,7 @@ if backup:
         os.makedirs('mss-self-bkp')
     for MS in MSs.getListObj():
         MS.move('mss-self-bkp/' + MS.nameMS + '.MS', keepOrig=True, overwrite=False)
+    MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
 try:
     MSs.print_HAcov()
