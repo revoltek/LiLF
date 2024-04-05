@@ -699,7 +699,7 @@ for cmaj in range(maxIter):
         for ic, (rms_noise, mm_ratio) in enumerate(zip(d.rms_noise,d.mm_ratio)):
 
             tables_to_print = '['
-            for sol_type in ['ph1','fr','amp1','amp2']:
+            for sol_type in ['ph1','amp1','amp2']: # fr
                 if d.get_h5parm(sol_type, pos=ic) is not None:
                     tables_to_print += sol_type+','
             tables_to_print = tables_to_print[:-1] + ']'
