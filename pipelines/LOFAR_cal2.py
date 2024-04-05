@@ -49,18 +49,19 @@ MSs = lib_ms.AllMSs(glob.glob(data_dir + '/*MS'), s, check_flags=False)
 ### This part is done so that missing subbands get concatenated correctly.
 for i, msg in enumerate(np.array_split(sorted(glob.glob(data_dir+'/*MS')), 1)):
     if fillmissingedges:
-        min_nu = pt.table(MSs.getListStr()[0]).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MIN']
-        max_nu = pt.table(MSs.getListStr()[0]).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MAX']
+        min_nu = pt.table(MSs.getListStr()[0], ack=False).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MIN']
+        max_nu = pt.table(MSs.getListStr()[0], ack=False).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MAX']
     else:
         min_nu = min(MSs.getFreqs())/1e6
         max_nu = max(MSs.getFreqs())/1e6
-    print(min_nu,max_nu)
     num_init = lib_util.lofar_nu2num(min_nu) + 1  # +1 because FREQ_MIN/MAX somewhat have the lowest edge of the SB freq
     num_fin = lib_util.lofar_nu2num(max_nu) + 1
     prefix = re.sub('SB[0-9]*.MS', '', msg[0])
     msg = []
     for j in range(num_init, num_fin + 1):
         msg.append(prefix + 'SB%03i.MS' % j)
+
+#msg = glob.glob(data_dir+'/*MS') # does not fill gaps
 
 if min(MSs.getFreqs()) < 35.e6:
     iono3rd = True
@@ -78,30 +79,6 @@ calname = MSs.getListObj()[0].getNameField()
 nchan = MSs.mssListObj[0].getNchan()
 tint = MSs.mssListObj[0].getTimeInt()
 
-#with w.if_todo('concat_core'):
-#    freqstep = nchan  # brings down to 1ch/sb for
-#    timestep = int(np.rint(8 / tint))  # brings down to 8s
-#    # concat all SBs
-#    # SB.MS:DATA -> concat.MS:DATA
-#    logger.info('Concatenating data core...')
-#    lib_util.check_rm('concat_core.MS')
-#    s.add('DP3 ' + parset_dir + '/DP3-concat.parset msin="[' + ','.join(msg) + ']" msout=concat_core.MS \
-#                      msin.baseline="CS*&" avg.freqstep=' + str(freqstep) + ' avg.timestep=' + str(timestep),
-#          log='concat.log', commandType='DP3')
-#
-#    s.run(check=True)
-### DONE
-#MSs_concat_core = lib_ms.AllMSs(['concat_core.MS'], s, check_flags=False)
-
-#with w.if_todo('predict_core'):
-#    # predict to save time ms:MODEL_DATA
-#    logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
-#    os.system('cp -r %s %s' % (skymodel, MSs_concat_core.getListObj()[0].pathMS))
-#    MSs_concat_core.run("DP3 " + parset_dir + "/DP3-predict.parset msin=$pathMS pre.sourcedb=$pathMS/"
-#                        + os.path.basename(skymodel) + " pre.sources=" + calname, log="$nameMS_pre.log",
-#                        commandType="DP3")
-### DONE
-
 with w.if_todo('concat_all'):
     freqstep = 1  # keep all channels
     timestep = int(np.rint(4 / tint))  # brings down to 4s
@@ -114,7 +91,9 @@ with w.if_todo('concat_all'):
           log='concat.log', commandType='DP3')
     s.run(check=True)
 ### DONE
+
 MSs_concat_all = lib_ms.AllMSs(['concat_all.MS'], s, check_flags=False)
+MSs_concat_all.print_HAcov()
 
 ######################################################
 # flag bad stations, flags will propagate
@@ -128,27 +107,6 @@ with w.if_todo('flag'):
     logger.info('Remove bad time/freq stamps...')
     #MSs_concat_core.run('flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
     MSs_concat_all.run('flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
-
-### DONE
-
-#with w.if_todo('phaseupcore'):
-#    # Phasing up the cose stations
-#    logger.info('Phasing up Core Stations...')
-#    lib_util.check_rm('concat_all-phaseup.MS')
-#    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-phaseup.parset msin=$pathMS msin.datacolumn=DATA msout=concat_all-phaseup.MS',
-#                       log='$nameMS_phaseup.log', commandType="DP3")
-#
-### DONE
-#
-#MSs_concat_phaseup = lib_ms.AllMSs(['concat_all-phaseup.MS'], s, check_flags=False)
-#
-#with w.if_todo('predict_all-phaseup'):
-#    # predict to save time ms:MODEL_DATA
-#    logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
-#    os.system('cp -r %s %s' % (skymodel, MSs_concat_phaseup.getListObj()[0].pathMS))
-#    MSs_concat_phaseup.run("DP3 " + parset_dir + "/DP3-predict.parset msin=$pathMS pre.sourcedb=$pathMS/"
-#                           + os.path.basename(skymodel) + " pre.sources=" + calname, log="$nameMS_pre.log",
-#                           commandType="DP3")
 
 ### DONE
 

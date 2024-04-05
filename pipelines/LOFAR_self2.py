@@ -87,6 +87,8 @@ beamReg = 'self/beam.reg'
 
 # set image size
 imgsizepix_wide = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/4.)
+imgsizepix_lr = int(4*MSs.getListObj()[0].getFWHM(freq='mid')*3600/30.)
+imgsizepix_p = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/10.)
 
 # set BLsmooth params
 if MSs.hasIS:
@@ -318,10 +320,10 @@ for c in range(maxIter):
         shift = f'{int(img_ra.h)}h{int(img_ra.m)}m{img_ra.s:.4f}s {int(img_dec.d)}d{int(img_dec.m)}m{img_dec.s:.4f}s'
         subfield_kwargs = {'shift': shift}
 
-    if c < maxIter - 1: # final imaging with non-subtracted data
+    if c < maxIter - 1:
         with w.if_todo('imaging_c%02i' % c):
             clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_kwargs)
-    ### DONE
+        ### DONE
 
     if c == 0:
 
@@ -334,7 +336,7 @@ for c in range(maxIter):
         with w.if_todo('lowres_img_c%02i' % c):
             # Making beam mask
             logger.info('Preparing mask for low-res clean...')
-            lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name='img/tmp', size=imgsizepix, scale='30arcsec')
+            lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name='img/tmp', size=imgsizepix_lr, scale='30arcsec')
             os.system('mv img/tmp-image.fits img/wide-lr-mask.fits')
             lib_img.blank_image_reg('img/wide-lr-mask.fits', beamReg, blankval = 0.)
             lib_img.blank_image_reg('img/wide-lr-mask.fits', beamReg, blankval = 1., inverse=True)
@@ -343,7 +345,7 @@ for c in range(maxIter):
             logger.info('Cleaning low-res...')
             imagename_lr = 'img/wide-lr'
             lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True,
-                    parallel_gridding=4, temp_dir='./', size=imgsizepix, scale='30arcsec',
+                    parallel_gridding=4, temp_dir='./', size=imgsizepix_lr, scale='30arcsec',
                     weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                     taper_gaussian='200arcsec', mgain=0.85, parallel_deconvolution=512, baseline_averaging='',
                     local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits',
@@ -500,7 +502,7 @@ with w.if_todo('imaging-pol'):
     logger.info('Cleaning (Pol)...')
     imagenameP = 'img/wideP'
     lib_util.run_wsclean(s, 'wscleanP.log', MSs.getStrWsclean(), name=imagenameP, pol='QUV',
-        size=imgsizepix, scale='10arcsec', weight='briggs -0.3', niter=0, no_update_model_required='',
+        size=imgsizepix_p, scale='10arcsec', weight='briggs -0.3', niter=0, no_update_model_required='',
         parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500,
         join_channels='', channels_out=MSs.getChout(4.e6))
 
