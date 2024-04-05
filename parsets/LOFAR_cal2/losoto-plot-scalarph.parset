@@ -8,7 +8,7 @@ axesInPlot = time
 axisInTable = ant
 plotFlag = True
 prefix = plots/ph_
-refAnt = auto
+refAnt = SuperSt
 minmax = [-3.14,3.14]
 NColFig = 4
 figSize = [20,20]
@@ -21,7 +21,7 @@ axesInPlot = freq
 axisInTable = ant
 plotFlag = True
 prefix = plots/ph_
-refAnt = auto
+refAnt = SuperSt
 minmax = [-3.14,3.14]
 
 [plotP3]
@@ -31,5 +31,5 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/ph_
-refAnt = auto
+refAnt = SuperSt
 minmax = [-3.14,3.14]

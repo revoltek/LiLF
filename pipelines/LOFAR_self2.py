@@ -73,6 +73,7 @@ if backup:
         os.makedirs('mss-self-bkp')
     for MS in MSs.getListObj():
         MS.move('mss-self-bkp/' + MS.nameMS + '.MS', keepOrig=True, overwrite=False)
+    MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
 try:
     MSs.print_HAcov()
@@ -139,7 +140,6 @@ for MS in MSs.getListStr():
     logger.debug('Copy: ' + sourcedb + ' -> ' + MS)
     os.system('cp -r ' + sourcedb + ' ' + MS)
 
-
 # Here the model is added only to CS+RS, IS used only for FR and model is not needed
 with w.if_todo('init_model'):
     logger.info('Add model to MODEL_DATA...')
@@ -177,11 +177,9 @@ with w.if_todo('solve_cor_fr'):
 
         # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve - solint=2m nchan=0 as it has the smoothnessconstrain)
         logger.info('Solving circ phase difference ...')
-        MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint=' + str(
-            30 * base_solint),
+        MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint=' + str(30 * base_solint),
                 log='$nameMS_solFR.log', commandType="DP3")
-        lib_util.run_losoto(s, f'fr', [ms + '/fr.h5' for ms in MSs.getListStr()],
-                            [parset_dir + '/losoto-fr.parset'])
+        lib_util.run_losoto(s, f'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
         os.system('mv cal-fr.h5 self/solutions/')
         os.system('mv plots-fr self/plots/')
         # Delete cols again to not waste space
@@ -344,7 +342,6 @@ for c in range(maxIter):
             # reclean low-resolution
             logger.info('Cleaning low-res...')
             imagename_lr = 'img/wide-lr'
-            logger.warning('False')
             lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True,
                     parallel_gridding=4, temp_dir='./', size=imgsizepix, scale='30arcsec',
                     weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
