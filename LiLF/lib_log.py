@@ -94,6 +94,6 @@ class Logger():
 
         logger.info('Logging initialised in %s (file: %s)' % (os.getcwd(), logfile))
 
-    
+
 # this is used by all libraries for logging
 logger = logging.getLogger("LiLF")

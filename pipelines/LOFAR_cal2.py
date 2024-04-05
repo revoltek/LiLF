@@ -24,6 +24,7 @@ parset_dir = parset.get('LOFAR_cal2', 'parset_dir')
 data_dir = parset.get('LOFAR_cal2', 'data_dir')
 skymodel = parset.get('LOFAR_cal2', 'skymodel')
 imaging = parset.getboolean('LOFAR_cal2', 'imaging')
+fillmissingedges = parset.getboolean('LOFAR_cal2', 'fillmissingedges')
 bl2flag = parset.get('flag', 'stations')
 debugplots = False
 
@@ -33,8 +34,13 @@ MSs = lib_ms.AllMSs(glob.glob(data_dir + '/*MS'), s, check_flags=False)
 
 ### This part is done so that missing subbands get concatenated correctly.
 for i, msg in enumerate(np.array_split(sorted(glob.glob(data_dir+'/*MS')), 1)):
-    min_nu = pt.table(MSs.getListStr()[0]).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MIN']
-    max_nu = pt.table(MSs.getListStr()[0]).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MAX']
+    if fillmissingedges:
+        min_nu = pt.table(MSs.getListStr()[0]).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MIN']
+        max_nu = pt.table(MSs.getListStr()[0]).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MAX']
+    else:
+        min_nu = min(MSs.getFreqs())/1e6
+        max_nu = max(MSs.getFreqs())/1e6
+    print(min_nu,max_nu)
     num_init = lib_util.lofar_nu2num(min_nu) + 1  # +1 because FREQ_MIN/MAX somewhat have the lowest edge of the SB freq
     num_fin = lib_util.lofar_nu2num(max_nu) + 1
     prefix = re.sub('SB[0-9]*.MS', '', msg[0])

@@ -1,38 +1,4 @@
 Ncpu = 0
-
-#[plotAi1]
-#operation = PLOT
-#soltab = sol000/amplitude000
-#freq.minmaxstep = [0,300e6,100]
-#axesInPlot = time
-#axisInTable = ant
-#axisInCol = pol
-#plotFlag = True
-#prefix = plots/amp_
-#NColFig = 4
-#figSize = [20,20]
-#minmax = [0.5,2]
-#
-#[plotAi2]
-#operation = PLOT
-#soltab = sol000/amplitude000
-#time.minmaxstep = [0,1e20,500]
-#axesInPlot = freq
-#axisInTable = ant
-#axisInCol = pol
-#plotFlag = True
-#prefix = plots/amp_
-#minmax = [0.5,2]
-#
-#[plotAi3]
-#operation = PLOT
-#soltab = sol000/amplitude000
-#axesInPlot = [time,freq]
-#axisInTable = ant
-#plotFlag = True
-#prefix = plots/amp_
-#minmax = [0.5,2]
-
 [duplicatePbkp]
 operation = DUPLICATE
 soltab = sol000/phase000
@@ -54,7 +20,7 @@ axisInTable = ant
 prefix = plots/clock
 #minmax = [-2e-7,2e-7]
 plotFlag = False
-refAnt = auto
+refAnt = SuperSt
 
 [plotTEC]
 operation = PLOT
@@ -64,7 +30,7 @@ axisInTable = ant
 prefix = plots/tec
 minmax = [-0.5,0.5]
 plotFlag = False
-refAnt = auto
+refAnt = SuperSt
 
 [residuals]
 operation = RESIDUALS
@@ -78,5 +44,5 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/phRes
-refAnt = auto
+refAnt = SuperSt
 minmax = [-3.14,3.14]
