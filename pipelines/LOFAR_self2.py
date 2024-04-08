@@ -87,7 +87,7 @@ beamReg = 'self/beam.reg'
 
 # set image size
 imgsizepix_wide = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/4.)
-imgsizepix_lr = int(4*MSs.getListObj()[0].getFWHM(freq='mid')*3600/30.)
+imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/30.)
 imgsizepix_p = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/10.)
 
 # set BLsmooth params

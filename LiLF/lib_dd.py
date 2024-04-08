@@ -1,4 +1,3 @@
-import logging
 import os, sys, glob
 import numpy as np
 from astropy.coordinates import SkyCoord
@@ -449,7 +448,7 @@ def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
     bestbox_coord = w.wcs_pix2world([max_location[id_min]], 0)[0]
     bestbox_flux = max_flux_in_field[id_min]
     bestbox_size = boxsizes[id_min]
-    logging.info(f'Flux {bestbox_flux:.1f}Jy > min_flux ({min_flux:.1f}Jy) in {bestbox_size:.2f}deg box at ra={bestbox_coord[0]:.2f}d dec={bestbox_coord[1]:.2f}d.')
+    logger.info(f'Flux {bestbox_flux:.1f}Jy > min_flux ({min_flux:.1f}Jy) in {bestbox_size:.2f}deg box at ra={bestbox_coord[0]:.2f}d dec={bestbox_coord[1]:.2f}d.')
 
     # search for points with strong jumps using gradient and boxsize^eidx
     # eidx - linear case: gradient in Jy per box diameter (finds larger boxes)
@@ -459,9 +458,9 @@ def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
     # print(grad)
     # maxgrad, boxsize_maxgrad, flux_maxgrad = np.max(grad), boxsizes[np.argmax(grad)+1], fluxes[np.argmax(grad)+1]
     # if fluxes[0] > min_flux:
-    #     logging.info(' flux.')
+    #     logger.info(' flux.')
     # if flux_maxgrad <= min_flux:
-    #     logging.info('Box size with max gradient <= min flux. Use box containing min flux.')
+    #     logger.info('Box size with max gradient <= min flux. Use box containing min flux.')
     # else:
 
     #
