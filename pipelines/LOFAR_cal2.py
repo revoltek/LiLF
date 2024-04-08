@@ -61,7 +61,7 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob(data_dir+'/*MS')), 1)):
     for j in range(num_init, num_fin + 1):
         msg.append(prefix + 'SB%03i.MS' % j)
 
-#msg = glob.glob(data_dir+'/*MS') # does not fill gaps
+#msg = sorted(glob.glob(data_dir+'/*MS')) # does not fill gaps
 
 if min(MSs.getFreqs()) < 35.e6:
     iono3rd = True

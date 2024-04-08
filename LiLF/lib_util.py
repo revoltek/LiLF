@@ -1,5 +1,6 @@
 import os, sys, glob
 import socket
+import datetime
 
 from casacore import tables
 import numpy as np
@@ -565,6 +566,7 @@ class Walker():
         self.filename = os.path.abspath(filename)
         self.__skip__ = False
         self.__step__ = None
+        self.__inittime__ = None
 
     def if_todo(self, stepname):
         """
@@ -575,7 +577,7 @@ class Walker():
         self.__step__ = stepname
         with open(self.filename, "r") as f:
             for stepname_done in f:
-                if stepname == stepname_done.rstrip():
+                if stepname == stepname_done.split('#')[0].rstrip():
                     self.__skip__ = True
         return self
 
@@ -590,7 +592,7 @@ class Walker():
             frame.f_trace = self.trace
         else:
             logger.log(20, '>> start >> {}'.format(self.__step__))
-
+            self.__timeinit__ = datetime.datetime.now()
 
     def trace(self, frame, event, arg):
         raise Skip()
@@ -601,7 +603,8 @@ class Walker():
         """
         if type is None:
             with open(self.filename, "a") as f:
-                f.write(self.__step__ + '\n')
+                delta = datetime.datetime.now() - self.__timeinit__
+                f.write(self.__step__ + ' # '+str(delta)+' ' +'\n')
             logger.info('<< done << {}'.format(self.__step__))
             return  # No exception
         if issubclass(type, Skip):

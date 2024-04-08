@@ -68,12 +68,13 @@ with w.if_todo('cleaning'):
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
 if backup:
-    logger.info('Create backup MSs -> mss-self-bkp ')
-    if not os.path.exists('mss-self-bkp'):
-        os.makedirs('mss-self-bkp')
-    for MS in MSs.getListObj():
-        MS.move('mss-self-bkp/' + MS.nameMS + '.MS', keepOrig=True, overwrite=False)
-    MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+    with w.if_todo('backup'):
+        logger.info('Create backup MSs -> mss-self-bkp ')
+        if not os.path.exists('mss-self-bkp'):
+            os.makedirs('mss-self-bkp')
+        for MS in MSs.getListObj():
+            MS.move('mss-self-bkp/' + MS.nameMS + '.MS', keepOrig=True, overwrite=False)
+        MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
 try:
     MSs.print_HAcov()
@@ -404,6 +405,7 @@ for c in range(maxIter):
                     log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         ### DONE
 
+        # Prepare region and models for subfield
         sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
         sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted
         # TODO
