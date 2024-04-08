@@ -2,5 +2,5 @@ Ncpu = 0
 
 [reference]
 operation = REFERENCE
-refAnt = SuperStLBA
+refAnt = SuperSt
 soltab = sol000/phase000
