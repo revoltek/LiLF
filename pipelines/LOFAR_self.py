@@ -180,7 +180,7 @@ with w.if_todo('solve_cor_fr'):
 
     # Correct FR with results of solve - group*_TC.MS:DATA -> group*_TC.MS:FR_CORRECTED_DATA
     logger.info('Correcting FR...')
-    MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=FR_DATA \
+    MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=FR_CORRECTED_DATA \
                 cor.parmdb=self/solutions/cal-fr.h5 cor.correction=rotationmeasure000',
             log='$nameMS_corFR.log', commandType='DP3')
 ### DONE
@@ -191,8 +191,8 @@ for c in range(maxIter):
     logger.info('Start selfcal cycle: '+str(c))
     if c == 0:
         with w.if_todo('set_corrected_data_c%02i' % c):
-            logger.info('Creating CORRECTED_DATA from FR_DATA...')
-            MSs.addcol('CORRECTED_DATA', 'FR_DATA')
+            logger.info('Creating CORRECTED_DATA from FR_CORRECTED_DATA...')
+            MSs.addcol('CORRECTED_DATA', 'FR_CORRECTED_DATA')
     else:
         with w.if_todo('set_corrected_data_c%02i' % c):
             logger.info('Set CORRECTED_DATA = SUBFIELD_DATA...')
@@ -496,7 +496,7 @@ with w.if_todo('imaging-pol'):
         parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500,
         join_channels='', channels_out=MSs.getChout(4.e6))
 
-MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN SUBFIELD_DATA, SUBTRACTED_DATA"',
+MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN SUBFIELD_DATA, SUBTRACTED_DATA, FR_CORRECTED_DATA"',
         log='$nameMS_taql_delcol.log', commandType='general')
 
 # Copy images
