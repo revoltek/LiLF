@@ -263,7 +263,7 @@ with w.if_todo('cal_iono'):
     # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA (unit correction for others)
     logger.info('Iono correction (Core Stations)...')
     MSs_concat_all.run("DP3 " + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 \
-                cor.correction=phaseOrig000', log='$nameMS_corIONO_CS.log', commandType="DP3")
+                cor.correction=phase000', log='$nameMS_corIONO_CS.log', commandType="DP3")
 
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
@@ -326,9 +326,9 @@ with w.if_todo('cal_bp'):
     # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Iono correction...')
     MSs_concat_all.run("DP3 " + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 \
-                cor.correction=phaseOrig000', log='$nameMS_corIONO_CS.log', commandType="DP3")
+                cor.correction=phase000', log='$nameMS_corIONO_CS.log', commandType="DP3")
     MSs_concat_all.run("DP3 " + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
-                cor.correction=phaseOrig000', log='$nameMS_corIONO.log', commandType="DP3")
+                cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
     
     # Smooth data concat_all-phaseup.MS:CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     logger.info('BL-smooth...')
@@ -432,9 +432,9 @@ if debugplots:
     # Correct iono CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Iono correction...')
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 \
-                   cor.correction=phaseOrig000', log='$nameMS_corIONO2_CS.log', commandType="DP3")
+                   cor.correction=phase000', log='$nameMS_corIONO2_CS.log', commandType="DP3")
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
-                   cor.correction=phaseOrig000', log='$nameMS_corIONO2.log', commandType="DP3")
+                   cor.correction=phase000', log='$nameMS_corIONO2.log', commandType="DP3")
 
     logger.info('BL-smooth...')
     MSs_concat_all.run(
@@ -455,17 +455,15 @@ with w.if_todo('compressing_h5'):
     # os.system('cp cal-fr.h5 fullcal-fr.h5') # no need to keep orig
     # os.system('cp cal-bp.h5 fullcal-bp.h5')
     # os.system('cp cal-iono.h5 fullcal-iono.h5')
-    s.add('losoto -d sol000/amplitude000 cal-pa.h5', log='losoto-final.log', commandType="python")
-    s.run()
     s.add('losoto -d sol000/phase000 cal-pa.h5', log='losoto-final.log', commandType="python")
     s.run()
-    s.add('losoto -d sol000/phaseOrig000 cal-pa.h5', log='losoto-final.log', commandType="python")
+    s.add('losoto -d sol000/phaseResid000 cal-pa.h5', log='losoto-final.log', commandType="python")
     s.run()
     os.system('h5repack cal-pa.h5 cal-pa-compressed.h5; mv cal-pa-compressed.h5 cal-pa.h5')
 
     s.add('losoto -d sol000/phase000 cal-fr.h5', log='losoto-final.log', commandType="python")
     s.run()
-    s.add('losoto -d sol000/phaseOrig000 cal-fr.h5', log='losoto-final.log', commandType="python")
+    s.add('losoto -d sol000/phaseResid000 cal-fr.h5', log='losoto-final.log', commandType="python")
     s.run()
     os.system('h5repack cal-fr.h5 cal-fr-compressed.h5; mv cal-fr-compressed.h5 cal-fr.h5')
 
@@ -480,13 +478,13 @@ with w.if_todo('compressing_h5'):
 
     s.add('losoto -d sol000/phase_offset000 cal-iono-cs.h5', log='losoto-final.log', commandType="python")
     s.run()
-    s.add('losoto -d sol000/phase000 cal-iono-cs.h5', log='losoto-final.log', commandType="python")
+    s.add('losoto -d sol000/phaseResid000 cal-iono-cs.h5', log='losoto-final.log', commandType="python")
     s.run()
     os.system('h5repack cal-iono-cs.h5 cal-iono-cs-compressed.h5; mv cal-iono-cs-compressed.h5 cal-iono-cs.h5')
 
     s.add('losoto -d sol000/phase_offset000 cal-iono.h5', log='losoto-final.log', commandType="python")
     s.run()
-    s.add('losoto -d sol000/phase000 cal-iono.h5', log='losoto-final.log', commandType="python")
+    s.add('losoto -d sol000/phaseResid000 cal-iono.h5', log='losoto-final.log', commandType="python")
     s.run()
     os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
 

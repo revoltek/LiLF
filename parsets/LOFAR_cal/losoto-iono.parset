@@ -2,7 +2,7 @@ Ncpu = 0
 [duplicatePbkp]
 operation = DUPLICATE
 soltab = sol000/phase000
-soltabOut = phaseOrig000
+soltabOut = phaseResid000
 
 [ct]
 operation = CLOCKTEC
@@ -34,12 +34,12 @@ refAnt = SuperSt
 
 [residuals]
 operation = RESIDUALS
-soltab = sol000/phase000
+soltab = sol000/phaseResid000
 soltabsToSub = [tec000,clock000]
 
 [PlotPr1]
 operation = PLOT
-soltab = sol000/phase000
+soltab = sol000/phaseResid000
 axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True

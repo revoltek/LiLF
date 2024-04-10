@@ -90,9 +90,9 @@ with w.if_todo('apply'):
     # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, calibrator corrected+reweight)
     logger.info('Iono correction...')
     MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb='+h5_iono_cs+' msin.datacolumn=CORRECTED_DATA \
-                cor.correction=phaseOrig000', log='$nameMS_corIONO.log', commandType="DP3")
+                cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
     MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb='+h5_iono+' msin.datacolumn=CORRECTED_DATA \
-                cor.correction=phaseOrig000', log='$nameMS_corIONO.log', commandType="DP3")
+                cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
 
     if bp_fulljones: # HE TEST
         logger.info('BP correction (FULLJONES mode)...')

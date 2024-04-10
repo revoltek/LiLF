@@ -3,17 +3,17 @@ Ncpu = 0
 [duplicate]
 operation = DUPLICATE
 soltab = sol000/phase000
-soltabOut = phaseOrig000
+soltabOut = phaseResid000
 
 [reset]
 operation = RESET
-soltab = sol000/phase000
+soltab = sol000/phaseResid000
 pol = YY
 dataVal = 0.0
 
 [plotP1]
 operation = PLOT
-soltab = sol000/phase000
+soltab = sol000/phaseResid000
 freq.minmaxstep = [0,300e6,100]
 axesInPlot = time
 axisInTable = ant
@@ -27,7 +27,7 @@ figSize = [20,20]
 
 [plotP2]
 operation = PLOT
-soltab = sol000/phase000
+soltab = sol000/phaseResid000
 time.minmaxstep = [0,1e20,1000]
 axesInPlot = freq
 axisInTable = ant
@@ -39,7 +39,7 @@ minmax = [-3.14,3.14]
 
 [plotP3]
 operation = PLOT
-soltab = sol000/phase000
+soltab = sol000/phaseResid000
 axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
@@ -50,7 +50,7 @@ minmax = [-3.14,3.14]
 
 [faraday]
 operation = FARADAY
-soltab = sol000/phase000
+soltab = sol000/phaseResid000
 refAnt = auto
 maxResidual = 1.
 freq.minmaxstep = [20e6,1e9] # should this start form 30 MHz or does 20 MHz work?
@@ -65,12 +65,12 @@ refAnt = SuperSt
 
 [residuals]
 operation = RESIDUALS
-soltab = sol000/phase000
+soltab = sol000/phaseResid000
 soltabsToSub = rotationmeasure000
 
 [plotRES]
 operation = PLOT
-soltab = sol000/phase000
+soltab = sol000/phaseResid000
 axesInPlot = [time,freq]
 AxisInTable = ant
 AxisDiff = pol
