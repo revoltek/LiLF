@@ -21,7 +21,6 @@ parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_self'])))
 parset_dir = parset.get('LOFAR_self','parset_dir')
 subfield_min_flux = parset.getfloat('LOFAR_self','subfield_min_flux') # default 40 Jy
-backup = parset.getboolean('LOFAR_self','backup') # backuo the initial MS (default = True)
 maxIter = parset.getint('LOFAR_self','maxIter') # default = 2 (try also 3)
 phaseSolMode = parset.get('LOFAR_self', 'ph_sol_mode') # tecandphase, tec, phase
 sourcedb = parset.get('model','sourcedb')
@@ -66,14 +65,6 @@ with w.if_todo('cleaning'):
 ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
-
-if backup:
-    logger.info('Create backup MSs -> mss-self-bkp ')
-    if not os.path.exists('mss-self-bkp'):
-        os.makedirs('mss-self-bkp')
-    for MS in MSs.getListObj():
-        MS.move('mss-self-bkp/' + MS.nameMS + '.MS', keepOrig=True, overwrite=False)
-    MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
 try:
     MSs.print_HAcov()
@@ -156,7 +147,6 @@ with w.if_todo('init_model'):
 ### DONE
 
 with w.if_todo('solve_cor_fr'):
-    # TODO apply to CORRECTED_DATA and remove backup mss
     logger.info('Add column CIRC_PHASEDIFF_DATA...')
     MSs.addcol('CIRC_PHASEDIFF_DATA', 'DATA', usedysco=False)  # No dysco here as off diag elements are 0 and dysco does not like 0s
     # Probably we do not need smoothing since we have long time intervals and smoothnessconstraint?
@@ -191,7 +181,7 @@ with w.if_todo('solve_cor_fr'):
 
     # Correct FR with results of solve - group*_TC.MS:DATA -> group*_TC.MS:FR_CORRECTED_DATA
     logger.info('Correcting FR...')
-    MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=FR_CORRECTED_DATA \
+    MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=FR_DATA \
                 cor.parmdb=self/solutions/cal-fr.h5 cor.correction=rotationmeasure000',
             log='$nameMS_corFR.log', commandType='DP3')
 ### DONE
@@ -202,8 +192,8 @@ for c in range(maxIter):
     logger.info('Start selfcal cycle: '+str(c))
     if c == 0:
         with w.if_todo('set_corrected_data_c%02i' % c):
-            logger.info('Creating CORRECTED_DATA from DATA...')
-            MSs.addcol('CORRECTED_DATA', 'DATA')
+            logger.info('Creating CORRECTED_DATA from FR_DATA...')
+            MSs.addcol('CORRECTED_DATA', 'FR_DATA')
     else:
         with w.if_todo('set_corrected_data_c%02i' % c):
             logger.info('Set CORRECTED_DATA = SUBFIELD_DATA...')
@@ -327,7 +317,6 @@ for c in range(maxIter):
         ### DONE
 
     if c == 0:
-
         with w.if_todo('lowres_setdata_c%02i' % c):
             # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
             logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
@@ -399,9 +388,9 @@ for c in range(maxIter):
         with w.if_todo('lowres_subtract_c%02i' % c):
             # Permanently subtract low-res sidelobe model - SUBTRACTED_DATA = DATA - MODEL_DATA.
             # This could be done from DATA, but the we can't restart the pipeline as easily.
-            MSs.addcol('SUBTRACTED_DATA','DATA')
-            logger.info('Subtracting low-res sidelobe model (SUBTRACTED_DATA = DATA - MODEL_DATA)...')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"',
+            MSs.addcol('SUBTRACTED_DATA','FR_DATA')
+            logger.info('Subtracting low-res sidelobe model (SUBTRACTED_DATA = FR_DATA - MODEL_DATA)...')
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = FR_DATA - MODEL_DATA"',
                     log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         ### DONE
 
@@ -475,7 +464,7 @@ for c in range(maxIter):
 with w.if_todo('final_correct'):
     # correct model with TEC+Beam2ord solutions - ms:DATA -> ms:CORRECTED_DATA
     logger.info('Correct low-res model: G...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=FR_DATA msout.datacolumn=CORRECTED_DATA \
             cor.parmdb=self/solutions/cal-g-c{c}.h5 cor.correction=amplitudeSmooth',
             log='$nameMS_finalcor.log', commandType='DP3')
     logger.info('Correct low-res model: TEC+Ph 1...')
