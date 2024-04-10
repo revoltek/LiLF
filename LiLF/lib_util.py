@@ -603,8 +603,8 @@ class Walker():
         """
         if type is None:
             with open(self.filename, "a") as f:
-                delta = datetime.datetime.now() - self.__timeinit__
-                f.write(self.__step__ + ' # '+str(delta)+' ' +'\n')
+                delta = 'h '.join(str(datetime.datetime.now() - self.__timeinit__).split(':')[:-1])+'m'
+                f.write(self.__step__ + ' # '+delta+' ' +'\n')
             logger.info('<< done << {}'.format(self.__step__))
             return  # No exception
         if issubclass(type, Skip):
