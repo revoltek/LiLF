@@ -63,12 +63,6 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob(data_dir+'/*MS')), 1)):
 
 #msg = sorted(glob.glob(data_dir+'/*MS')) # does not fill gaps
 
-if min(MSs.getFreqs()) < 35.e6:
-    iono3rd = True
-    logger.debug('Include iono 3rd order.')
-else:
-    iono3rd = False
-
 if skymodel == '':  # default case
     if MSs.hasIS:
         skymodel = os.path.dirname(__file__) + '/../models/calib-highres.skydb'
@@ -112,12 +106,13 @@ if debugplots:
     logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
     os.system('cp -r %s %s' % (skymodel, MSs_concat_all.getListObj()[0].pathMS))
     MSs_concat_all.run("DP3 " + parset_dir + "/DP3-predict.parset msin=$pathMS pre.sourcedb=$pathMS/"
-                           + os.path.basename(skymodel) + " pre.sources=" + calname, log="$nameMS_pre.log",
-                           commandType="DP3")    
+                           + os.path.basename(skymodel) + " pre.sources=" + calname, log="$nameMS_pre.log", commandType="DP3")
+    
     logger.info('BL-smooth...')
     MSs_concat_all.run(
         f'BLsmooth.py -r -q -c {20 if MSs.hasIS else 1} -n {s.max_processors} -f {.2e-3 if MSs.hasIS else 1e-3} -i DATA -o SMOOTHED_DATA $pathMS',
         log='$nameMS_smooth3.log', commandType='python', maxThreads=1)
+    
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating test...')
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
@@ -203,11 +198,13 @@ with w.if_todo('cal_fr'):
                              DATA[,0]=0.5*EXP(1.0i*(PHASE(DATA[,0])-PHASE(DATA[,3]))), \
                              DATA[,3]=DATA[,0], DATA[,1]=0+0i, DATA[,2]=0+0i"', 
                              log='$nameMS_taql_phdiff.log', commandType='general')
+    
     logger.info('Creating MODEL_DATA...')  # take from MODEL_DATA but overwrite
     MSs_concat_phaseupFR.addcol('MODEL_DATA', 'DATA', usedysco=False)  # need this to make sure no dysco, if we have dyso we cannot set values to zero
     MSs_concat_phaseupFR.run('taql "UPDATE $pathMS SET MODEL_DATA[,0]=0.5+0i, MODEL_DATA[,1]=0.0+0i, \
                              MODEL_DATA[,2]=0.0+0i, MODEL_DATA[,3]=0.5+0i"', 
                              log='$nameMS_taql_model.log', commandType='general')
+    
     # Solve cal_SB.MS:DATA against MODEL_DATA (only solve)
     logger.info('Calibrating FR...')
     MSs_concat_phaseupFR.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA \
@@ -292,16 +289,13 @@ with w.if_todo('cal_iono'):
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.1e6 sol.smoothnessreffrequency=54e6', \
                            log='$nameMS_solIONO.log', commandType="DP3")
    
-    if iono3rd:
+    if min(MSs_concat_phaseupIONO.getFreqs()) < 35.e6:
         lib_util.run_losoto(s, 'iono', [ms + '/iono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
                             [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-iono3rd.parset'])
     else:
         lib_util.run_losoto(s, 'iono', [ms + '/iono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
                             [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-iono.parset'])
 ### DONE
-
-# TEST
-#MSs_concat_phaseup = MSs_concat_all
 
 ######################################################
 # 4: find BP
