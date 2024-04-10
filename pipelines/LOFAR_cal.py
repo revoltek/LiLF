@@ -99,13 +99,10 @@ MSs_concat_all.print_HAcov()
 # flag bad stations, flags will propagate
 with w.if_todo('flag'):
     logger.info("Flagging...")
-    #MSs_concat_core.run("DP3 " + parset_dir + "/DP3-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag + "\"",
-    #                    log="$nameMS_flag.log", commandType="DP3")
     MSs_concat_all.run("DP3 " + parset_dir + "/DP3-flag.parset msin=$pathMS ant.baseline=\"" + bl2flag + "\"",
                        log="$nameMS_flag.log", commandType="DP3")
     # extend flags
     logger.info('Remove bad time/freq stamps...')
-    #MSs_concat_core.run('flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
     MSs_concat_all.run('flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
 ### DONE
