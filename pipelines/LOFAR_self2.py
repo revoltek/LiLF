@@ -35,8 +35,8 @@ def clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_
     lib_util.run_wsclean(s, 'wscleanM-c' + str(c) + '.log', MSsClean.getStrWsclean(),
                          name=imagenameM, save_source_list='', size=imgsizepix, scale='4arcsec',
                          weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
-                         parallel_gridding=8, baseline_averaging='', mgain=0.85,
-                         parallel_deconvolution=512, auto_mask=4, auto_threshold=3., join_channels='',
+                         parallel_gridding=8, baseline_averaging='', mgain=0.8,
+                         parallel_deconvolution=1024, auto_mask=5, auto_threshold=3., join_channels='',
                          fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6), multiscale='',
                          multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order, **subfield_kwargs)
 
@@ -156,43 +156,44 @@ with w.if_todo('init_model'):
 ### DONE
 
 with w.if_todo('solve_cor_fr'):
-        logger.info('Add column CIRC_PHASEDIFF_DATA...')
-        MSs.addcol('CIRC_PHASEDIFF_DATA', 'DATA', usedysco=False)  # No dysco here as off diag elements are 0 and dysco does not like 0s
-        # Probably we do not need smoothing since we have long time intervals and smoothnessconstraint?
+    # TODO apply to CORRECTED_DATA and remove backup mss
+    logger.info('Add column CIRC_PHASEDIFF_DATA...')
+    MSs.addcol('CIRC_PHASEDIFF_DATA', 'DATA', usedysco=False)  # No dysco here as off diag elements are 0 and dysco does not like 0s
+    # Probably we do not need smoothing since we have long time intervals and smoothnessconstraint?
 
-        logger.info('Converting to circular...')
-        MSs.run('mslin2circ.py -s -i $pathMS:CIRC_PHASEDIFF_DATA -o $pathMS:CIRC_PHASEDIFF_DATA',
-                log='$nameMS_lincirc.log', commandType='python', maxThreads=2)
+    logger.info('Converting to circular...')
+    MSs.run('mslin2circ.py -s -i $pathMS:CIRC_PHASEDIFF_DATA -o $pathMS:CIRC_PHASEDIFF_DATA',
+            log='$nameMS_lincirc.log', commandType='python', maxThreads=2)
 
-        # Get circular phase diff CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
-        logger.info('Get circular phase difference...')
-        MSs.run('taql "UPDATE $pathMS SET\
-             CIRC_PHASEDIFF_DATA[,0]=0.5*EXP(1.0i*(PHASE(CIRC_PHASEDIFF_DATA[,0])-PHASE(CIRC_PHASEDIFF_DATA[,3]))), \
-             CIRC_PHASEDIFF_DATA[,3]=CIRC_PHASEDIFF_DATA[,0], \
-             CIRC_PHASEDIFF_DATA[,1]=0+0i, \
-             CIRC_PHASEDIFF_DATA[,2]=0+0i"', log='$nameMS_taql_phdiff.log', commandType='general')
+    # Get circular phase diff CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
+    logger.info('Get circular phase difference...')
+    MSs.run('taql "UPDATE $pathMS SET\
+         CIRC_PHASEDIFF_DATA[,0]=0.5*EXP(1.0i*(PHASE(CIRC_PHASEDIFF_DATA[,0])-PHASE(CIRC_PHASEDIFF_DATA[,3]))), \
+         CIRC_PHASEDIFF_DATA[,3]=CIRC_PHASEDIFF_DATA[,0], \
+         CIRC_PHASEDIFF_DATA[,1]=0+0i, \
+         CIRC_PHASEDIFF_DATA[,2]=0+0i"', log='$nameMS_taql_phdiff.log', commandType='general')
 
-        logger.info('Creating FR_MODEL_DATA...')  # take from MODEL_DATA but overwrite
-        MSs.addcol('FR_MODEL_DATA', 'MODEL_DATA', usedysco=False)
-        MSs.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
-             FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
+    logger.info('Creating FR_MODEL_DATA...')  # take from MODEL_DATA but overwrite
+    MSs.addcol('FR_MODEL_DATA', 'MODEL_DATA', usedysco=False)
+    MSs.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
+         FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
 
-        # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve - solint=2m nchan=0 as it has the smoothnessconstrain)
-        logger.info('Solving circ phase difference ...')
-        MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint=' + str(30 * base_solint),
-                log='$nameMS_solFR.log', commandType="DP3")
-        lib_util.run_losoto(s, f'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
-        os.system('mv cal-fr.h5 self/solutions/')
-        os.system('mv plots-fr self/plots/')
-        # Delete cols again to not waste space
-        MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN CIRC_PHASEDIFF_DATA, FR_MODEL_DATA"',
-                log='$nameMS_taql_delcol.log', commandType='general')
+    # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve - solint=2m nchan=0 as it has the smoothnessconstrain)
+    logger.info('Solving circ phase difference ...')
+    MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint=' + str(30 * base_solint),
+            log='$nameMS_solFR.log', commandType="DP3")
+    lib_util.run_losoto(s, f'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
+    os.system('mv cal-fr.h5 self/solutions/')
+    os.system('mv plots-fr self/plots/')
+    # Delete cols again to not waste space
+    MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN CIRC_PHASEDIFF_DATA, FR_MODEL_DATA"',
+            log='$nameMS_taql_delcol.log', commandType='general')
 
-        # Correct FR with results of solve - group*_TC.MS:DATA -> group*_TC.MS:DATA
-        logger.info('Correcting FR...')
-        MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
-                    cor.parmdb=self/solutions/cal-fr.h5 cor.correction=rotationmeasure000',
-                log='$nameMS_corFR.log', commandType='DP3')
+    # Correct FR with results of solve - group*_TC.MS:DATA -> group*_TC.MS:FR_CORRECTED_DATA
+    logger.info('Correcting FR...')
+    MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=FR_CORRECTED_DATA \
+                cor.parmdb=self/solutions/cal-fr.h5 cor.correction=rotationmeasure000',
+            log='$nameMS_corFR.log', commandType='DP3')
 ### DONE
 
 #####################################################################################################
