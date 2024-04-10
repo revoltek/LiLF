@@ -63,10 +63,6 @@ def getParset(parsetFile=''):
     add_default('LOFAR_preprocess', 'demix_sources', '')  # Demix  sources in these patches (e.g. [VirA,TauA], default: No demix
     add_default('LOFAR_preprocess', 'demix_skymodel', '')  # Use non-default demix skymodel.
     add_default('LOFAR_preprocess', 'demix_field_skymodel', 'gsm')  # Provide a custom target skymodel instead of online gsm model. Set to '' to ignore target.
-    # cal
-    add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
-    add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
-    add_default('LOFAR_cal', 'imaging', 'False')
     # cal2
     add_default('LOFAR_cal2', 'data_dir', 'data-bkp/')
     add_default('LOFAR_cal2', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
@@ -82,9 +78,6 @@ def getParset(parsetFile=''):
     add_default('LOFAR_self', 'maxIter', '2')
     add_default('LOFAR_self', 'subfield_min_flux', '40') # min flux within calibration subfield
     add_default('LOFAR_self', 'ph_sol_mode', 'tecandphase') # phase or tecandphase
-    # dd-parallel - deprecated
-    #add_default('LOFAR_dd-parallel', 'maxniter', '10')
-    #add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
     # dd
     add_default('LOFAR_dd', 'maxIter', '2')
     add_default('LOFAR_dd', 'minCalFlux60', '1')
