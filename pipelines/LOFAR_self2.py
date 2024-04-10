@@ -147,8 +147,7 @@ for MS in MSs.getListStr():
 with w.if_todo('init_model'):
     logger.info('Add model to MODEL_DATA...')
     if apparent:
-        MSs.run(
-            'DP3 ' + parset_dir + '/DP3-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/' + sourcedb_basename,
+        MSs.run('DP3 ' + parset_dir + '/DP3-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/' + sourcedb_basename,
             log='$nameMS_pre.log', commandType='DP3')
     else:
         MSs.run('DP3 ' + parset_dir + '/DP3-predict.parset msin=$pathMS pre.usebeammodel=true pre.usechannelfreq=True \

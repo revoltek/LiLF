@@ -121,8 +121,8 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
        os.makedirs(groupname)
 
        # add missing SB with a fake name not to leave frequency holes
-       min_nu = pt.table(MSs.getListStr()[0]).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MIN']
-       max_nu = pt.table(MSs.getListStr()[0]).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MAX']
+       min_nu = pt.table(MSs.getListStr()[0], ack=False).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MIN']
+       max_nu = pt.table(MSs.getListStr()[0], ack=False).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MAX']
        num_init = lib_util.lofar_nu2num(min_nu)+1  # +1 because FREQ_MIN/MAX somewhat have the lowest edge of the SB freq
        num_fin = lib_util.lofar_nu2num(max_nu)+1
        prefix = re.sub('SB[0-9]*.MS','',msg[0])
