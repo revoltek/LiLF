@@ -21,7 +21,6 @@ parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_self'])))
 parset_dir = parset.get('LOFAR_self','parset_dir')
 subfield_min_flux = parset.getfloat('LOFAR_self','subfield_min_flux') # default 40 Jy
-backup = parset.getboolean('LOFAR_self','backup') # backuo the initial MS (default = True)
 maxIter = parset.getint('LOFAR_self','maxIter') # default = 2 (try also 3)
 phaseSolMode = parset.get('LOFAR_self', 'ph_sol_mode') # tecandphase, tec, phase
 sourcedb = parset.get('model','sourcedb')
@@ -35,8 +34,8 @@ def clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_
     lib_util.run_wsclean(s, 'wscleanM-c' + str(c) + '.log', MSsClean.getStrWsclean(),
                          name=imagenameM, save_source_list='', size=imgsizepix, scale='4arcsec',
                          weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
-                         parallel_gridding=8, baseline_averaging='', mgain=0.85,
-                         parallel_deconvolution=512, auto_mask=4, auto_threshold=3., join_channels='',
+                         parallel_gridding=8, baseline_averaging='', mgain=0.8,
+                         parallel_deconvolution=1024, auto_mask=5, auto_threshold=3., join_channels='',
                          fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6), multiscale='',
                          multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order, **subfield_kwargs)
 
@@ -66,15 +65,6 @@ with w.if_todo('cleaning'):
 ### DONE
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
-
-if backup:
-    with w.if_todo('backup'):
-        logger.info('Create backup MSs -> mss-self-bkp ')
-        if not os.path.exists('mss-self-bkp'):
-            os.makedirs('mss-self-bkp')
-        for MS in MSs.getListObj():
-            MS.move('mss-self-bkp/' + MS.nameMS + '.MS', keepOrig=True, overwrite=False)
-        MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
 try:
     MSs.print_HAcov()
@@ -156,43 +146,43 @@ with w.if_todo('init_model'):
 ### DONE
 
 with w.if_todo('solve_cor_fr'):
-        logger.info('Add column CIRC_PHASEDIFF_DATA...')
-        MSs.addcol('CIRC_PHASEDIFF_DATA', 'DATA', usedysco=False)  # No dysco here as off diag elements are 0 and dysco does not like 0s
-        # Probably we do not need smoothing since we have long time intervals and smoothnessconstraint?
+    logger.info('Add column CIRC_PHASEDIFF_DATA...')
+    MSs.addcol('CIRC_PHASEDIFF_DATA', 'DATA', usedysco=False)  # No dysco here as off diag elements are 0 and dysco does not like 0s
+    # Probably we do not need smoothing since we have long time intervals and smoothnessconstraint?
 
-        logger.info('Converting to circular...')
-        MSs.run('mslin2circ.py -s -i $pathMS:CIRC_PHASEDIFF_DATA -o $pathMS:CIRC_PHASEDIFF_DATA',
-                log='$nameMS_lincirc.log', commandType='python', maxThreads=2)
+    logger.info('Converting to circular...')
+    MSs.run('mslin2circ.py -s -i $pathMS:CIRC_PHASEDIFF_DATA -o $pathMS:CIRC_PHASEDIFF_DATA',
+            log='$nameMS_lincirc.log', commandType='python', maxThreads=2)
 
-        # Get circular phase diff CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
-        logger.info('Get circular phase difference...')
-        MSs.run('taql "UPDATE $pathMS SET\
-             CIRC_PHASEDIFF_DATA[,0]=0.5*EXP(1.0i*(PHASE(CIRC_PHASEDIFF_DATA[,0])-PHASE(CIRC_PHASEDIFF_DATA[,3]))), \
-             CIRC_PHASEDIFF_DATA[,3]=CIRC_PHASEDIFF_DATA[,0], \
-             CIRC_PHASEDIFF_DATA[,1]=0+0i, \
-             CIRC_PHASEDIFF_DATA[,2]=0+0i"', log='$nameMS_taql_phdiff.log', commandType='general')
+    # Get circular phase diff CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
+    logger.info('Get circular phase difference...')
+    MSs.run('taql "UPDATE $pathMS SET\
+         CIRC_PHASEDIFF_DATA[,0]=0.5*EXP(1.0i*(PHASE(CIRC_PHASEDIFF_DATA[,0])-PHASE(CIRC_PHASEDIFF_DATA[,3]))), \
+         CIRC_PHASEDIFF_DATA[,3]=CIRC_PHASEDIFF_DATA[,0], \
+         CIRC_PHASEDIFF_DATA[,1]=0+0i, \
+         CIRC_PHASEDIFF_DATA[,2]=0+0i"', log='$nameMS_taql_phdiff.log', commandType='general')
 
-        logger.info('Creating FR_MODEL_DATA...')  # take from MODEL_DATA but overwrite
-        MSs.addcol('FR_MODEL_DATA', 'MODEL_DATA', usedysco=False)
-        MSs.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
-             FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
+    logger.info('Creating FR_MODEL_DATA...')  # take from MODEL_DATA but overwrite
+    MSs.addcol('FR_MODEL_DATA', 'MODEL_DATA', usedysco=False)
+    MSs.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, FR_MODEL_DATA[,2]=0.0+0i, \
+         FR_MODEL_DATA[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
 
-        # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve - solint=2m nchan=0 as it has the smoothnessconstrain)
-        logger.info('Solving circ phase difference ...')
-        MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint=' + str(30 * base_solint),
-                log='$nameMS_solFR.log', commandType="DP3")
-        lib_util.run_losoto(s, f'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
-        os.system('mv cal-fr.h5 self/solutions/')
-        os.system('mv plots-fr self/plots/')
-        # Delete cols again to not waste space
-        MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN CIRC_PHASEDIFF_DATA, FR_MODEL_DATA"',
-                log='$nameMS_taql_delcol.log', commandType='general')
+    # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve - solint=2m nchan=0 as it has the smoothnessconstrain)
+    logger.info('Solving circ phase difference ...')
+    MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint=' + str(30 * base_solint),
+            log='$nameMS_solFR.log', commandType="DP3")
+    lib_util.run_losoto(s, f'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
+    os.system('mv cal-fr.h5 self/solutions/')
+    os.system('mv plots-fr self/plots/')
+    # Delete cols again to not waste space
+    MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN CIRC_PHASEDIFF_DATA, FR_MODEL_DATA"',
+            log='$nameMS_taql_delcol.log', commandType='general')
 
-        # Correct FR with results of solve - group*_TC.MS:DATA -> group*_TC.MS:DATA
-        logger.info('Correcting FR...')
-        MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
-                    cor.parmdb=self/solutions/cal-fr.h5 cor.correction=rotationmeasure000',
-                log='$nameMS_corFR.log', commandType='DP3')
+    # Correct FR with results of solve - group*_TC.MS:DATA -> group*_TC.MS:FR_CORRECTED_DATA
+    logger.info('Correcting FR...')
+    MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=FR_DATA \
+                cor.parmdb=self/solutions/cal-fr.h5 cor.correction=rotationmeasure000',
+            log='$nameMS_corFR.log', commandType='DP3')
 ### DONE
 
 #####################################################################################################
@@ -201,8 +191,8 @@ for c in range(maxIter):
     logger.info('Start selfcal cycle: '+str(c))
     if c == 0:
         with w.if_todo('set_corrected_data_c%02i' % c):
-            logger.info('Creating CORRECTED_DATA from DATA...')
-            MSs.addcol('CORRECTED_DATA', 'DATA')
+            logger.info('Creating CORRECTED_DATA from FR_DATA...')
+            MSs.addcol('CORRECTED_DATA', 'FR_DATA')
     else:
         with w.if_todo('set_corrected_data_c%02i' % c):
             logger.info('Set CORRECTED_DATA = SUBFIELD_DATA...')
@@ -326,7 +316,6 @@ for c in range(maxIter):
         ### DONE
 
     if c == 0:
-
         with w.if_todo('lowres_setdata_c%02i' % c):
             # Subtract model from all TCs - ms:CORRECTED_DATA - MODEL_DATA -> ms:CORRECTED_DATA (selfcal corrected, beam corrected, high-res model subtracted)
             logger.info('Subtracting high-res model (CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
@@ -398,9 +387,9 @@ for c in range(maxIter):
         with w.if_todo('lowres_subtract_c%02i' % c):
             # Permanently subtract low-res sidelobe model - SUBTRACTED_DATA = DATA - MODEL_DATA.
             # This could be done from DATA, but the we can't restart the pipeline as easily.
-            MSs.addcol('SUBTRACTED_DATA','DATA')
-            logger.info('Subtracting low-res sidelobe model (SUBTRACTED_DATA = DATA - MODEL_DATA)...')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"',
+            MSs.addcol('SUBTRACTED_DATA','FR_DATA')
+            logger.info('Subtracting low-res sidelobe model (SUBTRACTED_DATA = FR_DATA - MODEL_DATA)...')
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = FR_DATA - MODEL_DATA"',
                     log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         ### DONE
 
@@ -475,7 +464,7 @@ for c in range(maxIter):
 with w.if_todo('final_correct'):
     # correct model with TEC+Beam2ord solutions - ms:DATA -> ms:CORRECTED_DATA
     logger.info('Correct low-res model: G...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=FR_DATA msout.datacolumn=CORRECTED_DATA \
             cor.parmdb=self/solutions/cal-g-c{c}.h5 cor.correction=amplitudeSmooth',
             log='$nameMS_finalcor.log', commandType='DP3')
     logger.info('Correct low-res model: TEC+Ph 1...')

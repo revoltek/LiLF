@@ -77,10 +77,10 @@ def getParset(parsetFile=''):
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
+    add_default('LOFAR_timesplit', 'bp_fulljones', 'False') # TEST: whether to transfer time-dependent fulljones solutions from the calibrator
     # self
     add_default('LOFAR_self', 'maxIter', '2')
     add_default('LOFAR_self', 'subfield_min_flux', '40') # min flux within calibration subfield
-    add_default('LOFAR_self', 'backup', 'True') # backup data before running pipeline
     add_default('LOFAR_self', 'ph_sol_mode', 'tecandphase') # phase or tecandphase
     # dd-parallel - deprecated
     #add_default('LOFAR_dd-parallel', 'maxniter', '10')
