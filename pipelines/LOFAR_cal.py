@@ -12,19 +12,19 @@ import numpy as np
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_h5
 
-logger_obj = lib_log.Logger('pipeline-cal2')
+logger_obj = lib_log.Logger('pipeline-cal')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry=False)
-w = lib_util.Walker('pipeline-cal2.walker')
+w = lib_util.Walker('pipeline-cal.walker')
 
 # parse parset
 parset = lib_util.getParset()
-logger.info('Parset: ' + str(dict(parset['LOFAR_cal2'])))
-parset_dir = parset.get('LOFAR_cal2', 'parset_dir')
-data_dir = parset.get('LOFAR_cal2', 'data_dir')
-skymodel = parset.get('LOFAR_cal2', 'skymodel')
-imaging = parset.getboolean('LOFAR_cal2', 'imaging')
-fillmissingedges = parset.getboolean('LOFAR_cal2', 'fillmissingedges')
+logger.info('Parset: ' + str(dict(parset['LOFAR_cal'])))
+parset_dir = parset.get('LOFAR_cal', 'parset_dir')
+data_dir = parset.get('LOFAR_cal', 'data_dir')
+skymodel = parset.get('LOFAR_cal', 'skymodel')
+imaging = parset.getboolean('LOFAR_cal', 'imaging')
+fillmissingedges = parset.getboolean('LOFAR_cal', 'fillmissingedges')
 bl2flag = parset.get('flag', 'stations')
 debugplots = False
 
