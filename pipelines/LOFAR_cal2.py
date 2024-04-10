@@ -482,8 +482,13 @@ with w.if_todo('compressing_h5'):
 
     s.add('losoto -d sol000/phase_offset000 cal-iono-cs.h5', log='losoto-final.log', commandType="python")
     s.run()
+    s.add('losoto -d sol000/phase000 cal-iono-cs.h5', log='losoto-final.log', commandType="python")
+    s.run()
     os.system('h5repack cal-iono-cs.h5 cal-iono-cs-compressed.h5; mv cal-iono-cs-compressed.h5 cal-iono-cs.h5')
+
     s.add('losoto -d sol000/phase_offset000 cal-iono.h5', log='losoto-final.log', commandType="python")
+    s.run()
+    s.add('losoto -d sol000/phase000 cal-iono.h5', log='losoto-final.log', commandType="python")
     s.run()
     os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
 
