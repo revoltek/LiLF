@@ -78,7 +78,7 @@ beamReg = 'self/beam.reg'
 
 # set image size
 imgsizepix_wide = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/4.)
-imgsizepix_lr = int(4*MSs.getListObj()[0].getFWHM(freq='mid')*3600/30.)
+imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/30.)
 imgsizepix_p = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/10.)
 
 # set BLsmooth params
@@ -137,8 +137,7 @@ for MS in MSs.getListStr():
 with w.if_todo('init_model'):
     logger.info('Add model to MODEL_DATA...')
     if apparent:
-        MSs.run(
-            'DP3 ' + parset_dir + '/DP3-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/' + sourcedb_basename,
+        MSs.run('DP3 ' + parset_dir + '/DP3-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/' + sourcedb_basename,
             log='$nameMS_pre.log', commandType='DP3')
     else:
         MSs.run('DP3 ' + parset_dir + '/DP3-predict.parset msin=$pathMS pre.usebeammodel=true pre.usechannelfreq=True \
@@ -394,6 +393,7 @@ for c in range(maxIter):
                     log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         ### DONE
 
+        # Prepare region and models for subfield
         sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
         sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted
         # TODO
@@ -504,7 +504,7 @@ MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN SUBFIELD_DATA, SUBTRACTED_DATA"
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits self/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(maxIter) ]
 os.system('mv img/wideP-MFS-*-image.fits self/images')
-os.system(f'mv img/wideM-{maxIter}-*-model.fits self/images')
+os.system(f'mv img/wideM-{maxIter-1}-*-model.fits self/images')
 os.system('mv img/wide-lr-MFS-image.fits self/images')
 os.system('mv img/wide-largescale-MFS-image.fits self/images')
 

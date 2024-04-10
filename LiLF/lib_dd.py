@@ -458,9 +458,9 @@ def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
     # print(grad)
     # maxgrad, boxsize_maxgrad, flux_maxgrad = np.max(grad), boxsizes[np.argmax(grad)+1], fluxes[np.argmax(grad)+1]
     # if fluxes[0] > min_flux:
-    #     logging.info(' flux.')
+    #     logger.info(' flux.')
     # if flux_maxgrad <= min_flux:
-    #     logging.info('Box size with max gradient <= min flux. Use box containing min flux.')
+    #     logger.info('Box size with max gradient <= min flux. Use box containing min flux.')
     # else:
 
     #
