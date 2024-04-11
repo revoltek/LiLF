@@ -208,9 +208,17 @@ for c in range(maxIter):
         MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i MODEL_DATA -o MODEL_DATA $pathMS',
                 log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
 
-        # solve TEC - ms:SMOOTHED_DATA (1m 2SB)
+        # solve ionosphere phase - ms:SMOOTHED_DATA (1m 2SB)
         logger.info('Solving TEC1...')
-        MSs.run(f"DP3 {parset_dir}/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 sol.solint={base_solint} sol.mode={phaseSolMode}",
+        if phaseSolMode == 'phase': #phase
+            # TODO optimize smoothnessconstraint
+            solver_params = f'sol.mode=scalarcomplexgain sol.smoothnessconstraint=2e6'
+            losoto_parsets = [parset_dir+'/losoto-plot-scalar.parset']
+        else: # TEC or TecAndPhase
+            solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
+            losoto_parsets = [parset_dir+'/losoto-plot-tec.parset']
+
+        MSs.run(f"DP3 {parset_dir}/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 sol.solint={base_solint} {solver_params}",
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
         # MSs.run('DP3 '+parset_dir+'/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 \
         #         msin.baseline="[CR]*&&;!RS208LBA;!RS210LBA;!RS307LBA;!RS310LBA;!RS406LBA;!RS407LBA;!RS409LBA;!RS508LBA;!RS509LBA;!PL*;!IE*;!UK*;!DE*;!FR*;!SE*" \
@@ -218,18 +226,20 @@ for c in range(maxIter):
         #         #+' sol.nchan='+str(8*base_nchan), sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
         #         log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
-        lib_util.run_losoto(s, 'tec1-c'+str(c), [ms+'/tec1.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
+        lib_util.run_losoto(s, 'tec1-c'+str(c), [ms+'/tec1.h5' for ms in MSs.getListStr()], losoto_parsets)
         os.system('mv cal-tec1-c'+str(c)+'.h5 self/solutions/')
         os.system('mv plots-tec1-c'+str(c)+' self/plots/')
     ### DONE
 
     with w.if_todo('cor_tec1_c%02i' % c):
         # correct TEC - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-        logger.info('Correcting TEC1...')
-        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
-                cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000',
-                log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DP3')
-        if phaseSolMode == 'tecandphase':
+        if phaseSolMode in ['tec', 'tecandphase']:
+            logger.info('Correcting TEC1...')
+            MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
+                    cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000',
+                    log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DP3')
+        if phaseSolMode in ['phase', 'tecandphase']:
+            logger.info('Correcting ph1...')
             MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
                     cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=phase000',
                     log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DP3')
@@ -368,14 +378,16 @@ for c in range(maxIter):
 
         with w.if_todo('lowres_corrupt_c%02i' % c):    
             # corrupt model with TEC+FR+Beam2ord solutions - ms:MODEL_DATA -> ms:MODEL_DATA
-            logger.info('Corrupt low-res model: TEC+Ph 1...')
-            MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                    cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
-                    log='$nameMS_corrupt.log', commandType='DP3')
-            if phaseSolMode == 'tecandphase':
+            if phaseSolMode in ['tec', 'tecandphase']:
+                logger.info('Corrupt low-res model: TEC1...')
                 MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                        cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=phase000 cor.invert=False',
+                        cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
                         log='$nameMS_corrupt.log', commandType='DP3')
+            if phaseSolMode in ['phase', 'tecandphase']:
+                logger.info('Corrupt low-res model: ph1...')
+                MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                    cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=phase000 cor.invert=False',
+                    log='$nameMS_corrupt.log', commandType='DP3')
             # logger.info('Corrupt low-res model: TEC+Ph 2...')
             # MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
             #         cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
@@ -396,11 +408,10 @@ for c in range(maxIter):
         # Prepare region and models for subfield
         sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
         sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted
-        # TODO
-        # sm.remove('MajorAxis > 80')  # remove largest scales
+        sm.remove('MajorAxis > 80')  # remove largest scales
         subfield_reg = 'self/skymodel/subfield.reg'
         field_center, field_size = lib_dd.make_subfield_region(subfield_reg, MSs.getListObj()[0], sm, subfield_min_flux,
-                                                               debug_dir='self/skymodel')
+                                                               debug_dir='img/')
         with w.if_todo('extreg_preapre_c%02i' % c):
             # prepare model of central/external regions
             logger.info('Blanking central region of model files and reverse...')
@@ -421,13 +432,16 @@ for c in range(maxIter):
             s.run(check=True)
 
             # corrupt model with TEC+FR+Beam2ord solutions - ms:MODEL_DATA -> ms:MODEL_DATA
-            logger.info('Corrupt low-res model: TEC+Ph 1...')
-            MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                    cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
-                    log='$nameMS_corrupt.log', commandType='DP3')
-            MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                    cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=phase000 cor.invert=False',
-                    log='$nameMS_corrupt.log', commandType='DP3')
+            if phaseSolMode in ['tec', 'tecandphase']:
+                logger.info('Corrupt low-res model: TEC1...')
+                MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                        cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
+                        log='$nameMS_corrupt.log', commandType='DP3')
+            if phaseSolMode in ['phase', 'tecandphase']:
+                logger.info('Corrupt low-res model: ph1...')
+                MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                        cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=phase000 cor.invert=False',
+                        log='$nameMS_corrupt.log', commandType='DP3')
             # logger.info('Corrupt low-res model: TEC+Ph 2...')
             # MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
             #         cor.parmdb=self/solutions/cal-tec2-c'+str(c)+'.h5 cor.correction=tec000 cor.invert=False',
@@ -462,19 +476,21 @@ for c in range(maxIter):
         ### DONE
 
 with w.if_todo('final_correct'):
-    # correct model with TEC+Beam2ord solutions - ms:DATA -> ms:CORRECTED_DATA
+    # correct model with TEC+Beam2ord solutions - ms:FR_DATA -> ms:CORRECTED_DATA
     logger.info('Correct low-res model: G...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=FR_CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=FR_DATA msout.datacolumn=CORRECTED_DATA \
             cor.parmdb=self/solutions/cal-g-c{c}.h5 cor.correction=amplitudeSmooth',
             log='$nameMS_finalcor.log', commandType='DP3')
-    logger.info('Correct low-res model: TEC+Ph 1...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
+    if phaseSolMode in ['tec', 'tecandphase']:
+        logger.info('Correct low-res model: TEC1...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
             cor.parmdb=self/solutions/cal-tec1-c{c}.h5 cor.correction=tec000',
             log='$nameMS_finalcor.log', commandType='DP3')
-    if phaseSolMode == 'tecandphase':
+    if phaseSolMode in ['phase', 'tecandphase']:
+        logger.info('Correct low-res model: ph1...')
         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
-                cor.parmdb=self/solutions/cal-tec1-c{c}.h5 cor.correction=phase000',
-                log='$nameMS_finalcor.log', commandType='DP3')
+            cor.parmdb=self/solutions/cal-tec1-c{c}.h5 cor.correction=phase000',
+            log='$nameMS_finalcor.log', commandType='DP3')
     # logger.info('Correct low-res model: TEC+Ph 2...')
     # MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
     #         cor.parmdb=self/solutions/cal-tec2-c{c}.h5 cor.correction=tec000',
