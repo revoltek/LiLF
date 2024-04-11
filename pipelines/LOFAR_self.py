@@ -212,7 +212,7 @@ for c in range(maxIter):
         logger.info('Solving TEC1...')
         if phaseSolMode == 'phase': #phase
             # TODO optimize smoothnessconstraint
-            solver_params = f'sol.mode=scalarcomplexgain sol.smoothnessconstraint=2e6'
+            solver_params = f'sol.mode=scalarcomplexgain sol.smoothnessconstraint=2e6 sol.smoothnessreffrequency=54e6'
             losoto_parsets = [parset_dir+'/losoto-plot-scalar.parset']
         else: # TEC or TecAndPhase
             solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
@@ -476,9 +476,9 @@ for c in range(maxIter):
         ### DONE
 
 with w.if_todo('final_correct'):
-    # correct model with TEC+Beam2ord solutions - ms:FR_DATA -> ms:CORRECTED_DATA
+    # correct model with TEC+Beam2ord solutions - ms:FR_CORRECTED_DATA -> ms:CORRECTED_DATA
     logger.info('Correct low-res model: G...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=FR_DATA msout.datacolumn=CORRECTED_DATA \
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=FR_CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
             cor.parmdb=self/solutions/cal-g-c{c}.h5 cor.correction=amplitudeSmooth',
             log='$nameMS_finalcor.log', commandType='DP3')
     if phaseSolMode in ['tec', 'tecandphase']:
