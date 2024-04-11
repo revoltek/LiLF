@@ -253,7 +253,8 @@ if renameavg:
                         if demix_field_skymodel:
                             cmd += ' demix.targetsource=target demix.ignoretarget=False '
                         else:
-                            cmd += 'demix.ignoretarget=True demix.targetsource="" '
+                            logger.warning('You did not provide a target source. Using ignoretarget=False to deproject (not tested)')
+                            cmd += 'demix.ignoretarget=False demix.targetsource="" '
                         s.add(cmd, log=MS.nameMS+'_demix.log', commandType='DP3')
                         s.run(check=True, maxThreads=None)
 
