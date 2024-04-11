@@ -1,0 +1,20 @@
+Ncpu = 0
+
+[bkp]
+operation = DUPLICATE
+soltab = sol000/amplitude000
+soltabOut = amplitudeSmooth
+
+[replicate]
+operation = REPLICATEONAXIS
+soltab = sol000/amplitudeSmooth
+axisReplicate = ant
+fromCell = first
+
+[plotAsmooth]
+operation = PLOT
+soltab = sol000/amplitudeSmooth
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ampSmooth_

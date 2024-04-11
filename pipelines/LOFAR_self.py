@@ -200,12 +200,15 @@ for c in range(maxIter):
                     commandType='general')
     ### DONE
 
+    with w.if_todo('smooth_model_c%02i' % c):
+        MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i MODEL_DATA -o MODEL_DATA $pathMS',
+                log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
+    ### DONE
+
     with w.if_todo('solve_tec1_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         logger.info('BL-based smoothing...')
         MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
-                log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
-        MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i MODEL_DATA -o MODEL_DATA $pathMS',
                 log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
 
         # solve TEC - ms:SMOOTHED_DATA (1m 2SB)
@@ -267,13 +270,32 @@ for c in range(maxIter):
 
     # AMP DIE correction in last iteration
     if c == maxIter-1:
+        #with w.if_todo('solve_g_c%02i' % c):
+            # DIE Calibration - ms:CORRECTED_DATA (8m, 4SB)
+            #logger.info('Solving slow G...')
+            #MSs.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS sol.h5parm=$pathMS/g.h5 sol.solint='+str(120*base_solint)+' sol.nchan='+str(16*base_nchan),
+            #        log='$nameMS_solG-c'+str(c)+'.log', commandType='DP3')
+            #lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()],
+            #        [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-amp.parset'])
+            #os.system('mv plots-g-c'+str(c)+' self/plots/')
+            #os.system('mv cal-g-c'+str(c)+'.h5 self/solutions/')
+        ### DONE
+
+        #with w.if_todo('cor_g_c%02i' % c):
+        #    # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
+        #    logger.info('Correcting G...')
+        #    MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+        #            cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitudeSmooth',
+        #            log='$nameMS_corG-c'+str(c)+'.log', commandType='DP3')
+        ### DONE
+
         with w.if_todo('solve_g_c%02i' % c):
             # DIE Calibration - ms:CORRECTED_DATA (8m, 4SB)
-            logger.info('Solving slow G...')
-            MSs.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS sol.h5parm=$pathMS/g.h5 sol.solint='+str(120*base_solint)+' sol.nchan='+str(16*base_nchan),
+            logger.info('Solving slow G (full jones)...')
+            MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/g.h5 sol.solint='+str(120*base_solint)+' sol.nchan='+str(16*base_nchan),
                     log='$nameMS_solG-c'+str(c)+'.log', commandType='DP3')
             lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()],
-                    [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-amp.parset'])
+                    [parset_dir+'/losoto-plot-fullj.parset', parset_dir+'/losoto-bp.parset'])
             os.system('mv plots-g-c'+str(c)+' self/plots/')
             os.system('mv cal-g-c'+str(c)+'.h5 self/solutions/')
         ### DONE
@@ -282,7 +304,7 @@ for c in range(maxIter):
             # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
             logger.info('Correcting G...')
             MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                    cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitudeSmooth',
+                    cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phase000]',
                     log='$nameMS_corG-c'+str(c)+'.log', commandType='DP3')
         ### DONE
 
