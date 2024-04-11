@@ -387,9 +387,9 @@ for c in range(maxIter):
         with w.if_todo('lowres_subtract_c%02i' % c):
             # Permanently subtract low-res sidelobe model - SUBTRACTED_DATA = DATA - MODEL_DATA.
             # This could be done from DATA, but the we can't restart the pipeline as easily.
-            MSs.addcol('SUBTRACTED_DATA','FR_DATA')
-            logger.info('Subtracting low-res sidelobe model (SUBTRACTED_DATA = FR_DATA - MODEL_DATA)...')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = FR_DATA - MODEL_DATA"',
+            MSs.addcol('SUBTRACTED_DATA','FR_CORRECTED_DATA')
+            logger.info('Subtracting low-res sidelobe model (SUBTRACTED_DATA = FR_CORRECTED_DATA - MODEL_DATA)...')
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = FR_CORRECTED_DATA - MODEL_DATA"',
                     log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         ### DONE
 
@@ -464,7 +464,7 @@ for c in range(maxIter):
 with w.if_todo('final_correct'):
     # correct model with TEC+Beam2ord solutions - ms:DATA -> ms:CORRECTED_DATA
     logger.info('Correct low-res model: G...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=FR_DATA msout.datacolumn=CORRECTED_DATA \
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=FR_CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
             cor.parmdb=self/solutions/cal-g-c{c}.h5 cor.correction=amplitudeSmooth',
             log='$nameMS_finalcor.log', commandType='DP3')
     logger.info('Correct low-res model: TEC+Ph 1...')
