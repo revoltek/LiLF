@@ -21,6 +21,7 @@ parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_self'])))
 parset_dir = parset.get('LOFAR_self','parset_dir')
 subfield_min_flux = parset.getfloat('LOFAR_self','subfield_min_flux') # default 40 Jy
+subfield = parset.get('LOFAR_self','subfield') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
 maxIter = parset.getint('LOFAR_self','maxIter') # default = 2 (try also 3)
 phaseSolMode = parset.get('LOFAR_self', 'ph_sol_mode') # tecandphase, tec, phase
 sourcedb = parset.get('model','sourcedb')
@@ -92,8 +93,8 @@ else:
     bls_maxthreads = 8
 
 # set clean componet fit order (use 5 for large BW)
-bandwidth = MSs.getBandwidth()
-if bandwidth > 25e6: cc_fit_order = 5
+if MSs.getChout(4.e6) >= 7:  # Bandwidth of 28 MHz or more
+    cc_fit_order = 5
 else: cc_fit_order = 3
 
 fullband = MSs.getBandwidth()
@@ -431,6 +432,12 @@ for c in range(maxIter):
         sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
         sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted
         sm.remove('MajorAxis > 80')  # remove largest scales
+        # case manually provided
+        if subfield:
+            # TODO add manual subfield
+            subfield_reg = subfield
+            logger.error('Manual subfield not yet implemented')
+
         subfield_reg = 'self/skymodel/subfield.reg'
         field_center, field_size = lib_dd.make_subfield_region(subfield_reg, MSs.getListObj()[0], sm, subfield_min_flux,
                                                                debug_dir='img/')

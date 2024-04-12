@@ -105,9 +105,12 @@ class Image(object):
         """
         Set nan to 0 in all model images
         """
-        for modelimage in sorted(glob.glob(self.root+'*model*.fits')):
+        for modelimage in sorted(glob.glob(self.root + '*model*.fits')):
             with pyfits.open(modelimage, mode='update') as fits:
                 for hdu in fits:
+                    if np.isnan(hdu.data).any():
+                        print(f"Model image '{modelimage}' has NaN values.")
+                        logger.info(f"Model image '{modelimage}' has NaN values (NaN --> zeros)")
                     hdu.data[hdu.data != hdu.data] = 0
 
     # TODO: separate makemask (using breizorro) and makecat (using bdsf)
