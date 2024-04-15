@@ -157,9 +157,6 @@ if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 with w.if_todo('add_columns'):
     logger.info('Add columns...')
     # TODO using mix of ms.addcol and addcol2ms because ms.addcol does not work with non-data columns
-    # MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
-    # MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
-    # MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
     MSs.addcol('CORRECTED_DATA', 'DATA', log='$nameMS_addcol.log')
     MSs.addcol('SUBTRACTED_DATA', 'DATA', log='$nameMS_addcol.log')
     MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
@@ -731,7 +728,7 @@ for cmaj in range(maxIter):
     
     imagename = 'img/wideDD-c%02i' % (cmaj)
     maskname = imagename+'_mask.fits'
-    facetregname = 'ddcal/c%02i/solutions/wideDD-c%02i_facets.reg' % (cmaj, cmaj)
+    facetregname = 'ddcal/c%02i/images/wideDD-c%02i_facets.reg' % (cmaj, cmaj)
 
     # combine the h5parms
     h5parms = {'ph':[], 'amp1':[], 'amp2':[]}
@@ -819,7 +816,8 @@ for cmaj in range(maxIter):
                 multiscale='', multiscale_scale_bias=0.6, pol='i', dd_psf_grid='25 25', beam_size=15, cont=True,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=f'{interp_h5parm} {correct_for}')
  
-        os.system('mv %s*fits ddcal/c%02i/images' % (imagename, cmaj))
+        os.system('mv %s*MFS*fits %s-0*fits %s_mask.fits ddcal/c%02i/images' % (imagename, imagename, imagename, cmaj))
+
     ### DONE
 
     full_image = lib_img.Image('ddcal/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)

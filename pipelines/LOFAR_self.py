@@ -499,17 +499,17 @@ for c in range(maxIter):
 
 with w.if_todo('final_correct'):
     # correct model with TEC+Beam2ord solutions - ms:FR_CORRECTED_DATA -> ms:CORRECTED_DATA
-    logger.info('Correct low-res model: G...')
+    logger.info('Correcting G...')
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=FR_CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-            cor.parmdb=self/solutions/cal-g-c{c}.h5 cor.correction=amplitudeSmooth',
+            cor.parmdb=self/solutions/cal-g-c{c}.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phase000]',
             log='$nameMS_finalcor.log', commandType='DP3')
     if phaseSolMode in ['tec', 'tecandphase']:
-        logger.info('Correct low-res model: TEC1...')
+        logger.info('Correcting TEC1...')
         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
             cor.parmdb=self/solutions/cal-tec1-c{c}.h5 cor.correction=tec000',
             log='$nameMS_finalcor.log', commandType='DP3')
     if phaseSolMode in ['phase', 'tecandphase']:
-        logger.info('Correct low-res model: ph1...')
+        logger.info('Correcting ph1...')
         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
             cor.parmdb=self/solutions/cal-tec1-c{c}.h5 cor.correction=phase000',
             log='$nameMS_finalcor.log', commandType='DP3')
