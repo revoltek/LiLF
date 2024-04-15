@@ -70,7 +70,7 @@ h5_pa = cal_dir+'/cal-pa.h5'
 h5_bp = cal_dir+'/cal-bp.h5'
 h5_iono = cal_dir+'/cal-iono.h5'
 h5_iono_cs = cal_dir+'/cal-iono-cs.h5'
-if not os.path.exists(h5_pa) or not os.path.exists(h5_bp) or not os.path.exists(h5_iono):
+if not os.path.exists(h5_pa) or not os.path.exists(h5_bp) or not os.path.exists(h5_iono) or not os.path.exists(h5_iono_cs):
     logger.error("Missing solutions in %s" % cal_dir)
     sys.exit()
 

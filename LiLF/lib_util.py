@@ -20,6 +20,7 @@ else:
 import matplotlib as mpl
 mpl.use("Agg")
 
+from LiLF import lib_img
 from LiLF.lib_log import logger
 
 def getParset(parsetFile=''):
@@ -76,6 +77,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_timesplit', 'bp_fulljones', 'False') # TEST: whether to transfer time-dependent fulljones solutions from the calibrator
     # self
     add_default('LOFAR_self', 'maxIter', '2')
+    add_default('LOFAR_self', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
     add_default('LOFAR_self', 'subfield_min_flux', '40') # min flux within calibration subfield
     add_default('LOFAR_self', 'ph_sol_mode', 'tecandphase') # phase or tecandphase
     # dd
@@ -436,6 +438,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, **kwa
 
         # files (the original, not the concatenated)
         wsc_parms.append( MSs_files )
+        lib_img.Image(kwargs['name']).nantozeroModel() # If we have fully flagged channel, set to zero so we don't get error
+
         # Test without reorder as it apperas to be faster
         # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
         command_string = 'wsclean -predict -padding 1.8 ' \
