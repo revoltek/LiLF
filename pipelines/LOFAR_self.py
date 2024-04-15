@@ -420,11 +420,9 @@ for c in range(maxIter):
             #         log='$nameMS_corrupt.log', commandType='DP3')
 
         with w.if_todo('lowres_subtract_c%02i' % c):
-            # Permanently subtract low-res sidelobe model - SUBTRACTED_DATA = DATA - MODEL_DATA.
-            # This could be done from DATA, but the we can't restart the pipeline as easily.
-            MSs.addcol('SUBTRACTED_DATA','FR_CORRECTED_DATA')
-            logger.info('Subtracting low-res sidelobe model (SUBTRACTED_DATA = FR_CORRECTED_DATA - MODEL_DATA)...')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = FR_CORRECTED_DATA - MODEL_DATA"',
+            # Permanently subtract low-res sidelobe model - FR_CORRECTED_DATA = FR_CORRECTED_DATA - MODEL_DATA.
+            logger.info('Subtracting low-res sidelobe model (FR_CORRECTED_DATA = FR_CORRECTED_DATA - MODEL_DATA)...')
+            MSs.run('taql "update $pathMS set FR_CORRECTED_DATA = FR_CORRECTED_DATA - MODEL_DATA"',
                     log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         ### DONE
 
@@ -483,10 +481,10 @@ for c in range(maxIter):
             #         cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=amplitudeSmooth cor.invert=False',
             #         log='$nameMS_corrupt.log', commandType='DP3')
 
-            # subtract external region from SUBTRACTED_DATA (sidelobe subtracted) to create SUBFIELD_DATA
-            MSs.addcol('SUBFIELD_DATA','SUBTRACTED_DATA')
-            logger.info('Subtracting external region model (SUBFIELD_DATA = SUBTRACTED_DATA - MODEL_DATA)...')
-            MSs.run('taql "update $pathMS set SUBFIELD_DATA = SUBTRACTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+            # subtract external region from FR_CORRECTED_DATA (sidelobe subtracted) to create SUBFIELD_DATA
+            MSs.addcol('SUBFIELD_DATA','FR_CORRECTED_DATA')
+            logger.info('Subtracting external region model (SUBFIELD_DATA = FR_CORRECTED_DATA - MODEL_DATA)...')
+            MSs.run('taql "update $pathMS set SUBFIELD_DATA = FR_CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
         ### DONE
         
         with w.if_todo('flag_c%02i' % c):
@@ -541,7 +539,7 @@ with w.if_todo('imaging-pol'):
         parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500,
         join_channels='', channels_out=MSs.getChout(4.e6))
 
-MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN SUBFIELD_DATA, SUBTRACTED_DATA, FR_CORRECTED_DATA"',
+MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN SUBFIELD_DATA, FR_CORRECTED_DATA"',
         log='$nameMS_taql_delcol.log', commandType='general')
 
 # Copy images
