@@ -184,7 +184,7 @@ for cmaj in range(maxIter):
         directions = []
 
         # making skymodel from image
-        full_image.makeMask(threshpix=5, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
+        full_image.makeMask(threshpix=4, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
         
         # locating DD-calibrators
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
@@ -205,6 +205,12 @@ for cmaj in range(maxIter):
         os.system('mv grouping*png ddcal/c%02i/plots/' % cmaj)
         img_beam = full_image.getBeam()
 
+        # reorder clusters based on flux
+        fluxes = []
+        for cluster_num, cluster_idxs in enumerate(clusters):
+            fluxes.append(np.sum(cal['Total_flux'][cluster_idxs]))
+        clusters = [x for _,x in sorted(zip(fluxes,clusters))][::-1]
+
         logger.info('Finding direction calibrators...')
         for cluster_num, cluster_idxs in enumerate(clusters):
             name = 'ddcal%04i' % cluster_num
@@ -218,11 +224,15 @@ for cmaj in range(maxIter):
                 pass
             continue_i = ContinueI()
             try:
+                good_flux = 0
                 for subcal in cal[cluster_idxs]:
-                    if (subcal['Flux_ratio'] > 4) and (subcal['Total_flux'] > 0.2*fluxes):
-                        logger.debug("%s: found extended source (skip)" % (name))
-                        cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
-                        raise continue_i
+                    if (subcal['Flux_ratio'] < 5):
+                        good_flux += subcal['Total_flux'] 
+                
+                if good_flux < 0.7*fluxes:
+                    logger.debug("%s: found extended source compact flux: %.0f%% (skip)" % (name,100*good_flux/fluxes))
+                    cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
+                    raise continue_i
             except ContinueI:
                 continue
 
@@ -324,15 +334,36 @@ for cmaj in range(maxIter):
                     log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
             s.run(check=True)
     ### DONE
-    
+
+    if cmaj > 0:
+        with w.if_todo('c%02i-fulljsol' % cmaj):
+            logger.info('Solving slow G (full jones)...')
+            MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/g.h5 sol.solint=10 sol.nchan=16',
+                    log='$nameMS_solG-c%02i.log' % cmaj, commandType='DP3')
+            lib_util.run_losoto(s, 'g-c%02i' % cmaj, [MS+'/g.h5' for MS in MSs.getListStr()],
+                    [parset_dir+'/losoto-plot-fullj.parset', parset_dir+'/losoto-bp.parset'])
+            os.system('mv plots-g-c%02i ddcal/c%02i/plots/' % (cmaj, cmaj))
+            os.system('mv cal-g-c%02i.h5 ddcal/c%02i/solutions/' % (cmaj, cmaj))
+        ### DONE
+
+            with w.if_todo('c%02i-fulljcor' % cmaj):
+                # correct G - group*_TC.MS:DATA -> group*_TC.MS:CORRECTED_DATA
+                logger.info('Correcting G...')
+                MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA \
+                    cor.parmdb=ddcal/c%02i/solutions/cal-g-c%02i.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phase000]' % (cmaj, cmaj),
+                    log='$nameMS_corG-c%02i.log' % cmaj, commandType='DP3')
+            ### DONE
+
+
     with w.if_todo('c%02i-fullsub' % cmaj):
-        # subtract - ms:SUBTRACTED_DATA = DATA - MODEL_DATA
-        logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"',
+        if cmaj == 0:
+            # first cycle no corrections - ms:CORRECTED_DATA = DATA
+            logger.info('Set CORRECTED_DATA = DATA...')
+            MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"',
                     log='$nameMS_taql.log', commandType='general')
-        # reset - ms:CORRECTED_DATA = DATA
-        logger.info('Set CORRECTED_DATA = DATA...')
-        MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"',
+        # subtract - ms:SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA
+        logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
                     log='$nameMS_taql.log', commandType='general')
 
         ### TESTTESTTEST: empty image
@@ -437,7 +468,7 @@ for cmaj in range(maxIter):
         iter_ph_solint = lib_util.Sol_iterator([8, 4, 1])  # 32 or 16 or 8 * [8,4,1] s
         iter_amp_solint = lib_util.Sol_iterator([30, 20, 10])  # 32 or 16 or 8 * [30,20,10] s
         iter_amp2_solint = lib_util.Sol_iterator([120, 60])
-        iter_ph_soltype = 'scalarphase' if d.get_flux(freq_mid) < 5 else 'diagonalphase'
+        iter_ph_soltype = 'scalarphase' if (d.get_flux(freq_mid) < 5 and cmaj != 0) else 'diagonalphase'
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
         logger.info('MM ratio (init): %f' % (mm_ratio_pre))
 
@@ -558,14 +589,14 @@ for cmaj in range(maxIter):
                        logger.debug('BREAK ddcal self cycle with noise: %f, noise_pre: %f, mmratio: %f, mmratio_pre: %f' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
                        break
 
-            if cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or d.get_flux(freq_mid) > 5) and solve_amp:
+            if cmaj > 0 and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or d.get_flux(freq_mid) > 5) and solve_amp:
                 logger.debug('START AMP WITH MODE 1 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
             # correct more amp in the outskirts
-            elif d.dist_from_centre >= fwhm/4. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 25) or d.get_flux(freq_mid) > 3) and solve_amp:
+            elif cmaj > 0 and d.dist_from_centre >= fwhm/4. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 25) or d.get_flux(freq_mid) > 3) and solve_amp:
                 logger.debug('START AMP WITH MODE 2 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
-            elif d.dist_from_centre >= fwhm/2. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 20) or d.get_flux(freq_mid) > 2) and solve_amp:
+            elif cmaj > 0 and d.dist_from_centre >= fwhm/2. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 20) or d.get_flux(freq_mid) > 2) and solve_amp:
                 logger.debug('START AMP WITH MODE 3 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
 
@@ -577,7 +608,9 @@ for cmaj in range(maxIter):
         ##################################
 
         # if died the first cycle or diverged
-        if cdd == 0 or rms_noise_pre*0.98 > rms_noise_init:
+        if cdd == 0 or (rms_noise_pre > rms_noise_init) or \
+            ((rms_noise_pre*2 > rms_noise_init) and (mm_ratio_pre/2 < mm_ratio_init)):
+            
             d.converged = False
             logger.warning('%s: something went wrong during the first self-cal cycle or noise did not decrease.' % (d.name))
             d.clean()
@@ -587,6 +620,7 @@ for cmaj in range(maxIter):
                 MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
                         log='$nameMS_taql.log', commandType='general')
             ### DONE
+
         # converged
         else:
             d.converged = True
@@ -814,7 +848,7 @@ for cmaj in range(maxIter):
     ### DONE
 
     full_image = lib_img.Image('ddcal/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
-    min_cal_flux60 *= 0.8  # go a bit deeper
+    min_cal_flux60 *= 0.6  # go deeper
 
 ##############################################################################################################
 ### Calibration finished - additional images with scientific value
