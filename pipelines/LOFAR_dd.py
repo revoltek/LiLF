@@ -468,7 +468,7 @@ for cmaj in range(maxIter):
         iter_ph_solint = lib_util.Sol_iterator([8, 4, 1])  # 32 or 16 or 8 * [8,4,1] s
         iter_amp_solint = lib_util.Sol_iterator([30, 20, 10])  # 32 or 16 or 8 * [30,20,10] s
         iter_amp2_solint = lib_util.Sol_iterator([120, 60])
-        iter_ph_soltype = 'scalarphase' if d.get_flux(freq_mid) < 5 else 'diagonalphase'
+        iter_ph_soltype = 'scalarphase' if (d.get_flux(freq_mid) < 5 and cmaj != 0) else 'diagonalphase'
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
         logger.info('MM ratio (init): %f' % (mm_ratio_pre))
 
