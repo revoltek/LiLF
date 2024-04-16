@@ -479,13 +479,14 @@ with w.if_todo('final_correct'):
     #MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=FR_CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
     #        cor.parmdb=self/solutions/cal-g-c{c}.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phase000]',
     #        log='$nameMS_finalcor.log', commandType='DP3')
+    MSs.run('taql "update $pathMS set CORRECTED_DATA = FR_CORRECTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
     if phaseSolMode in ['tec', 'tecandphase']:
-        logger.info('Correcting TEC1...')
+        logger.info('Correcting TEC...')
         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
             cor.parmdb=self/solutions/cal-tec1-c{c}.h5 cor.correction=tec000',
             log='$nameMS_finalcor.log', commandType='DP3')
     if phaseSolMode in ['phase', 'tecandphase']:
-        logger.info('Correcting ph1...')
+        logger.info('Correcting ph...')
         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
             cor.parmdb=self/solutions/cal-tec1-c{c}.h5 cor.correction=phase000',
             log='$nameMS_finalcor.log', commandType='DP3')
