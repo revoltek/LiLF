@@ -5,14 +5,6 @@ operation = DUPLICATE
 soltab = sol000/amplitude000
 soltabOut = amplitudeSmooth
 
-[duplicateP]
-operation = DUPLICATE
-soltab = sol000/phase000
-soltabOut = phaseNull
-
-[reset]
-operation = RESET
-soltab = sol000/phaseNull 
 
 [smooth]
 operation = SMOOTH
@@ -21,12 +13,6 @@ pol = XX, YY
 axesToSmooth = [time]
 mode = median
 log = True
-
-[reset2]
-operation = RESET
-pol = XY,YX
-soltab = sol000/amplitudeSmooth 
-dataVal = 0
 
 [plotAs]
 operation = PLOT
