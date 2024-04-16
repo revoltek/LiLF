@@ -472,10 +472,8 @@ for cmaj in range(maxIter):
                 d.add_h5parm('amp2', None )
    
             with w.if_todo('%s-calibrate' % logstringcal):
-                logger.info('BL-based smoothing...')
                 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
-                MSs_dir.run('BLsmooth.py -r -i DATA -o SMOOTHED_DATA $pathMS',
-                            log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')
+                MSs_dir.run_Blsmooth(logstr=f'smooth-{logstringcal}')
 
                 # Calibration - ms:SMOOTHED_DATA
                 logger.info('Gain phase1 calibration (solint: %i)...' % solint_ph)
@@ -493,11 +491,8 @@ for cmaj in range(maxIter):
                              log='$nameMS_correct-'+logstringcal+'.log', commandType='DP3')
                 
                 if doamp:
-
-                    logger.info('BL-based smoothing...')
                    # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
-                    MSs_dir.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
-                            log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')
+                    MSs_dir.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-{logstringcal}')
 
                     logger.info('Gain amp calibration 1 (solint: %i, solch: %i)...' % (solint_amp1, solch_amp1))
                     # Calibration - ms:CORRECTED_DATA
@@ -521,10 +516,8 @@ for cmaj in range(maxIter):
                         cor.parmdb='+d.get_h5parm('amp1')+' cor.correction=amplitude000',
                         log='$nameMS_correct-'+logstringcal+'.log', commandType='DP3')
 
-                    logger.info('BL-based smoothing...')
                    # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
-                    MSs_dir.run('BLsmooth.py -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
-                            log='$nameMS_smooth-'+logstringcal+'.log', commandType='python')
+                    MSs_dir.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-{logstringcal}')
 
                     logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
                     # Calibration - ms:CORRECTED_DATA
