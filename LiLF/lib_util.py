@@ -82,7 +82,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_self', 'ph_sol_mode', 'tecandphase') # phase or tecandphase
     # dd
     add_default('LOFAR_dd', 'maxIter', '2')
-    add_default('LOFAR_dd', 'minCalFlux60', '1')
+    add_default('LOFAR_dd', 'minCalFlux60', '0.8')
     add_default('LOFAR_dd', 'solve_amp', 'True') # to disable amp sols
     # add_default('LOFAR_dd', 'removeExtendedCutoff', '0.0005')
     add_default('LOFAR_dd', 'target_dir', '') # ra,dec

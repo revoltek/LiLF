@@ -9,16 +9,16 @@ soltabOut = amplitudeSmooth
 #operation = RESET
 #soltab = sol000/phase000
 
-#[replicate]
-#operation = REPLICATEONAXIS
-#soltab = sol000/amplitudeSmooth
-#axisReplicate = ant
-#fromCell = first
+[replicate]
+operation = REPLICATEONAXIS
+soltab = sol000/amplitudeSmooth
+axisReplicate = ant
+fromCell = first
 
-#[plotAsmooth]
-#operation = PLOT
-#soltab = sol000/amplitudeSmooth
-#axesInPlot = [time,freq]
-#axisInTable = ant
-#plotFlag = True
-#prefix = plots/ampSmooth_
+[plotAsmooth]
+operation = PLOT
+soltab = sol000/amplitudeSmooth
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ampSmooth_

@@ -184,7 +184,7 @@ for cmaj in range(maxIter):
         directions = []
 
         # making skymodel from image
-        full_image.makeMask(threshpix=5, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
+        full_image.makeMask(threshpix=4, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
         
         # locating DD-calibrators
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
@@ -205,6 +205,12 @@ for cmaj in range(maxIter):
         os.system('mv grouping*png ddcal/c%02i/plots/' % cmaj)
         img_beam = full_image.getBeam()
 
+        # reorder clusters based on flux
+        fluxes = []
+        for cluster_num, cluster_idxs in enumerate(clusters):
+            fluxes.append(np.sum(cal['Total_flux'][cluster_idxs]))
+        clusters = [x for _,x in sorted(zip(fluxes,clusters))][::-1]
+
         logger.info('Finding direction calibrators...')
         for cluster_num, cluster_idxs in enumerate(clusters):
             name = 'ddcal%04i' % cluster_num
@@ -218,11 +224,15 @@ for cmaj in range(maxIter):
                 pass
             continue_i = ContinueI()
             try:
+                good_flux = 0
                 for subcal in cal[cluster_idxs]:
-                    if (subcal['Flux_ratio'] > 4) and (subcal['Total_flux'] > 0.2*fluxes):
-                        logger.debug("%s: found extended source (skip)" % (name))
-                        cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
-                        raise continue_i
+                    if (subcal['Flux_ratio'] < 5):
+                        good_flux += subcal['Total_flux'] 
+                
+                if good_flux < 0.7*fluxes:
+                    logger.debug("%s: found extended source compact flux: %.0f%% (skip)" % (name,100*good_flux/fluxes))
+                    cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
+                    raise continue_i
             except ContinueI:
                 continue
 
