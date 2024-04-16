@@ -174,6 +174,58 @@ class AllMSs(object):
             self.run(f'DP3 msin=$pathMS msin.datacolumn={fromcol} msout=. msout.datacolumn={newcol} \
                      msout.storagemanager={sm} steps=[]', log=log, commandType="DP3")
 
+    def run_Blsmooth(self, incol='DATA', outcol='SMOOTHED_DATA', ionf='auto',  notime=False, nofreq=False, logstr='smooth'):
+        """
+        Execute BLsmooth incol-> outcol on a group of MSs in a way that tries to maximise resource efficiency.
+
+        Parameters
+        ----------
+        ionf: float, ionofactor. Indicator of ionosphere strength,
+            default='auto' -> 0.2e-3 for IS, else 1e-3
+        incol: str, input column name. Default: 'DATA'
+        outcol: str, output column name. Default: 'SMOOTHED_DATA'
+        notime: bool, do not smooth in time?
+        nofreq: bool, do not smooth in freq?
+        logstr: str, logfile name suffix. Default: 'smooth'.
+        """
+
+        if ionf == 'auto': ionf = .2e-3 if self.hasIS else 1e-3
+
+        # if multiple MSs - parallelize on MSs before adding chunks
+        n_ms = len(self.getListObj())
+        maxthreads = min([n_ms, 8])
+        # possibly, we need to reduce the maxthreads for IS observations? Let's see.
+        # if self.hasIS:
+        #     maxthreads = 1
+
+        # calculate the "size" of a single MS (~times*freq*BL). We assume that all MSs have the same size here.
+        ms_size = self.mssListObj[0].getNtime() # N_times
+        ms_size *= self.mssListObj[0].getNchan() # N_chan
+        ms_size *= len(self.mssListObj[0].getAntennas())*(len(self.mssListObj[0].getAntennas())-1)/2 # N_BL
+
+        # normalize by 1h dutch BL with 8chan/122SB/4s
+        reference_size = 900 * 976 * 38*37/2
+        # of such a ref MS, we can run 8 threads / 4 chunks in parallel
+        # TODO: If this runs out of memory, we need to increase the prefactor (4) below
+        chunks = 4 * ms_size / reference_size
+        # if we have less than 8 threads, we can also reduce the number of chunks
+        chunks *= maxthreads/8
+        # make sure chunks >= 1 and integer
+        if chunks < 1: chunks = 1
+        chunks = int(np.round(chunks))
+
+        ncpu = int(np.rint(self.scheduler.max_processors / maxthreads))  # cpu max_proc / threads
+
+        extra_flags = ''
+        if notime: extra_flags += ' -t'
+        if nofreq: extra_flags += ' -q'
+
+        logger.info(f'BL-smooth: chunks={chunks}; ncpu={ncpu}; threads={maxthreads}...')
+        self.run(f'BLsmooth.py -c {chunks} -n {ncpu} -f {ionf} -r -i {incol} -o {outcol} {extra_flags} $pathMS',
+                log=f'$nameMS_{logstr}.log', commandType='python', maxThreads=maxthreads)
+
+
+
     def print_HAcov(self, png=None):
         """
         some info on the MSs

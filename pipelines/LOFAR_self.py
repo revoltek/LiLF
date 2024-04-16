@@ -4,9 +4,9 @@
 # perform self-calibration on a group of SBs concatenated in TCs.
 # they need to be in "./mss/"
 
-import sys, os, glob, re
+import sys, os, glob
 import numpy as np
-import casacore.tables as pt
+from regions import Regions
 import lsmtool
 from astropy.coordinates import Angle
 
@@ -81,16 +81,6 @@ beamReg = 'self/beam.reg'
 imgsizepix_wide = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/4.)
 imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/30.)
 imgsizepix_p = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/10.)
-
-# set BLsmooth params
-if MSs.hasIS:
-    bls_chunks = 16
-    bls_ncpu = s.max_processors
-    bls_maxthreads = 1
-else:
-    bls_chunks = min([len(MSs.getListObj()),8]) # number of chunks increses with MSs with a max of 8
-    bls_ncpu = int(np.rint(s.max_processors/min([len(MSs.getListObj()), 8]))) # cpu max_proc / N_MSs
-    bls_maxthreads = 8
 
 # set clean componet fit order (use 5 for large BW)
 if MSs.getChout(4.e6) >= 7:  # Bandwidth of 28 MHz or more
@@ -202,15 +192,13 @@ for c in range(maxIter):
     ### DONE
 
     with w.if_todo('smooth_model_c%02i' % c):
-        MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i MODEL_DATA -o MODEL_DATA $pathMS',
-                log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
+        # Smooth MODEL_DATA -> MODEL_DATA
+        MSs.run_Blsmooth('MODEL_DATA', 'MODEL_DATA', logstr=f'smooth-c{c}')
     ### DONE
 
     with w.if_todo('solve_tec1_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-        logger.info('BL-based smoothing...')
-        MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
-                log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
+        MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
 
         # solve ionosphere phase - ms:SMOOTHED_DATA (1m 2SB)
         logger.info('Solving TEC1...')
@@ -251,9 +239,7 @@ for c in range(maxIter):
 
     # with w.if_todo('solve_tec2_c%02i' % c):
     #     # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-    #     logger.info('BL-based smoothing...')
-    #     MSs.run(f'BLsmooth.py -c {bls_chunks} -n {bls_ncpu} -f {.2e-3 if MSs.hasIS else 1e-3} -r -i CORRECTED_DATA -o SMOOTHED_DATA $pathMS',
-    #             log='$nameMS_smooth-c'+str(c)+'.log', commandType='python', maxThreads=bls_maxthreads)
+    #     MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
     #
     #     # solve TEC - ms:SMOOTHED_DATA (4s, 1SB)
     #     logger.info('Solving TEC2...')
@@ -427,29 +413,33 @@ for c in range(maxIter):
         ### DONE
 
         # Prepare region and models for subfield
-        sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
-        sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted
-        sm.remove('MajorAxis > 80')  # remove largest scales
-        # case manually provided
         if subfield:
-            # TODO add manual subfield
-            subfield_reg = subfield
-            logger.error('Manual subfield not yet implemented')
+            subfield_path = subfield
+            if len(Regions.read(subfield_path)) > 1:
+                raise ValueError(f'Manual subfield region {subfield} contains more than one region')
+        else:
+            subfield_path = 'self/skymodel/subfield.reg'
 
-        subfield_reg = 'self/skymodel/subfield.reg'
-        field_center, field_size = lib_dd.make_subfield_region(subfield_reg, MSs.getListObj()[0], sm, subfield_min_flux,
-                                                               debug_dir='img/')
         with w.if_todo('extreg_preapre_c%02i' % c):
+            if not subfield: # automatically find subfield
+                sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
+                sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted
+                sm.remove('MajorAxis > 80')  # remove largest scales
+                field_center1, field_size1 = lib_dd.make_subfield_region(subfield_path, MSs.getListObj()[0], sm,
+                                                                         subfield_min_flux, debug_dir='img/')
             # prepare model of central/external regions
             logger.info('Blanking central region of model files and reverse...')
             for im in glob.glob('img/wideM-0*model.fits'):
                 wideMint = im.replace('wideM','wideMint')
                 os.system('cp %s %s' % (im, wideMint))
-                lib_img.blank_image_reg(wideMint, subfield_reg, blankval = 0., inverse=True)
+                lib_img.blank_image_reg(wideMint, subfield_path, blankval = 0., inverse=True)
                 wideMext = im.replace('wideM','wideMext')
                 os.system('cp %s %s' % (im, wideMext))
-                lib_img.blank_image_reg(wideMext, subfield_reg, blankval = 0.)
+                lib_img.blank_image_reg(wideMext, subfield_path, blankval = 0.)
         # DONE
+        subfield_reg = Regions.read(subfield_path)[0]
+        field_center = subfield_reg.center.ra.deg, subfield_reg.center.dec.deg
+        field_size = np.max([subfield_reg.width.to_value('deg'), subfield_reg.height.to_value('deg')])
 
         with w.if_todo('extreg_predict_corrupt_subtract_c%02i' % c):
             # Recreate MODEL_DATA of external region for subtraction
