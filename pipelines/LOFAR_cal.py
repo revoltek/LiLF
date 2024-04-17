@@ -293,10 +293,6 @@ with w.if_todo('cal_bp'):
     logger.info('Beam correction...')
     MSs_concat_all.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False', 
                            log='$nameMS_beam.log', commandType="DP3")
-    # # Correct FR concat_all-phaseup.MS:CORRECTED_DATA -> CORRECTED_DATA
-    # logger.info('Faraday rotation correction...')
-    # MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cat cor.parmdb=cal-fr.h5 \
-    #                cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
     # Corrupt FR concat_all-phaseup.MS:MODEL_DATA -> MODEL_DATA
     logger.info('Faraday rotation corruption (MODEL_DATA)...')
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
@@ -316,16 +312,13 @@ with w.if_todo('cal_bp'):
     logger.info('Calibrating BP...')
     freqstep = nchan  # brings down to 1ch/sb for
     timestep = int(np.rint(60 / tint))  # brings down to 60s
-    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS\
-            sol.h5parm=$pathMS/bp.h5 sol.mode=fulljones \
-            sol.solint='+str(timestep)+' sol.nchan='+str(freqstep),
-            log='$nameMS_solBP.log', commandType="DP3")
-    
+    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/bp.h5 sol.mode=diagonalamp \
+            sol.solint='+str(timestep)+' sol.nchan='+str(freqstep), log='$nameMS_solBP.log', commandType="DP3")
+
     lib_util.run_losoto(s, 'bp', [ms + '/bp.h5' for ms in MSs_concat_all.getListStr()],
-                        [parset_dir + '/losoto-flag.parset', parset_dir + '/losoto-plot-fullj.parset',
-                         parset_dir + '/losoto-bp.parset', parset_dir + '/losoto-flagstations.parset'])
+                        [parset_dir + '/losoto-flag.parset', parset_dir + '/losoto-bp.parset'])
 ### DONE
-    
+
 if debugplots:
     # we need to predict again since we corrupted the MODEL_DATA (we could also correct the model again or give the corrupted model a new name)
     logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
@@ -438,8 +431,6 @@ with w.if_todo('compressing_h5'):
     # s.run()
     s.add('losoto -d sol000/amplitudeRes cal-bp.h5', log='losoto-final.log', commandType="python")
     s.run()
-    # s.add('losoto -d sol000/phase000 cal-bp.h5', log='losoto-final.log', commandType="python")
-    # s.run()
     os.system('h5repack cal-bp.h5 cal-bp-compressed.h5; mv cal-bp-compressed.h5 cal-bp.h5')
 
     s.add('losoto -d sol000/phase_offset000 cal-iono-cs.h5', log='losoto-final.log', commandType="python")
@@ -458,13 +449,32 @@ with w.if_todo('compressing_h5'):
 
 # a debug image
 if imaging:
+    with w.if_todo('cal_leakage'):
+        # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('BP correction...')
+        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp.h5 \
+            cor.correction=amplitudeSmooth  cor.updateweights=True', log='$nameMS_corBP.log', commandType="DP3")
+
+        # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+        # unclear if we should smooth here
+        MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth3')  # now we can also smooth in time
+
+        # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+        logger.info('Calibrating Leakage...')
+        timestep = int(np.rint(60 / tint))  # brings down to 60s
+        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/fj.h5 sol.mode=fulljones \
+                sol.solint=' + str(timestep) + ' sol.nchan=' + str(nchan), log='$nameMS_solFJ.log',
+                           commandType="DP3")
+
+        lib_util.run_losoto(s, 'fj', [ms + '/fj.h5' for ms in MSs_concat_all.getListStr()],
+                            [parset_dir + '/losoto-plot-fulljones.parset'])
 
     with w.if_todo('cal_imaging'):
 
         # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
-        logger.info('BP correction...')
-        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp.h5 \
-            cor.correction=fulljones cor.soltab=[amplitudeSmooth,phaseNull] cor.updateweights=True',
+        logger.info('Leakage correction...')
+        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fj.h5 \
+            cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.updateweights=False', # do we need to updateweights?
                            log='$nameMS_corBP.log', commandType="DP3")
 
         # Correct FR concat_all-phaseup.MS:CORRECTED_DATA -> CORRECTED_DATA
