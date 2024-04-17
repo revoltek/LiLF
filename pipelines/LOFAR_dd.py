@@ -329,7 +329,7 @@ for cmaj in range(maxIter):
             s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
                     -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                     -facet-regions '+facetregname+' -diagonal-solutions \
-                    -apply-facet-solutions '+interp_h5parm_old+' amplitude000,phase000 \
+                    -apply-facet-solutions '+interp_h5parm_old+' '+correct_for+' \
                     -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                     log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
             s.run(check=True)
