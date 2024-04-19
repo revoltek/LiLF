@@ -329,7 +329,7 @@ for cmaj in range(maxIter):
             s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
                     -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                     -facet-regions '+facetregname+' -diagonal-solutions \
-                    -apply-facet-solutions '+interp_h5parm_old+' amplitude000,phase000 \
+                    -apply-facet-solutions '+interp_h5parm_old+' '+correct_for+' \
                     -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                     log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
             s.run(check=True)
@@ -397,7 +397,7 @@ for cmaj in range(maxIter):
                 s.add('wsclean -predict -padding 1.8 -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
                     -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                     -facet-regions '+full_image.root+'_facets.reg -diagonal-solutions \
-                    -apply-facet-solutions '+interp_h5parm_old+' amplitude000,phase000 \
+                    -apply-facet-solutions '+interp_h5parm_old+' '+correct_for+' \
                     -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                     log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
                 s.run(check=True)
@@ -608,8 +608,7 @@ for cmaj in range(maxIter):
         ##################################
 
         # if died the first cycle or diverged
-        if cdd == 0 or (rms_noise_pre > rms_noise_init) or \
-            ((rms_noise_pre*2 > rms_noise_init) and (mm_ratio_pre/2 < mm_ratio_init)):
+        if cdd == 0 or ((rms_noise_pre > rms_noise_init) and (mm_ratio_pre/2 < mm_ratio_init)):
             
             d.converged = False
             logger.warning('%s: something went wrong during the first self-cal cycle or noise did not decrease.' % (d.name))
