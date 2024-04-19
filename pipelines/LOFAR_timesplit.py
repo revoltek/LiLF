@@ -59,7 +59,8 @@ if cal_dir == '':
         logger.error('Cannot find solutions.')
         sys.exit()
 else:
-    cal_dir = '../'+cal_dir
+    if not cal_dir[0] == '/': # if not abolute path
+        cal_dir = '../'+cal_dir
     # cal_dir can either be a path to the directory containing multiple calibrator observation or one specifies an exact directory.
     subdirs = glob.glob(f'{cal_dir}/id{obsid}_-_*3[c|C]196')+glob.glob(f'{cal_dir}/id{obsid}_-_*3[c|C]295')+glob.glob(f'{cal_dir}/id{obsid}_-_*3[c|C]380')
     if len(subdirs) > 0:
@@ -101,8 +102,11 @@ with w.if_todo('apply'):
                 log='$nameMS_corBP.log', commandType="DP3")
     else:
         logger.info('BP correction...')
+        # MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb='+h5_bp+' msin.datacolumn=CORRECTED_DATA \
+        #             cor.correction=fulljones cor.soltab=[amplitudeSmooth,phaseNull] cor.updateweights=True',
+        #         log='$nameMS_corBP.log', commandType="DP3")
         MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb='+h5_bp+' msin.datacolumn=CORRECTED_DATA \
-                    cor.correction=fulljones cor.soltab=[amplitudeSmooth,phaseNull] cor.updateweights=True',
+                    cor.correction=amplitudeSmooth cor.updateweights=True',
                     log='$nameMS_corBP.log', commandType="DP3")
 
 ### DONE
