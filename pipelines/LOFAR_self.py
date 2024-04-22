@@ -204,8 +204,8 @@ for c in range(maxIter):
         # solve ionosphere phase - ms:SMOOTHED_DATA (1m 2SB)
         logger.info('Solving TEC1...')
         if phaseSolMode == 'phase': #phase
-            # TODO optimize smoothnessconstraint
-            solver_params = f'sol.mode=scalarcomplexgain sol.smoothnessconstraint=2e6 sol.smoothnessreffrequency=54e6'
+            # TODO optimize smoothnessconstraint 2e6 -> 1e6
+            solver_params = f'sol.mode=scalarcomplexgain sol.smoothnessconstraint=1e6 sol.smoothnessreffrequency=54e6'
             losoto_parsets = [parset_dir+'/losoto-plot-scalar.parset']
         else: # TEC or TecAndPhase
             solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
