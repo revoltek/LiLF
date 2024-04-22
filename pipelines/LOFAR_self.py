@@ -30,12 +30,12 @@ userReg = parset.get('model','userReg')
 
 #############################################################################
 
-def clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_kwargs):
+def clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_kwargs, do_predict=True):
     """ Do normal (hres) imaging of the self-calibrated data. """
-    lib_util.run_wsclean(s, 'wscleanM-c' + str(c) + '.log', MSsClean.getStrWsclean(),
+    lib_util.run_wsclean(s, 'wscleanM-c' + str(c) + '.log', MSsClean.getStrWsclean(), concat_mss=True,
                          name=imagenameM, save_source_list='', size=imgsizepix, scale='4arcsec',
                          weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
-                         parallel_gridding=8, baseline_averaging='', mgain=0.8,
+                         parallel_gridding=6, baseline_averaging='', mgain=0.8,
                          parallel_deconvolution=1024, auto_mask=5, auto_threshold=3., join_channels='',
                          fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6), multiscale='',
                          multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order, **subfield_kwargs)
@@ -43,12 +43,13 @@ def clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_
     os.system('cat ' + logger_obj.log_dir + '/wscleanM-c' + str(c) + '.log | grep "background noise"')
 
     # when wasclean allow station selection, then we can remove MSsClean and this predict can go in the previous call with do_predict=True
-    logger.info('Predict model...')
-    pred_str = f'wsclean -predict -padding 1.8 -name img/wideM-{c} -j {s.max_processors} -channels-out {MSs.getChout(4e6)}'
-    if 'shift' in subfield_kwargs:
-        pred_str += f' -shift {shift}'
-    s.add(f'{pred_str} {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
-    s.run(check=True)
+    if do_predict:
+        logger.info('Predict model...')
+        pred_str = f'wsclean -predict -padding 1.8 -name img/wideM-{c} -j {s.max_processors} -channels-out {MSs.getChout(4e6)}'
+        if 'shift' in subfield_kwargs:
+            pred_str += f' -shift {shift}'
+        s.add(f'{pred_str} {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
+        s.run(check=True)
 
 # Clear
 with w.if_todo('cleaning'):
@@ -500,7 +501,7 @@ with w.if_todo('final_correct'):
 ### DONE
 
 with w.if_todo('imaging-final'):
-    clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_kwargs)
+    clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_kwargs, do_predict=False)
 
 # polarisation imaging
 with w.if_todo('imaging-pol'):

@@ -334,7 +334,6 @@ class MS(object):
         self.pathDirectory = self.pathMS[ : indexLastSlash]
         self.nameMS        = self.pathMS[indexLastSlash + 1 : -3]
 
-
     def move(self, pathMSNew, overwrite=False, keepOrig=False):
         """
         Move (or rename) the MS to another locus in the file system.

@@ -397,8 +397,6 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, **kwa
         else:
             wsc_parms.append( '-idg-mode cpu' )
 
-    # other stanrdard parms
-    wsc_parms.append( '-clean-border 1' )
     # temp dir
     #if s.get_cluster() == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
     #    wsc_parms.append( '-temp-dir /localwork.ssd' )
