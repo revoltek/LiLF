@@ -193,6 +193,7 @@ if renameavg:
                         else:
                             demix_sm_file = os.path.dirname(__file__) + '/../models/demix_all.skymodel' if not demix_skymodel else demix_skymodel
                         demix_sm = lsmtool.load(demix_sm_file, beamMS=MS.pathMS) # load demix sm
+                        ra, dec = MS.getPhaseCentre()  # to calculate distance
                         # check target field skymodel
                         # if not provided, use GSM
                         if demix_field_skymodel:
@@ -220,7 +221,6 @@ if renameavg:
                         # Get debug info about demix skymodel
                         logger.info('%s->%s: Demix and average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, avg_factor_f, avg_factor_t))
                         demix_sm_patches = demix_sm.getPatchPositions()
-                        ra, dec = MS.getPhaseCentre() # to calculate distance
                         demix_sm_sources = demix_sm_patches.keys()
                         if not isinstance(demix_sources, list):
                             demix_sources = demix_sources.replace('[','').replace(']','').split(',')
