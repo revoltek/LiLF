@@ -248,7 +248,7 @@ if renameavg:
                         demix_t_step = int(np.round(8/timeint))
 
                         cmd = f"DP3 {parset_dir}/DP3-demix.parset msin={MS.pathMS} msin.baseline={bl_sel} msout={MSout} \
-                              demix.skymodel={MS.pathMS}/demix_combined_apparent.skymodel demix.instrumentmodel={MS.pathMS}/instrument_demix.parmdb \
+                              demix.skymodel={MS.pathMS}/demix_combined.skymodel demix.instrumentmodel={MS.pathMS}/instrument_demix.parmdb \
                               demix.subtractsources=\[{','.join(this_ms_demix_sources)}\] \
                               demix.freqstep={avg_factor_f} demix.timestep={avg_factor_t} \
                               demix.demixfreqstep={demix_f_step} demix.demixtimestep={demix_t_step} "
