@@ -32,7 +32,7 @@ maxIter = parset.getint('LOFAR_dd','maxIter')
 min_cal_flux60 = parset.getfloat('LOFAR_dd','minCalFlux60')
 solve_amp = parset.getboolean('LOFAR_dd','solve_amp')
 manual_dd_cal = parset.get('LOFAR_dd','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
-self_maxIter = parset.get('LOFAR_self','maxIter') # to pick the correct initial model
+self_maxIter = parset.getint('LOFAR_self','maxIter') # to pick the correct initial model
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
     """
@@ -119,7 +119,7 @@ with w.if_todo('cleaning'):
     lib_util.check_rm('ddcal')
     os.makedirs('ddcal/init')
     os.system('cp self/skymodel/wideM-*model.fits ddcal/init/')
-    os.system('cp '+sorted(glob.glob("self/images/wideM-*image.fits"))[-1]+' ddcal/init/')
+    os.system(f'cp self/images/wideM-{self_maxIter-1}-image.fits ddcal/init/')
     lib_util.check_rm('img')
     os.makedirs('img')
     lib_util.check_rm('mss-avg')
