@@ -208,15 +208,20 @@ if renameavg:
                                 lsm = lsmtool.load(demix_field_skymodel, beamMS=MS.pathMS)
                             lsm.group('single', root='target')
                             lsm.setColValues('LogarithmicSI', ['true'] * len(lsm))
+                            # apply beam to the target-field
+                            lsm.setColValues('I', lsm.getColValues('I', applyBeam=True))
                             # join with ateam skymodel
                             lsm.concatenate(demix_sm)
-                            # let's try to apply the beam, will probably be more accurate (especially for the field)
-                            # lsm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)
-                            lsm.write(f'{MS.pathMS}/demix_combined_apparent.skymodel', clobber=True, applyBeam=True)
+                            # DO NOT USE APPARENT MODEL FOR DEMIX SOURCES! THIS GIVES WORSE RESULTS IN SOME CASES!
+                            lsm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)
+                            # lsm.write(f'{MS.pathMS}/demix_combined_apparent.skymodel', clobber=True, applyBeam=True)
+
                         else: # ignore target
                             logger.info('Ignoring target...')
-                            demix_sm.write(f'{MS.pathMS}/demix_combined_apparent.skymodel', clobber=True, applyBeam=True)
-                        lsm = lsmtool.load(f'{MS.pathMS}/demix_combined_apparent.skymodel') # to not calulate beam twice
+                            demix_sm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)
+                            # demix_sm.write(f'{MS.pathMS}/demix_combined_apparent.skymodel', clobber=True, applyBeam=True)
+                        # lsm_app = lsmtool.load(f'{MS.pathMS}/demix_combined_apparent.skymodel') # to not calulate beam twice
+                        lsm = lsmtool.load(f'{MS.pathMS}/demix_combined.skymodel') # to not calulate beam twice
 
                         # Get debug info about demix skymodel
                         logger.info('%s->%s: Demix and average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, avg_factor_f, avg_factor_t))
@@ -233,13 +238,9 @@ if renameavg:
                             else:
                                 coord_demix = SkyCoord(ra=demix_sm_patches[demix_source][0], dec=demix_sm_patches[demix_source][1])
                                 sep = coord_demix.separation(SkyCoord(ra * u.deg, dec * u.deg)).deg
-                                app_flux = lsm.getColValues('I', aggregate='sum')[lsm.getPatchNames() == demix_source].item() # convert to float
+                                app_flux = demix_sm.getColValues('I', aggregate='sum', applyBeam=True)[lsm.getPatchNames() == demix_source].item() # convert to float
                                 # For now auto-remove faint sources in demix_sources form the demix.
-                                if app_flux > 4:
-                                    logger.info(f'Demix source {demix_source}: sep={sep:.2f}deg, app. flux={app_flux:.2f}Jy')
-                                else:
-                                    logger.warning(f'Demix source {demix_source}: sep={sep:.2f}deg, app. flux={app_flux:.2f}Jy -> faint, removing from demix!')
-                                    this_ms_demix_sources.remove(demix_source) # only remove for this MS, not for the following
+                                logger.info(f'Demix source {demix_source}: sep={sep:.2f}deg, app. flux={app_flux:.2f}Jy')
 
                         # RUN demixing
                         demix_f_step = nchan
