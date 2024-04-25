@@ -238,7 +238,7 @@ if renameavg:
                             else:
                                 coord_demix = SkyCoord(ra=demix_sm_patches[demix_source][0], dec=demix_sm_patches[demix_source][1])
                                 sep = coord_demix.separation(SkyCoord(ra * u.deg, dec * u.deg)).deg
-                                app_flux = demix_sm.getColValues('I', aggregate='sum', applyBeam=True)[lsm.getPatchNames() == demix_source].item() # convert to float
+                                app_flux = demix_sm.getColValues('I', aggregate='sum', applyBeam=True)[demix_sm.getPatchNames() == demix_source].item() # convert to float
                                 # For now auto-remove faint sources in demix_sources form the demix.
                                 logger.info(f'Demix source {demix_source}: sep={sep:.2f}deg, app. flux={app_flux:.2f}Jy')
 
