@@ -52,7 +52,7 @@ minmax = [-3.14,3.14]
 operation = FARADAY
 soltab = sol000/phaseResid000
 refAnt = auto
-maxResidual = 1.
+maxResidual = 1.5
 freq.minmaxstep = [20e6,1e9] # should this start form 30 MHz or does 20 MHz work?
 
 [plotFR]
