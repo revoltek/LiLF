@@ -32,6 +32,7 @@ maxIter = parset.getint('LOFAR_dd','maxIter')
 min_cal_flux60 = parset.getfloat('LOFAR_dd','minCalFlux60')
 solve_amp = parset.getboolean('LOFAR_dd','solve_amp')
 manual_dd_cal = parset.get('LOFAR_dd','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
+self_maxIter = parset.getint('LOFAR_self','maxIter') # to pick the correct initial model
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
     """
@@ -118,7 +119,7 @@ with w.if_todo('cleaning'):
     lib_util.check_rm('ddcal')
     os.makedirs('ddcal/init')
     os.system('cp self/skymodel/wideM-*model.fits ddcal/init/')
-    os.system('cp '+sorted(glob.glob("self/images/wideM-*image.fits"))[-1]+' ddcal/init/')
+    os.system(f'cp self/images/wideM-{self_maxIter-1}-image.fits ddcal/init/')
     lib_util.check_rm('img')
     os.makedirs('img')
     lib_util.check_rm('mss-avg')
@@ -162,7 +163,7 @@ with w.if_todo('add_columns'):
     MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
 
 ##############################################################
-full_image = lib_img.Image('ddcal/init/wideM-1-MFS-image.fits', userReg=userReg)
+full_image = lib_img.Image(f'ddcal/init/wideM-{self_maxIter-1}-MFS-image.fits', userReg=userReg)
 
 for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
@@ -466,7 +467,7 @@ for cmaj in range(maxIter):
         iter_ph_solint = lib_util.Sol_iterator([8, 4, 1])  # 32 or 16 or 8 * [8,4,1] s
         iter_amp_solint = lib_util.Sol_iterator([30, 20, 10])  # 32 or 16 or 8 * [30,20,10] s
         iter_amp2_solint = lib_util.Sol_iterator([120, 60])
-        iter_ph_soltype = 'scalarphase' if (d.get_flux(freq_mid) < 5 and cmaj != 0) else 'scalarcomplexgain'#TEST 'diagonalphase'
+        iter_ph_soltype = 'diagonalphase' if (d.get_flux(freq_mid) > 5 and cmaj > 0) else 'scalarphase'
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
         logger.info('MM ratio (init): %f' % (mm_ratio_pre))
 
@@ -588,14 +589,14 @@ for cmaj in range(maxIter):
                        logger.debug('BREAK ddcal self cycle with noise: %f, noise_pre: %f, mmratio: %f, mmratio_pre: %f' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
                        break
 
-            if cmaj > 0 and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or d.get_flux(freq_mid) > 5) and solve_amp:
+            if ((cmaj > 0) or d.peel_off) and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or d.get_flux(freq_mid) > 5) and solve_amp:
                 logger.debug('START AMP WITH MODE 1 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
             # correct more amp in the outskirts
-            elif cmaj > 0 and d.dist_from_centre >= fwhm/4. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 25) or d.get_flux(freq_mid) > 3) and solve_amp:
+            elif ((cmaj > 0) or d.peel_off) and d.dist_from_centre >= fwhm/4. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 25) or d.get_flux(freq_mid) > 3) and solve_amp:
                 logger.debug('START AMP WITH MODE 2 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
-            elif cmaj > 0 and d.dist_from_centre >= fwhm/2. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 20) or d.get_flux(freq_mid) > 2) and solve_amp:
+            elif ((cmaj > 0) or d.peel_off) and d.dist_from_centre >= fwhm/2. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 20) or d.get_flux(freq_mid) > 2) and solve_amp:
                 logger.debug('START AMP WITH MODE 3 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
 

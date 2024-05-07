@@ -69,6 +69,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
     add_default('LOFAR_cal', 'imaging', 'False')
     add_default('LOFAR_cal', 'fillmissingedges', 'True')
+    add_default('LOFAR_cal', 'sparse_sb', 'False') # change flagging so that we can handle data with alternating SBs only
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*

@@ -102,14 +102,13 @@ RUN cd /opt/LofarStMan && mkdir build && cd build \
 ## Wsclean 3.4
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-    && cd /opt/wsclean && git checkout 30b3fcc5bea2fde62a2aeae258b33b58d3bdd475
-#    && cd /opt/wsclean && git checkout tags/v3.4
-#    && cd /opt/wsclean && git checkout tags/v2.10.1
+#    && cd /opt/wsclean && git checkout da3ad879a4083b6cf51557be422a785ab46e6875
+    && cd /opt/wsclean && git checkout tags/v3.4
 RUN cd /opt/wsclean && mkdir build && cd build \
     && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
-#####################################################################
+####################################################################
 ## Dp3 applybeam_filter 20/12/23
 #####################################################################
 RUN ls /usr/local/share/everybeam
