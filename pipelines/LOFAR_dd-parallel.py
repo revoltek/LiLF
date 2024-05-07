@@ -370,6 +370,34 @@ for cmaj in range(maxIter):
         ###
     ### DONE
 
+    # add back all calibrators
+    model_data_columns = []
+    for dnum, d in enumerate(directions):
+        s.add('wsclean -predict -padding 1.8 -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+                        -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
+                        log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
+        s.run(check=True)
+        # Add back the model previously subtracted for this dd-cal
+        logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
+        MSs.addcol('MODEL_DATA_%i' % dnum, 'MODEL_DATA', log='$nameMS_addcol.log')
+        model_data_columns.append('MODEL_DATA_%i' % dnum)
+
+    # Calibration - ms:SMOOTHED_DATA
+    MSs.run_Blsmooth(logstr=f'smooth-{str(cmaj)}')
+    logger.info('Gain phase1 calibration (solint: %i)...' % solint_ph)
+    MSs.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph1.h5 \
+                sol.mode=scalarcomplexgain sol.solint=1 sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
+                sol.smoothnessconstraint=5e6 sol.modeldatacolumns=['+','.join(model_data_columns)+']',
+                log='$nameMS_solGph1-'+logstringcal+'.log', commandType='DP3')
+    lib_util.run_losoto(s, 'ph1', [ms+'/cal-ph1.h5' for ms in MSs.getListStr()],
+                [parset_dir+'/losoto-plot-ph1.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+    os.system('mv cal-ph1.h5 %s' % d.get_h5parm('ph1'))
+
+
+    sys.exit()
+
     for dnum, d in enumerate(directions):
 
         logger.info('Working on direction %s/%s: %s (%f Jy - %f deg)' % (dnum+1, len(directions), d.name, d.get_flux(freq_mid), d.size))

@@ -135,7 +135,6 @@ if renameavg:
         with open('renamed.txt','a') as flog:
             MSs = lib_ms.AllMSs([MS for MS in glob.glob('*MS') if not os.path.exists(getName(MS))], s, check_flags=False)
             minfreq = np.min(MSs.getFreqs())
-            fwhm = MSs.getListObj()[0].getFWHM(freq='min') # for radius of model
             logger.info('Min freq: %.2f MHz' % (minfreq/1e6))
             for MS in MSs.getListObj():
 
@@ -198,6 +197,8 @@ if renameavg:
                         if demix_field_skymodel:
                             if demix_field_skymodel == 'gsm':
                                 logger.info('Include target from GSM...')
+                                ra, dec = MS.getPhaseCentre()
+                                fwhm = MS.getFWHM(freq='min') # for radius of model
                                 # get model the size of the image (radius=fwhm/2)
                                 os.system('wget -O demix_tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (
                                         ra, dec, fwhm/2))  # ASTRON

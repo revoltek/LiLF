@@ -35,6 +35,7 @@ def debug_imaging(MSs, suffix):
         os.makedirs('img')
 
     imgsizepix = 1024
+    scale = '0.3arcsec' if MSs.hasIS() else '3arcsec'
 
     logger.info('Cleaning...')
     imagename = f'img/cal-{suffix}'
@@ -109,8 +110,6 @@ with w.if_todo('avg_concat_all'):
     s.run(check=True)
 ### DONE
 MSs_small = lib_ms.AllMSs(['concat_small.MS'], s, check_flags=False)
-
-
 
 if debugplots:
     # predict to save time ms:MODEL_DATA
@@ -208,7 +207,7 @@ with w.if_todo('cal_fr'):
     # Solve cal_SB.MS:DATA against MODEL_DATA (only solve)
     logger.info('Calibrating FR...')
     MSs_small_phaseupFR.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA \
-                             sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint=4 sol.nchan=4 \
+                             sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint=4 sol.nchan=1 \
                              sol.smoothnessconstraint=2e6 sol.smoothnessreffrequency=54e6',
                              log='$nameMS_solFR.log', commandType="DP3")
 
@@ -493,6 +492,9 @@ if imaging:
                        cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
 
         debug_imaging(MSs_concat_all, 'final')
+
+        MSs_concat_all.run('taql "ALTER TABLE $pathMS DELETE COLUMN SMOOTHED_DATA, FR_MODEL_DATA, MODEL_DATA"',
+        log='$nameMS_taql_delcol.log', commandType='general')
 
     ### DONE
 # TODO delete additional MSs at the end?

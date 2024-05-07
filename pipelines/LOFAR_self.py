@@ -30,15 +30,40 @@ userReg = parset.get('model','userReg')
 
 #############################################################################
 
-def clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_kwargs, do_predict=True):
+def clean_self(c, MSs, MSsClean, imagename, imgsizepix, cc_fit_order, userReg, subfield_kwargs, do_predict=True):
     """ Do normal (hres) imaging of the self-calibrated data. """
+   
+    maskname = imagename + '-mask.fits'
+    imagenameM = imagename.replace('wide','wideM')
+   
+    lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(), concat_mss=True,
+                         name=imagename, no_update_model_required='', size=imgsizepix, scale='4arcsec',
+                         weight='briggs -0.3', niter=1000000, minuv_l=30,
+                         parallel_gridding=6, parallel_deconvolution=1024, baseline_averaging='', mgain=0.8,
+                         local_rms='', auto_mask=5, auto_threshold=4.,
+                         join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6),
+                         multiscale='', multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order, 
+                         **subfield_kwargs)
+
+    # masking
+    if userReg != '':
+            s.add('breizorro.py -t 6.5 -r %s -b 50 -o %s --merge %s' % (imagename+'-MFS-image.fits', maskname, userReg), 
+                    log='makemask-'+str(c)+'.log', commandType='python' )
+            s.run()        
+    else:
+            s.add('breizorro.py -t 6.5 -r %s -b 50 -o %s' % (imagename+'-MFS-image.fits', maskname), 
+                    log='makemask-'+str(c)+'.log', commandType='python' )
+            s.run()    
+    # TEST: try to remove the second imaging and just reduce the models to masked regions
+
     lib_util.run_wsclean(s, 'wscleanM-c' + str(c) + '.log', MSsClean.getStrWsclean(), concat_mss=True,
-                         name=imagenameM, save_source_list='', size=imgsizepix, scale='4arcsec',
-                         weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
-                         parallel_gridding=6, baseline_averaging='', mgain=0.8,
-                         parallel_deconvolution=1024, auto_mask=5, auto_threshold=3., join_channels='',
-                         fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6), multiscale='',
-                         multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order, **subfield_kwargs)
+                         name=imagenameM, no_update_model_required='', save_source_list='', size=imgsizepix, scale='4arcsec',
+                         weight='briggs -0.3', niter=1000000, minuv_l=30,
+                         parallel_gridding=6, parallel_deconvolution=1024, baseline_averaging='', mgain=0.8,
+                         local_rms='', auto_mask=5, auto_threshold=3., fits_mask=maskname,
+                         join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6),
+                         multiscale='', multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order, 
+                         **subfield_kwargs)
 
     os.system('cat ' + logger_obj.log_dir + '/wscleanM-c' + str(c) + '.log | grep "background noise"')
 
@@ -301,7 +326,7 @@ for c in range(maxIter):
     else:
         MSsClean = MSs
 
-    imagenameM = 'img/wideM-'+str(c)
+    imagename = 'img/wide-'+str(c)
     if (c == 0) or (c == maxIter - 1): # make wide image
         imgsizepix = imgsizepix_wide
         subfield_kwargs = {}
@@ -313,7 +338,7 @@ for c in range(maxIter):
 
     if c < maxIter - 1:
         with w.if_todo('imaging_c%02i' % c):
-            clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_kwargs)
+            clean_self(c, MSs, MSsClean, imagename, imgsizepix, cc_fit_order, userReg, subfield_kwargs)
         ### DONE
 
     if c == 0:
@@ -501,7 +526,7 @@ with w.if_todo('final_correct'):
 ### DONE
 
 with w.if_todo('imaging-final'):
-    clean_self(c, MSs, MSsClean, imagenameM, imgsizepix, cc_fit_order, subfield_kwargs, do_predict=False)
+    clean_self(c, MSs, MSsClean, imagename, imgsizepix, cc_fit_order, userReg, subfield_kwargs, do_predict=False)
 
 # polarisation imaging
 with w.if_todo('imaging-pol'):
