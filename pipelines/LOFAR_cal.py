@@ -67,9 +67,9 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob(data_dir+'/*MS')), 1)):
 
 if skymodel == '':  # default case
     if MSs.hasIS:
-        skymodel = os.path.dirname(__file__) + '/../models/calib-highres.skydb'
+        skymodel = os.path.dirname(__file__) + '/../models/calib-highres.skymodel'
     else:
-        skymodel = os.path.dirname(__file__) + '/../models/calib-simple.skydb'
+        skymodel = os.path.dirname(__file__) + '/../models/calib-simple.skymodel'
 
 calname = MSs.getListObj()[0].getNameField()
 nchan = MSs.mssListObj[0].getNchan()
