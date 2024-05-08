@@ -99,11 +99,11 @@ RUN cd /opt/LofarStMan && mkdir build && cd build \
     && make -j 64 && make install
 
 #####################################################################
-## Wsclean 3.4
+## Wsclean 3.4 - master 8/5/24
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-#    && cd /opt/wsclean && git checkout da3ad879a4083b6cf51557be422a785ab46e6875
-    && cd /opt/wsclean && git checkout tags/v3.4
+    && cd /opt/wsclean && git checkout a714e984d1f5ba96c023cf2334bea01376dc4af9
+#    && cd /opt/wsclean && git checkout tags/v3.4
 RUN cd /opt/wsclean && mkdir build && cd build \
     && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
@@ -144,10 +144,11 @@ RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git \
 RUN cd /opt/LSMTool && python3 setup.py install --build_c_extentions
 
 ####################################################################
-## LoSoTo 2.4.2
+## LoSoTo master 8/5/24
 ###################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto && git checkout tags/2.4.2
+    && cd /opt/losoto && git checkout d3b1f3b8d3fce9815ea866579c36c0ab2bade15e
+#    && cd /opt/losoto && git checkout tags/2.4.2
 RUN cd /opt/losoto && pip3 install .
 #RUN pip3 install --upgrade scipy
 
