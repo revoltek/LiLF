@@ -25,6 +25,7 @@ cal_dir = parset.get('LOFAR_timesplit','cal_dir')
 ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
 bp_fulljones = parset.getboolean('LOFAR_timesplit','bp_fulljones') # TEST: Correct w/ time-dependent cal FJ solutions?
+no_aoflagger = parset.getboolean('LOFAR_timesplit','no_aoflagger') # TEST: Correct w/ time-dependent cal FJ solutions?
 bl2flag = parset.get('flag','stations')
 
 #################################################
@@ -151,11 +152,12 @@ MSs = lib_ms.AllMSs( glob.glob('mss*/*MS'), s )
 #############################################################
 # Flagging on concatenated dataset - also flag low-elevation
 with w.if_todo('flag'):
-    logger.info('Flagging...')
-    flag_strat = '/HBAdefaultwideband.lua' if MSs.isHBA else '/LBAdefaultwideband.lua'
-    MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\" \
-            aoflagger.strategy='+parset_dir+flag_strat,
-            log='$nameMS_DP3_flag.log', commandType='DP3')
+    if not no_aoflagger:
+        logger.info('Flagging...')
+        flag_strat = '/HBAdefaultwideband.lua' if MSs.isHBA else '/LBAdefaultwideband.lua'
+        MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\" \
+                aoflagger.strategy='+parset_dir+flag_strat,
+                log='$nameMS_DP3_flag.log', commandType='DP3')
 
     logger.info('Remove bad timestamps...')
     MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')

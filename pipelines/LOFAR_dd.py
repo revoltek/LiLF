@@ -119,7 +119,8 @@ with w.if_todo('cleaning'):
     lib_util.check_rm('ddcal')
     os.makedirs('ddcal/init')
     os.system('cp self/skymodel/wideM-*model.fits ddcal/init/')
-    os.system(f'cp self/images/wideM-{self_maxIter-1}-image.fits ddcal/init/')
+    os.system(f'cp self/images/wideM-{self_maxIter-1}-MFS-image.fits ddcal/init/')
+    os.system(f'cp self/images/wideM-{self_maxIter-1}-MFS-residual.fits ddcal/init/')
     lib_util.check_rm('img')
     os.makedirs('img')
     lib_util.check_rm('mss-avg')
@@ -145,6 +146,8 @@ MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
 
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 detectability_dist = MSs.getListObj()[0].getFWHM(freq='max')*1.7/2.  # 1.8 to go to close to the null
+beamReg = 'ddcal/beam_peel.reg' # sources outside of this region will be peeled!
+MSs.getListObj()[0].makeBeamReg(beamReg, pb_cut=detectability_dist)
 freq_min = np.min(MSs.getFreqs())
 freq_mid = np.mean(MSs.getFreqs())
 phase_center = MSs.getListObj()[0].getPhaseCentre()
@@ -184,8 +187,9 @@ for cmaj in range(maxIter):
     if not os.path.exists(picklefile):
         directions = []
 
-        # making skymodel from image
-        full_image.makeMask(threshpix=4, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
+        if not os.path.exists(mask_ddcal.replace('fits', 'cat.fits')):
+            # making skymodel from image
+            full_image.makeMask(threshpix=4, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
         
         # locating DD-calibrators
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
@@ -227,7 +231,7 @@ for cmaj in range(maxIter):
             try:
                 good_flux = 0
                 for subcal in cal[cluster_idxs]:
-                    if (subcal['Flux_ratio'] < 5):
+                    if (subcal['Flux_ratio'] < 20):
                         good_flux += subcal['Total_flux'] 
                 
                 if good_flux < 0.7*fluxes:
@@ -252,7 +256,7 @@ for cmaj in range(maxIter):
                 #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,freq_mid,size,img_beam,lsm.getColValues('MajorAxis')[idx])
                 ra = np.mean(cal['RA'][cluster_idxs])
                 dec = np.mean(cal['DEC'][cluster_idxs])
-                d.set_position([ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center)
+                d.set_position([ra, dec], region_peeloff=beamReg, wcs_peeloff=full_image.getWCS())
                 d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
                 d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
                 model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
@@ -286,9 +290,10 @@ for cmaj in range(maxIter):
             d.spidx_coeffs = -0.8
             d.ref_freq = freq_mid
             # get rms in manual reg
-            d.localrms = np.std(man_cal[0].to_pixel(wcs).to_mask().cutout(data_res))
+            # TODO manual noise
+            d.localrms = 15* np.std(man_cal[0].to_pixel(wcs).to_mask().cutout(data_res))
             ra, dec = man_cal[0].center.ra.to_value('deg'), man_cal[0].center.dec.to_value('deg')
-            d.set_position([ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center)
+            d.set_position([ra, dec], region_peeloff=beamReg, wcs_peeloff=full_image.getWCS())
             d.set_size([ra], [dec], [man_cal[0].radius.to_value('deg')], img_beam[0] / 3600)
             d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
             model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
@@ -339,21 +344,22 @@ for cmaj in range(maxIter):
     if cmaj > 0:
         with w.if_todo('c%02i-fulljsol' % cmaj):
             logger.info('Solving slow G (full jones)...')
-            MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/g.h5 sol.solint=10 sol.nchan=16',
+            MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/g.h5 sol.solint=30 sol.nchan=16',
                     log='$nameMS_solG-c%02i.log' % cmaj, commandType='DP3')
             lib_util.run_losoto(s, 'g-c%02i' % cmaj, [MS+'/g.h5' for MS in MSs.getListStr()],
-                    [parset_dir+'/losoto-plot-fullj.parset', parset_dir+'/losoto-bp.parset'])
+                                [parset_dir+'/losoto-plot-amp1.parset'])
+                    # [parset_dir+'/losoto-plot-fullj.parset', parset_dir+'/losoto-bp.parset'])
             os.system('mv plots-g-c%02i ddcal/c%02i/plots/' % (cmaj, cmaj))
             os.system('mv cal-g-c%02i.h5 ddcal/c%02i/solutions/' % (cmaj, cmaj))
         ### DONE
 
-            with w.if_todo('c%02i-fulljcor' % cmaj):
-                # correct G - group*_TC.MS:DATA -> group*_TC.MS:CORRECTED_DATA
-                logger.info('Correcting G...')
-                MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA \
-                    cor.parmdb=ddcal/c%02i/solutions/cal-g-c%02i.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phase000]' % (cmaj, cmaj),
-                    log='$nameMS_corG-c%02i.log' % cmaj, commandType='DP3')
-            ### DONE
+        with w.if_todo('c%02i-fulljcor' % cmaj):
+            # correct G - group*_TC.MS:DATA -> group*_TC.MS:CORRECTED_DATA
+            logger.info('Correcting G...')
+            MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA \
+                cor.parmdb=ddcal/c%02i/solutions/cal-g-c%02i.h5 cor.correction=amplitude000' % (cmaj, cmaj),
+                log='$nameMS_corG-c%02i.log' % cmaj, commandType='DP3')
+        ### DONE
 
 
     with w.if_todo('c%02i-fullsub' % cmaj):
@@ -409,8 +415,8 @@ for cmaj in range(maxIter):
                     log='$nameMS_taql.log', commandType='general')
     
             ### TTESTTESTTEST: empty image but with the DD cal
-            # if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
-            #     clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+            if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
+                clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
         ### DONE
 
@@ -823,7 +829,7 @@ for cmaj in range(maxIter):
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
                 weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=6, update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=1024,
                 auto_threshold=3.0, auto_mask=5.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
-                multiscale='', multiscale_scale_bias=0.6, pol='i', nmiter=1, dd_psf_grid='25 25', beam_size=15,
+                multiscale='', multiscale_scale_bias=0.6, pol='i', nmiter=3, dd_psf_grid='25 25', beam_size=15,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname, diagonal_solutions='', apply_facet_solutions=f'{interp_h5parm} {correct_for}' )
 
         # masking
