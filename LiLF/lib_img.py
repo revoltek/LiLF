@@ -55,7 +55,7 @@ class Image(object):
             bmaj = np.abs(bmaj)
             bmin = np.abs(bmin)
 
-            w = wcs.WCS(prhd)
+            w = self.getWCS()
             cd1 = -w.wcs.cdelt[0]
             cd2 = w.wcs.cdelt[1]
             if ((cd1 - cd2) / cd1) > 1.0001 and ((bmaj - bmin) / bmin) > 1.0001:
@@ -248,6 +248,20 @@ class Image(object):
                 return fits[0].header['CRVAL4']
             else:
                 raise RuntimeError('Cannot find frequency in image %s' % self.imagename)
+
+    def getWCS(self, flat=True):
+        """
+        get the WCS from the fits image header
+        Returns
+        -------
+        WCS
+        """
+        with fits.open(self.imagename) as phdu:
+            if flat:
+                hdr, data_res = flatten(phdu)
+                return wcs.WCS(hdr)
+            else:
+                return wcs.WCS(phdu[0].header)
 
 
 def flatten(f, channel = 0, freqaxis = 0):

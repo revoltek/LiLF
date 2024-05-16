@@ -144,6 +144,7 @@ if debugplots:
 # 1: find PA
 
 with w.if_todo('cal_pa'):
+    # TODO: For cases of strong FR (where it is actually ~full rotation), the current strategy does not work!
     # Smooth data concat_all-all DATA -> SMOOTHED_DATA (BL-based smoothing)
     MSs_small.run_Blsmooth(nofreq=True, logstr='smooth1')
 
@@ -330,10 +331,9 @@ with w.if_todo('cal_bp'):
 
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve) against FR-corrupted MODEL_DATA
     logger.info('Calibrating BP...')
-    freqstep = nchan  # brings down to 1ch/sb for
     timestep = int(np.rint(60 / tint))  # brings down to 60s
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/bp.h5 sol.mode=diagonal \
-                        sol.modeldatacolumns=[FR_MODEL_DATA] sol.solint='+str(timestep)+' sol.nchan='+str(freqstep),
+                        sol.modeldatacolumns=[FR_MODEL_DATA] sol.solint='+str(timestep)+' sol.nchan=1',
                        log='$nameMS_solBP.log', commandType="DP3")
 
     flag_parset = '/losoto-flag-sparse.parset' if sparse_sb else '/losoto-flag.parset'

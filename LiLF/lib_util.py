@@ -76,6 +76,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
     add_default('LOFAR_timesplit', 'bp_fulljones', 'False') # TEST: whether to transfer time-dependent fulljones solutions from the calibrator
+    add_default('LOFAR_timesplit', 'no_aoflagger', 'False') # TEST: Skip aoflagger (e.g. for observations of A-Team sources)
     # self
     add_default('LOFAR_self', 'maxIter', '2')
     add_default('LOFAR_self', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
@@ -352,7 +353,7 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
         check_rm('plots')
 
 
-def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, **kwargs):
+def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_concat=False, **kwargs):
     """
     s : scheduler
     concat_mss : try to concatenate mss files to speed up wsclean
@@ -363,25 +364,30 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, **kwa
     # Check whether we can combine MS files in time, if some (or all) of them have the same antennas.
     # This speeds up WSClean significantly.
     if concat_mss:
-        from LiLF import lib_ms
-        from itertools import groupby
+        if not 'cont' in kwargs.keys():
+            from LiLF import lib_ms
+            from itertools import groupby
 
-        keyfunct = lambda x: ' '.join(sorted(lib_ms.MS(x).getAntennas()))
-        MSs_list = sorted(MSs_files.split(), key=keyfunct) # needs to be sorted
-        groups = []
-        for k, g in groupby(MSs_list, keyfunct):
-            groups.append(list(g))
-        logger.info(f"Found {len(groups)} groups of datasets with same antennas.")
-        for i, group in enumerate(groups, start=1):
-            antennas = ', '.join(lib_ms.MS(group[0]).getAntennas())
-            logger.info(f"WSClean MS group {i}: {group}")
-            logger.debug(f"List of antennas: {antennas}")
-        
-        MSs_files_clean = []
-        for g, group in enumerate(groups):
-            s.add(f'taql select from {group} giving wsclean_concat_{g}.MS as plain', log=logfile, commandType='general')
-            s.run(check=True)
-            MSs_files_clean.append(f'wsclean_concat_{g}.MS')
+            keyfunct = lambda x: ' '.join(sorted(lib_ms.MS(x).getAntennas()))
+            MSs_list = sorted(MSs_files.split(), key=keyfunct) # needs to be sorted
+            groups = []
+            for k, g in groupby(MSs_list, keyfunct):
+                groups.append(list(g))
+            logger.info(f"Found {len(groups)} groups of datasets with same antennas.")
+            for i, group in enumerate(groups, start=1):
+                antennas = ', '.join(lib_ms.MS(group[0]).getAntennas())
+                logger.info(f"WSClean MS group {i}: {group}")
+                logger.debug(f"List of antennas: {antennas}")
+
+            MSs_files_clean = []
+            for g, group in enumerate(groups):
+                s.add(f'taql select from {group} giving wsclean_concat_{g}.MS as plain', log=logfile, commandType='general')
+                s.run(check=True)
+                MSs_files_clean.append(f'wsclean_concat_{g}.MS')
+        else:
+            # continue clean
+            MSs_files_clean = glob.glob('wsclean_concat_*.MS')
+            logger.info(f'Continue clean on concat MSs {MSs_files_clean}')
         MSs_files_clean = ' '.join(MSs_files_clean)
     else:
         MSs_files_clean = MSs_files
@@ -445,8 +451,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, **kwa
                          '-j '+str(s.max_processors)+' '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean', processors='max')
         s.run(check=True)
-        
-    check_rm('wsclean_concat_*.MS')
+    if not keep_concat:
+        check_rm('wsclean_concat_*.MS')
 
 def run_DDF(s, logfile, **kwargs):
     """

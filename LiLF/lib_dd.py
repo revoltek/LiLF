@@ -6,6 +6,7 @@ from astropy.convolution import convolve_fft
 from astropy.wcs import WCS
 import matplotlib.pyplot as plt
 import pyregion
+from regions import Regions
 from pyregion.parser_helper import Shape
 import lsmtool
 
@@ -118,19 +119,15 @@ class Direction(object):
         self.rms_noise.append(rms_noise)
         self.mm_ratio.append(mm_ratio)
 
-    def set_position(self, position, distance_peeloff, phase_center):
+    def set_position(self, position, region_peeloff, wcs_peeloff):
         """
-        distance_peeloff: in deg, used to decide if the source is to peel_off
-        phase_center: in deg
+        region_peeloff: in deg, used to decide if the source is to peel_off
         """
         self.position = [round(position[0], 5), round(position[1], 5)]
         c1 = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
-        c2 = SkyCoord(phase_center[0]*u.deg, phase_center[1]*u.deg, frame='fk5')
-        self.dist_from_centre = c1.separation(c2).deg
-        if self.dist_from_centre > distance_peeloff:
-            self.peel_off = True
-        else:
-            self.peel_off = False
+        sky_region = Regions.read(region_peeloff)[0]
+        self.dist_from_centre = c1.separation(sky_region.center).deg
+        self.peel_off = not sky_region.contains(c1, wcs_peeloff)
 
     def get_flux(self, freq):
         """
