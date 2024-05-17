@@ -119,7 +119,8 @@ with w.if_todo('cleaning'):
     lib_util.check_rm('ddcal')
     os.makedirs('ddcal/init')
     os.system('cp self/skymodel/wideM-*model.fits ddcal/init/')
-    os.system(f'cp self/images/wideM-{self_maxIter-1}-image.fits ddcal/init/')
+    os.system(f'cp self/images/wideM-{self_maxIter-1}-MFS-image.fits ddcal/init/')
+    os.system(f'cp self/images/wideM-{self_maxIter-1}-MFS-residual.fits ddcal/init/')
     lib_util.check_rm('img')
     os.makedirs('img')
     lib_util.check_rm('mss-avg')
@@ -145,6 +146,8 @@ MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
 
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 detectability_dist = MSs.getListObj()[0].getFWHM(freq='max')*1.7/2.  # 1.8 to go to close to the null
+beamReg = 'ddcal/beam_peel.reg' # sources outside of this region will be peeled!
+MSs.getListObj()[0].makeBeamReg(beamReg, pb_cut=2*detectability_dist)
 freq_min = np.min(MSs.getFreqs())
 freq_mid = np.mean(MSs.getFreqs())
 phase_center = MSs.getListObj()[0].getPhaseCentre()
@@ -184,8 +187,9 @@ for cmaj in range(maxIter):
     if not os.path.exists(picklefile):
         directions = []
 
-        # making skymodel from image
-        full_image.makeMask(threshpix=4, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
+        if not os.path.exists(mask_ddcal.replace('fits', 'cat.fits')): # re-use if exists
+            # making skymodel from image
+            full_image.makeMask(threshpix=4, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
         
         # locating DD-calibrators
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
@@ -252,7 +256,7 @@ for cmaj in range(maxIter):
                 #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,freq_mid,size,img_beam,lsm.getColValues('MajorAxis')[idx])
                 ra = np.mean(cal['RA'][cluster_idxs])
                 dec = np.mean(cal['DEC'][cluster_idxs])
-                d.set_position([ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center)
+                d.set_position([ra, dec], region_peeloff=beamReg, wcs_peeloff=full_image.getWCS())
                 d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
                 d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
                 model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
@@ -286,9 +290,10 @@ for cmaj in range(maxIter):
             d.spidx_coeffs = -0.8
             d.ref_freq = freq_mid
             # get rms in manual reg
-            d.localrms = np.std(man_cal[0].to_pixel(wcs).to_mask().cutout(data_res))
+            # TODO manual noise
+            d.localrms = 15* np.std(man_cal[0].to_pixel(wcs).to_mask().cutout(data_res))
             ra, dec = man_cal[0].center.ra.to_value('deg'), man_cal[0].center.dec.to_value('deg')
-            d.set_position([ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center)
+            d.set_position([ra, dec], region_peeloff=beamReg, wcs_peeloff=full_image.getWCS())
             d.set_size([ra], [dec], [man_cal[0].radius.to_value('deg')], img_beam[0] / 3600)
             d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
             model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
