@@ -57,9 +57,8 @@ def clean_self(c, MSs, MSsClean, imgsizepix, cc_fit_order, subfield_kwargs, do_p
     # second continue clean using mask and lower threshold -> update MODEL_DATA
     # TODO check save_source_listbaseline_averaging='',
 
-    imagename = 'img/wide-1' # cont reuse_psf=imagenameM, reuse_dirty=imagenameM, cont='',
     lib_util.run_wsclean(s, 'wscleanM-c' + str(c) + '.log', MSsClean.getStrWsclean(), concat_mss=False, fits_mask=imagename+'-mask.fits',
-                         name=imagenameM, save_source_list='', size=imgsizepix, scale='4arcsec', weight='briggs -0.3',
+                         cont='', reuse_psf=imagenameM, reuse_dirty=imagenameM, name=imagenameM, save_source_list='', size=imgsizepix, scale='4arcsec', weight='briggs -0.3',
                          niter=1000000, no_update_model_required='', minuv_l=30, parallel_gridding=6,  mgain=0.8, parallel_deconvolution=1024,
                          auto_threshold=3., join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6),
                          multiscale='', deconvolution_channels=cc_fit_order, **subfield_kwargs)

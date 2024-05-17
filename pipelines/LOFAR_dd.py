@@ -147,7 +147,7 @@ MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 detectability_dist = MSs.getListObj()[0].getFWHM(freq='max')*1.7/2.  # 1.8 to go to close to the null
 beamReg = 'ddcal/beam_peel.reg' # sources outside of this region will be peeled!
-MSs.getListObj()[0].makeBeamReg(beamReg, pb_cut=detectability_dist)
+MSs.getListObj()[0].makeBeamReg(beamReg, pb_cut=2*detectability_dist)
 freq_min = np.min(MSs.getFreqs())
 freq_mid = np.mean(MSs.getFreqs())
 phase_center = MSs.getListObj()[0].getPhaseCentre()
