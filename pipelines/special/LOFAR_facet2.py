@@ -89,7 +89,7 @@ if not os.path.exists(sourcedb):
     sm.select('I>0.4', applyBeam=True) # keep only reasonably bright sources
     sm.write('tgts-pre.skymodel', clobber=True, applyBeam=True, adjustSI=True)
     sm = lsmtool.load('tgts-pre.skymodel')
-    sm.group('cluster', numClusters=10, root='MODEL_DATA')
+    sm.group('cluster', numClusters=20, root='MODEL_DATA')
     sm.setPatchPositions(method='wmean')
     sm.plot('self/skymodel/patches.png', 'patch')
     #sm.getColValues('I', aggregate='sum')
@@ -161,11 +161,26 @@ for c in range(maxIter):
             logger.info('Creating CORRECTED_DATA from FR_CORRECTED_DATA...')
             MSs.addcol('CORRECTED_DATA', 'FR_CORRECTED_DATA')
     else:
-        with w.if_todo('set_corrected_data_c%02i' % c):
-            logger.info('Set CORRECTED_DATA = SUBFIELD_DATA...')
-            MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBFIELD_DATA"', log='$nameMS_taql-c' + str(c) + '.log',
-                    commandType='general')
-    ### DONE
+        sourcedb = f'tgts-c{c}.skymodel'
+        # with w.if_todo('set_corrected_data_c%02i' % c):
+        #     logger.info('Set CORRECTED_DATA = SUBFIELD_DATA...')
+        #     MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBFIELD_DATA"', log='$nameMS_taql-c' + str(c) + '.log',
+        #             commandType='general')
+
+        if not os.path.exists(sourcedb):
+            # make filter mask
+            sm = lsmtool.load(f'img/wideM-{c-1}-sources.txt')
+            sm.select('img/fov_mask.fits=1')  # remove distant sources
+            sm.select('I>0.05')  # remove the faintest sources
+            sm.group('tessellate', targetFlux=15, root='MODEL_DATA')
+            sm.setPatchPositions(method='wmean')
+            sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
+            # sm.getColValues('I', aggregate='sum')
+            sm.write(sourcedb, clobber=True)
+        else:
+            logger.info(f'Load existing skymodel {sourcedb}')
+            sm = lsmtool.load(sourcedb)
+        ### DONE
 
     # with w.if_todo('smooth_model_c%02i' % c):
     #     # Smooth MODEL_DATA -> MODEL_DATA
@@ -173,6 +188,7 @@ for c in range(maxIter):
     ### DONE
 
     with w.if_todo('sol_avg_%02i' % c):
+        MSs = lib_ms.AllMSs(glob.glob('mss/TC*[0-9].MS'), s)
         lib_util.check_rm('mss-sol')
         os.system('mkdir mss-sol')
         timeint = MSs.getListObj()[0].getTimeInt()
@@ -200,61 +216,59 @@ for c in range(maxIter):
     # Add model to MODEL_DATA
     skymodel = lsmtool.load(sourcedb)
     patches = skymodel.getPatchNames()
-    with w.if_todo('init_model'):
+    with w.if_todo(f'init_model_c{c}'):
         for patch in patches:
             logger.info(f'Add model to {patch}...')
             MSs_sol.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch}',
             log='$nameMS_pre.log', commandType='DP3')
             # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-            MSs_sol.run_Blsmooth(patch, patch, logstr=f'smooth-c{c}')
+            # MSs_sol.run_Blsmooth(patch, patch, logstr=f'smooth-c{c}')
         ### DONE
 
-    with w.if_todo('solve_tecCS0_c%02i' % c):
+    with w.if_todo('solve_tecRS_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         MSs_sol.run_Blsmooth('DATA', logstr=f'smooth-c{c}')
-
         # solve ionosphere phase - ms:SMOOTHED_DATA
-        logger.info('Solving TEC (slowCS)...')
+        logger.info('Solving TEC (RS)...')
         if phaseSolMode == 'phase': #phase
-            solver_params = f'sol.mode=scalarphase sol.smoothnessconstraint=6.0e6 sol.smoothnessreffrequency=54e6 sol.nchan=1'
-            losoto_parsets = [parset_dir+'/losoto-resetph-CS.parset', parset_dir+'/losoto-plot-scalar.parset']
+            solver_params = f'sol.mode=scalarphase sol.smoothnessconstraint=1.0e6 sol.smoothnessreffrequency=54e6 sol.nchan=1'
+            losoto_parsets = [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-resetph2-CSRS.parset', parset_dir+'/losoto-plot-scalar.parset']
         else: # TEC or TecAndPhase
             solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
             losoto_parsets = [parset_dir+'/losoto-plot-tec.parset']
 
-        MSs_sol.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec0.h5 sol.solint=64 {solver_params} sol.modeldatacolumns="[{",".join(patches)}]"  msin.baseline="[CR]*&&;!RS208LBA;!RS210LBA;!RS307LBA;!RS310LBA;!RS406LBA;!RS407LBA;!RS409LBA;!RS508LBA;!RS509LBA"',
-                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
+        MSs_sol.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec2.h5 sol.solint=1 {solver_params} sol.modeldatacolumns="[{",".join(patches)}]"',
+                    log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
-        lib_util.run_losoto(s, 'tec0-c'+str(c), [ms+'/tec0.h5' for ms in MSs_sol.getListStr()], losoto_parsets, plots_dir=f'self/plots/plots-tec0-c{c}', h5_dir=f'self/solutions/')
-    ### DONE
+        lib_util.run_losoto(s, 'tec2-c'+str(c), [ms+'/tec2.h5' for ms in MSs_sol.getListStr()], losoto_parsets)
+        os.system('mv cal-tec2-c'+str(c)+'.h5 self/solutions/')
+        os.system('mv plots-tec2-c'+str(c)+' self/plots/')
 
-    with w.if_todo('corrupt_tecCS0_c%02i' % c):
+    with w.if_todo('corrupt_tecRS_c%02i' % c):
         ### CORRUPT the MODEL_DATA columns for all patches
-        logger.info(f'Corrupt models: {phaseSolMode}0...')
+        logger.info(f'Corrupt models: {phaseSolMode}2...')
         for patch in patches:
             if phaseSolMode in ['tec', 'tecandphase']:
                 MSs_sol.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={patch} msout.datacolumn={patch} cor.direction=[{patch}]  \
-                        cor.parmdb=self/solutions/cal-tec0-c' + str(c) + '.h5 cor.correction=tec000 cor.invert=False',
-                        log='$nameMS_corrupt.log', commandType='DP3')
+                        cor.parmdb=self/solutions/cal-tec2-c' + str(c) + '.h5 cor.correction=tec000 cor.invert=False',
+                            log='$nameMS_corrupt.log', commandType='DP3')
             if phaseSolMode in ['phase', 'tecandphase']:
                 MSs_sol.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={patch} msout.datacolumn={patch} cor.direction=[{patch}] \
-                        cor.parmdb=self/solutions/cal-tec0-c' + str(c) + '.h5 cor.correction=phase000 cor.invert=False',
-                        log='$nameMS_corrupt.log', commandType='DP3')
+                        cor.parmdb=self/solutions/cal-tec2-c' + str(c) + '.h5 cor.correction=phase000 cor.invert=False',
+                            log='$nameMS_corrupt.log', commandType='DP3')
 
     with w.if_todo('solve_tecCS_c%02i' % c):
-        # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-        MSs_sol.run_Blsmooth('DATA', logstr=f'smooth-c{c}')
 
         # solve ionosphere phase - ms:SMOOTHED_DATA
         logger.info('Solving TEC (CS)...')
         if phaseSolMode == 'phase': #phase
             solver_params = f'sol.mode=scalarphase sol.smoothnessconstraint=3.0e6 sol.smoothnessreffrequency=54e6 sol.nchan=1'
-            losoto_parsets = [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-scalar.parset']
+            losoto_parsets = [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-resetph2-CS.parset', parset_dir+'/losoto-plot-scalar.parset']
         else: # TEC or TecAndPhase
             solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
             losoto_parsets = [parset_dir+'/losoto-plot-tec.parset']
 
-        MSs_sol.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 sol.solint=8 {solver_params} sol.modeldatacolumns="[{",".join(patches)}]"  msin.baseline="[CR]*&&;!RS208LBA;!RS210LBA;!RS307LBA;!RS310LBA;!RS406LBA;!RS407LBA;!RS409LBA;!RS508LBA;!RS509LBA" sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA]]',
+        MSs_sol.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 sol.solint=8 {solver_params} sol.modeldatacolumns="[{",".join(patches)}]"',
                     log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
         lib_util.run_losoto(s, 'tec1-c'+str(c), [ms+'/tec1.h5' for ms in MSs_sol.getListStr()], losoto_parsets)
@@ -275,80 +289,37 @@ for c in range(maxIter):
                         cor.parmdb=self/solutions/cal-tec1-c' + str(c) + '.h5 cor.correction=phase000 cor.invert=False',
                             log='$nameMS_corrupt.log', commandType='DP3')
 
-    with w.if_todo('solve_tecRS_c%02i' % c):
+    with w.if_todo('solve_tecCS0_c%02i' % c):
+
         # solve ionosphere phase - ms:SMOOTHED_DATA
-        logger.info('Solving TEC (RS)...')
+        logger.info('Solving TEC (slowCS)...')
         if phaseSolMode == 'phase': #phase
-            solver_params = f'sol.mode=scalarphase sol.smoothnessconstraint=1.0e6 sol.smoothnessreffrequency=54e6 sol.nchan=1'
-            losoto_parsets = [parset_dir+'/losoto-plot-scalar.parset', parset_dir+'/losoto-refph.parset']
-        else: # TEC or TecAndPhase
-            solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
-            losoto_parsets = [parset_dir+'/losoto-plot-tec.parset']
-
-        MSs_sol.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec2.h5 sol.solint=1 {solver_params} sol.modeldatacolumns="[{",".join(patches)}]" sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]]',
-                    log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
-
-        lib_util.run_losoto(s, 'tec2-c'+str(c), [ms+'/tec2.h5' for ms in MSs_sol.getListStr()], losoto_parsets)
-        os.system('mv cal-tec2-c'+str(c)+'.h5 self/solutions/')
-        os.system('mv plots-tec2-c'+str(c)+' self/plots/')
-
-    with w.if_todo('corrupt_tecRS_c%02i' % c):
-        ### CORRUPT the MODEL_DATA columns for all patches
-        logger.info(f'Corrupt models: {phaseSolMode}2...')
-        for patch in patches:
-            if phaseSolMode in ['tec', 'tecandphase']:
-                MSs_sol.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={patch} msout.datacolumn={patch} cor.direction=[{patch}]  \
-                        cor.parmdb=self/solutions/cal-tec2-c' + str(c) + '.h5 cor.correction=tec000 cor.invert=False',
-                            log='$nameMS_corrupt.log', commandType='DP3')
-            if phaseSolMode in ['phase', 'tecandphase']:
-                MSs_sol.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={patch} msout.datacolumn={patch} cor.direction=[{patch}] \
-                        cor.parmdb=self/solutions/cal-tec2-c' + str(c) + '.h5 cor.correction=phase000 cor.invert=False',
-                            log='$nameMS_corrupt.log', commandType='DP3')
-
-    with w.if_todo('solve_tec_all_c%02i' % c):
-        # solve ionosphere phase - ms:SMOOTHED_DATA
-        logger.info('Solving TEC (all)...')
-        if phaseSolMode == 'phase': #phase
-            solver_params = f'sol.mode=scalarphase sol.smoothnessconstraint=2.0e6 sol.smoothnessreffrequency=54e6 sol.nchan=1'
+            solver_params = f'sol.mode=scalarphase sol.smoothnessconstraint=6.0e6 sol.smoothnessreffrequency=54e6 sol.nchan=1'
             losoto_parsets = [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-scalar.parset']
         else: # TEC or TecAndPhase
             solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
             losoto_parsets = [parset_dir+'/losoto-plot-tec.parset']
 
-        MSs_sol.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec3.h5 sol.solint=8 {solver_params} sol.modeldatacolumns="[{",".join(patches)}]"',
-                    log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
+        MSs_sol.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec0.h5 sol.solint=64 {solver_params} sol.modeldatacolumns="[{",".join(patches)}]"',
+                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
-        lib_util.run_losoto(s, 'tec3-c'+str(c), [ms+'/tec3.h5' for ms in MSs_sol.getListStr()], losoto_parsets)
-        os.system('mv cal-tec3-c'+str(c)+'.h5 self/solutions/')
-        os.system('mv plots-tec3-c'+str(c)+' self/plots/')
+        lib_util.run_losoto(s, 'tec0-c'+str(c), [ms+'/tec0.h5' for ms in MSs_sol.getListStr()], losoto_parsets, plots_dir=f'self/plots/plots-tec0-c{c}', h5_dir=f'self/solutions/')
     ### DONE
 
    # need: sol1, sol2, sm,
     with w.if_todo(f'merge_h5_c{c}'):
         sol_dir = 'self/solutions'
-        lib_util.check_rm(f'{sol_dir}/cal-tec0-msants-c{c}.h5')
-        lib_util.check_rm(f'{sol_dir}/cal-tec1-msants-c{c}.h5')
         lib_util.check_rm(f'{sol_dir}/cal-tec-merged-c{c}.h5')
         # make sure the h5parm directions are correctly set - this should actually work automatically with DP3 -> eventually fix this in the DP3 solve call
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec0-c{c}.h5', sourcedb)
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec1-c{c}.h5', sourcedb)
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec2-c{c}.h5', sourcedb)
-        lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec3-c{c}.h5', sourcedb)
-        # add all stations in the MSs to the CS h5parm
-        h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-tec0-msants-c{c}.h5", add_ms_stations=True, min_distance=10/3600,
-                           h5_tables=[f'{sol_dir}/cal-tec0-c{c}.h5'], no_antenna_crash=True,ms_files='mss/TC*.MS', no_pol=True)
         # reference, unflag and reset the added stations
-        lib_util.run_losoto(s, f'tec0-msants-c{c}', [f'{sol_dir}/cal-tec0-msants-c{c}.h5'], [f'{parset_dir}/losoto-resetph-CS.parset',f'{parset_dir}/losoto-plot-scalar.parset'], plots_dir=f'self/plots/plots-tec0-msants-c{c}', h5_dir='self/solutions')
-
-        h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-tec1-msants-c{c}.h5", add_ms_stations=True, min_distance=10/3600,
-                           h5_tables=[f'{sol_dir}/cal-tec1-c{c}.h5'], no_antenna_crash=True,ms_files='mss/TC*.MS', no_pol=True)
-        # reference, unflag and reset the added stations
-        lib_util.run_losoto(s, f'tec1-msants-c{c}', [f'{sol_dir}/cal-tec1-msants-c{c}.h5'], [f'{parset_dir}/losoto-resetph-RS.parset',f'{parset_dir}/losoto-plot-scalar.parset'], plots_dir=f'self/plots/plots-tec1-msants-c{c}', h5_dir='self/solutions')
-
         # upsample the CS h5parm and merge it with the RS h5parm
+        # TODO mss-sol
         h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-tec-merged-c{c}.h5", min_distance=10/3600,
-                           h5_tables=[f'{sol_dir}/cal-tec0-msants-c{c}.h5',f'{sol_dir}/cal-tec1-msants-c{c}.h5',f'{sol_dir}/cal-tec2-c{c}.h5',f'{sol_dir}/cal-tec3-c{c}.h5'],
-                           h5_time_freq=f'{sol_dir}/cal-tec1-msants-c{c}.h5', no_pol=True, ms_files='mss/TC*.MS',)
+                           h5_tables=[f'{sol_dir}/cal-tec0-c{c}.h5',f'{sol_dir}/cal-tec1-c{c}.h5',f'{sol_dir}/cal-tec2-c{c}.h5'],
+                           h5_time_freq=f'{sol_dir}/cal-tec2-c{c}.h5', no_pol=True, ms_files='mss/TC*.MS',)
         lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
                             plots_dir=f'self/plots/plots-tec-merged-c{c}', h5_dir='self/solutions')
 
@@ -372,25 +343,32 @@ for c in range(maxIter):
                              weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                              auto_threshold=5.0, auto_mask=8.0, join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
                              multiscale='', pol='i', nmiter=6,  facet_regions=facetregname, apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000' )
-        # masking
-        if userReg is not None:
+        # # masking
+        if userReg:
+            logger.info(f'Making mask with userReg {userReg}...')
             s.add('breizorro.py -t 6.5 -r %s -b 50 -o %s --merge %s' % (
                 imagename + '-MFS-image.fits', imagename + '-mask.fits', userReg),
                   log=f'makemask-{c}.log', commandType='python')
             s.run()
         else:
+            logger.info('Making mask...')
             s.add('breizorro.py -t 6.5 -r %s -b 50 -o %s' % (imagename + '-MFS-image.fits', imagename + '-mask.fits'),
                   log=f'makemask-{c}.log', commandType='python')
             s.run()
 
-        # clean again, with mask now
+        # clean again, with mask nowe,
         logger.info('Cleaning 2...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=imagename+'-mask.fits', data_column='DATA', size=imgsizepix_wide, scale='4arcsec',
-                             weight='briggs -0.3', niter=1000000, gridder='wgridder', reuse_psf=imagename, reuse_dirty=imagename, parallel_gridding=6, concat_mss=True, reuse_concat=True,
-                             update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=5.0,
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=imagename+'-mask.fits', data_column='DATA', size=imgsizepix_wide, scale='4arcsec',
+                             weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=6, save_source_list='', concat_mss=True,# reuse_concat=True,
+                             no_update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=5.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
                              multiscale='', pol='i', facet_regions=facetregname, apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000' )
 
+sys.exit()
+
+
+
+if False: # add only later
         # full_image.nantozeroModel()
         # s.add('wsclean -predict -padding 1.8 -name ' + full_image.root + ' -j ' + str(
         #     s.max_processors) + ' -channels-out ' + str(ch_out) + ' \

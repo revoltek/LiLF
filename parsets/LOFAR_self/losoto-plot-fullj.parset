@@ -78,5 +78,5 @@ axisInTable = ant
 axisDiff = pol
 plotFlag = True
 prefix = plots/ph-diff_
-refAnt = auto
+#refAnt = auto
 minmax = [-3.14,3.14]

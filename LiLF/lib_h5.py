@@ -1,5 +1,6 @@
 import os, sys
 import numpy as np
+import lsmtool
 from losoto.h5parm import h5parm
 from LiLF.lib_log import logger
 
@@ -102,4 +103,37 @@ def adddir(h5parmFile, soltabname, solsetname='sol000', dirname='[pointing]'):
                               axesVals=axesVals, vals=vals, weights=weights)
 
     # write h5parm
+    h5.close()
+
+def point_h5dirs_to_skymodel(h5, skymodel):
+    """
+    Change the [ra,dec] of h5parm directions
+    Parameters
+    ----------
+    h5: input file
+    skymodel: skymodel from which we take patch names and dirs
+    """
+    h5 = h5parm(h5, readonly=False)
+    ss = h5.getSolset('sol000')
+    sourceTable = ss.obj.source
+    skymodel = lsmtool.load(skymodel)
+    patches = skymodel.getPatchPositions()
+    dirnames = patches.keys()
+
+    # check which of the directions to rename is in solset
+    for dirname in dirnames:
+        direction = patches[dirname]
+        # iterate sourcetable
+        repointed = False
+        for i, (dirname_ss, direction_ss) in enumerate(sourceTable[:]):
+            if str(dirname_ss, 'utf-8') == f'[{dirname}]': # convert bytestring
+                ra, dec = direction[0].rad, direction[1].rad
+                if ra > np.pi:
+                    ra -= 2*np.pi  # map to -pi, pi
+                sourceTable[i] = (sourceTable[i][0], np.array([direction[0].rad, direction[1].rad]))
+                logger.info(f'Repointing dir {dirname} {direction_ss} -> {[ra, dec]}')
+                repointed = True
+
+        if not repointed:
+            raise ValueError(f'{dirname} not found in solset! Available directions: {",".join(ss.getSou().keys())}.')
     h5.close()

@@ -306,7 +306,7 @@ def lofar_nu2num(nu):
 
     return np.int(np.floor((1024./nu_clk) * (nu - (n-1) * nu_clk/2.)))
 
-def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
+def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
     """
     s : scheduler
     c : cycle name, e.g. "final"
@@ -336,6 +336,10 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
     else:
         os.system('cp -r %s %s' % (h5s[0], h5out) )
 
+    if h5_dir:
+        os.system(f'mv {h5out} {h5_dir}/{h5out}')
+        h5out = f'{h5_dir}/{h5out}'
+
     check_rm('plots')
     os.makedirs('plots')
 
@@ -353,7 +357,7 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
         check_rm('plots')
 
 
-def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_concat=False, **kwargs):
+def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_concat=False, reuse_concat=False, **kwargs):
     """
     s : scheduler
     concat_mss : try to concatenate mss files to speed up wsclean
@@ -364,7 +368,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
     # Check whether we can combine MS files in time, if some (or all) of them have the same antennas.
     # This speeds up WSClean significantly.
     if concat_mss:
-        if not 'cont' in kwargs.keys():
+        if not 'cont' in kwargs.keys() and not reuse_concat:
             from LiLF import lib_ms
             from itertools import groupby
 

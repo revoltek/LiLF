@@ -30,6 +30,16 @@ userReg = parset.get('model','userReg')
 
 #############################################################################
 
+def testimage(c, MSs):
+    imagename = 'img/test-' + str(c)
+    lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSs.getStrWsclean(),
+                         name=imagename, size=2000, scale='4arcsec', baseline_averaging='',
+                         weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
+                         parallel_gridding=6,  mgain=0.8, parallel_deconvolution=1024,
+                         auto_mask=5, auto_threshold=3.5, join_channels='',
+                         channels_out=6, multiscale='')
+
+
 def clean_self(c, MSs, MSsClean, imgsizepix, cc_fit_order, subfield_kwargs, do_predict=True):
     """ Do normal (hres) imaging of the self-calibrated data. """
     imagename = 'img/wide-' + str(c)
@@ -126,20 +136,19 @@ else: base_solint = 1
 
 #################################################################
 # Get online model
-if sourcedb == '':
-    if not os.path.exists('tgts.skymodel'):
-        fwhm = MSs.getListObj()[0].getFWHM(freq='min')
-        radeg = phasecentre[0]
-        decdeg = phasecentre[1]
-        # get model the size of the image (radius=fwhm/2)
-        os.system('wget -O tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (radeg, decdeg, fwhm/2.)) # ASTRON
-        lsm = lsmtool.load('tgts.skymodel', beamMS=MSs.getListStr()[0])#, beamMS=MSs.getListObj()[0])
-        lsm.remove('I<1')
-        lsm.write('tgts-beam.skymodel', applyBeam=True, clobber=True)
-        lsm.write('tgts.skymodel', applyBeam=False, clobber=True)
-        apparent = False
-    sourcedb = 'tgts.skymodel'
-
+# if sourcedb == '':
+#     if not os.path.exists('tgts.skymodel'):
+#         fwhm = MSs.getListObj()[0].getFWHM(freq='min')
+#         radeg = phasecentre[0]
+#         decdeg = phasecentre[1]
+#         # get model the size of the image (radius=fwhm/2)
+#         os.system('wget -O tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (radeg, decdeg, fwhm/2.)) # ASTRON
+#         lsm = lsmtool.load('tgts.skymodel', beamMS=MSs.getListStr()[0])#, beamMS=MSs.getListObj()[0])
+#         lsm.remove('I<1')
+#         lsm.write('tgts-beam.skymodel', applyBeam=True, clobber=True)
+#         lsm.write('tgts.skymodel', applyBeam=False, clobber=True)
+#         apparent = False
+#     sourcedb = 'tgts.skymodel'
 #################################################################################################
 # Add model to MODEL_DATA
 # copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
@@ -151,6 +160,13 @@ for MS in MSs.getListStr():
 
 # Here the model is added only to CS+RS, IS used only for FR and model is not needed
 with w.if_todo('init_model'):
+    # model = '/beegfs/p1uy068/virgo/models/LBA/fits-models-freqcut/Vir'
+    # n = len(glob.glob(f'{model}-[0-9]*-model.fits'))
+    # logger.info('Predict (wsclean: %s - chan: %i)...' % (model, n))
+    # s.add(
+    #     f'wsclean -predict -no-reorder -name {model} -j {s.max_processors} -use-wgridder -channels-out {n} {MSs.getStrWsclean()}',
+    #     log='wscleanPRE-init.log', commandType='wsclean', processors='max')
+    # s.run(check=True)
     logger.info('Add model to MODEL_DATA...')
     if apparent:
         MSs.run('DP3 ' + parset_dir + '/DP3-predict.parset msin=$pathMS pre.usebeammodel=false pre.sourcedb=$pathMS/' + sourcedb_basename,
@@ -159,7 +175,7 @@ with w.if_todo('init_model'):
         MSs.run('DP3 ' + parset_dir + '/DP3-predict.parset msin=$pathMS pre.usebeammodel=true pre.usechannelfreq=True \
                  pre.beammode=array_factor pre.onebeamperpatch=True pre.sourcedb=$pathMS/' + sourcedb_basename,
                 log='$nameMS_pre.log', commandType='DP3')
-### DONE
+# ### DONE
 
 with w.if_todo('solve_cor_fr'):
     logger.info('Add column CIRC_PHASEDIFF_DATA...')
@@ -185,7 +201,7 @@ with w.if_todo('solve_cor_fr'):
 
     # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against FR_MODEL_DATA (only solve - solint=2m nchan=0 as it has the smoothnessconstrain)
     logger.info('Solving circ phase difference ...')
-    MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint=' + str(30 * base_solint),
+    MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint=' + str(30 * base_solint) + ' ',
             log='$nameMS_solFR.log', commandType="DP3")
     lib_util.run_losoto(s, f'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
     os.system('mv cal-fr.h5 self/solutions/')
@@ -216,11 +232,6 @@ for c in range(maxIter):
                     commandType='general')
     ### DONE
 
-    with w.if_todo('smooth_model_c%02i' % c):
-        # Smooth MODEL_DATA -> MODEL_DATA
-        MSs.run_Blsmooth('MODEL_DATA', 'MODEL_DATA', logstr=f'smooth-c{c}')
-    ### DONE
-
     with w.if_todo('solve_tec1_c%02i' % c):
         # Smooth CORRECTED_DATA -> SMOOTHED_DATA
         MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
@@ -228,8 +239,7 @@ for c in range(maxIter):
         # solve ionosphere phase - ms:SMOOTHED_DATA (1m 2SB)
         logger.info('Solving TEC1...')
         if phaseSolMode == 'phase': #phase
-            # TODO optimize smoothnessconstraint 2e6 -> 1e6
-            solver_params = f'sol.mode=scalarcomplexgain sol.smoothnessconstraint=1e6 sol.smoothnessreffrequency=54e6'
+            solver_params = f'sol.mode=scalarphase sol.smoothnessconstraint=0.5e6 sol.smoothnessreffrequency=54e6'
             losoto_parsets = [parset_dir+'/losoto-plot-scalar.parset']
         else: # TEC or TecAndPhase
             solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
@@ -237,11 +247,6 @@ for c in range(maxIter):
 
         MSs.run(f"DP3 {parset_dir}/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 sol.solint={base_solint} {solver_params}",
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
-        # MSs.run('DP3 '+parset_dir+'/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 \
-        #         msin.baseline="[CR]*&&;!RS208LBA;!RS210LBA;!RS307LBA;!RS310LBA;!RS406LBA;!RS407LBA;!RS409LBA;!RS508LBA;!RS509LBA;!PL*;!IE*;!UK*;!DE*;!FR*;!SE*" \
-        #         sol.solint='+str(15*base_solint), \
-        #         #+' sol.nchan='+str(8*base_nchan), sol.antennaconstraint=[[CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]] \
-        #         log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
         lib_util.run_losoto(s, 'tec1-c'+str(c), [ms+'/tec1.h5' for ms in MSs.getListStr()], losoto_parsets)
         os.system('mv cal-tec1-c'+str(c)+'.h5 self/solutions/')
@@ -260,40 +265,92 @@ for c in range(maxIter):
             MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA\
                     cor.parmdb=self/solutions/cal-tec1-c'+str(c)+'.h5 cor.correction=phase000',
                     log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DP3')
+        # testimage('iono', MSs)
     ### DONE
 
-    with w.if_todo('solve_g_c%02i' % c):
+    # TODO: Why are the amps for the distant RS negative? can we improve on that? how do scalarcomplexgain and giagonal amp sols look like
+    with w.if_todo('solve_fast_g_c%02i' % c):
+        # DIE Calibration - ms:CORRECTED_DATA (8m, 4SB)
+        logger.info('Solving fast G ...')
+        # MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
+        MSs.run(f'DP3 {parset_dir}/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/g1.h5 sol.solint={2*base_solint} sol.nchan=1 sol.smoothnessconstraint=4e6 sol.mode=scalarcomplexgain',
+                log='$nameMS_solG-c'+str(c)+'.log', commandType='DP3')
+        lib_util.run_losoto(s, 'g1-c'+str(c), [MS+'/g1.h5' for MS in MSs.getListStr()],
+                            [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-scalar.parset'])#, parset_dir+'/losoto-bp.parset'])
+        os.system('mv plots-g1-c'+str(c)+' self/plots/')
+        os.system('mv cal-g1-c'+str(c)+'.h5 self/solutions/')
+    ### DONE
+
+    with w.if_todo('cor_fast_g_c%02i' % c):
+        # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
+        logger.info('Correcting G...')
+        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+                cor.parmdb=self/solutions/cal-g1-c'+str(c)+'.h5 cor.correction=amplitude000',
+                log='$nameMS_corG-c'+str(c)+'.log', commandType='DP3')
+        # testimage('amp', MSs)
+        logger.info('Correcting gph...')
+        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+                cor.parmdb=self/solutions/cal-g1-c'+str(c)+'.h5 cor.correction=phase000',
+                log='$nameMS_corG-c'+str(c)+'.log', commandType='DP3')
+        # testimage('amp+ph', MSs)
+
+
+    with w.if_todo('sol_diag_%02i' % c):
+        # logger.info('Add column CIRC_DATA...')
+        # MSs.addcol('CIRC_DATA', 'CORRECTED_DATA')  # No dysco here as off diag elements are 0 and dysco does not like 0s
+        # MSs.addcol('CIRC_MODEL_DATA', 'MODEL_DATA', usedysco=False)  # No dysco here as off diag elements are 0 and dysco does not like 0s
+        # logger.info('Converting to circular...')
+        # MSs.run('mslin2circ.py -s -i $pathMS:CORRECTED_DATA -o $pathMS:CIRC_DATA',
+        #         log='$nameMS_lincirc.log', commandType='python', maxThreads=2)
+        # MSs.run('mslin2circ.py -s -i $pathMS:MODEL_DATA -o $pathMS:CIRC_MODEL_DATA',
+        #         log='$nameMS_lincirc.log', commandType='python', maxThreads=2)
+        #
+        # solve ionosphere phase - ms:SMOOTHED_DATA (1m 2SB)
+        logger.info('Solving diag phase...')
+        MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
+        MSs.run(f"DP3 {parset_dir}/DP3-solTEC.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.modeldatacolumns=[MODEL_DATA] sol.h5parm=$pathMS/diag.h5 sol.solint={4*base_solint} sol.mode=diagonal sol.smoothnessconstraint=3e6 sol.smoothnessreffrequency=54e6",
+                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
+
+        lib_util.run_losoto(s, 'diag-c'+str(c), [ms+'/diag.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-plot-amp.parset', parset_dir + '/losoto-plot-ph.parset'])
+        os.system('mv cal-diag-c'+str(c)+'.h5 self/solutions/')
+        os.system('mv plots-diag-c'+str(c)+' self/plots/')
+
+    with w.if_todo('cor_diag_%02i' % c):
+        logger.info('Correcting diag...')
+        MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                    cor.parmdb=self/solutions/cal-diag-'+f'c{c}'+'.h5 cor.correction=phase000',
+                log='$nameMS_corFR.log', commandType='DP3')
+        testimage('diag-ph', MSs)
+        MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                    cor.parmdb=self/solutions/cal-diag-'+f'c{c}'+'.h5 cor.correction=amplitude000',
+                log='$nameMS_corFR.log', commandType='DP3')
+        testimage('diag-amp', MSs)
+
+
+    with w.if_todo('solve_slow_g_c%02i' % c):
         # DIE Calibration - ms:CORRECTED_DATA (8m, 4SB)
         logger.info('Solving slow G (full jones)...')
-        MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/g.h5 sol.solint='+str(120*base_solint)+' sol.nchan='+str(16*base_nchan),
+        # MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
+        MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/g2.h5 sol.solint='+str(120*base_solint)+' sol.nchan='+str(16*base_nchan),
                 log='$nameMS_solG-c'+str(c)+'.log', commandType='DP3')
-        lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()],
+        lib_util.run_losoto(s, 'g2-c'+str(c), [MS+'/g2.h5' for MS in MSs.getListStr()],
                 [parset_dir+'/losoto-plot-fullj.parset'])#, parset_dir+'/losoto-bp.parset'])
-        os.system('mv plots-g-c'+str(c)+' self/plots/')
-        os.system('mv cal-g-c'+str(c)+'.h5 self/solutions/')
+        os.system('mv plots-g2-c'+str(c)+' self/plots/')
+        os.system('mv cal-g2-c'+str(c)+'.h5 self/solutions/')
     ### DONE
 
     with w.if_todo('cor_g_c%02i' % c):
         # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
         logger.info('Correcting G...')
         MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000]',
+                cor.parmdb=self/solutions/cal-g2-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000]',
                 log='$nameMS_corG-c'+str(c)+'.log', commandType='DP3')
+        testimage('fj', MSs)
+
+    sys.exit()
     ### DONE
 
      ###################################################################################################################
-     # clean on concat.MS:CORRECTED_DATA
-
-    # if IS are present, copy the MS and split a dataset with just CS+RS
-    if MSs.hasIS:
-        logger.info('Splitting out international stations...')
-        lib_util.check_rm('mss-noIS')
-        os.system('mkdir mss-noIS')
-        MSs.run('DP3 msin=$pathMS msin.datacolumn=CORRECTED_DATA msin.baseline="[CR]S*&" msout=mss-noIS/$nameMS.MS steps=[]',
-                 log='$nameMS_splitDutch.log', commandType="DP3")
-        MSsClean = lib_ms.AllMSs( glob.glob('mss-noIS/TC*[0-9].MS'), s )
-    else:
-        MSsClean = MSs
 
     imagenameM = 'img/wideM-'+str(c)
     if (c == 0) or (c == maxIter - 1): # make wide image

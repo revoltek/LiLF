@@ -35,13 +35,14 @@ def clean_self(c, MSs, MSsClean, imgsizepix, cc_fit_order, subfield_kwargs, do_p
     imagename = 'img/wide-' + str(c)
     imagenameM = 'img/wideM-' + str(c)
 
-    # first clean using local_rms and higher thresholds, -> update MODEL_DATA # concat_mss=True, baseline_averaging='',
-    lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(), concat_mss=True, keep_concat=True,
-                         name=imagenameM, size=imgsizepix, scale='4arcsec',
-                         weight='briggs -0.3', niter=1000000, update_model_required='', minuv_l=30,
-                         parallel_gridding=6,  mgain=0.8, parallel_deconvolution=1024,
-                         auto_mask=6, auto_threshold=4.5, local_rms='', join_channels='', fit_spectral_pol=cc_fit_order,
-                         channels_out=MSsClean.getChout(4.e6), multiscale='', deconvolution_channels=cc_fit_order, **subfield_kwargs)
+    # first quick clean using local_rms and higher threshold
+    # lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(),
+    #                      name=imagenameM, size=imgsizepix, scale='4arcsec',
+    #                      weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
+    #                      parallel_gridding=6,  mgain=0.85, parallel_deconvolution=1024,
+    #                      auto_mask=6, auto_threshold=4.5, local_rms='', join_channels='', fit_spectral_pol=cc_fit_order,
+    #                      channels_out=MSsClean.getChout(4.e6), multiscale='', deconvolution_channels=cc_fit_order, **subfield_kwargs)
+    # Might want to increase box size from 50 to 100 or 200?
     if userReg is not None:
         s.add('breizorro.py -t 6.5 -r %s -b 50 -o %s --merge %s' % (
         imagenameM + '-MFS-image.fits', imagename + '-mask.fits', userReg),
@@ -54,11 +55,9 @@ def clean_self(c, MSs, MSsClean, imgsizepix, cc_fit_order, subfield_kwargs, do_p
     os.system(f'cp {imagenameM}-MFS-image.fits {imagename}-MFS-image.fits')
     os.system(f'cp {imagenameM}-MFS-residual.fits {imagename}-MFS-residual.fits')
     os.system(f'cp {imagenameM}-MFS-model.fits {imagename}-MFS-model.fits')
-    # second continue clean using mask and lower threshold -> update MODEL_DATA
-    # TODO check save_source_listbaseline_averaging='',
-
+    # second imaging call, this time with clean. Using -cont did not work very well, since the first run already picked up some large-scale artifacts
     lib_util.run_wsclean(s, 'wscleanM-c' + str(c) + '.log', MSsClean.getStrWsclean(), concat_mss=False, fits_mask=imagename+'-mask.fits',
-                         cont='', reuse_psf=imagenameM, reuse_dirty=imagenameM, name=imagenameM, save_source_list='', size=imgsizepix, scale='4arcsec', weight='briggs -0.3',
+                          name=imagenameM, save_source_list='', size=imgsizepix, scale='4arcsec', weight='briggs -0.3', reuse_psf=imagenameM, reuse_dirty=imagenameM,
                          niter=1000000, no_update_model_required='', minuv_l=30, parallel_gridding=6,  mgain=0.8, parallel_deconvolution=1024,
                          auto_threshold=3., join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6),
                          multiscale='', deconvolution_channels=cc_fit_order, **subfield_kwargs)
@@ -539,8 +538,8 @@ with w.if_todo('imaging-pol'):
         parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500,
         join_channels='', channels_out=MSs.getChout(4.e6))
 
-MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN SUBFIELD_DATA, FR_CORRECTED_DATA"',
-        log='$nameMS_taql_delcol.log', commandType='general')
+# MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN SUBFIELD_DATA, FR_CORRECTED_DATA"',
+#         log='$nameMS_taql_delcol.log', commandType='general')
 
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits self/images') for c in range(maxIter) ]

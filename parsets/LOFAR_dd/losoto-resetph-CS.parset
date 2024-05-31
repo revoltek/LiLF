@@ -1,0 +1,12 @@
+Ncpu = 0
+
+[reset]
+operation = RESET
+ant.regexp=CS*
+soltab = sol000/phase000
+
+[reweight]
+operation = REWEIGHT
+ant.regexp=CS*
+soltab = sol000/phase000
+weightVal = 1.
