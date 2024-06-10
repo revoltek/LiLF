@@ -496,7 +496,7 @@ class MergeH5:
                 for soltab1 in ss1._v_groups.keys():
                     if (len(antennas_ref['name']) != len(ss1._f_get_child(soltab1).ant[:])) or \
                             (not all(antennas_ref['name'] == ss1._f_get_child(soltab1).ant[:])):
-                        print(type(ss1._f_get_child(soltab1).ant[:] ))
+                        # print(type(ss1._f_get_child(soltab1).ant[:] ))
                         message = '\n'.join(['\nMismatch in antenna tables in ' + h5_name1,
                                              'Antennas from ' + '/'.join([solset1, 'antenna']),
                                              str(antennas_ref['name']),
@@ -1096,7 +1096,10 @@ class MergeH5:
 
                 # different axes if pol in output
                 if 'pol' in self.axes_final:
+                    # print(dir_idx, ss.getSou())
                     values = table_values[:, dir_idx, ...]
+                    # if dir_idx == 0:
+                    #     values *= 0.0
                 else:
                     values = table_values[dir_idx, ...]
 
@@ -1109,6 +1112,7 @@ class MergeH5:
                     print(
                         'WARNING: Order of source directions from h5 table might not be ordered. This is an old Python issue.'
                         '\nSuggest to switch to Python 3.6 or higher')
+                # print('diridx',dir_idx,list(dirs.keys())[dir_idx])
 
                 # coordinate list
                 source_coords = dirs[list(dirs.keys())[dir_idx]]
@@ -1139,7 +1143,7 @@ class MergeH5:
 
                 else:  # new direction
                     if abs(source_coords[0]) > 0 and abs(source_coords[1]) > 0:
-                        print('Adding new direction {:f},{:f}'.format(*source_coords))
+                        print(f'Adding new direction Dir{self.n:02d} {source_coords[0]},{source_coords[1]}')
                     idx = self.n
                     self.add_direction({'Dir{:02d}'.format(self.n): source_coords})
                     if not self.merge_all_in_one:
@@ -1149,6 +1153,7 @@ class MergeH5:
                                 or (st.getType() in ['phase', 'rotation'] and not self.convert_tec):
                             shape = list(self.phases.shape)
                             dir_index = self.phases.ndim - 4
+                            # print(dir_index, shape)
                             if dir_index < 0:
                                 sys.exit('ERROR: Missing dir axes.')
                             if self.n > shape[dir_index]:
@@ -1208,6 +1213,8 @@ class MergeH5:
 
                     elif not self.doublefulljones:
                         if 'pol' in self.axes_current:
+                            import numpy as np
+                            # print('putting at', idx, np.std(values[0]), values.shape)
                             self.phases[:, idx, ...] += values[:, ...]
                         else:
                             self.phases[idx, ...] += values[...]
@@ -1274,7 +1281,7 @@ class MergeH5:
 
                     else:
                         sys.exit("ERROR: Broken code. Should not be here.")
-
+            # print(np.std(self.phases, axis=(0,2,3,4)))
             h5.close()
 
         return self

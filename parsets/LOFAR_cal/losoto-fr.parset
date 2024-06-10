@@ -20,7 +20,7 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/ph_
-refAnt = SuperSt
+refAnt = auto
 minmax = [-3.14,3.14]
 NColFig = 4
 figSize = [20,20]
@@ -34,7 +34,7 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/ph_
-refAnt = SuperSt
+refAnt = auto
 minmax = [-3.14,3.14]
 
 [plotP3]
@@ -45,13 +45,13 @@ axisInTable = ant
 plotFlag = True
 prefix = plots/ph_
 pol = XX
-refAnt = SuperSt
+refAnt = auto
 minmax = [-3.14,3.14]
 
 [faraday]
 operation = FARADAY
 soltab = sol000/phaseResid000
-refAnt = SuperSt
+refAnt = auto
 maxResidual = 1.5
 freq.minmaxstep = [20e6,1e9] # should this start form 30 MHz or does 20 MHz work?
 
@@ -61,7 +61,7 @@ soltab = sol000/rotationmeasure000
 axesInPlot = [time]
 axisInTable = ant
 prefix = plots/fr
-refAnt = SuperSt
+refAnt = auto
 
 [residuals]
 operation = RESIDUALS
@@ -76,5 +76,5 @@ AxisInTable = ant
 AxisDiff = pol
 plotFlag = True
 prefix = plots/phRes-rot
-refAnt = SuperSt
+refAnt = auto
 minmax = [-1.,1.]

@@ -89,7 +89,7 @@ if not os.path.exists(sourcedb):
     sm.select('I>0.4', applyBeam=True) # keep only reasonably bright sources
     sm.write('tgts-pre.skymodel', clobber=True, applyBeam=True, adjustSI=True)
     sm = lsmtool.load('tgts-pre.skymodel')
-    sm.group('cluster', numClusters=20, root='MODEL_DATA')
+    sm.group('tessellate', targetFlux=15, root='MODEL_DATA')
     sm.setPatchPositions(method='wmean')
     sm.plot('self/skymodel/patches.png', 'patch')
     #sm.getColValues('I', aggregate='sum')
@@ -162,20 +162,20 @@ for c in range(maxIter):
             MSs.addcol('CORRECTED_DATA', 'FR_CORRECTED_DATA')
     else:
         sourcedb = f'tgts-c{c}.skymodel'
-        # with w.if_todo('set_corrected_data_c%02i' % c):
-        #     logger.info('Set CORRECTED_DATA = SUBFIELD_DATA...')
-        #     MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBFIELD_DATA"', log='$nameMS_taql-c' + str(c) + '.log',
-        #             commandType='general')
+        with w.if_todo('set_corrected_data_c%02i' % c):
+            logger.info('Set CORRECTED_DATA = SUBFIELD_DATA...')
+            MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBFIELD_DATA"', log='$nameMS_taql-c' + str(c) + '.log',
+                    commandType='general')
 
         if not os.path.exists(sourcedb):
             # make filter mask
             sm = lsmtool.load(f'img/wideM-{c-1}-sources.txt')
             sm.select('img/fov_mask.fits=1')  # remove distant sources
             sm.select('I>0.05')  # remove the faintest sources
-            sm.group('tessellate', targetFlux=15, root='MODEL_DATA')
+            targetFlux = 15 if c==1 else 10
+            sm.group('tessellate', targetFlux=targetFlux, root='MODEL_DATA')
             sm.setPatchPositions(method='wmean')
             sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
-            # sm.getColValues('I', aggregate='sum')
             sm.write(sourcedb, clobber=True)
         else:
             logger.info(f'Load existing skymodel {sourcedb}')

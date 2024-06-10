@@ -31,6 +31,59 @@ debugplots = False
 
 #############################################################
 
+def solve_fr_from_circphasediff(MSs, phaseup=True, initial=False):
+    """Solve fr from circ_phasediff
+    phaseup: bool, phase-up CS?
+    initial: bool, output name for initial FR solve?
+    """
+    # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+    incol = 'DATA' if initial else 'CORRECTED_DATA'
+    MSs.run_Blsmooth(incol=incol, nofreq=False, logstr='smooth2')
+
+    # Convert to circular SMOOTHED_DATA -> SMOOTHED_DATA
+    logger.info('Converting to circular...')
+    MSs.run('mslin2circ.py -s -i $pathMS:SMOOTHED_DATA -o $pathMS:SMOOTHED_DATA',
+                  log='$nameMS_lincirc.log', commandType='python', maxThreads=1)
+
+    if phaseup: # should not do this if relevant FR on CS (e.g. low freq, LBA IS data...)
+        # Phasing up the cose stations SMOOTHED_DATA -> concat_all-phaseupFR.MS:DATA
+        logger.info('Phasing up Core Stations...')
+        lib_util.check_rm('concat_all-phaseupFR.MS')
+        MSs.run('DP3 ' + parset_dir + '/DP3-phaseup.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
+                            msout=concat_small-phaseupFR.MS', log='$nameMS_phaseup.log', commandType="DP3")
+
+        MSs = lib_ms.AllMSs(['concat_small-phaseupFR.MS'], s, check_flags=False)
+
+    col = 'DATA' if phaseup else 'SMOOTHED_DATA'
+    # Get circular phase diff col -> col
+    logger.info('Get circular phase difference...')
+    MSs.run(f'taql "UPDATE $pathMS SET {col}[,0]=0.5*EXP(1.0i*(PHASE({col}[,0])-PHASE({col}[,3]))), \
+                             {col}[,3]={col}[,0], {col}[,1]=0+0i, {col}[,2]=0+0i"',
+                            log='$nameMS_taql_phdiff.log', commandType='general')
+
+    logger.info('Creating MODEL_DATA...')  # take from MODEL_DATA but overwrite
+    MSs.addcol('FR_MODEL_DATA', col, usedysco=False)  # need this to make sure no dysco, if we have dyso we cannot set values to zero
+    MSs.run('taql "UPDATE $pathMS SET FR_MODEL_DATA[,0]=0.5+0i, FR_MODEL_DATA[,1]=0.0+0i, \
+                             FR_MODEL_DATA[,2]=0.0+0i, FR_MODEL_DATA[,3]=0.5+0i"',
+                            log='$nameMS_taql_model.log', commandType='general')
+
+    # Solve cal_SB.MS:DATA against MODEL_DATA (only solve)
+    # when available, add smoothnessspectralexponent once available
+    # smoothnessconstraint limited by IS and active iono
+    if initial:
+        logger.info('Pre-calibrating FR...')
+    else:
+        logger.info('Calibrating FR...')
+    solint = 16 if initial else 4
+    MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn={col} sol.modeldatacolumns=[FR_MODEL_DATA] \
+                             sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint={solint} sol.nchan=1 \
+                             sol.smoothnessconstraint=0.4e6 sol.smoothnessreffrequency=54e6',
+                            log='$nameMS_solFR.log', commandType="DP3")
+
+    h5name = 'fr-in' if initial else 'fr'
+    lib_util.run_losoto(s, h5name, [ms + '/fr.h5' for ms in MSs.getListStr()],
+                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-fr.parset'])
+
 def debug_imaging(MSs, suffix):
     if not os.path.exists('img'):
         os.makedirs('img')
@@ -90,6 +143,8 @@ with w.if_todo('concat_all'):
 
 MSs_concat_all = lib_ms.AllMSs(['concat_all.MS'], s, check_flags=False)
 MSs_concat_all.print_HAcov()
+# if Decameter or LBA IS data, do some things differently
+expect_strong_iono = (min(MSs_concat_all.getFreqs()) < 35.e6) or MSs_concat_all.hasIS
 
 ######################################################
 # flag bad stations, flags will propagate
@@ -142,34 +197,74 @@ if debugplots:
 
 ###################################################
 # 1: find PA
+with w.if_todo('predict_all_1'):
+    logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
+    MSs_concat_all.run("DP3 " + parset_dir + "/DP3-predict.parset msin=$pathMS pre.sourcedb="
+                       +skymodel + " pre.sources=" + calname, log="$nameMS_pre.log",
+                       commandType="DP3")
 
 with w.if_todo('cal_pa'):
-    # TODO: For cases of strong FR (where it is actually ~full rotation), the current strategy does not work!
-    # Smooth data concat_all-all DATA -> SMOOTHED_DATA (BL-based smoothing)
-    MSs_small.run_Blsmooth(nofreq=True, logstr='smooth1')
+    # MSs_concat_all.run_Blsmooth(incol='DATA', nofreq=True, logstr='smooth0')
+    # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+    ntimes = int(MSs_concat_all.getListObj()[0].getNtime())
+    starttimes = [0,150,300,450,600]
+    # starttime = ntimes/2 - 75
+    for i, starttime in enumerate(starttimes):
+        # Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
+        MSs_concat_all.run_Blsmooth(incol='DATA', logstr='smooth3')
 
-    # Get phase diff SMOOTHED_DATA -> SMOOTHED_DATA
-    logger.info('Get phase difference...')
-    MSs_small.run('taql "UPDATE $pathMS SET\
-                             SMOOTHED_DATA[,0]=0.5*EXP(1.0i*(PHASE(SMOOTHED_DATA[,0])-PHASE(SMOOTHED_DATA[,3]))), \
-                             SMOOTHED_DATA[,3]=SMOOTHED_DATA[,0], SMOOTHED_DATA[,1]=0+0i, SMOOTHED_DATA[,2]=0+0i"',
-                             log='$nameMS_taql_phdiff.log', commandType='general')
+        logger.info(f'Calibrating PA{i}...')
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.starttimeslot={starttime} msin.ntimes={int(600/4)} sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
+                sol.solint=2 sol.nchan=1',
+                log='$nameMS_solPA.log', commandType="DP3")
 
-    logger.info('Creating MODEL_DATA...')
-    MSs_small.addcol('MODEL_DATA', 'DATA', usedysco=False)  # need this to make sure no dysco, if we have dyso we cannot set values to zero
-    MSs_small.run('taql "UPDATE $pathMS SET MODEL_DATA[,0]=0.5+0i, MODEL_DATA[,1]=0.0+0i, \
-                             MODEL_DATA[,2]=0.0+0i, MODEL_DATA[,3]=0.5+0i"',
-                             log='$nameMS_taql_model.log', commandType='general')
+        lib_util.run_losoto(s, f'pa{i}', [ms+'/pa.h5' for ms in MSs_concat_all.getListStr()],
+                            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
 
-    # Solve cal_SB.MS:DATA against MODEL_DATA (only solve)
-    logger.info('Calibrating PA...')
-    timestep = int(np.rint(600 / MSs_small.mssListObj[0].getTimeInt()))  # brings down to 10m
-    MSs_small.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 \
-                          sol.mode=phaseonly sol.solint='+str(timestep)+' sol.nchan=1 \
-                          sol.smoothnessconstraint=2e6', log='$nameMS_solPA.log', commandType="DP3")
+    if False:
+        # if bad iono: need to do initial FR correction to de-rotate, otherwise cannot do XX-YY
+        if expect_strong_iono:
+            # Correct beam concat_all-phaseup.MS:CORRECTED_DATA -> CORRECTED_DATA
+            # logger.info('Beam correction...')
+            # MSs_small.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.updateweights=False',
+            #                    log='$nameMS_beam.log', commandType="DP3")
+            solve_fr_from_circphasediff(MSs_small, phaseup=(min(MSs_concat_all.getFreqs()) > 40.e6), initial=True)
 
-    lib_util.run_losoto(s, 'pa', [ms + '/pa.h5' for ms in MSs_small.getListStr()],
-                        [parset_dir + '/losoto-pa.parset'])
+
+        if expect_strong_iono:
+            # Init corrupt for FR concat_all.MS:MODEL_DATA -> MODEL_DATA
+            logger.info('Initial Faraday rotation correction...')
+            MSs_small.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
+                                msout.datacolumn=CORRECTED_DATA cor.parmdb=cal-fr-in.h5 cor.invert=True \
+                                cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+            # MSs_small.run('taql "UPDATE $pathMS SET MODEL_DATA[,1]=0.0+0i, MODEL_DATA[,2]=0.0+0i"',
+            #               log='$nameMS_taql_model.log', commandType='general')
+
+        # Smooth data concat_all-all DATA -> SMOOTHED_DATA (BL-based smoothing)
+        MSs_small.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth1')
+
+        # Get phase diff SMOOTHED_DATA -> SMOOTHED_DATA
+        logger.info('Get phase difference...')
+        MSs_small.run('taql "UPDATE $pathMS SET\
+                                 SMOOTHED_DATA[,0]=0.5*EXP(1.0i*(PHASE(SMOOTHED_DATA[,0])-PHASE(SMOOTHED_DATA[,3]))), \
+                                 SMOOTHED_DATA[,3]=SMOOTHED_DATA[,0], SMOOTHED_DATA[,1]=0+0i, SMOOTHED_DATA[,2]=0+0i"',
+                                 log='$nameMS_taql_phdiff.log', commandType='general')
+
+        logger.info('Creating MODEL_DATA...')
+        MSs_small.addcol('MODEL_DATA', 'DATA', usedysco=False)  # need this to make sure no dysco, if we have dyso we cannot set values to zero
+        MSs_small.run('taql "UPDATE $pathMS SET MODEL_DATA[,0]=0.5+0i, MODEL_DATA[,1]=0.0+0i, \
+                                 MODEL_DATA[,2]=0.0+0i, MODEL_DATA[,3]=0.5+0i"',
+                                 log='$nameMS_taql_model.log', commandType='general')
+
+        # Solve cal_SB.MS:DATA against MODEL_DATA (only solve)
+        logger.info('Calibrating PA...')
+        timestep = int(np.rint(600 / MSs_small.mssListObj[0].getTimeInt()))  # brings down to 10m
+        MSs_small.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 \
+                              sol.mode=phaseonly sol.solint='+str(timestep)+' sol.nchan=1 \
+                              sol.smoothnessconstraint=2e6', log='$nameMS_solPA.log', commandType="DP3")
+
+        lib_util.run_losoto(s, 'pa', [ms + '/pa.h5' for ms in MSs_small.getListStr()],
+                            [parset_dir + '/losoto-pa.parset'])
     
 ### DONE
 
@@ -185,57 +280,11 @@ with w.if_todo('cal_fr'):
     logger.info('Beam correction...')
     MSs_small.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True',
                        log='$nameMS_beam.log', commandType="DP3")
-
-    # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-    MSs_small.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth2')
-
-    # Convert to circular SMOOTHED_DATA -> SMOOTHED_DATA
-    logger.info('Converting to circular...')
-    MSs_small.run('mslin2circ.py -s -i $pathMS:SMOOTHED_DATA -o $pathMS:SMOOTHED_DATA',
-                           log='$nameMS_lincirc.log', commandType='python', maxThreads=1)
-    
-    # Phasing up the cose stations SMOOTHED_DATA -> concat_all-phaseupFR.MS:DATA
-    logger.info('Phasing up Core Stations...')
-    lib_util.check_rm('concat_all-phaseupFR.MS')
-    MSs_small.run('DP3 ' + parset_dir + '/DP3-phaseup.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
-                        msout=concat_small-phaseupFR.MS', log='$nameMS_phaseup.log', commandType="DP3")
-
-    MSs_small_phaseupFR = lib_ms.AllMSs(['concat_small-phaseupFR.MS'], s, check_flags=False)
-
-    # Get circular phase diff DATA -> DATA
-    logger.info('Get circular phase difference...')
-    MSs_small_phaseupFR.run('taql "UPDATE $pathMS SET\
-                             DATA[,0]=0.5*EXP(1.0i*(PHASE(DATA[,0])-PHASE(DATA[,3]))), \
-                             DATA[,3]=DATA[,0], DATA[,1]=0+0i, DATA[,2]=0+0i"', 
-                             log='$nameMS_taql_phdiff.log', commandType='general')
-    
-    logger.info('Creating MODEL_DATA...')  # take from MODEL_DATA but overwrite
-    MSs_small_phaseupFR.addcol('MODEL_DATA', 'DATA', usedysco=False)  # need this to make sure no dysco, if we have dyso we cannot set values to zero
-    MSs_small_phaseupFR.run('taql "UPDATE $pathMS SET MODEL_DATA[,0]=0.5+0i, MODEL_DATA[,1]=0.0+0i, \
-                             MODEL_DATA[,2]=0.0+0i, MODEL_DATA[,3]=0.5+0i"', 
-                             log='$nameMS_taql_model.log', commandType='general')
-    
-    # Solve cal_SB.MS:DATA against MODEL_DATA (only solve)
-    # when available, add smoothnessspectralexponent once available
-    # smoothnessconstraint limited by IS and active iono
-    logger.info('Calibrating FR...')
-    MSs_small_phaseupFR.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA \
-                             sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint=4 sol.nchan=1 \
-                             sol.smoothnessconstraint=0.4e6 sol.smoothnessreffrequency=54e6',
-                             log='$nameMS_solFR.log', commandType="DP3")
-
-    lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_small_phaseupFR.getListStr()],
-                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-fr.parset'])
-
+    # solve from CORRECTED_DATA -> cal-fr.h5 using circ phasediff
+    solve_fr_from_circphasediff(MSs_small, phaseup=(min(MSs_concat_all.getFreqs()) > 40.e6))
 ### DONE 
 
 #################################################
-with w.if_todo('predict_all'):
-    logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
-    os.system('cp -r %s %s' % (skymodel, MSs_concat_all.getListObj()[0].pathMS))
-    MSs_concat_all.run("DP3 " + parset_dir + "/DP3-predict.parset msin=$pathMS pre.sourcedb=$pathMS/"
-                       + os.path.basename(skymodel) + " pre.sources=" + calname, log="$nameMS_pre.log",
-                       commandType="DP3")
 
 # 3: find iono
 with w.if_todo('cal_iono'):
@@ -256,7 +305,7 @@ with w.if_todo('cal_iono'):
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
 
-    # Solve cal_SB.MS:DATA CS-CS baselines(only solve) # flat smoothing since likely time delays if any
+    # Solve cal_SB.MS:DATA CS-CS baselines(only solve) # not more smoothing since in rare case some CS have strong delay!
     logger.info('Calibrating IONO (Core Stations)...')
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                         sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.solint=16 sol.nchan=1 msin.baseline="CS*&CS*" \

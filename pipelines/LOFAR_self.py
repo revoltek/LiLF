@@ -36,12 +36,12 @@ def clean_self(c, MSs, MSsClean, imgsizepix, cc_fit_order, subfield_kwargs, do_p
     imagenameM = 'img/wideM-' + str(c)
 
     # first quick clean using local_rms and higher threshold
-    # lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(),
-    #                      name=imagenameM, size=imgsizepix, scale='4arcsec',
-    #                      weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
-    #                      parallel_gridding=6,  mgain=0.85, parallel_deconvolution=1024,
-    #                      auto_mask=6, auto_threshold=4.5, local_rms='', join_channels='', fit_spectral_pol=cc_fit_order,
-    #                      channels_out=MSsClean.getChout(4.e6), multiscale='', deconvolution_channels=cc_fit_order, **subfield_kwargs)
+    lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(),
+                         name=imagenameM, size=imgsizepix, scale='4arcsec',
+                         weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
+                         parallel_gridding=6,  mgain=0.85, parallel_deconvolution=1024,
+                         auto_mask=6, auto_threshold=4.5, local_rms='', join_channels='', fit_spectral_pol=cc_fit_order,
+                         channels_out=MSsClean.getChout(4.e6), multiscale='', deconvolution_channels=cc_fit_order, **subfield_kwargs)
     # Might want to increase box size from 50 to 100 or 200?
     if userReg is not None:
         s.add('breizorro.py -t 6.5 -r %s -b 50 -o %s --merge %s' % (
