@@ -9,5 +9,7 @@ steps = [pre]
 
 pre.type = predict
 pre.sourcedb = 
-pre.usebeammodel = 
+pre.usebeammodel =
+pre.correctfreqsmearing = True
+pre.correcttimesmearing = 2 # upsampling factor
 
