@@ -6,7 +6,7 @@ msout.storagemanager = dysco
 
 # numthreads = ?? what is the best way to run this?
 
-steps = [demix]
+steps = [demix, filter]
 
 demix.type = demixer
 demix.baseline = [CR]S*& # only demix Dutch
@@ -23,3 +23,7 @@ demix.skymodel =
 demix.freqstep =
 demix.timestep =
 demix.instrumentmodel =
+
+# should remove stations not used in any baseline (international)
+filter.type = filter
+filter.remove = True
