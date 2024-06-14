@@ -192,23 +192,23 @@ for c in range(maxIter):
             logger.info('Correct subfield iono...')
             if phaseSolMode in ['tec', 'tecandphase']:
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                        cor.parmdb=self/solutions/cal-sf-tec2-c' + str(c) + '.h5 cor.correction=tec000 ',
+                        cor.parmdb=self/solutions/cal-sf-tec2-c' + str(c-1) + '.h5 cor.correction=tec000 ',
                     log='$nameMS_corrupt.log', commandType='DP3')
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                        cor.parmdb=self/solutions/cal-sf-tec1-c' + str(c) + '.h5 cor.correction=tec000 ',
+                        cor.parmdb=self/solutions/cal-sf-tec1-c' + str(c-1) + '.h5 cor.correction=tec000 ',
                         log='$nameMS_corrupt.log', commandType='DP3')
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                        cor.parmdb=self/solutions/cal-sf-tec0-c' + str(c) + '.h5 cor.correction=tec000 ',
+                        cor.parmdb=self/solutions/cal-sf-tec0-c' + str(c-1) + '.h5 cor.correction=tec000 ',
                         log='$nameMS_corrupt.log', commandType='DP3')
             if phaseSolMode in ['phase', 'tecandphase']:
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  \
-                        cor.parmdb=self/solutions/cal-tec2-sf-c' + str(c) + '.h5 cor.correction=phase000 \
+                        cor.parmdb=self/solutions/cal-tec2-sf-c' + str(c-1) + '.h5 cor.correction=phase000 \
                         cor.invert=True',log='$nameMS_corrupt.log', commandType='DP3')
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  \
-                        cor.parmdb=self/solutions/cal-tec1-sf-c' + str(c) + '.h5 cor.correction=phase000 \
+                        cor.parmdb=self/solutions/cal-tec1-sf-c' + str(c-1) + '.h5 cor.correction=phase000 \
                         cor.invert=True',log='$nameMS_corrupt.log', commandType='DP3')
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  \
-                        cor.parmdb=self/solutions/cal-tec0-sf-c' + str(c) + '.h5 cor.correction=phase000 \
+                        cor.parmdb=self/solutions/cal-tec0-sf-c' + str(c-1) + '.h5 cor.correction=phase000 \
                         cor.invert=True',log='$nameMS_corrupt.log', commandType='DP3')
 
         sourcedb = f'tgts-c{c}.skymodel'
@@ -237,18 +237,20 @@ for c in range(maxIter):
         lib_util.check_rm('mss-sol')
         os.system('mkdir mss-sol')
         timeint = MSs.getListObj()[0].getTimeInt()
-        avgtimeint = int(round(8 / timeint)) if c != 1 else int(round(4 / timeint))
+        avgtimeint = int(round(8 / timeint))
         nchan_init = MSs.getListObj()[0].getNchan()
         # chan: avg (x8) sol (x6) - we need a multiple of 8x6=48, the largest that is <nchan
         # survey after avg (x8): 60, final number of sol 10
         # pointed after avg (x8): 120, final number of sol 20
+        # How many channels for solve
         nchan = nchan_init - nchan_init % 48
+        freqstep = 2 if c == 0 else 4 # can average more after DI-correction is applied!
         logger.info('Averaging in time (%is -> %is), channels: %ich -> %ich)' % (
-            timeint, timeint * avgtimeint, nchan_init, nchan/8))
+            timeint, timeint * avgtimeint, nchan_init, nchan/freqstep))
         MSs.run(
             'DP3 ' + parset_dir + '/DP3-avg.parset msin=$pathMS msout=mss-sol/$nameMS.MS msin.datacolumn=CORRECTED_DATA msin.nchan=' + str(
                 nchan) + ' \
-                avg.timestep=' + str(avgtimeint) + ' avg.freqstep=8',
+                avg.timestep=' + str(avgtimeint) + f' avg.freqstep={freqstep}',
             log='$nameMS_initavg.log', commandType='DP3')
 
     MSs_sol = lib_ms.AllMSs(glob.glob('mss-sol/TC*[0-9].MS'), s, check_flags=True)
@@ -276,7 +278,8 @@ for c in range(maxIter):
         # solve ionosphere phase - ms:SMOOTHED_DATA
         logger.info('Solving TEC (RS)...')
         if phaseSolMode == 'phase': #phase
-            solver_params = f'sol.mode=scalarphase sol.smoothnessconstraint=1.0e6 sol.smoothnessreffrequency=54e6 sol.nchan=1'
+            smMHz = 0.8 if c == 0 else 1.6
+            solver_params = f'sol.mode=scalarphase sol.smoothnessconstraint={smMHz}e6 sol.smoothnessreffrequency=54e6 sol.nchan=1'
             losoto_parsets = [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-resetph2-CSRS.parset', parset_dir+'/losoto-plot-scalar.parset']
         else: # TEC or TecAndPhase
             solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
@@ -307,7 +310,8 @@ for c in range(maxIter):
         # solve ionosphere phase - ms:SMOOTHED_DATA
         logger.info('Solving TEC (CS)...')
         if phaseSolMode == 'phase': #phase
-            solver_params = f'sol.mode=scalarphase sol.smoothnessconstraint=3.0e6 sol.smoothnessreffrequency=54e6 sol.nchan=1'
+            smMHz = 3.0 if c == 0 else 5.0
+            solver_params = f'sol.mode=scalarphase sol.smoothnessconstraint={smMHz}e6 sol.smoothnessreffrequency=54e6 sol.nchan=1'
             losoto_parsets = [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-resetph2-CS.parset', parset_dir+'/losoto-plot-scalar.parset']
         else: # TEC or TecAndPhase
             solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
@@ -339,7 +343,8 @@ for c in range(maxIter):
         # solve ionosphere phase - ms:SMOOTHED_DATA
         logger.info('Solving TEC (slowCS)...')
         if phaseSolMode == 'phase': #phase
-            solver_params = f'sol.mode=scalarphase sol.smoothnessconstraint=6.0e6 sol.smoothnessreffrequency=54e6 sol.nchan=1'
+            smMHz = 6.0 if c == 0 else 8.0
+            solver_params = f'sol.mode=scalarphase sol.smoothnessconstraint={smMHz}e6 sol.smoothnessreffrequency=54e6 sol.nchan=1'
             losoto_parsets = [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-scalar.parset']
         else: # TEC or TecAndPhase
             solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
@@ -482,31 +487,31 @@ for c in range(maxIter):
                 solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
                 losoto_parsets = [parset_dir + '/losoto-plot-tec.parset']
 
-            MSs_sol.run(
+            MSs.run(
                 f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec2.h5 sol.solint=1 {solver_params} sol.modeldatacolumns="[MODEL_DATA]"',
                 log='$nameMS_solTEC-c' + str(c) + '.log', commandType='DP3')
 
-            lib_util.run_losoto(s, 'tec2-sf-c' + str(c), [ms + '/tec2.h5' for ms in MSs_sol.getListStr()], losoto_parsets)
+            lib_util.run_losoto(s, 'tec2-sf-c' + str(c), [ms + '/tec2.h5' for ms in MSs.getListStr()], losoto_parsets)
             os.system('mv cal-tec2-sf-c' + str(c) + '.h5 self/solutions/')
             os.system('mv plots-tec2-sf-c' + str(c) + ' self/plots/')
 
-        with w.if_todo('corrupt_tecRS_c%02i' % c):
+        with w.if_todo('subfield_corrupt_tecRS_c%02i' % c):
             ### CORRUPT the MODEL_DATA columns for all patches
             logger.info(f'Corrupt MODEL_DATA...')
             if phaseSolMode in ['tec', 'tecandphase']:
-                MSs_sol.run(
+                MSs.run(
                     f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
                         cor.parmdb=self/solutions/cal-tec2-sf-c' + str(
                         c) + '.h5 cor.correction=tec000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DP3')
             if phaseSolMode in ['phase', 'tecandphase']:
-                MSs_sol.run(
+                MSs.run(
                     f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                         cor.parmdb=self/solutions/cal-tec2-sf-c' + str(
                         c) + '.h5 cor.correction=phase000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DP3')
 
-        with w.if_todo('solve_tecCS_c%02i' % c):
+        with w.if_todo('subfield_solve_tecCS_c%02i' % c):
             # solve ionosphere phase - ms:SMOOTHED_DATA
             logger.info('Solving TEC (CS)...')
             if phaseSolMode == 'phase':  # phase
@@ -517,32 +522,32 @@ for c in range(maxIter):
                 solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
                 losoto_parsets = [parset_dir + '/losoto-plot-tec.parset']
 
-            MSs_sol.run(
+            MSs.run(
                 f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 sol.solint=6 {solver_params} sol.modeldatacolumns="[MODEL_DATA]"',
                 log='$nameMS_solTEC-c' + str(c) + '.log', commandType='DP3')
 
-            lib_util.run_losoto(s, 'tec1-sf-c' + str(c), [ms + '/tec1.h5' for ms in MSs_sol.getListStr()], losoto_parsets)
+            lib_util.run_losoto(s, 'tec1-sf-c' + str(c), [ms + '/tec1.h5' for ms in MSs.getListStr()], losoto_parsets)
             os.system('mv cal-tec1-sf-c' + str(c) + '.h5 self/solutions/')
             os.system('mv plots-tec1-sf-c' + str(c) + ' self/plots/')
         ### DONE
 
-        with w.if_todo('corrupt_tecCS_c%02i' % c):
+        with w.if_todo('subfield_corrupt_tecCS_c%02i' % c):
             ### CORRUPT the MODEL_DATA columns for all patches
-            logger.info(f'Corrupt models: {phaseSolMode}1...')
+            logger.info(f'Corrupt MODEL_DATA: {phaseSolMode}1...')
             if phaseSolMode in ['tec', 'tecandphase']:
-                MSs_sol.run(
+                MSs.run(
                     f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                         cor.parmdb=self/solutions/cal-tec1-sf-c' + str(
                         c) + '.h5 cor.correction=tec000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DP3')
             if phaseSolMode in ['phase', 'tecandphase']:
-                MSs_sol.run(
+                MSs.run(
                     f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                         cor.parmdb=self/solutions/cal-tec1-sf-c' + str(
                         c) + '.h5 cor.correction=phase000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DP3')
 
-        with w.if_todo('solve_tecCS0_c%02i' % c):
+        with w.if_todo('subfield_solve_tecCS0_c%02i' % c):
             # solve ionosphere phase - ms:SMOOTHED_DATA
             logger.info('Solving TEC (slowCS)...')
             if phaseSolMode == 'phase':  # phase
@@ -552,11 +557,11 @@ for c in range(maxIter):
                 solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
                 losoto_parsets = [parset_dir + '/losoto-plot-tec.parset']
 
-            MSs_sol.run(
+            MSs.run(
                 f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec0.h5 sol.solint=36 {solver_params} sol.modeldatacolumns="[MODEL_DATA]"',
                 log='$nameMS_solTEC-c' + str(c) + '.log', commandType='DP3')
 
-            lib_util.run_losoto(s, 'tec0-sf-c' + str(c), [ms + '/tec0.h5' for ms in MSs_sol.getListStr()], losoto_parsets,
+            lib_util.run_losoto(s, 'tec0-sf-c' + str(c), [ms + '/tec0.h5' for ms in MSs.getListStr()], losoto_parsets,
                                 plots_dir=f'self/plots/plots-tec0-sf-c{c}', h5_dir=f'self/solutions/')
         ### DONE
         #
