@@ -627,23 +627,23 @@ for c in range(maxIter):
         #     s.run(check=True)
         # ### DONE
 
-with w.if_todo('final_correct'):
-    # correct model with TEC+Beam2ord solutions - ms:FR_CORRECTED_DATA -> ms:CORRECTED_DATA
-    #logger.info('Correcting G...')
-    #MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=FR_CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-    #        cor.parmdb=self/solutions/cal-g-c{c}.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phase000]',
-    #        log='$nameMS_finalcor.log', commandType='DP3')
-    MSs.run('taql "update $pathMS set CORRECTED_DATA = FR_CORRECTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
-    if phaseSolMode in ['tec', 'tecandphase']:
-        logger.info('Correcting TEC...')
-        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
-            cor.parmdb=self/solutions/cal-tec1-c{c}.h5 cor.correction=tec000',
-            log='$nameMS_finalcor.log', commandType='DP3')
-    if phaseSolMode in ['phase', 'tecandphase']:
-        logger.info('Correcting ph...')
-        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
-            cor.parmdb=self/solutions/cal-tec1-c{c}.h5 cor.correction=phase000',
-            log='$nameMS_finalcor.log', commandType='DP3')
+# with w.if_todo('final_correct'):
+#     # correct model with TEC+Beam2ord solutions - ms:FR_CORRECTED_DATA -> ms:CORRECTED_DATA
+#     #logger.info('Correcting G...')
+#     #MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=FR_CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+#     #        cor.parmdb=self/solutions/cal-g-c{c}.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phase000]',
+#     #        log='$nameMS_finalcor.log', commandType='DP3')
+#     MSs.run('taql "update $pathMS set CORRECTED_DATA = FR_CORRECTED_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+#     if phaseSolMode in ['tec', 'tecandphase']:
+#         logger.info('Correcting TEC...')
+#         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
+#             cor.parmdb=self/solutions/cal-tec1-c{c}.h5 cor.correction=tec000',
+#             log='$nameMS_finalcor.log', commandType='DP3')
+#     if phaseSolMode in ['phase', 'tecandphase']:
+#         logger.info('Correcting ph...')
+#         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
+#             cor.parmdb=self/solutions/cal-tec1-c{c}.h5 cor.correction=phase000',
+#             log='$nameMS_finalcor.log', commandType='DP3')
     # logger.info('Correct low-res model: TEC+Ph 2...')
     # MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA  \
     #         cor.parmdb=self/solutions/cal-tec2-c{c}.h5 cor.correction=tec000',
@@ -653,26 +653,27 @@ with w.if_todo('final_correct'):
     #         log='$nameMS_finalcor.log', commandType='DP3')
 ### DONE
 
-# polarisation imaging
-with w.if_todo('imaging-pol'):
-    logger.info('Cleaning (Pol)...')
-    imagenameP = 'img/wideP'
-    lib_util.run_wsclean(s, 'wscleanP.log', MSs.getStrWsclean(), name=imagenameP, pol='QUV',
-        size=imgsizepix_p, scale='10arcsec', weight='briggs -0.3', niter=0, no_update_model_required='',
-        parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500,
-        join_channels='', channels_out=MSs.getChout(4.e6))
-
-MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN SUBFIELD_DATA, FR_CORRECTED_DATA"',
-        log='$nameMS_taql_delcol.log', commandType='general')
+# # polarisation imaging
+# with w.if_todo('imaging-pol'):
+#     logger.info('Cleaning (Pol)...')
+#     imagenameP = 'img/wideP'
+#     lib_util.run_wsclean(s, 'wscleanP.log', MSs.getStrWsclean(), name=imagenameP, pol='QUV',
+#         size=imgsizepix_p, scale='10arcsec', weight='briggs -0.3', niter=0, no_update_model_required='',
+#         parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500,
+#         join_channels='', channels_out=MSs.getChout(4.e6))
+#
+# MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN SUBFIELD_DATA, FR_CORRECTED_DATA"',
+#         log='$nameMS_taql_delcol.log', commandType='general')
 
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits self/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits self/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(maxIter) ]
-os.system('mv img/wideP-MFS-*-image.fits self/images')
-os.system('mv img/wide-lr-MFS-image.fits self/images')
+# os.system('mv img/wideP-MFS-*-image.fits self/images')
+# os.system('mv img/wide-lr-MFS-image.fits self/images')
 
 # Copy model
 os.system(f'mv img/wideM-{maxIter-1}-*-model.fits self/skymodel')
+os.system(f'mv img/wideM-{maxIter-1}-*-model-pb.fits self/skymodel')
 
 logger.info("Done.")

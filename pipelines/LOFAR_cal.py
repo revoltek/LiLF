@@ -56,7 +56,7 @@ def debug_imaging(MSs, suffix):
                          channels_out=MSs.getChout(4e6))
 
 
-def solve_fr_from_circphasediff( phaseup=True, pre=False):
+def solve_fr_from_circphasediff(phaseup=True, pre=False):
     """
     Solve fr from circ_phasediff using the CORRECTED_DATA column of concat_all.MS
     Parameters
@@ -100,7 +100,10 @@ def solve_fr_from_circphasediff( phaseup=True, pre=False):
     # when available, add smoothnessspectralexponent once available
     # Currently smoothnessconstraint limited by IS and active iono
     # Solve cal_SB.MS:DATA against MODEL_DATA (only solve)
-    logger.info('Calibrating FR...')
+    if pre:
+        logger.info('Pre-calibrating FR...')
+    else:
+        logger.info('Calibrating FR...')
     MSs_fr.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.modeldatacolumns=[FR_MODEL_DATA] \
                              sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint=1 sol.nchan=1 \
                              sol.smoothnessconstraint=0.3e6 sol.smoothnessreffrequency=54e6',
@@ -212,6 +215,7 @@ with w.if_todo('pre_cal'):
     logger.info('Beam correction...')
     MSs_concat_all.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.updateweights=True',
                        log='$nameMS_beam.log', commandType="DP3")
+    # This is a preliminary solve, results will be non-optimal for stations with significant XX-YY delay (to be solved later)
     # solve from CORRECTED_DATA -> cal-prefr.h5 using circ phasediff
     solve_fr_from_circphasediff(phaseup=(min(MSs_concat_all.getFreqs()) > 40.e6), pre=True)
 
@@ -273,13 +277,9 @@ with w.if_todo('pre_cal'):
 
 # 2: find PA
 with w.if_todo('cal_pa'):
-    # Correct beam concat_all-phaseup.MS:DATA -> CORRECTED_DATA
-    logger.info('Beam correction...')
-    MSs_concat_all.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.updateweights=False',
-                       log='$nameMS_beam.log', commandType="DP3")
-    # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
+    # Correct iono concat_all:DATA -> CORRECTED_DATA
     logger.info('Iono correction (preliminary)...')
-    MSs_concat_all.run("DP3 " + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
+    MSs_concat_all.run("DP3 " + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 msin.datacolumn=DATA \
                 cor.correction=phase000', log='$nameMS_corIONO_CS.log', commandType="DP3")
     MSs_concat_all.run("DP3 " + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
                 cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
@@ -298,9 +298,13 @@ with w.if_todo('cal_pa'):
     logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
     MSs_pa.run(f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname}",
                                log="$nameMS_pre.log", commandType="DP3")
-    # Correct beam concat_all-phaseup.MS:DATA -> CORRECTED_DATA
+    # Corrupt FR concat_fr-phaseup.MS:MODEL_DATA -> MODEL_DATA
+    logger.info('FR corruption...')
     MSs_pa.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA cor.invert=False cor.parmdb=cal-prefr.h5 \
                    cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+    # Corrupt beam concat_fr-phaseup.MS:MODEL_DATA -> MODEL_DATA
+    logger.info('Beam corruption...')
+    MSs_pa.run("DP3 " + parset_dir + '/DP3-beam-corrupt.parset msin=$pathMS', log='$nameMS_beam.log', commandType="DP3")
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info(f'Calibrating PA...')
     MSs_pa.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \

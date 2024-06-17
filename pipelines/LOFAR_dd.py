@@ -113,6 +113,8 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
 
         os.system('cat '+logger_obj.log_dir+'/wscleanB-'+str(p)+'.log | grep "background noise"')
 
+
+
 # Disable
 def blockPrint():
     sys.stdout = open(os.devnull, 'w')
@@ -165,6 +167,72 @@ ch_out_idg = 12  # better 24, but slow
 imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 4.)
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
+
+def clean_wideDD(imagename, interp_h5parm, facetregname, reuse_mask=False):
+    maskname = imagename+'_mask.fits'
+    logger.info('Preparing region file...')
+    s.add('ds9_facet_generator.py --ms ' + MSs.getListStr()[0] + ' --h5 ' + interp_h5parm + ' --imsize ' + str(imgsizepix) + ' \
+                --pixelscale 4 --writevoronoipoints --output ' + facetregname,
+          log='facet_generator.log', commandType='python')
+    s.run()
+
+    clean_kwargs = {}
+    # might want to add non-circ beam at low dec eventually
+    if phase_center[1] < 24:
+        logger.info(f'Low-declination observation ({phase_center[1]:.2f}deg). Use non-circular PSF')  # dd_psf_grid='25 25',
+    else:
+        clean_kwargs['beam_size'] = 15
+    if cmaj > 0:
+        clean_kwargs['diagonal_solutions'] = ''
+
+    if reuse_mask:
+        # use existing mask image
+        clean_kwargs['fits_mask'] = reuse_mask
+    else:
+        logger.info('Cleaning 1...')
+        # make quick image JUST for mask!
+        lib_util.run_wsclean(s, 'wsclean-c' + str(cmaj) + '.log', MSs.getStrWsclean(), concat_mss=True, keep_concat=True,
+                             name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
+                             weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=6,
+                             no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
+                             auto_threshold=3.0, auto_mask=5.0, join_channels='', fit_spectral_pol=3, channels_out=3,
+                             deconvolution_channels=3,
+                             multiscale='', pol='i', nmiter=3, local_rms='', facet_regions=facetregname,
+                             apply_facet_solutions=f'{interp_h5parm} {correct_for}', **clean_kwargs)
+
+        # masking
+        s.add('breizorro.py -t 6 -r %s -b 50 -o %s' % (imagename + '-MFS-image.fits', maskname),
+              log='makemask-' + str(cmaj) + '.log', commandType='python')
+        s.run()
+
+        # if defined, add userReg to the mask
+        if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval=1.)
+
+        clean_kwargs['reuse_concat'] = True
+        clean_kwargs['fits_mask'] = maskname
+        os.system(f'cp {maskname} ddcal/c0{i}/images/{maskname.replace("mask.fits","premask.fits")}')
+
+
+    # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
+    logger.info('Cleaning 2...')
+    lib_util.run_wsclean(s, 'wsclean-c' + str(cmaj) + '.log', MSs.getStrWsclean(), concat_mss=True,
+                         name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
+                         weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=6,
+                         update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=1024,
+                         auto_threshold=3.0, auto_mask=5.0,  join_channels='', fit_spectral_pol=3,
+                         channels_out=str(ch_out), deconvolution_channels=3,
+                         multiscale='', pol='i', apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
+                         facet_regions=facetregname, apply_facet_solutions=f'{interp_h5parm} {correct_for}', **clean_kwargs)
+
+    # masking
+    s.add('breizorro.py -t 6 -r %s -b 50 -o %s' % (imagename + '-MFS-image.fits'),
+          log='makemask-' + str(cmaj) + '.log', commandType='python')
+    s.run()
+
+    # if defined, add userReg to the mask
+    if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval=1.)
+    os.system('mv %s*MFS*fits %s-0*fits %s_mask.fits ddcal/c%02i/images' % (imagename, imagename, imagename, cmaj))
+
 
 with w.if_todo('add_columns'):
     logger.info('Add columns...')
@@ -334,10 +402,20 @@ for cmaj in range(maxIter):
         # wsclean predict
         logger.info('Predict full model...')
         if cmaj == 0:
-            s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
-                    -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                    log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
-            s.run(check=True)
+            precal = 'facet'
+            if precal == 'di':
+                s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+                        -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
+                        log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
+                s.run(check=True)
+            elif precal == 'facet':
+                facetregname = f'self/solutions/facets-c{c}.reg'
+                c = 1
+                s.add(
+                    f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
+                       -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
+                    log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
+                s.run(check=True)
         else:
             full_image.nantozeroModel()
             s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
@@ -843,50 +921,25 @@ for cmaj in range(maxIter):
         s.run()
 
     with w.if_todo('c%02i-imaging' % cmaj):
-
-        logger.info('Preparing region file...')
-        s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+' --h5 '+interp_h5parm+' --imsize '+str(imgsizepix)+' \
-                --pixelscale 4 --writevoronoipoints --output '+facetregname,
-                log='facet_generator.log', commandType='python')
-        s.run()
-
-        clean_kwargs = {}
-        # might want to add non-circ beam at low dec eventually
-        if phase_center[1] < 24:
-            logger.info(f'Low-declination observation ({phase_center[1]:.2f}deg). Use non-circular PSF') # dd_psf_grid='25 25',
-        else:
-            clean_kwargs['beam_size'] = 15
-        if cmaj > 0:
-            clean_kwargs['diagonal_solutions'] = ''
-        logger.info('Cleaning 1...')
-        # make quick image JUST for mask!
-        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, keep_concat=True, name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
-                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
-                auto_threshold=3.0, auto_mask=5.0, join_channels='', fit_spectral_pol=3, channels_out=3, deconvolution_channels=3,
-                multiscale='', pol='i', nmiter=3, local_rms='', facet_regions=facetregname,  apply_facet_solutions=f'{interp_h5parm} {correct_for}', **clean_kwargs)
-
-        # masking
-        s.add('breizorro.py -t 6 -r %s -b 50 -o %s' % (imagename+'-MFS-image.fits', maskname), 
-                log='makemask-'+str(cmaj)+'.log', commandType='python' )
-        s.run()        
-
-        # if defined, add userReg to the mask
-        if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
-
-        # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
-        logger.info('Cleaning 2...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, reuse_concat=True, name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
-                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=6, update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=1024,
-                auto_threshold=3.0, auto_mask=5.0, fits_mask=maskname, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
-                multiscale='', pol='i', apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname, apply_facet_solutions=f'{interp_h5parm} {correct_for}', **clean_kwargs)
- 
-        os.system('mv %s*MFS*fits %s-0*fits %s_mask.fits ddcal/c%02i/images' % (imagename, imagename, imagename, cmaj))
+        clean_wideDD(imagename, interp_h5parm, facetregname, reuse_mask=False)
 
     ### DONE
+    full_image = lib_img.Image('ddcal/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
     if cmaj == 0:
+        with w.if_todo('c%02i-predcorr' % cmaj):
+            full_image.nantozeroModel()
+            s.add('wsclean -predict -padding 1.8 -name ' + full_image.root + ' -j ' + str(
+                s.max_processors) + ' -channels-out ' + str(ch_out) + ' \
+                    -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
+                    -facet-regions ' + facetregname + ' -diagonal-solutions \
+                    -apply-facet-solutions ' + interp_h5parm + ' ' + correct_for + ' \
+                    -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
+                  log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean', processors='max')
+            s.run(check=True)
+
         with w.if_todo('c%02i-fulljsol' % cmaj):
             logger.info('Solving scintillations (scalaramp...)...')
-            MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/g.h5 sol.solint=4 sol.nchan=1 sol.smoothnessconstraint=4e6 sol.mode=scalarcomplexgain',
+            MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/g.h5 sol.solint=4 sol.nchan=1 sol.smoothnessconstraint=4e6 sol.mode=scalarcomplexgain',
                     log='$nameMS_solG-c%02i.log' % cmaj, commandType='DP3')
             lib_util.run_losoto(s, 'g-c%02i' % cmaj, [MS+'/g.h5' for MS in MSs.getListStr()],
                                 [parset_dir+'/losoto-plot-amp1.parset',parset_dir+'/losoto-plot-ph1.parset'])
@@ -902,9 +955,10 @@ for cmaj in range(maxIter):
                 cor.parmdb=ddcal/c%02i/solutions/cal-g-c%02i.h5 cor.correction=amplitude000' % (cmaj, cmaj),
                     log='$nameMS_corG-c%02i.log' % cmaj, commandType='DP3')
         ### DONE
-        sys.exit()
 
-    full_image = lib_img.Image('ddcal/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
+        with w.if_todo('c%02i-imaging-ampsol' % cmaj):
+            clean_wideDD(imagename, interp_h5parm, facetregname, reuse_mask=maskname)
+        sys.exit()
     min_cal_flux60 *= 0.8  # go deeper
 
 ##############################################################################################################
