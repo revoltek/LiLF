@@ -54,10 +54,10 @@ RUN cd /opt/python-casacore && pip3 install .
 #ENV PYTHONPATH /usr/local/lib/python3.8/site-packages/:$PYTHONPATH
 
 #####################################################################
-## EveryBeam v0.5.7
+## EveryBeam v0.6.0
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
-    && cd /opt/EveryBeam && git checkout tags/v0.5.7
+    && cd /opt/EveryBeam && git checkout tags/v0.6.0
 RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
     && make -j 64 && make install
@@ -99,10 +99,11 @@ RUN cd /opt/LofarStMan && mkdir build && cd build \
     && make -j 64 && make install
 
 #####################################################################
-## Wsclean 3.4 - master 8/5/24
+## Wsclean 3.4 - fix-beam-time-gridding 9/6/24
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-    && cd /opt/wsclean && git checkout a714e984d1f5ba96c023cf2334bea01376dc4af9
+    && cd /opt/wsclean && git checkout fix-beam-time-gridding
+#    && cd /opt/wsclean && git checkout a714e984d1f5ba96c023cf2334bea01376dc4af9
 #    && cd /opt/wsclean && git checkout tags/v3.4
 RUN cd /opt/wsclean && mkdir build && cd build \
     && cmake -DPORTABLE=True .. \
@@ -111,6 +112,7 @@ RUN cd /opt/wsclean && mkdir build && cd build \
 ####################################################################
 ## Dp3 applybeam_filter 20/12/23
 #####################################################################
+RUN ls
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
 #RUN cd /opt && git clone https://github.com/lofar-astron/DP3.git \
