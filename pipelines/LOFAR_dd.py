@@ -128,7 +128,7 @@ with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('ddcal')
     os.makedirs('ddcal/init')
-    os.system('cp self/skymodel/wideM-*model.fits ddcal/init/')
+    os.system('cp self/skymodel/wideM-*model*.fits ddcal/init/')
     os.system(f'cp self/images/wideM-{self_maxIter-1}-MFS-image.fits ddcal/init/')
     os.system(f'cp self/images/wideM-{self_maxIter-1}-MFS-residual.fits ddcal/init/')
     lib_util.check_rm('img')
@@ -409,8 +409,8 @@ for cmaj in range(maxIter):
                         log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
                 s.run(check=True)
             elif precal == 'facet':
-                facetregname = f'self/solutions/facets-c{c}.reg'
                 c = 1
+                facetregname = f'self/solutions/facets-c{c}.reg'
                 s.add(
                     f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
                        -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
@@ -459,11 +459,21 @@ for cmaj in range(maxIter):
 
             logger.info('Predict model...')
             if cmaj == 0:
-                # Predict - ms:MODEL_DATA
-                s.add('wsclean -predict -padding 1.8 -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
-                        -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                        log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
-                s.run(check=True)
+                if precal == 'di':
+                    # Predict - ms:MODEL_DATA
+                    s.add('wsclean -predict -padding 1.8 -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+                            -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
+                            log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
+                    s.run(check=True)
+                elif precal == 'facet':
+                    print(d.get_model("init"))
+                    c = 1
+                    facetregname = f'self/solutions/facets-c{c}.reg'
+                    s.add(
+                        f'wsclean -predict -padding 1.8 -name {d.get_model("init")} -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
+                               -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
+                        log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
+                    s.run(check=True)
             else:
                 # Predict - ms:MODEL_DATA
                 s.add('wsclean -predict -padding 1.8 -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
@@ -480,8 +490,8 @@ for cmaj in range(maxIter):
                     log='$nameMS_taql.log', commandType='general')
     
             ### TTESTTESTTEST: empty image but with the DD cal
-            # if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
-            #     clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+            if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
+                clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
         ### DONE
 
@@ -526,6 +536,14 @@ for cmaj in range(maxIter):
             ### DONE
 
         with w.if_todo('%s-preimage' % logstring):
+            # Correct for closest phases to get better initial model -> this is not used for calibration, just for the model.
+            if cmaj > 0 or precal == 'facet':
+                logger.info('Correct initial...')
+                h5parm = 'self/solutions/cal-tec-merged-c1.h5' if cmaj == 0 else interp_h5parm_old
+                closest = lib_h5.get_colsest_dir(h5parm, d.position)
+                MSs_dir.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
+                             cor.parmdb={h5parm} cor.direction={closest} cor.correction=phase000',
+                            log='$nameMS_correct-' + logstring + '.log', commandType='DP3')
             logger.info('Pre-imaging...')
             clean('%s-pre' % logstring, MSs_dir, res='normal', size=[d.size,d.size])#, imagereg=d.get_region())
         ### DONE

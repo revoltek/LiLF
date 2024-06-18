@@ -1,6 +1,7 @@
 import os, sys
 import numpy as np
 import lsmtool
+from astropy.coordinates import SkyCoord
 from losoto.h5parm import h5parm
 from LiLF.lib_log import logger
 
@@ -137,3 +138,31 @@ def point_h5dirs_to_skymodel(h5, skymodel):
         if not repointed:
             raise ValueError(f'{dirname} not found in solset! Available directions: {",".join(ss.getSou().keys())}.')
     h5.close()
+
+def get_colsest_dir(h5, dir):
+    """
+
+    Parameters
+    ----------
+    h5
+    dir
+
+    Returns
+    -------
+    d
+    """
+    h5 = h5parm(h5)
+    directions = h5.getSolset('sol000').getSou()
+    dir = SkyCoord(dir[0], dir[1], unit='deg')
+    dir_seps = dict()
+
+    for name, (ra, dec) in directions.items():
+        dir_seps[name] = dir.separation(SkyCoord(np.degrees(ra), np.degrees(dec), unit='deg'))
+
+    def key_of_min(d):
+        return min(d, key=d.get)
+
+    closest = key_of_min(dir_seps)
+    print(closest, dir_seps[closest], dir_seps)
+    h5.close()
+    return closest
