@@ -20,7 +20,6 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/ph_
-refAnt = auto
 minmax = [-3.14,3.14]
 NColFig = 4
 figSize = [20,20]
@@ -45,7 +44,16 @@ axisInTable = ant
 plotFlag = True
 prefix = plots/ph_
 pol = XX
-refAnt = auto
+minmax = [-3.14,3.14]
+
+[plotP4]
+operation = PLOT
+soltab = sol000/phaseResid000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ph_
+pol = YY
 minmax = [-3.14,3.14]
 
 [align]
@@ -53,7 +61,6 @@ soltab = sol000/phaseResid000
 operation = POLALIGN
 soltabOut = polalign
 minFreq = 30e6
-refAnt = auto
 
 [plotAlign]
 operation = PLOT
@@ -63,7 +70,6 @@ axisInTable = ant
 axisDiff = pol
 plotFlag = True
 prefix = plots/ph-align_
-refAnt = auto
 minmax = [-3.14,+3.14]
 
 [residual]
@@ -79,5 +85,4 @@ axisInTable = ant
 axisDiff = pol
 plotFlag = True
 prefix = plots/ph-res_
-refAnt = auto
 minmax = [-3.14,+3.14]

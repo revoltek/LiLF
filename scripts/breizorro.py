@@ -109,10 +109,13 @@ def resolve_island(isl_spec, mask_image, wcs, ignore_missing=False):
     return value
 
 def add_regions(mask_image, regs, wcs):
-    for reg in regs:
+    for i, reg in enumerate(regs):
         if hasattr(reg, 'to_pixel'):
             reg = reg.to_pixel(wcs)
-        mask_image += reg.to_mask().to_image(mask_image.shape)
+        if reg.to_mask().to_image(mask_image.shape) is not None:
+            mask_image += reg.to_mask().to_image(mask_image.shape)
+        else:
+            LOGGER.warning(f"No overlap for a component {i} in the region file.")
 
 def remove_regions(mask_image, regs, wcs):
     for reg in regs:

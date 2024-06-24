@@ -537,9 +537,9 @@ class MS(object):
         with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
             return int(t.getcell("LOFAR_OBSERVATION_ID",0))
 
-    def getFWHM(self, freq='mid'):
+    def getFWHM(self, freq='mid', elliptical=False):
         """
-        Return the expected FWHM in degree
+        Return the expected FWHM in degree (fwhm_maj, fwhm_min) where maj is N-S and min E-W
         freq: min,max,med - which frequency to use to estimate the beam size
         """
         # get minimum freq as it has the largest FWHM
@@ -555,17 +555,22 @@ class MS(object):
         if self.getTelescope() == 'LOFAR':
 
             # Following numbers are based at 60 MHz (old.astron.nl/radio-observatory/astronomers/lofar-imaging-capabilities-sensitivity/lofar-imaging-capabilities/lofa)
-            scale = 60e6/beamfreq 
+            scale = 60e6/beamfreq
 
             if 'OUTER' in self.getAntennaSet():
-                return 3.88*scale
+                fwhm = 3.88*scale
             elif 'SPARSE' in self.getAntennaSet():
-                return 4.85*scale
+                fwhm = 4.85*scale
             elif 'INNER' in self.getAntennaSet():
-                return 9.77*scale
+                fwhm = 9.77*scale
             else:
                 logger.info('Unknown antenna configuration, assuming SPARSE...')
-                return 4.85*scale #same configuration of SPARSE
+                fwhm = 4.85*scale #same configuration of SPARSE
+            ra, dec = self.getPhaseCentre()
+            if elliptical:
+                return np.array([fwhm/np.cos(np.deg2rad(53-dec)), fwhm])
+            else:
+                return fwhm
                 
         elif self.getTelescope() == 'GMRT':
             # equation from http://gmrt.ncra.tifr.res.in/gmrt_hpage/Users/doc/manual/Manual_2013/manual_20Sep2013.pdf    
@@ -590,15 +595,15 @@ class MS(object):
         ra, dec = self.getPhaseCentre()
 
         if pb_cut is None:
-            radius = self.getFWHM(freq=freq)/2.
+            radius = self.getFWHM(freq=freq, elliptical=True)/2.
             if to_null: radius *= 2 # rough estimation
         else:
-            radius = pb_cut/2.
+            radius = np.array([pb_cut/(2.*np.cos(np.deg2rad(53-dec))),pb_cut/2.])
 
 
-        s = Shape('circle', None)
+        s = Shape('ellipse', None)
         s.coord_format = 'fk5'
-        s.coord_list = [ ra, dec, radius ] # ra, dec, radius
+        s.coord_list = [ ra, dec, radius[1], radius[0], 0.0 ] # ra, dec, radius
         s.coord_format = 'fk5'
         s.attr = ([], {'width': '2', 'point': 'cross',
                        'font': '"helvetica 16 normal roman"'})

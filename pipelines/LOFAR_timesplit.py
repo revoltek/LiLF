@@ -25,6 +25,7 @@ cal_dir = parset.get('LOFAR_timesplit','cal_dir')
 ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
 bp_fulljones = parset.getboolean('LOFAR_timesplit','bp_fulljones') # TEST: Correct w/ time-dependent cal FJ solutions?
+no_aoflagger = parset.getboolean('LOFAR_timesplit','no_aoflagger') # TEST: Correct w/ time-dependent cal FJ solutions?
 bl2flag = parset.get('flag','stations')
 
 #################################################
