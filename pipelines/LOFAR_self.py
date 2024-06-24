@@ -30,7 +30,7 @@ userReg = parset.get('model','userReg')
 
 #############################################################################
 
-# TEST: add maxuv_l=4500
+# TEST: do we need to add maxuv_l=4500?
 
 def clean_self(c, MSs, MSsClean, imagename, imgsizepix, cc_fit_order, userReg, subfield_kwargs, do_predict=True):
     """ Do normal (hres) imaging of the self-calibrated data. """
@@ -44,7 +44,7 @@ def clean_self(c, MSs, MSsClean, imagename, imgsizepix, cc_fit_order, userReg, s
                          parallel_gridding=6, parallel_deconvolution=1024, baseline_averaging='', mgain=0.8,
                          local_rms='', auto_mask=5, auto_threshold=4.,
                          join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6),
-                         multiscale='', multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order, maxuv_l=4500,
+                         multiscale='', multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order,
                          **subfield_kwargs)
 
     # masking
@@ -64,7 +64,7 @@ def clean_self(c, MSs, MSsClean, imagename, imgsizepix, cc_fit_order, userReg, s
                          parallel_gridding=6, parallel_deconvolution=1024, baseline_averaging='', mgain=0.8,
                          local_rms='', auto_mask=5, auto_threshold=3., fits_mask=maskname,
                          join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6),
-                         multiscale='', multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order, maxuv_l=4500,
+                         multiscale='', multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order,
                          **subfield_kwargs)
 
     os.system('cat ' + logger_obj.log_dir + '/wscleanM-c' + str(c) + '.log | grep "background noise"')
@@ -367,7 +367,7 @@ for c in range(maxIter):
                     taper_gaussian='200arcsec', mgain=0.85, parallel_deconvolution=512, baseline_averaging='',
                     local_rms='', auto_mask=3, auto_threshold=1.5, fits_mask='img/wide-lr-mask.fits',
                     join_channels='', channels_out=MSs.getChout(2.e6))
-            # Test of we cam just do a do_predict
+            # Test of we can just do a do_predict
             # s.add('wsclean -predict -padding 1.8 -name '+imagename_lr+' -j '+str(s.max_processors)+' -channels-out '+str(MSs.getChout(2e6))+' '+MSs.getStrWsclean(), \
             #       log='wscleanLR-PRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
             # s.run(check=True)
