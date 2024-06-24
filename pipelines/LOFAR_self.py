@@ -30,6 +30,8 @@ userReg = parset.get('model','userReg')
 
 #############################################################################
 
+# TEST: add maxuv_l=4500
+
 def clean_self(c, MSs, MSsClean, imagename, imgsizepix, cc_fit_order, userReg, subfield_kwargs, do_predict=True):
     """ Do normal (hres) imaging of the self-calibrated data. """
    
@@ -42,7 +44,7 @@ def clean_self(c, MSs, MSsClean, imagename, imgsizepix, cc_fit_order, userReg, s
                          parallel_gridding=6, parallel_deconvolution=1024, baseline_averaging='', mgain=0.8,
                          local_rms='', auto_mask=5, auto_threshold=4.,
                          join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6),
-                         multiscale='', multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order, 
+                         multiscale='', multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order, maxuv_l=4500,
                          **subfield_kwargs)
 
     # masking
@@ -62,7 +64,7 @@ def clean_self(c, MSs, MSsClean, imagename, imgsizepix, cc_fit_order, userReg, s
                          parallel_gridding=6, parallel_deconvolution=1024, baseline_averaging='', mgain=0.8,
                          local_rms='', auto_mask=5, auto_threshold=3., fits_mask=maskname,
                          join_channels='', fit_spectral_pol=cc_fit_order, channels_out=MSsClean.getChout(4.e6),
-                         multiscale='', multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order, 
+                         multiscale='', multiscale_scale_bias=0.6, deconvolution_channels=cc_fit_order, maxuv_l=4500,
                          **subfield_kwargs)
 
     os.system('cat ' + logger_obj.log_dir + '/wscleanM-c' + str(c) + '.log | grep "background noise"')
@@ -291,26 +293,26 @@ for c in range(maxIter):
     #             log='$nameMS_corTEC-c'+str(c)+'.log', commandType='DP3')
     # ### DONE
 
-    # AMP DIE correction in last iteration
-    #if c == maxIter-1:
-    #    with w.if_todo('solve_g_c%02i' % c):
-    #        # DIE Calibration - ms:CORRECTED_DATA (8m, 4SB)
-    #        logger.info('Solving slow G (full jones)...')
-    #        MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/g.h5 sol.solint='+str(120*base_solint)+' sol.nchan='+str(16*base_nchan),
-    #                log='$nameMS_solG-c'+str(c)+'.log', commandType='DP3')
-    #        lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()],
-    #                [parset_dir+'/losoto-plot-fullj.parset', parset_dir+'/losoto-bp.parset'])
-    #        os.system('mv plots-g-c'+str(c)+' self/plots/')
-    #        os.system('mv cal-g-c'+str(c)+'.h5 self/solutions/')
-    #    ### DONE
-    #
-    #    with w.if_todo('cor_g_c%02i' % c):
-    #        # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-    #        logger.info('Correcting G...')
-    #        MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-    #                cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phase000]',
-    #                log='$nameMS_corG-c'+str(c)+'.log', commandType='DP3')
-    #    ### DONE
+    # TEST: AMP DIE correction in last iteration
+    if c == maxIter-1:
+        with w.if_todo('solve_g_c%02i' % c):
+            # DIE Calibration - ms:CORRECTED_DATA (8m, 4SB)
+            logger.info('Solving slow G (full jones)...')
+            MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/g.h5 sol.solint='+str(120*base_solint)+' sol.nchan='+str(16*base_nchan),
+                    log='$nameMS_solG-c'+str(c)+'.log', commandType='DP3')
+            lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()],
+                    [parset_dir+'/losoto-plot-fullj.parset', parset_dir+'/losoto-bp.parset'])
+            os.system('mv plots-g-c'+str(c)+' self/plots/')
+            os.system('mv cal-g-c'+str(c)+'.h5 self/solutions/')
+        ### DONE
+    
+        with w.if_todo('cor_g_c%02i' % c):
+            # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
+            logger.info('Correcting G...')
+            MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+                    cor.parmdb=self/solutions/cal-g-c'+str(c)+'.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phase000]',
+                    log='$nameMS_corG-c'+str(c)+'.log', commandType='DP3')
+        ### DONE
 
     ###################################################################################################################
     # clean on concat.MS:CORRECTED_DATA

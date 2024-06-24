@@ -119,7 +119,7 @@ with w.if_todo('cleaning'):
     lib_util.check_rm('ddcal')
     os.makedirs('ddcal/init')
     os.system('cp self/skymodel/wideM-*model.fits ddcal/init/')
-    os.system(f'cp self/images/wideM-{self_maxIter-1}-image.fits ddcal/init/')
+    os.system(f'cp self/images/wideM-{self_maxIter-1}-MFS-image.fits ddcal/init/')
     lib_util.check_rm('img')
     os.makedirs('img')
     lib_util.check_rm('mss-avg')
@@ -589,14 +589,15 @@ for cmaj in range(maxIter):
                        logger.debug('BREAK ddcal self cycle with noise: %f, noise_pre: %f, mmratio: %f, mmratio_pre: %f' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
                        break
 
-            if ((cmaj > 0) or d.peel_off) and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or d.get_flux(freq_mid) > 5) and solve_amp:
+            # TEST: cmaj>0 -> cmaj>=0
+            if ((cmaj >= 0) or d.peel_off) and (cdd >= 3) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or (d.get_flux(freq_mid) > 5)) and solve_amp:
                 logger.debug('START AMP WITH MODE 1 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
             # correct more amp in the outskirts
-            elif ((cmaj > 0) or d.peel_off) and d.dist_from_centre >= fwhm/4. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 25) or d.get_flux(freq_mid) > 3) and solve_amp:
+            elif ((cmaj > 0) or d.peel_off) and (d.dist_from_centre >= fwhm/4.) and (cdd >= 3) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 25) or d.get_flux(freq_mid) > 3) and solve_amp:
                 logger.debug('START AMP WITH MODE 2 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
-            elif ((cmaj > 0) or d.peel_off) and d.dist_from_centre >= fwhm/2. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 20) or d.get_flux(freq_mid) > 2) and solve_amp:
+            elif ((cmaj > 0) or d.peel_off) and (d.dist_from_centre >= fwhm/2.) and (cdd >= 3) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 20) or d.get_flux(freq_mid) > 2) and solve_amp:
                 logger.debug('START AMP WITH MODE 3 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
 
@@ -833,7 +834,6 @@ for cmaj in range(maxIter):
         # if defined, add userReg to the mask
         if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
 
-        # TODO: Add force-reuse psf (and beam) once wsclean bug is fixed.
         # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
         logger.info('Cleaning 2...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',

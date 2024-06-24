@@ -412,6 +412,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, **kwa
         if parm == 'cont': 
             parm = 'continue'
             value = ''
+            # if continue, remove nans from previous models
+            lib_img.Image(kwargs['name']).nantozeroModel()
         if parm == 'size' and type(value) is int: value = '%i %i' % (value, value)
         if parm == 'size' and type(value) is list: value = '%i %i' % (value[0], value[1])
         wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
