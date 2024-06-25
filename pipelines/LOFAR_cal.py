@@ -27,9 +27,9 @@ data_dir = parset.get('LOFAR_cal', 'data_dir')
 skymodel = parset.get('LOFAR_cal', 'skymodel')
 imaging = parset.getboolean('LOFAR_cal', 'imaging')
 fillmissingedges = parset.getboolean('LOFAR_cal', 'fillmissingedges')
-sparse_sb = parset.getboolean('LOFAR_cal', 'sparse_sb') # change flagging to hande data that uses only alternating sb
 bl2flag = parset.get('flag', 'stations')
 debugplots = False
+sparse_sb = False # use only for obs taken with any other SB flagged
 
 #############################################################
 
@@ -71,7 +71,7 @@ def solve_fr_from_circphasediff(phaseup=True, pre=False):
                 avg.timestep=4 avg.freqresolution={small_freqres}', log='concat_pa_model.log', commandType='DP3')
     s.run(check=True)
     MSs_fr = lib_ms.AllMSs(['concat_fr.MS'], s, check_flags=False)
-    # Convert to circular SMOOTHED_DATA -> SMOOTHED_DATA
+    # Convert to circular DATA -> DATA
     logger.info('Converting to circular...')
     MSs_fr.run('mslin2circ.py -s -i $pathMS:DATA -o $pathMS:DATA',
                   log='$nameMS_lincirc.log', commandType='python', maxThreads=1)
@@ -180,10 +180,7 @@ with w.if_todo('flag'):
                        log="$nameMS_flag.log", commandType="DP3")
     # extend flags
     logger.info('Remove bad time/freq stamps...')
-    if sparse_sb:
-        MSs_concat_all.run('flagonmindata.py -f 0.75 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
-    else:
-        MSs_concat_all.run('flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+    MSs_concat_all.run('flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 ### DONE
 
 # Predict cal
@@ -223,7 +220,7 @@ with w.if_todo('pre_cal'):
     logger.info('Faraday rotation correction...')
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-prefr.h5 \
                    cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
-    #
+
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth0')
 
@@ -266,12 +263,12 @@ with w.if_todo('pre_cal'):
 
     if expect_strong_iono:
         lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-                            [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset',
-                             parset_dir + '/losoto-iono3rd.parset'])
+                            [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
+                             #parset_dir + '/losoto-iono3rd.parset'])
     else:
         lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-                            [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset',
-                             parset_dir + '/losoto-iono.parset'])
+                            [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
+                            # parset_dir + '/losoto-iono.parset'])
 ### DONE
 ########################################################
 
@@ -284,7 +281,7 @@ with w.if_todo('cal_pa'):
     MSs_concat_all.run("DP3 " + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
                 cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
 
-    # Smooth data DATA -> SMOOTHED_DATA (BL-based smoothing)
+    # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth2')
 
     # average a lot to speed up and increase S/N -> fast scalarphase is gone, so this should be fine.
@@ -294,18 +291,22 @@ with w.if_todo('cal_pa'):
                 avg.timestep=4 avg.freqresolution={small_freqres}', log='concat_pa_model.log', commandType='DP3')
     s.run(check=True)
     MSs_pa = lib_ms.AllMSs(['concat_pa.MS'], s, check_flags=False)
+    
     # predict the model and corrupt for preliminary FR
     logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
     MSs_pa.run(f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname}",
                                log="$nameMS_pre.log", commandType="DP3")
+    
     # Corrupt FR concat_fr-phaseup.MS:MODEL_DATA -> MODEL_DATA
     logger.info('FR corruption...')
-    MSs_pa.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA cor.invert=False cor.parmdb=cal-prefr.h5 \
-                   cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+    MSs_pa.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA cor.invert=False \
+               cor.parmdb=cal-prefr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+    
     # Corrupt beam concat_fr-phaseup.MS:MODEL_DATA -> MODEL_DATA
     logger.info('Beam corruption...')
     MSs_pa.run("DP3 " + parset_dir + '/DP3-beam-corrupt.parset msin=$pathMS', log='$nameMS_beam.log', commandType="DP3")
-    # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+    
+    # Solve cal_SB.MS:DATA (only solve)
     logger.info(f'Calibrating PA...')
     MSs_pa.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
             sol.solint=1 sol.nchan=1',
@@ -405,10 +406,12 @@ with w.if_todo('cal_bp'):
     logger.info('Polalign correction...')
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
                    cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DP3")
+    
     # Correct beam concat_all-phaseup.MS:CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
     MSs_concat_all.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False', 
                            log='$nameMS_beam.log', commandType="DP3")
+    
     ## FR corruption concat_all-phaseup.MS:MODEL_DATA -> FR_MODEL_DATA
     logger.info('Faraday rotation corruption (MODEL_DATA - > FR_MODEL_DATA)...')
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=FR_MODEL_DATA \
