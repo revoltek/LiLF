@@ -27,9 +27,9 @@ data_dir = parset.get('LOFAR_cal', 'data_dir')
 skymodel = parset.get('LOFAR_cal', 'skymodel')
 imaging = parset.getboolean('LOFAR_cal', 'imaging')
 fillmissingedges = parset.getboolean('LOFAR_cal', 'fillmissingedges')
+sparse_sb = parset.get('LOFAR_cal', 'sparse_sb') # use only for obs taken with any other SB flagged
 bl2flag = parset.get('flag', 'stations')
 debugplots = False
-sparse_sb = False # use only for obs taken with any other SB flagged
 
 #############################################################
 
@@ -537,34 +537,29 @@ with w.if_todo('compressing_h5'):
     # os.system('cp cal-bp.h5 fullcal-bp.h5')
     # os.system('cp cal-iono.h5 fullcal-iono.h5')
     s.add('losoto -d sol000/phase000 cal-pa.h5', log='losoto-final.log', commandType="python")
-    s.run()
+    s.add('losoto -d sol000/amplitude000 cal-pa.h5', log='losoto-final.log', commandType="python")
+    s.add('losoto -d sol000/rotation000 cal-pa.h5', log='losoto-final.log', commandType="python")
     s.add('losoto -d sol000/phaseResid000 cal-pa.h5', log='losoto-final.log', commandType="python")
-    s.run()
-    os.system('h5repack cal-pa.h5 cal-pa-compressed.h5; mv cal-pa-compressed.h5 cal-pa.h5')
 
     s.add('losoto -d sol000/phase000 cal-fr.h5', log='losoto-final.log', commandType="python")
-    s.run()
     s.add('losoto -d sol000/phaseResid000 cal-fr.h5', log='losoto-final.log', commandType="python")
-    s.run()
-    os.system('h5repack cal-fr.h5 cal-fr-compressed.h5; mv cal-fr-compressed.h5 cal-fr.h5')
 
     s.add('losoto -d sol000/amplitude000 cal-bp.h5', log='losoto-final.log', commandType="python")
     s.add('losoto -d sol000/phase000 cal-bp.h5', log='losoto-final.log', commandType="python")
-    s.run()
     s.add('losoto -d sol000/amplitudeRes cal-bp.h5', log='losoto-final.log', commandType="python")
-    s.run()
-    os.system('h5repack cal-bp.h5 cal-bp-compressed.h5; mv cal-bp-compressed.h5 cal-bp.h5')
 
     s.add('losoto -d sol000/phase_offset000 cal-iono-cs.h5', log='losoto-final.log', commandType="python")
-    s.run()
     s.add('losoto -d sol000/phaseResid000 cal-iono-cs.h5', log='losoto-final.log', commandType="python")
-    s.run()
-    os.system('h5repack cal-iono-cs.h5 cal-iono-cs-compressed.h5; mv cal-iono-cs-compressed.h5 cal-iono-cs.h5')
 
     s.add('losoto -d sol000/phase_offset000 cal-iono.h5', log='losoto-final.log', commandType="python")
-    s.run()
     s.add('losoto -d sol000/phaseResid000 cal-iono.h5', log='losoto-final.log', commandType="python")
-    s.run()
+    
+    s.run(maxThreads=1, check=True) # final check on losoto-final.log
+
+    os.system('h5repack cal-pa.h5 cal-pa-compressed.h5; mv cal-pa-compressed.h5 cal-pa.h5')
+    os.system('h5repack cal-fr.h5 cal-fr-compressed.h5; mv cal-fr-compressed.h5 cal-fr.h5')
+    os.system('h5repack cal-bp.h5 cal-bp-compressed.h5; mv cal-bp-compressed.h5 cal-bp.h5')
+    os.system('h5repack cal-iono-cs.h5 cal-iono-cs-compressed.h5; mv cal-iono-cs-compressed.h5 cal-iono-cs.h5')
     os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
 
     # remove unnecessary tables

@@ -3,7 +3,7 @@ Ncpu = 0
 [bkp]
 operation = DUPLICATE
 soltab = sol000/phase000
-soltabOut = phaseOrig000
+soltabOut = phaseResid000
 
 [align]
 soltab = sol000/phase000
@@ -32,12 +32,12 @@ minmax = [-3.14,+3.14]
 
 [residual]
 operation = RESIDUALS
-soltab = sol000/phase000
+soltab = sol000/phaseResid000
 soltabsToSub = polalign
 
 [plotPr]
 operation = PLOT
-soltab = sol000/phase000
+soltab = sol000/phaseResid000
 axesInPlot = [time,freq]
 axisInTable = ant
 axisDiff = pol
@@ -48,7 +48,7 @@ minmax = [-3.14,+3.14]
 
 [plotPr2]
 operation = PLOT
-soltab = sol000/phase000
+soltab = sol000/phaseResid000
 time.minmaxstep = [0,1e20,500]
 axesInPlot = freq
 axisInTable = ant
