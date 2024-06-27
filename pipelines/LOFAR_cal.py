@@ -145,12 +145,14 @@ calname = MSs.getListObj()[0].getNameField()
 nchan = MSs.mssListObj[0].getNchan()
 tint = MSs.mssListObj[0].getTimeInt()
 
+logger.info("Initial time res: %i, nchan: %i" % (tint, nchan))
+
 with w.if_todo('concat_all'):
     freqstep = 1  # keep all channels
     timestep = int(np.rint(4 / tint))  # brings down to 4s
     # concat all SBs
     # SB.MS:DATA -> concat.MS:DATA
-    logger.info('Concatenating data all...')
+    logger.info('Concatenating data all (avg time %i)...' % timestep)
     lib_util.check_rm('concat_all.MS')
     s.add('DP3 ' + parset_dir + '/DP3-concat.parset msin="[' + ','.join(msg) + ']" msout=concat_all.MS \
               msin.baseline="*&" avg.freqstep=' + str(freqstep) + ' avg.timestep=' + str(timestep),
