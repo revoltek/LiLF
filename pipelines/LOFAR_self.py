@@ -553,4 +553,4 @@ os.system('mv img/wide-largescale-MFS-image.fits self/images')
 # Copy model
 os.system(f'mv img/wideM-{maxIter-1}-*-model.fits self/skymodel')
 
-logger.info("Done.")
+w.alldone()

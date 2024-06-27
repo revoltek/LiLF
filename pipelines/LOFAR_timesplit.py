@@ -199,4 +199,4 @@ with w.if_todo('timesplit'):
 logger.info('Cleaning up...')
 os.system('rm -r *MS')
 
-logger.info("Done.")
+w.alldone()

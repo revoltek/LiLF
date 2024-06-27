@@ -565,6 +565,9 @@ with w.if_todo('compressing_h5'):
     s.run()
     os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
 
+    # remove unnecessary tables
+    lib_util.check_rm('cal-preiono.h5 cal-preiono-cs.h5 cal-prefr.h5')
+
 ### DONE
 
 # a debug image
@@ -609,7 +612,8 @@ if imaging:
         log='$nameMS_taql_delcol.log', commandType='general')
 
     ### DONE
-# TODO delete additional MSs at the end?
-# Delete additional data columns at the end?
 
-logger.info("Done.")
+logger.info('Cleaning up...')
+os.system('rm -r *MS')
+
+w.alldone()

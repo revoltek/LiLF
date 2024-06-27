@@ -277,4 +277,4 @@ if renameavg:
                     MS.move(MSout)
 
 
-logger.info("Done.")
+w.alldone()

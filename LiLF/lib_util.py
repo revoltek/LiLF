@@ -575,6 +575,7 @@ class Walker():
         self.__skip__ = False
         self.__step__ = None
         self.__inittime__ = None
+        self.__globaltimeinit__ = datetime.datetime.now()
 
     def if_todo(self, stepname):
         """
@@ -621,6 +622,10 @@ class Walker():
         if issubclass(type, Exit):
             logger.error('<< exit << {}'.format(self.__step__))
             return True
+        
+    def alldone(self):
+        delta = 'h '.join(str(datetime.datetime.now() - self.__globaltimeinit__).split(':')[:-1])+'m'
+        logger.info('Done. Total time: '+delta)
 
 class Scheduler():
     def __init__(self, qsub = None, maxThreads = None, max_processors = None, log_dir = 'logs', dry = False):

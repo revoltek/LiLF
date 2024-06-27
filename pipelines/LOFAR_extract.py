@@ -813,5 +813,5 @@ os.system('mv img/extractM-highres-MFS-image.fits extract-images/')
 os.system('mv img/extractM-sourcesubtracted-MFS-image.fits extract-images/')
 
 os.system('rm redshift_temp.txt')
-logger.info('Done.')
 
+w.alldone()

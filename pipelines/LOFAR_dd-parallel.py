@@ -931,4 +931,4 @@ with w.if_todo('remove_col'):
     MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN FLAG_BKP,SUBTRACTED_DATA,MODEL_DATA"', log='$nameMS_delcol.log', commandType='python')
 ### DONE
 
-logger.info("Done.")
+w.alldone()

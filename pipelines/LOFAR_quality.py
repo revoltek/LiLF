@@ -130,4 +130,4 @@ else:
 with open('quality/quality.pickle', 'wb') as f:
     pickle.dump(qdict, f)
 
-logger.info("Done.")
+w.alldone()
