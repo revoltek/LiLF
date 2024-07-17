@@ -222,7 +222,8 @@ with w.if_todo('pre_cal'):
                        log='$nameMS_beam.log', commandType="DP3")
     # This is a preliminary solve, results will be non-optimal for stations with significant XX-YY delay (to be solved later)
     # solve from CORRECTED_DATA -> cal-prefr.h5 using circ phasediff
-    solve_fr_from_circphasediff(phaseup=(min(MSs_concat_all.getFreqs()) > 40.e6), pre=True)
+    # solve_fr_from_circphasediff(phaseup=(min(MSs_concat_all.getFreqs()) > 40.e6), pre=True)
+    solve_fr_from_circphasediff(phaseup=True, pre=True)
 
     # Correct FR concat_all-phaseup.MS:CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')

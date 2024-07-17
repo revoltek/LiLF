@@ -28,7 +28,7 @@ backup_full_res = parset.getboolean('LOFAR_preprocess','backup_full_res')
 demix_sources = parset.get('LOFAR_preprocess','demix_sources') # demix the sources in these patches (e.g. CasA or [VirA,TauA]), default: No demix. Assumes intrinsic sky
 demix_skymodel = parset.get('LOFAR_preprocess','demix_skymodel') # Use non-default demix skymodel
 demix_field_skymodel = parset.get('LOFAR_preprocess','demix_field_skymodel') # provide a custom target skymodel instead of online gsm model - assumes intrinsic sky.
-
+run_aoflagger = parset.getboolean('LOFAR_preprocess','run_aoflagger')
 
 ###########################################
 if os.path.exists('html.txt'):
@@ -101,6 +101,15 @@ if len(MSs.getListStr()) == 0:
 with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
     t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
     time = int(t.iso.replace('-','')[0:8])
+
+if run_aoflagger:
+    with w.if_todo('flag'):
+        # Flag in an identical way to the observatory flagging
+        logger.info('Flagging...')
+        MSs.run('DP3 ' + parset_dir + '/DP3-flag.parset msin=$pathMS aoflagger.strategy=' + parset_dir + '/LBAdefaultwideband.lua',
+            log='$nameMS_flag.log', commandType='DP3', maxThreads=16) # there might be a better way of parallelizing
+
+
 
 if fix_table:
     with w.if_todo('fix_table'):

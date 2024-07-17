@@ -3,6 +3,7 @@ import numpy as np
 import lsmtool
 from astropy.coordinates import SkyCoord
 from losoto.h5parm import h5parm
+from losoto.lib_operations import reorderAxes
 from LiLF.lib_log import logger
 
 def repoint(h5parmFile, dirname, solsetname='sol000'):
@@ -64,6 +65,45 @@ def addpol(h5parmFile, soltabname, solsetname='sol000'):
     # make new soltab
     soltabout = ss.makeSoltab(soltype = typ, soltabName = soltabname, axesNames=axesNames, \
                 axesVals=axesVals, vals=vals, weights=weights)
+
+    # write h5parm
+    h5.close()
+
+
+def reorder_axes(h5parmFile, order, soltabname, solsetname='sol000'):
+    """
+    reorder axis of a soltab
+    """
+    # open h5parm
+    logger.info('%s: reorder axes: %s.' % (h5parmFile, soltabname))
+    h5 = h5parm(h5parmFile, readonly=False)
+    ss = h5.getSolset(solsetname)
+    st = ss.getSoltab(soltabname)
+
+    if st.getAxesNames() == order:
+        logger.info('Axes are already in requested order.')
+        h5.close()
+        return None
+    elif not set(order) == set(st.getAxesNames()):
+        logger.error(f'Soltab axes {st.getAxesNames()} cannot be mapped to requested order {order}')
+        h5.close()
+        sys.exit()
+
+    vals = st.getValues(retAxesVals=False)
+    weights = st.getValues(weight=True, retAxesVals=False)
+    vals = reorderAxes(vals, st.getAxesNames(), order)
+    weights = reorderAxes(weights, st.getAxesNames(), order)
+
+    # create values for new soltab
+    typ = st.getType()
+    axesVals = [st.getAxisValues(axisName) for axisName in order]
+
+    # remove old soltab
+    st.delete()
+
+    # make new soltab
+    ss.makeSoltab(soltype=typ, soltabName=soltabname, axesNames=order, \
+                              axesVals=axesVals, vals=vals, weights=weights)
 
     # write h5parm
     h5.close()

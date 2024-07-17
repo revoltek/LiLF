@@ -90,6 +90,7 @@ def getParset(parsetFile=''):
     # add_default('LOFAR_dd', 'removeExtendedCutoff', '0.0005')
     add_default('LOFAR_dd', 'target_dir', '') # ra,dec
     add_default('LOFAR_dd', 'manual_dd_cal', '')
+    add_default('LOFAR_dd', 'precal', 'di')
     # add_default('LOFAR_dd', 'solve_tec', 'False') # per default, solve each dd for scalarphase. if solve_tec==True, solve for TEC instead.
     # extract
     add_default('LOFAR_extract', 'max_niter', '10')

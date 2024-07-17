@@ -32,7 +32,9 @@ maxIter = parset.getint('LOFAR_dd','maxIter')
 min_cal_flux60 = parset.getfloat('LOFAR_dd','minCalFlux60')
 solve_amp = parset.getboolean('LOFAR_dd','solve_amp')
 manual_dd_cal = parset.get('LOFAR_dd','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
+precal = parset.get('LOFAR_dd','precal') # ds9 circle region file containing a manual dd-calibrator
 self_maxIter = parset.getint('LOFAR_self','maxIter') # to pick the correct initial model
+
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
     """
@@ -168,7 +170,7 @@ imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 4.)
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 
-def clean_wideDD(imagename, interp_h5parm, facetregname, reuse_mask=False):
+def clean_wideDD(imagename, interp_h5parm, facetregname, cmaj, reuse_mask=False):
     maskname = imagename+'_mask.fits'
     logger.info('Preparing region file...')
     s.add('ds9_facet_generator.py --ms ' + MSs.getListStr()[0] + ' --h5 ' + interp_h5parm + ' --imsize ' + str(imgsizepix) + ' \
@@ -210,7 +212,7 @@ def clean_wideDD(imagename, interp_h5parm, facetregname, reuse_mask=False):
 
         clean_kwargs['reuse_concat'] = True
         clean_kwargs['fits_mask'] = maskname
-        os.system(f'cp {maskname} ddcal/c0{i}/images/{maskname.replace("mask.fits","premask.fits")}')
+        os.system(f'cp {maskname} ddcal/c0{cmaj}/images/{maskname.replace("mask.fits","premask.fits")}')
 
 
     # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
@@ -402,7 +404,6 @@ for cmaj in range(maxIter):
         # wsclean predict
         logger.info('Predict full model...')
         if cmaj == 0:
-            precal = 'facet'
             if precal == 'di':
                 s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
                         -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
@@ -413,9 +414,12 @@ for cmaj in range(maxIter):
                 facetregname = f'self/solutions/facets-c{c}.reg'
                 s.add(
                     f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
-                       -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
+                       -facet-regions {facetregname} -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
                     log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
                 s.run(check=True)
+                s.add(f'wsclean -j 64 -reorder -parallel-reordering 4  -name img/corr-model-c0 -data-column MODEL_DATA -size 9920 9920 -scale 4.4arcsec -weight briggs -0.3 -niter 0 -no-update-model-required  -minuv-l 30 -mgain 0 mss-avg/TC00.MS mss-avg/TC01.MS mss-avg/TC02.MS mss-avg/TC03.MS mss-avg/TC04.MS mss-avg/TC05.MS')
+                s.run(check=True)
+
         else:
             full_image.nantozeroModel()
             s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
@@ -471,7 +475,7 @@ for cmaj in range(maxIter):
                     facetregname = f'self/solutions/facets-c{c}.reg'
                     s.add(
                         f'wsclean -predict -padding 1.8 -name {d.get_model("init")} -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
-                               -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
+                         -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
                         log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
                     s.run(check=True)
             else:
@@ -490,8 +494,8 @@ for cmaj in range(maxIter):
                     log='$nameMS_taql.log', commandType='general')
     
             ### TTESTTESTTEST: empty image but with the DD cal
-            if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
-                clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+            # if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
+            #     clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
         ### DONE
 
@@ -571,6 +575,9 @@ for cmaj in range(maxIter):
             ################################################################
             # Calibrate
             solint_ph = next(iter_ph_solint)
+            dir_timeint = MSs_dir.getListObj()[0].getTimeInt()
+            solint_ph_intermediate = int(min(6*solint_ph, 300/dir_timeint)) # no more than 5 minutes
+            solint_ph_long = int(min(36*solint_ph, 900/dir_timeint)) # no more than 15 minutes
             d.add_h5parm('ph1', 'ddcal/c%02i/solutions/cal-ph1-%s.h5' % (cmaj,logstringcal) )
             if doamp:
                 solint_amp1 = next(iter_amp_solint)
@@ -604,9 +611,9 @@ for cmaj in range(maxIter):
 
                 # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
                 MSs_dir.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-{logstringcal}')
-                logger.info('Close RS phase calibration (solint: %i)...' % (6*solint_ph))
+                logger.info('Close RS phase calibration (solint: %i)...' % (solint_ph_intermediate))
                 MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph2.h5 \
-                            sol.mode='+iter_ph_soltype+' sol.solint='+str(6*solint_ph)+' sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6',
+                            sol.mode='+iter_ph_soltype+' sol.solint='+str(solint_ph_intermediate)+' sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6',
                             log='$nameMS_solGph2-'+logstringcal+'.log', commandType='DP3')
                 # reset solutions for inner CS
                 lib_util.run_losoto(s, 'ph2', [ms+'/cal-ph2.h5' for ms in MSs_dir.getListStr()],
@@ -619,9 +626,9 @@ for cmaj in range(maxIter):
 
                 # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
                 MSs_dir.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-{logstringcal}')
-                logger.info('CS phase calibration (solint: %i)...' % (36*solint_ph))
+                logger.info('CS phase calibration (solint: %i)...' % (solint_ph_long))
                 MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph3.h5 \
-                            sol.mode='+iter_ph_soltype+' sol.solint='+str(36*solint_ph)+' sol.smoothnessconstraint=8e6 sol.smoothnessreffrequency=54e6',
+                            sol.mode='+iter_ph_soltype+' sol.solint='+str(solint_ph_long)+' sol.smoothnessconstraint=8e6 sol.smoothnessreffrequency=54e6',
                             log='$nameMS_solGph3-'+logstringcal+'.log', commandType='DP3')
                 lib_util.run_losoto(s, 'ph3', [ms+'/cal-ph3.h5' for ms in MSs_dir.getListStr()],
                                     [parset_dir+'/losoto-plot-ph3.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
@@ -630,7 +637,7 @@ for cmaj in range(maxIter):
                 # blockPrint()
                 h5_merger.merge_h5(h5_out='cal-ph-merged.h5', min_distance=10/3600,
                                    h5_tables=['cal-ph1.h5','cal-ph2.h5','cal-ph3.h5'],
-                                   h5_time_freq='cal-ph1.h5', no_pol=iter_ph_soltype=='scalarphase')
+                                   h5_time_freq='cal-ph1.h5', no_pol=cmaj==0)
                 # enablePrint()
                 lib_util.run_losoto(s, f'ph-merged', f'cal-ph-merged.h5',
                                     [f'{parset_dir}/losoto-plot-ph-merged.parset'],
@@ -923,6 +930,8 @@ for cmaj in range(maxIter):
                 if typ == 'ph1':
                     if cmaj > 0:
                         lib_h5.addpol(h5parmFile, 'phase000')
+                        # this is a workaround for the different order of axes we get depending on scalar or diag phase solve, this will make h5parm_interpolator run smoothely.
+                        lib_h5.reorder_axes(h5parmFile, ['time', 'ant', 'dir', 'freq', 'pol'], 'phase000')
                     #lib_h5.addpol(h5parmFile, 'amplitude000')
                     s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-refph.parset ', log='h5parm_collector.log', commandType='python' )
                     s.run()
@@ -930,16 +939,19 @@ for cmaj in range(maxIter):
                     #s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetamp.parset ', log='h5parm_collector.log', commandType='python' )
                     #s.run()
                 if typ == 'amp1' or typ == 'amp2':
+                    lib_h5.reorder_axes(h5parmFile, ['time', 'ant', 'dir', 'freq', 'pol'], 'phase000')
+                    lib_h5.reorder_axes(h5parmFile, ['time', 'ant', 'dir', 'freq', 'pol'], 'amplitude000')
                     s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetph.parset ', log='h5parm_collector.log', commandType='python' )
                     s.run()
     
         lib_util.check_rm(interp_h5parm)
         logger.info('Interpolating solutions...')
         s.add('H5parm_interpolator.py -o '+interp_h5parm+' '+' '.join(h5parms['ph1']+h5parms['amp1']+h5parms['amp2']), log='h5parm_interpolator.log', commandType='python' )
-        s.run()
+        s.run(check=True)
 
     with w.if_todo('c%02i-imaging' % cmaj):
-        clean_wideDD(imagename, interp_h5parm, facetregname, reuse_mask=False)
+        reuse_mask = None if cmaj==0 else f'ddcal/c0{cmaj-1}/images/wideDD-c0{cmaj-1}_mask.fits'
+        clean_wideDD(imagename, interp_h5parm, facetregname, cmaj, reuse_mask=reuse_mask)
 
     ### DONE
     full_image = lib_img.Image('ddcal/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
@@ -955,32 +967,34 @@ for cmaj in range(maxIter):
                   log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean', processors='max')
             s.run(check=True)
 
-        with w.if_todo('c%02i-fulljsol' % cmaj):
-            logger.info('Solving scintillations (scalaramp...)...')
-            MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/g.h5 sol.solint=4 sol.nchan=1 sol.smoothnessconstraint=4e6 sol.mode=scalarcomplexgain',
-                    log='$nameMS_solG-c%02i.log' % cmaj, commandType='DP3')
-            lib_util.run_losoto(s, 'g-c%02i' % cmaj, [MS+'/g.h5' for MS in MSs.getListStr()],
-                                [parset_dir+'/losoto-plot-amp1.parset',parset_dir+'/losoto-plot-ph1.parset'])
-            # [parset_dir+'/losoto-plot-fullj.parset', parset_dir+'/losoto-bp.parset'])
-            os.system('mv plots-g-c%02i ddcal/c%02i/plots/' % (cmaj, cmaj))
-            os.system('mv cal-g-c%02i.h5 ddcal/c%02i/solutions/' % (cmaj, cmaj))
-        ### DONE
-
-        with w.if_todo('c%02i-fulljcor' % cmaj):
-            # correct G - group*_TC.MS:DATA -> group*_TC.MS:CORRECTED_DATA
-            logger.info('Correcting G...')
-            MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA \
-                cor.parmdb=ddcal/c%02i/solutions/cal-g-c%02i.h5 cor.correction=amplitude000' % (cmaj, cmaj),
-                    log='$nameMS_corG-c%02i.log' % cmaj, commandType='DP3')
-        ### DONE
-
-        with w.if_todo('c%02i-imaging-ampsol' % cmaj):
-            clean_wideDD(imagename, interp_h5parm, facetregname, reuse_mask=maskname)
-        sys.exit()
+        # with w.if_todo('c%02i-fulljsol' % cmaj):
+        #     logger.info('Solving scintillations (scalaramp...)...')
+        #     MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/g.h5 sol.solint=4 sol.nchan=1 sol.smoothnessconstraint=4e6 sol.mode=scalarcomplexgain',
+        #             log='$nameMS_solG-c%02i.log' % cmaj, commandType='DP3')
+        #     lib_util.run_losoto(s, 'g-c%02i' % cmaj, [MS+'/g.h5' for MS in MSs.getListStr()],
+        #                         [parset_dir+'/losoto-plot-amp1.parset',parset_dir+'/losoto-plot-ph1.parset'])
+        #     # [parset_dir+'/losoto-plot-fullj.parset', parset_dir+'/losoto-bp.parset'])
+        #     os.system('mv plots-g-c%02i ddcal/c%02i/plots/' % (cmaj, cmaj))
+        #     os.system('mv cal-g-c%02i.h5 ddcal/c%02i/solutions/' % (cmaj, cmaj))
+        # ### DONE
+        #
+        # with w.if_todo('c%02i-fulljcor' % cmaj):
+        #     # correct G - group*_TC.MS:DATA -> group*_TC.MS:CORRECTED_DATA
+        #     logger.info('Correcting G...')
+        #     MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA \
+        #         cor.parmdb=ddcal/c%02i/solutions/cal-g-c%02i.h5 cor.correction=amplitude000' % (cmaj, cmaj),
+        #             log='$nameMS_corG-c%02i.log' % cmaj, commandType='DP3')
+        # ### DONE
+        #
+        # with w.if_todo('c%02i-imaging-ampsol' % cmaj):
+        #     clean_wideDD(imagename, interp_h5parm, facetregname, reuse_mask=maskname)
+        # sys.exit()
     min_cal_flux60 *= 0.8  # go deeper
 
 ##############################################################################################################
 ### Calibration finished - additional images with scientific value
+
+sys.exit()
 
 with w.if_todo('output-vstokes'):
     imagenameV = 'img/wideDD-v-c%02i' % (cmaj)
