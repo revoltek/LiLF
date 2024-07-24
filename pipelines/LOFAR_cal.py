@@ -228,7 +228,7 @@ with w.if_todo('cal_pa'):
     logger.info('Create small concatenated MS (averaging)...')
     lib_util.check_rm('concat_pa.MS')
     s.add(f'DP3 {parset_dir}/DP3-avg.parset msin=concat_all.MS msout=concat_pa.MS msin.datacolumn=SMOOTHED_DATA \
-                avg.timestep={small_timestep} avg.freqresolution={small_freqres}', log='concat_pa_model.log', commandType='DP3')
+                avg.timestep={int(small_timestep)} avg.freqresolution={small_freqres}', log='concat_pa_model.log', commandType='DP3')
     s.run(check=True)
     MSs_pa = lib_ms.AllMSs(['concat_pa.MS'], s, check_flags=False)
     # predict the element-corrupted model
