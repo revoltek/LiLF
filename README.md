@@ -14,9 +14,18 @@ password = <password>
 ```
 - ~/.surveys >> with the pass for the surveydb
 
+- ~/.awe/Environment.cfg >> if you want to use the LiLF/scripts/LOFAR_stager.py to stage and download, your LTA credentials should be also in this file, for example:
+```
+[global]
+database_user : <your username>
+database_password : <your password>
+```
+
 ### Container:
 Check here if you want a container that can run the pipeline:
 LiLF/container/docker_build.sh
+
+For the stable pipeline, better use "singularity build pill20220805.simg docker://revoltek/pill:20220805"
 
 # LBA data reduction How-To:
 To calibrate LOFAR LBA data is possible to use the script PILL.py (in the pipeline dir) that automatically does all the different pipeline steps, or to run the single steps by hand to check the intermediate results.
