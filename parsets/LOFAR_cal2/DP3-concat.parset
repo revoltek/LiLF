@@ -1,0 +1,19 @@
+msin = 
+msin.datacolumn = DATA
+#do not copy aucorr as they have too weird weights for dysco
+msin.baseline = 
+msin.missingdata = True
+msin.orderms = False
+
+msout = 
+msout.storagemanager = dysco
+
+steps = [avg, filter]
+
+avg.type = averager
+avg.freqstep = 1
+avg.timestep = 1
+
+# should remove stations not used in any baseline (international)
+filter.type = filter
+filter.remove = True

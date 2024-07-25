@@ -6,7 +6,6 @@ msin.missingdata = True
 msin.orderms = False
 
 msout = 
-msout.writefullresflag = False
 msout.storagemanager = dysco
 
 numthreads = 1 # leave this to 1 as it is run with s.run() and io limited

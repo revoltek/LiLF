@@ -8,3 +8,4 @@ steps=[cor]
 cor.type = applycal
 cor.parmdb =
 cor.correction =
+cor.missingantennabehavior=unit

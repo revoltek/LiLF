@@ -1,0 +1,11 @@
+msin = 
+msin.datacolumn = DATA
+msout = .
+
+steps = [ant, elev, count]
+
+ant.type = preflagger
+ant.baseline = 
+
+elev.type = preflagger
+elev.elevation = 0 .. 15 deg

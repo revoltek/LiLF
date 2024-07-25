@@ -40,7 +40,7 @@ class Logger():
         logger.propagate = False
         logger.handlers = []
  
-        timestamp = time.strftime('%Y-%m-%d_%H:%M', time.localtime())
+        timestamp = time.strftime('%Y-%m-%d_%H:%M:%S', time.localtime())
         self.logfile = pipename+'_'+timestamp+'.logger'
         self.log_dir = 'logs_'+pipename+'_'+timestamp
         os.makedirs(self.log_dir)

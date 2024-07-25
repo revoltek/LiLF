@@ -1,0 +1,15 @@
+msin = 
+msin.datacolumn = DATA
+msin.baseline = [CR]S*&&
+msout = .
+
+steps = [ears, ant, uvmin, elev, count]
+
+ant.type = preflagger
+ant.baseline = 
+
+elev.type = preflagger
+elev.elevation = 0deg..15deg
+
+uvmin.type = uvwflag
+uvmin.uvlambdamin = 30

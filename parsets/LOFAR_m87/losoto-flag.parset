@@ -1,0 +1,45 @@
+Ncpu = 0
+
+[plotA1]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ampBF_
+
+[flagF]
+operation = FLAG
+soltab = sol000/amplitude000
+axesToFlag = [freq,time]
+order = [50,1] 
+maxCycles = 1
+maxRms = 20
+preFlagZeros = False
+mode = smooth
+
+[flagT]
+operation = FLAG
+soltab = sol000/amplitude000
+axesToFlag = [freq,time]
+order = [1,100] 
+maxCycles = 1
+maxRms = 10
+preFlagZeros = False
+mode = smooth
+
+[plotA2]
+Operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ampAF_
+#minmax = [0,300]
+
+# copy flags on phases
+[merge]
+operation = REWEIGHT
+mode = copy
+soltab = sol000/phase000
+soltabImport = amplitude000

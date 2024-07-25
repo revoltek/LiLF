@@ -156,7 +156,7 @@ with w.if_todo('download'):
             if survey:
                 #cmd += ' --target %s' % target[:-1] # remove the "o" or "s" at the end
                 # use coordinates
-                cmd += ' --radecdist %f,%f,0.1' % (target_ra, rarget_dec)
+                cmd += ' --radecdist %f,%f,0.1' % (target_ra, target_dec)
             else:
                 cmd += ' --target %s' % target
         if obsid != '':
@@ -278,23 +278,41 @@ for grouped_target in grouped_targets:
         logger.info('### %s: Starting ddcal #####################################' % grouped_target)
         os.system(LiLF_dir+'/pipelines/LOFAR_dd.py')
         check_done('pipeline-dd')
+    ### DONE
 
-        if survey: # only back up solutions if survey
-            logger.info('Copy: ddcal/c0*/images/img/wideDD-c*... -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % grouped_target)
+    if survey: # only back up solutions if survey
+        with w.if_todo('saveproducts_%s' % grouped_target):
+            if survey: update_status_db(grouped_target, 'SaveProducts')
+            # copy images in herts
+            logger.info('Copy ddcal products -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('ssh herts "rm -rf /beegfs/lofar/lba/products/%s"' % grouped_target)
             os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s"' % grouped_target)
             os.system('scp -q self/images/wideP*.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q self/images/wideM-1-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q self/images/wide-largescale-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/plots"' % grouped_target)
+            os.system('scp -q -r self/plots/* herts:/beegfs/lofar/lba/products/%s/plots' % grouped_target)
             os.system('scp -q ddcal/c0*/images/wideDD-c*.app.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/c0*/images/wideDD-c*.int.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q '+sorted(glob.glob('ddcal/c00/images/wideDD-c00.residual*.fits'))[-1]+' herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q '+sorted(glob.glob('ddcal/c01/images/wideDD-c01.residual*.fits'))[-1]+' herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q ddcal/c01/images/wideDD-c01.DicoModel herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q ddcal/c00/images/wideDD-c00.app.restored.fits.ddfmask.fits herts:/beegfs/lofar/lba/products/%s/wideDD-c01.mask.fits' % grouped_target)
             os.system('scp -q ddcal/c01/solutions/interp.h5 herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/c0*/skymodels/all*reg herts:/beegfs/lofar/lba/products/%s' % grouped_target)
-            os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/plots"' % grouped_target)
-            os.system('scp -q ddcal/c0*/plots/* herts:/beegfs/lofar/lba/products/%s/plots' % grouped_target)
-    ### DONE
+            os.system('scp -q ddcal/primarybeam.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/init"' % grouped_target)
+            os.system('scp -q -r ddcal/init/*model.fits ddcal/init/wideM-1-sources.txt herts:/beegfs/lofar/lba/products/%s/init' % grouped_target)
+            # logs
+            os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/logs"' % grouped_target)
+            os.system('scp -q ../*logger ../*walker ../*%s*/*logger ../*%s*/*walker herts:/beegfs/lofar/lba/products/%s/logs' % (grouped_target, grouped_target, grouped_target))
+            # copy ms in Bologna
+            logger.info('Copy mss -> pleiadi:/iranet/lofarfs2/lofar2/fdg/surveytgts/%s' % grouped_target)
+            os.system('tar zcf %s.tgz mss-avg' % grouped_target)
+            os.system('ssh pleiadi "rm -rf /iranet/lofarfs2/lofar2/fdg/surveytgts/%s"' % grouped_target)
+            os.system('ssh pleiadi "mkdir -p /iranet/lofarfs2/lofar2/fdg/surveytgts/%s"' % grouped_target)
+            os.system('scp -q %s.tgz pleiadi:/iranet/lofarfs2/lofar2/fdg/surveytgts/%s' % (grouped_target,grouped_target))
+        ### DONE
 
     # Quality check
     with w.if_todo('quality_%s' % grouped_target):
@@ -303,16 +321,18 @@ for grouped_target in grouped_targets:
         os.system(LiLF_dir+'/pipelines/LOFAR_quality.py')
         check_done('pipeline-quality')
 
-        with open('quality.pickle', 'rb') as f:
+        with open('quality/quality.pickle', 'rb') as f:
             qdict = pickle.load(f)
         logger.info(f'Self residual rms noise (cycle 0): %.1f mJy/b' % (qdict["self_c0_rms"] * 1e3))
         logger.info(f'Self residual rms noise (cycle 1): %.1f mJy/b' % (qdict["self_c1_rms"] * 1e3))
         logger.info('DDcal residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddcal_c0_rms'] * 1e3))
         logger.info('DDcal residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddcal_c1_rms'] * 1e3))
-        logger.info('DDcal NVSS ratio (cycle 1): %.1f mJy/b' % (qdict['nvss_ratio'] * 1e3))
+        logger.info('DDcal NVSS ratio (cycle 1): %.1f with %i matches' % (qdict['nvss_ratio'], qdict['nvss_match']))
+        logger.info('DDcal total flags: %.1f%%' % (qdict['flag_frac']*100))
         if survey:
             with SurveysDB(survey='lba', readonly=False) as sdb:
-                r = sdb.execute('UPDATE fields SET noise="%s", nvss_ratio="%s" WHERE id="%s"' % (qdict['ddcal_c1_rms'],qdict['nvss_ratio'], grouped_target)) # remove upper?
+                r = sdb.execute('UPDATE fields SET noise="%s", nvss_ratio="%s", nvss_match="%s", flag_frac="%s" WHERE id="%s"' \
+                        % (qdict['ddcal_c1_rms'],qdict['nvss_ratio'], qdict['nvss_match'], qdict['flag_frac'],  grouped_target))
     ### DONE
 
     if survey: update_status_db(grouped_target, 'Done')

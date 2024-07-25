@@ -1,6 +1,6 @@
 import os, sys
 import numpy as np
-from losoto.h5parm import h5parm, Soltab
+from losoto.h5parm import h5parm
 from LiLF.lib_log import logger
 
 def repoint(h5parmFile, dirname, solsetname='sol000'):

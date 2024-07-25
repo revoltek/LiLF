@@ -27,7 +27,6 @@ parset_dir = parset.get('LOFAR_dd','parset_dir')
 userReg = parset.get('model','userReg')
 maxIter = parset.getint('LOFAR_dd','maxIter')
 min_cal_flux60 = parset.getfloat('LOFAR_dd','minCalFlux60')
-removeExtendedCutoff = parset.getfloat('LOFAR_dd','removeExtendedCutoff')
 target_dir = parset.get('LOFAR_dd','target_dir')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
@@ -150,9 +149,17 @@ imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 3.)
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 
-logger.info('Add columns...')
-MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
-MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+with w.if_todo('add_columns'):
+    logger.info('Add columns...')
+    # TODO using mix of ms.addcol and addcol2ms because ms.addcol does not work with non-data columns
+    # MSs.run('addcol2ms.py -m $pathMS -c CORRECTED_DATA,SUBTRACTED_DATA -i DATA', log='$nameMS_addcol.log', commandType='python')
+    # MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+    # MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
+    MSs.addcol('CORRECTED_DATA', 'DATA', log='$nameMS_addcol.log')
+    MSs.addcol('SUBTRACTED_DATA', 'DATA', log='$nameMS_addcol.log')
+    MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+    MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
+
 
 ##############################################################
 # setup initial model
@@ -313,12 +320,18 @@ for cmaj in range(maxIter):
         if d.size > 0.5: logger.warning('Patch size large: %f' % d.size)
         logstring = 'c%02i-%s' % (cmaj, d.name)
 
+        # either faint sources that were not detected before or residuals of peeled sources - skip?
+        if cmaj == 1 and d.peel_off:
+            logger.info('This sources is far in the outkirts - skip.')
+            continue
+
         with w.if_todo('%s-predict' % logstring):
 
+            logger.info('Predict model...')
             if cmaj == 0:
                 # Predict - ms:MODEL_DATA
-                logger.info('Predict model...')
-                s.add('wsclean -predict -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' '+MSs.getStrWsclean(), \
+                s.add('wsclean -predict -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+                        -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                         log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
                 s.run(check=True)
     
@@ -328,11 +341,6 @@ for cmaj in range(maxIter):
                         log='$nameMS_taql.log', commandType='general')
     
             else:
-
-                # either faint sources that were not detected before or residuals of peeled sources - skip?
-                if d.peel_off:
-                    logger.info('This sources is far in the outkirts - skip.')
-                    continue
 
                 # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
                 indico = full_image.root+'.DicoModel'
@@ -477,7 +485,7 @@ for cmaj in range(maxIter):
                     sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
                     log='$nameMS_solGph-'+logstringcal+'.log', commandType='DP3')
                 lib_util.run_losoto(s, 'ph', [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()],
-                    [parset_dir+'/losoto-plot1.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                    [parset_dir+'/losoto-plot-ph1.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                 os.system('mv cal-ph.h5 %s' % d.get_h5parm('ph'))
 
                 # correct ph - ms:DATA -> ms:CORRECTED_DATA
@@ -496,9 +504,9 @@ for cmaj in range(maxIter):
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DP3')
 
                     #if d.peel_off:
-                        #losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset']
+                        #losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
                     #else:
-                    losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot2.parset']
+                    losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
                     lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
                         plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp1.h5 %s' % d.get_h5parm('amp1'))
@@ -517,9 +525,9 @@ for cmaj in range(maxIter):
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DP3')
 
                     #if d.peel_off:
-                        #losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset']
+                        #losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
                     #else:
-                    losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot3.parset']
+                    losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
                     lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
                         plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp2.h5 %s' % d.get_h5parm('amp2'))
@@ -578,21 +586,21 @@ for cmaj in range(maxIter):
         ##################################
 
         # if divergency or died the first cycle, don't subtract
-        if cdd == 0:
+        if cdd == 0 or rms_noise_pre*0.98 > rms_noise_init:
             d.converged = False
-            logger.warning('%s: something went wrong during the first self-cal cycle in this direction.' % (d.name))
+            logger.warning('%s: something went wrong during the first self-cal cycle in this direction or noise did not decrease.' % (d.name))
             d.clean()
-            continue
-        elif rms_noise_pre*0.98 > rms_noise_init:
-            d.converged = False
-            logger.warning('%s: noise did not decresed (%f -> %f), do not further use this source.' % (d.name, rms_noise_init, rms_noise_pre))
-            d.clean()
+            if cmaj == 0:
+                # Remove the MODEL of the dd-cal that was added before
+                logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA...')
+                MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
             continue
         # second cycle, no peeling
         elif cmaj >= 1:
             d.converged = True
             logger.info('%s: converged.' % d.name)
-            continue
+            continue # not need to subtract the best model as DDF re-creates the SUBTRACTED_DATA each time
         else:
             d.converged = True
             logger.info('%s: converged.' % d.name)
@@ -619,7 +627,7 @@ for cmaj in range(maxIter):
             # Predict - ms:MODEL_DATA
             logger.info('Add best model to MODEL_DATA...')
             MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+model_skydb,
-                    log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
+                log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
 
             # Store FLAGS - just for sources to peel as they might be visible only for a fraction of the band
             if d.peel_off:
@@ -662,16 +670,16 @@ for cmaj in range(maxIter):
                 MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"',
                         log='$nameMS_taql.log', commandType='general')
 
-            # Remove the ddcal again
-            logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
-            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
-                    log='$nameMS_taql.log', commandType='general')
-
             # if it's a source to peel, remove it from the data column used for imaging
             if d.peel_off:
                 logger.info('Source to peel: set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA')
                 MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
-                        log='$nameMS_taql.log', commandType='general')
+                    log='$nameMS_taql.log', commandType='general')
+
+            # Remove the ddcal again
+            logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
+            MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
+                    log='$nameMS_taql.log', commandType='general')
 
         ### DONE
 
@@ -944,9 +952,15 @@ with w.if_todo('output_stokesV'):
 
 with w.if_todo('output_PB'):
     logger.info('Make primary beam...')
-    s.add('makepb.py -o ddcal/primarybeam.fits -s 10 -p 60 %s' % MSs.getStrDDF(),
+    s.add('makepb.py -o ddcal/primarybeam.fits -s 10 -p 120 %s' % MSs.getStrWsclean(),
           log='makepb.log', commandType='python', processors='max')
     s.run(check=True)
+### DONE
+
+# remove unwanted columns
+with w.if_todo('remove_col'):
+    logger.info('Removing unwanted columns...')
+    MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN FLAG_BKP,SUBTRACTED_DATA,MODEL_DATA"', log='$nameMS_delcol.log', commandType='python')
 ### DONE
 
 logger.info("Done.")

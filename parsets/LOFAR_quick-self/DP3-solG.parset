@@ -12,4 +12,4 @@ sol.maxiter = 500
 sol.nchan = 
 sol.solint = 
 sol.propagatesolutions = True
-sol.usemodelcolumn = True
+sol.modeldatacolumns=[MODEL_DATA]

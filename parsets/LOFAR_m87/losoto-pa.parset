@@ -1,0 +1,55 @@
+Ncpu = 0
+
+[bkp]
+operation = DUPLICATE
+soltab = sol000/phase000
+soltabOut = phaseOrig000
+
+[align]
+soltab = sol000/phase000
+operation = POLALIGN
+soltabOut = polalign
+average = True
+replace = True
+fitOffset = True
+refAnt = CS002HBA0
+maxResidual = 1.5
+
+[plotAlign]
+operation = PLOT
+soltab = sol000/polalign
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
+plotFlag = True
+prefix = plots/ph-align
+refAnt = CS002HBA0
+minmax = [-1,+1]
+
+[residual]
+operation = RESIDUALS
+soltab = sol000/phase000
+soltabsToSub = polalign
+
+[plotPr]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
+plotFlag = True
+prefix = plots/ph-res
+refAnt = CS002HBA0
+minmax = [-1,+1]
+
+[plotPr2]
+operation = PLOT
+soltab = sol000/phase000
+time.minmaxstep = [0,1e20,500]
+axesInPlot = freq
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ph-res_
+refAnt = CS002HBA0
+minmax = [-3.14,+3.14]

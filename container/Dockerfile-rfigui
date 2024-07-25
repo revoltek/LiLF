@@ -1,0 +1,52 @@
+FROM ubuntu:22.04
+ARG DEBIAN_FRONTEND=noninteractive
+LABEL maintainer="Francesco de Gasperin"
+LABEL version="1.0"
+
+USER root
+
+# Support large mlocks
+RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
+
+RUN apt-get update
+RUN apt-get update
+RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename xorg \
+    python3-magic python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel \
+    python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm python3-numba \
+    libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev \
+    libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev saods9
+
+####################################################################
+## CASACORE v3.5.0
+###################################################################
+RUN cd /opt && git clone https://github.com/casacore/casacore.git \
+    && cd /opt/casacore && git checkout tags/v3.5.0
+RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused ftp://anonymous@ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar
+RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=True -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=True -DUSE_OPENMP=True -DUSE_FFTW3=TRUE -DUSE_HDF5=True -DBUILD_PYTHON:BOOL=False -DBUILD_PYTHON3:BOOL=True .. && make -j 64 && make install
+
+#####################################################################
+## CASACORE-python v3.5.1
+#####################################################################
+RUN cd /opt && git clone https://github.com/casacore/python-casacore.git \
+    && cd /opt/python-casacore && git checkout tags/v3.5.1
+RUN cd /opt/python-casacore && pip3 install .
+
+#####################################################################
+## AOFlagger v3.2.0
+#####################################################################
+RUN apt-get install -y libgtkmm-3.0-dev libgtkmm-3.0-1v5
+RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
+    && cd /opt/aoflagger && git checkout tags/v3.2.0
+RUN cd /opt/aoflagger && mkdir build && cd build && mkdir install \
+    && cmake -DPORTABLE=True .. \
+    && make -j 64 && make install
+
+#####################################################################
+## LofarStMan
+#####################################################################
+RUN cd /opt && git clone https://github.com/lofar-astron/LofarStMan
+#   && cd /opt/LofarStMan
+RUN cd /opt/LofarStMan && mkdir build && cd build \
+    && cmake -DPORTABLE=True .. \
+    && make -j 64 && make install
+

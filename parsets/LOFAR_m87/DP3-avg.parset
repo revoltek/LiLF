@@ -1,0 +1,16 @@
+msin = 
+msin.datacolumn = DATA
+msout = 
+msout.storagemanager = dysco
+
+numthreads = 1 # leave this to 1 as it is called with s.run() and IO limited
+
+steps = [avg, filter]
+
+avg.type = averager
+avg.freqstep = 1
+avg.timestep = 1
+
+# should remove stations not used in any baseline (international)
+filter.type = filter
+filter.remove = True

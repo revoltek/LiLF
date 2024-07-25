@@ -1,0 +1,61 @@
+Ncpu = 0
+
+[plotAi1]
+operation = PLOT
+soltab = sol000/amplitude000
+freq.minmaxstep = [0,300e6,100]
+axesInPlot = time
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ampNoSmooth_
+NColFig = 4
+figSize = [20,20]
+
+[plotAi2]
+operation = PLOT
+soltab = sol000/amplitude000
+time.minmaxstep = [0,1e20,500]
+axesInPlot = freq
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ampNoSmooth_
+
+[plotAi3]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/ampNoSmooth_
+minmax = [0.8,1.2]
+
+[smooth]
+operation = SMOOTH
+soltab = sol000/amplitude000
+ant.regexp = CS*
+axesToSmooth = [ant]
+mode = median
+log = True
+
+[plotAs3]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/ampAfterSmooth_
+minmax = [0.8,1.2]
+
+[replicate]
+operation = REPLICATEONAXIS
+soltab = sol000/amplitude000
+axisReplicate = ant
+fromCell = CS001LBA
+
+[plotAr3]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/ampAfterReplicate_
+minmax = [0.8,1.2]

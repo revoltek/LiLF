@@ -17,7 +17,7 @@
 import numpy as np
 import copy
 import logging
-from astropy.table import Table, QTable, Column
+from astropy.table import Table, Column
 from astropy.wcs import WCS
 import astropy.units as u
 from astropy.units import UnitConversionError

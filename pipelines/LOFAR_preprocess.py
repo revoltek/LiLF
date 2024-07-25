@@ -164,7 +164,6 @@ if renameavg:
                 if avg_factor_t < 1: avg_factor_t = 1
 
                 MSout = getName(MS.pathMS)
-                flog.write(MS.nameMS+'.MS\n')
                 if avg_factor_f != 1 or avg_factor_t != 1:
                     logger.info('%s->%s: Average in freq (factor of %i) and time (factor of %i)...' % (MS.nameMS, MSout, avg_factor_f, avg_factor_t))
                     if keep_IS:
@@ -185,8 +184,11 @@ if renameavg:
                             MS.move('data-bkp/' + MS.nameMS + '.MS', keepOrig=False, overwrite=False)
                     else:
                         lib_util.check_rm(MS.pathMS)
+                    flog.write(MS.nameMS+'.MS\n') # after averaging to be sure no log is written if an error occurs
                 else:
                     logger.info('%s->%s: Move data - no averaging...' % (MS.nameMS, MSout))
+                    flog.write(MS.nameMS+'.MS\n') # before move or the filenmae is changed
                     MS.move(MSout)
+
 
 logger.info("Done.")

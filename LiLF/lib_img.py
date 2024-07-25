@@ -8,11 +8,13 @@ import pyregion
 from scipy.ndimage.measurements import label
 from LiLF import make_mask, lib_util
 from LiLF.lib_log import logger
+import astropy.io.fits as fits
+import astropy.wcs as wcs
 
 class Image(object):
     def __init__(self, imagename, userReg = None, beamReg= None ):
         """
-        userMask: keep this region when making masks
+        userReg: keep this region when making masks
         BeamReg: ds9 region file of the beam
         """
         if 'MFS' in imagename: suffix = '-MFS-image.fits'
@@ -30,6 +32,52 @@ class Image(object):
         self.skydb        = imagename.replace(suffix, '-sources-cut.skydb')
         self.userReg      = userReg
         self.beamReg      = beamReg
+
+    def calc_flux(self, img, mask):
+        """
+        Get flux inside given region. Adapted from Martin Hardcastle's radiomap class
+        """
+
+        fitsfile = img
+        extract = mask
+
+        phdu = fits.open(fitsfile)
+        head, lhdu = flatten(phdu)
+        gfactor = 2.0 * np.sqrt(2.0 * np.log(2.0))
+        f = phdu[0]
+        prhd = phdu[0].header
+        units = prhd.get('BUNIT')
+        if units is None:
+            units = prhd.get('UNIT')
+        if units != 'JY/BEAM' and units != 'Jy/beam':
+            print('Warning: units are', units, 'but code expects JY/BEAM')
+        bmaj = prhd.get('BMAJ')
+        bmin = prhd.get('BMIN')
+
+        bmaj = np.abs(bmaj)
+        bmin = np.abs(bmin)
+
+        w = wcs.WCS(prhd)
+        cd1 = -w.wcs.cdelt[0]
+        cd2 = w.wcs.cdelt[1]
+        if ((cd1 - cd2) / cd1) > 1.0001 and ((bmaj - bmin) / bmin) > 1.0001:
+            print('Pixels are not square (%g, %g) and beam is elliptical' % (cd1, cd2))
+
+        bmaj /= cd1
+        bmin /= cd2
+        area = 2.0 * np.pi * (bmaj * bmin) / (gfactor * gfactor)
+
+        d = [lhdu]
+
+        region = pyregion.open(extract).as_imagecoord(prhd)
+
+        for i, n in enumerate(d):
+            mask = region.get_mask(hdu=f, shape=np.shape(n))
+            data = np.extract(mask, d)
+            nndata = data[~np.isnan(data)]
+            flux = np.sum(nndata) / area
+
+        return flux
 
     def rescaleModel(self, funct_flux):
         """
@@ -55,7 +103,16 @@ class Image(object):
             fits.writeto(model_img, overwrite=True)
             fits.close()
 
+    def nantozeroModel(self):
+        """
+        Set nan to 0 in all model images
+        """
+        for modelimage in sorted(glob.glob(self.root+'*model*.fits')):
+            with pyfits.open(modelimage, mode='update') as fits:
+                for hdu in fits:
+                    hdu.data[hdu.data != hdu.data] = 0
 
+    # TODO: separate makemask (using breizorro) and makecat (using bdsf)
     def makeMask(self, threshpix=5, atrous_do=False, rmsbox=(100,10), remove_extended_cutoff=0., only_beam=False, maskname=None,
                  write_srl=False, write_gaul=False, write_ds9=False, mask_combine=None):
         """

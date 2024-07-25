@@ -3,10 +3,9 @@ msin.datacolumn =
 #do not copy aucorr as they have too weird weights for dysco
 msin.baseline = [CR]S*&
 msout = 
-msout.writefullresflag = False
 msout.storagemanager = dysco
 
-steps = [shift, avg]
+steps = [shift, avg, count]
 
 shift.type = phaseshifter
 shift.phasecenter =
