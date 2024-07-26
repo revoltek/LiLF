@@ -1,66 +1,23 @@
 Ncpu = 0
 
-[duplicate]
+[bkp]
 operation = DUPLICATE
 soltab = sol000/phase000
-soltabOut = phaseResid000
-
-[reset]
-operation = RESET
-soltab = sol000/phaseResid000
-pol = YY
-dataVal = 0.0
-
-[plotP1]
-operation = PLOT
-soltab = sol000/phaseResid000
-freq.minmaxstep = [0,300e6,100]
-axesInPlot = time
-axisInTable = ant
-axisInCol = pol
-plotFlag = True
-prefix = plots/ph_
-minmax = [-3.14,3.14]
-NColFig = 4
-figSize = [20,20]
-
-[plotP2]
-operation = PLOT
-soltab = sol000/phaseResid000
-time.minmaxstep = [0,1e20,1000]
-axesInPlot = freq
-axisInTable = ant
-axisInCol = pol
-plotFlag = True
-prefix = plots/ph_
-refAnt = auto
-minmax = [-3.14,3.14]
-
-[plotP3]
-operation = PLOT
-soltab = sol000/phaseResid000
-axesInPlot = [time,freq]
-axisInTable = ant
-plotFlag = True
-prefix = plots/ph_
-pol = XX
-minmax = [-3.14,3.14]
-
-[plotP4]
-operation = PLOT
-soltab = sol000/phaseResid000
-axesInPlot = [time,freq]
-axisInTable = ant
-plotFlag = True
-prefix = plots/ph_
-pol = YY
-minmax = [-3.14,3.14]
+soltabOut = phaseOrig000
 
 [align]
-soltab = sol000/phaseResid000
+soltab = sol000/phase000
 operation = POLALIGN
 soltabOut = polalign
 minFreq = 30e6
+refAnt = auto
+
+# copy flags on polalign (this is because diag+rot is good at flagging bad points)
+[merge]
+operation = REWEIGHT
+mode = copy
+soltab = sol000/polalign
+soltabImport = phase000
 
 [plotAlign]
 operation = PLOT
@@ -70,19 +27,33 @@ axisInTable = ant
 axisDiff = pol
 plotFlag = True
 prefix = plots/ph-align_
+refAnt = auto
 minmax = [-3.14,+3.14]
 
 [residual]
 operation = RESIDUALS
-soltab = sol000/phaseResid000
+soltab = sol000/phase000
 soltabsToSub = polalign
 
 [plotPr]
 operation = PLOT
-soltab = sol000/phaseResid000
+soltab = sol000/phase000
 axesInPlot = [time,freq]
 axisInTable = ant
 axisDiff = pol
 plotFlag = True
 prefix = plots/ph-res_
+refAnt = auto
+minmax = [-3.14,+3.14]
+
+[plotPr2]
+operation = PLOT
+soltab = sol000/phase000
+time.minmaxstep = [0,1e20,500]
+axesInPlot = freq
+axisInTable = ant
+axisInCol = pol
+plotFlag = True
+prefix = plots/ph-res_
+refAnt = auto
 minmax = [-3.14,+3.14]

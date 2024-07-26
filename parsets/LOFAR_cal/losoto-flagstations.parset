@@ -1,7 +1,0 @@
-[flagstation]
-operation = FLAGSTATION
-soltab = sol000/amplitudeSmooth
-pol = XX, YY
-mode = bandpass
-ampRange = [0.3,2]
-skipInternational = True
