@@ -497,10 +497,10 @@ with w.if_todo('compressing_h5'):
     s.add('losoto -d sol000/phase000 cal-pa.h5', log='losoto-final.log', commandType="python")
     s.add('losoto -d sol000/amplitude000 cal-pa.h5', log='losoto-final.log', commandType="python")
     s.add('losoto -d sol000/rotation000 cal-pa.h5', log='losoto-final.log', commandType="python")
-    s.add('losoto -d sol000/phaseResid000 cal-pa.h5', log='losoto-final.log', commandType="python")
+    #s.add('losoto -d sol000/phaseResid000 cal-pa.h5', log='losoto-final.log', commandType="python")
 
     s.add('losoto -d sol000/phase000 cal-fr.h5', log='losoto-final.log', commandType="python")
-    s.add('losoto -d sol000/phaseResid000 cal-fr.h5', log='losoto-final.log', commandType="python")
+    #s.add('losoto -d sol000/phaseResid000 cal-fr.h5', log='losoto-final.log', commandType="python")
 
     s.add('losoto -d sol000/amplitude000 cal-bp.h5', log='losoto-final.log', commandType="python")
     s.add('losoto -d sol000/phase000 cal-bp.h5', log='losoto-final.log', commandType="python")
