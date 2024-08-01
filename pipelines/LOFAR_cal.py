@@ -85,6 +85,7 @@ if skymodel == '':  # default case
 calname = MSs.getListObj()[0].getNameField()
 nchan = MSs.mssListObj[0].getNchan()
 tint = MSs.mssListObj[0].getTimeInt()
+freqres = MSs.mssListObj[0].getChanband()
 
 logger.info("Initial time res: %i, nchan: %i" % (tint, nchan))
 
@@ -104,17 +105,18 @@ with w.if_todo('concat_all'):
 MSs_concat_all = lib_ms.AllMSs(['concat_all.MS'], s, check_flags=False)
 MSs_concat_all.print_HAcov()
 # for averaged data data set - the only purpose is to speed up the PA and FR solves
-small_freqres = 390624 # two SB - 195312 # one SB
+#small_freqres = 390624 # two SB - 195312 # one SB
+small_freqstep = int(np.rint(390624/freqres))
 small_timestep = 8 # to 32 s
 
 if MSs_concat_all.hasIS:
-    small_freqres /= 2
+    small_freqstep /= 2
     small_timestep /= 2
 if min(MSs_concat_all.getFreqs()) < 20.e6:
-    small_freqres /= 4
+    small_freqstep /= 4
     small_timestep /= 2
 elif min(MSs_concat_all.getFreqs()) < 40.e6:
-    small_freqres /= 2
+    small_freqstep /= 2
 
 uvlambdamin = 50 if min(MSs_concat_all.getFreqs()) < 30e6 else 100 # for Decameter we don't have any data otherwise...
 
@@ -258,11 +260,10 @@ with w.if_todo('cal_pa'):
     logger.info('Calibrating PA...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.modeldatacolumns=[MODEL_DATA_BEAMCOR] \
                sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
-               sol.solint=8 sol.nchan=8', log='$nameMS_solPA.log', commandType="DP3")
+               sol.solint={small_timestep} sol.nchan={small_freqstep}', log='$nameMS_solPA.log', commandType="DP3")
     
     lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
-    lib_util.check_rm('concat_pa.MS')
 ### DONE
 
 ########################################################
@@ -287,29 +288,42 @@ with w.if_todo('cal_fr'):
 
     # Concat+avg SMOOTHED_DATA -> concat_fr.MS:DATA
     # average a lot to speed up and increase S/N -> fast scalarphase is gone, so this should be fine.
-    logger.info('Create small concatenated MS (averaging)...')
-    lib_util.check_rm('concat_fr.MS')
-    s.add(f'DP3 {parset_dir}/DP3-avg.parset msin=concat_all.MS msout=concat_fr.MS msin.datacolumn=SMOOTHED_DATA \
-                    avg.timestep={int(small_timestep)} avg.freqresolution={small_freqres}', log='concat_fr_avg.log', commandType='DP3')
-    s.run(check=True)
-    MSs_fr = lib_ms.AllMSs(['concat_fr.MS'], s, check_flags=False)
+    #logger.info('Create small concatenated MS (averaging)...')
+    #lib_util.check_rm('concat_fr.MS')
+    #s.add(f'DP3 {parset_dir}/DP3-avg.parset msin=concat_all.MS msout=concat_fr.MS msin.datacolumn=SMOOTHED_DATA \
+    #                avg.timestep={int(small_timestep)} avg.freqresolution={small_freqres}', log='concat_fr_avg.log', commandType='DP3')
+    #s.run(check=True)
+    #MSs_fr = lib_ms.AllMSs(['concat_fr.MS'], s, check_flags=False)
     # predict the MODEL_DATA
-    logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
-    MSs_fr.run(f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname}",
-               log="$nameMS_pre.log", commandType="DP3")
+    #logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
+    #MSs_fr.run(f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname}",
+    #           log="$nameMS_pre.log", commandType="DP3")
    
     # Solve concat_fr.MS:DATA (only solve)
     # TODO test sol.rotationdiagonalmode=scalarphase
-    logger.info(f'Calibrating FR...')
+    #logger.info(f'Calibrating FR...')
     # Need to solve for rot+diag and not just rot since we can have phase offsets from the preliminary iono!
-    MSs_fr.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/fr.h5 \
-               sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalar\
-               sol.solint=1 sol.nchan=1', log='$nameMS_solFR.log', commandType="DP3")
+    #MSs_fr.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/fr.h5 \
+    #           sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalar\
+    #           sol.solint=1 sol.nchan=1', log='$nameMS_solFR.log', commandType="DP3")
     # TODO add residual rotation after FR fit as soon as this option is present in LoSoTo!
-    lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_fr.getListStr()],
+    #lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_fr.getListStr()],
+    #                    [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
+    #                     parset_dir + '/losoto-plot-scalaramp.parset', parset_dir + '/losoto-fr.parset'])
+    #lib_util.check_rm('concat_fr.MS')
+
+    # Solve concat_all.MS:SMOOTHED_DATA (only solve)
+    logger.info('Calibrating FR...')
+    # Need to solve for rot+diag and not just rot since we can have phase offsets from the preliminary iono!
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 \
+               sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalar\
+               sol.solint={small_timestep} sol.nchan={small_freqstep}', log='$nameMS_solFR.log', commandType="DP3")
+    
+    # TODO add residual rotation after FR fit as soon as this option is present in LoSoTo!
+    lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_concat_all.getListStr()],
                         [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
                          parset_dir + '/losoto-plot-scalaramp.parset', parset_dir + '/losoto-fr.parset'])
-    lib_util.check_rm('concat_fr.MS')
+    
 ### DONE
 
 #################################################
