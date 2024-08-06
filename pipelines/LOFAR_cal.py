@@ -164,7 +164,7 @@ with w.if_todo('pre_cal'):
     logger.info('Calibrating IONO (Core Stations)...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                         sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase sol.solint=16 sol.nchan=1 msin.baseline="CS*&CS*" \
-                        sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin}', log='$nameMS_solIONO_CS.log',
+                        sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin} sol.datause=single', log='$nameMS_solIONO_CS.log',
                        commandType="DP3")
 
     lib_util.run_losoto(s, 'preiono-cs', [ms + '/preiono.h5' for ms in MSs_concat_all.getListStr()],
@@ -194,7 +194,7 @@ with w.if_todo('pre_cal'):
     logger.info('Calibrating IONO (distant stations)...')
     MSs_concat_phaseupIONO.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA \
                            sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase \
-                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.1e6 sol.smoothnessreffrequency=54e6', \
+                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.1e6 sol.smoothnessreffrequency=54e6 sol.datause=single', \
                                log='$nameMS_solIONO.log', commandType="DP3")
 
     if min(MSs_concat_all.getFreqs()) < 35.e6:
@@ -235,7 +235,7 @@ with w.if_todo('cal_pa'):
     # TODO test sol.mode=rotation+diagonalphase
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
     logger.info(f'Calibrating PA...')
-    MSs_pa.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
+    MSs_pa.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal sol.rotationdiagonalmode=diagonalphase \
             sol.solint=1 sol.nchan=1',
             log='$nameMS_solPA.log', commandType="DP3")
 
@@ -282,7 +282,7 @@ with w.if_todo('cal_fr'):
     # TODO test sol.mode=rotation+scalarphase
     logger.info(f'Calibrating FR...')
     # Need to solve for rot+diag and not just rot since we can have phase offsets from the preliminary iono!
-    MSs_fr.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal \
+    MSs_fr.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/fr.h5 sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase \
                 sol.solint=1 sol.nchan=1',
                log='$nameMS_solFR.log', commandType="DP3")
     # TODO add residual rotation after FR fit as soon as this option is present in LoSoTo!
@@ -316,7 +316,7 @@ with w.if_todo('cal_iono'):
     logger.info('Calibrating IONO (Core Stations)...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                         sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.solint=16 sol.nchan=1 msin.baseline="CS*&CS*" \
-                        sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin}', log='$nameMS_solIONO_CS.log',
+                        sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin} sol.datause=single', log='$nameMS_solIONO_CS.log',
                        commandType="DP3")
 
     lib_util.run_losoto(s, 'iono-cs', [ms + '/iono.h5' for ms in MSs_concat_all.getListStr()],
@@ -348,7 +348,7 @@ with w.if_todo('cal_iono'):
     logger.info('Calibrating IONO (distant stations)...')
     MSs_concat_phaseupIONO.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA \
                            sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase \
-                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.1e6 sol.smoothnessreffrequency=54e6', \
+                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.1e6 sol.smoothnessreffrequency=54e6 sol.datause=single', \
                            log='$nameMS_solIONO.log', commandType="DP3")
    
     if (min(MSs_concat_phaseupIONO.getFreqs()) < 35.e6):
@@ -391,7 +391,7 @@ with w.if_todo('cal_bp'):
     logger.info('Calibrating BP...')
     timestep = int(np.rint(60 / tint))  # brings down to 60s
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/bp.h5 sol.mode=diagonal \
-                        sol.modeldatacolumns=[FR_MODEL_DATA] sol.solint='+str(timestep)+' sol.nchan=1',
+                        sol.modeldatacolumns=[FR_MODEL_DATA] sol.solint='+str(timestep)+' sol.nchan=1 sol.datause=dual',
                        log='$nameMS_solBP.log', commandType="DP3")
 
     flag_parset = '/losoto-flag-sparse.parset' if sparse_sb else '/losoto-flag.parset'
