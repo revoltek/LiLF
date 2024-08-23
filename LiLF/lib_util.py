@@ -304,7 +304,7 @@ def lofar_nu2num(nu):
     elif nu_clk == 160:
         SBband = 156250.0/1e6
 
-    return np.int(np.floor((1024./nu_clk) * (nu - (n-1) * nu_clk/2.)))
+    return int(np.floor((1024./nu_clk) * (nu - (n-1) * nu_clk/2.)))
 
 def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
     """
