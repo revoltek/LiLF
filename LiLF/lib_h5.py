@@ -42,22 +42,40 @@ def addpol(h5parmFile, soltabname, solsetname='sol000'):
     h5 = h5parm(h5parmFile, readonly=False)
     ss = h5.getSolset(solsetname)
     st = ss.getSoltab(soltabname)
+    stokesI = False
 
     if 'pol' in st.getAxesNames():
-        h5.close()
-        logger.warning('%s: polarisation axis already present in %s.' % (h5parmFile, soltabname))
-        return
+        pol = st.getAxisValues('pol')
+        if len(pol) == 1 and pol[0] == 'I':
+            logger.warning('%s: Stokes I polarisation present in %s. Setting I -> XX,YY' % (h5parmFile, soltabname))
+            stokesI = True
+        else:
+            h5.close()
+            logger.warning('%s: polarisation axis already present in %s.' % (h5parmFile, soltabname))
+            return
     
     # create values for new soltab
     typ = st.getType()
-    axesNames = st.getAxesNames()+['pol']
-    axesVals = [st.getAxisValues(axisName) for axisName in st.getAxesNames()]+[np.array(['XX','YY'])]
-    vals = st.getValues(retAxesVals = False)
-    vals = np.array([vals,vals])
-    vals = np.moveaxis(vals, 0, -1)
-    weights = st.getValues(weight = True, retAxesVals = False)
-    weights = np.array([weights,weights])
-    weights = np.moveaxis(weights, 0, -1)
+
+    vals = st.getValues(retAxesVals=False)
+    weights = st.getValues(weight=True, retAxesVals=False)
+    if stokesI: # extend I to XX,YY pol
+        axesNames = st.getAxesNames()
+        axesVals = []
+        for axisName in st.getAxesNames():
+            if axisName == 'pol':
+                axesVals.append(['XX','YY'])
+            else:
+                axesVals.append(st.getAxisValues(axisName))
+        vals = np.repeat(vals,2,-1)
+        weights = np.repeat(weights,2,-1)
+    else:
+        axesNames = st.getAxesNames()+['pol']
+        axesVals = [st.getAxisValues(axisName) for axisName in st.getAxesNames()]+[np.array(['XX','YY'])]
+        vals = np.array([vals,vals])
+        vals = np.moveaxis(vals, 0, -1)
+        weights = np.array([weights,weights])
+        weights = np.moveaxis(weights, 0, -1)
 
     # remove old soltab
     st.delete()

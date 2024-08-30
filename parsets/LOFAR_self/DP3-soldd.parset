@@ -21,7 +21,7 @@ sol.stepsize = 0.2
 #sol.coreconstraint = 2000 # for now to stay conservative.
 # solver specific stuff - to be tested!
 #sol.directions = [[],[]]...
-sol.solveralgorithm  = hybrid # directionsolve #, directioniterative, hybrid
+sol.solveralgorithm  = directioniterative
 #sol.solutions_per_direction =
 
 

@@ -237,7 +237,7 @@ for c in range(maxIter):
             solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
             losoto_parsets = [parset_dir+'/losoto-plot-tec.parset']
 
-        MSs.run(f"DP3 {parset_dir}/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 sol.solint={base_solint} {solver_params}",
+        MSs.run(f"DP3 {parset_dir}/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 sol.solint={base_solint} sol.datause=single {solver_params}",
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
         # MSs.run('DP3 '+parset_dir+'/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec1.h5 \
         #         msin.baseline="[CR]*&&;!RS208LBA;!RS210LBA;!RS307LBA;!RS310LBA;!RS406LBA;!RS407LBA;!RS409LBA;!RS508LBA;!RS509LBA;!PL*;!IE*;!UK*;!DE*;!FR*;!SE*" \

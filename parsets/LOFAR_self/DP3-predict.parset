@@ -8,8 +8,8 @@ msout.datacolumn = MODEL_DATA
 steps = [pre]
 
 pre.type = predict
-pre.sourcedb = 
+pre.sourcedb =
 pre.usebeammodel =
 pre.correctfreqsmearing = True
-pre.correcttimesmearing = 2 # upsampling factor
+#pre.correcttimesmearing = 2 # upsampling factor, creates error?
 
