@@ -75,7 +75,6 @@ def getParset(parsetFile=''):
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
-    add_default('LOFAR_timesplit', 'bp_fulljones', 'False') # TEST: whether to transfer time-dependent fulljones solutions from the calibrator
     add_default('LOFAR_timesplit', 'no_aoflagger', 'False') # TEST: Skip aoflagger (e.g. for observations of A-Team sources)
     # self
     add_default('LOFAR_self', 'maxIter', '2')
