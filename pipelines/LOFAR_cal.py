@@ -167,7 +167,8 @@ with w.if_todo('pre_cal'):
     logger.info('Calibrating IONO (Core Stations)...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                         sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase sol.solint=16 sol.nchan=1 msin.baseline="CS*&CS*" \
-                        sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin}', log='$nameMS_solIONO_CS.log',
+                        sol.smoothnessconstraint=0.5e6 sol.datause=single sol.solveralgorithm=directioniterative \
+                        sol.minvisratio=0.1 sol.uvlambdamin={uvlambdamin}', log='$nameMS_solIONO_CS.log',
                        commandType="DP3")
 
     lib_util.run_losoto(s, 'preiono-cs', [ms + '/preiono.h5' for ms in MSs_concat_all.getListStr()],
@@ -179,7 +180,7 @@ with w.if_todo('pre_cal'):
                 cor.correction=phase000', log='$nameMS_corIONO_CS.log', commandType="DP3")
 
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
+    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth3')
 
     # Phasing up the cose stations SMOOTHED_DATA -> concat_all-phaseupFR.MS:DATA
     logger.info('Phasing up Core Stations...')
@@ -196,8 +197,9 @@ with w.if_todo('pre_cal'):
     # Solve cal_SB.MS:DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
     MSs_concat_phaseupIONO.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA \
-                           sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase \
-                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.1e6 sol.smoothnessreffrequency=54e6', \
+                           sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase sol.datause=single sol.minvisratio=0.1 \
+                           sol.solveralgorithm=directioniterative sol.solint=1 sol.nchan=1 \
+                           sol.smoothnessconstraint=0.1e6 sol.smoothnessreffrequency=54e6', \
                                log='$nameMS_solIONO.log', commandType="DP3")
 
     if expect_strong_iono:
@@ -310,14 +312,15 @@ with w.if_todo('cal_iono'):
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-fr.h5 \
                    cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
+    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth3')
 
     uvlambdamin = 50 if min(MSs_concat_all.getFreqs()) < 30e6 else 100
     # Solve cal_SB.MS:DATA CS-CS baselines(only solve) # not more smoothing since in rare case some CS have strong delay!
     logger.info('Calibrating IONO (Core Stations)...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                         sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.solint=16 sol.nchan=1 msin.baseline="CS*&CS*" \
-                        sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin}', log='$nameMS_solIONO_CS.log',
+                        sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin} sol.datause=single \
+                        sol.solveralgorithm=directioniterative sol.minvisratio=0.1', log='$nameMS_solIONO_CS.log',
                        commandType="DP3")
 
     lib_util.run_losoto(s, 'iono-cs', [ms + '/iono.h5' for ms in MSs_concat_all.getListStr()],
@@ -329,7 +332,7 @@ with w.if_todo('cal_iono'):
                 cor.correction=phase000', log='$nameMS_corIONO_CS.log', commandType="DP3")
 
     # Smooth data CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
+    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth3')
 
     # Phasing up the cose stations SMOOTHED_DATA -> concat_all-phaseupFR.MS:DATA
     logger.info('Phasing up Core Stations...')
@@ -348,8 +351,9 @@ with w.if_todo('cal_iono'):
     # Solve cal_SB.MS:DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
     MSs_concat_phaseupIONO.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA \
-                           sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase \
-                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.1e6 sol.smoothnessreffrequency=54e6', \
+                           sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single \
+                           sol.solveralgorithm=directioniterative sol.minvisratio=0.1 sol.solint=1 sol.nchan=1 \
+                           sol.smoothnessconstraint=0.1e6 sol.smoothnessreffrequency=54e6' ,
                            log='$nameMS_solIONO.log', commandType="DP3")
    
     if (min(MSs_concat_phaseupIONO.getFreqs()) < 35.e6) or MSs.hasIS:
@@ -390,7 +394,7 @@ with w.if_todo('cal_bp'):
     logger.info('Calibrating BP...')
     timestep = int(np.rint(60 / tint))  # brings down to 60s
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/bp.h5 sol.mode=diagonal \
-                        sol.modeldatacolumns=[FR_MODEL_DATA] sol.solint='+str(timestep)+' sol.nchan=1',
+                        sol.modeldatacolumns=[FR_MODEL_DATA] sol.datause=dual sol.solveralgorithm=directioniterative sol.solint='+str(timestep)+' sol.nchan=1',
                        log='$nameMS_solBP.log', commandType="DP3")
 
     flag_parset = '/losoto-flag-sparse.parset' if sparse_sb else '/losoto-flag.parset'
@@ -537,7 +541,7 @@ if imaging:
 
         # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
         # unclear if we should smooth here
-        MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth3')  # now we can also smooth in time
+        MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth3')  # smooth in freq here correct?
 
         # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Calibrating Leakage...')

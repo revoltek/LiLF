@@ -68,7 +68,7 @@ operation = RESIDUALS
 soltab = sol000/phaseResid000
 soltabsToSub = rotationmeasure000
 
-[plotRES]
+[plotRES] # phase diff should not be referenced again!
 operation = PLOT
 soltab = sol000/phaseResid000
 axesInPlot = [time,freq]
