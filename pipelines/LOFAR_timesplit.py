@@ -24,8 +24,7 @@ data_dir = parset.get('LOFAR_timesplit','data_dir')
 cal_dir = parset.get('LOFAR_timesplit','cal_dir')
 ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
-bp_fulljones = parset.getboolean('LOFAR_timesplit','bp_fulljones') # TEST: Correct w/ time-dependent cal FJ solutions?
-no_aoflagger = parset.getboolean('LOFAR_timesplit','no_aoflagger') # TEST: Correct w/ time-dependent cal FJ solutions?
+no_aoflagger = parset.getboolean('LOFAR_timesplit','no_aoflagger')
 bl2flag = parset.get('flag','stations')
 
 #################################################
@@ -82,31 +81,22 @@ with w.if_todo('apply'):
 
     # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign corrected)
     logger.info('Apply solutions (pa)...')
-    MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
-            cor.parmdb='+h5_pa+' cor.correction=polalign', log='$nameMS_corPA.log', commandType='DP3')
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
+            cor.parmdb={h5_pa} cor.correction=polalign', log='$nameMS_corPA.log', commandType='DP3')
     
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
     logger.info('Beam correction...')
-    MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM.log', commandType='DP3')
+    MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM.log', commandType='DP3')
 
     # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, calibrator corrected+reweight)
     logger.info('Iono correction...')
-    MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb='+h5_iono_cs+' msin.datacolumn=CORRECTED_DATA \
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_iono_cs} msin.datacolumn=CORRECTED_DATA \
                 cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
-    MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb='+h5_iono+' msin.datacolumn=CORRECTED_DATA \
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_iono} msin.datacolumn=CORRECTED_DATA \
                 cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
 
-    if bp_fulljones: # HE TEST
-        logger.info('BP correction (FULLJONES mode)...')
-        MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb='+h5_bp+' msin.datacolumn=CORRECTED_DATA \
-                    cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.updateweights=True',
-                log='$nameMS_corBP.log', commandType="DP3")
-    else:
-        logger.info('BP correction...')
-        # MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb='+h5_bp+' msin.datacolumn=CORRECTED_DATA \
-        #             cor.correction=fulljones cor.soltab=[amplitudeSmooth,phaseNull] cor.updateweights=True',
-        #         log='$nameMS_corBP.log', commandType="DP3")
-        MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb='+h5_bp+' msin.datacolumn=CORRECTED_DATA \
+    logger.info('BP correction...')
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_bp} msin.datacolumn=CORRECTED_DATA \
                     cor.correction=amplitudeSmooth cor.updateweights=True',
                     log='$nameMS_corBP.log', commandType="DP3")
 

@@ -1,7 +1,8 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
+SHELL ["/bin/bash", "-c"]
 ARG DEBIAN_FRONTEND=noninteractive
 LABEL maintainer="Francesco de Gasperin"
-LABEL version="20230819"
+LABEL version="20240905"
 
 USER root
 
@@ -9,14 +10,10 @@ USER root
 RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update;
-RUN apt-get install -y g++ gfortran cmake git wget flex bison sudo vim hdf5-tools rename subversion python3-magic htop \
-    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm python3-numba \
-    libaio1 libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev \
+RUN apt-get install -y g++ gfortran cmake texinfo git wget flex bison sudo vim hdf5-tools rename subversion python3-magic htop \
+    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm \
+    libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
-
-# Some python packages
-#RUN pip3 install pyregion
-#RUN pip3 install astropy --upgrade
 
 # Add group. We chose GID 65527 to try avoiding conflicts.
 RUN groupadd -g 65527 lofar
@@ -27,20 +24,49 @@ RUN useradd lofar -d /home/lofar -u 65527 -g 65527 -m -s /bin/bash
 # Setup home directories
 RUN chown lofar:lofar /home/lofar
 
+# To avoid installing Python virtualenv
+ENV PIP_BREAK_SYSTEM_PACKAGES 1
+
+## AMD specific
+RUN mkdir /opt/aocl && cd /opt/aocl && wget https://download.amd.com/developer/eula/aocl/aocl-4-0/aocl-linux-aocc-4.0.tar.gz && tar xf aocl-linux-aocc-4.0.tar.gz
+RUN cd /opt/aocl/aocl-linux-aocc-4.0 && ./install.sh -t /opt/aocl -i lp64
+RUN source /opt/aocl/4.0/amd-libs.cfg
+ENV CPLUS_INCLUDE_PATH /opt/aocl/4.0/include:$CPLUS_INCLUDE_PATH
+ENV CPATH /opt/aocl/4.0/include:$CPLUS_INCLUDE_PATH
+
+# Get libflang.so, libpgmath.so
+RUN mkdir /opt/flang && cd /opt/flang && wget https://github.com/flang-compiler/flang/releases/download/flang_20190329/flang-20190329-x86-70.tgz && tar xf flang-20190329-x86-70.tgz
+ENV LD_LIBRARY_PATH /opt/flang/lib:$LD_LIBRARY_PATH
+ENV PATH /opt/flang/bin:$PATH
+ENV CPATH /opt/flang/include:$CPATH
+ENV CPLUS_INCLUDE_PATH /opt/flang/include:$CPLUS_INCLUDE_PATH
+
+# Explicitely reinstall FFTW since it wasn't built with threads.
+RUN rm -rf $AOCL_ROOT/amd-fftw $AOCL_ROOT/lib/libfftw*.so $AOCL_ROOT/include/fftw3*
+RUN mkdir /opt/fftw/ && cd /opt/fftw/ && git clone https://github.com/amd/amd-fftw.git
+# Install single precision version
+RUN cd /opt/fftw/amd-fftw && ./configure --enable-float --enable-threads --enable-sse2 --enable-avx --enable-avx2 --enable-avx512 --enable-openmp --enable-shared --enable-amd-opt --enable-amd-mpifft --prefix=/opt/aocl/4.0 && make -j 64 && make install && make clean
+# Install double precision version
+RUN cd /opt/fftw/amd-fftw && ./configure --enable-threads --enable-sse2 --enable-avx --enable-avx2 --enable-avx512 --enable-openmp --enable-shared --enable-amd-opt --enable-amd-mpifft --prefix=/opt/aocl/4.0 && make -j 64 && make install
+
+# AMD v3
+ENV MARCH znver3
+## end AMD specific
+
 ####################################################################
-## CASACORE v3.5.0
+## CASACORE v3.6.1
 ###################################################################
 RUN cd /opt && git clone https://github.com/casacore/casacore.git \
-    && cd /opt/casacore && git checkout tags/v3.5.0
+    && cd /opt/casacore && git checkout tags/v3.6.1
 RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused ftp://anonymous@ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar
 RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=True -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=True -DUSE_OPENMP=True -DUSE_FFTW3=TRUE -DUSE_HDF5=True -DBUILD_PYTHON:BOOL=False -DBUILD_PYTHON3:BOOL=True .. && make -j 64 && make install
 
 #####################################################################
-## CASACORE-python v3.5.1
+## CASACORE-python v3.6.1
 #####################################################################
 RUN cd /opt && git clone https://github.com/casacore/python-casacore.git \
-    && cd /opt/python-casacore && git checkout tags/v3.5.1
-RUN cd /opt/python-casacore && pip3 install .
+    && cd /opt/python-casacore && git checkout tags/v3.6.1
+RUN cd /opt/python-casacore && pip install .
 
 #####################################################################
 ## LOFARBeam (master 6/2020)
@@ -63,61 +89,71 @@ RUN cd /opt/EveryBeam && mkdir build && cd build \
     && make -j 64 && make install
     
 #####################################################################
-## idg v1.0.0
+## idg v1.2.0
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/astron-idg/idg.git \
-    && cd /opt/idg && git checkout tags/1.0.0
+    && cd /opt/idg && git checkout tags/1.2.0
 RUN cd /opt/idg && mkdir build && cd build \
     && cmake -DPORTABLE=True -DCMAKE_INSTALL_PREFIX:PATH=/ .. \
     && make -j 64 && make install
 
 #####################################################################
-## AOFlagger v3.2.0
+## AOFlagger v3.4.0
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
-    && cd /opt/aoflagger && git checkout tags/v3.2.0
+    && cd /opt/aoflagger && git checkout tags/v3.4.0
 RUN cd /opt/aoflagger && mkdir build && cd build && mkdir install \
     && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
 #####################################################################
-## Dysco v1.2
+## Dysco v1.3
+## not needed, it comes with casacore
 #####################################################################
 #RUN cd /opt && git clone https://github.com/aroffringa/dysco.git \
-#    && cd /opt/dysco && git checkout tags/v1.2
+#    && cd /opt/dysco && git checkout tags/v1.3
 #RUN cd /opt/dysco && mkdir build && cd build \
 #    && cmake -DPORTABLE=True .. \
 #    && make -j 64 && make install
 
 #####################################################################
 ## LofarStMan
+## not needed, only for raw (from the correlator) MS
 #####################################################################
-RUN cd /opt && git clone https://github.com/lofar-astron/LofarStMan
-#   && cd /opt/LofarStMan
-RUN cd /opt/LofarStMan && mkdir build && cd build \
-    && cmake -DPORTABLE=True .. \
-    && make -j 64 && make install
+#RUN cd /opt && git clone https://github.com/lofar-astron/LofarStMan
+#RUN cd /opt/LofarStMan && mkdir build && cd build \
+#    && cmake -DPORTABLE=True .. \
+#    && make -j 64 && make install
 
 #####################################################################
-## Wsclean master 20/6/24
+## Wsclean master 8/8/24
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-    && cd /opt/wsclean && git checkout 9b9ef94063a0ddf011993df8ba36c5aa950e8ea3
+    && cd /opt/wsclean && git checkout de09edb47149315283a0eb03098d7735bdf75a7a
 #    && cd /opt/wsclean && git checkout tags/v3.4
 RUN cd /opt/wsclean && mkdir build && cd build \
     && cmake -DPORTABLE=True .. \
     && make -j 64 && make install
 
 ####################################################################
-## Dp3 applybeam_filter 20/12/23
+## Dp3 master 18/8/24
 #####################################################################
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
-#RUN cd /opt && git clone https://github.com/lofar-astron/DP3.git \
 RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
-    && cd /opt/DP3 && git checkout applybeam_filter
+    && cd /opt/DP3 && git checkout 74bbd08df5e79072d1c5aacd62e2809766e4eeef
+#RUN cd /opt/DP3 && mkdir build && cd build \
+#    && cmake -DPORTABLE=True .. \
+#    && make -j 64 && make install
+
 RUN cd /opt/DP3 && mkdir build && cd build \
-    && cmake -DPORTABLE=True .. \
+    && cmake -DTARGET_CPU=${MARCH} -DBUILD_BENCHMARKS=OFF \
+        -DBLAS_flexiblas_LIBRARY=${AOCL_ROOT}/lib/libblis.so \
+        -DFFTW3F_LIB="${AOCL_ROOT}/lib/libfftw3f.so" \
+        -DFFTW3F_THREADS_LIBRARY="${AOCL_ROOT}/lib/libfftw3f_threads.so" \
+        -DFFTW3_INCLUDE_DIR="${AOCL_ROOT}/include/" \
+        -DLAPACK_flexiblas_LIBRARY=${AOCL_ROOT}/lib/libflame.so \
+        .. \
     && make -j 64 && make install
 
 #####################################################################
@@ -129,11 +165,11 @@ RUN cd /opt/lofar_lta-2.7.1 && python3 setup.py install
 ENV LD_LIBRARY_PATH /usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 
 #####################################################################
-## Pybdsf (master 1/2021)
+## Pybdsf (v1.11.0)
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
-    && cd /opt/PyBDSF; git checkout tags/v1.10.1
-RUN cd /opt/PyBDSF && pip3 install .
+    && cd /opt/PyBDSF; git checkout tags/v1.11.0
+RUN cd /opt/PyBDSF && pip install .
 
 #####################################################################
 ## LSMtool (1.4.11)
@@ -144,19 +180,17 @@ RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git \
 RUN cd /opt/LSMTool && python3 setup.py install --build_c_extentions
 
 ####################################################################
-## LoSoTo master 8/5/24
+## LoSoTo (master 5/9/24)
 ###################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto && git checkout d3b1f3b8d3fce9815ea866579c36c0ab2bade15e
-#    && cd /opt/losoto && git checkout tags/2.4.2
-RUN cd /opt/losoto && pip3 install .
-#RUN pip3 install --upgrade scipy
+    && cd /opt/losoto && git checkout ea8dbf00b7e7ac0de80fbc6ebf7b57d7ece5ff62
+RUN cd /opt/losoto && pip install .
 
 #####################################################################
 # msoverview
 #####################################################################
-RUN cd /opt && mkdir -p msoverview/src && cd msoverview/src && svn export https://svn.astron.nl/LOFAR/tags/LOFAR-Release-4_0_17/CEP/MS/src/msoverview.cc \
-    && gcc -I/usr/local/include/casacore -L/usr/local/lib msoverview.cc -o /usr/local/bin/msoverview -lcasa_casa -lcasa_ms -lcasa_tables -lstdc++
+#RUN cd /opt && mkdir -p msoverview/src && cd msoverview/src && svn export https://svn.astron.nl/LOFAR/tags/LOFAR-Release-4_0_17/CEP/MS/src/msoverview.cc \
+#    && gcc -I/usr/local/include/casacore -L/usr/local/lib msoverview.cc -o /usr/local/bin/msoverview -lcasa_casa -lcasa_ms -lcasa_tables -lstdc++
 
 #####################################################################
 ## BUILD DDF FROM SOURCE
@@ -164,38 +198,38 @@ RUN cd /opt && mkdir -p msoverview/src && cd msoverview/src && svn export https:
 #RUN cd /tmp && git clone https://github.com/cyriltasse/DDFacet.git
 #RUN cd /tmp/DDFacet && git checkout c0bd5f9ccaa9b7c28376e3e2674428902fa5bf85
 
-COPY DDFacet /tmp/DDFacet
-RUN mkdir /opt/DDFacet
-
-# Copy DDFacet and SkyModel into the image
-RUN cp -a /tmp/DDFacet/DDFacet /opt/DDFacet/DDFacet && \
-    cp -a /tmp/DDFacet/SkyModel /opt/DDFacet/SkyModel && \
-    cp -a /tmp/DDFacet/MANIFEST.in /opt/DDFacet/MANIFEST.in && \
-    cp -a /tmp/DDFacet/setup.py /opt/DDFacet/setup.py && \
-    cp -a /tmp/DDFacet/setup.cfg /opt/DDFacet/setup.cfg && \
-    cp -a /tmp/DDFacet/README.rst /opt/DDFacet/README.rst && \
-    cp -a /tmp/DDFacet/pyproject.toml /opt/DDFacet/pyproject.toml && \
-    cp -a /tmp/DDFacet/.git /opt/DDFacet/.git && \
-    cp -a /tmp/DDFacet/.gitignore /opt/DDFacet/.gitignore && \
-    cp -a /tmp/DDFacet/.gitmodules /opt/DDFacet/.gitmodules
-
-# Finally install DDFacet
-RUN rm -rf /opt/DDFacet/DDFacet/cbuild
-#RUN pip3 install -U pip setuptools wheel
-#RUN python3 -m pip install tensorflow-cpu
-
-# Force numba <0.55 otherwise it breaks for numpy
-#RUN pip3 install numba==0.54.1
-# Forse ipython not to be upgraded too much otherwise we lose compatibility with come astropy
-#RUN pip3 install ipython==7.17.0
-
-RUN python3 -m pip install -U "/opt/DDFacet/[moresane-support,testing-requirements,fits-beam-support]"
-RUN cd /opt/DDFacet/ && python3 setup.py build
-RUN cd /opt/DDFacet/ && python3 setup.py install
-
-# Set MeqTrees Cattery path to installation directory
-#ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
-#ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
+#COPY DDFacet /tmp/DDFacet
+#RUN mkdir /opt/DDFacet
+#
+## Copy DDFacet and SkyModel into the image
+#RUN cp -a /tmp/DDFacet/DDFacet /opt/DDFacet/DDFacet && \
+#    cp -a /tmp/DDFacet/SkyModel /opt/DDFacet/SkyModel && \
+#    cp -a /tmp/DDFacet/MANIFEST.in /opt/DDFacet/MANIFEST.in && \
+#    cp -a /tmp/DDFacet/setup.py /opt/DDFacet/setup.py && \
+#    cp -a /tmp/DDFacet/setup.cfg /opt/DDFacet/setup.cfg && \
+#    cp -a /tmp/DDFacet/README.rst /opt/DDFacet/README.rst && \
+#    cp -a /tmp/DDFacet/pyproject.toml /opt/DDFacet/pyproject.toml && \
+#    cp -a /tmp/DDFacet/.git /opt/DDFacet/.git && \
+#    cp -a /tmp/DDFacet/.gitignore /opt/DDFacet/.gitignore && \
+#    cp -a /tmp/DDFacet/.gitmodules /opt/DDFacet/.gitmodules
+#
+## Finally install DDFacet
+#RUN rm -rf /opt/DDFacet/DDFacet/cbuild
+##RUN pip3 install -U pip setuptools wheel
+##RUN python3 -m pip install tensorflow-cpu
+#
+## Force numba <0.55 otherwise it breaks for numpy
+##RUN pip3 install numba==0.54.1
+## Forse ipython not to be upgraded too much otherwise we lose compatibility with come astropy
+##RUN pip3 install ipython==7.17.0
+#
+#RUN python3 -m pip install -U "/opt/DDFacet/[moresane-support,testing-requirements,fits-beam-support]"
+#RUN cd /opt/DDFacet/ && python3 setup.py build
+#RUN cd /opt/DDFacet/ && python3 setup.py install
+#
+## Set MeqTrees Cattery path to installation directory
+##ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
+##ENV PYTHONPATH $MEQTREES_CATTERY_PATH:$PYTHONPATH
 
 #####################################################################
 ## LiLF
