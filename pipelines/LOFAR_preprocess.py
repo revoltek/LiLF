@@ -28,7 +28,7 @@ backup_full_res = parset.getboolean('LOFAR_preprocess','backup_full_res')
 demix_sources = parset.get('LOFAR_preprocess','demix_sources') # demix the sources in these patches (e.g. CasA or [VirA,TauA]), default: No demix. Assumes intrinsic sky
 demix_skymodel = parset.get('LOFAR_preprocess','demix_skymodel') # Use non-default demix skymodel
 demix_field_skymodel = parset.get('LOFAR_preprocess','demix_field_skymodel') # provide a custom target skymodel instead of online gsm model - assumes intrinsic sky.
-
+tar = parset.get('LOFAR_preprocess','tar') # tar the output ms
 
 ###########################################
 if os.path.exists('html.txt'):
@@ -252,9 +252,9 @@ if renameavg:
 
                         cmd = f"DP3 {parset_dir}/DP3-demix.parset msin={MS.pathMS} msin.baseline={bl_sel} msout={MSout} \
                               demix.skymodel={MS.pathMS}/demix_combined.skymodel demix.instrumentmodel={MS.pathMS}/instrument_demix.parmdb \
-                              demix.subtractsources=\[{','.join(this_ms_demix_sources)}\] \
+                              demix.subtractsources=[{','.join(this_ms_demix_sources)}] \
                               demix.freqstep={avg_factor_f} demix.timestep={avg_factor_t} \
-                              demix.demixfreqstep={demix_f_step} demix.demixtimestep={demix_t_step} "
+                              demix.demixfreqstep={demix_f_step} demix.demixtimestep={demix_t_step}"
                         if demix_field_skymodel:
                             cmd += ' demix.targetsource=target demix.ignoretarget=False '
                         else:
@@ -276,5 +276,10 @@ if renameavg:
                     flog.write(MS.nameMS+'.MS\n') # before move or the filenmae is changed
                     MS.move(MSout)
 
+                if tar:
+                    logger.info("Tar {MSout}...")
+                    s.add(f'tar cf {MSout}.tar --directory={os.path.dirname(MSout)} {os.path.basename(MSout)}', log='tar.log', commandType='general')
+                    s.run(check=True)
+                    lib_util.check_rm(MSout)
 
 w.alldone()
