@@ -64,6 +64,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_preprocess', 'demix_sources', '')  # Demix  sources in these patches (e.g. [VirA,TauA], default: No demix
     add_default('LOFAR_preprocess', 'demix_skymodel', '')  # Use non-default demix skymodel.
     add_default('LOFAR_preprocess', 'demix_field_skymodel', 'gsm')  # Provide a custom target skymodel instead of online gsm model. Set to '' to ignore target.
+    add_default('LOFAR_preprocess', 'tar', 'False')  # Tar MS files at the end 
     # cal
     add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
     add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
@@ -384,8 +385,12 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
 
             MSs_files_clean = []
             for g, group in enumerate(groups):
-                s.add(f'taql select from {group} giving wsclean_concat_{g}.MS as plain', log=logfile, commandType='general')
-                s.run(check=True)
+                # cp is faster than taql, ok for groups of 1
+                if len(group) == 1:
+                    os.system(f'cp {group[0]} wsclean_concat_{g}.MS')
+                else:
+                    s.add(f'taql select from {group} giving wsclean_concat_{g}.MS as plain', log=logfile, commandType='general')
+                    s.run(check=True)
                 MSs_files_clean.append(f'wsclean_concat_{g}.MS')
         else:
             # continue clean

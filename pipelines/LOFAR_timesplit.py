@@ -36,6 +36,13 @@ with w.if_todo('clean'):
 ### DONE
 
 with w.if_todo('copy'):
+    for tarfile in glob.glob(data_dir + '/*tar'):
+        if not os.path.exists(tarfile.replace('.tar','')):
+            s.add(f'tar xf {tarfile} --one-top-level={data_dir}', log='tar.log', commandType='general')
+    if len(s.action_list) > 0:
+        logger.info('Untar files...')
+        s.run(check=True, maxThreads=5)
+
     MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
 
     logger.info('Copy data...')
