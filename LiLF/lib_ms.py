@@ -262,10 +262,11 @@ class MS(object):
 
     def __init__(self, pathMS):
         """
-        pathMS:        path of the MS, without '/' at the end!
+        pathMS:        path of the MS
         pathDirectory: path of the parent directory of the MS
         nameMS:        name of the MS, without parent directories and extension (which is assumed to be ".MS" always)
         """
+        if pathMS[-1] == "/": pathMS = pathMS[:-1]
         self.setPathVariables(pathMS)
         # If the field name is not a recognised calibrator name, one of two scenarios is true:
         # 1. The field is not a calibrator field;
@@ -331,7 +332,9 @@ class MS(object):
 
         indexLastSlash     = self.pathMS.rfind('/')
 
-        self.pathDirectory = self.pathMS[ : indexLastSlash]
+        if '/' in self.pathMS: self.pathDirectory = self.pathMS[ : indexLastSlash]
+        else: self.pathDirectory = './'
+
         self.nameMS        = self.pathMS[indexLastSlash + 1 : -3]
 
     def move(self, pathMSNew, overwrite=False, keepOrig=False):
