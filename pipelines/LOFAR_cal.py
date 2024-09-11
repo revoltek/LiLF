@@ -175,7 +175,7 @@ with w.if_todo('pre_cal'):
     # not more smoothing since in rare case some CS have strong delay!
     # solint = 15 * 4s = 60s
     logger.info('Calibrating IONO (Core Stations)...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.minvis=0.1 \
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                         sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase sol.datause=single sol.solint=15 sol.nchan=1 msin.baseline="CS*&CS*" \
                         sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin}', log='$nameMS_solIONO_CS.log',
                        commandType="DP3")
@@ -206,7 +206,7 @@ with w.if_todo('pre_cal'):
     # Solve concat_all-phaseupIONO.MS:DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA \
-                           sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase sol.datause=single sol.minvis=0.1 \
+                           sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase sol.datause=single \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.1e6 sol.smoothnessreffrequency=54e6', \
                            log='$nameMS_solIONO.log', commandType="DP3")
 
@@ -356,7 +356,7 @@ with w.if_todo('cal_iono'):
     # Solve concat_all.MS:DATA (only solve on CS-CS BL)
     # not more smoothing since in rare case some CS have strong delay!
     logger.info('Calibrating IONO (Core Stations)...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.minvisratio=0.1\
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                         sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single sol.solint=15 sol.nchan=1 msin.baseline="CS*&CS*" \
                         sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin}', log='$nameMS_solIONO_CS.log',
                        commandType="DP3")
@@ -388,7 +388,7 @@ with w.if_todo('cal_iono'):
     # Solve concat_all-phaseupIONO.MS:DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA \
-                           sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single sol.minvisratio\
+                           sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.1e6 sol.smoothnessreffrequency=54e6', \
                            log='$nameMS_solIONO.log', commandType="DP3")
    
