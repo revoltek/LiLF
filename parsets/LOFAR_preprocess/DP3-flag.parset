@@ -1,0 +1,8 @@
+msin=
+msin.datacolumn = DATA
+msout=.
+
+steps=[aoflagger, count]
+
+aoflagger.strategy=
+aoflagger.memoryperc=6
