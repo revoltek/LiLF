@@ -253,7 +253,8 @@ with w.if_todo('cal_pa'):
         # HE: sol.rotationdiagonalmode diagonalphase seemes to give more stable results and surpresses the ~60 MHz bump weirdness
         # Solve concat_pa.MS:DATA (only solve)
         logger.info(f'Calibrating PA...')
-        MSs_pa.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal sol.rotationdiagonalmode=diagonalphase \
+        MSs_pa.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 \
+               sol.mode=rotation+diagonal sol.rotationdiagonalmode=diagonalphase \
                sol.solint=1 sol.nchan=1', log='$nameMS_solPA.log', commandType="DP3")
 
     else:
@@ -265,8 +266,8 @@ with w.if_todo('cal_pa'):
 
         # Solve concat_pa.MS:DATA (only solve)
         logger.info('Calibrating PA...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.modeldatacolumns=[MODEL_DATA_BEAMCOR] \
-                   sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS  sol.h5parm=$pathMS/pa.h5 sol.modeldatacolumns=[MODEL_DATA_BEAMCOR] \
+                   sol.mode=rotation+diagonal sol.rotationdiagonalmode=diagonalphase \
                    sol.solint={small_timestep} sol.nchan={small_freqstep}', log='$nameMS_solPA.log', commandType="DP3")
 
     lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs_concat_all.getListStr()],
@@ -526,16 +527,13 @@ with w.if_todo('compressing_h5'):
     # os.system('cp cal-bp.h5 fullcal-bp.h5')
     # os.system('cp cal-iono.h5 fullcal-iono.h5')
     s.add('losoto -d sol000/phase000 cal-pa.h5', log='losoto-final.log', commandType="python")
-    # s.add('losoto -d sol000/amplitude000 cal-pa.h5', log='losoto-final.log', commandType="python")
     s.add('losoto -d sol000/rotation000 cal-pa.h5', log='losoto-final.log', commandType="python")
-    #s.add('losoto -d sol000/phaseResid000 cal-pa.h5', log='losoto-final.log', commandType="python")
 
     s.add('losoto -d sol000/phase000 cal-fr.h5', log='losoto-final.log', commandType="python")
-    #s.add('losoto -d sol000/phaseResid000 cal-fr.h5', log='losoto-final.log', commandType="python")
 
     s.add('losoto -d sol000/amplitude000 cal-bp.h5', log='losoto-final.log', commandType="python")
     s.add('losoto -d sol000/phase000 cal-bp.h5', log='losoto-final.log', commandType="python")
-    s.add('losoto -d sol000/amplitudeRes cal-bp.h5', log='losoto-final.log', commandType="python")
+    #s.add('losoto -d sol000/amplitudeRes cal-bp.h5', log='losoto-final.log', commandType="python")
 
     s.add('losoto -d sol000/phase_offset000 cal-iono-cs.h5', log='losoto-final.log', commandType="python")
     s.add('losoto -d sol000/phaseResid000 cal-iono-cs.h5', log='losoto-final.log', commandType="python")
