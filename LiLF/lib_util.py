@@ -388,7 +388,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
             for g, group in enumerate(groups):
                 # cp is faster than taql, ok for groups of 1
                 if len(group) == 1:
-                    os.system(f'cp {group[0]} wsclean_concat_{g}.MS')
+                    os.system(f'cp -r {group[0]} wsclean_concat_{g}.MS')
                 else:
                     s.add(f'taql select from {group} giving wsclean_concat_{g}.MS as plain', log=logfile, commandType='general')
                     s.run(check=True)
