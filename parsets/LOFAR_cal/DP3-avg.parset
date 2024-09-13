@@ -1,0 +1,10 @@
+msin = 
+msin.datacolumn = DATA
+msout =
+msout.storagemanager = dysco
+
+steps = [avg]
+
+avg.type = averager
+avg.timestep =
+avg.freqstep =
