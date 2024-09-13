@@ -271,8 +271,8 @@ with w.if_todo('cal_pa'):
                    sol.mode=rotation+diagonal sol.rotationdiagonalmode=diagonalphase \
                    sol.solint={small_timestep} sol.nchan={small_freqstep}', log='$nameMS_solPA.log', commandType="DP3")
 
-    lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs_concat_all.getListStr()],
-                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset',  parset_dir+'/losoto-pa.parset'])
+        lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs_concat_all.getListStr()],
+                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset',  parset_dir+'/losoto-pa.parset'])
 ### DONE
 
 ########################################################
