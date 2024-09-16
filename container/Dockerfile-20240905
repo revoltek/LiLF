@@ -215,11 +215,11 @@ RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
 RUN cd /opt/PyBDSF && pip install .
 
 #####################################################################
-## LSMtool (1.4.11)
+## LSMtool (master 16/9/24)
 #####################################################################
 # Not using pip here since this seems to create some C issue with python-casacore for beam attenuation.
 RUN cd /opt && git clone https://github.com/darafferty/LSMTool.git \
-    && cd /opt/LSMTool; git checkout tags/v1.4.11
+    && cd /opt/LSMTool; git checkout 474945d93dc9cb13d9e59413bc21f8dd42c2394c
 RUN cd /opt/LSMTool && python3 setup.py install --build_c_extentions
 
 ####################################################################
