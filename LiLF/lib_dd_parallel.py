@@ -18,6 +18,42 @@ except:
 from LiLF.lib_log import logger
 from LiLF import lib_img
 
+def merge_faintest_patch(skymodel):
+    fluxes = skymodel.getColValues('I', aggregate='sum')
+    names =skymodel.getPatchNames()
+    faintest = names[np.argmin(fluxes)]
+    pos = skymodel.getPatchPositions()[faintest]
+    distances = skymodel.getDistance(*pos, byPatch=True)
+    closest = names[np.argsort(distances)[1]] # 0 would be the faintest patch itself
+    skymodel.merge([closest, faintest])
+    skymodel.setPatchPositions(method='wmean')
+    return skymodel
+
+
+
+
+def merge_faint_facets(skymodel, min_flux):
+    """
+    Merge all patches of a skymodel with a flux density below a threshold with the closest patch.
+
+    Parameters
+    ----------
+    skymodel
+    min_flux
+
+    Returns
+    -------
+    merged skymodel
+    """
+    skymodel = skymodel.copy()
+    i = 0
+    while min(skymodel.getColValues('I', aggregate='sum')) < min_flux:
+        print(i)
+        merge_faintest_patch(skymodel)
+        i += 1
+    return skymodel
+
+
 # class Direction(object):
 
 #     def __init__(self, name):

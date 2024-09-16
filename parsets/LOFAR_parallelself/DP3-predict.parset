@@ -1,0 +1,15 @@
+msin = 
+msin.datacolumn = DATA
+
+msout = .
+msout.datacolumn = MODEL_DATA
+#msout.storagemanager = dysco # by default uncompressed
+
+steps = [pre]
+
+pre.type = predict
+pre.sourcedb = 
+pre.usebeammodel =
+pre.correctfreqsmearing = True
+pre.correcttimesmearing = 1 # upsampling factor - set it to 2 when dp3 bug is solved
+

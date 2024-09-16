@@ -1,0 +1,31 @@
+Ncpu = 0
+
+#[duplicatePbkp]
+#operation = DUPLICATE
+#soltab = sol000/tec000
+#soltabOut = tecOrig000
+
+[plotTEC1]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = time
+axisInTable = ant
+plotFlag = True
+minmax = [-0.5,0.5]
+prefix = plots/tec
+refAnt = auto
+
+#[dejump]
+#operation = TECJUMP
+#soltab = sol000/tec000
+#refAnt = auto
+#
+#[plotTEC2]
+#operation = PLOT
+#soltab = sol000/tec000
+#axesInPlot = time
+#axisInTable = ant
+#plotFlag = True
+#minmax = [-0.5,0.5]
+#prefix = plots/tec_nojump
+#refAnt = auto

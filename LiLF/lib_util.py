@@ -307,7 +307,7 @@ def lofar_nu2num(nu):
 
     return int(np.floor((1024./nu_clk) * (nu - (n-1) * nu_clk/2.)))
 
-def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
+def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
     """
     s : scheduler
     c : cycle name, e.g. "final"
@@ -336,6 +336,10 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
         s.run(check = True)
     else:
         os.system('cp -r %s %s' % (h5s[0], h5out) )
+
+    if h5_dir:
+        os.system(f'mv {h5out} {h5_dir}/{h5out}')
+        h5out = f'{h5_dir}/{h5out}'
 
     check_rm('plots')
     os.makedirs('plots')
