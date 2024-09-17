@@ -49,6 +49,10 @@ def getName(ms):
             code = t.getcell('LOFAR_TARGET',0)[0]
     code = code.lower().replace(' ','_')
     
+    # remove unecessary info for survey pointings
+    if len(re.findall(r'[P|p]\d{3}\+\d{2}',code)) != 0:
+        code =  re.findall(r'[P|p]\d{3}\+\d{2}',code)[0].upper()
+    
     # get obsid
     with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
         obsid = t.getcell('LOFAR_OBSERVATION_ID',0)
@@ -287,7 +291,7 @@ if renameavg:
                     MS.move(MSout)
 
                 if tar:
-                    logger.info("Tar {MSout}...")
+                    logger.info(f"Tar {MSout}...")
                     s.add(f'tar cf {MSout}.tar --directory={os.path.dirname(MSout)} {os.path.basename(MSout)}', log='tar.log', commandType='general')
                     s.run(check=True)
                     lib_util.check_rm(MSout)
