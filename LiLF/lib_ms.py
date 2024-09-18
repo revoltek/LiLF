@@ -40,10 +40,10 @@ class AllMSs(object):
             ms = MS(pathMS)
             if check_flags and ms.isAllFlagged(): 
                 logger.warning('Skip fully flagged ms: %s' % pathMS)
-            elif check_sun and ms.sun_dist.deg < min_sun_dist:
-                logger.warning('Skip too close to sun (%.0f deg) ms: %s' % (ms.sun_dist.deg, pathMS))
+            elif check_sun and ms.get_sun_dist() < min_sun_dist:
+                logger.warning('Skip too close to sun (%.0f deg) ms: %s' % (ms.get_sun_dist(), pathMS))
             else:
-                self.mssListObj.append(MS(pathMS))
+                self.mssListObj.append(ms)
 
 
         if len(self.mssListObj) == 0:
@@ -52,10 +52,15 @@ class AllMSs(object):
         self.mssListStr = [ms.pathMS for ms in self.mssListObj]
         self.resolution = self.mssListObj[0].getResolution(check_flags=False)
 
-        self.isLBA = all(['LBA' in ms.getAntennaSet() for ms in self.mssListObj])
-        self.isHBA = all(['HBA' in ms.getAntennaSet() for ms in self.mssListObj])
-
-        self.hasIS = any([ms.getMaxBL(check_flags=False) > 150e3 for ms in self.mssListObj])
+        if len(self.mssListObj) > 500:
+            logger.warning('Many MSs detected, using only the first to determine antenna set and presence of IS.')
+            self.isLBA = 'LBA' in self.mssListObj[0].getAntennaSet()
+            self.isHBA = 'HBA' in self.mssListObj[0].getAntennaSet()
+            self.hasIS = self.mssListObj[0].getMaxBL(check_flags=False) > 150e3
+        else:
+            self.isLBA = all(['LBA' in ms.getAntennaSet() for ms in self.mssListObj])
+            self.isHBA = all(['HBA' in ms.getAntennaSet() for ms in self.mssListObj])
+            self.hasIS = any([ms.getMaxBL(check_flags=False) > 150e3 for ms in self.mssListObj])
 
 
     def getListObj(self):
@@ -224,28 +229,15 @@ class AllMSs(object):
         self.run(f'BLsmooth.py -c {chunks} -n {ncpu} -f {ionf} -r -i {incol} -o {outcol} {extra_flags} $pathMS',
                 log=f'$nameMS_{logstr}.log', commandType='python', maxThreads=maxthreads)
 
-
-
     def print_HAcov(self, png=None):
         """
         some info on the MSs
         """
-        telescope = self.mssListObj[0].getTelescope()
-        if telescope == 'LOFAR':
-            telescope_coords = EarthLocation(lat=52.90889*u.deg, lon=6.86889*u.deg, height=0*u.m)
-        elif telescope == 'GMRT':
-            telescope_coords = EarthLocation(lat=19.0948*u.deg, lon=74.0493*u.deg, height=0*u.m)
-        else:
-            raise('Unknown Telescope.')
-        
         has = []; elevs = []
         for ms in self.mssListObj:
-            time = np.mean(ms.getTimeRange())
-            time = Time( time/86400, format='mjd')
-            time.delta_ut1_utc = 0. # no need to download precise table for leap seconds
-            logger.info('%s (%s): Hour angle: %.1f hrs - Elev: %.2f (Sun distance: %.0f)' % (ms.nameMS,time.iso,ms.ha.deg/15.,ms.elev.deg,ms.sun_dist.deg))
-            has.append(ms.ha.deg/15.)
-            elevs.append(ms.elev.deg)
+            logger.info('%s (%s): Hour angle: %.1f hrs - Elev: %.2f (Sun distance: %.0f)' % (ms.nameMS,ms.get_time().iso,ms.get_hour_angle(),ms.get_elev(),ms.get_sun_dist()))
+            has.append(ms.get_hour_angle())
+            elevs.append(ms.get_elev())
 
         if png is not None:
             import matplotlib.pyplot as pl
@@ -268,21 +260,25 @@ class MS(object):
         """
         if pathMS[-1] == "/": pathMS = pathMS[:-1]
         self.setPathVariables(pathMS)
+
         # If the field name is not a recognised calibrator name, one of two scenarios is true:
         # 1. The field is not a calibrator field;
         # 2. The field is a calibrator field, but the name was not properly set.
         # The following lines correct the field name if scenario 2 is the case.
-        calibratorDistanceThreshold = 0.5 # in degrees
-        if (not self.isCalibrator()):
-            if (self.getCalibratorDistancesSorted()[0] < calibratorDistanceThreshold):
-                nameFieldOld = self.getNameField()
-                nameFieldNew = self.getCalibratorNamesSorted()[0]
-                #logger.warning("Although the field name '" + nameFieldOld + "' is not recognised as a known calibrator name, " +
-                #                "the phase centre coordinates suggest that this scan is a calibrator scan. Changing field name into '" +
-                #                nameFieldNew + "'...")
-                self.setNameField(nameFieldNew)
-
-
+        #calibratorDistanceThreshold = 0.5 # in degrees
+        #if (not self.isCalibrator()):
+        #    if (self.getCalibratorDistancesSorted()[0] < calibratorDistanceThreshold):
+        #        #nameFieldOld = self.getNameField()
+        #        nameFieldNew = self.getCalibratorNamesSorted()[0]
+        #        #logger.warning("Although the field name '" + nameFieldOld + "' is not recognised as a known calibrator name, " +
+        #        #                "the phase centre coordinates suggest that this scan is a calibrator scan. Changing field name into '" +
+        #        #                nameFieldNew + "'...")
+        #        self.setNameField(nameFieldNew)
+        
+    def get_telescope_coords(self):
+        """
+        Return astropy coords of telescope location
+        """
         telescope = self.getTelescope()
         if telescope == 'LOFAR':
             telescope_coords = EarthLocation(lat=52.90889*u.deg, lon=6.86889*u.deg, height=0*u.m)
@@ -290,18 +286,41 @@ class MS(object):
             telescope_coords = EarthLocation(lat=19.0948*u.deg, lon=74.0493*u.deg, height=0*u.m)
         else:
             raise('Unknown Telescope.')
+        return telescope_coords
 
+    def get_time(self):
+        """
+        Return mean time of the observation in mjd (time obj)
+        """
         time = np.mean(self.getTimeRange())
-        time = Time( time/86400, format='mjd')
+        time = Time( time/(24*3600.), format='mjd')
         time.delta_ut1_utc = 0. # no need to download precise table for leap seconds
-        coord_sun = get_sun(time)
+        return time
+
+    def get_elev(self):
+        """
+        Return mean elevation
+        """
+        coord = self.getPhaseCentre(skycoordobj=True)
+        return coord.transform_to(AltAz(obstime=self.get_time(),location=self.get_telescope_coords())).alt.deg
+
+    def get_sun_dist(self):
+        """
+        Return sun distance from the pointing centre in deg
+        """
+        coord_sun = get_sun(self.get_time())
         coord_sun = SkyCoord(ra=coord_sun.ra,dec=coord_sun.dec) # fix transformation issue
-        ra, dec = self.getPhaseCentre()
-        coord = SkyCoord(ra*u.deg, dec*u.deg)
-        self.elev = coord.transform_to(AltAz(obstime=time,location=telescope_coords)).alt
-        self.sun_dist = coord.separation(coord_sun)
-        lst = time.sidereal_time('mean', telescope_coords.lon)
-        self.ha = lst - coord.ra # hour angle
+        coord = self.getPhaseCentre(skycoordobj=True)
+        return coord.separation(coord_sun).deg
+    
+    def get_hour_angle(self):
+        """
+        Return the hour angle in hrs of the phase centre
+        """
+        coord = self.getPhaseCentre(skycoordobj=True)
+        lst = self.get_time().sidereal_time('mean', self.get_telescope_coords().lon)
+        ha = lst - coord.ra # hour angle
+        return ha.deg/15.
 
     def distBrightSource(self, name):
         """
@@ -499,9 +518,10 @@ class MS(object):
         return deltaT
 
 
-    def getPhaseCentre(self):
+    def getPhaseCentre(self, skycoordobj=False):
         """
         Get the phase centre (in degrees) of the first source (is it a problem?) of an MS.
+        skycoordobj: if True return a skycoord object, otherwise ra,dec in deg
         """
         field_no = 0
         ant_no   = 0
@@ -513,8 +533,11 @@ class MS(object):
         if (RA < 0):
             RA += 2 * np.pi
 
-        #logger.debug("%s: phase centre (degrees): (%f, %f)", self.pathMS, np.degrees(RA), np.degrees(Dec))
-        return (np.degrees(RA), np.degrees(Dec))
+        if skycoordobj:
+            return SkyCoord(np.degrees(RA)*u.deg, np.degrees(Dec)*u.deg)
+        else:
+            #logger.debug("%s: phase centre (degrees): (%f, %f)", self.pathMS, np.degrees(RA), np.degrees(Dec))
+            return (np.degrees(RA), np.degrees(Dec))
 
     def getTelescope(self):
         """
