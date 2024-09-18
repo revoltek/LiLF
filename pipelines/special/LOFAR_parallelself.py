@@ -13,13 +13,13 @@
 # 6. Repeat dd self-cal cycles with a growing number of directions
 # they need to be in "./mss/"
 
+# TODO figure out if it is better to properly predict with the beam
 # TODO add LoTSS query for statring model, only if not available use GSM
 # TODO different solints for different brightness facets?
 # TODO implement sidelob subtraction + peeling of bright sidelobe sourced
 # TODO do we need amplitude corrections(?)? If so, DI/DD/only for bright sources?
 # TODO flag on empty data
 # TODO add PBcorr + final imaging products
-# TODO we could refine the sub-field solutions in every cycle, since it doesn't take long to compute them.
 
 import sys, os, glob
 import numpy as np
@@ -104,8 +104,6 @@ def solve_iono(c, tc, patches, smMHz, solint, resetant_parset=None):
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
     lib_util.run_losoto(s, f'tec{tc}-c{c}', [ms+f'/tec{tc}.h5' for ms in MSs_sol.getListStr()], losoto_parsets, plots_dir=f'self/plots/plots-tec{tc}-c{c}', h5_dir=f'self/solutions/')
-    os.system(f'mv cal-tec{tc}-c{c}.h5 self/solutions/')
-    os.system(f'mv plots-tec{tc}-c{c} self/plots/')
 
 #############################################################################
 # Clear
@@ -133,7 +131,6 @@ except:
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
 MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='mid', to_null=True)
 beamReg = 'self/beam.reg'
-fov_maj = 2*MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True)[0]
 
 # set image size
 imgsizepix_wide = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/4.)
@@ -154,25 +151,15 @@ if tint < 4:
     base_solint = int(np.rint(4/tint)) # this is 2 for dutch SPARSE observations
 else: base_solint = 1
 # define list of facet fluxes per iteration -> this can go into the config
-facet_fluxes = [15, 4, 2.5, 1.5, 0.8] # still needs to be tuned, maybe also depends on the field
+facet_fluxes = [15, 6, 3.5, 2.0, 1.5] # still needs to be tuned, maybe also depends on the field
 #################################################################
 # Create initial sourcedb
 if not os.path.exists(sourcedb):
-    # make filter mask
-    if not os.path.exists('self/fov_mask.fits'):
-        logger.info('Creating FoV mask.')
-        lib_util.run_wsclean(s, 'wsclean_temp.log', MSs.getStrWsclean(), name='self/fov_mask', maxuv_l=1000,
-                             size=int(1.2*fov_maj*3600/30), scale='30arcsec')
-        os.system('mv self/fov_mask-dirty.fits self/fov_mask.fits')
-        lib_img.blank_image_reg('self/fov_mask.fits', beamReg, blankval=1.)
-        lib_img.blank_image_reg('self/fov_mask.fits', beamReg, blankval=0., inverse=True)
-
     fwhm = MSs.getListObj()[0].getFWHM(freq='min')
     radeg = phasecentre[0]
     decdeg = phasecentre[1]
     os.system('wget -O tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (radeg, decdeg, fwhm))
     sm = lsmtool.load(f'tgts.skymodel', beamMS=MSs.getListStr()[int(len(MSs.getListStr())/2)])
-    sm.select('self/fov_mask.fits=1') # remove distant sources
     sm.select('I>0.05', applyBeam=True) # keep only reasonably bright sources
     sm.write('tgts-pre.skymodel', clobber=True, applyBeam=True, adjustSI=True)
     sm = lsmtool.load('tgts-pre.skymodel')
@@ -279,11 +266,10 @@ for c in range(maxIter):
         sourcedb = f'tgts-c{c}.skymodel'
         if not os.path.exists(sourcedb):
             sm = lsmtool.load(f'img/wideM-{c-1}-sources.txt')
-            sm.select('self/fov_mask.fits=1')  # remove distant sources
             sm.select('I>0.01')  # remove the faintest sources
-            sm.group('tessellate', targetFlux=facet_fluxes, root='MODEL_DATA')
+            sm.group('tessellate', targetFlux=facet_fluxes[c], root='MODEL_DATA')
             sm.setPatchPositions(method='wmean')
-            sm = lib_dd_parallel.merge_faint_facets(sm, 0.5*facet_fluxes) # merge all facets below targetFlux
+            sm = lib_dd_parallel.merge_faint_facets(sm, 0.5*facet_fluxes[c]) # merge all facets below targetFlux
             sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
             sm.write(sourcedb, clobber=True)
         else:
@@ -398,7 +384,6 @@ for c in range(maxIter):
         imagenameM = 'img/wideM-' + str(c)
         # make quick image with -local-rms to get a mask
         # TODO make this faster - experiment with increased parallel-gridding as well as shared facet reads option
-        # apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
         logger.info('Cleaning 1...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
                              weight='briggs -0.3', local_rms='', niter=1000000, gridder='wgridder',  parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
@@ -423,11 +408,13 @@ for c in range(maxIter):
                              weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=6, save_source_list='',
                              no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=5.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
-                             multiscale='',  multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80',   pol='i', facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000' )
+                             multiscale='',  multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80',   pol='i', facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000',
+                             apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='')
 
         logger.info('Predict corrupted MODEL_DATA...')
         s.add(f'wsclean -predict -padding 1.8 -name {imagenameM} -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
-               -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
+               -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 \
+                -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam {MSs.getStrWsclean()}',
                log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
         s.run(check=True)
 
@@ -466,7 +453,8 @@ for c in range(maxIter):
             # Recreate MODEL_DATA of external region for subtraction
             logger.info('Predict corrupted model of external region...')
             s.add(f'wsclean -predict -padding 1.8 -name img/wideMext-{c} -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
-                   -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
+                   -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam -facet-regions {facetregname} \
+                   -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
                 log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
             s.run(check=True)
 
@@ -480,7 +468,8 @@ for c in range(maxIter):
         with w.if_todo('intreg_predict%02i' % c):
             # Recreate MODEL_DATA of internal region for solve
             logger.info('Predict model of internal region...')
-            s.add(f'wsclean -predict -padding 1.8 -name img/wideMint-{c} -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} {MSs.getStrWsclean()}',
+            s.add(f'wsclean -predict -padding 1.8 -name img/wideMint-{c} -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
+                   -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam {MSs.getStrWsclean()}',
                   log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
             s.run(check=True)
 
