@@ -104,8 +104,6 @@ def solve_iono(c, tc, patches, smMHz, solint, resetant_parset=None):
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
     lib_util.run_losoto(s, f'tec{tc}-c{c}', [ms+f'/tec{tc}.h5' for ms in MSs_sol.getListStr()], losoto_parsets, plots_dir=f'self/plots/plots-tec{tc}-c{c}', h5_dir=f'self/solutions/')
-    os.system(f'mv cal-tec{tc}-c{c}.h5 self/solutions/')
-    os.system(f'mv plots-tec{tc}-c{c} self/plots/')
 
 #############################################################################
 # Clear
@@ -153,7 +151,7 @@ if tint < 4:
     base_solint = int(np.rint(4/tint)) # this is 2 for dutch SPARSE observations
 else: base_solint = 1
 # define list of facet fluxes per iteration -> this can go into the config
-facet_fluxes = [15, 4, 2.5, 1.5, 0.8] # still needs to be tuned, maybe also depends on the field
+facet_fluxes = [15, 6, 3.5, 2.0, 1.5] # still needs to be tuned, maybe also depends on the field
 #################################################################
 # Create initial sourcedb
 if not os.path.exists(sourcedb):
@@ -269,9 +267,9 @@ for c in range(maxIter):
         if not os.path.exists(sourcedb):
             sm = lsmtool.load(f'img/wideM-{c-1}-sources.txt')
             sm.select('I>0.01')  # remove the faintest sources
-            sm.group('tessellate', targetFlux=facet_fluxes, root='MODEL_DATA')
+            sm.group('tessellate', targetFlux=facet_fluxes[c], root='MODEL_DATA')
             sm.setPatchPositions(method='wmean')
-            sm = lib_dd_parallel.merge_faint_facets(sm, 0.5*facet_fluxes) # merge all facets below targetFlux
+            sm = lib_dd_parallel.merge_faint_facets(sm, 0.5*facet_fluxes[c]) # merge all facets below targetFlux
             sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
             sm.write(sourcedb, clobber=True)
         else:
