@@ -103,11 +103,16 @@ if len(MSs.getListStr()) == 0:
     sys.exit(0)
 
 ######################################
-times = []
-for MS in MSs.getListObj():
-    t = MS.get_time()
-    times.append(int(t.iso.replace('-','')[0:8]))
-
+if len(MSs.getListObj()) > 0:
+    logger.warning('Many MSs detected, using only the first to determine the observing time (for rescaling/fixtables).')
+    t = MSs.getListObj()[0].get_time()
+    times = [int(t.iso.replace('-','')[0:8])] * len(MSs.getListObj())
+else:
+    times = []
+    for MS in MSs.getListObj():
+        t = MS.get_time()
+        times.append(int(t.iso.replace('-','')[0:8]))
+    
 if run_aoflagger:
     with w.if_todo('flag'):
         # Flag in an identical way to the observatory flagging
