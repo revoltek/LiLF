@@ -20,4 +20,4 @@ sol.propagateconvergedonly = True
 sol.smoothnessconstraint = 5e6
 sol.smoothnessreffrequency = 54e6
 #sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA]]
-sol.modeldatacolumns=[FR_MODEL_DATA]
+sol.modeldatacolumns=[MODEL_DATA_FR]

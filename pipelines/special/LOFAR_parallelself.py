@@ -171,7 +171,7 @@ facet_fluxes = [15, 6, 3.5, 2.0, 1.5] # still needs to be tuned, maybe also depe
 # Make beam mask
 if not os.path.exists(beamMask):
     logger.info('Make mask of primary beam...')
-    # lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), size=imgsizepix_lr, scale='30arcsec')
+    lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), size=imgsizepix_lr, scale='30arcsec')
     os.system(f'mv {beamMask.replace(".fits","-image.fits")} {beamMask}')
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 1.)
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 0., inverse=True)
@@ -183,7 +183,7 @@ if not os.path.exists('self/solutions/template.h5'):
     else:  # TEC or TecAndPhase
         solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
     MSs.run(
-        f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=FR_CORRECTED_DATA sol.h5parm=$pathMS/template.h5 sol.solint=1 sol.maxiter=1 {solver_params} sol.modeldatacolumns="[DATA]"',
+        f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/template.h5 sol.solint=1 sol.maxiter=1 {solver_params} sol.modeldatacolumns="[DATA]"',
         log='$nameMS_soltemplate.log', commandType='DP3')
     lib_util.run_losoto(s, 'template', [ms + '/template.h5' for ms in MSs.getListStr()], [])
     os.system('mv cal-template.h5 self/solutions/')
@@ -223,9 +223,9 @@ with w.if_todo('solve_fr'):
             log='$nameMS_taql_delcol.log', commandType='general')
 
 with w.if_todo('cor_fr'):
-    # Correct FR with results of solve - group*_TC.MS:DATA -> group*_TC.MS:FR_CORRECTED_DATA
-    logger.info('Correcting FR (DATA -> FR_CORRECTED_DATA...')
-    MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=FR_CORRECTED_DATA \
+    # Correct FR with results of solve - group*_TC.MS:DATA -> group*_TC.MS:CORRECTED_DATA_FR
+    logger.info('Correcting FR (DATA -> CORRECTED_DATA_FR...')
+    MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA_FR \
                 cor.parmdb=self/solutions/cal-fr.h5 cor.correction=rotationmeasure000',
             log='$nameMS_corFR.log', commandType='DP3')
 ### DONE
@@ -236,13 +236,13 @@ for c in range(maxIter):
     logger.info('Start selfcal cycle: '+str(c))
     if c == 0:
         with w.if_todo('set_corrected_data_c%02i' % c):
-            logger.info('Creating CORRECTED_DATA = FR_CORRECTED_DATA...')
-            MSs.addcol('CORRECTED_DATA', 'FR_CORRECTED_DATA')
+            logger.info('Creating CORRECTED_DATA = CORRECTED_DATA_FR...')
+            MSs.addcol('CORRECTED_DATA', 'CORRECTED_DATA_FR')
     elif c in [1,2] :
         # Only in first two iterations: apply the subfield solutions to the data.
         with w.if_todo('set_corrected_data_c%02i' % c):
-            logger.info('Set CORRECTED_DATA = FR_CORRECTED_DATA...')
-            MSs.run('taql "update $pathMS set CORRECTED_DATA = FR_CORRECTED_DATA"', log='$nameMS_taql-c' + str(c) + '.log',
+            logger.info('Set CORRECTED_DATA = CORRECTED_DATA_FR...')
+            MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA_FR"', log='$nameMS_taql-c' + str(c) + '.log',
                     commandType='general')
             logger.info('Correct subfield iono...')
             if phaseSolMode in ['tec', 'tecandphase']:
@@ -287,7 +287,7 @@ for c in range(maxIter):
             # Create initial sourcedb from LoTSS or GSM
             fwhm = MSs.getListObj()[0].getFWHM(freq='min')
             try:
-                pass
+                raise
                 # sm = lsmtool.load('LoTSS', VOPosition=phasecentre, VORadius=1.3 * fwhm / 2,
                 #                   beamMS=beamMS)
             except (KeyError, FileNotFoundError) as e:
@@ -479,7 +479,7 @@ for c in range(maxIter):
                 log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
             s.run(check=True)
 
-            # subtract external region from FR_CORRECTED_DATA to create SUBFIELD_DATA
+            # subtract external region from CORRECTED_DATA_FR to create SUBFIELD_DATA
             MSs.addcol('SUBFIELD_DATA','CORRECTED_DATA')
             logger.info('Subtracting external region model (SUBFIELD_DATA = CORRECTED_DATA - MODEL_DATA)...')
             MSs.run('taql "update $pathMS set SUBFIELD_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
@@ -581,9 +581,9 @@ for c in range(maxIter):
                 s.run(check=True)
 
                 # TODO we use SUBFIELD_DATA here since it exists and is not needed, might be clearer to instead use SUBTRACTED_DATA or so?
-                # subtract internal region from FR_CORRECTED_DATA to create SUBFIELD_DATA
-                logger.info('Subtract main-lobe (SUBFIELD_DATA = FR_CORRECTED_DATA - MODEL_DATA)...')
-                MSs.run('taql "update $pathMS set SUBFIELD_DATA = FR_CORRECTED_DATA - MODEL_DATA"',
+                # subtract internal region from CORRECTED_DATA_FR to create SUBFIELD_DATA
+                logger.info('Subtract main-lobe (SUBFIELD_DATA = CORRECTED_DATA_FR - MODEL_DATA)...')
+                MSs.run('taql "update $pathMS set SUBFIELD_DATA = CORRECTED_DATA_FR - MODEL_DATA"',
                         log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
                 clean_empty(MSs, 'only_sidelobe', 'SUBFIELD_DATA', size=10000)
             ### DONE
@@ -650,8 +650,8 @@ for c in range(maxIter):
                             cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=phase000 cor.invert=False',
                             log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
 
-                logger.info('Subtract corrupted sidelobe model (FR_CORRECTED_DATA = FR_CORRECTED_DATA - MODEL_DATA)...')
-                MSs.run('taql "update $pathMS set FR_CORRECTED_DATA = FR_CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
+                logger.info('Subtract corrupted sidelobe model (CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA)...')
+                MSs.run('taql "update $pathMS set CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
             ### DONE
 
 
@@ -665,7 +665,7 @@ for c in range(maxIter):
 #         parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500,
 #         join_channels='', channels_out=MSs.getChout(4.e6))
 #
-# MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN SUBFIELD_DATA, FR_CORRECTED_DATA"',
+# MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN SUBFIELD_DATA, CORRECTED_DATA_FR"',
 #         log='$nameMS_taql_delcol.log', commandType='general')
 
 # Copy images
