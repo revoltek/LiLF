@@ -442,7 +442,7 @@ def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
     mask = max_flux_in_field > min_flux # points above min flux
     id_min = np.argwhere(mask)[0,0]
     # find smallest region containing min flux
-    bestbox_coord = w.wcs_pix2world([max_location[id_min]], 0)[0]
+    bestbox_coord = w.wcs_pix2world([max_location[id_min][::-1]], 0)[0]
     bestbox_flux = max_flux_in_field[id_min]
     bestbox_size = boxsizes[id_min]
     logger.info(f'Flux {bestbox_flux:.1f}Jy > min_flux ({min_flux:.1f}Jy) in {bestbox_size:.2f}deg box at ra={bestbox_coord[0]:.2f}d dec={bestbox_coord[1]:.2f}d.')

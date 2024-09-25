@@ -81,8 +81,9 @@ def getParset(parsetFile=''):
     # self
     add_default('LOFAR_self', 'maxIter', '2')
     add_default('LOFAR_self', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
-    add_default('LOFAR_self', 'subfield_min_flux', '40') # min flux within calibration subfield
+    add_default('LOFAR_self', 'subfield_min_flux', '20') # min flux within calibration subfield
     add_default('LOFAR_self', 'ph_sol_mode', 'tecandphase') # phase or tecandphase
+    add_default('LOFAR_self', 'intrinsic', 'True')
     # dd
     add_default('LOFAR_dd', 'maxIter', '2')
     add_default('LOFAR_dd', 'minCalFlux60', '1.')
@@ -742,6 +743,9 @@ class Scheduler():
             logger.debug('Running DDFacet: %s' % cmd)
         elif commandType == 'python':
             logger.debug('Running python: %s' % cmd)
+        else:
+            logger.debug('Running general: %s' % cmd)
+
 
         if (processors != None and processors == 'max'):
             processors = self.max_processors

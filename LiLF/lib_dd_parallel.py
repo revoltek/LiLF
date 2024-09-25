@@ -18,8 +18,8 @@ except:
 from LiLF.lib_log import logger
 from LiLF import lib_img
 
-def merge_faintest_patch(skymodel):
-    fluxes = skymodel.getColValues('I', aggregate='sum')
+def merge_faintest_patch(skymodel, applyBeam):
+    fluxes = skymodel.getColValues('I', aggregate='sum', applyBeam=applyBeam)
     names =skymodel.getPatchNames()
     faintest = names[np.argmin(fluxes)]
     pos = skymodel.getPatchPositions()[faintest]
@@ -32,7 +32,7 @@ def merge_faintest_patch(skymodel):
 
 
 
-def merge_faint_facets(skymodel, min_flux):
+def merge_faint_facets(skymodel, min_flux, applyBeam=False):
     """
     Merge all patches of a skymodel with a flux density below a threshold with the closest patch.
 
@@ -40,6 +40,7 @@ def merge_faint_facets(skymodel, min_flux):
     ----------
     skymodel
     min_flux
+    applyBeam
 
     Returns
     -------
@@ -47,9 +48,9 @@ def merge_faint_facets(skymodel, min_flux):
     """
     skymodel = skymodel.copy()
     i = 0
-    while min(skymodel.getColValues('I', aggregate='sum')) < min_flux:
+    while min(skymodel.getColValues('I', aggregate='sum', applyBeam=True)) < min_flux:
         print(i)
-        merge_faintest_patch(skymodel)
+        merge_faintest_patch(skymodel, applyBeam=applyBeam)
         i += 1
     return skymodel
 

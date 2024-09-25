@@ -109,7 +109,7 @@ class Image(object):
             with pyfits.open(modelimage, mode='update') as fits:
                 for hdu in fits:
                     if np.isnan(hdu.data).any():
-                        logger.info(f"Model image '{modelimage}' has '{sum(np.isnan(hdu.data))}' NaN values (NaN -> zeros)")
+                        logger.info(f"Model image '{modelimage}' has '{np.sum(np.isnan(hdu.data))}' NaN values (NaN -> zeros)")
                     hdu.data[hdu.data != hdu.data] = 0
 
     # TODO: separate makemask (using breizorro) and makecat (using bdsf)
