@@ -109,6 +109,8 @@ with w.if_todo('cleaning'):
 
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
+MSs.print_HAcov()
+
 try:
     MSs.print_HAcov()
 except:
