@@ -13,13 +13,12 @@
 # 6. Repeat dd self-cal cycles with a growing number of directions
 # they need to be in "./mss/"
 
-# TODO figure out if it is better to properly predict with the beam
-# TODO add LoTSS query for statring model, only if not available use GSM
-# TODO different solints for different brightness facets?
-# TODO implement sidelob subtraction + peeling of bright sidelobe sourced
 # TODO do we need amplitude corrections(?)? If so, DI/DD/only for bright sources?
-# TODO flag on empty data
-# TODO add PBcorr + final imaging products
+# TODO final imaging products
+
+# Waiting for bug fixes in other software
+# TODO add facet-beam in imaging and predict steps once wsclean bug is fixed!
+# TODO add LoTSS query for statring model once bug is fixed! (Don't use for now, it crashes the VO server)
 
 import sys, os, glob
 import numpy as np
@@ -50,7 +49,7 @@ userReg = parset.get('model','userReg')
 
 def clean_empty(MSs, name, col='CORRECTED_DATA', size=5000):
     """ For testing/debugging only"""
-    lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=name,
+    lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
                          data_column=col, size=5000, scale='8arcsec', niter=0, nmiter=0,
                          weight='briggs 0.0', gridder='wgridder', parallel_gridding=1,
                          no_update_model_required='')
@@ -412,14 +411,14 @@ for c in range(maxIter):
                   log=f'makemask-{c}.log', commandType='python')
             s.run()
 
-        # clean again, with mask nowe,
+        # clean again, with mask nowe,apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam=''
         logger.info('Cleaning 2...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=imagename+'-mask.fits', reuse_psf=imagename, reuse_dirty=imagename, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
                              weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=6, save_source_list='',
                              update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=5.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
                              multiscale='',  multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80',   pol='i', facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000',
-                             apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='')
+                             )
 
         # reset NaNs if present
         im = lib_img.Image(f'{imagenameM}-MFS-image.fits')
