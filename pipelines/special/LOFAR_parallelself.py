@@ -13,6 +13,7 @@
 # 6. Repeat dd self-cal cycles with a growing number of directions
 # they need to be in "./mss/"
 
+# TODO the subfield algorithm should not cut any sources ... how to best implement that? Something with mask islands?
 # TODO do we need amplitude corrections(?)? If so, DI/DD/only for bright sources?
 # TODO final imaging products
 
@@ -117,6 +118,19 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, resetant_parset=None, m
     lib_util.run_losoto(s, f'tec{tc}-c{c}', [ms+f'/tec{tc}.h5' for ms in MSs.getListStr()], losoto_parsets, plots_dir=f'self/plots/plots-tec{tc}-c{c}', h5_dir=f'self/solutions/')
 
 
+def make_current_best_mask(imagename, threshold=6.5, userReg=None):
+    current_best_mask = f'{imagename}-mask.fits'
+    if userReg:
+        logger.info(f'Making mask with userReg {userReg}...')
+        s.add(f'breizorro.py -t {threshold} -r {threshold}-MFS-image.fits -b 50 -o {current_best_mask} --merge {userReg}',
+              log=f'makemask-{c}.log', commandType='python')
+    else:
+        logger.info('Making mask...')
+        s.add(f'breizorro.py -t {threshold} -r {threshold}-MFS-image.fits -b 50 -o {current_best_mask}',
+              log=f'makemask-{c}.log', commandType='python')
+    s.run()
+    return current_best_mask
+
 #############################################################################
 # Clear
 with w.if_todo('cleaning'):
@@ -148,6 +162,7 @@ beamMask = 'self/beam.fits'
 # set image size
 imgsizepix_wide = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/4.)
 imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/30.)
+current_best_mask = None
 
 # set clean componet fit order (use 5 for large BW)
 if MSs.getChout(4.e6) >= 7:  # Bandwidth of 28 MHz or more
@@ -163,13 +178,14 @@ else: base_nchan = 1
 if tint < 4:
     base_solint = int(np.rint(4/tint)) # this is 2 for dutch SPARSE observations
 else: base_solint = 1
+mask_threshold = [6.5,5.5,5.0,5.5,5.0,5.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
 facet_fluxes = [15, 6, 3.5, 2.0, 1.5] # still needs to be tuned, maybe also depends on the field
 #################################################################
 
 # Make beam mask
 if not os.path.exists(beamMask):
-    logger.info('Make mask of primary beam...')
+    logger.info('Making mask of primary beam...')
     lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), size=imgsizepix_lr, scale='30arcsec')
     os.system(f'mv {beamMask.replace(".fits","-image.fits")} {beamMask}')
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 1.)
@@ -186,6 +202,7 @@ if not os.path.exists('self/solutions/template.h5'):
         log='$nameMS_soltemplate.log', commandType='DP3')
     lib_util.run_losoto(s, 'template', [ms + '/template.h5' for ms in MSs.getListStr()], [])
     os.system('mv cal-template.h5 self/solutions/')
+    os.system('rm -r plots-template')
 #################################################################################################
 
 with w.if_todo('solve_fr'):
@@ -391,34 +408,31 @@ for c in range(maxIter):
 
         imagename = 'img/wide-' + str(c)
         imagenameM = 'img/wideM-' + str(c)
+        reuse_kwargs = {}
         # make quick image with -local-rms to get a mask
         # TODO make this faster - experiment with increased parallel-gridding as well as shared facet reads option
-        logger.info('Cleaning 1...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
-                             weight='briggs -0.3', local_rms='', niter=1000000, gridder='wgridder',  parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
-                             auto_threshold=5.0, auto_mask=8.0, beam_size=15, join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
-                             multiscale='', pol='i', nmiter=6,   facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000' )
-        # # masking
-        if userReg:
-            logger.info(f'Making mask with userReg {userReg}...')
-            s.add('breizorro.py -t 6.5 -r %s -b 50 -o %s --merge %s' % (
-                imagename + '-MFS-image.fits', imagename + '-mask.fits', userReg),
-                  log=f'makemask-{c}.log', commandType='python')
-            s.run()
-        else:
-            logger.info('Making mask...')
-            s.add('breizorro.py -t 6.5 -r %s -b 50 -o %s' % (imagename + '-MFS-image.fits', imagename + '-mask.fits'),
-                  log=f'makemask-{c}.log', commandType='python')
-            s.run()
+        if not current_best_mask:
+            logger.info('Cleaning (prepare clean mask)...')
+            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
+                                 weight='briggs -0.3', local_rms='', niter=1000000, gridder='wgridder',  parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
+                                 auto_threshold=5.0, auto_mask=8.0, beam_size=15, join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
+                                 multiscale='', pol='i', nmiter=6,   facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000' )
+            # make initial mask
+            current_best_mask = make_current_best_mask(imagename, mask_threshold[c], userReg)
+            # safe a bit of time by reusing psf and dirty in first iteration
+            reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
 
         # clean again, with mask nowe,apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam=''
-        logger.info('Cleaning 2...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=imagename+'-mask.fits', reuse_psf=imagename, reuse_dirty=imagename, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
+        logger.info('Cleaning ...')
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
                              weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=6, save_source_list='',
                              update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=5.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
-                             multiscale='',  multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80',   pol='i', facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000',
-                             )
+                             multiscale='',  multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80',   pol='i',
+                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000',
+                             **reuse_kwargs)
+        # make a new mask from the image
+        current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c], userReg)
 
         # reset NaNs if present
         im = lib_img.Image(f'{imagenameM}-MFS-image.fits')
