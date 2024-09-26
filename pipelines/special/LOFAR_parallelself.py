@@ -286,7 +286,7 @@ for c in range(maxIter):
             # Create initial sourcedb from LoTSS or GSM
             fwhm = MSs.getListObj()[0].getFWHM(freq='min')
             try:
-                raise
+                raise KeyError
                 # sm = lsmtool.load('LoTSS', VOPosition=phasecentre, VORadius=1.3 * fwhm / 2,
                 #                   beamMS=beamMS)
             except (KeyError, FileNotFoundError) as e:
@@ -615,7 +615,6 @@ for c in range(maxIter):
             imagename_lr = 'img/wide-lr'
             # Image the sidelobe data
             with w.if_todo('image_sidelobe'):
-
                 logger.info('Cleaning low-res...')
                 lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
                                      parallel_gridding=4, temp_dir='../', size=imgsizepix_lr, scale='30arcsec',
