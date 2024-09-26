@@ -40,7 +40,7 @@ subfield_min_flux = parset.getfloat('LOFAR_self','subfield_min_flux') # default 
 subfield = parset.get('LOFAR_self','subfield') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
 maxIter = parset.getint('LOFAR_self','maxIter') # default = 2 (try also 3)
 phaseSolMode = parset.get('LOFAR_self', 'ph_sol_mode') # tecandphase, tec, phase
-intrinsic = parset.get('LOFAR_self', 'intrinsic') # True means using intrinsic sky model and DP3 applybeam predict, False means staying with apparent skymodel
+intrinsic = parset.getboolean('LOFAR_self', 'intrinsic') # True means using intrinsic sky model and DP3 applybeam predict, False means staying with apparent skymodel
 #sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
@@ -50,7 +50,7 @@ userReg = parset.get('model','userReg')
 def clean_empty(MSs, name, col='CORRECTED_DATA', size=5000):
     """ For testing/debugging only"""
     lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
-                         data_column=col, size=5000, scale='8arcsec', niter=0, nmiter=0,
+                         data_column=col, size=size, scale='8arcsec', niter=0, nmiter=0,
                          weight='briggs 0.0', gridder='wgridder', parallel_gridding=1,
                          no_update_model_required='')
 
@@ -326,7 +326,7 @@ for c in range(maxIter):
     with w.if_todo(f'init_model_c{c}'):
         for patch in patches:
             logger.info(f'Add model to {patch}...')
-            pred_parset = 'DP3-predict-beam.parset' if intrinsic else 'DP3-predict-beam.parset'
+            pred_parset = 'DP3-predict.parset' if intrinsic else 'DP3-predict-beam.parset'
             MSs_sol.run(f'DP3 {parset_dir}/{pred_parset} msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch}',
             log='$nameMS_pre.log', commandType='DP3')
             # Smooth CORRECTED_DATA -> SMOOTHED_DATA
@@ -478,10 +478,22 @@ for c in range(maxIter):
                 log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
             s.run(check=True)
 
+            # cycle >0: need to add DI-corruption on top (previous iteration sub-field)
+            if c > 0:
+                logger.info('Add previous iteration sub-field corruption on top of DD-corruption...')
+                if phaseSolMode in ['tec', 'tecandphase']:
+                    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                            cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c-1) + '.h5 cor.correction=tec000 cor.invert=False',
+                            log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
+                if phaseSolMode in ['phase', 'tecandphase']:
+                    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                            cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c-1) + '.h5 cor.correction=phase000 cor.invert=False',
+                            log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
+
             # subtract external region from FR_CORRECTED_DATA to create SUBFIELD_DATA
-            MSs.addcol('SUBFIELD_DATA','CORRECTED_DATA')
-            logger.info('Subtracting external region model (SUBFIELD_DATA = CORRECTED_DATA - MODEL_DATA)...')
-            MSs.run('taql "update $pathMS set SUBFIELD_DATA = CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+            MSs.addcol('SUBFIELD_DATA','FR_CORRECTED_DATA')
+            logger.info('Subtracting external region model (SUBFIELD_DATA = FR_CORRECTED_DATA - MODEL_DATA)...')
+            MSs.run('taql "update $pathMS set SUBFIELD_DATA = FR_CORRECTED_DATA - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
             clean_empty(MSs,'only_subfield', 'SUBFIELD_DATA')
         ### DONE
 
@@ -600,15 +612,16 @@ for c in range(maxIter):
                             log='$nameMS_sf-correct.log', commandType='DP3')
             # DONE
 
+            imagename_lr = 'img/wide-lr'
             # Image the sidelobe data
             with w.if_todo('image_sidelobe'):
+
                 logger.info('Cleaning low-res...')
-                imagename_lr = 'img/wide-lr'
                 lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
                                      parallel_gridding=4, temp_dir='../', size=imgsizepix_lr, scale='30arcsec',
                                      weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
-                                     taper_gaussian='200arcsec', mgain=0.85, parallel_deconvolution=512, baseline_averaging='',
-                                     local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', channels_out=MSs.getChout(2.e6))
+                                     taper_gaussian='200arcsec', mgain=0.85, channels_out=MSs.getChout(2.e6), parallel_deconvolution=512, baseline_averaging='',
+                                     local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='')
 
             # Subtract full low-resolution field (including possible large-scale emission within primary beam)
             # to get empty data set for flagging
@@ -619,7 +632,7 @@ for c in range(maxIter):
                 clean_empty(MSs, 'empty', 'SUBFIELD_DATA')
 
             # Flag on residuals (SUBFIELD_DATA)
-            with w.if_todo('flag_residuals' % c):
+            with w.if_todo('flag_residuals'):
                 logger.info('Flagging residuals (SUBFIELD_DATA)...')
                 MSs.run(
                     'DP3 ' + parset_dir + '/DP3-flag.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA aoflagger.strategy=' + parset_dir + '/LBAdefaultwideband.lua',
@@ -630,8 +643,8 @@ for c in range(maxIter):
                 # blank within main-libe to not subtract anything from there
                 for im in glob.glob(f'{imagename_lr}*model*fits'):
                     wideLRext = im.replace(imagename_lr, f'{imagename_lr}-blank')
-                    lib_img.blank_image_reg(wideLRext, beamReg , blankval=0., inverse=True)
                     os.system('cp %s %s' % (im, wideLRext))
+                    lib_img.blank_image_reg(wideLRext, beamReg , blankval=0.)
 
                 logger.info('Predict model of sidelobe region...')
                 s.add(
