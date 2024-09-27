@@ -122,13 +122,13 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     current_best_mask = f'{imagename}-mask.fits'
     if userReg:
         logger.info(f'Making mask with userReg {userReg}...')
-        s.add(f'breizorro.py -t {threshold} -r {threshold}-MFS-image.fits -b 50 -o {current_best_mask} --merge {userReg}',
+        s.add(f'breizorro.py -t {threshold} -r {imagename}-MFS-image.fits -b 50 -o {current_best_mask} --merge {userReg}',
               log=f'makemask-{c}.log', commandType='python')
     else:
         logger.info('Making mask...')
-        s.add(f'breizorro.py -t {threshold} -r {threshold}-MFS-image.fits -b 50 -o {current_best_mask}',
+        s.add(f'breizorro.py -t {threshold} -r {imagename}-MFS-image.fits -b 50 -o {current_best_mask}',
               log=f'makemask-{c}.log', commandType='python')
-    s.run()
+    s.run(check=True)
     return current_best_mask
 
 #############################################################################
@@ -178,9 +178,9 @@ else: base_nchan = 1
 if tint < 4:
     base_solint = int(np.rint(4/tint)) # this is 2 for dutch SPARSE observations
 else: base_solint = 1
-mask_threshold = [6.5,5.5,5.0,5.5,5.0,5.0] # sigma values for beizorro mask in cycle c
+mask_threshold = [6.5,5.5,4.5,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
-facet_fluxes = [15, 6, 3.5, 2.0, 1.5] # still needs to be tuned, maybe also depends on the field
+facet_fluxes = [15, 5, 3.0, 2.0, 1.5] # still needs to be tuned, maybe also depends on the field
 #################################################################
 
 # Make beam mask
@@ -319,7 +319,7 @@ for c in range(maxIter):
             sm = lsmtool.load(wsc_src, beamMS=beamMS if intrinsic else None)
         sm.select('I>0.005', applyBeam=intrinsic)  # keep only reasonably bright sources
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
-        sm.group('threshold', FWHM=0.05)
+        sm.group('threshold', FWHM=2/60)
         sm.group('tessellate', targetFlux=facet_fluxes[0], root='MODEL_DATA', applyBeam=intrinsic, byPatch=True)
         sm.setPatchPositions(method='mid', applyBeam=intrinsic) # 'mid' or 'wmean'?
         sm = lib_dd_parallel.merge_faint_facets(sm, 0.5 * facet_fluxes[0], applyBeam=intrinsic)  # merge all facets below threshold
@@ -343,7 +343,7 @@ for c in range(maxIter):
     with w.if_todo(f'init_model_c{c}'):
         for patch in patches:
             logger.info(f'Add model to {patch}...')
-            pred_parset = 'DP3-predict.parset' if intrinsic else 'DP3-predict-beam.parset'
+            pred_parset = 'DP3-predict-beam.parset' if intrinsic else 'DP3-predict.parset'
             MSs_sol.run(f'DP3 {parset_dir}/{pred_parset} msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch}',
             log='$nameMS_pre.log', commandType='DP3')
             # Smooth CORRECTED_DATA -> SMOOTHED_DATA
@@ -412,7 +412,7 @@ for c in range(maxIter):
         # make quick image with -local-rms to get a mask
         # TODO make this faster - experiment with increased parallel-gridding as well as shared facet reads option
         if not current_best_mask:
-            logger.info('Cleaning (prepare clean mask)...')
+            logger.info('Making wide-field image for clean mask...')
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
                                  weight='briggs -0.3', local_rms='', niter=1000000, gridder='wgridder',  parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                  auto_threshold=5.0, auto_mask=8.0, beam_size=15, join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
@@ -423,10 +423,10 @@ for c in range(maxIter):
             reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
 
         # clean again, with mask nowe,apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam=''
-        logger.info('Cleaning ...')
+        logger.info('Making wide field image ...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
                              weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=6, save_source_list='',
-                             update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=5.0,
+                             update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
                              multiscale='',  multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80',   pol='i',
                              facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000',
