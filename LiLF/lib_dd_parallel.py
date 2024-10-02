@@ -26,10 +26,8 @@ def merge_faintest_patch(skymodel, applyBeam):
     distances = skymodel.getDistance(*pos, byPatch=True)
     closest = names[np.argsort(distances)[1]] # 0 would be the faintest patch itself
     skymodel.merge([closest, faintest])
-    skymodel.setPatchPositions(method='wmean')
+    skymodel.setPatchPositions(method='wmean', applyBeam=applyBeam)
     return skymodel
-
-
 
 
 def merge_faint_facets(skymodel, min_flux, applyBeam=False):
@@ -48,11 +46,73 @@ def merge_faint_facets(skymodel, min_flux, applyBeam=False):
     """
     skymodel = skymodel.copy()
     i = 0
-    while min(skymodel.getColValues('I', aggregate='sum', applyBeam=True)) < min_flux:
+    while min(skymodel.getColValues('I', aggregate='sum', applyBeam=applyBeam)) < min_flux:
         print(i)
         merge_faintest_patch(skymodel, applyBeam=applyBeam)
         i += 1
     return skymodel
+
+def closest_distance_between_patches(skymodel):
+    """
+    Return the name of the two patches which are closes and their distance
+
+    Parameters
+    ----------
+    skymodel
+
+    Returns
+    -------
+    closest_name: (str, str) - names of the two closest patches
+    closest_distance: float - distance
+    """
+
+    closest_patch = np.zeros(len(skymodel.getPatchNames()))
+    closest_name = []
+    names = skymodel.getPatchNames()
+    for i, (name, pos) in enumerate(skymodel.getPatchPositions().items()):
+        distances = skymodel.getDistance(*pos, byPatch=True)
+        closest_patch[i] = np.sort(distances)[1]
+        nearby_name = names[distances == closest_patch[i]]
+        # Case multiple patches at distance = 0
+        if len(nearby_name) > 1:
+            logger.warning(f'Issue, multiple patches with same distance {nearby_name}!')
+            if nearby_name[0] == name:
+                nearby_name = nearby_name[1]
+            else:
+                nearby_name = nearby_name[0]
+        else: nearby_name = nearby_name[0]
+
+        closest_name.append([name,nearby_name])
+    return closest_name[np.argmin(closest_patch)], np.min(closest_patch)
+
+
+def merge_nearby_bright_facets(skymodel, max_distance, min_flux, applyBeam=False):
+    """
+    Merge all bright patches of a skymodel that are within min_distance of another patch
+
+    Parameters
+    ----------
+    skymodel
+    max_distance: max distance to merge
+    min_flux: min flux of facets to be considered bright
+    applyBeam
+
+    Returns
+    -------
+    merged skymodel
+    """
+    skymodel = skymodel.copy()
+    skymodel_bright = skymodel.copy()
+    skymodel_bright.select(f'I>{min_flux}', aggregate='sum', applyBeam=applyBeam)
+
+    while closest_distance_between_patches(skymodel_bright)[1] < max_distance:
+        closest_patches, closest_distance = closest_distance_between_patches(skymodel_bright)
+        logger.info(f'Merging nearby bright patches {closest_patches[0]} {closest_patches[1]} (distance={closest_distance*3600:.2f}arcsec')
+        skymodel_bright.merge(closest_patches)
+        skymodel.merge(closest_patches)
+    skymodel.setPatchPositions(method='wmean', applyBeam=applyBeam)
+    return skymodel
+
 
 
 # class Direction(object):

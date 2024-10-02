@@ -72,6 +72,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_cal', 'imaging', 'False')
     add_default('LOFAR_cal', 'fillmissingedges', 'True')
     add_default('LOFAR_cal', 'sparse_sb', 'False') # change flagging so that we can handle data with alternating SBs only
+    add_default('LOFAR_cal', 'develop', 'False') # delete files?
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*

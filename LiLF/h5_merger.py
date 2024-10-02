@@ -1116,6 +1116,9 @@ class MergeH5:
 
                 # coordinate list
                 source_coords = dirs[list(dirs.keys())[dir_idx]]
+                # print(dirs)
+                # print(self.directions)
+                print(22, source_coords, [list(sv) for sv in self.directions.values()])
 
                 if self.merge_all_in_one and self.n == 1:
                     idx = 0
@@ -1143,9 +1146,10 @@ class MergeH5:
 
                 else:  # new direction
                     if abs(source_coords[0]) > 0 and abs(source_coords[1]) > 0:
-                        print(f'Adding new direction Dir{self.n:02d} {source_coords[0]},{source_coords[1]}')
+                        # print(f'Adding new direction Dir{self.n:02d} {source_coords[0]},{source_coords[1]}')
+                        print(f'Create from existing direction {list(dirs.keys())[dir_idx]} {source_coords[0]},{source_coords[1]}')
                     idx = self.n
-                    self.add_direction({'Dir{:02d}'.format(self.n): source_coords})
+                    self.add_direction({list(dirs.keys())[dir_idx]: source_coords})
                     if not self.merge_all_in_one:
                         self.n += 1
                     if self.n > 1:  # for self.n==1 --> dont have to do anything
