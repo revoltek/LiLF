@@ -49,6 +49,10 @@ def getName(ms):
             code = t.getcell('LOFAR_TARGET',0)[0]
     code = code.lower().replace(' ','_')
     
+    # remove unecessary info for survey pointings
+    if len(re.findall(r'[P|p]\d{3}\+\d{2}',code)) != 0:
+        code =  re.findall(r'[P|p]\d{3}\+\d{2}',code)[0].upper()
+    
     # get obsid
     with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
         obsid = t.getcell('LOFAR_OBSERVATION_ID',0)
@@ -99,10 +103,16 @@ if len(MSs.getListStr()) == 0:
     sys.exit(0)
 
 ######################################
-with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
-    t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
-    time = int(t.iso.replace('-','')[0:8])
-
+if len(MSs.getListObj()) > 0:
+    logger.warning('Many MSs detected, using only the first to determine the observing time (for rescaling/fixtables).')
+    t = MSs.getListObj()[0].get_time()
+    times = [int(t.iso.replace('-','')[0:8])] * len(MSs.getListObj())
+else:
+    times = []
+    for MS in MSs.getListObj():
+        t = MS.get_time()
+        times.append(int(t.iso.replace('-','')[0:8]))
+    
 if run_aoflagger:
     with w.if_todo('flag'):
         # Flag in an identical way to the observatory flagging
@@ -110,26 +120,27 @@ if run_aoflagger:
         MSs.run('DP3 ' + parset_dir + '/DP3-flag.parset msin=$pathMS aoflagger.strategy=' + parset_dir + '/LBAdefaultwideband.lua',
             log='$nameMS_flag.log', commandType='DP3', maxThreads=16) # there might be a better way of parallelizing
 
-
-
 if fix_table:
     with w.if_todo('fix_table'):
         #logger.info('Fix MS table...')
         #MSs.run('fixMS_TabRef.py $pathMS', log='$nameMS_fixms.log', commandType='python')
         # only ms created in range (2/2013->2/2014)
-        if time > 20130200 and time < 20140300:
-            logger.info('Fix beam table...')
-            MSs.run('/home/fdg/scripts/fixinfo/fixbeaminfo $pathMS', log='$nameMS_fixbeam.log', commandType='python')
+        for i, MS in enumerate(MSs.getListStr()):
+            if times[i] > 20130200 and times[i] < 20140300:
+                logger.info('Fix beam table...')
+                s.add('/home/fdg/scripts/fixinfo/fixbeaminfo '+MS, log='fixbeam.log', commandType='python')
+        s.run(check=True)
 
 # Rescale visibilities by 1e3 if before 2014-03-19 (old correlator), and by 1e-2 otherwise
 with w.if_todo('rescale_flux'):
     logger.info('Rescaling flux...')
-    if time < 20140319:
-        rescale_factor = 1e6
-    else:
-        rescale_factor = 1e-4
 
-    for MS in MSs.getListStr():
+    for i, MS in enumerate(MSs.getListStr()):
+        if times[i] < 20140319:
+            rescale_factor = 1e6
+        else:
+            rescale_factor = 1e-4
+
         with pt.table(MS+'/HISTORY', readonly=False, ack=False) as hist:
             if "Flux rescaled" not in hist.getcol('MESSAGE'):
                 s.add('taql "update %s set DATA = %f*DATA" && taql "insert into %s/HISTORY (TIME,MESSAGE) values (mjd(), \'Flux rescaled\')"' % (MS,rescale_factor,MS), \
@@ -287,7 +298,7 @@ if renameavg:
                     MS.move(MSout)
 
                 if tar:
-                    logger.info("Tar {MSout}...")
+                    logger.info(f"Tar {MSout}...")
                     s.add(f'tar cf {MSout}.tar --directory={os.path.dirname(MSout)} {os.path.basename(MSout)}', log='tar.log', commandType='general')
                     s.run(check=True)
                     lib_util.check_rm(MSout)
