@@ -235,17 +235,17 @@ if ampSolMode not in ['diagonal', 'fulljones']:
 
 ext_region_extent = 0.25 #deg. This is where we start to get pointings, then we can increase the radius depending on the flux density threshold.
 data_temp = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[0,1,2])
-clname_temp = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[3], dtype=str)
+clname_temp = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[3], dtype=np.str)
 
 try:
-    extreg_temp = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[4], dtype=str)
+    extreg_temp = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[4], dtype=np.str)
     if str(extreg_temp) == 'None':
         extreg = 0
         maskreg = 0
     else:
         extreg=1
         try:
-            mask_reg = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[5], dtype=str)
+            mask_reg = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[5], dtype=np.str)
             if str(mask_reg) == 'None':
                 maskreg = 0
             else:
@@ -299,8 +299,7 @@ close_pointings = []
 
 if not os.path.exists('pointinglist.txt'):
     for pointing in tocheck:
-        chout_max = len(glob.glob(f'{pointing}/ddcal/c01/images/wideDD-c01-[0-9]*-beam.fits'))
-        with fits.open(f'{pointing}/ddcal/c01/images/wideDD-c01-000{chout_max-1}-beam.fits') as f:
+        with fits.open(pointing/'ddcal/c01/images/wideDD-c01.MeanSmoothNorm.fits') as f:
             header, data = lib_img.flatten(f)
             wcs = WCS(header)
             c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
@@ -354,10 +353,9 @@ with w.if_todo('cleaning'):
     os.makedirs('mss-extract/shiftavg')
     for i, p in enumerate(close_pointings):
             os.makedirs('extract/init/'+p)
-            os.system(f'cp {str(pathdir)}/{p}/ddcal/c01/images/wideDD-c01-MFS-image-pb.fits extract/init/{p}')  # copy ddcal images
-            os.system(f'cp {str(pathdir)}/{p}/ddcal/c01/images/wideDD-c01-0*-model-pb.fits extract/init/{p}')  # copy models
+            os.system(f'cp {str(pathdir)}/{p}/ddcal/c01/images/wideDD-c01.app.restored.fits extract/init/{p}')  # copy ddcal images
+            os.system(f'cp {str(pathdir)}/{p}/ddcal/c01/images/wideDD-c01.DicoModel extract/init/{p}')  # copy dico models
             os.system(f'cp {str(pathdir)}/{p}/ddcal/c01/solutions/interp.h5 extract/init/{p}')  # copy final dde sols
-            os.system(f'cp {str(pathdir)}/{p}/ddcal/c01/images/wideDD-c01_facets.reg extract/init/{p}')  # copy facet file
             lib_util.check_rm('mss-extract/'+p)
             if not os.path.exists('mss-extract/'+p):
                 logger.info('Copying MS of '+p+'...')
@@ -366,7 +364,7 @@ with w.if_todo('cleaning'):
 
 if extreg != 1:
     for p in close_pointings:
-        image_tocheck = 'extract/init/'+p+'/wideDD-c01-MFS-image-pb.fits'
+        image_tocheck = 'extract/init/'+p+'/wideDD-c01.app.restored.fits'
         flux_check = lib_img.Image(image_tocheck)
         reg_flux = flux_check.calc_flux(target_reg_file)
         flux_thresh = 5 #Jy. If flux is lower than this, the extent of the extraction region gets increased.
@@ -410,11 +408,10 @@ if extreg != 1:
 for p in close_pointings:
     MSs = lib_ms.AllMSs( glob.glob('mss-extract/'+p+'/*MS'), s )
     ch_out = MSs.getChout(4e6)  # chout from dd
-    ch_out = 6 #TODO this is temporary because the sausage data has 6
     fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
     phase_center = MSs.getListObj()[0].getPhaseCentre()
     # read image, h5parm, make mask
-    wideDD_image = lib_img.Image('extract/init/'+p+'/wideDD-c01-MFS-image-pb.fits')
+    wideDD_image = lib_img.Image('extract/init/'+p+'/wideDD-c01.app.restored.fits')
     dde_h5parm = 'extract/init/'+p+'/interp.h5'
     # make mask for subtraction
     mask_ddcal = wideDD_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
@@ -427,42 +424,50 @@ for p in close_pointings:
         for dir in datadir:
             MSs.run(f'taql "ALTER TABLE mss-extract/{p}/{dir} DELETE COLUMN MODEL_DATA, SUBTRACTED_DATA"', log=f'{dir}_deloldcols.log', commandType='python')
 
-    with w.if_todo('predict_rest_' + p):
 
-        # # Add mock MODEL column to avoid DDFacet overflow
+    with w.if_todo('predict_rest_'+p):
+
+        # Add mock MODEL column to avoid DDFacet overflow
         MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA', log='$nameMS_addmodelcol.log', commandType='python')
 
-        # Predict+corrupt in MODEL_DATA of everything BUT the calibrator
-        inmask = f'extract/init/{p}/wideDD-c01-MFS-image-pb_mask-ddcal.fits'
-        outmask = inmask + '.mask'
+        # DDF predict+corrupt in MODEL_DATA of everything BUT the calibrator
+        indico = wideDD_image.root + '.DicoModel'
+        outdico = indico + '-' + target_reg_file.split('.')[0] # use prefix of target reg
+        inmask = sorted(glob.glob(wideDD_image.root + '*_mask-ddcal.fits'))[-1]
+        outmask = outdico + '.mask'
         lib_img.blank_image_reg(inmask, target_reg_file, outfile=outmask, inverse=False, blankval=0.)
-
-        for im in glob.glob(f'extract/init/{p}/wideDD-c01-0*model-pb.fits'):
-            wideDDext = im.replace('wideDD', 'wideDDext')
-            os.system('cp %s %s' % (im, wideDDext))
-            lib_img.blank_image_reg(wideDDext, target_reg_file, blankval=0.)
-
-        # # if we have subtract reg, unmask that part again to predict+subtract it.
+        # if we have subtract reg, unmask that part again to predict+subtract it.
         if subtract_reg_file != 'None':
             os.system(f'cp ../{subtract_reg_file} .')
             logger.info(f"Re-adding sources in subtract-region {subtract_reg_file} to subtraction model.")
             lib_img.blank_image_reg(outmask, subtract_reg_file, inverse=False, blankval=1.)
+        s.add('MaskDicoModel.py --MaskName=%s --InDicoModel=%s --OutDicoModel=%s' % (outmask, indico, outdico),
+              log='MaskDicoModel.log', commandType='DDFacet', processors='max')
+        s.run(check=True)
 
+        # get DDF parameters used to create the image/model
+        ddf_parms = get_ddf_parms_from_header(wideDD_image.imagename)
         h5init = h5parm(dde_h5parm)
         solset_dde = h5init.getSolset('sol000')
+        # change for PREDICT
+        ddf_parms['Data_MS'] = MSs.getStrDDF()
+        ddf_parms['Data_ColName'] = 'CORRECTED_DATA'
+        ddf_parms['Predict_ColName'] = 'MODEL_DATA'
+        ddf_parms['Output_Mode'] = 'Predict'
+        ddf_parms['Predict_InitDicoModel'] = outdico
+        ddf_parms['Beam_Smooth'] = 1
+        ddf_parms['Cache_Reset'] = 1
 
         if 'amplitude000' in solset_dde.getSoltabNames():
-            correct_for = 'phase000, amplitude000'
+            ddf_parms['DDESolutions_DDSols'] = dde_h5parm + ':sol000/phase000+amplitude000'
         else:
-            correct_for = 'phase000'
+            ddf_parms['DDESolutions_DDSols'] = dde_h5parm + ':sol000/phase000'
+        if 'Misc_ParsetVersion' in ddf_parms.keys(): del ddf_parms['Misc_ParsetVersion']
+        if 'Mask_External' in ddf_parms.keys(): del ddf_parms['Mask_External']
 
-        facet_path = f'extract/init/{p}/wideDD-c01_facets.reg'
-        s.add(f'wsclean -predict -padding 1.8 -name extract/init/{p}/wideDDext-c01 -j ' + str(s.max_processors) + ' -channels-out ' + str(
-            ch_out) + ' -facet-regions ' + facet_path + ' -diagonal-solutions \
-            -apply-facet-solutions ' + dde_h5parm + ' ' + correct_for + ' \
-            -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
-              log='wscleanPRE.log', commandType='wsclean', processors='max')
-        s.run(check=True)
+        logger.info('Predict corrupted rest-of-the-sky for '+p+'...')
+        lib_util.run_DDF(s, 'ddfacet-pre.log', **ddf_parms)
+
 
     with w.if_todo('subtract_rest_'+p):
 
@@ -808,5 +813,5 @@ os.system('mv img/extractM-highres-MFS-image.fits extract-images/')
 os.system('mv img/extractM-sourcesubtracted-MFS-image.fits extract-images/')
 
 os.system('rm redshift_temp.txt')
+logger.info('Done.')
 
-w.alldone()
