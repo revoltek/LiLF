@@ -118,7 +118,6 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, resetant_parset=None, m
 
     lib_util.run_losoto(s, f'tec{tc}-c{c}', [ms+f'/tec{tc}.h5' for ms in MSs.getListStr()], losoto_parsets, plots_dir=f'self/plots/plots-tec{tc}-c{c}', h5_dir=f'self/solutions/')
 
-
 def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     current_best_mask = f'{imagename}-mask.fits'
     if userReg:
@@ -321,7 +320,7 @@ for c in range(maxIter):
                 sm = lsmtool.load(sourcedb)
         else:
             # get wsclean skymodel of last iteration
-            wsc_src = f'img/wideM-{c-1}-pb-sources.txt' if intrinsic else f'img/wideM-{c-1}-sources.txt'
+            wsc_src = f'img/wideM-{c-1}-sources-pb.txt' if intrinsic else f'img/wideM-{c-1}-sources.txt'
             sm = lsmtool.load(wsc_src, beamMS=beamMS if intrinsic else None)
         sm.select('I>0.005', applyBeam=intrinsic)  # keep only reasonably bright sources
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)

@@ -297,31 +297,6 @@ with w.if_todo('cal_fr'):
     # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
 
-    # Concat+avg SMOOTHED_DATA -> concat_fr.MS:DATA
-    # average a lot to speed up and increase S/N -> fast scalarphase is gone, so this should be fine.
-    #logger.info('Create small concatenated MS (averaging)...')
-    #lib_util.check_rm('concat_fr.MS')
-    #s.add(f'DP3 {parset_dir}/DP3-avg.parset msin=concat_all.MS msout=concat_fr.MS msin.datacolumn=SMOOTHED_DATA \
-    #                avg.timestep={int(small_timestep)} avg.freqresolution={small_freqres}', log='concat_fr_avg.log', commandType='DP3')
-    #s.run(check=True)
-    #MSs_fr = lib_ms.AllMSs(['concat_fr.MS'], s, check_flags=False)
-    # predict the MODEL_DATA
-    #logger.info('Add model of %s from %s to MODEL_DATA...' % (calname, os.path.basename(skymodel)))
-    #MSs_fr.run(f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname}",
-    #           log="$nameMS_pre.log", commandType="DP3")
-
-    # Solve concat_fr.MS:DATA (only solve)
-    # TODO test sol.rotationdiagonalmode=scalarphase
-    #logger.info(f'Calibrating FR...')
-    # Need to solve for rot+diag and not just rot since we can have phase offsets from the preliminary iono!
-    #MSs_fr.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/fr.h5 \
-    #           sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalar\
-    #           sol.solint=1 sol.nchan=1', log='$nameMS_solFR.log', commandType="DP3")
-    #lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_fr.getListStr()],
-    #                    [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
-    #                     parset_dir + '/losoto-plot-scalaramp.parset', parset_dir + '/losoto-fr.parset'])
-    #lib_util.check_rm('concat_fr.MS')
-
     # Solve concat_all.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating FR...')
     # We solve for rot+diag or rot+scalar here and not just rot since we can have phase offsets from the preliminary iono!!
@@ -530,14 +505,16 @@ if not develop:
         # os.system('cp cal-fr.h5 fullcal-fr.h5') # no need to keep orig
         # os.system('cp cal-bp.h5 fullcal-bp.h5')
         # os.system('cp cal-iono.h5 fullcal-iono.h5')
+        s.add('losoto -d sol000/phaseOrig000 cal-pa.h5', log='losoto-final.log', commandType="python")
         s.add('losoto -d sol000/phase000 cal-pa.h5', log='losoto-final.log', commandType="python")
         s.add('losoto -d sol000/rotation000 cal-pa.h5', log='losoto-final.log', commandType="python")
 
         s.add('losoto -d sol000/phase000 cal-fr.h5', log='losoto-final.log', commandType="python")
+        s.add('losoto -d sol000/rotation000 cal-fr.h5', log='losoto-final.log', commandType="python")
 
         s.add('losoto -d sol000/amplitude000 cal-bp.h5', log='losoto-final.log', commandType="python")
         s.add('losoto -d sol000/phase000 cal-bp.h5', log='losoto-final.log', commandType="python")
-        #s.add('losoto -d sol000/amplitudeRes cal-bp.h5', log='losoto-final.log', commandType="python")
+        #s.add('losoto -d sol000/amplitudeRes cal-bp.h5', log='losoto-final.log', commandType="python") # keep for quality evaluation
 
         s.add('losoto -d sol000/phase_offset000 cal-iono-cs.h5', log='losoto-final.log', commandType="python")
         s.add('losoto -d sol000/phaseResid000 cal-iono-cs.h5', log='losoto-final.log', commandType="python")
@@ -560,67 +537,56 @@ if not develop:
 
 # a debug image
 if imaging:
-    with w.if_todo('cal_leakage'):
+    with w.if_todo('final_cor'):
         # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
         logger.info('BP correction...')
         MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp.h5 \
-            cor.correction=amplitudeSmooth  cor.updateweights=True', log='$nameMS_corBP.log', commandType="DP3")
-
-        # FR correction concat_all.MS:CORRECTED_DATA -> FR_CORRECTED_DATA
-        logger.info('FR correction (for imaging)...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msout.datacolumn=FR_CORRECTED_DATA \
-                            cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
-
-        debug_imaging(MSs_concat_all, 'afterbp', column='FR_CORRECTED_DATA')
-
-        # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-        MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')  # now we can also smooth in time
-
-        # Solve cal_SB.MS:SMOOTHED_DATA (only solve) against FR-corrupted MODEL_DATA
-        logger.info('Calibrating amp...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/amp.h5 sol.mode=scalaramplitude sol.datause=single \
-                            sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=3e6',
-                           log='$nameMS_solBP.log', commandType="DP3")
-
-        lib_util.run_losoto(s, 'amp', [ms + '/amp.h5' for ms in MSs_concat_all.getListStr()],
-                            [parset_dir + '/losoto-plot-scalaramp.parset'])
+            cor.correction=amplitudeSmooth cor.updateweights=True', log='$nameMS_corBP.log', commandType="DP3")
 
         # FR correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
-        logger.info('amp correction...')
-        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-amp.h5 \
-            cor.correction=amplitude000  cor.updateweights=True', log='$nameMS_corBP.log', commandType="DP3")
-
-        # FR correction concat_all.MS:CORRECTED_DATA -> FR_CORRECTED_DATA
         logger.info('FR correction (for imaging)...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msout.datacolumn=FR_CORRECTED_DATA \
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msout.datacolumn=CORRECTED_DATA \
                             cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
 
-        debug_imaging(MSs_concat_all, 'afteramp', column='FR_CORRECTED_DATA')
+#        debug_imaging(MSs_concat_all, 'afterbp', column='FR_CORRECTED_DATA')
+#
+#        # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+#        MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')  # now we can also smooth in time
+#
+#        # Solve cal_SB.MS:SMOOTHED_DATA (only solve) against FR-corrupted MODEL_DATA
+#        logger.info('Calibrating amp...')
+#        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/amp.h5 sol.mode=scalaramplitude sol.datause=single \
+#                            sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=3e6',
+#                           log='$nameMS_solBP.log', commandType="DP3")
+#
+#        lib_util.run_losoto(s, 'amp', [ms + '/amp.h5' for ms in MSs_concat_all.getListStr()],
+#                            [parset_dir + '/losoto-plot-scalaramp.parset'])
+#
+#        # FR correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
+#        logger.info('amp correction...')
+#        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-amp.h5 \
+#            cor.correction=amplitude000  cor.updateweights=True', log='$nameMS_corBP.log', commandType="DP3")
+#
+#        # FR correction concat_all.MS:CORRECTED_DATA -> FR_CORRECTED_DATA
+#        logger.info('FR correction (for imaging)...')
+#        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msout.datacolumn=FR_CORRECTED_DATA \
+#                            cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+#
+#        debug_imaging(MSs_concat_all, 'afteramp', column='FR_CORRECTED_DATA')
+#
+#        # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
+#        MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
+#        # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#        logger.info('Calibrating Leakage...')
+#        timestep = int(np.rint(120 / tint))  # brings down to 120s
+#        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/fj.h5 sol.mode=fulljones \
+#                            sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint=' + str(timestep) + ' sol.nchan=' + str(nchan),
+#                           log='$nameMS_solFJ.log', commandType="DP3")
+#
+#        lib_util.run_losoto(s, 'fj', [ms + '/fj.h5' for ms in MSs_concat_all.getListStr()],
+#                            [parset_dir + '/losoto-plot-fullj.parset'])
 
-        # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
-        MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
-        # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-        logger.info('Calibrating Leakage...')
-        timestep = int(np.rint(120 / tint))  # brings down to 120s
-        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/fj.h5 sol.mode=fulljones \
-                            sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint=' + str(timestep) + ' sol.nchan=' + str(nchan),
-                           log='$nameMS_solFJ.log', commandType="DP3")
-
-        lib_util.run_losoto(s, 'fj', [ms + '/fj.h5' for ms in MSs_concat_all.getListStr()],
-                            [parset_dir + '/losoto-plot-fullj.parset'])
-
-    with w.if_todo('cal_imaging'):
-
-        # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
-        logger.info('Leakage correction...')
-        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fj.h5 \
-            cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.updateweights=False',
-                           log='$nameMS_corBP.log', commandType="DP3")
-
-        # Correct FR concat_all-phaseup.MS:CORRECTED_DATA -> CORRECTED_DATA
-        logger.info('Faraday rotation correction...')
-        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cat cor.parmdb=cal-fr.h5 \
-                       cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+    with w.if_todo('debug_img'):
 
         debug_imaging(MSs_concat_all, 'final')
 
