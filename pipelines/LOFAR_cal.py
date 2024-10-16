@@ -540,12 +540,12 @@ if imaging:
     with w.if_todo('final_cor'):
         # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
         logger.info('BP correction...')
-        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp.h5 \
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp.h5 \
             cor.correction=amplitudeSmooth cor.updateweights=True', log='$nameMS_corBP.log', commandType="DP3")
 
         # FR correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('FR correction (for imaging)...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msout.datacolumn=CORRECTED_DATA \
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS \
                             cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
 
 #        debug_imaging(MSs_concat_all, 'afterbp', column='FR_CORRECTED_DATA')
