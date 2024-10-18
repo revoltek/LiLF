@@ -312,7 +312,7 @@ class MergeH5:
         :param no_antenna_crash: do not crash if antenna tables are not the same between h5s
         :param freq_concat: merging tables with different frequencies
         """
-        print(no_antenna_crash)
+
         # output name
         self.h5name_out = h5_out
 
@@ -1520,9 +1520,8 @@ class MergeH5:
                 self.amplitudes = reorderAxes(self.amplitudes, self.axes_current, self.axes_final)
             weights = ones(self.amplitudes.shape)
             print('Value shape after --> {values}'.format(values=weights.shape))
-            print(self.axes_final, axes_vals, self.amplitudes.shape)
-            # solsetout.makeSoltab('amplitude', axesNames=self.axes_final, axesVals=axes_vals, vals=self.amplitudes,
-            #                      weights=weights)
+            solsetout.makeSoltab('amplitude', axesNames=self.axes_final, axesVals=axes_vals, vals=self.amplitudes,
+                                 weights=weights)
         elif 'tec' in soltab and not self.convert_tec:
             self.tec = self.remove_invalid_values('tec', self.tec, self.axes_final)
             if shape_axes_vals != self.tec.shape:
@@ -1860,8 +1859,8 @@ class MergeH5:
                 if len(self.polarizations) == 4:
                     self.amplitudes[..., 1] = 0.
                     self.amplitudes[..., 2] = 0.
-                print("HE: Skip amplitude000 template!")
-                # self.create_new_dataset('sol000', 'amplitude')
+                # print("HE: Skip amplitude000 template!")
+                self.create_new_dataset('sol000', 'amplitude')
         if 'phase000' not in soltabs:
             if 'amplitude000' in soltabs:
                 self.phases = zeros(H.root.sol000.amplitude000.val.shape)

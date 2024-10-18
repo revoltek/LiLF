@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# To download survey's calibrators: ~/storage/LiLF/scripts/LOFAR_stager.py --projects LT16_004,LT14_002,LC12_017,LC9_016,LC8_031,LC18_020,LC18_007 -c
+# To download survey's calibrators: ~/storage/LiLF/scripts/LOFAR_stager.py --projects LT16_004,LT14_002,LC12_017,LC9_016,LC8_031,LC15_011,LC18_007,LC18_020,LC20_011,LC20_025,LC20_039 -c
 
 # Need: .wgetrc .stagingrc and .awe/Environment.cfg
 # see https://www.astron.nl/lofarwiki/doku.php?id=public:lta_tricks
@@ -14,21 +14,17 @@
 
 import os, sys, time, glob, pickle, argparse, re
 import subprocess, multiprocessing
-from awlofar.database.Context import context
+#from awlofar.database.Context import context
 from awlofar.main.aweimports import CorrelatedDataProduct, \
     FileObject, \
     Observation
-from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
+#from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
 import stager_access as stager
 from casacore import tables
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from download_file import download_file
 from itertools import chain
-
-#project = 'LC9_017' # 3c first part
-#project = 'LC10_020' # 3c second part
-#project = 'LC13_011' # cluster
 
 parser = argparse.ArgumentParser(description='Stage and download MS from the LOFAR LTA.')
 parser.add_argument('--projects', '-p', dest='projects', help='Comma separated list of project names.')
@@ -294,7 +290,7 @@ class Worker_downloader(Worker):
                 while True:
                     download_file(url, tar_file, login, password)
                     os.system('tar xf %s' % tar_file)
-                    print(tar_file)
+                    #print(tar_file)
                     try:
                         t = tables.table(ms_file, ack=False)
                         break

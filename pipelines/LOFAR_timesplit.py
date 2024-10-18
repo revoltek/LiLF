@@ -32,7 +32,10 @@ bl2flag = parset.get('flag','stations')
 # Clean
 with w.if_todo('clean'):
     logger.info('Cleaning...')
-    lib_util.check_rm('mss*')
+    mss_list = glob.glob('mss*')
+    if len(mss_list) > 0:
+        raise ValueError(f'mss folders exist already {mss_list}! If this is the output of a previous LOFAR_timesplit.py run and you want to re-run LOFAR_timesplit.py, then delete them manually.')
+    # lib_util.check_rm('mss*')
 ### DONE
 
 with w.if_todo('copy'):
@@ -112,7 +115,6 @@ with w.if_todo('apply'):
 ###################################################################################################
 # Create groups
 groupnames = []
-logger.info('Concatenating in frequency...')
 for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
    if ngroups == 1:
        groupname = 'mss'
@@ -122,6 +124,7 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
 
    # skip if already done
    if not os.path.exists(groupname):
+       logger.info('Concatenating in frequency...')
        os.makedirs(groupname)
 
        # add missing SB with a fake name not to leave frequency holes
@@ -157,12 +160,14 @@ with w.if_todo('flag'):
 
     logger.info('Remove bad timestamps...')
     MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
-
-    logger.info('Plot weights...')
-    MSs.run('reweight.py $pathMS -v -p -a %s' % (MSs.getListObj()[0].getAntennas()[0]),
-            log='$nameMS_weights.log', commandType='python')
-    lib_util.check_rm('plots-weights')
-    os.system('mkdir plots-weights; mv *png plots-weights')
+    try:
+        logger.info('Plot weights...')
+        MSs.run('reweight.py $pathMS -v -p -a %s' % (MSs.getListObj()[0].getAntennas()[0]),
+                log='$nameMS_weights.log', commandType='python')
+        lib_util.check_rm('plots-weights')
+        os.system('mkdir plots-weights; mv *png plots-weights')
+    except RuntimeError:
+        logger.warning('Plotting weights failed... continue.')
 ### DONE
 
 #####################################
