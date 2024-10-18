@@ -4,8 +4,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 LABEL maintainer="Francesco de Gasperin"
 LABEL version="20240905"
 
+ENV MARCH "generic"
 # AMD v3
-ENV MARCH "znver3"
+#ENV MARCH "znver3"
 # Intel
 #ENV MARCH "broadwell"
 
@@ -15,10 +16,13 @@ USER root
 RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update;
-RUN apt-get install -y g++ gfortran cmake texinfo git wget flex bison sudo vim hdf5-tools rename subversion python3-magic htop \
+RUN apt-get install -y g++ gfortran cmake texinfo git wget flex bison sudo vim hdf5-tools rename subversion python3-magic htop curl \
     python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm \
-    libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev \
+    libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev libaio-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
+
+RUN curl -O http://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb
+RUN dpkg -i libaio1_0.3.113-4_amd64.deb
 
 # Add group. We chose GID 65527 to try avoiding conflicts.
 RUN groupadd -g 65527 lofar
@@ -155,6 +159,11 @@ RUN ls /usr/local/lib
 RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
     && cd /opt/DP3 && git checkout 74bbd08df5e79072d1c5aacd62e2809766e4eeef
 
+RUN if [ $MARCH == "generic" ]; then \
+    cd /opt/DP3 && mkdir build && cd build \
+    && cmake -DBUILD_BENCHMARKS=OFF .. \
+    && make -j 64 && make install; fi
+
 RUN if [ $MARCH == "broadwell" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
     && cmake -DTARGET_CPU=${MARCH} -DBUILD_BENCHMARKS=OFF .. \
@@ -172,11 +181,19 @@ RUN if [ $MARCH == "znver3" ]; then \
 #        -DFFTW3_INCLUDE_DIR="${AOCL_ROOT}/include/" \
 #        -DLAPACK_flexiblas_LIBRARY=${AOCL_ROOT}/lib/libflame.so \
 
+# add "import dp3"
+ENV PYTHONPATH /usr/local/lib/python3.12/site-packages/:$PYTHONPATH
+
 #####################################################################
 ## Wsclean master 8/8/24
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
     && cd /opt/wsclean && git checkout de09edb47149315283a0eb03098d7735bdf75a7a
+
+RUN if [ $MARCH == "generic" ]; then \
+    cd /opt/wsclean && mkdir build && cd build \
+    && cmake .. \
+    && make -j 64 && make install; fi
 
 RUN if [ $MARCH == "broadwell" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
@@ -185,8 +202,7 @@ RUN if [ $MARCH == "broadwell" ]; then \
 
 RUN if [ $MARCH == "znver3" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} \
-    .. \
+    && cmake -DTARGET_CPU=${MARCH} .. \
     && make -j 64 && make install; fi
 
 #    -DFFTW3_LIB="${AOCL_ROOT}/lib/libfftw3.so" \

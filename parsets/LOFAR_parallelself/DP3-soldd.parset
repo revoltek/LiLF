@@ -25,7 +25,5 @@ sol.solveralgorithm  = directioniterative
 sol.datause = single
 #sol.solutions_per_direction =
 
-
-
 sol.mode = # scalarphase phaseonly, complexgain, tec, tecandphase
 sol.propagatesolutions = True
