@@ -56,7 +56,7 @@ def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
     lib_util.run_wsclean(s, 'wsclean.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, data_column=column,
                          scale=scale, pol='I,V', auto_mask=5, # local_rms='', local_rms_method='rms-with-min',
                          weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.6,
-                         baseline_averaging='', auto_threshold=2, join_channels='', fit_spectral_pol=5,
+                         baseline_averaging='', auto_threshold=2, join_channels='', fit_spectral_pol=3,
                          channels_out=MSs.getChout(4e6))
 
 #############################################################

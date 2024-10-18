@@ -38,12 +38,12 @@ w = lib_util.Walker('pipeline-self.walker')
 parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_self'])))
 parset_dir = parset.get('LOFAR_parallelself','parset_dir')
-subfield_min_flux = parset.getfloat('LOFAR_self','subfield_min_flux') # default 40 Jy
+subfield_min_flux = parset.getfloat('LOFAR_self','subfield_min_flux') # default 20 Jy
 subfield = parset.get('LOFAR_self','subfield') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
 maxIter = parset.getint('LOFAR_self','maxIter') # default = 2 (try also 3)
 phaseSolMode = parset.get('LOFAR_self', 'ph_sol_mode') # tecandphase, tec, phase
 intrinsic = parset.getboolean('LOFAR_self', 'intrinsic') # True means using intrinsic sky model and DP3 applybeam predict, False means staying with apparent skymodel
-#sourcedb = parset.get('model','sourcedb')
+start_sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
 
@@ -78,7 +78,7 @@ def corrupt_model_dirs(MSs, c, tc, model_columns):
                     cor.parmdb=self/solutions/cal-tec{tc}-c{c}.h5 cor.correction=phase000 cor.invert=False',
                 log='$nameMS_corrupt.log', commandType='DP3')
 
-def solve_iono(MSs, c, tc, model_columns, smMHz, solint, resetant_parset=None, model_column_fluxes=None, variable_solint_threshold=None):
+def solve_iono(MSs, c, tc, model_columns, smMHz, solint, soltype='phase', resetant_parset=None, model_column_fluxes=None, variable_solint_threshold=None):
     """
     Parallel solve for ionosphere systematics
     Parameters
@@ -134,7 +134,7 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
 
 def make_source_regions(sm, c):
     lib_util.check_rm(f'self/skymodel/regions_c{c}')
-    lib_util.check_rm(f'self/skymodel/sources_c{c}.skymodel')
+    lib_util.check_rm(f'self/skymodel/sources_c{c}.reg')
     os.makedirs(f'self/skymodel/regions_c{c}')
     for p in sm.getPatchNames():
         sm_p = sm.copy()
@@ -146,7 +146,7 @@ def make_source_regions(sm, c):
             reg.visual['facecolor'] = col
             reg.visual['edgecolor'] = col
         regs.write(f'self/skymodel/regions_c{c}/{p}.reg',overwrite=True)
-        os.system(f'cat self/skymodel/regions_c{c}/*.reg >> self/skymodel/sources_c{c}.skymodel')
+        os.system(f'cat self/skymodel/regions_c{c}/*.reg >> self/skymodel/sources_c{c}.reg')
 
 
 #############################################################################
@@ -200,6 +200,8 @@ else: base_solint = 1
 mask_threshold = [6.5,5.5,4.5,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
 facet_fluxes = [5, 2, 1.4, 0.9, 0.6] # still needs to be tuned, maybe also depends on the field
+# Try increasing number earlier
+#facet_fluxes = [5, 1.5, 0.8, 0.7, 0.5] # still needs to be tuned, maybe also depends on the field
 # define smoothness kernels in MHz (centered at 54 MHz)
 
 # TODO try these kernels
@@ -207,9 +209,9 @@ facet_fluxes = [5, 2, 1.4, 0.9, 0.6] # still needs to be tuned, maybe also depen
 # smMHz1 = [2.0,5.0,5.0,5.0,5.0,5.0]
 # smMHz0 = [6.0,20.0,20.0,20.0,20.0,20.0]
 
-smMHz2 = [0.8,1.6,1.6,1.6,1.6,1.6]
-smMHz1 = [2.0,3.0,3.0,3.0,3.0,3.0]
-smMHz0 = [6.0,8.0,8.0,8.0,8.0,8.0]
+smMHz2 = [1.0,5.0,5.0,5.0,5.0,5.0]
+smMHz1 = [2.0,8.0,8.0,8.0,8.0,8.0]
+smMHz0 = [6.0,20.0,20.0,20.0,20.0,20.0]
 #################################################################
 
 # Make beam mask
@@ -235,13 +237,10 @@ if not os.path.exists('self/solutions/cal-template.h5'):
 #################################################################################################
 
 with w.if_todo('solve_fr'):
-    logger.info('Add column CIRC_PHASEDIFF_DATA...')
-    MSs.addcol('CIRC_PHASEDIFF_DATA', 'DATA', usedysco=False)  # No dysco here as off diag elements are 0 and dysco does not like 0s
-    # Probably we do not need smoothing since we have long time intervals and smoothnessconstraint?
-
-    logger.info('Converting to circular...')
-    MSs.run('mslin2circ.py -s -i $pathMS:CIRC_PHASEDIFF_DATA -o $pathMS:CIRC_PHASEDIFF_DATA',
-            log='$nameMS_lincirc.log', commandType='python', maxThreads=2)
+    # Probably we do not need BLsmoothing since we have long time intervals and smoothnessconstraint?
+    logger.info('Converting to circular (DATA -> CIRC_PHASEDIFF_DATA)...')
+    # lin2circ conversion TCxx.MS:DATA -> CIRC_PHASEDIFF_DATA # use no dysco here!
+    MSs.run(f'DP3 {parset_dir}/DP3-lin2circ.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CIRC_PHASEDIFF_DATA', log='$nameMS_lin2circ.log', commandType="DP3")
 
     # Get circular phase diff CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
     logger.info('Get circular phase difference...')
@@ -256,7 +255,7 @@ with w.if_todo('solve_fr'):
     MSs.run('taql "UPDATE $pathMS SET MODEL_DATA_FR[,0]=0.5+0i, MODEL_DATA_FR[,1]=0.0+0i, MODEL_DATA_FR[,2]=0.0+0i, \
          MODEL_DATA_FR[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
 
-    # Solve cal_SB.MS:CIRC_PHASEDIFF_DATA against MODEL_DATA_FR (only solve - solint=2m nchan=0 as it has the smoothnessconstrain)
+    # Solve TCXX.MS:CIRC_PHASEDIFF_DATA against MODEL_DATA_FR (only solve - solint=2m nchan=0 as it has the smoothnessconstrain)
     logger.info('Solving circ phase difference ...')
     MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint=' + str(30 * base_solint),
             log='$nameMS_solFR.log', commandType="DP3")
@@ -300,43 +299,61 @@ for c in range(maxIter):
                         cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c-1) + '.h5 cor.correction=phase000',
                         log='$nameMS_sf-correct.log', commandType='DP3')
 
+            # if c == 2:
+            #     logger.info('Correct subfield amplitude (CORRECTED_DATA -> CORRECTED_DATA)...')
+            #     # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
+            #     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_CORRECTED_DATA \
+            #             cor.parmdb=self/solutions/cal-amp-sf-c' + str(c-1) + '.h5 cor.correction=amplitude000',
+            #             log='$nameMS_sf-correct.log', commandType='DP3')
+
     # get sourcedb
     sourcedb = f'tgts-c{c}.skymodel'
     beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
     if not os.path.exists(sourcedb):
         logger.info(f'Create skymodel {sourcedb}')
         if c == 0:
-            # Create initial sourcedb from LoTSS or GSM
-            fwhm = MSs.getListObj()[0].getFWHM(freq='min')
-            try:
-                raise KeyError
-                # sm = lsmtool.load('LoTSS', VOPosition=phasecentre, VORadius=1.3 * fwhm / 2,
-                #                   beamMS=beamMS)
-            except (KeyError, FileNotFoundError) as e:
-                logger.warning('Could not retrieve LoTSS data - resort to GSM.')
-                os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={1.3*fwhm/2}&unit=deg"')
-                sm = lsmtool.load(sourcedb, beamMS=beamMS)
-            if not intrinsic: # turn to apparent sky
+            # if provided, use manual model
+            if start_sourcedb:
+                logger.info(f'Using input skymodel {start_sourcedb}')
+                sm = lsmtool.load(start_sourcedb, beamMS=beamMS)
+            else:
+                # Create initial sourcedb from LoTSS or GSM
+                fwhm = MSs.getListObj()[0].getFWHM(freq='min')
+                try:
+                    raise KeyError
+                    # sm = lsmtool.load('LoTSS', VOPosition=phasecentre, VORadius=1.3 * fwhm / 2,
+                    #                   beamMS=beamMS)
+                except (KeyError, FileNotFoundError) as e:
+                    logger.warning('Could not retrieve LoTSS data - resort to GSM.')
+                    os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={1.3*fwhm/2}&unit=deg"')
+                    sm = lsmtool.load(sourcedb, beamMS=beamMS)
+            # turn to apparent sky
+            if not intrinsic:
                 sm.write(sourcedb, clobber=True, applyBeam=True, adjustSI=True)
                 sm = lsmtool.load(sourcedb)
         else:
             # get wsclean skymodel of last iteration
             wsc_src = f'img/wideM-{c-1}-pb-sources.txt' if intrinsic else f'img/wideM-{c-1}-sources.txt'
             sm = lsmtool.load(wsc_src, beamMS=beamMS if intrinsic else None)
-        sm.select('I>0.005', applyBeam=intrinsic)  # keep only reasonably bright sources
+        bright_sources_flux = facet_fluxes[c]
+        # if using e.g. LoTSS, adjust for the frequency
+        logger.info(f'Extrapolating input skymodel fluxes from {np.mean(MSs.getFreqs())/1e6:.0f}MHz to {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz assuming si=-0.7')
+        si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S144 = si_factor * S54
+        print(si_factor)
+        sm.select(f'I>{0.05*si_factor}', applyBeam=intrinsic)  # keep only reasonably bright sources
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
         sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
         sm.setPatchPositions(method='wmean', applyBeam=intrinsic)
-        sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, facet_fluxes[c], applyBeam=intrinsic)
+        sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=intrinsic)
         # TODO we need some logic here to avoid picking up very extended sources. Also case no bright sources in a field.
         patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
-        bright_names = sm.getPatchNames()[patch_fluxes > facet_fluxes[c]]
+        if sum(patch_fluxes/si_factor > bright_sources_flux) < 4:
+            bright_sources_flux = np.sort(patch_fluxes)[-4]/si_factor
+            logger.warning(f'Not enough bright sources flux! Using sources above {bright_sources_flux:.2f} Jy')
+        bright_names = sm.getPatchNames()[patch_fluxes > bright_sources_flux*si_factor]
         bright_pos = sm.getPatchPositions(bright_names)
-        sm.group('voronoi', targetFlux=facet_fluxes[c], applyBeam=intrinsic, root='', byPatch=True)
+        sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=intrinsic, root='', byPatch=True)
         sm.setPatchPositions(bright_pos)
-        # sm.group('tessellate', targetFlux=facet_fluxes[c], root='MODEL_DATA', applyBeam=intrinsic, byPatch=True)
-        # sm.setPatchPositions(method='wmean', applyBeam=intrinsic) # 'mid' or 'wmean'?
-        # sm = lib_dd_parallel.merge_faint_facets(sm, 0.5 * facet_fluxes[c], applyBeam=intrinsic)  # merge all facets below threshold
         sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
         make_source_regions(sm, c)
         sm.write(sourcedb, clobber=True)
@@ -363,6 +380,14 @@ for c in range(maxIter):
             log='$nameMS_pre.log', commandType='DP3')
             # Smooth CORRECTED_DATA -> SMOOTHED_DATA
             # MSs_sol.run_Blsmooth(patch, patch, logstr=f'smooth-c{c}')
+            # pos = sm.getPatchPositions()[patch]
+            # size = int((1.1*sm.getPatchSizes()[np.argwhere(sm.getPatchNames()==patch)]) // 4)
+            # logger.info(f'Test image MODEL_DATA...')
+            # lib_util.run_wsclean(s, 'wscleanMODEL-c' + str(c) + '.log', MSs.getStrWsclean(), name=f'self/skymodel/{patch}',
+            #                      data_column=patch, size=size, scale='8arcsec', shift=f'{pos[0].to(u.hourangle).to_string()} {pos[1].to_string()}',
+            #                      weight='briggs -0.3', niter=10000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.9,
+            #                      parallel_deconvolution=512, beam_size=15, join_channels='', fit_spectral_pol=3,
+            #                      channels_out=MSs.getChout(4.e6), deconvolution_channels=3, pol='i', nmiter=5 )
         ### DONE
 
     with w.if_todo('solve_tecRS_c%02i' % c):
@@ -370,7 +395,7 @@ for c in range(maxIter):
         MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for all BUT most distant RS!
         logger.info('Solving TEC (fastRS)...')
-        solve_iono(MSs, c, 2, patches, smMHz2[c], 2*base_solint, resetant_parset=parset_dir+'/losoto-resetph2-CSRS.parset', model_column_fluxes=patch_fluxes, variable_solint_threshold=8.)
+        solve_iono(MSs, c, 2, patches, smMHz2[c], 2*base_solint, resetant_parset=parset_dir+'/losoto-resetph2-allCS.parset', model_column_fluxes=patch_fluxes, variable_solint_threshold=8.) # '/losoto-resetph2-CSRS.parset'
     ### DONE
 
     ### CORRUPT the MODEL_DATA columns for all patches
@@ -381,7 +406,7 @@ for c in range(maxIter):
     with w.if_todo('solve_tecCS_c%02i' % c):
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
         logger.info('Solving TEC (midRS)...')
-        solve_iono(MSs, c, 1, patches, smMHz1[c], 8*base_solint, resetant_parset=parset_dir+'/losoto-resetph2-CS.parset')
+        solve_iono(MSs, c, 1, patches, smMHz1[c], 8*base_solint)#, resetant_parset=parset_dir+'/losoto-resetph2-CS.parset')
     ### DONE
 
     ### CORRUPT the MODEL_DATA columns for all patches
@@ -389,32 +414,29 @@ for c in range(maxIter):
         corrupt_model_dirs(MSs, c, 1, patches)
     ### DONE
 
-    with w.if_todo('solve_tecCS0_c%02i' % c):
-        # solve ionosphere phase - ms:SMOOTHED_DATA
-        logger.info('Solving TEC (slowCS)...')
-        solve_iono(MSs, c, 0, patches, smMHz0[c], 16*base_solint)
-        logger.info('Deleting model columns...')
-        for patch in patches:
-            MSs.run(f'taql "ALTER TABLE $pathMS DELETE COLUMN {patch}"',
-                    log='$nameMS_taql_delcol.log', commandType='general')
-    ### DONE
+    # with w.if_todo('solve_tecCS0_c%02i' % c):
+    #     # solve ionosphere phase - ms:SMOOTHED_DATA
+    #     logger.info('Solving TEC (slowCS)...')
+    #     solve_iono(MSs, c, 0, patches, smMHz0[c], 16*base_solint)
+    # ### DONE
+
 
     # merge solutions into one h5parms for large scale image
     with w.if_todo(f'merge_h5_c{c}'):
         sol_dir = 'self/solutions'
         lib_util.check_rm(f'{sol_dir}/cal-tec-merged-c{c}.h5')
         # make sure the h5parm directions are correctly set - this should actually work automatically with DP3 -> eventually fix this in the DP3 solve call
-        lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec0-c{c}.h5', sourcedb)
+        # lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec0-c{c}.h5', sourcedb)
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec1-c{c}.h5', sourcedb)
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec2-c{c}.h5', sourcedb)
-        # reference, unflag and reset the added stations
-        h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-tec-merged-c{c}.h5", min_distance=10/3600,
-                           h5_tables=[f'{sol_dir}/cal-tec0-c{c}.h5',f'{sol_dir}/cal-tec1-c{c}.h5',f'{sol_dir}/cal-tec2-c{c}.h5'],
-                           h5_time_freq=f'{sol_dir}/cal-tec2-c{c}.h5', no_pol=True, ms_files='mss/TC*.MS',no_antenna_crash=True)
+        # reference, unflag and reset the added stations # {sol_dir}/cal-tec0-c{c}.h5',
+        h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-tec-merged-c{c}.h5", min_distance=1/3600, propagate_flags=True,
+                          h5_tables=[f'{sol_dir}/cal-tec1-c{c}.h5',f'{sol_dir}/cal-tec2-c{c}.h5'],
+                          h5_time_freq=f'{sol_dir}/cal-tec2-c{c}.h5', no_pol=True, ms_files='mss/TC*.MS',no_antenna_crash=True)
         lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
                             plots_dir=f'self/plots/plots-tec-merged-c{c}', h5_dir='self/solutions')
-    facetregname = f'self/solutions/facets-c{c}.reg'
 
+    facetregname = f'self/solutions/facets-c{c}.reg'
     with w.if_todo('c%02i-imaging' % c):
         logger.info('Preparing region file...')
         s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+f' --h5 self/solutions/cal-tec-merged-c{c}.h5 --imsize '+str(imgsizepix_wide)+' \
@@ -427,7 +449,7 @@ for c in range(maxIter):
         reuse_kwargs = {}
         # make quick image with -local-rms to get a mask
         # TODO make this faster - experiment with increased parallel-gridding as well as shared facet reads option
-        if not current_best_mask:
+        if c==0:
             logger.info('Making wide-field image for clean mask...')
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
                                  weight='briggs -0.3', local_rms='', niter=1000000, gridder='wgridder',  parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
@@ -437,16 +459,24 @@ for c in range(maxIter):
             current_best_mask = make_current_best_mask(imagename, mask_threshold[c], userReg)
             # safe a bit of time by reusing psf and dirty in first iteration
             reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
+        else:
+            current_best_mask = f'img/wideM-{c}-mask.fits'
 
-        # clean again, with mask nowe,apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam=''
+
+        if intrinsic or c>1:
+            # if we are done with the things that require blanked pedict, we can also use beam keywords
+            beam_kwargs = {'apply_facet_beam':'', 'facet_beam_update':120, 'use_differential_lofar_beam':''}
+        else:
+            beam_kwargs = {}
+        # clean again, with mask now
         logger.info('Making wide field image ...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
                              weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='',
                              update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
-                             multiscale='',  multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80',   pol='i',
-                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000',
-                             **reuse_kwargs)
+                             multiscale='',  multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', pol='i',
+                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000 ',
+                             **reuse_kwargs, **beam_kwargs)
         # make a new mask from the image
         current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c], userReg)
 
@@ -463,6 +493,85 @@ for c in range(maxIter):
         #         -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam {MSs.getStrWsclean()}',
         #        log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
         # s.run(check=True)
+    #####################################################################################################
+    ########################### TESTING FOR DD-AMP-CAL ####################################
+    # if c == 2:
+    #     with w.if_todo('solve_amp_c%02i' % c):
+    #         logger.info('Solving amp (slowCS)...')
+    #         MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset memory_logging=True numthreads=32 msin=$pathMS sol.datause=dual sol.nchan=24 \
+    #                       sol.mode=diagonal sol.h5parm=$pathMS/amp4.h5 sol.solint={300 * base_solint} sol.modeldatacolumns="[{",".join(patches)}]"',
+    #                 log='$nameMS_solamp-c' + str(c) + '.log', commandType='DP3', maxThreads=1)
+    #
+    #
+    #         lib_util.run_losoto(s, f'amp4', [ms + f'/amp4.h5' for ms in MSs.getListStr()],
+    #                             [f'{parset_dir}/losoto-plot-amp.parset', f'{parset_dir}/losoto-plot-ph.parset'],
+    #                             plots_dir=f'self/plots/plots-amp4', h5_dir=f'self/solutions/')
+    #
+    #     with w.if_todo(f'merge_h5_2_c{c}'):
+    #         sol_dir = 'self/solutions'
+    #         lib_util.check_rm(f'{sol_dir}/cal-merged-c{c}.h5')
+    #         # make sure the h5parm directions are correctly set - this should actually work automatically with DP3 -> eventually fix this in the DP3 solve call
+    #         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-amp4.h5', sourcedb)
+    #         # reference, unflag and reset the added stations
+    #         h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-merged-c{c}.h5", min_distance=1/3600,
+    #                            h5_tables=[f"{sol_dir}/cal-tec-merged-c{c}.h5",f"{sol_dir}/cal-amp4.h5"], propagate_flags=True,
+    #                            h5_time_freq=f"{sol_dir}/cal-tec-merged-c{c}.h5",ms_files='mss/TC*.MS',no_antenna_crash=True)
+    #         lib_util.run_losoto(s, f'merged-c{c}', f'{sol_dir}/cal-merged-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
+    #                             plots_dir=f'self/plots/plots-merged-c{c}', h5_dir='self/solutions')
+    #
+    #     sys.exit()
+    #     logger.info('Deleting model columns...')
+    #     for patch in patches:
+    #         MSs.run(f'taql "ALTER TABLE $pathMS DELETE COLUMN {patch}"',
+    #                 log='$nameMS_taql_delcol.log', commandType='general')
+    #
+    #     imagenameM = 'img/wideM-2amp4'
+    #     facetregname = f'self/solutions/facets-c{c}.reg'
+    #     lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSs.getStrWsclean(), name=imagenameM,
+    #                          fits_mask='img/wideM-2-mask.fits', data_column='CORRECTED_DATA', size=imgsizepix_wide,
+    #                          scale='4arcsec',
+    #                          weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=32,
+    #                          no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12,
+    #                          parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
+    #                          join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6),
+    #                          deconvolution_channels=3,
+    #                          multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20', pol='i',
+    #                          apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
+    #                          facet_regions=facetregname, apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000 self/solutions/cal-amp3.h5 amplitude000',
+    #                          )
+    #     sys.exit()
+    ########################### TESTING FOR DI-AMP-CAL ####################################
+    # if c == 2:
+    #     MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
+    #     # solve ionosphere phase - ms:SMOOTHED_DATA
+    #     logger.info('Solving amp (slowCS)...')
+    #     MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=dual sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] sol.mode=diagonal sol.h5parm=$pathMS/amp2.h5 sol.solint={300 * base_solint} ',
+    #         log='$nameMS_solamp-c' + str(c) + '.log', commandType='DP3')
+    #
+    #     lib_util.run_losoto(s, f'amp2', [ms + f'/amp2.h5' for ms in MSs.getListStr()],
+    #                         [f'{parset_dir}/losoto-plot-amp.parset', f'{parset_dir}/losoto-plot-ph.parset'],
+    #                         plots_dir=f'self/plots/plots-amp2', h5_dir=f'self/solutions/')
+    #
+    #     logger.info('Correct subfield amplitude (CORRECTED_DATA -> CORRECTED_DATA)...')
+    #     # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
+    #     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA2 \
+    #             cor.parmdb=self/solutions/cal-amp2.h5 cor.correction=amplitude000',
+    #             log='$nameMS_sf-correct.log', commandType='DP3')
+    #     logger.info('Making wide field image ...')
+    #     imagenameM = 'img/wideM-2amp2'
+    #     lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSs.getStrWsclean(), name=imagenameM,
+    #                          fits_mask='img/wideM-2-mask.fits', data_column='CORRECTED_DATA2', size=imgsizepix_wide,
+    #                          scale='4arcsec',
+    #                          weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=32,
+    #                          no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12,
+    #                          parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
+    #                          join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6),
+    #                          deconvolution_channels=3,
+    #                          multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', pol='i',
+    #                          apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
+    #                          facet_regions=facetregname, scalar_visibilities='',
+    #                          apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000',
+    #                          )
     #####################################################################################################
     # Find calibration solutions for subfield
     if c < 2:
@@ -496,7 +605,6 @@ for c in range(maxIter):
         field_size = np.max([subfield_reg.width.to_value('deg'), subfield_reg.height.to_value('deg')])
 
         with w.if_todo('extreg_subtract_c%02i' % c):
-            # TODO for cycle 1 this will not work because of subfield sols
             # Recreate MODEL_DATA of external region for subtraction
             logger.info('Set MODEL_DATA=0...')
             MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
@@ -544,29 +652,62 @@ for c in range(maxIter):
             solve_iono(MSs, c, '2-sf', ['MODEL_DATA'], 0.7, base_solint, resetant_parset=parset_dir + '/losoto-resetph2-CSRS.parset')
         ### DONE
 
-        ### Corrupt the MODEL_DATA column
-        with w.if_todo('subfield_corrupt_tecRS_c%02i' % c):
-            corrupt_model_dirs(MSs, c, '2-sf', ['MODEL_DATA'])
+        with w.if_todo('subfield_corr_tecRS_c%02i' % c):
+            # Correct MSs: SUBFIELD_DATA -> SUBFIELD_DATA
+            logger.info('Correct subfield iono...')
+            if phaseSolMode in ['tec', 'tecandphase']:
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
+                        cor.parmdb=self/solutions/cal-tec2-sf-c' + str(c) + '.h5 cor.correction=tec000 ',
+                        log='$nameMS_sf-correct.log', commandType='DP3')
+            if phaseSolMode in ['phase', 'tecandphase']:
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
+                        cor.parmdb=self/solutions/cal-tec2-sf-c' + str(c) + '.h5 cor.correction=phase000',
+                        log='$nameMS_sf-correct.log', commandType='DP3')
         ### DONE
 
         with w.if_todo('subfield_solve_tecCS_c%02i' % c):
+            # Smooth MSs: SUBFIELD_DATA -> SMOOTHED_DATA
+            MSs.run_Blsmooth('SUBFIELD_DATA', logstr=f'smooth-c{c}')
             # solve ionosphere phase - ms:SMOOTHED_DATA
             logger.info('Solving TEC (mid RS)...')
             solve_iono(MSs, c, '1-sf', ['MODEL_DATA'], 3.0, 4*base_solint, resetant_parset=parset_dir + '/losoto-resetph2-CS.parset')
         ### DONE
 
-        ### Corrupt the MODEL_DATA column
-        with w.if_todo('subfield_corrupt_tecCS_c%02i' % c):
-            corrupt_model_dirs(MSs, c, '1-sf', ['MODEL_DATA'])
+        with w.if_todo('subfield_corr_tecCS_c%02i' % c):
+            # Correct MSs: SUBFIELD_DATA -> SUBFIELD_DATA
+            logger.info('Correct subfield iono...')
+            if phaseSolMode in ['tec', 'tecandphase']:
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
+                        cor.parmdb=self/solutions/cal-tec1-sf-c' + str(c) + '.h5 cor.correction=tec000 ',
+                        log='$nameMS_sf-correct.log', commandType='DP3')
+            if phaseSolMode in ['phase', 'tecandphase']:
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
+                        cor.parmdb=self/solutions/cal-tec1-sf-c' + str(c) + '.h5 cor.correction=phase000',
+                        log='$nameMS_sf-correct.log', commandType='DP3')
         ### DONE
 
         with w.if_todo('subfield_solve_tecCS0_c%02i' % c):
+            # Smooth MSs: SUBFIELD_DATA -> SMOOTHED_DATA
+            MSs.run_Blsmooth('SUBFIELD_DATA', logstr=f'smooth-c{c}')
             # solve ionosphere phase - ms:SMOOTHED_DATA
             logger.info('Solving TEC (slowCS)...')
             solve_iono(MSs, c, '0-sf', ['MODEL_DATA'], 6.0, 16*base_solint)
         ### DONE
 
-        # merge solutions into one h5parms
+        with w.if_todo('subfield_corr_tecCS0_c%02i' % c):
+            # Correct MSs: SUBFIELD_DATA -> SUBFIELD_DATA
+            logger.info('Correct subfield iono...')
+            if phaseSolMode in ['tec', 'tecandphase']:
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
+                        cor.parmdb=self/solutions/cal-tec0-sf-c' + str(c) + '.h5 cor.correction=tec000 ',
+                        log='$nameMS_sf-correct.log', commandType='DP3')
+            if phaseSolMode in ['phase', 'tecandphase']:
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
+                        cor.parmdb=self/solutions/cal-tec0-sf-c' + str(c) + '.h5 cor.correction=phase000',
+                        log='$nameMS_sf-correct.log', commandType='DP3')
+        ### DONE
+
+        # merge solutions into one h5parms for plotting and apply
         with w.if_todo(f'merge_h5_subfield_c{c}'):
             sol_dir = 'self/solutions'
             lib_util.check_rm(f'{sol_dir}/cal-tec-sf-merged-c{c}.h5')
@@ -583,15 +724,6 @@ for c in range(maxIter):
 
         # Do a quick debug image...
         with w.if_todo(f'image-subfield-c{c}'):
-            logger.info('Test correct subfield iono...')
-            if phaseSolMode in ['tec', 'tecandphase']:
-                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
-                        cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=tec000 ',
-                        log='$nameMS_sf-correct.log', commandType='DP3')
-            if phaseSolMode in ['phase', 'tecandphase']:
-                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
-                        cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=phase000',
-                        log='$nameMS_sf-correct.log', commandType='DP3')
             logger.info('Test image subfield...')
             lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-c{c}', data_column='SUBFIELD_DATA', size=3000, scale='4arcsec',
                                  weight='briggs -0.3', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{field_center[0].to(u.hourangle).to_string()} {field_center[1].to_string()}',
@@ -599,6 +731,34 @@ for c in range(maxIter):
                                  join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
                                  multiscale='',  multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80',  pol='i')
         ### DONE
+        if c>0:
+            with w.if_todo('subfield_solve_amp%02i' % c):
+                # Smooth MSs: SUBFIELD_DATA -> SMOOTHED_DATA
+                # MSs.run_Blsmooth('SUBFIELD_DATA', logstr=f'smooth-c{c}')
+                # solve ionosphere phase - ms:SMOOTHED_DATA
+                logger.info('Solving amp (slowCS)...')
+                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=dual sol.nchan=1 sol.modeldatacolumns=[MODEL_DATA] sol.mode=diagonal sol.h5parm=$pathMS/amp.h5 sol.solint={300*base_solint} ',
+                log='$nameMS_solamp-c' + str(c) + '.log', commandType='DP3')
+
+                lib_util.run_losoto(s, f'amp-sf-c{c}', [ms + f'/amp.h5' for ms in MSs.getListStr()], [f'{parset_dir}/losoto-plot-amp.parset',f'{parset_dir}/losoto-plot-ph.parset'],
+                                    plots_dir=f'self/plots/plots-amp-sf-c{c}', h5_dir=f'self/solutions/')
+
+
+            with w.if_todo('subfield_corr_amp%02i' % c):
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msout.datacolumn=SUBFIELD_CORRECTED_DATA \
+                        cor.parmdb=self/solutions/cal-amp-sf-c' + str(c) + '.h5 cor.correction=amplitude000',
+                        log='$nameMS_sf-correct.log', commandType='DP3')
+                # MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_CORRECTED_DATA msout.datacolumn=SUBFIELD_CORRECTED_DATA \
+                #         cor.parmdb=self/solutions/cal-amp-sf-c' + str(c) + '.h5 cor.correction=phase000',
+                #         log='$nameMS_sf-correct.log', commandType='DP3')
+                logger.info('Test image subfield...')
+                lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-amp-c{c}', data_column='SUBFIELD_CORRECTED_DATA', size=1000, scale='4arcsec',
+                                     weight='briggs -0.3', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{field_center[0].to(u.hourangle).to_string()} {field_center[1].to_string()}',
+                                     no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
+                                     join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
+                                     multiscale='',  multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80',  pol='i')
+                sys.exit()
+            ### DONE
         #####################################################################################################
         # Subtract side-lobe sources
         if c == 0:
