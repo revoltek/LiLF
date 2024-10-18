@@ -410,7 +410,6 @@ if extreg != 1:
 for p in close_pointings:
     MSs = lib_ms.AllMSs( glob.glob('mss-extract/'+p+'/*MS'), s )
     ch_out = MSs.getChout(4e6)  # chout from dd
-    ch_out = 6 #TODO this is temporary because the sausage data has 6
     fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
     phase_center = MSs.getListObj()[0].getPhaseCentre()
     # read image, h5parm, make mask
@@ -457,8 +456,9 @@ for p in close_pointings:
             correct_for = 'phase000'
 
         facet_path = f'extract/init/{p}/wideDD-c01_facets.reg'
+        #TODO apply beam here when bug is fixed...
         s.add(f'wsclean -predict -padding 1.8 -name extract/init/{p}/wideDDext-c01 -j ' + str(s.max_processors) + ' -channels-out ' + str(
-            ch_out) + ' -facet-regions ' + facet_path + ' -diagonal-solutions \
+            ch_out) + ' -facet-regions ' + facet_path + ' -diagonal-solutions -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
             -apply-facet-solutions ' + dde_h5parm + ' ' + correct_for + ' \
             -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
               log='wscleanPRE.log', commandType='wsclean', processors='max')
@@ -776,7 +776,7 @@ with w.if_todo('imaging_highres'):
          clean('highres', MSs_extract, res='high', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), userReg=userReg, datacol='CORRECTED_DATA', update_model=False)
 
 if sourcesub == 0:
-    logger.info('Do compact source subtraction + lowres imaging')
+    logger.info('Doing compact sources subtraction + lowres imaging')
     with w.if_todo('find_compact_sources'):
 
         clean('sub-highres', MSs_extract, res='ultrahigh', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), userReg=userReg, minuv=minuv_forsub,
