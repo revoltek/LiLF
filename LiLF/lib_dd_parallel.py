@@ -104,12 +104,14 @@ def merge_nearby_bright_facets(skymodel, max_distance, min_flux, applyBeam=False
     skymodel = skymodel.copy()
     skymodel_bright = skymodel.copy()
     skymodel_bright.select(f'I>{min_flux}', aggregate='sum', applyBeam=applyBeam)
-
-    while closest_distance_between_patches(skymodel_bright)[1] < max_distance:
-        closest_patches, closest_distance = closest_distance_between_patches(skymodel_bright)
-        logger.info(f'Merging nearby bright patches {closest_patches[0]} {closest_patches[1]} (distance={closest_distance*3600:.2f}arcsec')
-        skymodel_bright.merge(closest_patches)
-        skymodel.merge(closest_patches)
+    if len(skymodel_bright) > 1:
+        while closest_distance_between_patches(skymodel_bright)[1] < max_distance:
+            closest_patches, closest_distance = closest_distance_between_patches(skymodel_bright)
+            logger.info(f'Merging nearby bright patches {closest_patches[0]} {closest_patches[1]} (distance={closest_distance*3600:.2f}arcsec')
+            skymodel_bright.merge(closest_patches)
+            skymodel.merge(closest_patches)
+    else:
+        logger.warning(f'Only one bright source - nothing to merge.')
     skymodel.setPatchPositions(method='wmean', applyBeam=applyBeam)
     return skymodel
 
