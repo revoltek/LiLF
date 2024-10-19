@@ -13,6 +13,7 @@
 # 6. Repeat dd self-cal cycles with a growing number of directions
 # they need to be in "./mss/"
 
+# TODO test DI amplitude solve WITH and WITHOUT dd-phase corruptions applied -> do the solutions for the distant RS change a lot?
 # TODO add BDA
 # TODO the subfield algorithm should not cut any sources ... how to best implement that? Something with mask islands?
 # TODO do we need amplitude corrections(?)? If so, DI/DD/only for bright sources?
@@ -463,7 +464,7 @@ for c in range(maxIter):
             # safe a bit of time by reusing psf and dirty in first iteration
             reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
         else:
-            current_best_mask = f'img/wideM-{c}-mask.fits'
+            current_best_mask = f'img/wideM-{c-1}-mask.fits'
 
 
         if intrinsic or c>1:
