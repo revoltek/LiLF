@@ -156,6 +156,7 @@ with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('img')
     os.makedirs('img')
+    lib_util.check_rm('tgts*skymodel')
 
     # here images, models, solutions for each group will be saved
     lib_util.check_rm('self')
@@ -309,7 +310,7 @@ for c in range(maxIter):
     sourcedb = f'tgts-c{c}.skymodel'
     beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
     if not os.path.exists(sourcedb):
-        logger.info(f'Create skymodel {sourcedb}')
+        logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
             # if provided, use manual model
             if start_sourcedb:
@@ -784,7 +785,6 @@ for c in range(maxIter):
                     log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
                 s.run(check=True)
 
-                # TODO we use SUBFIELD_DATA here since it exists and is not needed, might be clearer to instead use SUBTRACTED_DATA or so?
                 # subtract internal region from CORRECTED_DATA_FR to create SUBFIELD_DATA
                 logger.info('Subtract main-lobe (SUBFIELD_DATA = CORRECTED_DATA_FR - MODEL_DATA)...')
                 MSs.run('taql "update $pathMS set SUBFIELD_DATA = CORRECTED_DATA_FR - MODEL_DATA"',
@@ -792,6 +792,7 @@ for c in range(maxIter):
                 clean_empty(MSs, 'only_sidelobe', 'SUBFIELD_DATA', size=10000)
             ### DONE
 
+            # TODO: test with the use of DD-sols
             # Do a rough correction of the sidelobe data using the subfield solutions
             with w.if_todo(f'correct-sidelobe-c{c}'): # just for testing/debug
                 logger.info('Correct sidelobe data with subfield iono solutions...')
@@ -832,7 +833,7 @@ for c in range(maxIter):
 
             # Now subtract the sidelobe
             with w.if_todo('subtract_sidelobe'):
-                # blank within main-libe to not subtract anything from there
+                # blank within main-libe to not subtract anything from there (maybe extended sources not properly sobtracted at the beginning)
                 for im in glob.glob(f'{imagename_lr}*model*fits'):
                     wideLRext = im.replace(imagename_lr, f'{imagename_lr}-blank')
                     os.system('cp %s %s' % (im, wideLRext))
