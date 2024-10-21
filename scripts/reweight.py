@@ -95,9 +95,9 @@ class MShandler():
     def get_elev(self):
         # TODO: fix if multiple time MSs passed
         # TODO elevation bugged
-        ms_avgbl = taql('SELECT TIME, MEANS(GAGGR(MSCAL.AZEL()[1]), 0) AS ELEV FROM %s GROUPBY TIME' %(self.ms_files[0]))
+        ms_avgbl = taql('SELECT TIME FROM %s GROUPBY TIME' %(self.ms_files[0]))
         # ms_avgbl = taql('SELECT TIME, MEANS(GAGGR(MSCAL.AZEL1()[1]), 0) AS ELEV FROM %s GROUPBY TIME' %(self.ms_files[0]))
-        return ms_avgbl.getcol('ELEV')
+        return np.ones_like(ms_avgbl.getcol('TIME'))
 
     def iter_antenna(self, antennas=None):
         """
