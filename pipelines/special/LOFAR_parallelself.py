@@ -320,9 +320,8 @@ for c in range(maxIter):
                 # Create initial sourcedb from LoTSS or GSM
                 fwhm = MSs.getListObj()[0].getFWHM(freq='min')
                 try:
-                    raise KeyError
-                    # sm = lsmtool.load('LoTSS', VOPosition=phasecentre, VORadius=1.3 * fwhm / 2,
-                    #                   beamMS=beamMS)
+                    #raise KeyError
+                    sm = lsmtool.load('LoTSS', VOPosition=phasecentre, VORadius=1.3 * fwhm / 2, beamMS=beamMS)
                 except (KeyError, FileNotFoundError) as e:
                     logger.warning('Could not retrieve LoTSS data - resort to GSM.')
                     os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={1.3*fwhm/2}&unit=deg"')
@@ -338,11 +337,12 @@ for c in range(maxIter):
         # if using e.g. LoTSS, adjust for the frequency
         logger.info(f'Extrapolating input skymodel fluxes from {np.mean(MSs.getFreqs())/1e6:.0f}MHz to {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz assuming si=-0.7')
         si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S144 = si_factor * S54
-        print(si_factor)
+        #print(si_factor)
         sm.select(f'I>{0.05*si_factor}', applyBeam=intrinsic)  # keep only reasonably bright sources
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
         sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
         sm.setPatchPositions(method='wmean', applyBeam=intrinsic)
+        sm.write('test.skymodel')
         sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=intrinsic)
         # TODO we need some logic here to avoid picking up very extended sources. Also case no bright sources in a field.
         patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
@@ -858,8 +858,6 @@ for c in range(maxIter):
                 logger.info('Subtract corrupted sidelobe model (CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA)...')
                 MSs.run('taql "update $pathMS set CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
             ### DONE
-
-
 
 # # polarisation imaging
 # with w.if_todo('imaging-pol'):

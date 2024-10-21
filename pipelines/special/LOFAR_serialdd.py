@@ -116,7 +116,7 @@ with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('ddcal')
     os.makedirs('ddcal/init')
-    os.system('cp self/skymodel/wideM-*model.fits ddcal/init/')
+    os.system('cp self/skymodel/wideM-*model*.fits ddcal/init/')
     os.system('cp '+sorted(glob.glob("self/images/wideM-*image.fits"))[-1]+' ddcal/init/')
     lib_util.check_rm('img')
     os.makedirs('img')
@@ -142,6 +142,8 @@ MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
 
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 detectability_dist = MSs.getListObj()[0].getFWHM(freq='max')*1.7/2.  # 1.8 to go to close to the null
+beamReg = 'ddcal/beam_peel.reg' # sources outside of this region will be peeled!
+MSs.getListObj()[0].makeBeamReg(beamReg, pb_cut=2*detectability_dist)
 freq_min = np.min(MSs.getFreqs())
 freq_mid = np.mean(MSs.getFreqs())
 phase_center = MSs.getListObj()[0].getPhaseCentre()
@@ -151,6 +153,8 @@ ch_out_idg = 12  # better 24, but slow
 imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 4.)
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
+facetregname_self = 'self/solutions/facets-c1.reg'
+interp_h5parm_self = 'self/solutions/cal-tec-merged-c1.h5'
 
 with w.if_todo('add_columns'):
     logger.info('Add columns...')
@@ -181,8 +185,9 @@ for cmaj in range(maxIter):
     if not os.path.exists(picklefile):
         directions = []
 
-        # making skymodel from image
-        full_image.makeMask(threshpix=4, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
+        if not os.path.exists(mask_ddcal.replace('fits', 'cat.fits')): # re-use if exists
+            # making skymodel from image
+            full_image.makeMask(threshpix=4, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
         
         # locating DD-calibrators
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
@@ -198,7 +203,7 @@ for cmaj in range(maxIter):
         # assert sources in same island are in same group
         populated_isl = [isl for isl, n in collections.Counter(cal['Isl_id']).items() if n > 1]  # isls with more than 1 source
         ids_to_merge = [np.flatnonzero(cal['Isl_id'] == this_isl) for this_isl in populated_isl]  # list of lists of source ids that belong to populated cluster
-        [grouper.merge_ids(ids) for ids in ids_to_merge]  # merge ids
+        [grouper.merge_ids(ids) for ids in ids_to_merge]  # merge ids so to rejoin islands
         clusters = grouper.clusters
         os.system('mv grouping*png ddcal/c%02i/plots/' % cmaj)
         img_beam = full_image.getBeam()
@@ -249,7 +254,7 @@ for cmaj in range(maxIter):
                 #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,freq_mid,size,img_beam,lsm.getColValues('MajorAxis')[idx])
                 ra = np.mean(cal['RA'][cluster_idxs])
                 dec = np.mean(cal['DEC'][cluster_idxs])
-                d.set_position([ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center)
+                d.set_position([ra, dec], region_peeloff=beamReg, wcs_peeloff=full_image.getWCS())
                 d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
                 d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
                 model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
@@ -283,9 +288,10 @@ for cmaj in range(maxIter):
             d.spidx_coeffs = -0.8
             d.ref_freq = freq_mid
             # get rms in manual reg
-            d.localrms = np.std(man_cal[0].to_pixel(wcs).to_mask().cutout(data_res))
+
+            d.localrms = 15* np.std(man_cal[0].to_pixel(wcs).to_mask().cutout(data_res))
             ra, dec = man_cal[0].center.ra.to_value('deg'), man_cal[0].center.dec.to_value('deg')
-            d.set_position([ra, dec], distance_peeloff=detectability_dist, phase_center=phase_center)
+            d.set_position([ra, dec], region_peeloff=beamReg, wcs_peeloff=full_image.getWCS())
             d.set_size([ra], [dec], [man_cal[0].radius.to_value('deg')], img_beam[0] / 3600)
             d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
             model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
@@ -317,15 +323,17 @@ for cmaj in range(maxIter):
         # wsclean predict
         logger.info('Predict full model...')
         if cmaj == 0:
-            s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
-                    -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                    log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
+            # TODO ignore facet beam for now due to bug
+            s.add(f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_processors} -channels-out {ch_out} \
+                    -facet-regions {facetregname_self} -apply-facet-solutions {interp_h5parm_self} phase000 \
+                    -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
+                log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean', processors='max')
             s.run(check=True)
         else:
             full_image.nantozeroModel()
             s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
                     -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
-                    -facet-regions '+facetregname+' -diagonal-solutions \
+                    -facet-regions '+facetregname+' \
                     -apply-facet-solutions '+interp_h5parm_old+' '+correct_for+' \
                     -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                     log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
@@ -368,34 +376,6 @@ for cmaj in range(maxIter):
         ###
     ### DONE
 
-    # add back all calibrators
-    model_data_columns = []
-    for dnum, d in enumerate(directions):
-        s.add('wsclean -predict -padding 1.8 -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
-                        -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                        log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
-        s.run(check=True)
-        # Add back the model previously subtracted for this dd-cal
-        logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA"',
-                    log='$nameMS_taql.log', commandType='general')
-        MSs.addcol('MODEL_DATA_%i' % dnum, 'MODEL_DATA', log='$nameMS_addcol.log')
-        model_data_columns.append('MODEL_DATA_%i' % dnum)
-
-    # Calibration - ms:SMOOTHED_DATA
-    MSs.run_Blsmooth(logstr=f'smooth-{str(cmaj)}')
-    logger.info('Gain phase1 calibration (solint: %i)...' % solint_ph)
-    MSs.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph1.h5 \
-                sol.mode=scalarcomplexgain sol.solint=1 sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
-                sol.smoothnessconstraint=5e6 sol.modeldatacolumns=['+','.join(model_data_columns)+']',
-                log='$nameMS_solGph1-'+logstringcal+'.log', commandType='DP3')
-    lib_util.run_losoto(s, 'ph1', [ms+'/cal-ph1.h5' for ms in MSs.getListStr()],
-                [parset_dir+'/losoto-plot-ph1.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
-    os.system('mv cal-ph1.h5 %s' % d.get_h5parm('ph1'))
-
-
-    sys.exit()
-
     for dnum, d in enumerate(directions):
 
         logger.info('Working on direction %s/%s: %s (%f Jy - %f deg)' % (dnum+1, len(directions), d.name, d.get_flux(freq_mid), d.size))
@@ -412,15 +392,17 @@ for cmaj in range(maxIter):
             logger.info('Predict model...')
             if cmaj == 0:
                 # Predict - ms:MODEL_DATA
-                s.add('wsclean -predict -padding 1.8 -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
-                        -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                        log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
+                # TODO ignore facet beam for now due to bug
+                s.add(f'wsclean -predict -padding 1.8 -name {d.get_model('init')} -j {s.max_processors} -channels-out {ch_out} \
+                    -facet-regions {facetregname_self} -apply-facet-solutions {interp_h5parm_self} phase000 \
+                    -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
+                    log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
                 s.run(check=True)
             else:
                 # Predict - ms:MODEL_DATA
                 s.add('wsclean -predict -padding 1.8 -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
                     -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
-                    -facet-regions '+full_image.root+'_facets.reg -diagonal-solutions \
+                    -facet-regions '+facetregname+' \
                     -apply-facet-solutions '+interp_h5parm_old+' '+correct_for+' \
                     -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
                     log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
@@ -614,14 +596,15 @@ for cmaj in range(maxIter):
                        logger.debug('BREAK ddcal self cycle with noise: %f, noise_pre: %f, mmratio: %f, mmratio_pre: %f' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
                        break
 
-            if cmaj > 0 and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or d.get_flux(freq_mid) > 5) and solve_amp:
+
+            if ((cmaj >= 0) or d.peel_off) and (cdd >= 3) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or (d.get_flux(freq_mid) > 5)) and solve_amp:
                 logger.debug('START AMP WITH MODE 1 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
             # correct more amp in the outskirts
-            elif cmaj > 0 and d.dist_from_centre >= fwhm/4. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 25) or d.get_flux(freq_mid) > 3) and solve_amp:
+            elif ((cmaj > 0) or d.peel_off) and (d.dist_from_centre >= fwhm/4.) and (cdd >= 3) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 25) or d.get_flux(freq_mid) > 3) and solve_amp:
                 logger.debug('START AMP WITH MODE 2 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
-            elif cmaj > 0 and d.dist_from_centre >= fwhm/2. and cdd >= 3 and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 20) or d.get_flux(freq_mid) > 2) and solve_amp:
+            elif ((cmaj > 0) or d.peel_off) and (d.dist_from_centre >= fwhm/2.) and (cdd >= 3) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 20) or d.get_flux(freq_mid) > 2) and solve_amp:
                 logger.debug('START AMP WITH MODE 3 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
 

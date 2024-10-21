@@ -5,7 +5,7 @@
 
 # TODO: remove regions and move to masks
 
-import sys, os, glob, re, pickle, collections, fileinput
+import sys, os, glob, pickle, collections, fileinput
 import numpy as np
 from astropy.table import Table as astrotab
 from astropy.coordinates import SkyCoord
@@ -13,7 +13,6 @@ from astropy import units as u
 from astropy.io import fits
 from astropy.wcs import WCS
 import regions
-import pyrap.tables as pt
 import lsmtool
 
 #######################################################
@@ -307,7 +306,6 @@ for cmaj in range(maxIter):
 
         # order directions from the fluxiest one
         directions = [x for _, x in sorted(zip([d.get_flux(freq_mid) for d in directions],directions))][::-1]
-
 
         logger.info('Found {} cals brighter than {} Jy (expected at 60 MHz):'.format(len(directions), min_cal_flux60))
         for d in directions:
