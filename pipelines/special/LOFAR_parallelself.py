@@ -875,6 +875,7 @@ for c in range(maxIter):
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits self/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits self/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(maxIter) ]
+[ os.system('mv img/subfield-'+str(c)+'-MFS-image*.fits self/images') for c in range(maxIter) ]
 # os.system('mv img/wideP-MFS-*-image.fits self/images')
 # os.system('mv img/wide-lr-MFS-image.fits self/images')
 

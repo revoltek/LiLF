@@ -62,6 +62,12 @@ def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
 
 #############################################################
 
+# Clear
+with w.if_todo('cleaning'):
+    logger.info('Cleaning...')
+    lib_util.check_rm('plots*')
+### DONE
+
 # unpack tar files if present
 for tarfile in glob.glob(data_dir + '/*tar'):
     if not os.path.exists(tarfile.replace('.tar','')):
