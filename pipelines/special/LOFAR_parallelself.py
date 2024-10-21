@@ -324,13 +324,9 @@ for c in range(maxIter):
             else:
                 # Create initial sourcedb from LoTSS or GSM
                 fwhm = MSs.getListObj()[0].getFWHM(freq='min')
-                try:
-                    raise KeyError
-                    # sm = lsmtool.load('LoTSS', VOPosition=phasecentre, VORadius=1.3 * fwhm / 2, beamMS=beamMS)
-                except (KeyError, FileNotFoundError) as e:
-                    logger.warning('Could not retrieve LoTSS data - resort to GSM.')
-                    os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={1.3*fwhm/2}&unit=deg"')
-                    sm = lsmtool.load(sourcedb, beamMS=beamMS)
+                logger.warning('Get model from GSM.')
+                os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={1.3*fwhm/2}&unit=deg"')
+                sm = lsmtool.load(sourcedb, beamMS=beamMS)
                 if not intrinsic: # turn to apparent sky
                     sm.write(sourcedb, clobber=True, applyBeam=True, adjustSI=True)
                     sm = lsmtool.load(sourcedb)
@@ -340,7 +336,7 @@ for c in range(maxIter):
             sm = lsmtool.load(wsc_src, beamMS=beamMS if intrinsic else None)
         bright_sources_flux = facet_fluxes[c]
         # if using e.g. LoTSS, adjust for the frequency
-        logger.info(f'Extrapolating input skymodel fluxes from {np.mean(MSs.getFreqs())/1e6:.0f}MHz to {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz assuming si=-0.7')
+        logger.info(f'Extrapolating input skymodel fluxes from {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
         si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S144 = si_factor * S54
         #print(si_factor)
         sm.select(f'I>{0.05*si_factor}', applyBeam=intrinsic)  # keep only reasonably bright sources
@@ -399,7 +395,7 @@ for c in range(maxIter):
         MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for all BUT most distant RS!
         logger.info('Solving TEC (fastRS)...')
-        solve_iono(MSs, c, 2, patches, smMHz2[c], 2*base_solint, resetant_parset=parset_dir+'/losoto-resetph2-CSRS.parset', model_column_fluxes=patch_fluxes, variable_solint_threshold=8.)
+        solve_iono(MSs, c, 2, patches, smMHz2[c], 2*base_solint, phaseSolMode, resetant_parset=parset_dir+'/losoto-resetph2-CSRS.parset', model_column_fluxes=patch_fluxes, variable_solint_threshold=8.)
     ### DONE
 
     ### CORRUPT the MODEL_DATA columns for all patches
@@ -410,7 +406,7 @@ for c in range(maxIter):
     with w.if_todo('c%02i_solve_tecCS' % c):
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
         logger.info('Solving TEC (midRS)...')
-        solve_iono(MSs, c, 1, patches, smMHz1[c], 8*base_solint, resetant_parset=parset_dir+'/losoto-resetph2-CS.parset')
+        solve_iono(MSs, c, 1, patches, smMHz1[c], 8*base_solint, phaseSolMode,resetant_parset=parset_dir+'/losoto-resetph2-CS.parset')
     ### DONE
 
     ### CORRUPT the MODEL_DATA columns for all patches
@@ -421,7 +417,7 @@ for c in range(maxIter):
     with w.if_todo('c%02i_solve_tecCS0' % c):
         # solve ionosphere phase - ms:SMOOTHED_DATA
         logger.info('Solving TEC (slowCS)...')
-        solve_iono(MSs, c, 0, patches, smMHz0[c], 16*base_solint)
+        solve_iono(MSs, c, 0, patches, smMHz0[c], 16*base_solint, phaseSolMode)
     ### DONE
 
     with w.if_todo('c%02i_delete_models' % c):
