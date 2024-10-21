@@ -654,7 +654,7 @@ for c in range(maxIter):
             MSs.run_Blsmooth('SUBFIELD_DATA', logstr=f'smooth-c{c}')
             # solve ionosphere phase - ms:SMOOTHED_DATA
             logger.info('Solving TEC (fast RS)...')
-            solve_iono(MSs, c, '2-sf', ['MODEL_DATA'], 0.7, base_solint, resetant_parset=parset_dir + '/losoto-resetph2-CSRS.parset')
+            solve_iono(MSs, c, '2-sf', ['MODEL_DATA'], 1.0, base_solint, resetant_parset=parset_dir + '/losoto-resetph2-CSRS.parset')
         ### DONE
 
         with w.if_todo('c%02i_subfield_corr_tecRS' % c):
@@ -730,7 +730,7 @@ for c in range(maxIter):
         # Do a quick debug image...
         with w.if_todo('c%02i_image-subfield' % c):
             logger.info('Test image subfield...')
-            lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-c{c}', data_column='SUBFIELD_DATA', size=3000, scale='4arcsec',
+            lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=3000, scale='4arcsec',
                                  weight='briggs -0.3', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{field_center[0].to(u.hourangle).to_string()} {field_center[1].to_string()}',
                                  no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
                                  join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
