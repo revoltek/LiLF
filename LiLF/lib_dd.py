@@ -298,7 +298,13 @@ class Grouper( object ):
             return None
         else:
             merged = np.concatenate([clusters[id] for id in contains_id]) # this will be the merged cluster
-            clusters = list(np.delete(clusters, contains_id)) # delete clusters that are merged so they don't apper twice
+            
+            # Reversing Indices List
+            contains_id = sorted(contains_id, reverse=True)
+            for contains_id_torm in contains_id:
+                # removing element by index using pop() function
+                clusters.pop(contains_id_torm)
+
             logger.info('Merge groups in same mask island: {}'.format(merged))
             clusters.append(merged.astype(int))
             self.clusters = clusters
