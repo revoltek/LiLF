@@ -6,6 +6,7 @@
 # prepare them for the transfer to the target field.
 
 # TODO debugplots currently broken
+# Add ScaleData in the beginning
 # TODO reset minvisration to 0.3 once bug fixed
 # TODO apply model bandpass before calibrating to approximately get the weights correct? Otherwise, the edge channels dominate.
 # TODO for IS, FR estimation could be moved to circ-basis to increase S/N
@@ -133,6 +134,11 @@ elif min(MSs_concat_all.getFreqs()) < 40.e6:
 uvlambdamin = 50 if min(MSs_concat_all.getFreqs()) < 30e6 else 100 # for Decameter we don't have any data otherwise...
 
 ######################################################
+# rescale data to expected theoretical bandpass
+with w.if_todo('scale_bp'):
+    logger.info("Scale data to expected bandpass...")
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-scaleBP.parset msin=$pathMS ', log="$nameMS_scale.log", commandType="DP3")
+
 # flag bad stations, flags will propagate
 with w.if_todo('flag'):
     logger.info("Flagging...")
