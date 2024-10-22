@@ -81,7 +81,7 @@ def corrupt_model_dirs(MSs, c, tc, model_columns):
                     cor.parmdb=self/solutions/cal-tec{tc}-c{c}.h5 cor.correction=phase000 cor.invert=False',
                 log='$nameMS_corrupt.log', commandType='DP3')
 
-def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant_parset=None, model_column_fluxes=None, variable_solint_threshold=None):
+def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None, model_column_fluxes=None, variable_solint_threshold=None):
     """
     Parallel solve for ionosphere systematics
     Parameters
@@ -93,34 +93,50 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant_parse
     smMHz: smoothnessconstraint kernel size at 54 MHz in MHz
     solint: solution interval in timesteps (e.g. multiples of 8s)
     solmode: srt, tec, phase, tecandphase
-    resetant_parset: string, optional. Extra losoto parset to reset solutions for some stations
+    resetant: string, optional. Reset either 'inner' or intermediate stations. Default None
     model_column_fluxes: list of float, optional. Default=None. List of flux densities per direction/model column, used for variable solint.
     variable_solint_threshold: float, optional. Default = None. Use twice as long solint for directions that have less than this threshold in Jy.
     """
+    # reset ants after solving if specified
+    resetant_parset = None
+    if solmode == 'phase':
+        if resetant == 'intermediate':
+            resetant_parset = parset_dir+'/losoto-resetph2-CSRS.parset'
+        elif resetant == 'inner':
+            resetant_parset = parset_dir+'/losoto-resetph2-CS.parset'
+    elif solmode == 'tec':
+        if resetant == 'intermediate':
+            resetant_parset = parset_dir+'/losoto-resettec2-CSRS.parset'
+        elif resetant == 'inner':
+            resetant_parset = parset_dir+'/losoto-resettec2-CS.parset'
 
     if solmode == 'phase': #phase
-        solver_params = f'sol.mode=scalarphase sol.smoothnessconstraint={smMHz}e6 sol.smoothnessreffrequency=54e6 sol.nchan=1'
         if resetant_parset is not None:
             losoto_parsets = [parset_dir+'/losoto-refph.parset', resetant_parset, parset_dir+'/losoto-plot-scalar.parset']
         else:
             losoto_parsets = [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-scalar.parset']
     else: # TEC or TecAndPhase
-        solver_params = f'sol.mode={solmode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
         if resetant_parset is not None:
-            raise NotImplementedError('Resetant for TEC not yet implemented.')
             losoto_parsets = [parset_dir+'/losoto-reftec.parset', resetant_parset, parset_dir+'/losoto-plot-tec.parset']
         else:
             losoto_parsets = [parset_dir+'/losoto-reftec.parset', parset_dir+'/losoto-plot-tec.parset']
 
     solutions_per_direction = np.ones(len(model_columns), dtype=int)
-    if variable_solint_threshold: # if actived, use twice the solint for fainter directions
+    if variable_solint_threshold and solmode == 'tec':
+        raise ValueError
+    elif variable_solint_threshold: # if actived, use twice the solint for fainter directions
         solint *= 2 # use twice as long solint
         # get two solutions per solint (i.e. one per time step) for bright directions
         solutions_per_direction += model_column_fluxes > variable_solint_threshold
-
-    MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec{tc}.h5 sol.solint={solint} {solver_params} \
+    if solmode == 'phase':
+        MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec{tc}.h5 sol.solint={solint} \
+                  sol.mode=scalarphase sol.smoothnessconstraint={smMHz}e6 sol.smoothnessreffrequency=54e6 sol.nchan=1 \
                   sol.modeldatacolumns="[{",".join(model_columns)}]" sol.solutions_per_direction={np.array2string(solutions_per_direction, separator=",")}',
-                  log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
+                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
+    else:
+        MSs.run(f'DP3 {parset_dir}/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec{tc}.h5 sol.solint={solint} \
+                  sol.modeldatacolumns="[{",".join(model_columns)}]" sol.mode={solmode}',
+                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
     lib_util.run_losoto(s, f'tec{tc}-c{c}', [ms+f'/tec{tc}.h5' for ms in MSs.getListStr()], losoto_parsets, plots_dir=f'self/plots/plots-tec{tc}-c{c}', h5_dir=f'self/solutions/')
 
@@ -180,7 +196,7 @@ except:
 
 # make beam to the first mid null
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
-MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='mid', to_null=True)
+MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='min', to_null=True)
 beamReg = 'self/beam.reg'
 beamMask = 'self/beam.fits'
 
@@ -287,29 +303,6 @@ for c in range(maxIter):
         with w.if_todo('c%02i_set_corrected_data' % c):
             logger.info('Creating CORRECTED_DATA = CORRECTED_DATA_FR...')
             MSs.addcol('CORRECTED_DATA', 'CORRECTED_DATA_FR')
-    elif c in [1,2] :
-        # Only after the first iteration: apply the subfield solutions to the data.
-        with w.if_todo('c%02i_set_corrected_data' % c):
-            logger.info('Set CORRECTED_DATA = CORRECTED_DATA_FR...')
-            MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA_FR"', log='$nameMS_taql-c' + str(c) + '.log',
-                    commandType='general')
-            logger.info('Correct subfield ionosphere (CORRECTED_DATA -> CORRECTED_DATA)...')
-            # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
-            if sf_phaseSolMode in ['tec', 'tecandphase']:
-                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-                        cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c-1) + '.h5 cor.correction=tec000 ',
-                    log='$nameMS_sf-correct.log', commandType='DP3')
-            if sf_phaseSolMode in ['phase', 'tecandphase']:
-                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  \
-                        cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c-1) + '.h5 cor.correction=phase000',
-                        log='$nameMS_sf-correct.log', commandType='DP3')
-
-            # if c == 2:
-            #     logger.info('Correct subfield amplitude (CORRECTED_DATA -> CORRECTED_DATA)...')
-            #     # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
-            #     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_CORRECTED_DATA \
-            #             cor.parmdb=self/solutions/cal-amp-sf-c' + str(c-1) + '.h5 cor.correction=amplitude000',
-            #             log='$nameMS_sf-correct.log', commandType='DP3')
 
     # get sourcedb
     sourcedb = f'tgts-c{c}.skymodel'
@@ -395,7 +388,7 @@ for c in range(maxIter):
         MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for all BUT most distant RS!
         logger.info('Solving TEC (fastRS)...')
-        solve_iono(MSs, c, 2, patches, smMHz2[c], 2*base_solint, phaseSolMode, resetant_parset=parset_dir+'/losoto-resetph2-CSRS.parset', model_column_fluxes=patch_fluxes, variable_solint_threshold=8.)
+        solve_iono(MSs, c, 2, patches, smMHz2[c], 2*base_solint, phaseSolMode, resetant='intermediate', model_column_fluxes=patch_fluxes, variable_solint_threshold=8.)
     ### DONE
 
     ### CORRUPT the MODEL_DATA columns for all patches
@@ -406,7 +399,7 @@ for c in range(maxIter):
     with w.if_todo('c%02i_solve_tecCS' % c):
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
         logger.info('Solving TEC (midRS)...')
-        solve_iono(MSs, c, 1, patches, smMHz1[c], 8*base_solint, phaseSolMode,resetant_parset=parset_dir+'/losoto-resetph2-CS.parset')
+        solve_iono(MSs, c, 1, patches, smMHz1[c], 8*base_solint, phaseSolMode, resetant='inner')
     ### DONE
 
     ### CORRUPT the MODEL_DATA columns for all patches
@@ -625,14 +618,9 @@ for c in range(maxIter):
             # cycle > 0: need to add DI-corruption on top (previous iteration sub-field)
             if c > 0:
                 logger.info('Add previous iteration sub-field corruption on top of DD-corruption...')
-                if sf_phaseSolMode in ['tec', 'tecandphase']:
-                    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                            cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c-1) + '.h5 cor.correction=tec000 cor.invert=False',
-                            log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
-                if sf_phaseSolMode in ['phase', 'tecandphase']:
-                    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                            cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c-1) + '.h5 cor.correction=phase000 cor.invert=False',
-                            log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                        cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c-1) + '.h5 cor.correction=phase000 cor.invert=False',
+                        log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
 
             # subtract external region from CORRECTED_DATA_FR to create SUBFIELD_DATA
             MSs.addcol('SUBFIELD_DATA','CORRECTED_DATA_FR')
@@ -655,7 +643,7 @@ for c in range(maxIter):
             MSs.run_Blsmooth('SUBFIELD_DATA', logstr=f'smooth-c{c}')
             # solve ionosphere phase - ms:SMOOTHED_DATA
             logger.info(f'Solving {sf_phaseSolMode} (fast RS)...')
-            solve_iono(MSs, c, '2-sf', ['MODEL_DATA'], 1.0, base_solint, sf_phaseSolMode, resetant_parset=parset_dir + '/losoto-resetph2-CSRS.parset')
+            solve_iono(MSs, c, '2-sf', ['MODEL_DATA'], 1.0, base_solint, sf_phaseSolMode, resetant='intermediate')
         ### DONE
 
         with w.if_todo('c%02i_subfield_corr_tecRS' % c):
@@ -676,7 +664,7 @@ for c in range(maxIter):
             MSs.run_Blsmooth('SUBFIELD_DATA', logstr=f'smooth-c{c}')
             # solve ionosphere phase - ms:SMOOTHED_DATA
             logger.info(f'Solving {sf_phaseSolMode} (mid RS)...')
-            solve_iono(MSs, c, '1-sf', ['MODEL_DATA'], 3.0, 4*base_solint, sf_phaseSolMode, resetant_parset=parset_dir + '/losoto-resetph2-CS.parset')
+            solve_iono(MSs, c, '1-sf', ['MODEL_DATA'], 3.0, 4*base_solint, sf_phaseSolMode, resetant='inner')
         ### DONE
 
         with w.if_todo('c%02i_subfield_corr_tecCS' % c):
@@ -793,18 +781,13 @@ for c in range(maxIter):
                 clean_empty(MSs, 'only_sidelobe', 'SUBFIELD_DATA', size=10000)
             ### DONE
 
-            # TODO: test with the use of DD-sols
             # Do a rough correction of the sidelobe data using the subfield solutions
             with w.if_todo(f'correct-sidelobe-c{c}'): # just for testing/debug
                 logger.info('Correct sidelobe data with subfield iono solutions...')
-                if sf_phaseSolMode in ['tec', 'tecandphase']:
-                    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
-                            cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=tec000 ',
-                            log='$nameMS_sf-correct.log', commandType='DP3')
-                if sf_phaseSolMode in ['phase', 'tecandphase']:
-                    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
-                            cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=phase000',
-                            log='$nameMS_sf-correct.log', commandType='DP3')
+                # merged h5parm is always phase no matter the soltype!
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
+                        cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=phase000',
+                        log='$nameMS_sf-correct.log', commandType='DP3')
             # DONE
 
             imagename_lr = 'img/wide-lr'
@@ -847,17 +830,28 @@ for c in range(maxIter):
                 s.run(check=True)
 
                 logger.info('Corrupt sidelobe model with subfield solutions...')
-                if sf_phaseSolMode in ['tec', 'tecandphase']:
-                    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                            cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=tec000 cor.invert=False',
-                            log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
-                if sf_phaseSolMode in ['phase', 'tecandphase']:
-                    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                            cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=phase000 cor.invert=False',
-                            log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                        cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=phase000 cor.invert=False',
+                        log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
 
                 logger.info('Subtract corrupted sidelobe model (CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA)...')
                 MSs.run('taql "update $pathMS set CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
+
+            if c < 2 :
+                # Only after the first iteration: apply the subfield solutions to the data.
+                with w.if_todo('c%02i_corr_sf_sols' % c):
+                    logger.info('Correct subfield ionosphere (CORRECTED_DATA_FR -> CORRECTED_DATA)...')
+                    # Correct MSs:CORRECTED_DATA_FR -> CORRECTED_DATA
+                    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA_FR  \
+                                cor.parmdb=self/solutions/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=phase000',
+                            log='$nameMS_sf-correct.log', commandType='DP3')
+
+                    # if c == 2:
+                    #     logger.info('Correct subfield amplitude (CORRECTED_DATA -> CORRECTED_DATA)...')
+                    #     # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
+                    #     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_CORRECTED_DATA \
+                    #             cor.parmdb=self/solutions/cal-amp-sf-c' + str(c-1) + '.h5 cor.correction=amplitude000',
+                    #             log='$nameMS_sf-correct.log', commandType='DP3')
             ### DONE
 
 # # polarisation imaging
