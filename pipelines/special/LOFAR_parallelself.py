@@ -336,7 +336,6 @@ for c in range(maxIter):
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
         sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
         sm.setPatchPositions(method='wmean', applyBeam=intrinsic)
-        sm.write('test.skymodel')
         sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=intrinsic)
         # TODO we need some logic here to avoid picking up very extended sources. Also case no bright sources in a field.
         patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
