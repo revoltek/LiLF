@@ -91,6 +91,8 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob(data_dir+'/*MS')), 1)):
 
 if skymodel == '':  # default case
     if MSs.hasIS:
+        logger.warning('Sub-arcsecond models for LBA only partially tested! '
+                       '3C196 is usable but on the wrong scale. 3C380 is usable and scales between 40 and 70 MHz.')
         skymodel = os.path.dirname(__file__) + '/../models/calib-highres.skymodel'
     else:
         skymodel = os.path.dirname(__file__) + '/../models/calib-simple.skymodel'
@@ -215,13 +217,13 @@ with w.if_todo('pre_cal'):
     # Equation for allowed smoothing, assuming ONLY TEC and kernel is one sixth of the bandwidth it takes for one wrap at 54 MHz
     # kernelsize_smoothnessconstraint [MHz] = 0.3 / dTEC [TECU]
     # For RS: Expect up to 0.5 TECU, kernel should be ~0.6 MHz (smaller since we also have clock)
-    # FOR IS: Expect up to 5 TECU, kernel should be ~0.07 MHz
+    # FOR IS: Expect up to 5 TECU, kernel should be ~0.1 MHz
     MSs_concat_phaseupIONO.run_Blsmooth(incol='DATA', logstr='smooth')
     # Solve concat_all-phaseupIONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                            sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase sol.datause=single \
-                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.07e6 sol.smoothnessreffrequency=54e6', \
+                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.10e6 sol.smoothnessreffrequency=54e6', \
                            log='$nameMS_solIONO.log', commandType="DP3")
 
     if min(MSs_concat_all.getFreqs()) < 35.e6:
@@ -312,9 +314,8 @@ with w.if_todo('cal_fr'):
     # Solve concat_all.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating FR...')
     # We solve for rot+diag or rot+scalar here and not just rot since we can have phase offsets from the preliminary iono!!
-    # TODO can we add smoothnessconstraint here?
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 \
-               sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase\
+               sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase sol.smoothnessconstraint=1.5e6 sol.smoothnessreffrequency=54e6 sol.smoothnessspectralexponent=-2 \
                sol.solint={small_timestep} sol.nchan={small_freqstep}', log='$nameMS_solFR.log', commandType="DP3")
 
     # TODO add residual rotation plot after FR fit as soon as this option is present in LoSoTo!
@@ -379,7 +380,7 @@ with w.if_todo('cal_iono'):
     logger.info('Calibrating IONO (distant stations)...')
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                            sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single \
-                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.07e6 sol.smoothnessreffrequency=54e6', \
+                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.08e6 sol.smoothnessreffrequency=54e6', \
                            log='$nameMS_solIONO.log', commandType="DP3")
    
     if (min(MSs_concat_phaseupIONO.getFreqs()) < 35.e6):
@@ -389,6 +390,40 @@ with w.if_todo('cal_iono'):
         lib_util.run_losoto(s, 'iono', [ms + '/iono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
                             [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-iono.parset'])
 ### DONE
+
+if develop:
+    # 3.5 find AGAIN FR and
+    with w.if_todo('cal_extra'):
+        # Pol align correction concat_all.MS:DATA -> CORRECTED_DATA
+        logger.info('Polalign correction...')
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
+                       cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DP3")
+        # Correct beam concat_all:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('Beam correction...')
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False',
+                           log='$nameMS_beam.log', commandType="DP3")
+        # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('Iono correction...')
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 \
+                        cor.correction=phase000', log='$nameMS_corIONO_CS.log', commandType="DP3")
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
+                        cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
+        # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
+        MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
+
+        # Solve concat_all.MS:SMOOTHED_DATA (only solve)
+        logger.info('Calibrating FR2...')
+        # We solve for rot+diag or rot+scalar here and not just rot since we can have phase offsets from the preliminary iono!!
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/fr2.h5 \
+                   sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase sol.smoothnessconstraint=1.5e6 sol.smoothnessreffrequency=54e6 sol.smoothnessspectralexponent=-2 \
+                   sol.solint={small_timestep} sol.nchan={small_freqstep}', log='$nameMS_solFR.log', commandType="DP3")
+
+        # TODO add residual rotation plot after FR fit as soon as this option is present in LoSoTo!
+        lib_util.run_losoto(s, 'fr2', [ms + '/fr2.h5' for ms in MSs_concat_all.getListStr()],
+                            [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
+                             parset_dir + '/losoto-fr.parset'], plots_dir='plots-fr2')
+
+    ### DONE
 
 ######################################################
 # 4: find BP
@@ -402,9 +437,10 @@ with w.if_todo('cal_bp'):
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False',
                            log='$nameMS_beam.log', commandType="DP3")
     # FR corruption concat_all.MS:MODEL_DATA -> MODEL_DATA_FRCOR
+    frh5 = 'cal-fr2.h5' if develop else 'cal-fr.h5'
     logger.info('Faraday rotation corruption (MODEL_DATA - > MODEL_DATA_FRCOR)...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA_FRCOR \
-                        cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
+                        cor.parmdb={frh5} cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
     # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Iono correction...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 \
