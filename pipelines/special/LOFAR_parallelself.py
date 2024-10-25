@@ -43,7 +43,7 @@ subfield_min_flux = parset.getfloat('LOFAR_self','subfield_min_flux') # default 
 subfield = parset.get('LOFAR_self','subfield') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
 maxIter = parset.getint('LOFAR_self','maxIter') # default = 2 (try also 3)
 phaseSolMode = parset.get('LOFAR_self', 'ph_sol_mode') # tecandphase, tec, phase
-sf_phaseSolMode = 'tec'
+sf_phaseSolMode = 'phase' #'tec'
 # intrinsic = parset.getboolean('LOFAR_self', 'intrinsic') # True means using intrinsic sky model and DP3 applybeam predict, False means staying with apparent skymodel
 intrinsic = True
 start_sourcedb = parset.get('model','sourcedb')
@@ -122,7 +122,8 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant_parse
                   sol.modeldatacolumns="[{",".join(model_columns)}]" sol.solutions_per_direction={np.array2string(solutions_per_direction, separator=",")}',
                   log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
-    lib_util.run_losoto(s, f'tec{tc}-c{c}', [ms+f'/tec{tc}.h5' for ms in MSs.getListStr()], losoto_parsets, plots_dir=f'self/plots/plots-tec{tc}-c{c}', h5_dir=f'self/solutions/')
+    lib_util.run_losoto(s, f'tec{tc}-c{c}', [ms+f'/tec{tc}.h5' for ms in MSs.getListStr()], losoto_parsets, 
+                        plots_dir=f'self/plots/plots-tec{tc}-c{c}', h5_dir=f'self/solutions/')
 
 
 def make_current_best_mask(imagename, threshold=6.5, userReg=None):
@@ -343,7 +344,6 @@ for c in range(maxIter):
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
         sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
         sm.setPatchPositions(method='wmean', applyBeam=intrinsic)
-        sm.write('test.skymodel')
         sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=intrinsic)
         # TODO we need some logic here to avoid picking up very extended sources. Also case no bright sources in a field.
         patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)

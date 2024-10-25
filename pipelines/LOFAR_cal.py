@@ -141,9 +141,9 @@ uvlambdamin = 50 if min(MSs_concat_all.getFreqs()) < 30e6 else 100 # for Decamet
 
 ######################################################
 # rescale data to expected theoretical bandpass
-with w.if_todo('scale_bp'):
-    logger.info("Scale data to expected bandpass...")
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-scaleBP.parset msin=$pathMS ', log="$nameMS_scale.log", commandType="DP3")
+#with w.if_todo('scale_bp'):
+#    logger.info("Scale data to expected bandpass...")
+#    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-scaleBP.parset msin=$pathMS ', log="$nameMS_scale.log", commandType="DP3")
 
 # flag bad stations, flags will propagate
 with w.if_todo('flag'):
@@ -290,8 +290,8 @@ with w.if_todo('cal_pa'):
         lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset',  parset_dir+'/losoto-pa.parset'])
 ### DONE
-
 ########################################################
+
 # 3: find FR
 with w.if_todo('cal_fr'):
     # Pol align correction concat_all.MS:DATA -> CORRECTED_DATA
@@ -325,10 +325,9 @@ with w.if_todo('cal_fr'):
                          parset_dir + '/losoto-fr.parset'])
 
 ### DONE
-
 #################################################
 
-# 3: calibrate iono + clock
+# 4: calibrate iono + clock
 with w.if_todo('cal_iono'):
     # Pol align correction concat_all.MS:DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
@@ -391,9 +390,9 @@ with w.if_todo('cal_iono'):
         lib_util.run_losoto(s, 'iono', [ms + '/iono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
                             [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-iono.parset'])
 ### DONE
-
 ######################################################
-# 4: find BP
+
+# 5: find BP
 with w.if_todo('cal_bp'):
     ## Pol align correction concat_all.MS:DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')

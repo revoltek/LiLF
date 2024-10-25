@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 h5parm merger script for merging h5parms containing phase and/or amplitude solutions for calibrating LOFAR observations.
 
