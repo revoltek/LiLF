@@ -16,7 +16,7 @@ import regions
 import lsmtool
 
 #######################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd, lib_h5, h5_merger
+from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd, lib_h5
 logger_obj = lib_log.Logger('pipeline-dd')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
@@ -559,21 +559,18 @@ for cmaj in range(maxIter):
                                     [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-ph3.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
 
                 # merge the individual h5parms.
-                #h5_merger.merge_h5(h5_out='cal-ph-merged.h5',
-                #                   h5_tables=['cal-ph1.h5','cal-ph2.h5','cal-ph3.h5'],
-                #                   h5_time_freq='cal-ph1.h5', no_pol=iter_ph_soltype=='scalarphase', no_antenna_crash=True)
+                logger.info('Merge solutions...')
                 pol_param = '--no_pol' if iter_ph_soltype == 'scalarphase' else ''
-                s.add('h5_merger.py --h5_out cal-ph-merged.h5 --h5_tables=cal-ph1.h5 cal-ph2.h5 cal-ph3.h5 --h5_time_freq cal-ph1.h5 \
+                s.add('h5_merger.py --h5_out cal-ph-merged.h5 --h5_tables cal-ph1.h5 cal-ph2.h5 cal-ph3.h5 --h5_time_freq cal-ph1.h5 \
                       --no_antenna_crash %s' % (pol_param), log='h5_merger.log', commandType='python' )
                 s.run(check=True)
-
                 lib_util.run_losoto(s, f'ph-merged', f'cal-ph-merged.h5',
                                     [f'{parset_dir}/losoto-plot-ph-merged.parset'],
                                     plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                 os.system('mv cal-ph-merged.h5 %s' % d.get_h5parm('ph1'))
 
                 # correct ph - ms:DATA -> ms:CORRECTED_DATA
-                logger.info('Correct ph1...')
+                logger.info('Correct ph...')
                 MSs_dir.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
                              cor.parmdb='+d.get_h5parm('ph1')+' cor.correction=phase000',
                              log='$nameMS_correct-'+logstringcal+'.log', commandType='DP3')
