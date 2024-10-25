@@ -62,6 +62,12 @@ def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
 
 #############################################################
 
+# Clear
+with w.if_todo('cleaning'):
+    logger.info('Cleaning...')
+    lib_util.check_rm('plots-{fr,bp,fj,iono,iono-cs,pa,amp}')
+### DONE
+
 # unpack tar files if present
 for tarfile in glob.glob(data_dir + '/*tar'):
     if not os.path.exists(tarfile.replace('.tar','')):
@@ -290,8 +296,8 @@ with w.if_todo('cal_pa'):
         lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset',  parset_dir+'/losoto-pa.parset'])
 ### DONE
-
 ########################################################
+
 # 3: find FR
 with w.if_todo('cal_fr'):
     # Pol align correction concat_all.MS:DATA -> CORRECTED_DATA
@@ -324,10 +330,9 @@ with w.if_todo('cal_fr'):
                          parset_dir + '/losoto-fr.parset'])
 
 ### DONE
-
 #################################################
 
-# 3: calibrate iono + clock
+# 4: calibrate iono + clock
 with w.if_todo('cal_iono'):
     # Pol align correction concat_all.MS:DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
@@ -426,7 +431,8 @@ if develop:
     ### DONE
 
 ######################################################
-# 4: find BP
+
+# 5: find BP
 with w.if_todo('cal_bp'):
     ## Pol align correction concat_all.MS:DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')

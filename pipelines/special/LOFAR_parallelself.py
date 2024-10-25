@@ -43,7 +43,7 @@ subfield_min_flux = parset.getfloat('LOFAR_self','subfield_min_flux') # default 
 subfield = parset.get('LOFAR_self','subfield') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
 maxIter = parset.getint('LOFAR_self','maxIter') # default = 2 (try also 3)
 phaseSolMode = parset.get('LOFAR_self', 'ph_sol_mode') # tecandphase, tec, phase
-sf_phaseSolMode = 'tec'
+sf_phaseSolMode = 'phase' #'tec'
 # intrinsic = parset.getboolean('LOFAR_self', 'intrinsic') # True means using intrinsic sky model and DP3 applybeam predict, False means staying with apparent skymodel
 intrinsic = True
 start_sourcedb = parset.get('model','sourcedb')
@@ -151,7 +151,8 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None,
                   sol.modeldatacolumns="[{",".join(model_columns)}]" sol.mode={solmode}',
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
-    lib_util.run_losoto(s, f'tec{tc}-c{c}', [ms+f'/tec{tc}.h5' for ms in MSs.getListStr()], losoto_parsets, plots_dir=f'self/plots/plots-tec{tc}-c{c}', h5_dir=f'self/solutions/')
+    lib_util.run_losoto(s, f'tec{tc}-c{c}', [ms+f'/tec{tc}.h5' for ms in MSs.getListStr()], losoto_parsets, 
+                        plots_dir=f'self/plots/plots-tec{tc}-c{c}', h5_dir=f'self/solutions/')
 
 
 def make_current_best_mask(imagename, threshold=6.5, userReg=None):
@@ -880,6 +881,7 @@ for c in range(maxIter):
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits self/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits self/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(maxIter) ]
+[ os.system('mv img/subfield-'+str(c)+'-MFS-image*.fits self/images') for c in range(maxIter) ]
 # os.system('mv img/wideP-MFS-*-image.fits self/images')
 # os.system('mv img/wide-lr-MFS-image.fits self/images')
 

@@ -8,7 +8,7 @@ import pyregion
 from pyregion.parser_helper import Shape
 from LiLF import lib_util
 
-from astropy.coordinates import get_sun, SkyCoord, EarthLocation, AltAz
+from astropy.coordinates import get_sun, get_body, SkyCoord, EarthLocation, AltAz
 from astropy.time import Time
 from astropy import units as u
 
@@ -235,7 +235,8 @@ class AllMSs(object):
         """
         has = []; elevs = []
         for ms in self.mssListObj:
-            logger.info('%s (%s): Hour angle: %.1f hrs - Elev: %.2f (Sun distance: %.0f)' % (ms.nameMS,ms.get_time().iso,ms.get_hour_angle(),ms.get_elev(),ms.get_sun_dist()))
+            logger.info('%s (%s): Hour angle: %.1f hrs - Elev: %.2f (Sun distance: %.0f; Jupiter distance: %.0f)' % \
+                        (ms.nameMS,ms.get_time().iso,ms.get_hour_angle(),ms.get_elev(),ms.get_sun_dist(),ms.get_jupiter_dist()))
             has.append(ms.get_hour_angle())
             elevs.append(ms.get_elev())
 
@@ -312,6 +313,15 @@ class MS(object):
         coord_sun = SkyCoord(ra=coord_sun.ra,dec=coord_sun.dec) # fix transformation issue
         coord = self.getPhaseCentre(skycoordobj=True)
         return coord.separation(coord_sun).deg
+    
+    def get_jupiter_dist(self):
+        """
+        Return Jupiter distance from the pointing centre in deg
+        """
+        coord_jupiter = get_body('jupiter', self.get_time(), self.get_telescope_coords())
+        coord_jupiter = SkyCoord(ra=coord_jupiter.ra,dec=coord_jupiter.dec) # fix transformation issue
+        coord = self.getPhaseCentre(skycoordobj=True)
+        return coord.separation(coord_jupiter).deg
     
     def get_hour_angle(self):
         """
@@ -622,7 +632,7 @@ class MS(object):
 
         if pb_cut is None:
             radius = self.getFWHM(freq=freq, elliptical=True)/2.
-            if to_null: radius *= 2 # rough estimation
+            if to_null: radius *= 1.8 # rough estimation
         else:
             radius = np.array([pb_cut/(2.*np.cos(np.deg2rad(53-dec))),pb_cut/2.])
 

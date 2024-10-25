@@ -315,11 +315,15 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
     c : cycle name, e.g. "final"
     h5s : lists of H5parm files or string of 1 h5parm
     parsets : lists of parsets to execute
+    plots_dir : rename the "plots" dir to this name at the end
+    h5_dir : dir where to move the new h5parm
     """
 
     logger.info("Running LoSoTo...")
-
-    h5out = 'cal-'+c+'.h5'
+    if c[:3] == '.h5':
+        h5out = c
+    else:
+        h5out = 'cal-'+c+'.h5'
 
     if type(h5s) is str: h5s = [h5s]
 
@@ -336,7 +340,7 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
         check_rm(h5out)
         s.add('H5parm_collector.py -V -s sol000 -o '+h5out+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
         s.run(check = True)
-    else:
+    elif h5s[0] != h5out:
         os.system('cp -r %s %s' % (h5s[0], h5out) )
 
     if h5_dir:
@@ -862,7 +866,7 @@ class Scheduler():
             # out += subprocess.check_output(r'grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -l "ERROR" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Traceback (most recent call last)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
 #        elif (commandType == "singularity"):
 #            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
