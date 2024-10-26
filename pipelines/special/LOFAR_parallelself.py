@@ -351,7 +351,7 @@ for c in range(maxIter):
         sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=intrinsic)
         # TODO we need some logic here to avoid picking up very extended sources. Also case no bright sources in a field.
         patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
-        if sum(patch_fluxes/si_factor > bright_sources_flux) < min_facets:
+        if sum(patch_fluxes/si_factor > bright_sources_flux) < min_facets[c]:
             bright_sources_flux = np.sort(patch_fluxes)[-4]/si_factor
             logger.warning(f'Not enough bright sources flux! Using sources above {bright_sources_flux:.2f} Jy')
         bright_names = sm.getPatchNames()[patch_fluxes > bright_sources_flux*si_factor]
@@ -846,7 +846,10 @@ for c in range(maxIter):
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits self/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits self/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(maxIter) ]
+# debugging images -> can be removed in production
 [ os.system('mv img/subfield-'+str(c)+'-MFS-image*.fits self/images') for c in range(maxIter) ]
+[ os.system('mv img/only*image.fits self/images') for c in range(maxIter) ]
+[ os.system('mv img/empty*image.fits self/images') for c in range(maxIter) ]
 # os.system('mv img/wideP-MFS-*-image.fits self/images')
 # os.system('mv img/wide-lr-MFS-image.fits self/images')
 
