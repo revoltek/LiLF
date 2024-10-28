@@ -137,7 +137,11 @@ uvlambdamin = 50 if min(MSs_concat_all.getFreqs()) < 30e6 else 100 # for Decamet
 # rescale data to expected theoretical bandpass
 with w.if_todo('scale_bp'):
     logger.info("Scale data to expected bandpass...")
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-scaleBP.parset msin=$pathMS ', log="$nameMS_scale.log", commandType="DP3")
+    lib_h5.create_h5bandpass(MSs)
+    #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-scaleBP.parset msin=$pathMS ', log="$nameMS_scale.log", commandType="DP3")
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA '
+                       f'cor.parmdb=bandpass.h5 cor.correction=amplitude000',
+                       log="$nameMS_scale.log", commandType="DP3")
 
 # flag bad stations, flags will propagate
 with w.if_todo('flag'):
