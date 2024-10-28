@@ -43,9 +43,9 @@ def download_file(url, filename, login=None, password=None):
                         fd.write(chunk)
             fsize=os.path.getsize(filename)
             if esize!=fsize and esize is not None:
-                print('Downloader -- Download incomplete (expected %i, got %i)! Retrying' % (esize, fsize))
+                print('Downloader -- Download incomplete (expected %i, got %i)! Retrying...' % (esize, fsize))
             elif esize is not None:
-                print('Downloader -- Download successful, %i of %i bytes received' % (fsize, esize))
+                print('Downloader -- Download successful, all %i bytes received' % (fsize, esize))
                 downloaded=True
             else:
                 print('Downloader -- Download successful, %i bytes (unknown size)' % (fsize))

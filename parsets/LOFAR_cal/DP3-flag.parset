@@ -2,10 +2,17 @@ msin =
 msin.datacolumn = DATA
 msout = .
 
-steps = [ant, elev, count]
+steps = [ant, elev, aoflagger, count]
 
 ant.type = preflagger
 ant.baseline = 
 
 elev.type = preflagger
 elev.elevation = 0 .. 15 deg
+
+aoflagger.type=aoflagger
+aoflagger.autocorr=T
+aoflagger.keepstatistics=T # maybe for debugging purposes (if needed)
+aoflagger.memoryperc=90
+aoflagger.timewindow=0 # use the largest time window possible (the larger the better)
+aoflagger.strategy = 

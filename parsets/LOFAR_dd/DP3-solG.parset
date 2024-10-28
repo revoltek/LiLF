@@ -5,6 +5,9 @@ msout = .
 steps=[sol]
 
 sol.type = ddecal
+sol.solveralgorithm = directioniterative # needed for sol.datause
+sol.datause = dual
+
 sol.uvlambdamin = 100
 sol.minvisratio = 0.3
 sol.h5parm = 

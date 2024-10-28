@@ -6,7 +6,7 @@ soltab = sol000/tec000
 axesInPlot = time
 axisInTable = ant
 plotFlag = True
-minmax = [-0.5,0.5]
+#minmax = [-0.5,0.5]
 prefix = plots/tec_
 refAnt = auto
 
@@ -16,6 +16,6 @@ soltab = sol000/phase000
 axesInPlot = time
 axisInTable = ant
 plotFlag = True
-minmax = [-3.14,3.14]
+#minmax = [-3.14,3.14]
 prefix = plots/ph_
 refAnt = auto

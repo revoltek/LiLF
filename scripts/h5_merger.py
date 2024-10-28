@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 h5parm merger script for merging h5parms containing phase and/or amplitude solutions for calibrating LOFAR observations.
 
@@ -2849,7 +2851,7 @@ def merge_h5(h5_out=None, h5_tables=None, ms_files=None, h5_time_freq=None, conv
     tables.file._open_files.close_all()
 
     # If amplitude000 or phase000 are missing --> add a template for these
-    merge.add_template()
+    #merge.add_template()
 
     # Add mock direction
     if add_directions:
