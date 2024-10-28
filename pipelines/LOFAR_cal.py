@@ -150,8 +150,10 @@ uvlambdamin = 50 if min(MSs_concat_all.getFreqs()) < 30e6 else 100 # for Decamet
 # flag bad stations, flags will propagate
 with w.if_todo('flag'):
     logger.info("Flagging...")
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-flag.parset msin=$pathMS ant.baseline=\"{bl2flag}\"',
-                       log="$nameMS_flag.log", commandType="DP3")
+    flag_strat = '/LBAdefaultwideband.lua'
+    MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\" \
+            aoflagger.strategy='+parset_dir+flag_strat,
+            log='$nameMS_DP3_flag.log', commandType='DP3')
     # extend flags
     logger.info('Remove bad time/freq stamps...')
     MSs_concat_all.run('flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
