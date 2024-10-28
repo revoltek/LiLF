@@ -321,8 +321,8 @@ with w.if_todo('cal_fr'):
     logger.info('Calibrating FR...')
     # We solve for rot+diag or rot+scalar here and not just rot since we can have phase offsets from the preliminary iono!!
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 \
-               sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase sol.smoothnessconstraint=1.5e6 sol.smoothnessreffrequency=54e6 sol.smoothnessspectralexponent=-2 \
-               sol.solint={small_timestep} sol.nchan={small_freqstep}', log='$nameMS_solFR.log', commandType="DP3")
+               sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase \
+               sol.solint={small_timestep} sol.nchan={int(small_freqstep/2)}', log='$nameMS_solFR.log', commandType="DP3")
 
     # TODO add residual rotation plot after FR fit as soon as this option is present in LoSoTo!
     lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_concat_all.getListStr()],
@@ -420,8 +420,8 @@ if develop:
         logger.info('Calibrating FR2...')
         # We solve for rot+diag or rot+scalar here and not just rot since we can have phase offsets from the preliminary iono!!
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/fr2.h5 \
-                   sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase sol.smoothnessconstraint=1.5e6 sol.smoothnessreffrequency=54e6 sol.smoothnessspectralexponent=-2 \
-                   sol.solint={small_timestep} sol.nchan={small_freqstep}', log='$nameMS_solFR.log', commandType="DP3")
+                   sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase \
+                   sol.solint={small_timestep} sol.nchan={int(small_freqstep/2)}', log='$nameMS_solFR.log', commandType="DP3")
 
         # TODO add residual rotation plot after FR fit as soon as this option is present in LoSoTo!
         lib_util.run_losoto(s, 'fr2', [ms + '/fr2.h5' for ms in MSs_concat_all.getListStr()],

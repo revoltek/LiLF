@@ -352,7 +352,7 @@ for c in range(maxIter):
         # TODO we need some logic here to avoid picking up very extended sources. Also case no bright sources in a field.
         patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
         if sum(patch_fluxes/si_factor > bright_sources_flux) < min_facets[c]:
-            bright_sources_flux = np.sort(patch_fluxes)[-4]/si_factor
+            bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]]/si_factor
             logger.warning(f'Not enough bright sources flux! Using sources above {bright_sources_flux:.2f} Jy')
         bright_names = sm.getPatchNames()[patch_fluxes > bright_sources_flux*si_factor]
         bright_pos = sm.getPatchPositions(bright_names)
@@ -399,7 +399,7 @@ for c in range(maxIter):
         # Smooth MSs:CORRECTED_DATA -> SMOOTHED_DATA
         MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for all BUT most distant RS!
-        logger.info('Solving TEC (fastRS)...')
+        logger.info('Solving TEC (RS)...')
         solve_iono(MSs, c, 2, patches, smMHz2[c], 2*base_solint, 'phase', resetant='CS', model_column_fluxes=patch_fluxes, variable_solint_threshold=8.)
     ### DONE
 
@@ -410,7 +410,7 @@ for c in range(maxIter):
 
     with w.if_todo('c%02i_solve_tecCS' % c):
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
-        logger.info('Solving TEC (midRS)...')
+        logger.info('Solving TEC (CS)...')
         solve_iono(MSs, c, 1, patches, smMHz1[c], 8*base_solint, 'tec', constrainant='RS')
     ### DONE
 
@@ -428,13 +428,13 @@ for c in range(maxIter):
             # solve ionosphere phase - ms:SMOOTHED_DATA
             logger.info('Solving amp-di...')
             MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=dual sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
-                     sol.mode=diagonal sol.h5parm=$pathMS/amp-di-c{c}.h5 sol.solint={150*base_solint} \
+                     sol.mode=diagonal sol.h5parm=$pathMS/amp-di.h5 sol.solint={150*base_solint} \
                      sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
                      log='$nameMS_solamp-c' + str(c) + '.log', commandType='DP3')
 
-            lib_util.run_losoto(s, f'amp-di-c{c}', [ms + f'/amp-di-c{c}.h5' for ms in MSs.getListStr()],
+            lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
                                 [f'{parset_dir}/losoto-plot-amp.parset', f'{parset_dir}/losoto-plot-ph.parset', f'{parset_dir}/losoto-amp-di.parset'],
-                                plots_dir=f'self/plots/plots-amp-di-c{c}', h5_dir=f'self/solutions/')
+                                plots_dir=f'self/plots/plots-amp-di', h5_dir=f'self/solutions/')
             with w.if_todo('correct_amp_di'):
                 # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
                 logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
