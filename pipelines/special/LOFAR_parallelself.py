@@ -30,7 +30,7 @@ import astropy.units as u
 import lsmtool
 
 ########################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd, h5_merger, lib_h5, lib_dd_parallel
+from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd, lib_h5, lib_dd_parallel
 logger_obj = lib_log.Logger('pipeline-self')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
@@ -451,16 +451,20 @@ for c in range(maxIter):
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec1-c{c}.h5', sourcedb)
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec2-c{c}.h5', sourcedb)
         # reference, unflag and reset the added stations f'{sol_dir}/cal-tec0-c{c}.h5',
-        h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-tec-RS-c{c}.h5", h5_tables=[f'{sol_dir}/cal-tec2-c{c}.h5'],
-                           h5_time_freq=f'{sol_dir}/cal-tec2-c{c}.h5', no_pol=True, ms_files='mss/TC*.MS',no_antenna_crash=True)
+        logger.info('Merge solutions...')
+        s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-RS-c{c}.h5 --h5_tables {sol_dir}/cal-tec2-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 \
+              --no_antenna_crash --no-pols' , log='h5_merger.log', commandType='python')
+        s.run(check=True)
         lib_util.run_losoto(s, f'tec-RS-c{c}', f'{sol_dir}/cal-tec-RS-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
                             plots_dir=f'self/plots/plots-tec-RS-c{c}', h5_dir='self/solutions')
-        h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-tec-CS-c{c}.h5", h5_tables=[f'{sol_dir}/cal-tec1-c{c}.h5'],
-                           h5_time_freq=f'{sol_dir}/cal-tec2-c{c}.h5', no_pol=True, ms_files='mss/TC*.MS',no_antenna_crash=True)
+        s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-CS-c{c}.h5 --h5_tables {sol_dir}/cal-tec1-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 \
+              --no_antenna_crash --no-pols' , log='h5_merger.log', commandType='python')
+        s.run(check=True)
         lib_util.run_losoto(s, f'tec-CS-c{c}', f'{sol_dir}/cal-tec-CS-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
                             plots_dir=f'self/plots/plots-tec-CS-c{c}', h5_dir='self/solutions')
-        h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-tec-merged-c{c}.h5", h5_tables=[f'{sol_dir}/cal-tec-RS-c{c}.h5',f'{sol_dir}/cal-tec-CS-c{c}.h5'],
-                           h5_time_freq=f'{sol_dir}/cal-tec2-c{c}.h5', no_pol=True, ms_files='mss/TC*.MS',no_antenna_crash=True)
+        s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RS-c{c}.h5 {sol_dir}/cal-tec-CS-c{c}.h5 \
+               --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 --no_antenna_crash --no-pols' , log='h5_merger.log', commandType='python')
+        s.run(check=True)
         lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5',
                             [f'{parset_dir}/losoto-plot-scalar.parset'], plots_dir=f'self/plots/plots-tec-merged-c{c}',
                             h5_dir='self/solutions')
