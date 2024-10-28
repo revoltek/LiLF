@@ -209,14 +209,16 @@ try:
 except:
     logger.error('Problem with HAcov, continue anyway.')
 
-# make beam to the first mid null
+# make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
-MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='min', to_null=True)
+MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='mid', to_null=True)
 beamReg = 'self/beam.reg'
 beamMask = 'self/beam.fits'
 
-# set image size
-imgsizepix_wide = int(2.1*MSs.getListObj()[0].getFWHM(freq='mid')*3600/4.)
+# set image size - this should be a bit more than the beam region used for calibration
+imgsizepix_wide = int(1.05*MSs.getListObj()[0].getFWHM(freq='mid', to_null=True)*3600/4.)
+if imgsizepix_wide > 10000:
+    imgsizepix_wide = 10000
 imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/30.)
 current_best_mask = None
 
@@ -238,10 +240,8 @@ else: base_solint = 1
 mask_threshold = [6.0,5.5,4.5,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
 facet_fluxes = [4, 1.8, 1.2, 0.8, 0.6] # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
-min_facets = [4, 8, 16, 24, 30, 30] # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
-# define smoothness kernels in MHz (centered at 54 MHz)
+min_facets = [4, 8, 16, 24, 30, 30]
 
-# TODO try these kernels
 smMHz2 = [1.0,5.0,5.0,5.0,5.0,5.0]
 smMHz1 = [2.0,8.0,8.0,8.0,8.0,8.0]
 # smMHz0 = [6.0,10.0,10.0,10.0,10.0,10.0]
@@ -327,10 +327,10 @@ for c in range(maxIter):
                 logger.info(f'Using input skymodel {start_sourcedb}')
                 sm = lsmtool.load(start_sourcedb, beamMS=beamMS)
             else:
-                # Create initial sourcedb from LoTSS or GSM
-                fwhm = MSs.getListObj()[0].getFWHM(freq='min')
+                # Create initial sourcedb from GSM
+                fwhm = MSs.getListObj()[0].getFWHM(freq='mid', to_null=True)
                 logger.warning('Get model from GSM.')
-                os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={1.3*fwhm/2}&unit=deg"')
+                os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"')
                 sm = lsmtool.load(sourcedb, beamMS=beamMS)
                 if not intrinsic: # turn to apparent sky
                     sm.write(sourcedb, clobber=True, applyBeam=True, adjustSI=True)
@@ -514,58 +514,58 @@ for c in range(maxIter):
         im.nantozeroModel()
 
     ########################### TESTING FOR DD-AMP-CAL ####################################
-    if c > 3:
-        with w.if_todo('solve_amp_c%02i' % c):
-            MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
-            logger.info('Solving amp (slowCS)...')
-            MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset memory_logging=True numthreads=32 msin=$pathMS sol.nchan=24 \
-                          sol.mode=scalaramplitude sol.h5parm=$pathMS/amp-dd-c{c}.h5 sol.solint={300 * base_solint} sol.modeldatacolumns="[{",".join(patches)}]"',
-                    log='$nameMS_solamp-c' + str(c) + '.log', commandType='DP3', maxThreads=1)
-
-
-            lib_util.run_losoto(s, f'amp-dd-c{c}', [ms + f'/amp-dd-c{c}.h5' for ms in MSs.getListStr()],
-                                [f'{parset_dir}/losoto-plot-scalaramp.parset'],
-                                plots_dir=f'self/plots/plots-amp-dd-c{c}', h5_dir=f'self/solutions/')
-
-        with w.if_todo(f'merge_h5_2_c{c}'):
-            sol_dir = 'self/solutions'
-            # make sure the h5parm directions are correctly set - this should actually work automatically with DP3 -> eventually fix this in the DP3 solve call
-            # lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-amp-dd-c{c}.h5', sourcedb)
-            # # # reference, unflag and reset the added stations
-            # h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-amp-merged-c{c}.h5", min_distance=1/3600,
-            #                    h5_tables=[f"{sol_dir}/cal-amp-dd-c{c}.h5"], propagate_flags=True,
-            #                    h5_time_freq=f"{sol_dir}/cal-tec-merged-c{c}.h5",ms_files='mss/TC*.MS',no_antenna_crash=True)
-            # lib_util.run_losoto(s, f'amp-merged-c{c}', f'{sol_dir}/cal-amp-merged-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
-            #                     plots_dir=f'self/plots/plots-amp-merged-c{c}', h5_dir='self/solutions')
-            # # remove error000 - this is to avoid a bug in h5parm merger
-            # s.add(f'losoto -d sol000/error000 self/solutions/cal-tec-merged-c{c}.h5', log='losoto-removeerror.log', commandType="python")
-            # s.run(maxThreads=1, check=True)  # final check on losoto-final.log
-            h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-merged-c{c}.h5",
-                               h5_tables=[f"{sol_dir}/cal-amp-merged-c{c}.h5",f"{sol_dir}/cal-tec-merged-c{c}.h5"], propagate_flags=True,
-                               h5_time_freq=f"{sol_dir}/cal-tec-merged-c{c}.h5",ms_files='mss/TC*.MS',no_antenna_crash=True)
-            lib_util.run_losoto(s, f'merged-c{c}', f'{sol_dir}/cal-merged-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
-                                plots_dir=f'self/plots/plots-merged-c{c}', h5_dir='self/solutions')
-
-        # logger.info('Deleting model columns...')
-        # for patch in patches:
-        #     MSs.run(f'taql "ALTER TABLE $pathMS DELETE COLUMN {patch}"',
-        #             log='$nameMS_taql_delcol.log', commandType='general')
-
-        imagenameM = 'img/wideM-3ampdd'
-        facetregname = f'self/solutions/facets-c{c}.reg'
-        lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSs.getStrWsclean(), name=imagenameM,
-                             fits_mask='img/wideM-3-mask.fits', data_column='CORRECTED_DATA', size=imgsizepix_wide,
-                             scale='4arcsec',
-                             weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=32,
-                             no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12,
-                             parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
-                             join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6),
-                             deconvolution_channels=3,
-                             multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', pol='i',
-                             apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', scalar_visibilities='',
-                             facet_regions=facetregname, apply_facet_solutions=f'self/solutions/cal-merged-c{c}.h5 phase000,amplitude000 ',
-                             )
-        sys.exit()
+    # if c > 3:
+    #     with w.if_todo('solve_amp_c%02i' % c):
+    #         MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
+    #         logger.info('Solving amp (slowCS)...')
+    #         MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset memory_logging=True numthreads=32 msin=$pathMS sol.nchan=24 \
+    #                       sol.mode=scalaramplitude sol.h5parm=$pathMS/amp-dd-c{c}.h5 sol.solint={300 * base_solint} sol.modeldatacolumns="[{",".join(patches)}]"',
+    #                 log='$nameMS_solamp-c' + str(c) + '.log', commandType='DP3', maxThreads=1)
+    #
+    #
+    #         lib_util.run_losoto(s, f'amp-dd-c{c}', [ms + f'/amp-dd-c{c}.h5' for ms in MSs.getListStr()],
+    #                             [f'{parset_dir}/losoto-plot-scalaramp.parset'],
+    #                             plots_dir=f'self/plots/plots-amp-dd-c{c}', h5_dir=f'self/solutions/')
+    #
+    #     with w.if_todo(f'merge_h5_2_c{c}'):
+    #         sol_dir = 'self/solutions'
+    #         # make sure the h5parm directions are correctly set - this should actually work automatically with DP3 -> eventually fix this in the DP3 solve call
+    #         # lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-amp-dd-c{c}.h5', sourcedb)
+    #         # # # reference, unflag and reset the added stations
+    #         # h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-amp-merged-c{c}.h5", min_distance=1/3600,
+    #         #                    h5_tables=[f"{sol_dir}/cal-amp-dd-c{c}.h5"], propagate_flags=True,
+    #         #                    h5_time_freq=f"{sol_dir}/cal-tec-merged-c{c}.h5",ms_files='mss/TC*.MS',no_antenna_crash=True)
+    #         # lib_util.run_losoto(s, f'amp-merged-c{c}', f'{sol_dir}/cal-amp-merged-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
+    #         #                     plots_dir=f'self/plots/plots-amp-merged-c{c}', h5_dir='self/solutions')
+    #         # # remove error000 - this is to avoid a bug in h5parm merger
+    #         # s.add(f'losoto -d sol000/error000 self/solutions/cal-tec-merged-c{c}.h5', log='losoto-removeerror.log', commandType="python")
+    #         # s.run(maxThreads=1, check=True)  # final check on losoto-final.log
+    #         h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-merged-c{c}.h5",
+    #                            h5_tables=[f"{sol_dir}/cal-amp-merged-c{c}.h5",f"{sol_dir}/cal-tec-merged-c{c}.h5"], propagate_flags=True,
+    #                            h5_time_freq=f"{sol_dir}/cal-tec-merged-c{c}.h5",ms_files='mss/TC*.MS',no_antenna_crash=True)
+    #         lib_util.run_losoto(s, f'merged-c{c}', f'{sol_dir}/cal-merged-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
+    #                             plots_dir=f'self/plots/plots-merged-c{c}', h5_dir='self/solutions')
+    #
+    #     # logger.info('Deleting model columns...')
+    #     # for patch in patches:
+    #     #     MSs.run(f'taql "ALTER TABLE $pathMS DELETE COLUMN {patch}"',
+    #     #             log='$nameMS_taql_delcol.log', commandType='general')
+    #
+    #     imagenameM = 'img/wideM-3ampdd'
+    #     facetregname = f'self/solutions/facets-c{c}.reg'
+    #     lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSs.getStrWsclean(), name=imagenameM,
+    #                          fits_mask='img/wideM-3-mask.fits', data_column='CORRECTED_DATA', size=imgsizepix_wide,
+    #                          scale='4arcsec',
+    #                          weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=32,
+    #                          no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12,
+    #                          parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
+    #                          join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6),
+    #                          deconvolution_channels=3,
+    #                          multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', pol='i',
+    #                          apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', scalar_visibilities='',
+    #                          facet_regions=facetregname, apply_facet_solutions=f'self/solutions/cal-merged-c{c}.h5 phase000,amplitude000 ',
+    #                          )
+    #     sys.exit()
     #####################################################################################################
     # Find calibration solutions for subfield
     if c < 2:
@@ -815,7 +815,7 @@ for c in range(maxIter):
                 MSs.run('taql "update $pathMS set CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
 
             if c < 2 :
-                # Only after the first iteration: apply the subfield solutions to the data.
+                # Only after the 0th and 1st iteration: apply the subfield solutions to the data.
                 with w.if_todo('c%02i_corr_sf_sols' % c):
                     logger.info('Correct subfield ionosphere (CORRECTED_DATA_FR -> CORRECTED_DATA)...')
                     # Correct MSs:CORRECTED_DATA_FR -> CORRECTED_DATA

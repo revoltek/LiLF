@@ -27,10 +27,3 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/amp_
-
-[plotA]
-operation = PLOT
-soltab = sol000/amplitude000
-axesInPlot = [time,freq]
-axisInTable = ant
-prefix = plots/amp1_
