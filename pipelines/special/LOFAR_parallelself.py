@@ -329,7 +329,7 @@ for c in range(maxIter):
             else:
                 # Create initial sourcedb from GSM
                 fwhm = MSs.getListObj()[0].getFWHM(freq='mid', to_null=True)
-                logger.warning('Get model from GSM.')
+                logger.info('Get model from GSM.')
                 os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"')
                 sm = lsmtool.load(sourcedb, beamMS=beamMS)
                 if not intrinsic: # turn to apparent sky
@@ -339,11 +339,9 @@ for c in range(maxIter):
             # get wsclean skymodel of last iteration
             wsc_src = f'img/wideM-{c-1}-sources-pb.txt' if intrinsic else f'img/wideM-{c-1}-sources.txt'
             sm = lsmtool.load(wsc_src, beamMS=beamMS if intrinsic else None)
-        bright_sources_flux = facet_fluxes[c]
         # if using e.g. LoTSS, adjust for the frequency
-        logger.info(f'Extrapolating input skymodel fluxes from {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
+        logger.debug(f'Extrapolating input skymodel fluxes from {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
         si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S144 = si_factor * S54
-        #print(si_factor)
         sm.select(f'I>{0.05*si_factor}', applyBeam=intrinsic)  # keep only reasonably bright sources
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
         sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
@@ -351,9 +349,11 @@ for c in range(maxIter):
         sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=intrinsic)
         # TODO we need some logic here to avoid picking up very extended sources. Also case no bright sources in a field.
         patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
-        if sum(patch_fluxes/si_factor > bright_sources_flux) < min_facets[c]:
-            bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]]/si_factor
-            logger.warning(f'Not enough bright sources flux! Using sources above {bright_sources_flux:.2f} Jy')
+        if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]:
+            bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor
+            logger.warning(f'Not enough bright sources above minimum flux {bright_sources_flux} Jy! Using sources above {bright_sources_flux:.2f} Jy')
+        else:
+            bright_sources_flux = facet_fluxes[c]
         bright_names = sm.getPatchNames()[patch_fluxes > bright_sources_flux*si_factor]
         bright_pos = sm.getPatchPositions(bright_names)
         sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=intrinsic, root='', byPatch=True)
@@ -408,15 +408,16 @@ for c in range(maxIter):
         corrupt_model_dirs(MSs, c, 2, patches)
     ### DONE
 
+    cs_solmode = 'phase' if c == 0 else 'tec' # 0th iteration might not be stable enough for TEC
     with w.if_todo('c%02i_solve_tecCS' % c):
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
         logger.info('Solving TEC (CS)...')
-        solve_iono(MSs, c, 1, patches, smMHz1[c], 8*base_solint, 'tec', constrainant='RS')
+        solve_iono(MSs, c, 1, patches, smMHz1[c], 8*base_solint, cs_solmode, constrainant='RS' if c > 0 else None)
     ### DONE
 
     # ### CORRUPT the MODEL_DATA columns for all patches
     with w.if_todo('c%02i_corrupt_tecCS' % c):
-        corrupt_model_dirs(MSs, c, 1, patches, 'tec')
+        corrupt_model_dirs(MSs, c, 1, patches, cs_solmode)
     # ### DONE
 
     # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
@@ -435,12 +436,12 @@ for c in range(maxIter):
             lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
                                 [f'{parset_dir}/losoto-plot-amp.parset', f'{parset_dir}/losoto-plot-ph.parset', f'{parset_dir}/losoto-amp-di.parset'],
                                 plots_dir=f'self/plots/plots-amp-di', h5_dir=f'self/solutions/')
-            with w.if_todo('correct_amp_di'):
-                # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
-                logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
-                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-                        cor.parmdb=self/solutions/cal-amp-di.h5 cor.correction=amplitudeSmooth cor.updateweights=True',
-                        log='$nameMS_sf-correct.log', commandType='DP3')
+        with w.if_todo('correct_amp_di'):
+            # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
+            logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
+            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                    cor.parmdb=self/solutions/cal-amp-di.h5 cor.correction=amplitudeSmooth cor.updateweights=True',
+                    log='$nameMS_sf-correct.log', commandType='DP3')
 
     # merge solutions into one h5parms for large scale image
     with w.if_todo('c%02i_merge_h5' % c):
@@ -453,17 +454,17 @@ for c in range(maxIter):
         # reference, unflag and reset the added stations f'{sol_dir}/cal-tec0-c{c}.h5',
         logger.info('Merge solutions...')
         s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-RS-c{c}.h5 --h5_tables {sol_dir}/cal-tec2-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 \
-              --no_antenna_crash --no-pols' , log='h5_merger.log', commandType='python')
+              --no_antenna_crash --no_pol' , log='h5_merger.log', commandType='python')
         s.run(check=True)
         lib_util.run_losoto(s, f'tec-RS-c{c}', f'{sol_dir}/cal-tec-RS-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
                             plots_dir=f'self/plots/plots-tec-RS-c{c}', h5_dir='self/solutions')
         s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-CS-c{c}.h5 --h5_tables {sol_dir}/cal-tec1-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 \
-              --no_antenna_crash --no-pols' , log='h5_merger.log', commandType='python')
+              --no_antenna_crash --no_pol' , log='h5_merger.log', commandType='python')
         s.run(check=True)
         lib_util.run_losoto(s, f'tec-CS-c{c}', f'{sol_dir}/cal-tec-CS-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
                             plots_dir=f'self/plots/plots-tec-CS-c{c}', h5_dir='self/solutions')
         s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RS-c{c}.h5 {sol_dir}/cal-tec-CS-c{c}.h5 \
-               --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 --no_antenna_crash --no-pols' , log='h5_merger.log', commandType='python')
+               --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 --no_antenna_crash --no_pol' , log='h5_merger.log', commandType='python')
         s.run(check=True)
         lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5',
                             [f'{parset_dir}/losoto-plot-scalar.parset'], plots_dir=f'self/plots/plots-tec-merged-c{c}',
@@ -507,7 +508,7 @@ for c in range(maxIter):
                              weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='',
                              update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
-                             multiscale='',  multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', pol='i',
+                             multiscale='',  multiscale_scale_bias=0.65, multiscale_scales='0,10,20,40,80', pol='i',
                              facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000 ',
                              **reuse_kwargs, **beam_kwargs)
         # make a new mask from the image
@@ -714,11 +715,10 @@ for c in range(maxIter):
             sol_dir = 'self/solutions'
             lib_util.check_rm(f'{sol_dir}/cal-tec-sf-merged-c{c}.h5')
             # reference, unflag and reset the added stations
-            h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-tec-sf-merged-c{c}.h5",
-                               h5_tables=[f'{sol_dir}/cal-tec0-sf-c{c}.h5', f'{sol_dir}/cal-tec1-sf-c{c}.h5',
-                                          f'{sol_dir}/cal-tec2-sf-c{c}.h5'],
-                               h5_time_freq=f'{sol_dir}/cal-template.h5', no_pol=True, ms_files='mss/TC*.MS',
-                               no_antenna_crash=True)
+            s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-sf-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec0-sf-c{c}.h5 {sol_dir}/cal-tec1-sf-c{c}.h5 {sol_dir}/cal-tec2-sf-c{c}.h5 \
+                   --h5_time_freq {sol_dir}/cal-tec2-sf-c{c}.h5 --no_antenna_crash --no_pol', log='h5_merger.log',
+                commandType='python')
+            s.run(check=True)
             lib_util.run_losoto(s, f'tec-sf-merged-c{c}', f'{sol_dir}/cal-tec-sf-merged-c{c}.h5',
                                 [f'{parset_dir}/losoto-plot-scalar.parset'],
                                 plots_dir=f'self/plots/plots-tec-sf-merged-c{c}', h5_dir='self/solutions')
