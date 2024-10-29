@@ -150,6 +150,7 @@ phase_center = MSs.getListObj()[0].getPhaseCentre()
 timeint = MSs.getListObj()[0].getTimeInt()
 ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 imgsizepix = int(1.05*MSs.getListObj()[0].getFWHM(freq='mid', to_null=True) * 3600 / 4.)
+pixscale = MSs.getListObj()[0].getPixelScale() 
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 facetregname_self = 'self/solutions/facets-c1.reg'
@@ -869,7 +870,7 @@ for cmaj in range(maxIter):
 
         logger.info('Preparing region file...')
         s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+' --h5 '+interp_h5parm+' --imsize '+str(imgsizepix)+' \
-                --pixelscale 4 --writevoronoipoints --output '+facetregname,
+                --pixelscale '+str(pixscale)+' --writevoronoipoints --output '+facetregname,
                 log='facet_generator.log', commandType='python')
         s.run(check=True)
 
@@ -891,7 +892,7 @@ for cmaj in range(maxIter):
         # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
         # TODO: do we need dd_psf_grid='25 25'
         logger.info('Cleaning...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
+        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale=str(pixscale)+'arcsec',
                 weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=32, save_source_list='', no_update_model_required='', minuv_l=30, nmiter=40, mgain=0.85, parallel_deconvolution=1024,
                 auto_threshold=3.0, auto_mask=5.0, fits_mask=maskname, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.65, pol='i', **beam_kwargs,
@@ -910,7 +911,7 @@ for cmaj in range(maxIter):
 with w.if_todo('output-vstokes'):
     imagenameV = 'img/wideDD-v-c%02i' % (cmaj)
     logger.info('Cleaning (V-stokes)...')
-    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
+    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=imgsizepix, scale=str(pixscale)+'sarcsec',
                 weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
                 pol='v')
@@ -937,7 +938,7 @@ with w.if_todo('output-lres'):
 
     imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
     logger.info('Cleaning (low res)...')
-    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameL, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale='16arcsec',
+    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameL, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
                 weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.65, pol='i', taper_gaussian='60arcsec',
