@@ -34,7 +34,7 @@ fillmissingedges = parset.getboolean('LOFAR_cal', 'fillmissingedges')
 sparse_sb = parset.getboolean('LOFAR_cal', 'sparse_sb') # change flagging to hande data that uses only alternating sb
 develop = parset.getboolean('LOFAR_cal', 'develop') # for development, don't delete files
 bl2flag = parset.get('flag', 'stations')
-debugplots = False
+debugplots = True
 
 #############################################################
 
@@ -149,7 +149,7 @@ with w.if_todo('scale_bp'):
     lib_h5.create_h5bandpass(MSs_concat_all)
     #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-scaleBP.parset msin=$pathMS ', log="$nameMS_scale.log", commandType="DP3")
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA '
-                       f'cor.parmdb=bandpass.h5 cor.correction=amplitude000',
+                       f'cor.parmdb=bandpass.h5 cor.correction=amplitude000 cor.updateweights=True',
                        log="$nameMS_scale.log", commandType="DP3")
 
 # flag bad stations, flags will propagate

@@ -436,6 +436,7 @@ for c in range(maxIter):
             lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
                                 [f'{parset_dir}/losoto-plot-amp.parset', f'{parset_dir}/losoto-plot-ph.parset', f'{parset_dir}/losoto-amp-di.parset'],
                                 plots_dir=f'self/plots/plots-amp-di', h5_dir=f'self/solutions/')
+            
         with w.if_todo('correct_amp_di'):
             # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
