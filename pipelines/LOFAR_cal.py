@@ -34,7 +34,6 @@ fillmissingedges = parset.getboolean('LOFAR_cal', 'fillmissingedges')
 sparse_sb = parset.getboolean('LOFAR_cal', 'sparse_sb') # change flagging to hande data that uses only alternating sb
 develop = parset.getboolean('LOFAR_cal', 'develop') # for development, don't delete files
 bl2flag = parset.get('flag', 'stations')
-debugplots = False
 
 #############################################################
 
@@ -231,12 +230,13 @@ with w.if_todo('pre_cal'):
     # kernelsize_smoothnessconstraint [MHz] = 0.3 / dTEC [TECU]
     # For RS: Expect up to 0.5 TECU, kernel should be ~0.6 MHz (smaller since we also have clock)
     # FOR IS: Expect up to 5 TECU, kernel should be ~0.1 MHz
+    smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.6e6'
     MSs_concat_phaseupIONO.run_Blsmooth(incol='DATA', logstr='smooth')
     # Solve concat_all-phaseupIONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                            sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase sol.datause=single \
-                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.10e6 sol.smoothnessreffrequency=54e6', \
+                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
                            log='$nameMS_solIONO.log', commandType="DP3")
 
     if min(MSs_concat_all.getFreqs()) < 35.e6:
@@ -387,11 +387,12 @@ with w.if_todo('cal_iono'):
 
     # Smooth data concat_all.MS:DATA -> SMOOTHED_DATA
     MSs_concat_phaseupIONO.run_Blsmooth(incol='DATA', nofreq=True, logstr='smooth3')
+    smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.6e6'
     # Solve concat_all-phaseupIONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                            sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single \
-                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.08e6 sol.smoothnessreffrequency=54e6', \
+                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
                            log='$nameMS_solIONO.log', commandType="DP3")
 
     if (min(MSs_concat_phaseupIONO.getFreqs()) < 35.e6):

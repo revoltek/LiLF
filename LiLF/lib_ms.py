@@ -638,7 +638,6 @@ class MS(object):
         else:
             radius = np.array([pb_cut/(2.*np.cos(np.deg2rad(53-dec))),pb_cut/2.])
 
-
         s = Shape('ellipse', None)
         s.coord_format = 'fk5'
         s.coord_list = [ ra, dec, radius[1], radius[0], 0.0 ] # ra, dec, radius
@@ -681,6 +680,13 @@ class MS(object):
         #return int(round(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcseconds
         return float('%.1f'%(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcsec
 
+    def getPixelScale(self, check_flags=True):
+        """
+        Return a reasonable pixel scale
+        """
+        res = self.getResolution(check_flags)
+        return int(np.rint(res*1.6/4)) # reasonable value
+
     def getAntennas(self):
         """
         Return a list of antenna names
@@ -699,6 +705,7 @@ class MS(object):
         except MemoryError: # can happen e.g. for full MS in timesplit (with IS and/or HBA)
             logger.warning('Caugt MemoryError in checking for fully flagged MS! This can happen when working with large '
                            'measurement sets. You might want to manually inspect the flags. Trying to proceed...')
+            
 
 #    def delBeamInfo(self, col=None):
 #        """

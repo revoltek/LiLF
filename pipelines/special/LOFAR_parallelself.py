@@ -221,6 +221,7 @@ if imgsizepix_wide > 10000:
     imgsizepix_wide = 10000
 imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/30.)
 current_best_mask = None
+pixscale = MSs.getListObj()[0].getPixelScale()
 
 # set clean componet fit order (use 5 for large BW)
 if MSs.getChout(4.e6) >= 7:  # Bandwidth of 28 MHz or more
@@ -239,11 +240,11 @@ else: base_solint = 1
 
 mask_threshold = [6.0,5.5,4.5,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
-facet_fluxes = [4, 1.8, 1.2, 0.8, 0.6] # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+facet_fluxes = np.array([4, 1.8, 1.2, 0.8, 0.6])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 min_facets = [4, 8, 16, 24, 30, 30]
 
 smMHz2 = [1.0,5.0,5.0,5.0,5.0,5.0]
-smMHz1 = [2.0,8.0,8.0,8.0,8.0,8.0]
+smMHz1 = [8.0,8.0,8.0,8.0,8.0,8.0]
 # smMHz0 = [6.0,10.0,10.0,10.0,10.0,10.0]
 #################################################################
 
@@ -351,7 +352,7 @@ for c in range(maxIter):
         patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
         if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]:
             bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor
-            logger.warning(f'Not enough bright sources above minimum flux {bright_sources_flux} Jy! Using sources above {bright_sources_flux:.2f} Jy')
+            logger.warning(f'Not enough bright sources above minimum flux {bright_sources_flux:.2f} Jy! Using sources above {bright_sources_flux:.2f} Jy')
         else:
             bright_sources_flux = facet_fluxes[c]
         bright_names = sm.getPatchNames()[patch_fluxes > bright_sources_flux*si_factor]
@@ -409,10 +410,11 @@ for c in range(maxIter):
     ### DONE
 
     cs_solmode = 'phase' if c == 0 else 'tec' # 0th iteration might not be stable enough for TEC
+    cs_solfactor = 16 if c == 0 else 8 # 0th iteration be conservative
     with w.if_todo('c%02i_solve_tecCS' % c):
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
         logger.info('Solving TEC (CS)...')
-        solve_iono(MSs, c, 1, patches, smMHz1[c], 8*base_solint, cs_solmode, constrainant='RS' if c > 0 else None)
+        solve_iono(MSs, c, 1, patches, smMHz1[c], cs_solfactor*base_solint, cs_solmode, constrainant='RS' if c > 0 else None)
     ### DONE
 
     # ### CORRUPT the MODEL_DATA columns for all patches
@@ -424,8 +426,9 @@ for c in range(maxIter):
     if c == 1:
         with w.if_todo('solve_amp_di'):
             # TODO -> down the road this could be a fulljones-calibration to correct element-beam related leakage.
-            # TODO -> this has steps in frequency due to the large bandwidth per imaging channel
             MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
+            logger.info('Setting MODEL_DATA to sum of corrupted patch models...')
+            MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(patches)}"', log='$nameMS_taql_phdiff.log', commandType='general')
             # solve ionosphere phase - ms:SMOOTHED_DATA
             logger.info('Solving amp-di...')
             MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=dual sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
@@ -436,6 +439,7 @@ for c in range(maxIter):
             lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
                                 [f'{parset_dir}/losoto-plot-amp.parset', f'{parset_dir}/losoto-plot-ph.parset', f'{parset_dir}/losoto-amp-di.parset'],
                                 plots_dir=f'self/plots/plots-amp-di', h5_dir=f'self/solutions/')
+            
         with w.if_todo('correct_amp_di'):
             # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
@@ -495,7 +499,6 @@ for c in range(maxIter):
             reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
         else:
             current_best_mask = f'img/wideM-{c-1}-mask.fits'
-
 
         if c>1: # add earlier if bug is fixed
             # if we are done with the things that require blanked pedict, we can also use beam keywords
