@@ -55,7 +55,7 @@ userReg = parset.get('model','userReg')
 def clean_empty(MSs, name, col='CORRECTED_DATA', size=5000):
     """ For testing/debugging only"""
     lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
-                         data_column=col, size=size, scale='8arcsec', niter=0, nmiter=0,
+                         data_column=col, size=size, scale=f'{int(pixscale/2)}arcsec', niter=0, nmiter=0,
                          weight='briggs 0.0', gridder='wgridder', parallel_gridding=1,
                          no_update_model_required='')
 
@@ -216,12 +216,12 @@ beamReg = 'self/beam.reg'
 beamMask = 'self/beam.fits'
 
 # set image size - this should be a bit more than the beam region used for calibration
-imgsizepix_wide = int(1.05*MSs.getListObj()[0].getFWHM(freq='mid', to_null=True)*3600/4.)
+pixscale = MSs.getListObj()[0].getPixelScale()
+imgsizepix_wide = int(1.05*MSs.getListObj()[0].getFWHM(freq='mid', to_null=True)*3600/pixscale)
 if imgsizepix_wide > 10000:
     imgsizepix_wide = 10000
-imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/30.)
+imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/(pixscale*8))
 current_best_mask = None
-pixscale = MSs.getListObj()[0].getPixelScale()
 
 # set clean componet fit order (use 5 for large BW)
 if MSs.getChout(4.e6) >= 7:  # Bandwidth of 28 MHz or more
@@ -241,7 +241,7 @@ else: base_solint = 1
 mask_threshold = [6.0,5.5,4.5,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
 facet_fluxes = np.array([4, 1.8, 1.2, 0.8, 0.6])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
-min_facets = [4, 8, 16, 24, 30, 30]
+min_facets = [3, 6, 14, 20, 25, 30]
 
 smMHz2 = [1.0,5.0,5.0,5.0,5.0,5.0]
 smMHz1 = [8.0,8.0,8.0,8.0,8.0,8.0]
@@ -608,7 +608,6 @@ for c in range(maxIter):
 
         with w.if_todo('c%02i_xtreg_subtract' % c):
             # Recreate MODEL_DATA of external region for subtraction
-            logger.info('Set MODEL_DATA=0...')
             MSs.run('taql "update $pathMS set MODEL_DATA=0"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
             logger.info('Predict corrupted model of external region...')
             # TODO ignore facet beam for now due to bug
@@ -626,7 +625,7 @@ for c in range(maxIter):
                         log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
                 logger.info('Add DI amplitude corruption on top of DD-corruption...')
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                        cor.parmdb=self/solutions/cal-amp-di.h5 cor.correction=amplitude000 cor.invert=False',
+                        cor.parmdb=self/solutions/cal-amp-di.h5 cor.correction=amplitudeSmooth cor.invert=False',
                         log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
 
             # subtract external region from CORRECTED_DATA_FR to create SUBFIELD_DATA
@@ -636,7 +635,7 @@ for c in range(maxIter):
             if c > 0:
                 logger.info('Correct subfield DI amplitude...')
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
-                        cor.parmdb=self/solutions/cal-amp-di.h5 cor.correction=amplitude000 cor.invert=True',
+                        cor.parmdb=self/solutions/cal-amp-di.h5 cor.correction=amplitudeSmooth cor.invert=True',
                         log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
             clean_empty(MSs,f'only_subfield-{c}', 'SUBFIELD_DATA') # DEBUG
         ### DONE
@@ -833,7 +832,7 @@ for c in range(maxIter):
                     if c == 1:
                         logger.info('Correct DI amplitude (CORRECTED_DATA -> CORRECTED_DATA)...')
                         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-                                cor.parmdb=self/solutions/cal-amp-di.h5 cor.correction=amplitude000 cor.invert=True',
+                                cor.parmdb=self/solutions/cal-amp-di.h5 cor.correction=amplitudeSmooth cor.invert=True',
                                 log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
             ### DONE
 
