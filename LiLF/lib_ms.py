@@ -638,7 +638,6 @@ class MS(object):
         else:
             radius = np.array([pb_cut/(2.*np.cos(np.deg2rad(53-dec))),pb_cut/2.])
 
-
         s = Shape('ellipse', None)
         s.coord_format = 'fk5'
         s.coord_list = [ ra, dec, radius[1], radius[0], 0.0 ] # ra, dec, radius

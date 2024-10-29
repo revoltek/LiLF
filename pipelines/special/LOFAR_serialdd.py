@@ -3,8 +3,6 @@
 
 # Pipeline for direction dependent calibration
 
-# TODO: remove regions and move to masks
-
 import sys, os, glob, pickle, collections, fileinput
 import numpy as np
 from astropy.table import Table as astrotab
@@ -142,15 +140,16 @@ if not os.path.exists('mss-avg'):
 MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
 
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
-beamReg = 'ddcal/beam_smallnull.reg' # sources outside of this region will be ignored
-MSs.getListObj()[0].makeBeamReg(beamReg, freq='max', to_null=True)
+workingReg = 'ddcal/workingRegion.reg' # sources outside of this region will be ignored (and not peeled)
+MSs.getListObj()[0].makeBeamReg(workingReg, freq='mid', to_null=True)
+peelReg = 'ddcal/peelingRegion.reg' # sources outside of this region will be peeled
+MSs.getListObj()[0].makeBeamReg(peelReg, freq='max', to_null=True)
 freq_min = np.min(MSs.getFreqs())
 freq_mid = np.mean(MSs.getFreqs())
 phase_center = MSs.getListObj()[0].getPhaseCentre()
 timeint = MSs.getListObj()[0].getTimeInt()
 ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
-ch_out_idg = 12  # better 24, but slow
-imgsizepix = int(1.7 * MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / 4.)
+imgsizepix = int(1.05*MSs.getListObj()[0].getFWHM(freq='mid', to_null=True) * 3600 / 4.)
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 facetregname_self = 'self/solutions/facets-c1.reg'
@@ -244,23 +243,28 @@ for cmaj in range(maxIter):
             d.spidx_coeffs = spidx_coeffs
             d.ref_freq = freq_mid
             d.localrms = localrms
+            ra = np.mean(cal['RA'][cluster_idxs])
+            dec = np.mean(cal['DEC'][cluster_idxs])
+            d.set_position([ra, dec])
 
             # skip faint directions
             if d.get_flux(60e6) < min_cal_flux60:
                 logger.debug("%s: flux density @ 60 MHz: %.1f mJy (skip)" % (name, 1e3 * d.get_flux(60e6)))
                 cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
+            # skip if outside the mid-freq null (that should be empty)
+            elif not d.is_in_region(workingReg, wcs=full_image.getWCS()):
+                logger.debug("%s: outside the mid-freq null region (skip)" % (name))
+                cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
             else:
                 logger.debug("%s: flux density @ 60 MHz: %.1f mJy (good)" % (name, 1e3 * d.get_flux(60e6)))
                 #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,freq_mid,size,img_beam,lsm.getColValues('MajorAxis')[idx])
-                ra = np.mean(cal['RA'][cluster_idxs])
-                dec = np.mean(cal['DEC'][cluster_idxs])
-                d.set_position([ra, dec], region_peeloff=beamReg, wcs_peeloff=full_image.getWCS())
                 d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
                 d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
                 model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
                 for model_file in glob.glob(full_image.root+'*[0-9]-model.fits') + glob.glob(full_image.root+'*[0-9]-model-pb.fits'):
                     os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
                 d.set_model(model_root, typ='init', apply_region=True)
+                if not d.is_in_region(peelReg, wcs=full_image.getWCS()): d.peel_off = True
                 directions.append(d)
 
         # take care of manually provided region to include in cal
@@ -291,7 +295,7 @@ for cmaj in range(maxIter):
 
             d.localrms = 15* np.std(man_cal[0].to_pixel(wcs).to_mask().cutout(data_res))
             ra, dec = man_cal[0].center.ra.to_value('deg'), man_cal[0].center.dec.to_value('deg')
-            d.set_position([ra, dec], region_peeloff=beamReg, wcs_peeloff=full_image.getWCS())
+            d.set_position([ra, dec])
             d.set_size([ra], [dec], [man_cal[0].radius.to_value('deg')], img_beam[0] / 3600)
             d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
             model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
@@ -299,6 +303,7 @@ for cmaj in range(maxIter):
                 os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
             d.set_model(model_root, typ='init', apply_region=True)
             directions.insert(0, d)
+            
         # create a concat region for debugging
         os.system('cat ddcal/c%02i/skymodels/ddcal*reg > ddcal/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj,cmaj))
         # save catalogue for debugging
@@ -340,10 +345,11 @@ for cmaj in range(maxIter):
             s.run(check=True)
     ### DONE
 
-    if cmaj > 0:
+    # TODO: just for debug, to be removed
+    if cmaj == 1:
         with w.if_todo('c%02i-fulljsol' % cmaj):
             logger.info('Solving slow G (full jones)...')
-            MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/g.h5 sol.solint=10 sol.nchan=16',
+            MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/g.h5 sol.solint=10 sol.nchan=16',
                     log='$nameMS_solG-c%02i.log' % cmaj, commandType='DP3')
             lib_util.run_losoto(s, 'g-c%02i' % cmaj, [MS+'/g.h5' for MS in MSs.getListStr()],
                     [parset_dir+'/losoto-plot-fullj.parset', parset_dir+'/losoto-bp.parset'])
@@ -351,17 +357,18 @@ for cmaj in range(maxIter):
             os.system('mv cal-g-c%02i.h5 ddcal/c%02i/solutions/' % (cmaj, cmaj))
         ### DONE
 
-        with w.if_todo('c%02i-fulljcor' % cmaj):
-            # correct G - group*_TC.MS:DATA -> group*_TC.MS:CORRECTED_DATA
-            logger.info('Correcting G...')
-            MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA \
-                    cor.parmdb=ddcal/c%02i/solutions/cal-g-c%02i.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phase000]' % (cmaj, cmaj),
-                    log='$nameMS_corG-c%02i.log' % cmaj, commandType='DP3')
+    #    with w.if_todo('c%02i-fulljcor' % cmaj):
+    #        # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
+    #        logger.info('Correcting G...')
+    #        MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+    #                cor.parmdb=ddcal/c%02i/solutions/cal-g-c%02i.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phase000]' % (cmaj, cmaj),
+    #                log='$nameMS_corG-c%02i.log' % cmaj, commandType='DP3')
         ### DONE
 
     with w.if_todo('c%02i-fullsub' % cmaj):
         if cmaj == 0:
             # first cycle no corrections - ms:CORRECTED_DATA = DATA
+            # cmaj>0 might have peeled sources, so we need to start from CORRECTED_DATA
             logger.info('Set CORRECTED_DATA = DATA...')
             MSs.run('taql "update $pathMS set CORRECTED_DATA = DATA"',
                     log='$nameMS_taql.log', commandType='general')
@@ -383,7 +390,7 @@ for cmaj in range(maxIter):
         logstring = 'c%02i-%s' % (cmaj, d.name)
 
         # either faint sources that were not detected before or residuals of peeled sources - skip?
-        if d.peel_off:
+        if cmaj > 0 and d.peel_off:
             logger.info('This sources is far in the outkirts - skip.')
             continue
 
@@ -420,8 +427,8 @@ for cmaj in range(maxIter):
         ### DONE
 
         with w.if_todo('%s-shift' % logstring):
-            logger.info('Phase shift and avg...')
 
+            logger.info('Phase shift and avg...')
             lib_util.check_rm('mss-dir')
             os.makedirs('mss-dir')
 
@@ -503,18 +510,6 @@ for cmaj in range(maxIter):
                 d.add_h5parm('amp2', None )
    
             with w.if_todo('%s-calibrate' % logstringcal):
-                # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
-                #MSs_dir.run_Blsmooth(logstr=f'smooth-{logstringcal}')
-
-                # Calibration - ms:SMOOTHED_DATA
-                #logger.info('Gain phase1 calibration (solint: %i)...' % solint_ph)
-                #MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph1.h5 \
-                #            sol.mode='+iter_ph_soltype+' sol.solint='+str(solint_ph)+' sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]] \
-                #            sol.smoothnessconstraint=5e6', # TEST sol.smoothnessconstraint=3e6 sol.smoothnessreffrequency=54e6',
-                #            log='$nameMS_solGph1-'+logstringcal+'.log', commandType='DP3')
-                #lib_util.run_losoto(s, 'ph1', [ms+'/cal-ph1.h5' for ms in MSs_dir.getListStr()],
-                #    [parset_dir+'/losoto-plot-ph1.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
-                #os.system('mv cal-ph1.h5 %s' % d.get_h5parm('ph1'))
                 
                 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
                 MSs_dir.run_Blsmooth(logstr=f'smooth-{logstringcal}')
@@ -587,10 +582,10 @@ for cmaj in range(maxIter):
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DP3')
 
-                    #if d.peel_off:
-                        #losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
-                    #else:
-                    losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
+                    if d.peel_off:
+                        losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
+                    else:
+                        losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
                     lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
                         plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp1.h5 %s' % d.get_h5parm('amp1'))
@@ -610,10 +605,10 @@ for cmaj in range(maxIter):
                         sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.minvisratio=0.5',
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DP3')
 
-                    #if d.peel_off:
-                        #losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
-                    #else:
-                    losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
+                    if d.peel_off:
+                        losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
+                    else:
+                        losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
                     lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
                         plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp2.h5 %s' % d.get_h5parm('amp2'))
@@ -650,17 +645,17 @@ for cmaj in range(maxIter):
                    if (mm_ratio < 10 and cdd >= 2) or \
                    (mm_ratio < 20 and cdd >= 3) or \
                    (cdd >= 4): 
-                       logger.debug('BREAK ddcal self cycle with noise: %f, noise_pre: %f, mmratio: %f, mmratio_pre: %f' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
+                       logger.debug('BREAK ddcal self cycle with noise: %f (noise_pre: %f) - mmratio: %f (mmratio_pre: %f)' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
                        break
 
-            if ((cmaj >= 0) or d.peel_off) and (cdd >= 3) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or (d.get_flux(freq_mid) > 5)) and solve_amp:
+            if (d.peel_off or cdd >= 3) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or (d.get_flux(freq_mid) > 5)) and solve_amp:
                 logger.debug('START AMP WITH MODE 1 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
             # correct more amp in the outskirts
-            elif ((cmaj > 0) or d.peel_off) and (d.dist_from_centre >= fwhm/4.) and (cdd >= 3) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 25) or d.get_flux(freq_mid) > 3) and solve_amp:
+            elif (d.peel_off or cdd >= 3) and (d.dist_from_centre >= fwhm/4.) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 25) or d.get_flux(freq_mid) > 3) and solve_amp:
                 logger.debug('START AMP WITH MODE 2 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
-            elif ((cmaj > 0) or d.peel_off) and (d.dist_from_centre >= fwhm/2.) and (cdd >= 3) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 20) or d.get_flux(freq_mid) > 2) and solve_amp:
+            elif (d.peel_off or cdd >= 3) and (d.dist_from_centre >= fwhm/2.) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 20) or d.get_flux(freq_mid) > 2) and solve_amp:
                 logger.debug('START AMP WITH MODE 3 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
 
@@ -701,16 +696,12 @@ for cmaj in range(maxIter):
             lsm.select('%s == True' % (d.model['best']+'-mask-restricted.fits'))
             lsm.write(model_skymodel, format='makesourcedb', clobber=True)
 
-            lib_util.check_rm(model_skydb)
-            s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (model_skymodel, model_skydb), log='makesourcedb_cl.log', commandType='general' )
-            s.run(check=True)
-
             # remove the DD-cal from original dataset using new solutions
             with w.if_todo('%s-subtract' % logstring):
     
                 # Predict - ms:MODEL_DATA
                 logger.info('Add best model to MODEL_DATA...')
-                MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+model_skydb,
+                MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+model_skymodel,
                     log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
     
                 # Store FLAGS - just for sources to peel as they might be visible only for a fraction of the band
@@ -723,7 +714,7 @@ for cmaj in range(maxIter):
                 logger.info('Corrupt ph...')
                 MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                             cor.invert=False cor.parmdb='+d.get_h5parm('ph1',-2)+' cor.correction=phase000',
-                            log='$nameMS_corruping'+logstring+'.log', commandType='DP3')
+                            log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
         
                 if not d.get_h5parm('amp1',-2) is None:
                     logger.info('Corrupt amp...')
@@ -738,7 +729,8 @@ for cmaj in range(maxIter):
                 if not d.peel_off:
                     # Corrupt for the beam
                     logger.info('Corrupting beam...')
-                    # Convince DP3 that MODELDATA is corrected for the beam in the dd-cal direction, so I can corrupt
+                    # Convince DP3 that MODELDATA is corrected for the beam in the dd-cal direction, so I can corrupt.
+                    # Then correct for the element to align with the phase centre situation
                     MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                            setbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] \
                            corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=False', \
@@ -802,9 +794,9 @@ for cmaj in range(maxIter):
             for line in fileinput.input('ddcal/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj), inplace=True):
                 if d.name in line:
                     if d.get_h5parm('amp1',-2) is not None:
-                        print(line.replace('color=red','color=blue'), end='')
-                    else:
                         print(line.replace('color=red','color=green'), end='')
+                    else:
+                        print(line.replace('color=red','color=yellow'), end='')
                 else:
                     print(line, end='')
 
@@ -881,33 +873,28 @@ for cmaj in range(maxIter):
                 log='facet_generator.log', commandType='python')
         s.run(check=True)
 
-        # might want to add non-circ beam at low dec eventually
-        # if phase_center[1] < 24:
-        #     logger.info(f'Low-declination observation ({phase_center[1]}deg). Use non-circular PSF')
-
-        # update_model=True to make continue after masking
-        logger.info('Cleaning 1...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, keep_concat=True, name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
-                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=6, update_model_required='', minuv_l=30, nmiter=1, mgain=0.8, parallel_deconvolution=1024,
-                auto_threshold=3.0, auto_mask=5.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
-                multiscale='', multiscale_scale_bias=0.6, pol='i', dd_psf_grid='25 25', beam_size=15,
-                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname, apply_facet_solutions=f'{interp_h5parm} {correct_for}' )
+        # non-circ beam at low dec
+        if phase_center[1] < 24:
+            logger.info(f'Low-declination observation ({phase_center[1]}deg). Use non-circular PSF')
+            beam_kwargs = {}
+        else:
+            beam_kwargs = {'beamsize': 15}
 
         # masking
-        s.add('breizorro.py -t 5 -r %s -b 50 -o %s' % (imagename+'-MFS-image.fits', maskname), 
+        s.add('breizorro.py -t 5 -r %s -b 50 -o %s' % (full_image.imagename, maskname), 
                 log='makemask-'+str(cmaj)+'.log', commandType='python' )
         s.run(check=True)        
 
         # if defined, add userReg to the mask
         if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
 
-        # TODO: Add force-reuse psf (and beam) once wsclean bug is fixed.
         # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
-        logger.info('Cleaning 2...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, cont=True, name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
-                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, nmiter=40, mgain=0.8, parallel_deconvolution=1024,
+        # TODO: do we need dd_psf_grid='25 25'
+        logger.info('Cleaning...')
+        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale='4arcsec',
+                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=32, save_source_list='', no_update_model_required='', minuv_l=30, nmiter=40, mgain=0.85, parallel_deconvolution=1024,
                 auto_threshold=3.0, auto_mask=5.0, fits_mask=maskname, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
-                multiscale='', multiscale_scale_bias=0.6, pol='i', dd_psf_grid='25 25', beam_size=15, 
+                multiscale='', multiscale_scale_bias=0.65, pol='i', **beam_kwargs,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname, apply_facet_solutions=f'{interp_h5parm} {correct_for}')
  
         os.system('mv %s*MFS*fits %s-0*fits %s_mask.fits ddcal/c%02i/images' % (imagename, imagename, imagename, cmaj))
@@ -915,7 +902,7 @@ for cmaj in range(maxIter):
     ### DONE
 
     full_image = lib_img.Image('ddcal/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
-    min_cal_flux60 *= 0.6  # go deeper
+    min_cal_flux60 *= 0.8  # go deeper
 
 ##############################################################################################################
 ### Calibration finished - additional images with scientific value
@@ -951,9 +938,9 @@ with w.if_todo('output-lres'):
     imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
     logger.info('Cleaning (low res)...')
     lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameL, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale='16arcsec',
-                weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.8, parallel_deconvolution=512,
-                auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
-                multiscale='', multiscale_scale_bias=0.6, pol='i', dd_psf_grid='5 5', taper_gaussian='60arcsec',
+                weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
+                auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
+                multiscale='', multiscale_scale_bias=0.65, pol='i', taper_gaussian='60arcsec',
                 apply_facet_beam='', use_differential_lofar_beam='', facet_beam_update=120, facet_regions=facetregname, apply_facet_solutions=f'{interp_h5parm} {correct_for}')
  
     os.system('mv %s*MFS*.fits ddcal/c%02i/images' % (imagenameL, cmaj))
