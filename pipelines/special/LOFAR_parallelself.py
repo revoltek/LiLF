@@ -409,10 +409,11 @@ for c in range(maxIter):
     ### DONE
 
     cs_solmode = 'phase' if c == 0 else 'tec' # 0th iteration might not be stable enough for TEC
+    cs_solfactor = 16 if c == 0 else 8 # 0th iteration be conservative
     with w.if_todo('c%02i_solve_tecCS' % c):
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
         logger.info('Solving TEC (CS)...')
-        solve_iono(MSs, c, 1, patches, smMHz1[c], 8*base_solint, cs_solmode, constrainant='RS' if c > 0 else None)
+        solve_iono(MSs, c, 1, patches, smMHz1[c], cs_solfactor*base_solint, cs_solmode, constrainant='RS' if c > 0 else None)
     ### DONE
 
     # ### CORRUPT the MODEL_DATA columns for all patches
