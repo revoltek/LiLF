@@ -253,15 +253,31 @@ def create_h5bandpass(obs, h5parmFilename='bandpass.h5'):
     Add the bandpass to a simulation.
     Parameters
     ----------
-    obs : Requires an AllMSs object
+    obs : Requires an MS object
     h5parmFilename : str, optional. Default = 'bandpass.h5'
         Filename of h5parmdb.
     """
     freq = obs.getFreqs()
+    times = obs.getTimeRange()
+    time = np.array([np.mean(times)])
+    ants = obs.getAntennas()
+    dir = obs.getPhaseCentre()
+    dir = np.array([dir])
 
-    # Get the bandpass amplitude for all channel
     bp_amplitude = calculate_bandpass(freq)
-    # Write bandpass amplitude to h5parm file as DP3 input
+    bp_amplitude = np.sqrt(bp_amplitude)
+    bp_amplitude = bp_amplitude**2
+
+    bp_amplitude = bp_amplitude[None, :, None, None]
+    bp_amplitude = np.tile(bp_amplitude, (len(time), 1, len(ants), len(dir)))
+
+    # Modifica delle ampiezze in base al nome delle antenne
+    for i, ant in enumerate(ants):
+        if not (ant.startswith('CS') or ant.startswith('RS')):
+            bp_amplitude[:, :, i, :] *= 2
+
+    weights = np.ones_like(bp_amplitude)
+
     ho = h5parm(h5parmFilename, readonly=False)
     if 'sol000' in ho.getSolsetNames():
         solset = ho.getSolset('sol000')
@@ -269,19 +285,17 @@ def create_h5bandpass(obs, h5parmFilename='bandpass.h5'):
         solset = ho.makeSolset(solsetName='sol000')
 
     if 'amplitude000' in solset.getSoltabNames():
-        logger.info('''Solution-table amplitude000 is already present in
-                 {}. It will be overwritten.'''.format(h5parmFilename + '/sol000'))
+        logger.info(f'Solution-table amplitude000 is already present in {h5parmFilename}/sol000. It will be overwritten.')
         solset.getSoltab('amplitude000').delete()
 
-    bp_amplitude = np.sqrt(bp_amplitude) # Jones-Matrix from Bandpass amp
-    weights = np.ones_like(bp_amplitude)
-    solset.makeSoltab('amplitude', 'amplitude000', axesNames=['freq'],
-                       axesVals=[freq], vals=bp_amplitude,
-                       weights=weights)
+    solset.makeSoltab('amplitude', 'amplitude000', axesNames=['time', 'freq', 'ant', 'dir'],
+                      axesVals=[time, freq, ants, dir], vals=bp_amplitude, weights=weights)
 
     soltabs = solset.getSoltabs()
     for st in soltabs:
-        st.addHistory('CREATE (by bandpass operation of LoSiTo from obs {0})'.format(h5parmFilename))
+        st.addHistory(f'CREATE (by bandpass operation of LoSiTo from obs {h5parmFilename})')
     ho.close()
 
     return
+
+
