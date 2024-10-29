@@ -66,6 +66,7 @@ def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
 with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('plots-{fr,bp,fj,iono,iono-cs,pa,amp}')
+    lib_util.check_rm('bandpass.h5')
 ### DONE
 
 # unpack tar files if present
@@ -143,9 +144,13 @@ uvlambdamin = 50 if min(MSs_concat_all.getFreqs()) < 30e6 else 100 # for Decamet
 
 ######################################################
 # rescale data to expected theoretical bandpass
-# with w.if_todo('scale_bp'):
-#     logger.info("Scale data to expected bandpass...")
-#     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-scaleBP.parset msin=$pathMS ', log="$nameMS_scale.log", commandType="DP3")
+with w.if_todo('scale_bp'):
+    logger.info("Scale data to expected bandpass...")
+    lib_h5.create_h5bandpass(MSs_concat_all)
+    #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-scaleBP.parset msin=$pathMS ', log="$nameMS_scale.log", commandType="DP3")
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA '
+                       f'cor.parmdb=bandpass.h5 cor.correction=amplitude000',
+                       log="$nameMS_scale.log", commandType="DP3")
 
 # flag bad stations, flags will propagate
 with w.if_todo('flag'):
@@ -299,7 +304,6 @@ with w.if_todo('cal_pa'):
                 [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset',  parset_dir+'/losoto-pa.parset'])
 ### DONE
 ########################################################
-
 # 3: find FR
 with w.if_todo('cal_fr'):
     # Pol align correction concat_all.MS:DATA -> CORRECTED_DATA

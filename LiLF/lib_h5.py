@@ -5,6 +5,7 @@ from astropy.coordinates import SkyCoord
 from losoto.h5parm import h5parm
 from losoto.lib_operations import reorderAxes
 from LiLF.lib_log import logger
+from scipy.interpolate import interp1d
 
 def repoint(h5parmFile, dirname, solsetname='sol000'):
     """
@@ -224,3 +225,63 @@ def get_colsest_dir(h5, dir):
     print(closest, dir_seps[closest], dir_seps)
     h5.close()
     return closest
+
+def calculate_bandpass(freq):
+    """
+    Return the bandpass amplitude for an array of frequencies.
+    freq : (n,) ndarray
+    """
+
+    file_lba = os.path.dirname(__file__) + '/../models/bandpass_lba.txt'
+    dat_lba = np.loadtxt(file_lba).T
+    bp_lba = interp1d(*dat_lba, kind='linear', fill_value=0, bounds_error=False)
+
+    amplitude = np.zeros_like(freq)
+    for i, f in enumerate(freq):
+        if 10e6 < f < 90e6:
+            amplitude[i] = bp_lba(f)
+            if amplitude[i] == 0:
+                amplitude[i] = amplitude[i-1]
+        else:
+            logger.warning('Frequency {}Hz out of supported range.'.format(f))
+
+    return amplitude
+
+
+def create_h5bandpass(obs, h5parmFilename='bandpass.h5'):
+    """
+    Add the bandpass to a simulation.
+    Parameters
+    ----------
+    obs : Requires an AllMSs object
+    h5parmFilename : str, optional. Default = 'bandpass.h5'
+        Filename of h5parmdb.
+    """
+    freq = obs.getFreqs()
+
+    # Get the bandpass amplitude for all channel
+    bp_amplitude = calculate_bandpass(freq)
+    # Write bandpass amplitude to h5parm file as DP3 input
+    ho = h5parm(h5parmFilename, readonly=False)
+    if 'sol000' in ho.getSolsetNames():
+        solset = ho.getSolset('sol000')
+    else:
+        solset = ho.makeSolset(solsetName='sol000')
+
+    if 'amplitude000' in solset.getSoltabNames():
+        logger.info('''Solution-table amplitude000 is already present in
+                 {}. It will be overwritten.'''.format(h5parmFilename + '/sol000'))
+        solset.getSoltab('amplitude000').delete()
+
+    bp_amplitude = np.sqrt(bp_amplitude) # Jones-Matrix from Bandpass amp
+    weights = np.ones_like(bp_amplitude)
+    solset.makeSoltab('amplitude', 'amplitude000', axesNames=['freq'],
+                       axesVals=[freq], vals=bp_amplitude,
+                       weights=weights)
+
+    soltabs = solset.getSoltabs()
+    for st in soltabs:
+        st.addHistory('CREATE (by bandpass operation of LoSiTo from obs {0})'.format(h5parmFilename))
+    ho.close()
+
+    return
