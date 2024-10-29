@@ -288,7 +288,11 @@ class Worker_downloader(Worker):
 
                 # loop until the sanity check on the downloaded MS is ok
                 while True:
-                    download_file(url, tar_file, login, password)
+                    downlaoded = download_file(url, tar_file, login, password)
+                    if not downlaoded:
+                        print('ERROR downloading %s. Giving up.' % url)
+                        break
+
                     os.system('tar xf %s' % tar_file)
                     #print(tar_file)
                     try:
@@ -297,10 +301,12 @@ class Worker_downloader(Worker):
                     except:
                         print('ERROR opening %s, probably corrupted - redownload it' % ms_file)
                         #os.system('rm -r %s %s' % (tar_file, ms_file))
-                os.system('rm -r %s' % tar_file)
 
                 self.L_inDownload.remove(surl)
-                self.L_Downloaded.append(surl)
+
+                if downlaoded: 
+                    os.system('rm -r %s' % tar_file)
+                    self.L_Downloaded.append(surl)
 
             time.sleep(2)
 

@@ -221,6 +221,7 @@ if imgsizepix_wide > 10000:
     imgsizepix_wide = 10000
 imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/30.)
 current_best_mask = None
+pixscale = MSs.getListObj()[0].getPixelScale()
 
 # set clean componet fit order (use 5 for large BW)
 if MSs.getChout(4.e6) >= 7:  # Bandwidth of 28 MHz or more
@@ -438,6 +439,7 @@ for c in range(maxIter):
             lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
                                 [f'{parset_dir}/losoto-plot-amp.parset', f'{parset_dir}/losoto-plot-ph.parset', f'{parset_dir}/losoto-amp-di.parset'],
                                 plots_dir=f'self/plots/plots-amp-di', h5_dir=f'self/solutions/')
+            
         with w.if_todo('correct_amp_di'):
             # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
@@ -497,7 +499,6 @@ for c in range(maxIter):
             reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
         else:
             current_best_mask = f'img/wideM-{c-1}-mask.fits'
-
 
         if c>1: # add earlier if bug is fixed
             # if we are done with the things that require blanked pedict, we can also use beam keywords
