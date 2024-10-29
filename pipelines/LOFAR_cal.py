@@ -147,7 +147,6 @@ uvlambdamin = 50 if min(MSs_concat_all.getFreqs()) < 30e6 else 100 # for Decamet
 with w.if_todo('scale_bp'):
     logger.info("Scale data to expected bandpass...")
     lib_h5.create_h5bandpass(MSs_concat_all)
-    #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-scaleBP.parset msin=$pathMS ', log="$nameMS_scale.log", commandType="DP3")
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA '
                        f'cor.parmdb=bandpass.h5 cor.correction=amplitude000',
                        log="$nameMS_scale.log", commandType="DP3")
@@ -236,7 +235,7 @@ with w.if_todo('pre_cal'):
     logger.info('Calibrating IONO (distant stations)...')
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                            sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase sol.datause=single \
-                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.10e6 sol.smoothnessreffrequency=54e6', \
+                           sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=0.06e6 sol.smoothnessreffrequency=54e6', \
                            log='$nameMS_solIONO.log', commandType="DP3")
 
     if min(MSs_concat_all.getFreqs()) < 35.e6:

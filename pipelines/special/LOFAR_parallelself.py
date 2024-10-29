@@ -239,11 +239,11 @@ else: base_solint = 1
 
 mask_threshold = [6.0,5.5,4.5,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
-facet_fluxes = [4, 1.8, 1.2, 0.8, 0.6] # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+facet_fluxes = np.array([4, 1.8, 1.2, 0.8, 0.6])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 min_facets = [4, 8, 16, 24, 30, 30]
 
 smMHz2 = [1.0,5.0,5.0,5.0,5.0,5.0]
-smMHz1 = [2.0,8.0,8.0,8.0,8.0,8.0]
+smMHz1 = [8.0,8.0,8.0,8.0,8.0,8.0]
 # smMHz0 = [6.0,10.0,10.0,10.0,10.0,10.0]
 #################################################################
 
@@ -351,7 +351,7 @@ for c in range(maxIter):
         patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
         if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]:
             bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor
-            logger.warning(f'Not enough bright sources above minimum flux {bright_sources_flux} Jy! Using sources above {bright_sources_flux:.2f} Jy')
+            logger.warning(f'Not enough bright sources above minimum flux {bright_sources_flux:.2f} Jy! Using sources above {bright_sources_flux:.2f} Jy')
         else:
             bright_sources_flux = facet_fluxes[c]
         bright_names = sm.getPatchNames()[patch_fluxes > bright_sources_flux*si_factor]
@@ -424,8 +424,9 @@ for c in range(maxIter):
     if c == 1:
         with w.if_todo('solve_amp_di'):
             # TODO -> down the road this could be a fulljones-calibration to correct element-beam related leakage.
-            # TODO -> this has steps in frequency due to the large bandwidth per imaging channel
             MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
+            logger.info('Setting MODEL_DATA to sum of corrupted patch models...')
+            MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(patches)}"', log='$nameMS_taql_phdiff.log', commandType='general')
             # solve ionosphere phase - ms:SMOOTHED_DATA
             logger.info('Solving amp-di...')
             MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=dual sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
