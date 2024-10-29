@@ -34,7 +34,6 @@ fillmissingedges = parset.getboolean('LOFAR_cal', 'fillmissingedges')
 sparse_sb = parset.getboolean('LOFAR_cal', 'sparse_sb') # change flagging to hande data that uses only alternating sb
 develop = parset.getboolean('LOFAR_cal', 'develop') # for development, don't delete files
 bl2flag = parset.get('flag', 'stations')
-debugplots = True
 
 #############################################################
 
@@ -146,7 +145,8 @@ uvlambdamin = 50 if min(MSs_concat_all.getFreqs()) < 30e6 else 100 # for Decamet
 # rescale data to expected theoretical bandpass
 with w.if_todo('scale_bp'):
     logger.info("Scale data to expected bandpass...")
-    lib_h5.create_h5bandpass(MSs_concat_all)
+    MSconcat = lib_ms.MS('concat_all.MS')
+    lib_h5.create_h5bandpass(MSconcat)
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA '
                        f'cor.parmdb=bandpass.h5 cor.correction=amplitude000 cor.updateweights=True',
                        log="$nameMS_scale.log", commandType="DP3")
@@ -394,7 +394,7 @@ with w.if_todo('cal_iono'):
                            sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
                            log='$nameMS_solIONO.log', commandType="DP3")
-   
+
     if (min(MSs_concat_phaseupIONO.getFreqs()) < 35.e6):
         lib_util.run_losoto(s, 'iono', [ms + '/iono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
                             [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-iono3rd.parset'])
@@ -481,7 +481,7 @@ if debugplots:
     logger.info('Polalign correction...')
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 \
                    cor.correction=polalign', log='$nameMS_corPA2.log', commandType="DP3")
-    
+
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
 
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
@@ -495,7 +495,7 @@ if debugplots:
 
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
-    MSs_concat_all.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False', 
+    MSs_concat_all.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False',
                            log='$nameMS_beam2.log', commandType="DP3")
 
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
@@ -514,7 +514,7 @@ if debugplots:
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp.h5 \
             cor.correction=fulljones cor.soltab=[amplitudeSmooth,phaseNull] cor.updateweights=False',
                            log='$nameMS_corBP.log', commandType="DP3")
-    
+
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
 
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
@@ -525,7 +525,7 @@ if debugplots:
                 log='$nameMS_solTEST.log', commandType="DP3")
     lib_util.run_losoto(s, 'test-pabeambp', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
-    
+
     # Correct FR CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 \
