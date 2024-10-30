@@ -468,11 +468,14 @@ for cmaj in range(maxIter):
             ### DONE
 
         # apply init - closest parallelself sol - dd-phases
-        with w.if_todo('apply_init_' + p):
-            closest = lib_h5.get_closest_dir(dde_h5parm, d.position)
+        with w.if_todo('%s-initcorr' % logstring):
+            logger.info('Pre-imaging...')
+            clean('%s-uncorr' % logstring, MSs_dir, res='normal', size=[d.size, d.size],
+                  masksigma=5)  # , imagereg=d.get_region())
+            closest = lib_h5.get_closest_dir(interp_h5parm_self, d.position)
             logger.info('Correct init phase - closest facet ({})'.format(closest))
             MSs_dir.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
-                          cor.parmdb={dde_h5parm} cor.correction=phase000 cor.direction={closest}', log='$nameMS_init-correct.log', commandType='DP3')
+                          cor.parmdb={interp_h5parm} cor.correction=phase000 cor.direction={closest}', log='$nameMS_init-correct.log', commandType='DP3')
         ### DONE
         with w.if_todo('%s-preimage' % logstring):
             logger.info('Pre-imaging...')
