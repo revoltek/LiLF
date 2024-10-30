@@ -508,8 +508,8 @@ if debugplots:
     # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
     logger.info('BP correction...')
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp.h5 \
-            cor.correction=fulljones cor.soltab=[amplitudeSmooth,phaseNull] cor.updateweights=False',
-                           log='$nameMS_corBP.log', commandType="DP3")
+                cor.correction=amplitudeSmooth cor.updateweights=False',
+                log='$nameMS_corBP.log', commandType="DP3")
 
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
 
@@ -613,7 +613,7 @@ if imaging:
         # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
         logger.info('BP correction...')
         MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp.h5 \
-            cor.correction=amplitudeSmooth  cor.updateweights=True', log='$nameMS_corBP.log', commandType="DP3")
+            cor.correction=amplitudeSmooth  cor.updateweights=False', log='$nameMS_corBP.log', commandType="DP3")
         # FR correction concat_all.MS:CORRECTED_DATA -> FR_CORRECTED_DATA
         logger.info('FR correction (for imaging)...')
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msout.datacolumn=FR_CORRECTED_DATA \

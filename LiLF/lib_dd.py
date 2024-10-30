@@ -119,14 +119,14 @@ class Direction(object):
         self.rms_noise.append(rms_noise)
         self.mm_ratio.append(mm_ratio)
 
-    def set_position(self, position, region):
+    def set_position(self, position, phase_center):
         """
-        region_peeloff: a reg file, used to decide if the source is to peel_off
+        phase_center: the phase centre of the obs in [ra,dec] (in deg)
         """
         self.position = [round(position[0], 5), round(position[1], 5)]
-        c1 = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
-        sky_region = Regions.read(region)[0]
-        self.dist_from_centre = c1.separation(sky_region.center).deg
+        SC_dd = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
+        SC_phasecentre = SkyCoord(phase_center[0]*u.deg, phase_center[1]*u.deg, frame='fk5')
+        self.dist_from_centre = SC_dd.separation(SC_phasecentre).deg
 
     def is_in_region(self, region, wcs):
         """

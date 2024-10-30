@@ -222,7 +222,7 @@ def get_closest_dir(h5, dir):
         return min(d, key=d.get)
 
     closest = key_of_min(dir_seps)
-    print(closest, dir_seps[closest], dir_seps)
+    #print(closest, dir_seps[closest], dir_seps)
     h5.close()
     return closest
 
