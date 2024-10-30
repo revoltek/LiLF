@@ -155,9 +155,8 @@ with w.if_todo('scale_bp'):
 # flag bad stations, flags will propagate
 with w.if_todo('flag'):
     logger.info("Flagging...")
-    flag_strat = '/LBAdefaultwideband.lua'
-    MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\" \
-            aoflagger.strategy='+parset_dir+flag_strat,
+    MSs_concat_all.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\" \
+            aoflagger.strategy='+parset_dir+'/LBAdefaultwideband.lua',
             log='$nameMS_DP3_flag.log', commandType='DP3')
     # extend flags
     logger.info('Remove bad time/freq stamps...')

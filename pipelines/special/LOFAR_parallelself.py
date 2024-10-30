@@ -55,7 +55,7 @@ userReg = parset.get('model','userReg')
 def clean_empty(MSs, name, col='CORRECTED_DATA', size=5000):
     """ For testing/debugging only"""
     lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
-                         data_column=col, size=size, scale=f'{int(pixscale/2)}arcsec', niter=0, nmiter=0,
+                         data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=0, nmiter=0,
                          weight='briggs 0.0', gridder='wgridder', parallel_gridding=1,
                          no_update_model_required='')
 
