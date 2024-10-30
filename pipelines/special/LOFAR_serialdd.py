@@ -246,7 +246,7 @@ for cmaj in range(maxIter):
             d.localrms = localrms
             ra = np.mean(cal['RA'][cluster_idxs])
             dec = np.mean(cal['DEC'][cluster_idxs])
-            d.set_position([ra, dec], workingReg)
+            d.set_position([ra, dec], phase_center)
 
             # skip faint directions
             if d.get_flux(60e6) < min_cal_flux60:
@@ -296,7 +296,7 @@ for cmaj in range(maxIter):
 
             d.localrms = 15* np.std(man_cal[0].to_pixel(wcs).to_mask().cutout(data_res))
             ra, dec = man_cal[0].center.ra.to_value('deg'), man_cal[0].center.dec.to_value('deg')
-            d.set_position([ra, dec])
+            d.set_position([ra, dec], phase_center)
             d.set_size([ra], [dec], [man_cal[0].radius.to_value('deg')], img_beam[0] / 3600)
             d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
             model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
