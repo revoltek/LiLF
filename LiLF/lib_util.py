@@ -11,6 +11,11 @@ import pyregion
 from astropy.io import fits
 import gc
 
+# remove some annoying warnings from astropy
+import warnings
+from astropy.io.fits.verify import VerifyWarning
+warnings.simplefilter('ignore', category=VerifyWarning)
+
 if (sys.version_info > (3, 0)):
     from configparser import ConfigParser
 else:

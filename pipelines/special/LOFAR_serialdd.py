@@ -38,22 +38,22 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None, masksigm
     masksigma = sigma for masking
     """
     # set pixscale and imsize
-    pixscale = MSs.resolution
+    localpixscale = MSs.resolution
 
     if res == 'normal':
-        pixscale = float('%.1f'%(pixscale/2.5))
+        localpixscale = float('%.1f'%(localpixscale/2.5))
     elif res == 'high':
-        pixscale = float('%.1f'%(pixscale/3.5))
+        localpixscale = float('%.1f'%(localpixscale/3.5))
     elif res == 'low':
         pass # no change
 
-    imsize = [int(size[0]*1.5/(pixscale/3600.)), int(size[1]*1.5/(pixscale/3600.))] # add 50%
+    imsize = [int(size[0]*1.5/(localpixscale/3600.)), int(size[1]*1.5/(localpixscale/3600.))] # add 50%
     imsize[0] += imsize[0] % 2
     imsize[1] += imsize[1] % 2
     if imsize[0] < 256: imsize[0] = 256
     if imsize[1] < 256: imsize[1] = 256
 
-    logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(pixscale))
+    logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(localpixscale))
 
     if res == 'normal':
         weight = 'briggs -0.3'
@@ -73,7 +73,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None, masksigm
         logger.info('Cleaning empty ('+str(p)+')...')
         imagename = 'img/empty-'+str(p)
         lib_util.run_wsclean(s, 'wscleanE-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, data_column='SUBTRACTED_DATA',
-                size=imsize, scale=str(pixscale)+'arcsec',
+                size=imsize, scale=str(localpixscale)+'arcsec',
                 weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0,
                 baseline_averaging='')
     else:
@@ -82,7 +82,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None, masksigm
         logger.info('Cleaning ('+str(p)+')...')
         imagename = 'img/ddcal-'+str(p)
         lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename,
-                size=imsize, scale=str(pixscale)+'arcsec',
+                size=imsize, scale=str(localpixscale)+'arcsec',
                 weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                 baseline_averaging='', parallel_deconvolution=512, auto_threshold=5,
                 join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
@@ -102,7 +102,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None, masksigm
         logger.info('Cleaning w/ mask ('+str(p)+')...')
         imagenameM = 'img/ddcalM-'+str(p)
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
-                size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', reuse_psf=imagename, reuse_dirty=imagename,
+                size=imsize, save_source_list='', scale=str(localpixscale)+'arcsec', reuse_psf=imagename, reuse_dirty=imagename,
                 weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', 
                 baseline_averaging='',  auto_threshold=0.75, auto_mask=1.5, fits_mask=imagename+'-mask.fits',
@@ -469,16 +469,15 @@ for cmaj in range(maxIter):
 
         # apply init - closest parallelself sol - dd-phases
         with w.if_todo('%s-initcorr' % logstring):
-            logger.info('Pre-imaging...')
-            clean('%s-uncorr' % logstring, MSs_dir, res='normal', size=[d.size, d.size],
-                  masksigma=5)  # , imagereg=d.get_region())
+            logger.info('Pre-imaging (uncorr)...')
+            clean('%s-uncorr' % logstring, MSs_dir, res='normal', size=[d.size, d.size], masksigma=5)  # , imagereg=d.get_region())
+            
             closest = lib_h5.get_closest_dir(interp_h5parm_self, d.position)
             logger.info('Correct init phase - closest facet ({})'.format(closest))
             MSs_dir.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
-                          cor.parmdb={interp_h5parm} cor.correction=phase000 cor.direction={closest}', log='$nameMS_init-correct.log', commandType='DP3')
-        ### DONE
-        with w.if_todo('%s-preimage' % logstring):
-            logger.info('Pre-imaging...')
+                          cor.parmdb={interp_h5parm_self} cor.correction=phase000 cor.direction={closest}', log='$nameMS_init-correct.log', commandType='DP3')
+            
+            logger.info('Pre-imaging (pre)...')
             clean('%s-pre' % logstring, MSs_dir, res='normal', size=[d.size,d.size], masksigma=5)#, imagereg=d.get_region())
         ### DONE
         
