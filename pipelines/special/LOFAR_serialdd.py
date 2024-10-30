@@ -149,8 +149,8 @@ freq_mid = np.mean(MSs.getFreqs())
 phase_center = MSs.getListObj()[0].getPhaseCentre()
 timeint = MSs.getListObj()[0].getTimeInt()
 ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
-imgsizepix = int(1.05*MSs.getListObj()[0].getFWHM(freq='mid', to_null=True) * 3600 / 4.)
 pixscale = MSs.getListObj()[0].getPixelScale() 
+imgsizepix = int(1.05*MSs.getListObj()[0].getFWHM(freq='mid', to_null=True) * 3600 / pixscale)
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 facetregname_self = 'self/solutions/facets-c1.reg'
