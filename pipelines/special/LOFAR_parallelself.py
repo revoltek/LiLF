@@ -238,7 +238,7 @@ if tint < 4:
     base_solint = int(np.rint(4/tint)) # this is already 4 for dutch observations
 else: base_solint = 1
 
-mask_threshold = [6.0,5.5,4.5,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
+mask_threshold = [5.5,5.0,4.5,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
 facet_fluxes = np.array([4, 1.8, 1.2, 0.8, 0.6])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 min_facets = [3, 6, 14, 20, 25, 30]
@@ -511,7 +511,7 @@ for c in range(maxIter):
                              weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='',
                              update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
-                             multiscale='',  multiscale_scale_bias=0.65, multiscale_scales='0,10,20,40,80', pol='i',
+                             multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scale=6, pol='i',
                              facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000 ',
                              **reuse_kwargs, **beam_kwargs)
         # make a new mask from the image
@@ -732,8 +732,8 @@ for c in range(maxIter):
             lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=3000, scale='4arcsec',
                                  weight='briggs -0.3', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{field_center[0].to(u.hourangle).to_string()} {field_center[1].to_string()}',
                                  no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
-                                 join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
-                                 multiscale='',  multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80',  pol='i')
+                                 join_channels='', fit_spectral_pol=3, multiscale_max_scale=6, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
+                                 multiscale='',  multiscale_scale_bias=0.7, pol='i')
         ### DONE
         #####################################################################################################
         # Subtract side-lobe sources

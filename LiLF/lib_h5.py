@@ -198,13 +198,13 @@ def point_h5dirs_to_skymodel(h5, skymodel):
             raise ValueError(f'{dirname} not found in solset! Available directions: {",".join(ss.getSou().keys())}.')
     h5.close()
 
-def get_colsest_dir(h5, dir):
+def get_closest_dir(h5, dir):
     """
 
     Parameters
     ----------
-    h5
-    dir
+    h5: str, path to h5
+    dir: [deg,deg]
 
     Returns
     -------

@@ -119,12 +119,13 @@ class Direction(object):
         self.rms_noise.append(rms_noise)
         self.mm_ratio.append(mm_ratio)
 
-    def set_position(self, position):
+    def set_position(self, position, region):
         """
         region_peeloff: a reg file, used to decide if the source is to peel_off
         """
         self.position = [round(position[0], 5), round(position[1], 5)]
         c1 = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
+        sky_region = Regions.read(region)[0]
         self.dist_from_centre = c1.separation(sky_region.center).deg
 
     def is_in_region(self, region, wcs):

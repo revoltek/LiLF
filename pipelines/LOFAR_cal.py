@@ -34,6 +34,7 @@ fillmissingedges = parset.getboolean('LOFAR_cal', 'fillmissingedges')
 sparse_sb = parset.getboolean('LOFAR_cal', 'sparse_sb') # change flagging to hande data that uses only alternating sb
 develop = parset.getboolean('LOFAR_cal', 'develop') # for development, don't delete files
 bl2flag = parset.get('flag', 'stations')
+debugplots = False
 
 #############################################################
 
