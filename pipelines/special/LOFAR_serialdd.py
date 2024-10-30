@@ -246,7 +246,7 @@ for cmaj in range(maxIter):
             d.localrms = localrms
             ra = np.mean(cal['RA'][cluster_idxs])
             dec = np.mean(cal['DEC'][cluster_idxs])
-            d.set_position([ra, dec])
+            d.set_position([ra, dec], workingReg)
 
             # skip faint directions
             if d.get_flux(60e6) < min_cal_flux60:
@@ -401,7 +401,7 @@ for cmaj in range(maxIter):
             if cmaj == 0:
                 # Predict - ms:MODEL_DATA
                 # TODO ignore facet beam for now due to bug
-                s.add(f'wsclean -predict -padding 1.8 -name {d.get_model('init')} -j {s.max_processors} -channels-out {ch_out} \
+                s.add(f'wsclean -predict -padding 1.8 -name {d.get_model("init")} -j {s.max_processors} -channels-out {ch_out} \
                     -facet-regions {facetregname_self} -apply-facet-solutions {interp_h5parm_self} phase000 \
                     -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
                     log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
@@ -467,6 +467,13 @@ for cmaj in range(maxIter):
                         log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
             ### DONE
 
+        # apply init - closest parallelself sol - dd-phases
+        with w.if_todo('apply_init_' + p):
+            closest = lib_h5.get_closest_dir(dde_h5parm, d.position)
+            logger.info('Correct init phase - closest facet ({})'.format(closest))
+            MSs_dir.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
+                          cor.parmdb={dde_h5parm} cor.correction=phase000 cor.direction={closest}', log='$nameMS_init-correct.log', commandType='DP3')
+        ### DONE
         with w.if_todo('%s-preimage' % logstring):
             logger.info('Pre-imaging...')
             clean('%s-pre' % logstring, MSs_dir, res='normal', size=[d.size,d.size], masksigma=5)#, imagereg=d.get_region())
