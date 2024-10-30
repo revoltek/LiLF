@@ -248,13 +248,13 @@ def calculate_bandpass(freq):
     return amplitude
 
 
-def create_h5bandpass(obs, h5parmFilename='bandpass.h5'):
+def create_h5bandpass(obs, h5parmFilename='bp_first.h5'):
     """
     Add the bandpass to a simulation.
     Parameters
     ----------
     obs : Requires an MS object
-    h5parmFilename : str, optional. Default = 'bandpass.h5'
+    h5parmFilename : str, optional. Default = 'bp_first.h5'
         Filename of h5parmdb.
     """
     freq = obs.getFreqs()
