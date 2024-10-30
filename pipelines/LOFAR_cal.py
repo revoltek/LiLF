@@ -65,7 +65,7 @@ def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
 # Clear
 with w.if_todo('cleaning'):
     logger.info('Cleaning...')
-    lib_util.check_rm('plots-{fr,bp,fj,iono,iono-cs,pa,amp}')
+    lib_util.check_rm('plots-fr plots-bp plots-fj plots-iono plots-iono-cs plots-pa plots-amp plots-test*}')
     lib_util.check_rm('bandpass.h5')
 ### DONE
 
