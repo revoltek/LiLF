@@ -248,13 +248,13 @@ def calculate_bandpass(freq):
     return amplitude
 
 
-def create_h5bandpass(obs, h5parmFilename='bandpass.h5'):
+def create_h5bandpass(obs, h5parmFilename='bp_first.h5'):
     """
     Add the bandpass to a simulation.
     Parameters
     ----------
     obs : Requires an MS object
-    h5parmFilename : str, optional. Default = 'bandpass.h5'
+    h5parmFilename : str, optional. Default = 'bp_first.h5'
         Filename of h5parmdb.
     """
     freq = obs.getFreqs()
@@ -276,26 +276,18 @@ def create_h5bandpass(obs, h5parmFilename='bandpass.h5'):
         if not (ant.startswith('CS') or ant.startswith('RS')):
             bp_amplitude[:, :, i, :] *= 2
 
-    weights = np.ones_like(bp_amplitude)
-
     ho = h5parm(h5parmFilename, readonly=False)
-    if 'sol000' in ho.getSolsetNames():
-        solset = ho.getSolset('sol000')
-    else:
-        solset = ho.makeSolset(solsetName='sol000')
+    solset = ho.getSolset('sol000')
 
-    if 'amplitude000' in solset.getSoltabNames():
-        logger.info(f'Solution-table amplitude000 is already present in {h5parmFilename}/sol000. It will be overwritten.')
-        solset.getSoltab('amplitude000').delete()
-
-    solset.makeSoltab('amplitude', 'amplitude000', axesNames=['time', 'freq', 'ant', 'dir'],
-                      axesVals=[time, freq, ants, dir], vals=bp_amplitude, weights=weights)
-
+    logger.info(f'Updating values in solution-table amplitude000 in {h5parmFilename}/sol000.')
+    soltab = solset.getSoltab('amplitude000')
+    # make the amplitudes the same shape as the ones in the model file
+    bp_amplitude = np.expand_dims(bp_amplitude, axis=-2)
+    bp_amplitude = np.repeat(bp_amplitude, repeats=2, axis=-1)
+    weights = np.ones_like(bp_amplitude)
+    soltab.setValues(vals=bp_amplitude, weight = 0) # store the amplitudes
+    soltab.setValues(vals=weights, weight = 1) #store the weights
     soltabs = solset.getSoltabs()
     for st in soltabs:
-        st.addHistory(f'CREATE (by bandpass operation of LoSiTo from obs {h5parmFilename})')
+        st.addHistory(f'UPDATE (by bandpass operation of LoSiTo from obs {h5parmFilename})')
     ho.close()
-
-    return
-
-
