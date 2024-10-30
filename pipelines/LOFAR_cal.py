@@ -147,7 +147,10 @@ uvlambdamin = 50 if min(MSs_concat_all.getFreqs()) < 30e6 else 100 # for Decamet
 with w.if_todo('scale_bp'):
     logger.info("Scale data to expected bandpass...")
     MSconcat = lib_ms.MS('concat_all.MS')
-    lib_h5.create_h5bandpass(MSconcat)
+    MSs_concat_all.run(
+        f'DP3 {parset_dir}/DP3-soldd.parset msin=concat_all.MS msin.datacolumn=DATA sol.h5parm=bandpass.h5 sol.solint=0 sol.nchan=1 sol.maxiter=0 sol.mode=diagonalamplitude sol.modeldatacolumns="[DATA]"',
+        log='$nameMS_bandpasstemplate.log', commandType='DP3')
+    lib_h5.create_h5bandpass(MSs_concat_all,'bandpass.h5')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA '
                        f'cor.parmdb=bandpass.h5 cor.correction=amplitude000 cor.updateweights=True',
                        log="$nameMS_scale.log", commandType="DP3")
