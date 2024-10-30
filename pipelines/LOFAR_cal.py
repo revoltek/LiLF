@@ -235,16 +235,12 @@ with w.if_todo('pre_cal'):
     # Solve concat_all-phaseupIONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
-                           sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase sol.datause=single \
+                           sol.h5parm=$pathMS/preiono.h5 sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase sol.datause=full \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
                            log='$nameMS_solIONO.log', commandType="DP3")
 
-    if min(MSs_concat_all.getFreqs()) < 35.e6:
-        lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-                            [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset']) # parset_dir + '/losoto-iono3rd.parset'
-    else:
-        lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-                            [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset']) # parset_dir + '/losoto-iono.parset'])
+    lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
+                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-ref-rot.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset', parset_dir + '/losoto-fr.parset'])
 ### DONE
 ########################################################
 

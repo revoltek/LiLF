@@ -159,11 +159,11 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     current_best_mask = f'{imagename}-mask.fits'
     if userReg:
         logger.info(f'Making mask with userReg {userReg}...')
-        s.add(f'breizorro.py -t {threshold} -r {imagename}-MFS-image.fits -b 50 -o {current_best_mask} --merge {userReg}',
+        s.add(f'breizorro.py -t {threshold} -r {imagename}-MFS-image.fits -b 70 -o {current_best_mask} --merge {userReg}',
               log=f'makemask-{c}.log', commandType='python')
     else:
         logger.info('Making mask...')
-        s.add(f'breizorro.py -t {threshold} -r {imagename}-MFS-image.fits -b 50 -o {current_best_mask}',
+        s.add(f'breizorro.py -t {threshold} -r {imagename}-MFS-image.fits -b 70 -o {current_best_mask}',
               log=f'makemask-{c}.log', commandType='python')
     s.run(check=True)
     return current_best_mask
@@ -238,7 +238,7 @@ if tint < 4:
     base_solint = int(np.rint(4/tint)) # this is already 4 for dutch observations
 else: base_solint = 1
 
-mask_threshold = [5.5,5.0,4.5,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
+mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
 facet_fluxes = np.array([4, 1.8, 1.2, 0.8, 0.6])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 min_facets = [3, 6, 14, 20, 25, 30]
@@ -609,13 +609,19 @@ for c in range(maxIter):
         with w.if_todo('c%02i_xtreg_subtract' % c):
             # Recreate MODEL_DATA of external region for subtraction
             MSs.run('taql "update $pathMS set MODEL_DATA=0"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
-            logger.info('Predict corrupted model of external region...')
+            logger.info('Predict corrupted model of external region (wsclean)...')
             # TODO ignore facet beam for now due to bug
             s.add(f'wsclean -predict -padding 1.8 -name img/wideMext-{c} -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
                     -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 \
                     {MSs.getStrWsclean()}',
                 log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
             s.run(check=True)
+
+            # # Add model to MODEL_DATA
+            # logger.info('Predict corrupted model of external region (DP3)...')
+            # pred_parset = 'DP3-predict-beam.parset' if intrinsic else 'DP3-predict.parset'
+            # MSs.run(f'DP3 {parset_dir}/{pred_parset} msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch}',
+            #         log='$nameMS_pre.log', commandType='DP3')
 
             # cycle > 0: need to add DI-corruption on top (previous iteration sub-field)
             if c > 0:
