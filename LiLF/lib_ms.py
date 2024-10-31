@@ -590,11 +590,10 @@ class MS(object):
         with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
             return int(t.getcell("LOFAR_OBSERVATION_ID",0))
 
-    def getFWHM(self, freq='mid', elliptical=False, to_null=False):
+    def getFWHM(self, freq='mid', elliptical=False):
         """
         Return the expected FWHM in degree (fwhm_maj, fwhm_min) where maj is N-S and min E-W
         freq: min,max,med - which frequency to use to estimate the beam size
-        to_null: make to first null
         """
         # get minimum freq as it has the largest FWHM
         if freq == 'min':
@@ -620,9 +619,8 @@ class MS(object):
             else:
                 logger.info('Unknown antenna configuration, assuming SPARSE...')
                 fwhm = 4.85*scale #same configuration of SPARSE
-            ra, dec = self.getPhaseCentre()
-            if to_null:
-                fwhm *= 1.8 # rough estimation
+            __ra, dec = self.getPhaseCentre()
+
             if elliptical:
                 return np.array([fwhm/np.cos(np.deg2rad(53-dec)), fwhm])
             else:
@@ -635,15 +633,15 @@ class MS(object):
         else:
             raise('Only LOFAR or GMRT implemented.')
 
-    def makeBeamReg(self, outfile, pb_cut=None, to_null=False, freq='mid'):
+    def makeBeamReg(self, outfile, pb_cut=None, to_pbval=0.5, freq='mid'):
         """
         Create a ds9 region of the beam to FWHM by default
         outfile : str
             output file
         pb_cut : float, optional
             diameter of the beam in deg
-        to_null : bool, optional
-            arrive to the first null, not the FWHM (pb_cut must be None)
+        to_pbval: float, optional
+            make to this value of the beam (e.g. 0 to arrive to the null), default is FWHM (0.5)
         freq: min,max,med 
             which frequency to use to estimate the beam size
         """
@@ -651,7 +649,14 @@ class MS(object):
         ra, dec = self.getPhaseCentre()
 
         if pb_cut is None:
-            radius = self.getFWHM(freq=freq, elliptical=True, to_null=to_null)/2.
+            if to_pbval < 0.1: to_pbval=0.1 # it's a gaussian, not a real beam, so 0 would be inf
+            fwhm = self.getFWHM(freq=freq, elliptical=True)
+            sigma = fwhm/(2*np.sqrt(2*np.log(2)))
+            def inv_gaus(y, sigma, x0=0):
+                x = x0 + np.sqrt(-2 * np.log(y) * sigma ** 2)
+                return x
+            radius = inv_gaus(to_pbval, sigma)
+            print(fwhm/2,radius,fwhm/2*1.8)
         else:
             radius = np.array([pb_cut/(2.*np.cos(np.deg2rad(53-dec))),pb_cut/2.])
 

@@ -13,15 +13,16 @@ axesToSmooth = [time]
 mode = median
 log = True
 
-#[flagstation]
-#operation = FLAGSTATION
-#soltab = sol000/amplitudeSmooth
-#mode = bandpass
-#ampRange = [0.3,2.5]
-#maxFlaggedFraction = 0.25
-#skipAnts = ['RS210LBA','RS310LBA']
-#skipInternational = True
-#nsigma = 4
+[flagstation]
+operation = FLAGSTATION
+soltab = sol000/amplitudeSmooth
+mode = bandpass
+ampRange = [0.3,2.5]
+maxFlaggedFraction = 0.25
+minFlaggedFraction = 0.25
+skipAnts = ['RS210LBA','RS310LBA']
+skipInternational = True
+nsigma = 4
 
 [plotAs]
 operation = PLOT
