@@ -210,6 +210,7 @@ def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], fwhm=0, max_
         
         logger.info(f'Appending model from {sourcedb.split('/')[-1]} (seperation {phasecentre.separation(pos).deg:.2f} deg)...')
         sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
+        sm_3c.setColValues("Patch", ["source_"+source]*len(sm_3c.getPatchNames()))
         sm_3c.select(f'I>{threshold:.02f}', aggregate='sum', applyBeam=True)
         sm.concatenate(sm_3c)
     return sm
@@ -247,7 +248,7 @@ with w.if_todo('cleaning'):
     if not os.path.exists('self/skymodel'): os.makedirs('self/skymodel')
 ### DONE
 
-MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+MSs = lib_ms.AllMSs( [sorted(glob.glob('mss/TC*[0-9].MS'))[1]], s )
 
 try:
     MSs.print_HAcov()
@@ -532,19 +533,13 @@ for c in range(maxIter):
                 continue
             
             #clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide)
-            MSs.run(
-                f"taql 'UPDATE $pathMS SET CORRECTED_DATA=CORRECTED_DATA-{patch}'",
-                log = f'$nameMS_subtract_{patch}.log', 
-                commandType = 'general'
-            )
-            #clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide)
-            
-            MSs.run(
-                f"taql 'SELECT $pathMS SET CORRECTED_DATA=CORRECTED_DATA+{patch}'",
-                log = f'$nameMS_add_{patch}.log', 
-                commandType = 'general'
-            )
-            
+            #MSs.run(
+            #    f"taql 'UPDATE $pathMS SET CORRECTED_DATA=CORRECTED_DATA-{patch}'",
+            #    log = f'$nameMS_subtract_{patch}.log', 
+            #    commandType = 'general'
+            #)
+            clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide)
+
             MSs.deletecol(patch)
             
             
