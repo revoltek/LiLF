@@ -49,6 +49,7 @@ intrinsic = True
 start_sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
+subtract_predict_mode = 'wsclean'
 
 #############################################################################
 
@@ -238,13 +239,13 @@ if tint < 4:
     base_solint = int(np.rint(4/tint)) # this is already 4 for dutch observations
 else: base_solint = 1
 
-mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
+mask_threshold = [5.0,4.0,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
 facet_fluxes = np.array([4, 1.8, 1.2, 0.8, 0.6])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 min_facets = [3, 6, 14, 20, 25, 30]
 
 smMHz2 = [1.0,5.0,5.0,5.0,5.0,5.0]
-smMHz1 = [8.0,8.0,8.0,8.0,8.0,8.0]
+smMHz1 = [5.0,8.0,8.0,8.0,8.0,8.0]
 # smMHz0 = [6.0,10.0,10.0,10.0,10.0,10.0]
 #################################################################
 
@@ -409,17 +410,15 @@ for c in range(maxIter):
         corrupt_model_dirs(MSs, c, 2, patches)
     ### DONE
 
-    cs_solmode = 'phase' if c == 0 else 'tec' # 0th iteration might not be stable enough for TEC
-    cs_solfactor = 16 if c == 0 else 8 # 0th iteration be conservative
     with w.if_todo('c%02i_solve_tecCS' % c):
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
         logger.info('Solving TEC (CS)...')
-        solve_iono(MSs, c, 1, patches, smMHz1[c], cs_solfactor*base_solint, cs_solmode, constrainant='RS' if c > 0 else None)
+        solve_iono(MSs, c, 1, patches, smMHz1[c], 16*base_solint, 'phase', constrainant=None)
     ### DONE
 
     # ### CORRUPT the MODEL_DATA columns for all patches
     with w.if_todo('c%02i_corrupt_tecCS' % c):
-        corrupt_model_dirs(MSs, c, 1, patches, cs_solmode)
+        corrupt_model_dirs(MSs, c, 1, patches, 'phase')
     # ### DONE
 
     # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
@@ -441,10 +440,10 @@ for c in range(maxIter):
                                 plots_dir=f'self/plots/plots-amp-di', h5_dir=f'self/solutions/')
             
         with w.if_todo('correct_amp_di'):
-            # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
+            # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA #TODO updateweights
             logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
             MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-                    cor.parmdb=self/solutions/cal-amp-di.h5 cor.correction=amplitudeSmooth cor.updateweights=True',
+                    cor.parmdb=self/solutions/cal-amp-di.h5 cor.correction=amplitudeSmooth cor.updateweights=False',
                     log='$nameMS_sf-correct.log', commandType='DP3')
 
     # merge solutions into one h5parms for large scale image
@@ -490,7 +489,7 @@ for c in range(maxIter):
         if c==0:
             logger.info('Making wide-field image for clean mask...')
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
-                                 weight='briggs -0.3', local_rms='', niter=1000000, gridder='wgridder',  parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
+                                 weight='briggs -0.3', local_rms='', niter=1000000, gridder='wgridder',  parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.9, parallel_deconvolution=1024,
                                  auto_threshold=5.0, auto_mask=8.0, beam_size=15, join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
                                  multiscale='', pol='i', nmiter=6,   facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000' )
             # make initial mask
@@ -508,10 +507,10 @@ for c in range(maxIter):
         # clean again, with mask now
         logger.info('Making wide field image ...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
-                             weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='',
-                             update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
+                             weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='', local_rms='',
+                             update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=20, parallel_deconvolution=1024, auto_threshold=2.0, auto_mask=4.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
-                             multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scale=6, pol='i',
+                             multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',
                              facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000 ',
                              **reuse_kwargs, **beam_kwargs)
         # make a new mask from the image
@@ -592,15 +591,19 @@ for c in range(maxIter):
                 sm.remove('MajorAxis > 80')  # remove largest scales
                 field_center1, field_size1 = lib_dd.make_subfield_region(subfield_path, MSs.getListObj()[0], sm,
                                                                          subfield_min_flux, debug_dir='img/')
-            # prepare model of central/external regions
-            logger.info('Blanking central region of model files and reverse...')
-            for im in glob.glob(f'img/wideM-{c}*model*.fits'):
-                wideMint = im.replace('wideM','wideMint')
-                os.system('cp %s %s' % (im, wideMint))
-                lib_img.blank_image_reg(wideMint, subfield_path, blankval = 0., inverse=True)
-                wideMext = im.replace('wideM','wideMext')
-                os.system('cp %s %s' % (im, wideMext))
-                lib_img.blank_image_reg(wideMext, subfield_path, blankval = 0.)
+            if subtract_predict_mode == 'wsclean':
+                # prepare model of central/external regions
+                logger.info('Blanking central region of model files and reverse...')
+                for im in glob.glob(f'img/wideM-{c}*model*.fits'):
+                    wideMint = im.replace('wideM','wideMint')
+                    os.system('cp %s %s' % (im, wideMint))
+                    lib_img.blank_image_reg(wideMint, subfield_path, blankval = 0., inverse=True)
+                    wideMext = im.replace('wideM','wideMext')
+                    os.system('cp %s %s' % (im, wideMext))
+                    lib_img.blank_image_reg(wideMext, subfield_path, blankval = 0.)
+            elif subtract_predict_mode == 'DP3':
+                raise ValueError('Not implemented.')
+            else: raise ValueError
         # DONE
         subfield_reg = Regions.read(subfield_path)[0]
         field_center = subfield_reg.center.ra, subfield_reg.center.dec
@@ -619,9 +622,8 @@ for c in range(maxIter):
 
             # # Add model to MODEL_DATA
             # logger.info('Predict corrupted model of external region (DP3)...')
-            # pred_parset = 'DP3-predict-beam.parset' if intrinsic else 'DP3-predict.parset'
-            # MSs.run(f'DP3 {parset_dir}/{pred_parset} msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch}',
-            #         log='$nameMS_pre.log', commandType='DP3')
+            # MSs.run(f'DP3 {parset_dir}/DP3-h5parmpredict.parset msin=$pathMS pre.sourcedb=$pathMS/wideM-{c}-sources-pb.txt pre.applycal.parmdb=cal-tec-merged-c{c}.h5',
+            #         log='$nameMS_h5pre.log', commandType='DP3')
 
             # cycle > 0: need to add DI-corruption on top (previous iteration sub-field)
             if c > 0:
@@ -738,7 +740,7 @@ for c in range(maxIter):
             lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=3000, scale='4arcsec',
                                  weight='briggs -0.3', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{field_center[0].to(u.hourangle).to_string()} {field_center[1].to_string()}',
                                  no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
-                                 join_channels='', fit_spectral_pol=3, multiscale_max_scale=6, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
+                                 join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
                                  multiscale='',  multiscale_scale_bias=0.7, pol='i')
         ### DONE
         #####################################################################################################

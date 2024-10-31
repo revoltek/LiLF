@@ -888,7 +888,7 @@ for cmaj in range(maxIter):
             logger.info(f'Low-declination observation ({phase_center[1]}deg). Use non-circular PSF')
             beam_kwargs = {}
         else:
-            beam_kwargs = {'beamsize': 15}
+            beam_kwargs = {'beam_size': 15}
 
         # masking
         s.add('breizorro.py -t 5 -r %s -b 50 -o %s' % (full_image.imagename, maskname), 

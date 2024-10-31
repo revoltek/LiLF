@@ -8,21 +8,17 @@ msout.datacolumn = MODEL_DATA
 steps = [pre]
 
 pre.type = h5parmpredict
-pre.sourcedb = 
+pre.sourcedb =
+pre.beaminterval=120
+pre.correctfreqsmearing=True
 pre.usebeammodel = True
 pre.usechannelfreq = True
 pre.beammode = array_factor
 pre.correctfreqsmearing = True
-# pre.correcttimesmearing = 2 # upsampling factor - set it to 2 when dp3 bug is solved
+pre.directions = # leave empty for all
+#pre.applycal.steps = corriono
+pre.applycal.correction = phase000
+pre.applycal.parmdb =
 
-    obs.parset_parameters['predict.type'] = predictType
-    if obs.input_skymodel_type == 'makesourcedb':
-        obs.parset_parameters['predict.sourcedb'] = obs.sourcedb_filename
-        obs.parset_parameters['predict.operation'] = 'replace'
-    else:
-        obs.parset_parameters['predict.images'] = f'[{obs.input_skymodel_filename}]'
-        obs.parset_parameters['predict.regions'] = obs.regions_filename
-        if predictType == 'wgridderpredict':
-            obs.parset_parameters['predict.sumfacets'] = 'true'
-    obs.parset_parameters['msout.datacolumn'] = outputColumn
+# pre.correcttimesmearing = 2 # upsampling factor - set it to 2 when dp3 bug is solved
 
