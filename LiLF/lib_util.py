@@ -12,6 +12,11 @@ import pyregion
 from astropy.io import fits
 import gc
 
+# remove some annoying warnings from astropy
+import warnings
+from astropy.io.fits.verify import VerifyWarning
+warnings.simplefilter('ignore', category=VerifyWarning)
+
 if (sys.version_info > (3, 0)):
     from configparser import ConfigParser
 else:
@@ -88,7 +93,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_self', 'intrinsic', 'True')
     # dd
     add_default('LOFAR_dd', 'maxIter', '2')
-    add_default('LOFAR_dd', 'minCalFlux60', '1.')
+    add_default('LOFAR_dd', 'minCalFlux60', '0.7')
     add_default('LOFAR_dd', 'solve_amp', 'True') # to disable amp sols
     # add_default('LOFAR_dd', 'removeExtendedCutoff', '0.0005')
     add_default('LOFAR_dd', 'target_dir', '') # ra,dec
@@ -313,7 +318,7 @@ def lofar_nu2num(nu):
 def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
     """
     s : scheduler
-    c : cycle name, e.g. "final"
+    c : cycle name, e.g. "final" (or h5 output)
     h5s : lists of H5parm files or string of 1 h5parm
     parsets : lists of parsets to execute
     plots_dir : rename the "plots" dir to this name at the end

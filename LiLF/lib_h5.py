@@ -5,6 +5,7 @@ from astropy.coordinates import SkyCoord
 from losoto.h5parm import h5parm
 from losoto.lib_operations import reorderAxes
 from LiLF.lib_log import logger
+from scipy.interpolate import interp1d
 
 def repoint(h5parmFile, dirname, solsetname='sol000'):
     """
@@ -197,13 +198,13 @@ def point_h5dirs_to_skymodel(h5, skymodel):
             raise ValueError(f'{dirname} not found in solset! Available directions: {",".join(ss.getSou().keys())}.')
     h5.close()
 
-def get_colsest_dir(h5, dir):
+def get_closest_dir(h5, dir):
     """
 
     Parameters
     ----------
-    h5
-    dir
+    h5: str, path to h5
+    dir: [deg,deg]
 
     Returns
     -------
@@ -221,6 +222,72 @@ def get_colsest_dir(h5, dir):
         return min(d, key=d.get)
 
     closest = key_of_min(dir_seps)
-    print(closest, dir_seps[closest], dir_seps)
+    #print(closest, dir_seps[closest], dir_seps)
     h5.close()
     return closest
+
+def calculate_bandpass(freq):
+    """
+    Return the bandpass amplitude for an array of frequencies.
+    freq : (n,) ndarray
+    """
+
+    file_lba = os.path.dirname(__file__) + '/../models/bandpass_lba.txt'
+    dat_lba = np.loadtxt(file_lba).T
+    bp_lba = interp1d(*dat_lba, kind='linear', fill_value=0, bounds_error=False)
+
+    amplitude = np.zeros_like(freq)
+    for i, f in enumerate(freq):
+        if 10e6 < f < 90e6:
+            amplitude[i] = bp_lba(f)
+            if amplitude[i] == 0:
+                amplitude[i] = amplitude[i-1]
+        else:
+            logger.warning('Frequency {}Hz out of supported range.'.format(f))
+
+    return amplitude
+
+
+def create_h5bandpass(obs, h5parmFilename='bp_first.h5'):
+    """
+    Add the bandpass to a simulation.
+    Parameters
+    ----------
+    obs : Requires an MS object
+    h5parmFilename : str, optional. Default = 'bp_first.h5'
+        Filename of h5parmdb.
+    """
+    freq = obs.getFreqs()
+    times = obs.getTimeRange()
+    time = np.array([np.mean(times)])
+    ants = obs.getAntennas()
+    dir = obs.getPhaseCentre()
+    dir = np.array([dir])
+
+    bp_amplitude = calculate_bandpass(freq)
+    bp_amplitude = np.sqrt(bp_amplitude)
+    bp_amplitude = bp_amplitude**2
+
+    bp_amplitude = bp_amplitude[None, :, None, None]
+    bp_amplitude = np.tile(bp_amplitude, (len(time), 1, len(ants), len(dir)))
+
+    # Modifica delle ampiezze in base al nome delle antenne
+    for i, ant in enumerate(ants):
+        if not (ant.startswith('CS') or ant.startswith('RS')):
+            bp_amplitude[:, :, i, :] *= 2
+
+    ho = h5parm(h5parmFilename, readonly=False)
+    solset = ho.getSolset('sol000')
+
+    logger.info(f'Updating values in solution-table amplitude000 in {h5parmFilename}/sol000.')
+    soltab = solset.getSoltab('amplitude000')
+    # make the amplitudes the same shape as the ones in the model file
+    bp_amplitude = np.expand_dims(bp_amplitude, axis=-2)
+    bp_amplitude = np.repeat(bp_amplitude, repeats=2, axis=-1)
+    weights = np.ones_like(bp_amplitude)
+    soltab.setValues(vals=bp_amplitude, weight = 0) # store the amplitudes
+    soltab.setValues(vals=weights, weight = 1) #store the weights
+    soltabs = solset.getSoltabs()
+    for st in soltabs:
+        st.addHistory(f'UPDATE (by bandpass operation of LoSiTo from obs {h5parmFilename})')
+    ho.close()

@@ -11,10 +11,10 @@ from LiLF import lib_util, lib_log
 import astropy.io.fits as pyfits
 import csv
 
-logger_obj = lib_log.Logger('target_extraction.logger')
+logger_obj = lib_log.Logger('extraction.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
-w = lib_util.Walker('target_extraction.walker')
+w = lib_util.Walker('extraction.walker')
 
 print("""
 

@@ -590,10 +590,11 @@ class MS(object):
         with tables.table(self.pathMS+'/OBSERVATION', ack = False) as t:
             return int(t.getcell("LOFAR_OBSERVATION_ID",0))
 
-    def getFWHM(self, freq='mid', elliptical=False):
+    def getFWHM(self, freq='mid', elliptical=False, to_null=False):
         """
         Return the expected FWHM in degree (fwhm_maj, fwhm_min) where maj is N-S and min E-W
         freq: min,max,med - which frequency to use to estimate the beam size
+        to_null: make to first null
         """
         # get minimum freq as it has the largest FWHM
         if freq == 'min':
@@ -620,6 +621,8 @@ class MS(object):
                 logger.info('Unknown antenna configuration, assuming SPARSE...')
                 fwhm = 4.85*scale #same configuration of SPARSE
             ra, dec = self.getPhaseCentre()
+            if to_null:
+                fwhm *= 1.8 # rough estimation
             if elliptical:
                 return np.array([fwhm/np.cos(np.deg2rad(53-dec)), fwhm])
             else:
@@ -648,11 +651,9 @@ class MS(object):
         ra, dec = self.getPhaseCentre()
 
         if pb_cut is None:
-            radius = self.getFWHM(freq=freq, elliptical=True)/2.
-            if to_null: radius *= 1.8 # rough estimation
+            radius = self.getFWHM(freq=freq, elliptical=True, to_null=to_null)/2.
         else:
             radius = np.array([pb_cut/(2.*np.cos(np.deg2rad(53-dec))),pb_cut/2.])
-
 
         s = Shape('ellipse', None)
         s.coord_format = 'fk5'
@@ -696,6 +697,13 @@ class MS(object):
         #return int(round(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcseconds
         return float('%.1f'%(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcsec
 
+    def getPixelScale(self, check_flags=True):
+        """
+        Return a reasonable pixel scale
+        """
+        res = self.getResolution(check_flags)
+        return int(np.rint(res*1.6/4)) # reasonable value
+
     def getAntennas(self):
         """
         Return a list of antenna names
@@ -714,6 +722,7 @@ class MS(object):
         except MemoryError: # can happen e.g. for full MS in timesplit (with IS and/or HBA)
             logger.warning('Caugt MemoryError in checking for fully flagged MS! This can happen when working with large '
                            'measurement sets. You might want to manually inspect the flags. Trying to proceed...')
+            
 
 #    def delBeamInfo(self, col=None):
 #        """
