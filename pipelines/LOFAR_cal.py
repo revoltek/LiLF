@@ -141,9 +141,10 @@ uvlambdamin = 50 if min(MSs_concat_all.getFreqs()) < 30e6 else 100 # for Decamet
 # rescale data to expected theoretical bandpass
 with w.if_todo('scale_bp'):
     logger.info("Scale data to expected bandpass...")
+    # dummy call to create template
     MSs_concat_all.run(
-        f'DP3 {parset_dir}/DP3-sol.parset msin=concat_all.MS msin.datacolumn=DATA sol.h5parm=cal-bp-theo.h5 sol.solint=0 sol.nchan=1 \
-            sol.maxiter=0 sol.mode=diagonalamplitude sol.modeldatacolumns="[DATA]"',
+        f'DP3 {parset_dir}/DP3-sol.parset msin=concat_all.MS msin.datacolumn=DATA sol.h5parm=cal-bp-theo.h5 sol.solint={int(np.rint(20 / tint))} sol.nchan=1 \
+            sol.maxiter=1 sol.mode=diagonalamplitude sol.modeldatacolumns="[DATA]"',
             log='$nameMS_bptemplate.log', commandType='DP3')
     lib_h5.create_h5bandpass(MSs_concat_all.getListObj()[0], 'cal-bp-theo.h5')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA '
@@ -459,7 +460,7 @@ with w.if_todo('cal_bp'):
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve) against FR-corrupted MODEL_DATA
     # do not use datause=dual since the cross-hands are NOT trivial (FR-corrupted)
     logger.info('Calibrating BP...')
-    timestep = int(np.rint(20 / tint))  # brings down to 60s
+    timestep = int(np.rint(20 / tint))  # brings down to 20s
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/bp-sub.h5 sol.mode=diagonal sol.datause=full \
                         sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.nchan=1',
                        log='$nameMS_solBP.log', commandType="DP3")
