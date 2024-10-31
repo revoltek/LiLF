@@ -28,6 +28,14 @@ axisInTable = ant
 plotFlag = True
 prefix = plots/amp_
 
+[plotA4]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = False
+prefix = plots/amp_preflag_
+
 [plotA]
 operation = PLOT
 soltab = sol000/amplitude000

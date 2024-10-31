@@ -3,6 +3,7 @@ import socket
 import datetime
 
 from casacore import tables
+import lsmtool.skymodel
 import numpy as np
 import multiprocessing, subprocess
 from threading import Thread
@@ -264,7 +265,7 @@ def check_rm(regexp):
     for filename in filenames:
         # glob is used to check if file exists
         for f in glob.glob(filename):
-            os.system("rm -r " + f)
+            os.system("rm -r " + f)    
 
 
 class Sol_iterator(object):
