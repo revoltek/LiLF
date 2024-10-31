@@ -469,7 +469,7 @@ with w.if_todo('cal_bp'):
                         [parset_dir + flag_parset])
 
     # merge the solution with the bandpass before losoto
-    s.add(f'h5_merger.py --h5_out cal-bp.h5 --h5_tables cal-bp-sub.h5 cal-bp-theo.h5'
+    s.add(f'h5_merger.py --h5_out cal-bp.h5 --h5_tables cal-bp-sub.h5 cal-bp-theo.h5 --propagate_flags'
             , log='h5_merger.log', commandType='python')
     s.run(check=True)
 
