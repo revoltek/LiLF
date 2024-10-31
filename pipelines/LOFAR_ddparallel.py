@@ -31,18 +31,18 @@ import lsmtool
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd, lib_h5, lib_dd_parallel
-logger_obj = lib_log.Logger('pipeline-self')
+logger_obj = lib_log.Logger('pipeline-ddparallel')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
-w = lib_util.Walker('pipeline-self.walker')
+w = lib_util.Walker('pipeline-ddparallel.walker')
 
 parset = lib_util.getParset()
-logger.info('Parset: '+str(dict(parset['LOFAR_self'])))
-parset_dir = parset.get('LOFAR_parallelself','parset_dir')
-subfield_min_flux = parset.getfloat('LOFAR_self','subfield_min_flux') # default 20 Jy
-subfield = parset.get('LOFAR_self','subfield') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
-maxIter = parset.getint('LOFAR_self','maxIter') # default = 2 (try also 3)
-phaseSolMode = parset.get('LOFAR_self', 'ph_sol_mode') # tecandphase, tec, phase
+logger.info('Parset: '+str(dict(parset['LOFAR_ddparallel'])))
+parset_dir = parset.get('LOFAR_ddparallel','parset_dir')
+subfield_min_flux = parset.getfloat('LOFAR_ddparallel','subfield_min_flux') # default 20 Jy
+subfield = parset.get('LOFAR_ddparallel','subfield') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
+maxIter = parset.getint('LOFAR_ddparallel','maxIter') # default = 2 (try also 3)
+phaseSolMode = parset.get('LOFAR_ddparallel', 'ph_sol_mode') # tecandphase, tec, phase
 sf_phaseSolMode = 'phase' #'tec'
 # intrinsic = parset.getboolean('LOFAR_self', 'intrinsic') # True means using intrinsic sky model and DP3 applybeam predict, False means staying with apparent skymodel
 intrinsic = True
@@ -786,7 +786,7 @@ for c in range(maxIter):
             with w.if_todo('image_sidelobe'):
                 logger.info('Cleaning low-res...')
                 lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
-                                     parallel_gridding=4, temp_dir='../', size=imgsizepix_lr, scale='30arcsec',
+                                     parallel_gridding=4, temp_dir='/', size=imgsizepix_lr, scale='30arcsec',
                                      weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                                      taper_gaussian='200arcsec', mgain=0.85, channels_out=MSs.getChout(2.e6), parallel_deconvolution=512, baseline_averaging='',
                                      local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='')
