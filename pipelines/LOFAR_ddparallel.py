@@ -75,10 +75,15 @@ def corrupt_model_dirs(MSs, c, tc, model_columns, solmode='phase'):
                 f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}]  \
                     cor.parmdb=self/solutions/cal-tec{tc}-c{c}.h5 cor.correction=tec000 cor.invert=False',
                 log='$nameMS_corrupt.log', commandType='DP3')
-        if solmode in ['phase', 'tecandphase']:
+        elif solmode in ['phase', 'tecandphase']:
             MSs.run(
                 f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
                     cor.parmdb=self/solutions/cal-tec{tc}-c{c}.h5 cor.correction=phase000 cor.invert=False',
+                log='$nameMS_corrupt.log', commandType='DP3')
+        elif solmode in ['scalaramplitude']:
+            MSs.run(
+                f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
+                    cor.parmdb=self/solutions/cal-solamp-c{c}.h5 cor.correction=amplitude000 cor.invert=False',
                 log='$nameMS_corrupt.log', commandType='DP3')
 
 def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None, constrainant=None, model_column_fluxes=None, variable_solint_threshold=None):
@@ -152,6 +157,25 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None,
 
     lib_util.run_losoto(s, f'tec{tc}-c{c}', [ms+f'/tec{tc}.h5' for ms in MSs.getListStr()], losoto_parsets, 
                         plots_dir=f'self/plots/plots-tec{tc}-c{c}', h5_dir=f'self/solutions/')
+    
+    
+def solve_amplitude(MSs, c, model_columns, smMHz, solint, resetant=None, constrainant=None, model_column_fluxes=None, variable_solint_threshold=8.):
+    solutions_per_direction = np.ones(len(model_columns), dtype=int)
+    
+    MSs.run(
+        f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS \
+            msin.datacolumn=SMOOTHED_DATA sol.mode=scalaramplitude sol.nchan=1\
+            sol.h5parm=$pathMS/solamp_c{c}.h5 sol.modeldatacolumns="[{",".join(model_columns)}]" \
+            sol.solutions_per_direction={np.array2string(solutions_per_direction.astype(int), separator=",")} \
+            sol.smoothnessreffrequency=54e6 sol.solint={solint} sol.smoothnessconstraint={smMHz}e6',
+        log=f'$nameMS_solamp_c{c}.log', 
+        commandType="DP3"
+    )
+    
+    losoto_parsets = [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset']
+    
+    lib_util.run_losoto(s, f'solamp-c{c}', [ms+f'/solamp_c{c}.h5' for ms in MSs.getListStr()], losoto_parsets, 
+                        plots_dir=f'self/plots/plots-solamp-c{c}', h5_dir=f'self/solutions/')
 
 
 def make_current_best_mask(imagename, threshold=6.5, userReg=None):
@@ -167,6 +191,33 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     s.run(check=True)
     return current_best_mask
 
+def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], fwhm=0, max_sep=30., threshold=1.):
+    from astroquery.vizier import Vizier
+    from astropy.coordinates import SkyCoord
+    
+    Vizier.ROW_LIMIT = 200
+    table = Vizier.get_catalogs("J/MNRAS/204/151")[0]
+    all_3c = table['Name']
+    
+    phasecentre = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg))
+    logger.info('Adding 3C models...')
+    for i, source in enumerate(all_3c):
+        pos = SkyCoord(table['_RA.icrs'][i], table['_DE.icrs'][i], unit=(u.hourangle, u.deg))
+        if phasecentre.separation(pos).deg < fwhm/2 or phasecentre.separation(pos).deg > max_sep:
+            continue 
+        
+        sourcedb = f'/home/local/work/j.boxelaar/LiLF//models/3CRR/{source.replace(" ","")}.txt'
+        if not os.path.exists(sourcedb):
+            logger.warning(f'No model found for {source} (seperation {phasecentre.separation(pos).deg:.2f} deg)')
+            continue
+        
+        logger.info(f'Appending model from {sourcedb.split('/')[-1]} (seperation {phasecentre.separation(pos).deg:.2f} deg)...')
+        sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
+        sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
+        sm_3c.select(f'I>{threshold:.02f}', aggregate='sum', applyBeam=True)
+        sm.concatenate(sm_3c)
+        sm.setPatchPositions(method='wmean', applyBeam=True)
+    return sm
 
 def make_source_regions(sm, c):
     lib_util.check_rm(f'self/skymodel/regions_c{c}')
@@ -201,7 +252,7 @@ with w.if_todo('cleaning'):
     if not os.path.exists('self/skymodel'): os.makedirs('self/skymodel')
 ### DONE
 
-MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+MSs = lib_ms.AllMSs( [sorted(glob.glob('mss/TC*[0-9].MS'))[1]], s )
 
 try:
     MSs.print_HAcov()
@@ -210,7 +261,10 @@ except:
 
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
+
+fwhm = MSs.getListObj()[0].getFWHM(freq='mid') * 1.8 # FWHM to null
 MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='mid', to_pbval=0)
+
 beamReg = 'self/beam.reg'
 beamMask = 'self/beam.fits'
 
@@ -354,6 +408,11 @@ for c in range(maxIter):
         bright_pos = sm.getPatchPositions(bright_names)
         sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=True, root='', byPatch=True)
         sm.setPatchPositions(bright_pos)
+        
+        if c == 0:
+            # Add models of bright 3c sources to the sky model. model will be subtracted from data before imaging.
+            sm = add_3c_models(sm, phasecentre=phasecentre, fwhm=fwhm)
+        
         sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
         make_source_regions(sm, c)
         logger.warning(f'Using {len(sm.getPatchNames())} patches.')
@@ -404,6 +463,7 @@ for c in range(maxIter):
         corrupt_model_dirs(MSs, c, 2, patches)
     ### DONE
 
+    cs_solmode = 'phase' if c == 0 else 'tec'
     with w.if_todo('c%02i_solve_tecCS' % c):
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
         logger.info('Solving TEC (CS)...')
@@ -413,6 +473,17 @@ for c in range(maxIter):
     # ### CORRUPT the MODEL_DATA columns for all patches
     with w.if_todo('c%02i_corrupt_tecCS' % c):
         corrupt_model_dirs(MSs, c, 1, patches, 'phase')
+    # ### DONE
+    
+    with w.if_todo('c%02i_solve_amp' % c):
+        # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
+        logger.info('Solving Amplitude...')
+        solve_amplitude(MSs, c, patches, smMHz1[c], 16*base_solint, model_column_fluxes=patch_fluxes, variable_solint_threshold=8.)
+    ### DONE
+
+    # ### CORRUPT the MODEL_DATA columns for all patches
+    with w.if_todo('c%02i_corrupt_tecCS' % c):
+        corrupt_model_dirs(MSs, c, 1, patches, 'scalaramplitude')
     # ### DONE
 
     # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
@@ -468,6 +539,23 @@ for c in range(maxIter):
                             [f'{parset_dir}/losoto-plot-scalar.parset'], plots_dir=f'self/plots/plots-tec-merged-c{c}',
                             h5_dir='self/solutions')
     facetregname = f'self/solutions/facets-c{c}.reg'
+    
+    
+    with w.if_todo('c%02i_subtract_3Csources' % c):
+        for patch in patches:
+            if "patch" in patch:
+                continue
+            
+            #clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide)
+            MSs.run(
+                f"taql 'UPDATE $pathMS SET CORRECTED_DATA=CORRECTED_DATA-{patch}'",
+                log = f'$nameMS_subtract_{patch}.log', 
+                commandType = 'general'
+            )
+            #clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide)
+            MSs.deletecol(patch)
+            
+            
 
     with w.if_todo('c%02i-imaging' % c):
         logger.info('Preparing region file...')

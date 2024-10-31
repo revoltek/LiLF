@@ -3,6 +3,7 @@ import socket
 import datetime
 
 from casacore import tables
+import lsmtool.skymodel
 import numpy as np
 import multiprocessing, subprocess
 from threading import Thread
@@ -264,7 +265,7 @@ def check_rm(regexp):
     for filename in filenames:
         # glob is used to check if file exists
         for f in glob.glob(filename):
-            os.system("rm -r " + f)
+            os.system("rm -r " + f)    
 
 
 class Sol_iterator(object):
@@ -312,7 +313,7 @@ def lofar_nu2num(nu):
 def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
     """
     s : scheduler
-    c : cycle name, e.g. "final" (or h5 output)
+    c : cycle name, e.g. "final" (or h5 output in a format filename.h5)
     h5s : lists of H5parm files or string of 1 h5parm
     parsets : lists of parsets to execute
     plots_dir : rename the "plots" dir to this name at the end
@@ -320,7 +321,7 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
     """
 
     logger.info("Running LoSoTo...")
-    if c[:3] == '.h5':
+    if c[-3:] == '.h5':
         h5out = c
     else:
         h5out = 'cal-'+c+'.h5'
