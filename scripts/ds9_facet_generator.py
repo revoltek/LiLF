@@ -35,9 +35,9 @@ def read_dir_fromh5(h5):
     H5 = tables.open_file(h5, mode="r")
     sourcedir = H5.root.sol000.source[:]["dir"]
     sourcename = H5.root.sol000.source[:]["name"].astype('str')
-    if len(sourcedir) < 2:
-        print("Error: H5 seems to contain only one direction")
-        sys.exit(1)
+    # if len(sourcedir) < 2:
+        # print("Error: H5 seems to contain only one direction")
+        # sys.exit(1)
     H5.close()
     return sourcedir, sourcename
 
@@ -357,9 +357,13 @@ def main(args):
     # Make World Coord Stystem transform object
     w = makeWCS(centreX, centreY, phaseCentreRa, phaseCentreDec, dl_dm)
 
+    single_dir = False # If there is only one direction in the h5 file, we should return rectangle over the full image
+
     if args.h5:
         # load in the directions from the H5
         sourcedir, sourcename = read_dir_fromh5(args.h5)
+        if len(sourcedir) < 2:
+            single_dir = True
 
         # make ra and dec arrays and coordinates c
         ralist = sourcedir[:, 0]
@@ -384,13 +388,26 @@ def main(args):
         )
 
     bbox = Polygon([(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)])
-    facets, points = tessellate(
-        x, y, w, dist_pix, bbox, plot_tessellation=args.plottessellation
-    )
+    if single_dir:
+        pointsarr = [(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)]
+        skyarr = []
+        for x,y in pointsarr:
+            xsky,ysky = w.wcs_pix2world(x, y, 1)
+            skyarr.append((xsky,ysky))
+        skybox = Polygon(skyarr)
 
-    write_ds9(
-        args.outputfile, facets, points=points if args.writevoronoipoints else None, names=sourcename if args.h5 else None
-    )
+        write_ds9(
+            args.outputfile, np.array([skybox]), points=np.array([[phaseCentreRa,phaseCentreDec]]) if args.writevoronoipoints else None, names=sourcename if args.h5 else None
+        )
+
+    else:
+        facets, points = tessellate(
+            x, y, w, dist_pix, bbox, plot_tessellation=args.plottessellation
+        )
+
+        write_ds9(
+            args.outputfile, facets, points=points if args.writevoronoipoints else None, names=sourcename if args.h5 else None
+        )
 
 
 
