@@ -193,7 +193,7 @@ class AllMSs(object):
                     logger.info(f'Column {col} does not exist in {ms_file}. Skipping..')
                     continue
                 else:
-                    logger.info(f'Deleting column {col} from {ms_file}...')
+                    logger.info(f'Deleting column {col} from {ms_file}....')
                     t.removecols(col)
 
     def run_Blsmooth(self, incol='DATA', outcol='SMOOTHED_DATA', ionf='auto',  notime=False, nofreq=False, logstr='smooth'):

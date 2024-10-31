@@ -86,19 +86,19 @@ def getParset(parsetFile=''):
     add_default('LOFAR_timesplit', 'initc', '0')
     add_default('LOFAR_timesplit', 'no_aoflagger', 'False') # TEST: Skip aoflagger (e.g. for observations of A-Team sources)
     # self
-    add_default('LOFAR_self', 'maxIter', '2')
-    add_default('LOFAR_self', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
-    add_default('LOFAR_self', 'subfield_min_flux', '20') # min flux within calibration subfield
-    add_default('LOFAR_self', 'ph_sol_mode', 'phase') # phase or tecandphase
-    add_default('LOFAR_self', 'intrinsic', 'True')
+    add_default('LOFAR_ddparallel', 'maxIter', '2')
+    add_default('LOFAR_ddparallel', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
+    add_default('LOFAR_ddparallel', 'subfield_min_flux', '20') # min flux within calibration subfield
+    add_default('LOFAR_ddparallel', 'ph_sol_mode', 'phase') # phase or tecandphase
+    add_default('LOFAR_ddparallel', 'intrinsic', 'True')
     # dd
-    add_default('LOFAR_dd', 'maxIter', '2')
-    add_default('LOFAR_dd', 'minCalFlux60', '0.7')
-    add_default('LOFAR_dd', 'solve_amp', 'True') # to disable amp sols
-    # add_default('LOFAR_dd', 'removeExtendedCutoff', '0.0005')
-    add_default('LOFAR_dd', 'target_dir', '') # ra,dec
-    add_default('LOFAR_dd', 'manual_dd_cal', '')
-    # add_default('LOFAR_dd', 'solve_tec', 'False') # per default, solve each dd for scalarphase. if solve_tec==True, solve for TEC instead.
+    add_default('LOFAR_ddserial', 'maxIter', '2')
+    add_default('LOFAR_ddserial', 'minCalFlux60', '0.7')
+    add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
+    # add_default('LOFAR_ddserial', 'removeExtendedCutoff', '0.0005')
+    add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec
+    add_default('LOFAR_ddserial', 'manual_ddserial_cal', '')
+    # add_default('LOFAR_ddserial', 'solve_tec', 'False') # per default, solve each dd for scalarphase. if solve_tec==True, solve for TEC instead.
     # extract
     add_default('LOFAR_extract', 'max_niter', '10')
     add_default('LOFAR_extract', 'subtract_region', '') # Sources inside extract-reg that should still be subtracted! Use this e.g. for individual problematic sources in a large extractReg
@@ -120,11 +120,6 @@ def getParset(parsetFile=''):
     add_default('LOFAR_m87', 'skipmodel', 'False')
     add_default('LOFAR_m87', 'model_dir', '')
     # peel
-    #add_default('LOFAR_peel', 'peelReg', 'peel.reg')
-    #add_default('LOFAR_peel', 'predictReg', '')
-    #add_default('LOFAR_peel', 'cal_dir', '')
-    #add_default('LOFAR_peel', 'data_dir', './')
-
     ### uGMRT ###
     # init - deprecated
     #add_default('uGMRT_init', 'data_dir', './datadir')
