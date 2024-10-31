@@ -212,13 +212,13 @@ except:
 
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
-MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='mid', to_null=True)
+MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='mid', to_pbval=0)
 beamReg = 'self/beam.reg'
 beamMask = 'self/beam.fits'
 
 # set image size - this should be a bit more than the beam region used for calibration
 pixscale = MSs.getListObj()[0].getPixelScale()
-imgsizepix_wide = int(1.05*MSs.getListObj()[0].getFWHM(freq='mid', to_null=True)*3600/pixscale)
+imgsizepix_wide = int(1.85*MSs.getListObj()[0].getFWHM(freq='mid')*3600/pixscale) # roughly to null
 if imgsizepix_wide > 10000:
     imgsizepix_wide = 10000
 imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/(pixscale*8))
@@ -330,7 +330,7 @@ for c in range(maxIter):
                 sm = lsmtool.load(start_sourcedb, beamMS=beamMS)
             else:
                 # Create initial sourcedb from GSM
-                fwhm = MSs.getListObj()[0].getFWHM(freq='mid', to_null=True)
+                fwhm = MSs.getListObj()[0].getFWHM(freq='mid')*1.8 # to null
                 logger.info('Get model from GSM.')
                 os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"')
                 sm = lsmtool.load(sourcedb, beamMS=beamMS)

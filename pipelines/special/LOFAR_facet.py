@@ -50,8 +50,8 @@ except:
 
 # make beam to the first mid null
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
-MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='mid', to_null=True)
 beamReg = 'self/beam.reg'
+MSs.getListObj()[0].makeBeamReg(beamReg, freq='mid', to_pbval=0)
 fov_maj = 2*MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True)[0]
 
 # set image size
