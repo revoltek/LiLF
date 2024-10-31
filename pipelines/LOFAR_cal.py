@@ -5,11 +5,7 @@
 # It isolates various systematic effects and
 # prepare them for the transfer to the target field.
 
-# TODO debugplots currently broken
-# Add ScaleData in the beginning
 # TODO reset minvisration to 0.3 once bug fixed
-# TODO apply model bandpass before calibrating to approximately get the weights correct? Otherwise, the edge channels dominate.
-# TODO for IS, FR estimation could be moved to circ-basis to increase S/N
 
 import sys, os, glob, re
 import casacore.tables as pt
@@ -34,7 +30,6 @@ fillmissingedges = parset.getboolean('LOFAR_cal', 'fillmissingedges')
 sparse_sb = parset.getboolean('LOFAR_cal', 'sparse_sb') # change flagging to hande data that uses only alternating sb
 develop = parset.getboolean('LOFAR_cal', 'develop') # for development, don't delete files
 bl2flag = parset.get('flag', 'stations')
-debugplots = False
 
 #############################################################
 
@@ -65,7 +60,7 @@ def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
 # Clear
 with w.if_todo('cleaning'):
     logger.info('Cleaning...')
-    lib_util.check_rm('plots-fr plots-bp plots-fj plots-iono plots-iono-cs plots-pa plots-amp plots-test*}')
+    lib_util.check_rm('plots-preiono plots-preiono-cs plots-fr plots-bp plots-fj plots-iono plots-iono-cs plots-pa plots-amp plots-test*}')
     lib_util.check_rm('cal*.h5')
 ### DONE
 
@@ -172,7 +167,7 @@ with w.if_todo('predict_all'):
     MSs_concat_all.run(f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname}",
                        log="$nameMS_pre.log", commandType="DP3")
 
-if debugplots:
+if develop:
     # Smooth data concat_all-all DATA -> SMOOTHED_DATA (BL-based smoothing)
     MSs_concat_all.run_Blsmooth(nofreq=True, logstr='smooth3')
 
@@ -190,7 +185,7 @@ if debugplots:
 # 1: PRE-calibration: remove the fast-wrapping scalarphase (clock+disp. delay + 3rd order).
 # This is necessary to increase the solution intervals/channels for the PA rot+diag step, that otherwise becomes
 # too noisy for international stations. Do this on FR-corrected data to reduce glitches from FR+PA interplay.
-with w.if_todo('pre_cal'):
+with w.if_todo('pre_iono'):
     # Correct beam concat_all.MS:DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.updateweights=True',
@@ -435,7 +430,6 @@ if develop:
                              parset_dir + '/losoto-fr.parset'], plots_dir='plots-fr2')
 
     ### DONE
-
 ######################################################
 
 # 5: find BP
@@ -465,7 +459,7 @@ with w.if_todo('cal_bp'):
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve) against FR-corrupted MODEL_DATA
     # do not use datause=dual since the cross-hands are NOT trivial (FR-corrupted)
     logger.info('Calibrating BP...')
-    timestep = int(np.rint(60 / tint))  # brings down to 60s
+    timestep = int(np.rint(20 / tint))  # brings down to 60s
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/bp-sub.h5 sol.mode=diagonal sol.datause=full \
                         sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.nchan=1',
                        log='$nameMS_solBP.log', commandType="DP3")
@@ -482,7 +476,7 @@ with w.if_todo('cal_bp'):
     lib_util.run_losoto(s, 'cal-bp.h5', 'cal-bp.h5', [parset_dir + '/losoto-bp.parset'], plots_dir='plots-bp')
 ### DONE
 
-if debugplots:
+if develop:
     # Pol align correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 \
