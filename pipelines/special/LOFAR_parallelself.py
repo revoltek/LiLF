@@ -531,13 +531,13 @@ for c in range(maxIter):
             if "patch" in patch:
                 continue
             
-            clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide)
+            #clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide)
             MSs.run(
                 f"taql 'UPDATE $pathMS SET CORRECTED_DATA=CORRECTED_DATA-{patch}'",
                 log = f'$nameMS_subtract_{patch}.log', 
                 commandType = 'general'
             )
-            clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide)
+            #clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide)
             
             MSs.run(
                 f"taql 'SELECT $pathMS SET CORRECTED_DATA=CORRECTED_DATA+{patch}'",
