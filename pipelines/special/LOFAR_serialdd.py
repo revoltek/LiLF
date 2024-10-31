@@ -125,7 +125,7 @@ with w.if_todo('cleaning'):
 # use unaveraged MSs to be sure to get the same pixscale and imgsizepix of parallelself
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 pixscale = MSs.getListObj()[0].getPixelScale() 
-imgsizepix = int(1.05*MSs.getListObj()[0].getFWHM(freq='mid', to_null=True) * 3600 / pixscale)
+imgsizepix = int(1.85*MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / pixscale) # roughly to null
 
 # goes down to 8 seconds and multiple of 48 chans (this should be already the case as it's done in timesplit)
 if not os.path.exists('mss-avg'):
@@ -144,9 +144,9 @@ if not os.path.exists('mss-avg'):
 MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
 workingReg = 'ddcal/workingRegion.reg' # sources outside of this region will be ignored (and not peeled)
-MSs.getListObj()[0].makeBeamReg(workingReg, freq='mid', to_null=True)
+MSs.getListObj()[0].makeBeamReg(workingReg, freq='mid', to_pbval=0)
 peelReg = 'ddcal/peelingRegion.reg' # sources outside of this region will be peeled
-MSs.getListObj()[0].makeBeamReg(peelReg, freq='max', to_null=True)
+MSs.getListObj()[0].makeBeamReg(peelReg, freq='max', to_pbval=0.12) # this is slighly smaller than the null
 freq_min = np.min(MSs.getFreqs())
 freq_mid = np.mean(MSs.getFreqs())
 phase_center = MSs.getListObj()[0].getPhaseCentre()
