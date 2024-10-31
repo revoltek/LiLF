@@ -82,6 +82,11 @@ def corrupt_model_dirs(MSs, c, tc, model_columns, solmode='phase'):
                 f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
                     cor.parmdb=self/solutions/cal-tec{tc}-c{c}.h5 cor.correction=phase000 cor.invert=False',
                 log='$nameMS_corrupt.log', commandType='DP3')
+        elif solmode in ['scalaramplitude']:
+            MSs.run(
+                f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
+                    cor.parmdb=self/solutions/cal-solamp-c{c}.h5 cor.correction=amplitude000 cor.invert=False',
+                log='$nameMS_corrupt.log', commandType='DP3')
 
 def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None, constrainant=None, model_column_fluxes=None, variable_solint_threshold=None):
     """
@@ -210,9 +215,10 @@ def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], fwhm=0, max_
         
         logger.info(f'Appending model from {sourcedb.split('/')[-1]} (seperation {phasecentre.separation(pos).deg:.2f} deg)...')
         sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
-        sm_3c.setColValues("Patch", ["source_"+source]*len(sm_3c.getPatchNames()))
+        sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
         sm_3c.select(f'I>{threshold:.02f}', aggregate='sum', applyBeam=True)
         sm.concatenate(sm_3c)
+        sm.setPatchPositions(method='wmean', applyBeam=True)
     return sm
 
 def make_source_regions(sm, c):
@@ -410,9 +416,9 @@ for c in range(maxIter):
         sm.setPatchPositions(bright_pos)
         
         if c == 0:
+            # Add models of bright 3c sources to the sky model. model will be subtracted from data before imaging.
             sm = add_3c_models(sm, phasecentre=phasecentre, fwhm=fwhm)
         
-        print(sm.getPatchNames())
         sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
         make_source_regions(sm, c)
         logger.warning(f'Using {len(sm.getPatchNames())} patches.')
@@ -473,6 +479,17 @@ for c in range(maxIter):
     # ### CORRUPT the MODEL_DATA columns for all patches
     with w.if_todo('c%02i_corrupt_tecCS' % c):
         corrupt_model_dirs(MSs, c, 1, patches, 'phase')
+    # ### DONE
+    
+    with w.if_todo('c%02i_solve_amp' % c):
+        # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
+        logger.info('Solving Amplitude...')
+        solve_amplitude(MSs, c, patches, smMHz1[c], 16*base_solint, model_column_fluxes=patch_fluxes, variable_solint_threshold=8.)
+    ### DONE
+
+    # ### CORRUPT the MODEL_DATA columns for all patches
+    with w.if_todo('c%02i_corrupt_tecCS' % c):
+        corrupt_model_dirs(MSs, c, 1, patches, 'scalaramplitude')
     # ### DONE
 
     # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
