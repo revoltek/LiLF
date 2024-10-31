@@ -60,7 +60,7 @@ def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
 # Clear
 with w.if_todo('cleaning'):
     logger.info('Cleaning...')
-    lib_util.check_rm('plots-preiono plots-preiono-cs plots-fr plots-bp plots-fj plots-iono plots-iono-cs plots-pa plots-amp plots-test*}')
+    lib_util.check_rm('plots-preiono plots-preiono-cs plots-fr plots-bp plots-bp-sub plots-fj plots-iono plots-iono-cs plots-pa plots-amp plots-test*}')
     lib_util.check_rm('cal*.h5')
 ### DONE
 

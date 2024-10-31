@@ -348,25 +348,17 @@ for cmaj in range(maxIter):
             s.run(check=True)
     ### DONE
 
-    # TODO: just for debug, to be removed
-    if cmaj == 1:
-        with w.if_todo('c%02i-fulljsol' % cmaj):
-            logger.info('Solving slow G (full jones)...')
-            MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/g.h5 sol.solint=10 sol.nchan=16',
-                    log='$nameMS_solG-c%02i.log' % cmaj, commandType='DP3')
-            lib_util.run_losoto(s, 'g-c%02i' % cmaj, [MS+'/g.h5' for MS in MSs.getListStr()],
-                    [parset_dir+'/losoto-plot-fullj.parset', parset_dir+'/losoto-bp.parset'])
-            os.system('mv plots-g-c%02i ddcal/c%02i/plots/' % (cmaj, cmaj))
-            os.system('mv cal-g-c%02i.h5 ddcal/c%02i/solutions/' % (cmaj, cmaj))
-        ### DONE
-
-    #    with w.if_todo('c%02i-fulljcor' % cmaj):
-    #        # correct G - group*_TC.MS:CORRECTED_DATA -> group*_TC.MS:CORRECTED_DATA
-    #        logger.info('Correcting G...')
-    #        MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-    #                cor.parmdb=ddcal/c%02i/solutions/cal-g-c%02i.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phase000]' % (cmaj, cmaj),
-    #                log='$nameMS_corG-c%02i.log' % cmaj, commandType='DP3')
-        ### DONE
+    # just for debug, to be removed
+    #if cmaj == 1:
+    #    with w.if_todo('c%02i-fulljsol' % cmaj):
+    #        logger.info('Solving slow G (full jones)...')
+    #        MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/g.h5 sol.solint=10 sol.nchan=16',
+    #                log='$nameMS_solG-c%02i.log' % cmaj, commandType='DP3')
+    #        lib_util.run_losoto(s, 'g-c%02i' % cmaj, [MS+'/g.h5' for MS in MSs.getListStr()],
+    #                [parset_dir+'/losoto-plot-fullj.parset', parset_dir+'/losoto-bp.parset'])
+    #        os.system('mv plots-g-c%02i ddcal/c%02i/plots/' % (cmaj, cmaj))
+    #        os.system('mv cal-g-c%02i.h5 ddcal/c%02i/solutions/' % (cmaj, cmaj))
+    #    ### DONE
 
     with w.if_todo('c%02i-fullsub' % cmaj):
         if cmaj == 0:
