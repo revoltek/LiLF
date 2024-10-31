@@ -65,8 +65,8 @@ def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
 # Clear
 with w.if_todo('cleaning'):
     logger.info('Cleaning...')
-    lib_util.check_rm('plots-{fr,bp,fj,iono,iono-cs,pa,amp}')
-    lib_util.check_rm('bandpass.h5')
+    lib_util.check_rm('plots-fr plots-bp plots-fj plots-iono plots-iono-cs plots-pa plots-amp plots-test*}')
+    lib_util.check_rm('cal*.h5')
 ### DONE
 
 # unpack tar files if present
@@ -146,11 +146,14 @@ uvlambdamin = 50 if min(MSs_concat_all.getFreqs()) < 30e6 else 100 # for Decamet
 # rescale data to expected theoretical bandpass
 with w.if_todo('scale_bp'):
     logger.info("Scale data to expected bandpass...")
-    MSconcat = lib_ms.MS('concat_all.MS')
-    lib_h5.create_h5bandpass(MSconcat)
+    MSs_concat_all.run(
+        f'DP3 {parset_dir}/DP3-sol.parset msin=concat_all.MS msin.datacolumn=DATA sol.h5parm=cal-bp-theo.h5 sol.solint=0 sol.nchan=1 \
+            sol.maxiter=0 sol.mode=diagonalamplitude sol.modeldatacolumns="[DATA]"',
+            log='$nameMS_bptemplate.log', commandType='DP3')
+    lib_h5.create_h5bandpass(MSs_concat_all.getListObj()[0], 'cal-bp-theo.h5')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA '
-                       f'cor.parmdb=bandpass.h5 cor.correction=amplitude000 cor.updateweights=True',
-                       log="$nameMS_scale.log", commandType="DP3")
+                       f'cor.parmdb=cal-bp-theo.h5 cor.correction=amplitude000 cor.updateweights=True',
+                       log="$nameMS_bpscale.log", commandType="DP3")
 
 # flag bad stations, flags will propagate
 with w.if_todo('flag'):
@@ -463,13 +466,20 @@ with w.if_todo('cal_bp'):
     # do not use datause=dual since the cross-hands are NOT trivial (FR-corrupted)
     logger.info('Calibrating BP...')
     timestep = int(np.rint(60 / tint))  # brings down to 60s
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/bp.h5 sol.mode=diagonal sol.datause=full \
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/bp-sub.h5 sol.mode=diagonal sol.datause=full \
                         sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.nchan=1',
                        log='$nameMS_solBP.log', commandType="DP3")
 
     flag_parset = '/losoto-flag-sparse.parset' if sparse_sb else '/losoto-flag.parset'
-    lib_util.run_losoto(s, 'bp', [ms + '/bp.h5' for ms in MSs_concat_all.getListStr()],
-                        [parset_dir + flag_parset, parset_dir + '/losoto-bp.parset'])
+    lib_util.run_losoto(s, 'bp-sub', [ms + '/bp-sub.h5' for ms in MSs_concat_all.getListStr()],
+                        [parset_dir + flag_parset])
+
+    # merge the solution with the bandpass before losoto
+    s.add(f'h5_merger.py --h5_out cal-bp.h5 --h5_tables cal-bp-sub.h5 cal-bp-theo.h5 --merge_all_in_one'
+            , log='h5_merger.log', commandType='python')
+    s.run(check=True)
+
+    lib_util.run_losoto(s, 'cal-bp.h5', 'cal-bp.h5', [parset_dir + '/losoto-bp.parset'], plots_dir='plots-bp')
 ### DONE
 
 if debugplots:
