@@ -211,7 +211,7 @@ def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], fwhm=0, max_
             logger.warning(f'No model found for {source} (seperation {phasecentre.separation(pos).deg:.2f} deg)')
             continue
         
-        logger.info(f'Appending model from {sourcedb.split('/')[-1]} (seperation {phasecentre.separation(pos).deg:.2f} deg)...')
+        logger.info(f'Appending model from {sourcedb.split("/")[-1]} (seperation {phasecentre.separation(pos).deg:.2f} deg)...')
         sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
         sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
         sm_3c.select(f'I>{threshold:.02f}', aggregate='sum', applyBeam=True)
@@ -252,7 +252,7 @@ with w.if_todo('cleaning'):
     if not os.path.exists('self/skymodel'): os.makedirs('self/skymodel')
 ### DONE
 
-MSs = lib_ms.AllMSs( [sorted(glob.glob('mss/TC*[0-9].MS'))[1]], s )
+MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
 try:
     MSs.print_HAcov()
@@ -291,10 +291,10 @@ if tint < 4:
     base_solint = int(np.rint(4/tint)) # this is already 4 for dutch observations
 else: base_solint = 1
 
-mask_threshold = [5.0,4.0,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
+mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
 facet_fluxes = np.array([4, 1.8, 1.2, 0.8, 0.6])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
-min_facets = [3, 6, 14, 20, 25, 30]
+min_facets = [3, 6, 18, 24, 24, 24]
 
 smMHz2 = [1.0,5.0,5.0,5.0,5.0,5.0]
 smMHz1 = [5.0,8.0,8.0,8.0,8.0,8.0]
@@ -373,6 +373,10 @@ for c in range(maxIter):
     # get sourcedb
     sourcedb = f'tgts-c{c}.skymodel'
     beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
+    if c in [1,2]:
+        intrinsic = False
+    else:
+        intrinsic = True
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
@@ -386,19 +390,23 @@ for c in range(maxIter):
                 logger.info('Get model from GSM.')
                 os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"')
                 sm = lsmtool.load(sourcedb, beamMS=beamMS)
+                if not intrinsic: # turn to apparent sky
+                    sm.write(sourcedb, clobber=True, applyBeam=True, adjustSI=True)
+                    sm = lsmtool.load(sourcedb)
         else:
             # get wsclean skymodel of last iteration
-            sm = lsmtool.load(f'img/wideM-{c-1}-sources-pb.txt', beamMS=beamMS)
+            wsc_src = f'img/wideM-{c-1}-sources-pb.txt' if intrinsic else f'img/wideM-{c-1}-sources.txt'
+            sm = lsmtool.load(wsc_src, beamMS=beamMS if intrinsic else None)
         # if using e.g. LoTSS, adjust for the frequency
         logger.debug(f'Extrapolating input skymodel fluxes from {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
         si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S144 = si_factor * S54
-        sm.select(f'I>{0.01*si_factor}', applyBeam=True)  # keep only reasonably bright sources
+        sm.select(f'I>{0.05*si_factor}', applyBeam=intrinsic)  # keep only reasonably bright sources
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
         sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
-        sm.setPatchPositions(method='wmean', applyBeam=True)
-        sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=True)
+        sm.setPatchPositions(method='wmean', applyBeam=intrinsic)
+        sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=intrinsic)
         # TODO we need some logic here to avoid picking up very extended sources. Also case no bright sources in a field.
-        patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=True)
+        patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
         if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]:
             bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor
             logger.warning(f'Not enough bright sources above minimum flux {bright_sources_flux:.2f} Jy! Using sources above {bright_sources_flux:.2f} Jy')
@@ -406,7 +414,7 @@ for c in range(maxIter):
             bright_sources_flux = facet_fluxes[c]
         bright_names = sm.getPatchNames()[patch_fluxes > bright_sources_flux*si_factor]
         bright_pos = sm.getPatchPositions(bright_names)
-        sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=True, root='', byPatch=True)
+        sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=intrinsic, root='', byPatch=True)
         sm.setPatchPositions(bright_pos)
         
         if c == 0:
@@ -419,7 +427,7 @@ for c in range(maxIter):
         sm.write(sourcedb, clobber=True)
     else:
         logger.info(f'Load existing skymodel {sourcedb}')
-        sm = lsmtool.load(sourcedb, beamMS=beamMS)
+        sm = lsmtool.load(sourcedb, beamMS=beamMS if intrinsic else None)
 
     # copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
     sourcedb_basename = sourcedb.split('/')[-1]
@@ -429,13 +437,13 @@ for c in range(maxIter):
         os.system('cp -r ' + sourcedb + ' ' + MS)
 
     patches = sm.getPatchNames()
-    patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=True)
+    patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
 
     with w.if_todo('c%02i_init_model' % c):
         for patch in patches:
             # Add model to MODEL_DATA
             logger.info(f'Add model to {patch}...')
-            pred_parset = 'DP3-predict-beam.parset'
+            pred_parset = 'DP3-predict-beam.parset' if intrinsic else 'DP3-predict.parset'
             MSs.run(f'DP3 {parset_dir}/{pred_parset} msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch}',
                     log='$nameMS_pre.log', commandType='DP3')
             # Smooth CORRECTED_DATA -> SMOOTHED_DATA
@@ -463,11 +471,12 @@ for c in range(maxIter):
         corrupt_model_dirs(MSs, c, 2, patches)
     ### DONE
 
-    cs_solmode = 'phase' if c == 0 else 'tec'
     with w.if_todo('c%02i_solve_tecCS' % c):
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
         logger.info('Solving TEC (CS)...')
-        solve_iono(MSs, c, 1, patches, smMHz1[c], 16*base_solint, 'phase', constrainant=None)
+        logger.warning('constrain RS'
+        )
+        solve_iono(MSs, c, 1, patches, smMHz1[c], 16*base_solint, 'phase', constrainant='RS')
     ### DONE
 
     # ### CORRUPT the MODEL_DATA columns for all patches
@@ -616,8 +625,8 @@ for c in range(maxIter):
         # merge source lists
         os.system(f'mv {imagenameM}-sources.txt {imagenameM}-clean2-sources.txt')
         os.system(f'mv {imagenameM}-sources-pb.txt {imagenameM}-clean2-sources-pb.txt')
-        os.system(f'cat {imagenameM}-sources-clean1-pb.txt {imagenameM}-clean2-sources-pb.txt >> {imagenameM}-sources-pb.txt')
-        os.system(f'cat {imagenameM}-sources-clean1.txt {imagenameM}-clean2-sources.txt >> {imagenameM}-sources.txt')
+        os.system(f'cat {imagenameM}-clean1-sources-pb.txt {imagenameM}-clean2-sources-pb.txt >> {imagenameM}-sources-pb.txt')
+        os.system(f'cat {imagenameM}-clean1-sources.txt {imagenameM}-clean2-sources.txt >> {imagenameM}-sources.txt')
 
         # reset NaNs if present
         im = lib_img.Image(f'{imagenameM}-MFS-image.fits')
