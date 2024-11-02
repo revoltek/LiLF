@@ -309,18 +309,6 @@ if not os.path.exists(beamMask):
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 1.)
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 0., inverse=True)
 
-if not os.path.exists('self/solutions/cal-template.h5'):
-    # create a template h5parm file
-    if phaseSolMode == 'phase':  # phase
-        solver_params = f'sol.mode=scalarphase sol.nchan=1'
-    else:  # TEC or TecAndPhase
-        solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
-    MSs.run(
-        f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/template.h5 sol.solint=1 sol.maxiter=1 {solver_params} sol.modeldatacolumns="[DATA]"',
-        log='$nameMS_soltemplate.log', commandType='DP3')
-    lib_util.run_losoto(s, 'template', [ms + '/template.h5' for ms in MSs.getListStr()], [])
-    os.system('mv cal-template.h5 self/solutions/')
-    os.system('rm -r plots-template')
 #################################################################################################
 
 with w.if_todo('solve_fr'):
@@ -484,15 +472,15 @@ for c in range(maxIter):
         corrupt_model_dirs(MSs, c, 1, patches, 'phase')
     # ### DONE
     
-    with w.if_todo('c%02i_solve_amp' % c):
-        # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
-        logger.info('Solving Amplitude...')
-        solve_amplitude(MSs, c, patches, smMHz1[c], 16*base_solint, model_column_fluxes=patch_fluxes, variable_solint_threshold=8.)
-    ### DONE
-
-    # ### CORRUPT the MODEL_DATA columns for all patches
-    with w.if_todo('c%02i_corrupt_tecCS' % c):
-        corrupt_model_dirs(MSs, c, 1, patches, 'scalaramplitude')
+    # with w.if_todo('c%02i_solve_amp' % c):
+    #     # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
+    #     logger.info('Solving Amplitude...')
+    #     solve_amplitude(MSs, c, patches, smMHz1[c], 16*base_solint, model_column_fluxes=patch_fluxes, variable_solint_threshold=8.)
+    # ### DONE
+    #
+    # # ### CORRUPT the MODEL_DATA columns for all patches
+    # with w.if_todo('c%02i_corrupt_tecCS' % c):
+    #     corrupt_model_dirs(MSs, c, 1, patches, 'scalaramplitude')
     # ### DONE
 
     # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
@@ -898,7 +886,7 @@ for c in range(maxIter):
             with w.if_todo('image_sidelobe'):
                 logger.info('Cleaning low-res...')
                 lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
-                                     parallel_gridding=4, temp_dir='/', size=imgsizepix_lr, scale='30arcsec',
+                                     parallel_gridding=4, size=imgsizepix_lr, scale='30arcsec',
                                      weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                                      taper_gaussian='200arcsec', mgain=0.85, channels_out=MSs.getChout(2.e6), parallel_deconvolution=512, baseline_averaging='',
                                      local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='')
