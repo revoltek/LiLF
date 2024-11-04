@@ -488,7 +488,7 @@ for c in range(maxIter):
     ### DONE
 
     # ### CORRUPT the MODEL_DATA columns for all patches
-    with w.if_todo('c%02i_corrupt_tecCS' % c):
+    with w.if_todo('c%02i_corrupt_amp' % c):
         corrupt_model_dirs(MSs, c, 1, patches, 'scalaramplitude')
     # ### DONE
 
@@ -551,13 +551,19 @@ for c in range(maxIter):
             if "patch" in patch:
                 continue
             
-            #clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide)
+            clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
             MSs.run(
-                f"taql 'UPDATE $pathMS SET CORRECTED_DATA=CORRECTED_DATA-{patch}'",
+                f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
                 log = f'$nameMS_subtract_{patch}.log', 
                 commandType = 'general'
             )
-            #clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide)
+            
+            MSs.run(
+                f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
+                log = f'$nameMS_subtract_{patch}.log', 
+                commandType = 'general'
+            )
+            clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
             MSs.deletecol(patch)
             
             
@@ -874,7 +880,7 @@ for c in range(maxIter):
             with w.if_todo('image_sidelobe'):
                 logger.info('Cleaning low-res...')
                 lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
-                                     parallel_gridding=4, temp_dir='/', size=imgsizepix_lr, scale='30arcsec',
+                                     parallel_gridding=4, size=imgsizepix_lr, scale='30arcsec',
                                      weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                                      taper_gaussian='200arcsec', mgain=0.85, channels_out=MSs.getChout(2.e6), parallel_deconvolution=512, baseline_averaging='',
                                      local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='')
