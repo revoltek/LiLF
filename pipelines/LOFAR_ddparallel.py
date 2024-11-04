@@ -402,7 +402,7 @@ for c in range(maxIter):
         sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=intrinsic, root='', byPatch=True)
         sm.setPatchPositions(bright_pos)
         lib_dd_parallel.rename_skymodel_patches(sm, applyBeam=intrinsic)
-        
+
         if c == 0:
             # Add models of bright 3c sources to the sky model. model will be subtracted from data before imaging.
             sm = add_3c_models(sm, phasecentre=phasecentre, fwhm=fwhm)
@@ -541,13 +541,19 @@ for c in range(maxIter):
             if "patch" in patch:
                 continue
             
-            #clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide)
+            clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
             MSs.run(
-                f"taql 'UPDATE $pathMS SET CORRECTED_DATA=CORRECTED_DATA-{patch}'",
+                f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
+                log = f'$nameMS_subtract_{patch}.log',
+                commandType = 'general'
+            )
+
+            MSs.run(
+                f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
                 log = f'$nameMS_subtract_{patch}.log', 
                 commandType = 'general'
             )
-            #clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide)
+            clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
             MSs.deletecol(patch)
             
             
