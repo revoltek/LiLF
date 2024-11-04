@@ -144,7 +144,7 @@ with w.if_todo('scale_bp'):
     # dummy call to create template
     MSs_concat_all.run(
         f'DP3 {parset_dir}/DP3-sol.parset msin=concat_all.MS msin.datacolumn=DATA sol.h5parm=cal-bp-theo.h5 sol.solint={int(np.rint(20 / tint))} sol.nchan=1 \
-            sol.maxiter=1 sol.mode=diagonalamplitude sol.modeldatacolumns="[DATA]"',
+            sol.maxiter=0 sol.mode=diagonalamplitude sol.modeldatacolumns="[DATA]"',
             log='$nameMS_bptemplate.log', commandType='DP3')
     lib_h5.create_h5bandpass(MSs_concat_all.getListObj()[0], 'cal-bp-theo.h5')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA '
@@ -399,6 +399,7 @@ with w.if_todo('cal_iono'):
 ### DONE
 
 ######################################################
+
 # 5: find BP
 with w.if_todo('cal_bp'):
     ## Pol align correction concat_all.MS:DATA -> CORRECTED_DATA
