@@ -13,7 +13,6 @@
 # 6. Repeat dd self-cal cycles with a growing number of directions
 # they need to be in "./mss/"
 
-# TODO rename model columns
 # TODO test the effect of scalar-visibilities on stoke I and V image quality
 # TODO the subfield algorithm should not cut any sources ... how to best implement that? Something with mask islands?
 # TODO final imaging products
@@ -361,10 +360,7 @@ for c in range(maxIter):
     # get sourcedb
     sourcedb = f'tgts-c{c}.skymodel'
     beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
-    if c in [1,2]: # these cycles we only have the apparent skymodel - predict w/o beam, find patches in apparent model
-        intrinsic = False
-    else: # use intrinsic
-        intrinsic = True
+    intrinsic = not c in [1,2] # these cycles we only have the apparent skymodel - predict w/o beam, find patches in apparent model
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
@@ -375,11 +371,11 @@ for c in range(maxIter):
             else:
                 # Create initial sourcedb from GSM
                 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')*1.8 # to null
-                logger.info('Get model from GSM.')
+                logger.info('Get skymodel from GSM.')
                 os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"')
                 sm = lsmtool.load(sourcedb, beamMS=beamMS)
         else:
-            # get wsclean skymodel of last iteration
+            # get wsclean skymodel of previous iteration
             wsc_src = f'img/wideM-{c-1}-sources-pb.txt' if intrinsic else f'img/wideM-{c-1}-sources.txt'
             sm = lsmtool.load(wsc_src, beamMS=beamMS if intrinsic else None)
         # if using e.g. LoTSS, adjust for the frequency
@@ -409,8 +405,8 @@ for c in range(maxIter):
         
         sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
         make_source_regions(sm, c)
-        logger.info(f'Using {len(sm.getPatchNames())} patches.')
         sm.write(sourcedb, clobber=True)
+        logger.info(f'Using {len(sm.getPatchNames())} patches.')
     else:
         logger.info(f'Load existing skymodel {sourcedb}')
         sm = lsmtool.load(sourcedb, beamMS=beamMS if intrinsic else None)
@@ -424,6 +420,8 @@ for c in range(maxIter):
 
     patches = sm.getPatchNames()
     patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
+    for patch in patches[np.argsort(patch_fluxes)[::-1]]:
+        logger.info(f'{patch}: {patch_fluxes[patches==patch][0]:.1f}Jy')
 
     with w.if_todo('c%02i_init_model' % c):
         for patch in patches:
@@ -460,8 +458,6 @@ for c in range(maxIter):
     with w.if_todo('c%02i_solve_tecCS' % c):
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
         logger.info('Solving TEC (CS)...')
-        logger.warning('constrain RS'
-        )
         solve_iono(MSs, c, 1, patches, smMHz1[c], 16*base_solint, 'phase', constrainant=None) # 'RS'
     ### DONE
 
@@ -592,7 +588,7 @@ for c in range(maxIter):
         logger.info('Making wide field image ...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
                              weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='',
-                             update_model_required='', minuv_l=30, beam_size=15, mgain=0.9, nmiter=20, parallel_deconvolution=1024, auto_threshold=2.0, auto_mask=4.0,
+                             update_model_required='', minuv_l=30, beam_size=15, mgain=0.9, nmiter=20, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
                              multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',
                              facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000 ',
