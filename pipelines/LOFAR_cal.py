@@ -168,18 +168,18 @@ with w.if_todo('predict_all'):
     MSs_concat_all.run(f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname}",
                        log="$nameMS_pre.log", commandType="DP3")
 
-if develop:
-    # Smooth data concat_all-all DATA -> SMOOTHED_DATA (BL-based smoothing)
-    MSs_concat_all.run_Blsmooth(nofreq=True, logstr='smooth3')
-
-    # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-    logger.info('Calibrating test...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS\
-            sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
-            sol.solint=1 sol.nchan=1', \
-            log='$nameMS_solTEST.log', commandType="DP3")
-    lib_util.run_losoto(s, 'test-init', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
-                        [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
+# if develop:
+#     # Smooth data concat_all-all DATA -> SMOOTHED_DATA (BL-based smoothing)
+#     MSs_concat_all.run_Blsmooth(nofreq=True, logstr='smooth3')
+#
+#     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#     logger.info('Calibrating test...')
+#     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS\
+#             sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
+#             sol.solint=1 sol.nchan=1', \
+#             log='$nameMS_solTEST.log', commandType="DP3")
+#     lib_util.run_losoto(s, 'test-init', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
+#                         [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
 
 ###################################################
 
@@ -442,89 +442,89 @@ with w.if_todo('cal_bp'):
     lib_util.run_losoto(s, 'cal-bp.h5', 'cal-bp.h5', [parset_dir + '/losoto-bp.parset'], plots_dir='plots-bp')
 ### DONE
 
-if develop:
-    # Pol align correction DATA -> CORRECTED_DATA
-    logger.info('Polalign correction...')
-    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 \
-                   cor.correction=polalign', log='$nameMS_corPA2.log', commandType="DP3")
-
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
-
-    # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-    logger.info('Calibrating test...')
-    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS\
-                sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
-                sol.solint=1 sol.nchan=1', \
-                log='$nameMS_solTEST.log', commandType="DP3")
-    lib_util.run_losoto(s, 'test-pa', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
-                [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
-
-    # Beam correction CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Beam correction...')
-    MSs_concat_all.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False',
-                           log='$nameMS_beam2.log', commandType="DP3")
-
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
-
-    # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-    logger.info('Calibrating test...')
-    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS\
-                sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
-                sol.solint=1 sol.nchan=1', \
-                log='$nameMS_solTEST.log', commandType="DP3")
-    lib_util.run_losoto(s, 'test-pabeam', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
-                [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
-
-    # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('BP correction...')
-    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp.h5 \
-                cor.correction=amplitudeSmooth cor.updateweights=False',
-                log='$nameMS_corBP.log', commandType="DP3")
-
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
-
-    # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-    logger.info('Calibrating test...')
-    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS\
-                sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
-                sol.solint=1 sol.nchan=1', \
-                log='$nameMS_solTEST.log', commandType="DP3")
-    lib_util.run_losoto(s, 'test-pabeambp', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
-                [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
-
-    # Correct FR CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Faraday rotation correction...')
-    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 \
-                   cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DP3")
-
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
-
-    # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-    logger.info('Calibrating test...')
-    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS\
-                sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
-                sol.solint=1 sol.nchan=1', \
-                log='$nameMS_solTEST.log', commandType="DP3")
-    lib_util.run_losoto(s, 'test-pabeambpfr', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
-                [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
-
-    # Correct iono CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Iono correction...')
-    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 \
-                   cor.correction=phase000', log='$nameMS_corIONO2_CS.log', commandType="DP3")
-    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
-                   cor.correction=phase000', log='$nameMS_corIONO2.log', commandType="DP3")
-
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
-
-    # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-    logger.info('Calibrating test...')
-    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS\
-                sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
-                sol.solint=1 sol.nchan=1', \
-                log='$nameMS_solTEST.log', commandType="DP3")
-    lib_util.run_losoto(s, 'test-pabeambpfriono', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
-                [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
+# if develop:
+#     # Pol align correction DATA -> CORRECTED_DATA
+#     logger.info('Polalign correction...')
+#     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 \
+#                    cor.correction=polalign', log='$nameMS_corPA2.log', commandType="DP3")
+#
+#     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
+#
+#     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#     logger.info('Calibrating test...')
+#     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS\
+#                 sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
+#                 sol.solint=1 sol.nchan=1', \
+#                 log='$nameMS_solTEST.log', commandType="DP3")
+#     lib_util.run_losoto(s, 'test-pa', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
+#                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
+#
+#     # Beam correction CORRECTED_DATA -> CORRECTED_DATA
+#     logger.info('Beam correction...')
+#     MSs_concat_all.run("DP3 " + parset_dir + '/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False',
+#                            log='$nameMS_beam2.log', commandType="DP3")
+#
+#     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
+#
+#     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#     logger.info('Calibrating test...')
+#     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS\
+#                 sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
+#                 sol.solint=1 sol.nchan=1', \
+#                 log='$nameMS_solTEST.log', commandType="DP3")
+#     lib_util.run_losoto(s, 'test-pabeam', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
+#                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
+#
+#     # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
+#     logger.info('BP correction...')
+#     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp.h5 \
+#                 cor.correction=amplitudeSmooth cor.updateweights=False',
+#                 log='$nameMS_corBP.log', commandType="DP3")
+#
+#     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
+#
+#     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#     logger.info('Calibrating test...')
+#     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS\
+#                 sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
+#                 sol.solint=1 sol.nchan=1', \
+#                 log='$nameMS_solTEST.log', commandType="DP3")
+#     lib_util.run_losoto(s, 'test-pabeambp', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
+#                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
+#
+#     # Correct FR CORRECTED_DATA -> CORRECTED_DATA
+#     logger.info('Faraday rotation correction...')
+#     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 \
+#                    cor.correction=rotationmeasure000', log='$nameMS_corFR2.log', commandType="DP3")
+#
+#     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
+#
+#     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#     logger.info('Calibrating test...')
+#     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS\
+#                 sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
+#                 sol.solint=1 sol.nchan=1', \
+#                 log='$nameMS_solTEST.log', commandType="DP3")
+#     lib_util.run_losoto(s, 'test-pabeambpfr', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
+#                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
+#
+#     # Correct iono CORRECTED_DATA -> CORRECTED_DATA
+#     logger.info('Iono correction...')
+#     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 \
+#                    cor.correction=phase000', log='$nameMS_corIONO2_CS.log', commandType="DP3")
+#     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
+#                    cor.correction=phase000', log='$nameMS_corIONO2.log', commandType="DP3")
+#
+#     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth3')
+#
+#     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
+#     logger.info('Calibrating test...')
+#     MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS\
+#                 sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
+#                 sol.solint=1 sol.nchan=1', \
+#                 log='$nameMS_solTEST.log', commandType="DP3")
+#     lib_util.run_losoto(s, 'test-pabeambpfriono', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
+#                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
 
 if not develop:
     with w.if_todo('compressing_h5'):
@@ -582,7 +582,7 @@ if imaging:
                     cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
         # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
         logger.info('BP correction...')
-        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp.h5 \
+        MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp-sub.h5 \
             cor.correction=amplitudeSmooth  cor.updateweights=False', log='$nameMS_corBP.log', commandType="DP3")
         # FR correction concat_all.MS:CORRECTED_DATA -> FR_CORRECTED_DATA
         logger.info('FR correction (for imaging)...')
