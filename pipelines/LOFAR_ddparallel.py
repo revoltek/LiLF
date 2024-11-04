@@ -13,8 +13,8 @@
 # 6. Repeat dd self-cal cycles with a growing number of directions
 # they need to be in "./mss/"
 
+# TODO rename model columns
 # TODO test the effect of scalar-visibilities on stoke I and V image quality
-# TODO do we need amplitude corrections(?)? If so, DI/DD/only for bright sources? test DI amplitude solve WITH and WITHOUT dd-phase corruptions applied -> do the solutions for the distant RS change a lot?
 # TODO the subfield algorithm should not cut any sources ... how to best implement that? Something with mask islands?
 # TODO final imaging products
 
@@ -361,9 +361,9 @@ for c in range(maxIter):
     # get sourcedb
     sourcedb = f'tgts-c{c}.skymodel'
     beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
-    if c in [1,2]:
+    if c in [1,2]: # these cycles we only have the apparent skymodel - predict w/o beam, find patches in apparent model
         intrinsic = False
-    else:
+    else: # use intrinsic
         intrinsic = True
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
@@ -378,9 +378,6 @@ for c in range(maxIter):
                 logger.info('Get model from GSM.')
                 os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"')
                 sm = lsmtool.load(sourcedb, beamMS=beamMS)
-                if not intrinsic: # turn to apparent sky
-                    sm.write(sourcedb, clobber=True, applyBeam=True, adjustSI=True)
-                    sm = lsmtool.load(sourcedb)
         else:
             # get wsclean skymodel of last iteration
             wsc_src = f'img/wideM-{c-1}-sources-pb.txt' if intrinsic else f'img/wideM-{c-1}-sources.txt'
@@ -388,7 +385,7 @@ for c in range(maxIter):
         # if using e.g. LoTSS, adjust for the frequency
         logger.debug(f'Extrapolating input skymodel fluxes from {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
         si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S144 = si_factor * S54
-        sm.select(f'I>{0.05*si_factor}', applyBeam=intrinsic)  # keep only reasonably bright sources
+        # sm.select(f'I>{0.01*si_factor}', applyBeam=intrinsic)  # keep only reasonably bright sources
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
         sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
         sm.setPatchPositions(method='wmean', applyBeam=intrinsic)
@@ -404,6 +401,7 @@ for c in range(maxIter):
         bright_pos = sm.getPatchPositions(bright_names)
         sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=intrinsic, root='', byPatch=True)
         sm.setPatchPositions(bright_pos)
+        lib_dd_parallel.rename_skymodel_patches(sm, applyBeam=intrinsic)
         
         if c == 0:
             # Add models of bright 3c sources to the sky model. model will be subtracted from data before imaging.
@@ -411,7 +409,7 @@ for c in range(maxIter):
         
         sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
         make_source_regions(sm, c)
-        logger.warning(f'Using {len(sm.getPatchNames())} patches.')
+        logger.info(f'Using {len(sm.getPatchNames())} patches.')
         sm.write(sourcedb, clobber=True)
     else:
         logger.info(f'Load existing skymodel {sourcedb}')
@@ -464,7 +462,7 @@ for c in range(maxIter):
         logger.info('Solving TEC (CS)...')
         logger.warning('constrain RS'
         )
-        solve_iono(MSs, c, 1, patches, smMHz1[c], 16*base_solint, 'phase', constrainant='RS')
+        solve_iono(MSs, c, 1, patches, smMHz1[c], 16*base_solint, 'phase', constrainant=None) # 'RS'
     ### DONE
 
     # ### CORRUPT the MODEL_DATA columns for all patches

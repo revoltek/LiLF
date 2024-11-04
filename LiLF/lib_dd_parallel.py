@@ -116,6 +116,37 @@ def merge_nearby_bright_facets(skymodel, max_distance, min_flux, applyBeam=False
     return skymodel
 
 
+def rename_skymodel_patches(skymodel, applyBeam=False):
+    """
+    Rename the patches in the input sky model according to flux
+
+    Parameters
+    ----------
+    skymodel : LSMTool skymodel.SkyModel object
+        Input sky model
+    applyBeam : bool, intrinsic/apparent
+    """
+    if not skymodel.hasPatches:
+        raise ValueError('Cannot rename patches since the input skymodel is not grouped '
+                         'into patches.')
+    patch_names = skymodel.getPatchNames()
+    patch_fluxes = skymodel.getColValues('I', aggregate='sum', applyBeam=applyBeam)
+    patch_pos = skymodel.getPatchPositions()
+
+    old_new_dict = {}
+    for i, id in enumerate(np.argsort(patch_fluxes)[::-1]):
+        old_new_dict[patch_names[id]] = f'patch_{i:02.0f}'
+
+    patch_col = skymodel.getColValues('Patch')
+    for old_name, new_name in old_new_dict.items():
+        patch_col[patch_col == old_name] = new_name
+        patch_pos[new_name] = patch_pos.pop(old_name)
+
+    skymodel.setColValues('Patch', patch_col)
+    skymodel.setPatchPositions(patch_pos)
+
+
+
 
 # class Direction(object):
 
