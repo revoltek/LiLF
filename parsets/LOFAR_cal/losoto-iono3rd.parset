@@ -55,6 +55,6 @@ soltab = sol000/phaseResid000
 axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
-prefix = plots/phRes
+prefix = plots/phRes_
 refAnt = SuperSt
 minmax = [-3.14,3.14]

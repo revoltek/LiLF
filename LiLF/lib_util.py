@@ -97,7 +97,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
     # add_default('LOFAR_ddserial', 'removeExtendedCutoff', '0.0005')
     add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec
-    add_default('LOFAR_ddserial', 'manual_ddserial_cal', '')
+    add_default('LOFAR_ddserial', 'manual_dd_cal', '')
     # add_default('LOFAR_ddserial', 'solve_tec', 'False') # per default, solve each dd for scalarphase. if solve_tec==True, solve for TEC instead.
     # extract
     add_default('LOFAR_extract', 'max_niter', '10')
