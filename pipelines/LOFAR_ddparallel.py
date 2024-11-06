@@ -83,10 +83,11 @@ def corrupt_model_dirs(MSs, c, tc, model_columns, solmode='phase'):
                     cor.parmdb=self/solutions/cal-tec{tc}-c{c}.h5 cor.correction=phase000 cor.invert=False',
                 log='$nameMS_corrupt.log', commandType='DP3')
         elif solmode in ['scalaramplitude']:
-            MSs.run(
-                f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
-                    cor.parmdb=self/solutions/cal-solamp-c{c}.h5 cor.correction=amplitude000 cor.invert=False',
-                log='$nameMS_corrupt.log', commandType='DP3')
+            if not model_column.startswith('patch'):    
+                MSs.run(
+                    f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
+                        cor.parmdb=self/solutions/cal-solamp-c{c}.h5 cor.correction=amplitude000 cor.invert=False',
+                    log='$nameMS_corrupt.log', commandType='DP3')
 
 def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None, constrainant=None, model_column_fluxes=None, variable_solint_threshold=None):
     """
@@ -174,7 +175,7 @@ def solve_amplitude(MSs, c, model_columns, smMHz, solint, resetant=None, constra
         commandType="DP3"
     )
     
-    losoto_parsets = [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset']
+    losoto_parsets = [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-clip2.parset']
     
     lib_util.run_losoto(s, f'solamp-c{c}', [ms+f'/solamp_c{c}.h5' for ms in MSs.getListStr()], losoto_parsets, 
                         plots_dir=f'self/plots/plots-solamp-c{c}', h5_dir=f'self/solutions/')
@@ -489,6 +490,7 @@ for c in range(maxIter):
 
     # ### CORRUPT the MODEL_DATA columns for all patches
     with w.if_todo('c%02i_corrupt_amp' % c):
+        MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"', log='$nameMS_taql.log', commandType='general')
         corrupt_model_dirs(MSs, c, 1, patches, 'scalaramplitude')
     # ### DONE
 
@@ -545,27 +547,34 @@ for c in range(maxIter):
                             h5_dir='self/solutions')
     facetregname = f'self/solutions/facets-c{c}.reg'
     
-    
-    with w.if_todo('c%02i_subtract_3Csources' % c):
-        for patch in patches:
-            if "patch" in patch:
-                continue
+    if c == 0:
+        with w.if_todo('subtract_3Csources'):
+            for patch in patches:
+                if "patch" in patch:
+                    continue
+                
+                clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
+
+                # Set MODEL_DATA = 0 where data are flagged, then unflag everything
+                MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
+                
+                MSs.run(
+                    f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
+                    log = f'$nameMS_subtract_{patch}.log', 
+                    commandType = 'general'
+                )
+                
+                MSs.run(
+                    f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
+                    log = f'$nameMS_subtract_{patch}.log', 
+                    commandType = 'general'
+                )
+                clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
+                MSs.deletecol(patch)
             
-            clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
-            MSs.run(
-                f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
-                log = f'$nameMS_subtract_{patch}.log', 
-                commandType = 'general'
-            )
-            
-            MSs.run(
-                f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
-                log = f'$nameMS_subtract_{patch}.log', 
-                commandType = 'general'
-            )
-            clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
-            MSs.deletecol(patch)
-            
+            # Restore of FLAGS
+            MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"',
+                    log='$nameMS_taql.log', commandType='general')
             
 
     with w.if_todo('c%02i-imaging' % c):
