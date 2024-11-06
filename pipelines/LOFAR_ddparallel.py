@@ -14,7 +14,6 @@
 # they need to be in "./mss/"
 
 # TODO test the effect of scalar-visibilities on stoke I and V image quality
-# TODO do we need amplitude corrections(?)? If so, DI/DD/only for bright sources? test DI amplitude solve WITH and WITHOUT dd-phase corruptions applied -> do the solutions for the distant RS change a lot?
 # TODO the subfield algorithm should not cut any sources ... how to best implement that? Something with mask islands?
 # TODO final imaging products
 
@@ -44,8 +43,6 @@ subfield = parset.get('LOFAR_ddparallel','subfield') # possible to provide a ds9
 maxIter = parset.getint('LOFAR_ddparallel','maxIter') # default = 2 (try also 3)
 phaseSolMode = parset.get('LOFAR_ddparallel', 'ph_sol_mode') # tecandphase, tec, phase
 sf_phaseSolMode = 'phase' #'tec'
-# intrinsic = parset.getboolean('LOFAR_self', 'intrinsic') # True means using intrinsic sky model and DP3 applybeam predict, False means staying with apparent skymodel
-intrinsic = True
 start_sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
@@ -83,10 +80,11 @@ def corrupt_model_dirs(MSs, c, tc, model_columns, solmode='phase'):
                     cor.parmdb=self/solutions/cal-tec{tc}-c{c}.h5 cor.correction=phase000 cor.invert=False',
                 log='$nameMS_corrupt.log', commandType='DP3')
         elif solmode in ['scalaramplitude']:
-            MSs.run(
-                f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
-                    cor.parmdb=self/solutions/cal-solamp-c{c}.h5 cor.correction=amplitude000 cor.invert=False',
-                log='$nameMS_corrupt.log', commandType='DP3')
+            if not model_column.startswith('patch'):    
+                MSs.run(
+                    f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
+                        cor.parmdb=self/solutions/cal-solamp-c{c}.h5 cor.correction=amplitude000 cor.invert=False',
+                    log='$nameMS_corrupt.log', commandType='DP3')
 
 def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None, constrainant=None, model_column_fluxes=None, variable_solint_threshold=None):
     """
@@ -174,7 +172,7 @@ def solve_amplitude(MSs, c, model_columns, smMHz, solint, resetant=None, constra
         commandType="DP3"
     )
     
-    losoto_parsets = [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset']
+    losoto_parsets = [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-clip2.parset']
     
     lib_util.run_losoto(s, f'solamp-c{c}', [ms+f'/solamp_c{c}.h5' for ms in MSs.getListStr()], losoto_parsets, 
                         plots_dir=f'self/plots/plots-solamp-c{c}', h5_dir=f'self/solutions/')
@@ -213,7 +211,7 @@ def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], fwhm=0, max_
             logger.warning(f'No model found for {source} (seperation {phasecentre.separation(pos).deg:.2f} deg)')
             continue
         
-        logger.info(f'Appending model from {sourcedb.split('/')[-1]} (seperation {phasecentre.separation(pos).deg:.2f} deg)...')
+        logger.info(f'Appending model from {sourcedb.split("/")[-1]} (seperation {phasecentre.separation(pos).deg:.2f} deg)...')
         sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
         sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
         sm_3c.select(f'I>{threshold:.02f}', aggregate='sum', applyBeam=True)
@@ -254,7 +252,7 @@ with w.if_todo('cleaning'):
     if not os.path.exists('self/skymodel'): os.makedirs('self/skymodel')
 ### DONE
 
-MSs = lib_ms.AllMSs( [sorted(glob.glob('mss/TC*[0-9].MS'))[1]], s )
+MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 
 try:
     MSs.print_HAcov()
@@ -293,10 +291,10 @@ if tint < 4:
     base_solint = int(np.rint(4/tint)) # this is already 4 for dutch observations
 else: base_solint = 1
 
-mask_threshold = [5.0,4.0,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
+mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
 facet_fluxes = np.array([4, 1.8, 1.2, 0.8, 0.6])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
-min_facets = [3, 6, 14, 20, 25, 30]
+min_facets = [3, 6, 18, 24, 24, 24]
 
 smMHz2 = [1.0,5.0,5.0,5.0,5.0,5.0]
 smMHz1 = [5.0,8.0,8.0,8.0,8.0,8.0]
@@ -311,18 +309,6 @@ if not os.path.exists(beamMask):
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 1.)
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 0., inverse=True)
 
-if not os.path.exists('self/solutions/cal-template.h5'):
-    # create a template h5parm file
-    if phaseSolMode == 'phase':  # phase
-        solver_params = f'sol.mode=scalarphase sol.nchan=1'
-    else:  # TEC or TecAndPhase
-        solver_params = f'sol.mode={phaseSolMode} sol.approximatetec=True sol.maxapproxiter=250 sol.approxtolerance=1e-3'
-    MSs.run(
-        f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/template.h5 sol.solint=1 sol.maxiter=1 {solver_params} sol.modeldatacolumns="[DATA]"',
-        log='$nameMS_soltemplate.log', commandType='DP3')
-    lib_util.run_losoto(s, 'template', [ms + '/template.h5' for ms in MSs.getListStr()], [])
-    os.system('mv cal-template.h5 self/solutions/')
-    os.system('rm -r plots-template')
 #################################################################################################
 
 with w.if_todo('solve_fr'):
@@ -375,6 +361,7 @@ for c in range(maxIter):
     # get sourcedb
     sourcedb = f'tgts-c{c}.skymodel'
     beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
+    intrinsic = not c in [1,2] # these cycles we only have the apparent skymodel - predict w/o beam, find patches in apparent model
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
@@ -385,20 +372,17 @@ for c in range(maxIter):
             else:
                 # Create initial sourcedb from GSM
                 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')*1.8 # to null
-                logger.info('Get model from GSM.')
+                logger.info('Get skymodel from GSM.')
                 os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"')
                 sm = lsmtool.load(sourcedb, beamMS=beamMS)
-                if not intrinsic: # turn to apparent sky
-                    sm.write(sourcedb, clobber=True, applyBeam=True, adjustSI=True)
-                    sm = lsmtool.load(sourcedb)
         else:
-            # get wsclean skymodel of last iteration
+            # get wsclean skymodel of previous iteration
             wsc_src = f'img/wideM-{c-1}-sources-pb.txt' if intrinsic else f'img/wideM-{c-1}-sources.txt'
             sm = lsmtool.load(wsc_src, beamMS=beamMS if intrinsic else None)
         # if using e.g. LoTSS, adjust for the frequency
         logger.debug(f'Extrapolating input skymodel fluxes from {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
         si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S144 = si_factor * S54
-        sm.select(f'I>{0.05*si_factor}', applyBeam=intrinsic)  # keep only reasonably bright sources
+        # sm.select(f'I>{0.01*si_factor}', applyBeam=intrinsic)  # keep only reasonably bright sources
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
         sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
         sm.setPatchPositions(method='wmean', applyBeam=intrinsic)
@@ -414,15 +398,16 @@ for c in range(maxIter):
         bright_pos = sm.getPatchPositions(bright_names)
         sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=intrinsic, root='', byPatch=True)
         sm.setPatchPositions(bright_pos)
-        
+        lib_dd_parallel.rename_skymodel_patches(sm, applyBeam=intrinsic)
+
         if c == 0:
             # Add models of bright 3c sources to the sky model. model will be subtracted from data before imaging.
             sm = add_3c_models(sm, phasecentre=phasecentre, fwhm=fwhm)
         
         sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
         make_source_regions(sm, c)
-        logger.warning(f'Using {len(sm.getPatchNames())} patches.')
         sm.write(sourcedb, clobber=True)
+        logger.info(f'Using {len(sm.getPatchNames())} patches.')
     else:
         logger.info(f'Load existing skymodel {sourcedb}')
         sm = lsmtool.load(sourcedb, beamMS=beamMS if intrinsic else None)
@@ -436,6 +421,8 @@ for c in range(maxIter):
 
     patches = sm.getPatchNames()
     patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
+    for patch in patches[np.argsort(patch_fluxes)[::-1]]:
+        logger.info(f'{patch}: {patch_fluxes[patches==patch][0]:.1f}Jy')
 
     with w.if_todo('c%02i_init_model' % c):
         for patch in patches:
@@ -469,11 +456,10 @@ for c in range(maxIter):
         corrupt_model_dirs(MSs, c, 2, patches)
     ### DONE
 
-    cs_solmode = 'phase' if c == 0 else 'tec'
     with w.if_todo('c%02i_solve_tecCS' % c):
         # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
         logger.info('Solving TEC (CS)...')
-        solve_iono(MSs, c, 1, patches, smMHz1[c], 16*base_solint, 'phase', constrainant=None)
+        solve_iono(MSs, c, 1, patches, smMHz1[c], 16*base_solint, 'phase', constrainant=None) # 'RS'
     ### DONE
 
     # ### CORRUPT the MODEL_DATA columns for all patches
@@ -481,15 +467,16 @@ for c in range(maxIter):
         corrupt_model_dirs(MSs, c, 1, patches, 'phase')
     # ### DONE
     
-    with w.if_todo('c%02i_solve_amp' % c):
-        # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
-        logger.info('Solving Amplitude...')
-        solve_amplitude(MSs, c, patches, smMHz1[c], 16*base_solint, model_column_fluxes=patch_fluxes, variable_solint_threshold=8.)
-    ### DONE
+    # ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
+    _3c_patches = [p for p in patches if not p.startswith('patch_')]
+    _3c_patch_fluxes = [f for p, f in zip(patches, patch_fluxes) if not p.startswith('patch_')]
+    
+    with w.if_todo('3c_solve_amp'):
+        logger.info('Solving Amplitude for 3C...')
+        solve_amplitude(MSs, c, _3c_patches, smMHz1[c], 16*base_solint, model_column_fluxes=_3c_patch_fluxes, variable_solint_threshold=8.)
 
-    # ### CORRUPT the MODEL_DATA columns for all patches
-    with w.if_todo('c%02i_corrupt_amp' % c):
-        corrupt_model_dirs(MSs, c, 1, patches, 'scalaramplitude')
+    with w.if_todo('3c_corrupt_amp'):
+        corrupt_model_dirs(MSs, c, 1, _3c_patches, 'scalaramplitude')
     # ### DONE
 
     # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
@@ -511,7 +498,8 @@ for c in range(maxIter):
                                 plots_dir=f'self/plots/plots-amp-di', h5_dir=f'self/solutions/')
             
         with w.if_todo('correct_amp_di'):
-            # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA #TODO updateweights
+            # TODO add updateweights in production
+            # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
             MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
                     cor.parmdb=self/solutions/cal-amp-di.h5 cor.correction=amplitudeSmooth cor.updateweights=False',
@@ -545,6 +533,30 @@ for c in range(maxIter):
                             h5_dir='self/solutions')
     facetregname = f'self/solutions/facets-c{c}.reg'
     
+    if c == 0:
+        with w.if_todo('subtract_3Csources'):
+            for patch in patches:
+                if "patch" in patch:
+                    continue
+                
+                clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
+
+                # Set MODEL_DATA = 0 where data are flagged, then unflag everything
+                MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
+                
+                MSs.run(
+                    f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
+                    log = f'$nameMS_subtract_{patch}.log', 
+                    commandType = 'general'
+                )
+                
+                MSs.run(
+                    f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
+                    log = f'$nameMS_subtract_{patch}.log', 
+                    commandType = 'general'
+                )
+                clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
+                MSs.deletecol(patch)
     
     with w.if_todo('c%02i_subtract_3Csources' % c):
         for patch in patches:
@@ -554,10 +566,10 @@ for c in range(maxIter):
             clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
             MSs.run(
                 f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
-                log = f'$nameMS_subtract_{patch}.log', 
+                log = f'$nameMS_subtract_{patch}.log',
                 commandType = 'general'
             )
-            
+
             MSs.run(
                 f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
                 log = f'$nameMS_subtract_{patch}.log', 
@@ -566,6 +578,9 @@ for c in range(maxIter):
             clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
             MSs.deletecol(patch)
             
+            # Restore of FLAGS
+            MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"',
+                    log='$nameMS_taql.log', commandType='general')
             
 
     with w.if_todo('c%02i-imaging' % c):
@@ -583,7 +598,7 @@ for c in range(maxIter):
         if c==0:
             logger.info('Making wide-field image for clean mask...')
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
-                                 weight='briggs -0.3', local_rms='', niter=1000000, gridder='wgridder',  parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.9, parallel_deconvolution=1024,
+                                 weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.9, parallel_deconvolution=1024,
                                  auto_threshold=5.0, auto_mask=8.0, beam_size=15, join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
                                  multiscale='', pol='i', nmiter=6,   facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000' )
             # make initial mask
@@ -601,14 +616,34 @@ for c in range(maxIter):
         # clean again, with mask now
         logger.info('Making wide field image ...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
-                             weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='', local_rms='',
-                             update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=20, parallel_deconvolution=1024, auto_threshold=2.0, auto_mask=4.0,
+                             weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='',
+                             update_model_required='', minuv_l=30, beam_size=15, mgain=0.9, nmiter=20, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
                              multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',
                              facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000 ',
                              **reuse_kwargs, **beam_kwargs)
+        if c == 0: # imagename if c=0 else imagenameM
+            reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
         # make a new mask from the image
-        current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c], userReg)
+        current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
+        # rename source lists
+        os.system(f'mv {imagenameM}-sources.txt {imagenameM}-clean1-sources.txt')
+        os.system(f'mv {imagenameM}-sources-pb.txt {imagenameM}-clean1-sources-pb.txt')
+        # Continue-clean faint sources using local-rms
+        logger.info('Making wide field image ...')
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
+                             weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='', local_rms='', cont='',
+                             update_model_required='', minuv_l=30, beam_size=15, mgain=0.9, nmiter=10, parallel_deconvolution=1024, auto_threshold=2.0, auto_mask=4.0,
+                             join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
+                             multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',
+                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000 ', **reuse_kwargs, **beam_kwargs)
+        # make a new mask from the image
+        current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
+        # merge source lists
+        os.system(f'mv {imagenameM}-sources.txt {imagenameM}-clean2-sources.txt')
+        os.system(f'mv {imagenameM}-sources-pb.txt {imagenameM}-clean2-sources-pb.txt')
+        os.system(f'cat {imagenameM}-clean1-sources-pb.txt {imagenameM}-clean2-sources-pb.txt >> {imagenameM}-sources-pb.txt')
+        os.system(f'cat {imagenameM}-clean1-sources.txt {imagenameM}-clean2-sources.txt >> {imagenameM}-sources.txt')
 
         # reset NaNs if present
         im = lib_img.Image(f'{imagenameM}-MFS-image.fits')

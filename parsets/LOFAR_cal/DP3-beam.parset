@@ -11,3 +11,4 @@ setbeam.beammode = none
 corrbeam.type = applybeam
 corrbeam.usechannelfreq = True
 corrbeam.beammode = element
+#corrbeam.elementmodel = lobes

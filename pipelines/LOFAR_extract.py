@@ -11,53 +11,9 @@ from losoto.h5parm import h5parm
 from pathlib import Path
 import warnings
 from astropy.cosmology import FlatLambdaCDM
-
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 
-################################
-logger_obj = lib_log.Logger('pipeline-extract')
-logger = lib_log.logger
-s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
-w = lib_util.Walker('pipeline-extract.walker')
-warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
-cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
-
-
-def get_ddf_parms_from_header(img):
-    """
-    Parse the HISTORY header of a DDFacet image and return a dict containing the options used to create the image.
-    Will replace '-' by '_'.
-    Parameters
-    ----------
-
-    img: str, filename of image
-
-    Returns
-    -------
-    params_dict: dict,
-    """
-    params_dict = dict()
-    hdr = fits.open(img)[0].header['HISTORY']
-    for line in hdr:
-        if 'MUFFIN' in line: continue
-        if line.count('=') == 1 and line.count('-') > 0:
-            _key, _value = line.replace(' ', '').split('=')
-            _key = _key.replace('-', '_')
-            params_dict[_key] = _value
-        else:
-            continue
-    return params_dict
-
-
-################################
-##These two functions are to avoid excess printing from pyrap.tables.
-def blockPrint():
-    sys.stdout = open(os.devnull, 'w')
-
-def enablePrint():
-    sys.stdout = sys.__stdout__
-################################
-
+#####################################################
 def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False, datacol=None, minuv=30, numiter=100000, fits_mask=None, update_model=True):
 
     """
@@ -173,9 +129,23 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
         os.system('cat '+logger_obj.log_dir+'/wscleanB-' + str(p) + '.log | grep "background noise"')
 
 
-parser = argparse.ArgumentParser(description='Extraction of targets of interest from LBA survey observations. Works through target_extraction.py')
+print(r"""
+  _      ____     _       ____          _            _____        _                      _    _               
+ | |    | __ )   / \     |  _ \   __ _ | |_  __ _   | ____|__  __| |_  _ __  __ _   ___ | |_ (_)  ___   _ __  
+ | |    |  _ \  / _ \    | | | | / _` || __|/ _` |  |  _|  \ \/ /| __|| '__|/ _` | / __|| __|| | / _ \ | '_ \ 
+ | |___ | |_) |/ ___ \   | |_| || (_| || |_| (_| |  | |___  >  < | |_ | |  | (_| || (__ | |_ | || (_) || | | |
+ |_____||____//_/   \_\  |____/  \__,_| \__|\__,_|  |_____|/_/\_\ \__||_|   \__,_| \___| \__||_| \___/ |_| |_|
+
+""")
+
+
+parser = argparse.ArgumentParser(description='Extraction of targets of interest from LBA observations.')
 parser.add_argument('-p', '--path', dest='path', action='store', default='', type=str, help='Path where to look for observations.')
+parser.add_argument('-radec', '--radec', dest='radec', nargs=2, type=float, default=None, help='RA/DEC where to center the extraction in deg. Use if you wish to extract only one target.')
+parser.add_argument('--z', dest='redshift', type=float, default=-99, help='Redshift of the target. Not necessary unless one wants to perform compact source subtraction.')
+parser.add_argument('--name', dest='name', type=str, default='target_extracted', help='Name of the target. Will be used to create the directory containing the extracted data.')
 parser.add_argument('--beamcut', dest='beamcut', type=float, default=0.3, help='Beam sensitivity threshold.')
+parser.add_argument('--ddcycle', dest='ddcycle', type=int, help='Output cycle of the DD calibration to start the extraction from. If not specified, start from latest cycle.')
 parser.add_argument('--noselfcal', dest='noselfcal', help='Do not perform selfcalibration.', action='store_true')
 parser.add_argument('--extreg', dest='extreg', action='store', default=None, type=str, help='Provide an extraction region.')
 parser.add_argument('--maskreg', dest='maskreg', action='store', default=None, type=str, help='Provide a user mask for cleaning.')
@@ -187,10 +157,14 @@ parser.add_argument('--subreg', dest='subreg', action='store', default=None, typ
 parser.add_argument('--idg', dest='idg', action='store', default='True', type=str, help='Use image domain gridding for beam correction. Set to False only in case of memory issues.')
 
 args = parser.parse_args()
+coords = args.radec
 pathdir = args.path
+ztarget = args.redshift
+targetname = args.name
 beam_cut = args.beamcut
+ddcycle = args.ddcycle
 no_selfcal = args.noselfcal
-cl_extractreg = args.extreg
+extractreg = args.extreg
 userReg = args.maskreg
 ampcal = args.ampcal
 ampSolMode = args.ampsol
@@ -198,6 +172,28 @@ phSolMode = args.phsol
 maxniter = args.maxniter
 subtract_reg_file = args.subreg
 use_idg = args.idg
+
+if not os.path.exists(targetname):
+    os.system(f'mkdir {targetname}')
+os.chdir(str(targetname))
+
+logger_obj = lib_log.Logger(f'pipeline-extract')
+logger = lib_log.logger
+s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
+w = lib_util.Walker(f'pipeline-extract.walker')
+warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
+cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
+
+parset = lib_util.getParset()
+parset_dir = parset.get('LOFAR_extract','parset_dir')
+
+if not pathdir:
+    logger.error('Provide a path (-p) where to look for LBA observations.')
+    sys.exit()
+
+if coords is None:
+    logger.error('Provide RA and DEC (--radec) in deg where to shift the phase centre.')
+    sys.exit()
 
 logger.info(f'Beam sensitivity cut: {beam_cut}')
 if no_selfcal:
@@ -207,18 +203,6 @@ logger.info(f'Type of amplitude solver: {ampSolMode}.')
 logger.info(f'Type of phase solver: {phSolMode}.')
 logger.info(f'Max number of selfcalibration cycles: {maxniter}')
 logger.info(f'Subtraction region set: {subtract_reg_file}.')
-
-parset = lib_util.getParset()
-parset_dir = parset.get('LOFAR_extract','parset_dir')
-# logger.info('Parset: '+str(dict(parset['LOFAR_extract'])))
-# maxniter = parset.getint('LOFAR_extract','max_niter')
-# subtract_reg_file = parset.get('LOFAR_extract','subtract_region')  # default None - use only if you want to subtract individual sources which are in extractReg
-# phSolMode = parset.get('LOFAR_extract','ph_sol_mode')  # default: tecandphase
-# ampSolMode = parset.get('LOFAR_extract', 'amp_sol_mode') # default: diagonal
-# beam_cut = parset.getfloat('LOFAR_extract','beam_cut')  # default: 0.3
-# no_selfcal = parset.getboolean('LOFAR_extract','no_selfcal')  # Only extract, no selfcal?
-# userReg = parset.get('model','userReg')
-# ampcal = parset.get('LOFAR_extract','ampcal')
 
 if ampcal.lower() not in ['false', 'true', 'auto']:
     logger.error('ampcal must be true, false or auto.')
@@ -232,60 +216,42 @@ if ampSolMode not in ['diagonal', 'fulljones']:
     logger.error('ampSolMode {} not supported. Choose diagonal, fulljones.')
     sys.exit()
 
+target_ra = coords[0]
+target_dec = coords[1]
+
+if userReg is not None:
+    if not extreg:
+        logger.error('To specify a mask region, an extraction region must also be provided.')
+        sys.exit()
+    else:
+        userReg = str(mask_reg)
+        logger.info("A mask for cleaning was provided.")
+
+if subtract_reg_file is not None:
+    if not extreg:
+        logger.error('To specify a mask region, an extraction region must also be provided.')
+        sys.exit()
+    else:
+        ext = 0
 
 ext_region_extent = 0.25 #deg. This is where we start to get pointings, then we can increase the radius depending on the flux density threshold.
-data_temp = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[0,1,2])
-clname_temp = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[3], dtype=str)
 
-try:
-    extreg_temp = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[4], dtype=str)
-    if str(extreg_temp) == 'None':
-        extreg = 0
-        maskreg = 0
-    else:
-        extreg=1
-        try:
-            mask_reg = np.loadtxt('redshift_temp.txt', delimiter=' ', usecols=[5], dtype=str)
-            if str(mask_reg) == 'None':
-                maskreg = 0
-            else:
-                maskreg = 1
-        except:
-            maskreg = 0
-except:
-    extreg = 0
-    maskreg = 0
-
-z = data_temp[0]
-if z == -99: #Avoid source subtraction if no redshift info
-    sourcesub = 1
-    logger.info('Redshift information not found. Source subtraction will be skipped...')
+if ztarget != -99:
+    sourcesub = True
 else:
-    sourcesub = 0
+    sourcesub = False
 
-ra = data_temp[1]
-dec = data_temp[2]
-cluster = clname_temp
-
-if maskreg == 1:
-    userReg = str(mask_reg)
-else:
-    userReg = None
-
-if extreg==1:
-    target_reg_file = str(extreg_temp)
+if extractreg:
+    target_reg_file = str(extractreg)
     logger.info('Extraction region provided. No automatic region will be drawn...')
 else:
     logger.info('Extraction region not set by the user. It will be created automatically...')
-    target = lib_util.create_extregion(ra, dec, ext_region_extent)
+    target = lib_util.create_extregion(target_ra, target_dec, ext_region_extent)
     if os.path.exists('target.reg'):
         os.remove('target.reg')
     with open('target.reg', 'w') as f:
         f.write(target)
         target_reg_file = 'target.reg'
-
-if userReg:
-    logger.info("A mask for cleaning was provided.")
 
 target_reg = lib_util.Region_helper(target_reg_file)
 center = target_reg.get_center() # center of the extract region
@@ -299,8 +265,21 @@ close_pointings = []
 
 if not os.path.exists('pointinglist.txt'):
     for pointing in tocheck:
-        chout_max = len(glob.glob(f'{pointing}/ddcal/c01/images/wideDD-c01-[0-9]*-beam.fits'))
-        with fits.open(f'{pointing}/ddcal/c01/images/wideDD-c01-000{chout_max-1}-beam.fits') as f:
+
+        #Pick latest DDcycle if not specified otherwise
+        if not ddcycle:
+            ddcal_dir = [d for d in os.listdir(f'{pathdir}/{pointing}/ddcal') if os.path.isdir(os.path.join(f'{pathdir}/{pointing}/ddcal', d)) and d.startswith('c')]
+            highest_ddcal = max(ddcal_dir, key=lambda x: int(x[1:]))
+            logger.info(f'Using DD calibration cycle {highest_ddcal}.')
+        else:
+            if ddcycle == 1:
+                highest_ddcal = 'c00'
+            else:
+                highest_ddcal = 'c01'
+            logger.info(f'Using DD calibration cycle {highest_ddcal}.')
+
+        chout_max = len(glob.glob(f'{pointing}/ddcal/{highest_ddcal}/images/wideDD-{highest_ddcal}-[0-9]*-beam.fits'))
+        with fits.open(f'{pointing}/ddcal/{highest_ddcal}/images/wideDD-{highest_ddcal}-000{chout_max-1}-beam.fits') as f:
             header, data = lib_img.flatten(f)
             wcs = WCS(header)
             c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
@@ -337,10 +316,9 @@ for name in close_pointings:
         logger.info(f'Pointing {name};')
 print('')
 
-
-if sourcesub == 0:
+if sourcesub == True:
     sourceLLS=0.25 #Mpc.
-    oneradinmpc = cosmo.angular_diameter_distance(z) / (360. / (2. * np.pi))
+    oneradinmpc = cosmo.angular_diameter_distance(ztarget) / (360. / (2. * np.pi))
     scalebarlengthdeg = sourceLLS / oneradinmpc.value
     minuv_forsub = 1./(scalebarlengthdeg*np.pi/180.)
 
@@ -349,35 +327,37 @@ with w.if_todo('cleaning'):
     lib_util.check_rm('extract')
     lib_util.check_rm('img')
     lib_util.check_rm('mss-extract/shiftavg')
+    lib_util.check_rm('extract-images')
     os.makedirs('img')
-
     os.makedirs('mss-extract/shiftavg')
-    for i, p in enumerate(close_pointings):
-            os.makedirs('extract/init/'+p)
-            os.system(f'cp {str(pathdir)}/{p}/ddcal/c01/images/wideDD-c01-MFS-image-pb.fits extract/init/{p}')  # copy ddcal images
-            os.system(f'cp {str(pathdir)}/{p}/ddcal/c01/images/wideDD-c01-0*-model-pb.fits extract/init/{p}')  # copy models
-            os.system(f'cp {str(pathdir)}/{p}/ddcal/c01/solutions/interp.h5 extract/init/{p}')  # copy final dde sols
-            os.system(f'cp {str(pathdir)}/{p}/ddcal/c01/images/wideDD-c01_facets.reg extract/init/{p}')  # copy facet file
-            lib_util.check_rm('mss-extract/'+p)
-            if not os.path.exists('mss-extract/'+p):
-                logger.info('Copying MS of '+p+'...')
-                os.makedirs('mss-extract/' + p)
-                os.system(f'cp -r {str(pathdir)}/{p}/mss-avg/* mss-extract/{p}')
 
-if extreg != 1:
+    for i, p in enumerate(close_pointings):
+        os.makedirs('extract/init/'+p)
+        os.system(f'cp {str(pathdir)}/{p}/ddcal/{highest_ddcal}/images/wideDD-{highest_ddcal}-MFS-image-pb.fits extract/init/{p}')  # copy ddcal images
+        os.system(f'cp {str(pathdir)}/{p}/ddcal/{highest_ddcal}/images/wideDD-{highest_ddcal}-0*-model-pb.fits extract/init/{p}')  # copy models
+        os.system(f'cp {str(pathdir)}/{p}/ddcal/{highest_ddcal}/solutions/interp.h5 extract/init/{p}')  # copy final dde sols
+        os.system(f'cp {str(pathdir)}/{p}/ddcal/{highest_ddcal}/images/wideDD-{highest_ddcal}_facets.reg extract/init/{p}')  # copy facet file
+        lib_util.check_rm('mss-extract/'+p)
+        if not os.path.exists('mss-extract/'+p):
+            logger.info('Copying MS of '+p+'...')
+            os.makedirs('mss-extract/' + p)
+            os.system(f'cp -r {str(pathdir)}/{p}/mss-avg/* mss-extract/{p}')
+
+if not extractreg:
     for p in close_pointings:
-        image_tocheck = 'extract/init/'+p+'/wideDD-c01-MFS-image-pb.fits'
+        image_tocheck = f'extract/init/{p}/wideDD-{highest_ddcal}-MFS-image-pb.fits'
         flux_check = lib_img.Image(image_tocheck)
         reg_flux = flux_check.calc_flux(target_reg_file)
         flux_thresh = 5 #Jy. If flux is lower than this, the extent of the extraction region gets increased.
         param=1
 
+        maxthreshold = False
         #LET IT CREATE THE EXT REGION
         while reg_flux < flux_thresh:
             ext_region_extent += 0.084 #We add 5 arcmin every cycle
             if ext_region_extent < 0.75:
-                param = 1
-                target = lib_util.create_extregion(ra, dec, ext_region_extent)
+                maxthreshold = False
+                target = lib_util.create_extregion(target_ra, target_dec, ext_region_extent)
                 if os.path.exists('target.reg'):
                     os.remove('target.reg')
                 with open('target.reg', 'w') as f:
@@ -389,9 +369,9 @@ if extreg != 1:
                 #logger.info(f'Flux inside region of {round(ext_region_extent * 60)} arcmin radius: {round(reg_flux)}')
 
             else:
-                param = 0
+                maxthreshold = True
                 ext_region_extent = 0.75
-                target = lib_util.create_extregion(ra, dec, ext_region_extent)
+                target = lib_util.create_extregion(target_ra, target_dec, ext_region_extent)
                 if os.path.exists('target.reg'):
                     os.remove('target.reg')
                 with open('target.reg', 'w') as f:
@@ -401,8 +381,9 @@ if extreg != 1:
                 center = target_reg.get_center()  # center of the extract region
                 break
 
-    if param == 0:
-        logger.info('Low flux (<5 Jy) detected around the target in one or more pointings. Selfcalibration could be not optimal.')
+
+    if maxthreshold == True:
+        logger.info('Low flux (<5 Jy) detected around the target in one or more pointings. Self-calibration could be not optimal.')
         logger.info('A maximum radius of 45 arcmin was chosen for the extraction region.')
     else:
         logger.info(f'The extraction region will have a radius of {int(ext_region_extent * 60)} arcmin.')
@@ -413,7 +394,7 @@ for p in close_pointings:
     fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
     phase_center = MSs.getListObj()[0].getPhaseCentre()
     # read image, h5parm, make mask
-    wideDD_image = lib_img.Image('extract/init/'+p+'/wideDD-c01-MFS-image-pb.fits')
+    wideDD_image = lib_img.Image(f'extract/init/{p}/wideDD-{highest_ddcal}-MFS-image-pb.fits')
     dde_h5parm = 'extract/init/'+p+'/interp.h5'
     # make mask for subtraction
     mask_ddcal = wideDD_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
@@ -432,17 +413,17 @@ for p in close_pointings:
         MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA', log='$nameMS_addmodelcol.log', commandType='python')
 
         # Predict+corrupt in MODEL_DATA of everything BUT the calibrator
-        inmask = f'extract/init/{p}/wideDD-c01-MFS-image-pb_mask-ddcal.fits'
+        inmask = f'extract/init/{p}/wideDD-{highest_ddcal}-MFS-image-pb_mask-ddcal.fits'
         outmask = inmask + '.mask'
         lib_img.blank_image_reg(inmask, target_reg_file, outfile=outmask, inverse=False, blankval=0.)
 
-        for im in glob.glob(f'extract/init/{p}/wideDD-c01-0*model-pb.fits'):
+        for im in glob.glob(f'extract/init/{p}/wideDD-{highest_ddcal}-0*model-pb.fits'):
             wideDDext = im.replace('wideDD', 'wideDDext')
             os.system('cp %s %s' % (im, wideDDext))
             lib_img.blank_image_reg(wideDDext, target_reg_file, blankval=0.)
 
         # # if we have subtract reg, unmask that part again to predict+subtract it.
-        if subtract_reg_file != 'None':
+        if subtract_reg_file:
             os.system(f'cp ../{subtract_reg_file} .')
             logger.info(f"Re-adding sources in subtract-region {subtract_reg_file} to subtraction model.")
             lib_img.blank_image_reg(outmask, subtract_reg_file, inverse=False, blankval=1.)
@@ -455,9 +436,9 @@ for p in close_pointings:
         else:
             correct_for = 'phase000'
 
-        facet_path = f'extract/init/{p}/wideDD-c01_facets.reg'
+        facet_path = f'extract/init/{p}/wideDD-{highest_ddcal}_facets.reg'
         #TODO apply beam here when bug is fixed...
-        s.add(f'wsclean -predict -padding 1.8 -name extract/init/{p}/wideDDext-c01 -j ' + str(s.max_processors) + ' -channels-out ' + str(
+        s.add(f'wsclean -predict -padding 1.8 -name extract/init/{p}/wideDDext-{highest_ddcal} -j ' + str(s.max_processors) + ' -channels-out ' + str(
             ch_out) + ' -facet-regions ' + facet_path + ' -diagonal-solutions -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
             -apply-facet-solutions ' + dde_h5parm + ' ' + correct_for + ' \
             -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
@@ -479,7 +460,7 @@ for p in close_pointings:
         t_avg_factor = int(round(32/MSs.getListObj()[0].getTimeInt()))
         logger.info('Phase shift and avg...')
         MSs.run(f'DP3 {parset_dir}/DP3-shiftavg.parset msin=$pathMS msout=mss-extract/shiftavg/{p}_$nameMS.MS-extract msin.datacolumn=SUBTRACTED_DATA '
-                f'shift.phasecenter=[{center[0]}deg,{center[1]}deg\] avg.freqstep=8 avg.timestep={t_avg_factor}',
+                f'shift.phasecenter=[{center[0]}deg,{center[1]}deg] avg.freqstep=8 avg.timestep={t_avg_factor}',
                 log=p+'$nameMS_shiftavg.log', commandType='DP3')
 
     MSs_extract = lib_ms.AllMSs( glob.glob('mss-extract/shiftavg/'+p+'_*.MS-extract'), s )
@@ -677,8 +658,8 @@ for c in range(maxniter):
             with w.if_todo('cor_fulljones_c%02i' % c):
                 logger.info('Full-Jones correction...')
                 MSs_extract.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA '
-                        f'cor.correction=fulljones cor.parmdb={h5fj} cor.soltab=\[amplitude000,phase000\]',
-                        log=f'$nameMS_cor_gain-c{c:02}.log', commandType='DP3')
+                        f'cor.correction=fulljones cor.parmdb={h5fj} cor.soltab=[amplitude000,phase000]',
+                        log=f'$nameMS_cor_gain-c{c}.log', commandType='DP3')
 
     with w.if_todo('image-c%02i' % c):
         logger.info('Imaging...')
@@ -775,7 +756,7 @@ with w.if_todo('imaging_highres'):
      else:
          clean('highres', MSs_extract, res='high', size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), userReg=userReg, datacol='CORRECTED_DATA', update_model=False)
 
-if sourcesub == 0:
+if sourcesub == True:
     logger.info('Doing compact sources subtraction + lowres imaging')
     with w.if_todo('find_compact_sources'):
 
@@ -783,12 +764,13 @@ if sourcesub == 0:
               datacol='CORRECTED_DATA', update_model=False)
 
     with w.if_todo('produce_mask'):
-        makemask='MakeMask.py'
         logger.info('Subtracting compact sources...')
-        highimagename  = 'extractM-sub-highres-MFS-image.fits'
-        os.system(f'MakeMask.py --RestoredIm img/{highimagename} --Th 3')
+        #os.system(f'MakeMask.py --RestoredIm img/{highimagename} --Th 3')
+        highres_image = lib_img.Image('img/extractM-sub-highres-MFS-image.fits')
+        mask_highres = highres_image.imagename.replace('.fits', '_mask-highres.fits')
+        highres_image.makeMask(threshpix=3, atrous_do=True, maskname=mask_highres, write_srl=True, write_ds9=True)
 
-        fitsmask = highimagename + '.mask.fits'
+        fitsmask = 'extractM-sub-highres-MFS-image_mask-highres.fits'
         clean('compactmask', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), fits_mask=f'img/{fitsmask}',
               minuv=minuv_forsub, res='ultrahigh', datacol='CORRECTED_DATA')
 
@@ -802,11 +784,29 @@ if sourcesub == 0:
         clean('sourcesubtracted', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), datacol='DIFFUSE_SUB',
               res='low', update_model=False)
 
-os.makedirs('extract-images')
-os.system('mv img/extractM-final-MFS-image.fits extract-images/')
-os.system('mv img/extractM-highres-MFS-image.fits extract-images/')
-os.system('mv img/extractM-sourcesubtracted-MFS-image.fits extract-images/')
-
-os.system('rm redshift_temp.txt')
+if not os.path.exists('extract-images'):
+    os.makedirs('extract-images')
+os.system('mv img/extractM-final-MFS-image*.fits extract-images/')
+os.system('mv img/extractM-highres-MFS-image*.fits extract-images/')
+if os.path.exists('img/extractM-sourcesubtracted-MFS-image.fits'):
+    os.system('mv img/extractM-sourcesubtracted-MFS-image.fits extract-images/')
 
 w.alldone()
+
+logfile = sorted(glob.glob('pipeline-extract_*.logger'))[-1]
+with open(logfile, 'r') as f:
+    last_line = f.readlines()[-1]
+    if not "Done" in last_line:
+        logger.error(f'Something went wrong in the extraction of {targetname} - check the logfile {targetname}/{logfile}.')
+        raise lib_util.Exit
+    else:
+        logger.info(f'Target {targetname} has been extracted.')
+        os.chdir('../')
+
+        logger.info(f'Extracted datasets are in the mss-extract directory of {targetname}.')
+        logger.info(f'Nominal, high and source-subtracted low resolution images are in the extract-images/ directory of {targetname}.')
+        if sourcesub == True:
+            logger.info('A new column DIFFUSE_SUB has been added to each successfully extracted .ms file.')
+            logger.info('It contains the compact-source-subtracted visibilities.')
+
+

@@ -27,7 +27,7 @@ def repoint(h5parmFile, dirname, solsetname='sol000'):
     # rename directions table
     sourceTable = ss.obj.source
     direction = sourceTable[0][1]
-    logger.info('%s: update dir name "%s" -> "%s".' % (h5parmFile,sourceTable[0][0], dirname))
+    logger.debug('%s: update dir name "%s" -> "%s".' % (h5parmFile,sourceTable[0][0], dirname))
     sourceTable[0] = (dirname,direction)
 
     # write h5parm
