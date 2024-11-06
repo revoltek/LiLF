@@ -38,6 +38,8 @@ class Direction(object):
         self.avg_f = 0
         self.rms_noise = []
         self.mm_ratio = []
+        self.rms_noise_init = 0
+        self.mm_ratio_init = 0
 
     def clean(self):
         # TODO: remove files?

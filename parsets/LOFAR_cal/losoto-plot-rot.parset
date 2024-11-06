@@ -30,6 +30,6 @@ soltab = sol000/rotation000
 axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
-prefix = plots/rot
+prefix = plots/rot_
 refAnt = auto
 minmax = [-1.6,1.6]
