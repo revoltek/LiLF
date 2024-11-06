@@ -292,7 +292,7 @@ else: base_solint = 1
 
 mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
-facet_fluxes = np.array([4, 1.8, 1.2, 0.8, 0.6])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+facet_fluxes = np.array([4, 1.8, 1.2, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 min_facets = [3, 6, 18, 24, 24, 24]
 
 smMHz2 = [1.0,5.0,5.0,5.0,5.0,5.0]
@@ -360,7 +360,7 @@ for c in range(maxIter):
     # get sourcedb
     sourcedb = f'tgts-c{c}.skymodel'
     beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
-    intrinsic = not c in [1,2] # these cycles we only have the apparent skymodel - predict w/o beam, find patches in apparent model
+    intrinsic = c == 0 # these cycles we only have the apparent skymodel - predict w/o beam, find patches in apparent model
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
@@ -477,6 +477,7 @@ for c in range(maxIter):
     #     corrupt_model_dirs(MSs, c, 1, patches, 'scalaramplitude')
     # ### DONE
 
+    ########################### AMP-CAL PART ####################################
     # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
     if c == 1:
         with w.if_todo('solve_amp_di'):
@@ -502,6 +503,18 @@ for c in range(maxIter):
             MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
                     cor.parmdb=self/solutions/cal-amp-di.h5 cor.correction=amplitudeSmooth cor.updateweights=False',
                     log='$nameMS_sf-correct.log', commandType='DP3')
+    elif c > 1:
+        # Starting from cycle 2: do DD-slow amp solutions
+        with w.if_todo(f'c%02i_solve_amp_dd' % c):
+            MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
+            logger.info('Solving amp (slowCS)...')
+            MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset memory_logging=True msin=$pathMS sol.nchan=24 \
+                          sol.mode=scalaramplitude sol.h5parm=$pathMS/amp-dd-c{c}.h5 sol.solint={75 * base_solint} sol.modeldatacolumns="[{",".join(patches)}]"',
+                    log='$nameMS_solamp-c' + str(c) + '.log', commandType='DP3')
+
+            lib_util.run_losoto(s, f'amp-dd-c{c}', [ms + f'/amp-dd-c{c}.h5' for ms in MSs.getListStr()],
+                                [f'{parset_dir}/losoto-plot-scalaramp.parset'],
+                                plots_dir=f'self/plots/plots-amp-dd-c{c}', h5_dir=f'self/solutions/')
 
     # merge solutions into one h5parms for large scale image
     with w.if_todo('c%02i_merge_h5' % c):
@@ -511,6 +524,7 @@ for c in range(maxIter):
         # lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec0-c{c}.h5', sourcedb)
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec1-c{c}.h5', sourcedb)
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec2-c{c}.h5', sourcedb)
+        lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-amp-dd-c{c}.h5', sourcedb)
         # reference, unflag and reset the added stations f'{sol_dir}/cal-tec0-c{c}.h5',
         logger.info('Merge solutions...')
         s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-RS-c{c}.h5 --h5_tables {sol_dir}/cal-tec2-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 \
@@ -523,12 +537,25 @@ for c in range(maxIter):
         s.run(check=True)
         lib_util.run_losoto(s, f'tec-CS-c{c}', f'{sol_dir}/cal-tec-CS-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
                             plots_dir=f'self/plots/plots-tec-CS-c{c}', h5_dir='self/solutions')
-        s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RS-c{c}.h5 {sol_dir}/cal-tec-CS-c{c}.h5 \
-               --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 --no_antenna_crash --no_pol' , log='h5_merger.log', commandType='python')
-        s.run(check=True)
-        lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5',
-                            [f'{parset_dir}/losoto-plot-scalar.parset'], plots_dir=f'self/plots/plots-tec-merged-c{c}',
-                            h5_dir='self/solutions')
+        if c > 1:
+            s.add(f'h5_merger.py --h5_out {sol_dir}/cal-amp-dd-merged-c{c}.h5 --h5_tables {sol_dir}/cal-amp-dd-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 \
+              --no_antenna_crash --no_pol' , log='h5_merger.log', commandType='python')
+            s.run(check=True)
+            lib_util.run_losoto(s, f'amp-dd-merged-c{c}', f'{sol_dir}/cal-amp-dd-merged-c{c}.h5', [f'{parset_dir}/losoto-plot-scalaramp.parset'],
+                                plots_dir=f'self/plots/plots-amp-dd-c{c}', h5_dir=f'self/solutions/')
+            s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RS-c{c}.h5 {sol_dir}/cal-tec-CS-c{c}.h5 {sol_dir}/cal-amp-dd-merged-c{c}.h5 \
+                   --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 --no_antenna_crash --no_pol' , log='h5_merger.log', commandType='python')
+            s.run(check=True)
+            lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5',
+                                [f'{parset_dir}/losoto-plot-scalar.parset', f'{parset_dir}/losoto-plot-scalaramp.parset'], plots_dir=f'self/plots/plots-tec-merged-c{c}',
+                                h5_dir='self/solutions')
+        else:
+            s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RS-c{c}.h5 {sol_dir}/cal-tec-CS-c{c}.h5 \
+                   --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 --no_antenna_crash --no_pol', log='h5_merger.log', commandType='python')
+            s.run(check=True)
+            lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5',
+                                [f'{parset_dir}/losoto-plot-scalar.parset'], plots_dir=f'self/plots/plots-tec-merged-c{c}',
+                                h5_dir='self/solutions')
     facetregname = f'self/solutions/facets-c{c}.reg'
     
     
@@ -579,11 +606,15 @@ for c in range(maxIter):
         else:
             current_best_mask = f'img/wideM-{c-1}-mask.fits'
 
-        if c>1: # add earlier if bug is fixed
+        if c>9999: # add earlier if bug is fixed
             # if we are done with the things that require blanked pedict, we can also use beam keywords
             beam_kwargs = {'apply_facet_beam':'', 'facet_beam_update':120, 'use_differential_lofar_beam':''}
         else:
             beam_kwargs = {}
+        if c > 1:
+            applyamp = 'amplitude000'
+        else:
+            applyamp = ''
         # clean again, with mask now
         logger.info('Making wide field image ...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
@@ -591,7 +622,7 @@ for c in range(maxIter):
                              update_model_required='', minuv_l=30, beam_size=15, mgain=0.9, nmiter=20, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
                              multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',
-                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000 ',
+                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000 {applyamp}',
                              **reuse_kwargs, **beam_kwargs)
         if c == 0: # imagename if c=0 else imagenameM
             reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
@@ -607,7 +638,7 @@ for c in range(maxIter):
                              update_model_required='', minuv_l=30, beam_size=15, mgain=0.9, nmiter=10, parallel_deconvolution=1024, auto_threshold=2.0, auto_mask=4.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
                              multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',
-                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000 ', **reuse_kwargs, **beam_kwargs)
+                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000 {applyamp} ', **reuse_kwargs, **beam_kwargs)
         # make a new mask from the image
         current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
         # merge source lists
@@ -620,59 +651,6 @@ for c in range(maxIter):
         im = lib_img.Image(f'{imagenameM}-MFS-image.fits')
         im.nantozeroModel()
 
-    ########################### TESTING FOR DD-AMP-CAL ####################################
-    # if c > 3:
-    #     with w.if_todo('solve_amp_c%02i' % c):
-    #         MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
-    #         logger.info('Solving amp (slowCS)...')
-    #         MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset memory_logging=True numthreads=32 msin=$pathMS sol.nchan=24 \
-    #                       sol.mode=scalaramplitude sol.h5parm=$pathMS/amp-dd-c{c}.h5 sol.solint={300 * base_solint} sol.modeldatacolumns="[{",".join(patches)}]"',
-    #                 log='$nameMS_solamp-c' + str(c) + '.log', commandType='DP3', maxThreads=1)
-    #
-    #
-    #         lib_util.run_losoto(s, f'amp-dd-c{c}', [ms + f'/amp-dd-c{c}.h5' for ms in MSs.getListStr()],
-    #                             [f'{parset_dir}/losoto-plot-scalaramp.parset'],
-    #                             plots_dir=f'self/plots/plots-amp-dd-c{c}', h5_dir=f'self/solutions/')
-    #
-    #     with w.if_todo(f'merge_h5_2_c{c}'):
-    #         sol_dir = 'self/solutions'
-    #         # make sure the h5parm directions are correctly set - this should actually work automatically with DP3 -> eventually fix this in the DP3 solve call
-    #         # lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-amp-dd-c{c}.h5', sourcedb)
-    #         # # # reference, unflag and reset the added stations
-    #         # h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-amp-merged-c{c}.h5", min_distance=1/3600,
-    #         #                    h5_tables=[f"{sol_dir}/cal-amp-dd-c{c}.h5"], propagate_flags=True,
-    #         #                    h5_time_freq=f"{sol_dir}/cal-tec-merged-c{c}.h5",ms_files='mss/TC*.MS',no_antenna_crash=True)
-    #         # lib_util.run_losoto(s, f'amp-merged-c{c}', f'{sol_dir}/cal-amp-merged-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
-    #         #                     plots_dir=f'self/plots/plots-amp-merged-c{c}', h5_dir='self/solutions')
-    #         # # remove error000 - this is to avoid a bug in h5parm merger
-    #         # s.add(f'losoto -d sol000/error000 self/solutions/cal-tec-merged-c{c}.h5', log='losoto-removeerror.log', commandType="python")
-    #         # s.run(maxThreads=1, check=True)  # final check on losoto-final.log
-    #         h5_merger.merge_h5(h5_out=f"{sol_dir}/cal-merged-c{c}.h5",
-    #                            h5_tables=[f"{sol_dir}/cal-amp-merged-c{c}.h5",f"{sol_dir}/cal-tec-merged-c{c}.h5"], propagate_flags=True,
-    #                            h5_time_freq=f"{sol_dir}/cal-tec-merged-c{c}.h5",ms_files='mss/TC*.MS',no_antenna_crash=True)
-    #         lib_util.run_losoto(s, f'merged-c{c}', f'{sol_dir}/cal-merged-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
-    #                             plots_dir=f'self/plots/plots-merged-c{c}', h5_dir='self/solutions')
-    #
-    #     # logger.info('Deleting model columns...')
-    #     # for patch in patches:
-    #     #     MSs.run(f'taql "ALTER TABLE $pathMS DELETE COLUMN {patch}"',
-    #     #             log='$nameMS_taql_delcol.log', commandType='general')
-    #
-    #     imagenameM = 'img/wideM-3ampdd'
-    #     facetregname = f'self/solutions/facets-c{c}.reg'
-    #     lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSs.getStrWsclean(), name=imagenameM,
-    #                          fits_mask='img/wideM-3-mask.fits', data_column='CORRECTED_DATA', size=imgsizepix_wide,
-    #                          scale='4arcsec',
-    #                          weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=32,
-    #                          no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12,
-    #                          parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
-    #                          join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6),
-    #                          deconvolution_channels=3,
-    #                          multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', pol='i',
-    #                          apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', scalar_visibilities='',
-    #                          facet_regions=facetregname, apply_facet_solutions=f'self/solutions/cal-merged-c{c}.h5 phase000,amplitude000 ',
-    #                          )
-    #     sys.exit()
     #####################################################################################################
     # Find calibration solutions for subfield
     if c < 2:
