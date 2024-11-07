@@ -656,7 +656,6 @@ class MS(object):
                 x = x0 + np.sqrt(-2 * np.log(y) * sigma ** 2)
                 return x
             radius = inv_gaus(to_pbval, sigma)
-            print(fwhm/2,radius,fwhm/2*1.8)
         else:
             radius = np.array([pb_cut/(2.*np.cos(np.deg2rad(53-dec))),pb_cut/2.])
 
