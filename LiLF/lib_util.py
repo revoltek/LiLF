@@ -71,7 +71,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_preprocess', 'demix_skymodel', '')  # Use non-default demix skymodel.
     add_default('LOFAR_preprocess', 'demix_field_skymodel', 'gsm')  # Provide a custom target skymodel instead of online gsm model. Set to '' to ignore target.
     add_default('LOFAR_preprocess', 'run_aoflagger', 'False')  # run aoflagger on individual sub-bands, only in cases where this was not one by the observatory!
-    add_default('LOFAR_preprocess', 'tar', 'False')  # Tar MS files at the end 
+    add_default('LOFAR_preprocess', 'tar', 'True')  # Tar MS files at the end 
     # cal
     add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
     add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
@@ -97,7 +97,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
     # add_default('LOFAR_ddserial', 'removeExtendedCutoff', '0.0005')
     add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec
-    add_default('LOFAR_ddserial', 'manual_ddserial_cal', '')
+    add_default('LOFAR_ddserial', 'manual_dd_cal', '')
     # add_default('LOFAR_ddserial', 'solve_tec', 'False') # per default, solve each dd for scalarphase. if solve_tec==True, solve for TEC instead.
     # extract
     add_default('LOFAR_extract', 'max_niter', '10')

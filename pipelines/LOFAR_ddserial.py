@@ -477,8 +477,9 @@ for cmaj in range(maxIter):
         
         # get initial noise and set iterators for timeint solutions
         image = lib_img.Image('img/ddcalM-%s-pre-MFS-image.fits' % logstring, userReg=userReg)
-        rms_noise_pre = image.getNoise(); rms_noise_init = rms_noise_pre
-        mm_ratio_pre = image.getMaxMinRatio(); mm_ratio_init = mm_ratio_pre
+        d.rms_noise_init = image.getNoise(); rms_noise_pre = d.rms_noise_init
+        d.mm_ratio_init = image.getMaxMinRatio(); mm_ratio_pre = d.mm_ratio_init
+
         doamp = False
         # usually there are 3600/32=112 or 3600/16=225 or 3600/8=450 timesteps and \
         # 60 (halfband)/120 (fullband) chans, try to use multiple numbers
@@ -671,7 +672,7 @@ for cmaj in range(maxIter):
         ##################################
 
         # if died the first cycle or diverged
-        if cdd == 0 or ((rms_noise_pre > rms_noise_init) and (mm_ratio_pre/2 < mm_ratio_init)):
+        if cdd == 0 or ((rms_noise_pre > d.rms_noise_init) and (mm_ratio_pre/2 < d.mm_ratio_init)):
             
             d.converged = False
             logger.warning('%s: something went wrong during the first self-cal cycle or noise did not decrease.' % (d.name))
@@ -780,6 +781,7 @@ for cmaj in range(maxIter):
             logger.info("### Direction: %s -- %.2f Jy" % (d.name, np.sum(d.fluxes)))
         logger.info("- Averaging: %i s - %i ch" % (d.avg_t, d.avg_f))
         logger.info("- Converged: %s" % str(d.converged))
+        logger.info('init: Rms: %f, MMratio: %f' % (d.rms_noise_init,d.mm_ratio_init))
         for ic, (rms_noise, mm_ratio) in enumerate(zip(d.rms_noise,d.mm_ratio)):
 
             tables_to_print = '['
