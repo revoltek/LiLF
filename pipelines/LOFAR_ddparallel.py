@@ -529,7 +529,6 @@ for c in range(maxIter):
         # lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec0-c{c}.h5', sourcedb)
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec1-c{c}.h5', sourcedb)
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec2-c{c}.h5', sourcedb)
-        lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-amp-dd-c{c}.h5', sourcedb)
         # reference, unflag and reset the added stations f'{sol_dir}/cal-tec0-c{c}.h5',
         logger.info('Merge solutions...')
         s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-RS-c{c}.h5 --h5_tables {sol_dir}/cal-tec2-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 \
@@ -543,6 +542,7 @@ for c in range(maxIter):
         lib_util.run_losoto(s, f'tec-CS-c{c}', f'{sol_dir}/cal-tec-CS-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
                             plots_dir=f'self/plots/plots-tec-CS-c{c}', h5_dir='self/solutions')
         if c > 1:
+            lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-amp-dd-c{c}.h5', sourcedb)
             s.add(f'h5_merger.py --h5_out {sol_dir}/cal-amp-dd-merged-c{c}.h5 --h5_tables {sol_dir}/cal-amp-dd-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 \
               --no_antenna_crash --no_pol' , log='h5_merger.log', commandType='python')
             s.run(check=True)
@@ -644,7 +644,7 @@ for c in range(maxIter):
         else:
             beam_kwargs = {}
         if c > 1:
-            applyamp = 'amplitude000'
+            applyamp = ',amplitude000'
         else:
             applyamp = ''
         # clean again, with mask now
@@ -654,7 +654,7 @@ for c in range(maxIter):
                              update_model_required='', minuv_l=30, beam_size=15, mgain=0.9, nmiter=20, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
                              multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',
-                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000 {applyamp}',
+                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000{applyamp}',
                              **reuse_kwargs, **beam_kwargs)
         if c == 0: # imagename if c=0 else imagenameM
             reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
@@ -670,7 +670,7 @@ for c in range(maxIter):
                              update_model_required='', minuv_l=30, beam_size=15, mgain=0.9, nmiter=10, parallel_deconvolution=1024, auto_threshold=2.0, auto_mask=4.0,
                              join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
                              multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',
-                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000 {applyamp} ', **reuse_kwargs, **beam_kwargs)
+                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000{applyamp} ', **reuse_kwargs, **beam_kwargs)
         # make a new mask from the image
         current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
         # merge source lists
