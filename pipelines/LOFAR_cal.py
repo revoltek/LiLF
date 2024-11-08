@@ -213,7 +213,7 @@ with w.if_todo('pre_iono'):
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
                 cor.correction=phase000', log='$nameMS-preIONO_cor.log', commandType="DP3")
 
-    # Phasing up the cose stations concat_all.MS:SMOOTHED_DATA -> concat_all-phaseupIONO.MS:DATA
+    # Phasing up the cose stations concat_all.MS:SMOOTHED_DATA -> concat_all-phaseup-preIONO.MS:DATA
     logger.info('Phasing up Core Stations...')
     lib_util.check_rm('concat_all-phaseup-preIONO.MS')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-phaseup.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
