@@ -75,7 +75,7 @@ def closest_distance_between_patches(skymodel):
         nearby_name = names[distances == closest_patch[i]]
         # Case multiple patches at distance = 0
         if len(nearby_name) > 1:
-            logger.warning(f'Issue, multiple patches with same distance {nearby_name}!')
+            logger.warning(f'Possible issue, multiple patches with same distance {nearby_name}!')
             if nearby_name[0] == name:
                 nearby_name = nearby_name[1]
             else:
@@ -104,14 +104,47 @@ def merge_nearby_bright_facets(skymodel, max_distance, min_flux, applyBeam=False
     skymodel = skymodel.copy()
     skymodel_bright = skymodel.copy()
     skymodel_bright.select(f'I>{min_flux}', aggregate='sum', applyBeam=applyBeam)
-
-    while closest_distance_between_patches(skymodel_bright)[1] < max_distance:
-        closest_patches, closest_distance = closest_distance_between_patches(skymodel_bright)
-        logger.info(f'Merging nearby bright patches {closest_patches[0]} {closest_patches[1]} (distance={closest_distance*3600:.2f}arcsec')
-        skymodel_bright.merge(closest_patches)
-        skymodel.merge(closest_patches)
+    if len(skymodel_bright) > 1:
+        while closest_distance_between_patches(skymodel_bright)[1] < max_distance:
+            closest_patches, closest_distance = closest_distance_between_patches(skymodel_bright)
+            logger.info(f'Merging nearby bright patches {closest_patches[0]} {closest_patches[1]} (distance={closest_distance*3600:.2f}arcsec')
+            skymodel_bright.merge(closest_patches)
+            skymodel.merge(closest_patches)
+    else:
+        logger.warning(f'Only one bright source - nothing to merge.')
     skymodel.setPatchPositions(method='wmean', applyBeam=applyBeam)
     return skymodel
+
+
+def rename_skymodel_patches(skymodel, applyBeam=False):
+    """
+    Rename the patches in the input sky model according to flux
+
+    Parameters
+    ----------
+    skymodel : LSMTool skymodel.SkyModel object
+        Input sky model
+    applyBeam : bool, intrinsic/apparent
+    """
+    if not skymodel.hasPatches:
+        raise ValueError('Cannot rename patches since the input skymodel is not grouped '
+                         'into patches.')
+    patch_names = skymodel.getPatchNames()
+    patch_fluxes = skymodel.getColValues('I', aggregate='sum', applyBeam=applyBeam)
+    patch_pos = skymodel.getPatchPositions()
+
+    old_new_dict = {}
+    for i, id in enumerate(np.argsort(patch_fluxes)[::-1]):
+        old_new_dict[patch_names[id]] = f'patch_{i:02.0f}'
+
+    patch_col = skymodel.getColValues('Patch')
+    for old_name, new_name in old_new_dict.items():
+        patch_col[patch_col == old_name] = new_name
+        patch_pos[new_name] = patch_pos.pop(old_name)
+
+    skymodel.setColValues('Patch', patch_col)
+    skymodel.setPatchPositions(patch_pos)
+
 
 
 

@@ -1,0 +1,11 @@
+msin =
+msin.datacolumn = DATA
+msout = .
+msout.datacolumn = DATA
+
+steps = [scale]
+
+scale.type = scaledata
+#scale.coeffs = none
+#scale.scalesize = True
+

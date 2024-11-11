@@ -1,0 +1,29 @@
+msin =
+msin.datacolumn = SMOOTHED_DATA
+msout = .
+
+steps=[sol]
+
+sol.type = ddecal
+sol.uvlambdamin = 150 # unclear if to use 80,150,250...
+sol.sourcedb =
+sol.h5parm =
+sol.maxiter = 300
+sol.tolerance = 1e-3
+sol.solint =  #
+sol.nchan =  #
+sol.stepsize = 0.2
+#sol.usebeammodel = True
+#sol.beammode = array_factor
+#sol.beamproximitylimit = 200
+#sol.invert = True
+
+#sol.coreconstraint = 2000 # for now to stay conservative.
+# solver specific stuff - to be tested!
+#sol.directions = [[],[]]...
+sol.solveralgorithm  = directioniterative
+sol.datause = single
+#sol.solutions_per_direction =
+
+sol.mode = # scalarphase phaseonly, complexgain, tec, tecandphase
+sol.propagatesolutions = True

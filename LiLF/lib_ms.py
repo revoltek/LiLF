@@ -8,7 +8,7 @@ import pyregion
 from pyregion.parser_helper import Shape
 from LiLF import lib_util
 
-from astropy.coordinates import get_sun, SkyCoord, EarthLocation, AltAz
+from astropy.coordinates import get_sun, get_body, SkyCoord, EarthLocation, AltAz
 from astropy.time import Time
 from astropy import units as u
 
@@ -178,6 +178,23 @@ class AllMSs(object):
 
             self.run(f'DP3 msin=$pathMS msin.datacolumn={fromcol} msout=. msout.datacolumn={newcol} \
                      msout.storagemanager={sm} steps=[]', log=log, commandType="DP3")
+            
+    def deletecol(self, col):
+        """
+        Use DP3 to delete a column.
+        Parameters
+        ----------
+        col: string, name of column to delete
+        log: string, logfile name
+        """
+        for ms_file in self.mssListStr:
+            with tables.table(ms_file, ack=False, readonly=False) as t:
+                if col not in t.colnames():
+                    logger.info(f'Column {col} does not exist in {ms_file}. Skipping..')
+                    continue
+                else:
+                    logger.info(f'Deleting column {col} from {ms_file}....')
+                    t.removecols(col)
 
     def run_Blsmooth(self, incol='DATA', outcol='SMOOTHED_DATA', ionf='auto',  notime=False, nofreq=False, logstr='smooth'):
         """
@@ -235,7 +252,8 @@ class AllMSs(object):
         """
         has = []; elevs = []
         for ms in self.mssListObj:
-            logger.info('%s (%s): Hour angle: %.1f hrs - Elev: %.2f (Sun distance: %.0f)' % (ms.nameMS,ms.get_time().iso,ms.get_hour_angle(),ms.get_elev(),ms.get_sun_dist()))
+            logger.info('%s (%s): Hour angle: %.1f hrs - Elev: %.2f (Sun distance: %.0f; Jupiter distance: %.0f)' % \
+                        (ms.nameMS,ms.get_time().iso,ms.get_hour_angle(),ms.get_elev(),ms.get_sun_dist(),ms.get_jupiter_dist()))
             has.append(ms.get_hour_angle())
             elevs.append(ms.get_elev())
 
@@ -312,6 +330,15 @@ class MS(object):
         coord_sun = SkyCoord(ra=coord_sun.ra,dec=coord_sun.dec) # fix transformation issue
         coord = self.getPhaseCentre(skycoordobj=True)
         return coord.separation(coord_sun).deg
+    
+    def get_jupiter_dist(self):
+        """
+        Return Jupiter distance from the pointing centre in deg
+        """
+        coord_jupiter = get_body('jupiter', self.get_time(), self.get_telescope_coords())
+        coord_jupiter = SkyCoord(ra=coord_jupiter.ra,dec=coord_jupiter.dec) # fix transformation issue
+        coord = self.getPhaseCentre(skycoordobj=True)
+        return coord.separation(coord_jupiter).deg
     
     def get_hour_angle(self):
         """
@@ -592,7 +619,8 @@ class MS(object):
             else:
                 logger.info('Unknown antenna configuration, assuming SPARSE...')
                 fwhm = 4.85*scale #same configuration of SPARSE
-            ra, dec = self.getPhaseCentre()
+            __ra, dec = self.getPhaseCentre()
+
             if elliptical:
                 return np.array([fwhm/np.cos(np.deg2rad(53-dec)), fwhm])
             else:
@@ -605,15 +633,15 @@ class MS(object):
         else:
             raise('Only LOFAR or GMRT implemented.')
 
-    def makeBeamReg(self, outfile, pb_cut=None, to_null=False, freq='mid'):
+    def makeBeamReg(self, outfile, pb_cut=None, to_pbval=0.5, freq='mid'):
         """
         Create a ds9 region of the beam to FWHM by default
         outfile : str
             output file
         pb_cut : float, optional
             diameter of the beam in deg
-        to_null : bool, optional
-            arrive to the first null, not the FWHM (pb_cut must be None)
+        to_pbval: float, optional
+            make to this value of the beam (e.g. 0 to arrive to the null), default is FWHM (0.5)
         freq: min,max,med 
             which frequency to use to estimate the beam size
         """
@@ -621,11 +649,15 @@ class MS(object):
         ra, dec = self.getPhaseCentre()
 
         if pb_cut is None:
-            radius = self.getFWHM(freq=freq, elliptical=True)/2.
-            if to_null: radius *= 2 # rough estimation
+            if to_pbval < 0.1: to_pbval=0.1 # it's a gaussian, not a real beam, so 0 would be inf
+            fwhm = self.getFWHM(freq=freq, elliptical=True)
+            sigma = fwhm/(2*np.sqrt(2*np.log(2)))
+            def inv_gaus(y, sigma, x0=0):
+                x = x0 + np.sqrt(-2 * np.log(y) * sigma ** 2)
+                return x
+            radius = inv_gaus(to_pbval, sigma)
         else:
             radius = np.array([pb_cut/(2.*np.cos(np.deg2rad(53-dec))),pb_cut/2.])
-
 
         s = Shape('ellipse', None)
         s.coord_format = 'fk5'
@@ -669,6 +701,13 @@ class MS(object):
         #return int(round(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcseconds
         return float('%.1f'%(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcsec
 
+    def getPixelScale(self, check_flags=True):
+        """
+        Return a reasonable pixel scale
+        """
+        res = self.getResolution(check_flags)
+        return int(np.rint(res*1.6/4)) # reasonable value
+
     def getAntennas(self):
         """
         Return a list of antenna names
@@ -687,6 +726,7 @@ class MS(object):
         except MemoryError: # can happen e.g. for full MS in timesplit (with IS and/or HBA)
             logger.warning('Caugt MemoryError in checking for fully flagged MS! This can happen when working with large '
                            'measurement sets. You might want to manually inspect the flags. Trying to proceed...')
+            
 
 #    def delBeamInfo(self, col=None):
 #        """

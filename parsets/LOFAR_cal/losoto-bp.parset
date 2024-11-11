@@ -5,7 +5,6 @@ operation = DUPLICATE
 soltab = sol000/amplitude000
 soltabOut = amplitudeSmooth
 
-
 [smooth]
 operation = SMOOTH
 soltab = sol000/amplitudeSmooth
@@ -13,6 +12,17 @@ pol = XX, YY
 axesToSmooth = [time]
 mode = median
 log = True
+
+[flagstation]
+operation = FLAGSTATION
+soltab = sol000/amplitudeSmooth
+mode = bandpass
+ampRange = [0.3,2.5]
+maxFlaggedFraction = 0.25
+minFlaggedFraction = 0.25
+skipAnts = ['RS210LBA','RS310LBA']
+skipInternational = True
+nsigma = 4
 
 [plotAs]
 operation = PLOT
@@ -48,7 +58,7 @@ ratio = True
 operation = PLOT
 soltab = sol000/amplitudeRes
 pol = XX,YY
-freq.minmaxstep = [0,300e6,100]
+freq.minmaxstep = [0,300e6,200]
 axesInPlot = time
 axisInTable = ant
 axisInCol = pol

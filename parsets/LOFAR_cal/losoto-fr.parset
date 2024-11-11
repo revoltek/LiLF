@@ -1,9 +1,9 @@
 Ncpu = 0
 
-#[duplicate]
-#operation = DUPLICATE
-#soltab = sol000/rotation000
-#soltabOut = rotationRes000
+[duplicate]
+operation = DUPLICATE
+soltab = sol000/rotation000
+soltabOut = rotationResid000
 
 [faraday]
 operation = FARADAY
@@ -19,19 +19,17 @@ axesInPlot = [time]
 axisInTable = ant
 prefix = plots/fr
 
-# subtract rotationmeasure000 from rotation not possible
-#[residuals]
-#operation = RESIDUALS
-#soltab = sol000/rotation000
-#soltabsToSub = rotationmeasure000
-#
-#[plotRES]
-#operation = PLOT
-#soltab = sol000/rotation000
-#axesInPlot = [time,freq]
-#AxisInTable = ant
-#AxisDiff = pol
-#plotFlag = True
-#prefix = plots/rotRes-
-#refAnt = auto
-#minmax = [-1.,1.]
+[residuals]
+operation = RESIDUALS
+soltab = sol000/rotationResid000
+soltabsToSub = rotationmeasure000
+
+[plotRES]
+operation = PLOT
+soltab = sol000/rotationResid000
+axesInPlot = [time,freq]
+AxisInTable = ant
+plotFlag = True
+prefix = plots/rotRes_
+refAnt = auto
+minmax = [-1.6,1.6]

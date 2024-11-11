@@ -38,6 +38,8 @@ class Direction(object):
         self.avg_f = 0
         self.rms_noise = []
         self.mm_ratio = []
+        self.rms_noise_init = 0
+        self.mm_ratio_init = 0
 
     def clean(self):
         # TODO: remove files?
@@ -119,15 +121,22 @@ class Direction(object):
         self.rms_noise.append(rms_noise)
         self.mm_ratio.append(mm_ratio)
 
-    def set_position(self, position, region_peeloff, wcs_peeloff):
+    def set_position(self, position, phase_center):
         """
-        region_peeloff: in deg, used to decide if the source is to peel_off
+        phase_center: the phase centre of the obs in [ra,dec] (in deg)
         """
         self.position = [round(position[0], 5), round(position[1], 5)]
-        c1 = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
-        sky_region = Regions.read(region_peeloff)[0]
-        self.dist_from_centre = c1.separation(sky_region.center).deg
-        self.peel_off = not sky_region.contains(c1, wcs_peeloff)
+        SC_dd = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
+        SC_phasecentre = SkyCoord(phase_center[0]*u.deg, phase_center[1]*u.deg, frame='fk5')
+        self.dist_from_centre = SC_dd.separation(SC_phasecentre).deg
+
+    def is_in_region(self, region, wcs):
+        """
+        return true if the centre of the direction is in the given region
+        """
+        c1 = SkyCoord(self.position[0]*u.deg, self.position[1]*u.deg, frame='fk5')
+        sky_region = Regions.read(region)[0]
+        return sky_region.contains(c1, wcs)
 
     def get_flux(self, freq):
         """
@@ -298,7 +307,13 @@ class Grouper( object ):
             return None
         else:
             merged = np.concatenate([clusters[id] for id in contains_id]) # this will be the merged cluster
-            clusters = list(np.delete(clusters, contains_id)) # delete clusters that are merged so they don't apper twice
+            
+            # Reversing Indices List
+            contains_id = sorted(contains_id, reverse=True)
+            for contains_id_torm in contains_id:
+                # removing element by index using pop() function
+                clusters.pop(contains_id_torm)
+
             logger.info('Merge groups in same mask island: {}'.format(merged))
             clusters.append(merged.astype(int))
             self.clusters = clusters
