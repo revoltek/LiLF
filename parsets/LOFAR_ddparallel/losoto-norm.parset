@@ -1,0 +1,6 @@
+[norm]
+operation = NORM
+soltab = sol000/amplitude000
+normVal = 1.
+axesToNorm = [time,freq,ant]
+log = True
