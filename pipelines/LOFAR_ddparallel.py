@@ -203,9 +203,12 @@ def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], fwhm=0, max_
     logger.info('Adding 3C models...')
     for i, source in enumerate(all_3c):
         pos = SkyCoord(table['_RA.icrs'][i], table['_DE.icrs'][i], unit=(u.hourangle, u.deg))
-        if phasecentre.separation(pos).deg < fwhm/2 or phasecentre.separation(pos).deg > max_sep:
-            continue 
-        
+        if phasecentre.separation(pos).deg < fwhm/2:
+            logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
+            continue
+        elif phasecentre.separation(pos).deg > max_sep:
+            continue
+
         sourcedb = os.path.dirname(__file__) + f'/../models/3CRR/{source.replace(" ","")}.txt'
         if not os.path.exists(sourcedb):
             logger.warning(f'No model found for {source} (seperation {phasecentre.separation(pos).deg:.2f} deg)')
@@ -215,7 +218,7 @@ def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], fwhm=0, max_
         sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
         sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
         sm_3c.select(f'I>{threshold:.02f}', aggregate='sum', applyBeam=True)
-        sm.concatenate(sm_3c)
+        sm.concatenate(sm_3c, matchBy='position', keep="from2", radius='10 arcsec')
         sm.setPatchPositions(method='wmean', applyBeam=True)
     return sm
 
@@ -412,6 +415,7 @@ for c in range(maxIter):
     else:
         logger.info(f'Load existing skymodel {sourcedb}')
         sm = lsmtool.load(sourcedb, beamMS=beamMS if intrinsic else None)
+        sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
 
     # copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
     sourcedb_basename = sourcedb.split('/')[-1]
@@ -469,10 +473,9 @@ for c in range(maxIter):
     ### DONE
     
     ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
-    if c == 0:
-        _3c_patches = [p for p in patches if not p.startswith('patch_')]
-        _3c_patch_fluxes = [f for p, f in zip(patches, patch_fluxes) if not p.startswith('patch_')]
-    
+    _3c_patches = [p for p in patches if not p.startswith('patch_')]
+    _3c_patch_fluxes = [f for p, f in zip(patches, patch_fluxes) if not p.startswith('patch_')]
+    if c == 0 and len(_3c_patches) > 0:
         with w.if_todo('3c_solve_amp'):
             logger.info('Solving Amplitude for 3C...')
             solve_amplitude(MSs, c, _3c_patches, smMHz1[c], 16*base_solint, model_column_fluxes=_3c_patch_fluxes, variable_solint_threshold=8.)
@@ -569,23 +572,20 @@ for c in range(maxIter):
                 if "patch" in patch:
                     continue
                 
-                clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
-
                 # Set MODEL_DATA = 0 where data are flagged, then unflag everything
                 MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
-                
+                #clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
                 MSs.run(
                     f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
                     log = f'$nameMS_subtract_{patch}.log', 
                     commandType = 'general'
                 )
-                
                 MSs.run(
                     f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
                     log = f'$nameMS_subtract_{patch}.log', 
                     commandType = 'general'
                 )
-                clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
+                #clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
                 MSs.deletecol(patch)
     
 
