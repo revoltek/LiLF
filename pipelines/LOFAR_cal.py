@@ -213,9 +213,9 @@ with w.if_todo('pre_iono'):
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
                 cor.correction=phase000', log='$nameMS-preIONO_cor.log', commandType="DP3")
 
-    # Phasing up the cose stations concat_all.MS:SMOOTHED_DATA -> concat_all-phaseupIONO.MS:DATA
+    # Phasing up the cose stations concat_all.MS:SMOOTHED_DATA -> concat_all-phaseup-preIONO.MS:DATA
     logger.info('Phasing up Core Stations...')
-    lib_util.check_rm('concat_all-phaseupIONO.MS')
+    lib_util.check_rm('concat_all-phaseup-preIONO.MS')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-phaseup.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
                         msout=concat_all-phaseup-preIONO.MS', log='$nameMS_phaseup.log', commandType="DP3")
 
@@ -542,6 +542,7 @@ if not develop:
 
         s.add('losoto -d sol000/phase000 cal-fr.h5', log='losoto-compress.log', commandType="python")
         s.add('losoto -d sol000/rotation000 cal-fr.h5', log='losoto-compress.log', commandType="python")
+        s.add('losoto -d sol000/rotationResid000 cal-fr.h5', log='losoto-compress.log', commandType="python")
 
         s.add('losoto -d sol000/amplitude000 cal-bp.h5', log='losoto-compress.log', commandType="python")
         s.add('losoto -d sol000/phase000 cal-bp.h5', log='losoto-compress.log', commandType="python")

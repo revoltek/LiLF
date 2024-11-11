@@ -29,7 +29,7 @@ demix_sources = parset.get('LOFAR_preprocess','demix_sources') # demix the sourc
 demix_skymodel = parset.get('LOFAR_preprocess','demix_skymodel') # Use non-default demix skymodel
 demix_field_skymodel = parset.get('LOFAR_preprocess','demix_field_skymodel') # provide a custom target skymodel instead of online gsm model - assumes intrinsic sky.
 run_aoflagger = parset.getboolean('LOFAR_preprocess','run_aoflagger') # run aoflagger on individual subbands - do this only in rare cases where it was not done by the observatory!
-tar = parset.get('LOFAR_preprocess','tar') # tar the output ms
+tar = parset.getboolean('LOFAR_preprocess','tar') # tar the output ms
 
 ###########################################
 if os.path.exists('html.txt'):

@@ -208,7 +208,7 @@ def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], fwhm=0, max_
         if phasecentre.separation(pos).deg < fwhm/2 or phasecentre.separation(pos).deg > max_sep:
             continue 
         
-        sourcedb = f'/home/local/work/j.boxelaar/LiLF//models/3CRR/{source.replace(" ","")}.txt'
+        sourcedb = os.path.dirname(__file__) + f'/../models/3CRR/{source.replace(" ","")}.txt'
         if not os.path.exists(sourcedb):
             logger.warning(f'No model found for {source} (seperation {phasecentre.separation(pos).deg:.2f} deg)')
             continue
@@ -287,7 +287,7 @@ fullband = MSs.getBandwidth()
 nchan = MSs.mssListObj[0].getNchan()
 tint = MSs.mssListObj[0].getTimeInt()
 if int(np.rint(fullband / nchan < 195.3e3/4)):
-    base_nchan = int(np.rint((195.3e3/4)/(fullband/nchan))) # this is 1 for ducth observations, and larger (2,4) for IS observations
+    base_nchan = int(np.rint((195.3e3/4)/(fullband/nchan))) # this is 1 for dutch observations, and larger (2,4) for IS observations
 else: base_nchan = 1
 if tint < 4:
     base_solint = int(np.rint(4/tint)) # this is already 4 for dutch observations
@@ -325,12 +325,12 @@ with w.if_todo('solve_fr'):
          CIRC_PHASEDIFF_DATA[,0]=0.5*EXP(1.0i*(PHASE(CIRC_PHASEDIFF_DATA[,0])-PHASE(CIRC_PHASEDIFF_DATA[,3]))), \
          CIRC_PHASEDIFF_DATA[,3]=CIRC_PHASEDIFF_DATA[,0], \
          CIRC_PHASEDIFF_DATA[,1]=0+0i, \
-         CIRC_PHASEDIFF_DATA[,2]=0+0i"', log='$nameMS_taql_phdiff.log', commandType='general')
+         CIRC_PHASEDIFF_DATA[,2]=0+0i"', log='$nameMS_taql.log', commandType='general')
 
     logger.info('Creating MODEL_DATA_FR...')  # take from MODEL_DATA but overwrite
     MSs.addcol('MODEL_DATA_FR', 'DATA', usedysco=False)
     MSs.run('taql "UPDATE $pathMS SET MODEL_DATA_FR[,0]=0.5+0i, MODEL_DATA_FR[,1]=0.0+0i, MODEL_DATA_FR[,2]=0.0+0i, \
-         MODEL_DATA_FR[,3]=0.5+0i"', log='$nameMS_taql_frmodel.log', commandType='general')
+         MODEL_DATA_FR[,3]=0.5+0i"', log='$nameMS_taql.log', commandType='general')
 
     # Solve TCXX.MS:CIRC_PHASEDIFF_DATA against MODEL_DATA_FR (only solve - solint=2m nchan=0 as it has the smoothnessconstrain)
     logger.info('Solving circ phase difference ...')
@@ -339,15 +339,16 @@ with w.if_todo('solve_fr'):
     lib_util.run_losoto(s, f'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
     os.system('mv cal-fr.h5 self/solutions/')
     os.system('mv plots-fr self/plots/')
+
     # Delete cols again to not waste space
     MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN CIRC_PHASEDIFF_DATA, MODEL_DATA_FR"',
-            log='$nameMS_taql_delcol.log', commandType='general')
+            log='$nameMS_taql.log', commandType='general')
 
 with w.if_todo('cor_fr'):
     # Correct FR with results of solve - group*_TC.MS:DATA -> group*_TC.MS:CORRECTED_DATA_FR
     logger.info('Correcting FR (DATA -> CORRECTED_DATA_FR...')
-    MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA_FR \
-                cor.parmdb=self/solutions/cal-fr.h5 cor.correction=rotationmeasure000',
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA_FR \
+            cor.parmdb=self/solutions/cal-fr.h5 cor.correction=rotationmeasure000',
             log='$nameMS_corFR.log', commandType='DP3')
 ### DONE
 
@@ -445,10 +446,10 @@ for c in range(maxIter):
             #                      channels_out=MSs.getChout(4.e6), deconvolution_channels=3, pol='i', nmiter=5 )
         ### DONE
 
+    ### solve ionosphere phase - ms:SMOOTHED_DATA - > reset for all BUT most distant RS!
     with w.if_todo('c%02i_solve_tecRS' % c):
         # Smooth MSs:CORRECTED_DATA -> SMOOTHED_DATA
         MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
-        # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for all BUT most distant RS!
         logger.info('Solving TEC (RS)...')
         solve_iono(MSs, c, 2, patches, smMHz2[c], 2*base_solint, 'phase', resetant='CS', model_column_fluxes=patch_fluxes, variable_solint=True)
     ### DONE
@@ -458,28 +459,30 @@ for c in range(maxIter):
         corrupt_model_dirs(MSs, c, 2, patches)
     ### DONE
 
+    ### solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
     with w.if_todo('c%02i_solve_tecCS' % c):
-        # solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
         logger.info('Solving TEC (CS)...')
         solve_iono(MSs, c, 1, patches, smMHz1[c], 8*base_solint, 'phase', constrainant=None,  model_column_fluxes=patch_fluxes, variable_solint=True) # 'RS'
     ### DONE
 
-    # ### CORRUPT the MODEL_DATA columns for all patches
+    ### CORRUPT the MODEL_DATA columns for all patches
     with w.if_todo('c%02i_corrupt_tecCS' % c):
         corrupt_model_dirs(MSs, c, 1, patches, 'phase')
-    # ### DONE
+    ### DONE
     
-    # ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
-    _3c_patches = [p for p in patches if not p.startswith('patch_')]
-    _3c_patch_fluxes = [f for p, f in zip(patches, patch_fluxes) if not p.startswith('patch_')]
+    ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
+    if c == 0:
+        _3c_patches = [p for p in patches if not p.startswith('patch_')]
+        _3c_patch_fluxes = [f for p, f in zip(patches, patch_fluxes) if not p.startswith('patch_')]
     
-    with w.if_todo('3c_solve_amp'):
-        logger.info('Solving Amplitude for 3C...')
-        solve_amplitude(MSs, c, _3c_patches, smMHz1[c], 16*base_solint, model_column_fluxes=_3c_patch_fluxes, variable_solint_threshold=8.)
+        with w.if_todo('3c_solve_amp'):
+            logger.info('Solving Amplitude for 3C...')
+            solve_amplitude(MSs, c, _3c_patches, smMHz1[c], 16*base_solint, model_column_fluxes=_3c_patch_fluxes, variable_solint_threshold=8.)
+        ### DONE
 
-    with w.if_todo('3c_corrupt_amp'):
-        corrupt_model_dirs(MSs, c, 1, _3c_patches, 'scalaramplitude')
-    # ### DONE
+        with w.if_todo('3c_corrupt_amp'):
+            corrupt_model_dirs(MSs, c, 1, _3c_patches, 'scalaramplitude')
+        ### DONE
 
     ########################### AMP-CAL PART ####################################
     # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
@@ -569,10 +572,11 @@ for c in range(maxIter):
                 if "patch" in patch:
                     continue
                 
+                # TEST
                 clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
 
-                # Set MODEL_DATA = 0 where data are flagged, then unflag everything
-                MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
+                # TODO: Set MODEL_DATA = 0 where data are flagged, then unflag everything
+                #MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
                 
                 MSs.run(
                     f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
@@ -585,33 +589,11 @@ for c in range(maxIter):
                     log = f'$nameMS_subtract_{patch}.log', 
                     commandType = 'general'
                 )
-                clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
-                MSs.deletecol(patch)
-    
-    with w.if_todo('c%02i_subtract_3Csources' % c):
-        for patch in patches:
-            if "patch" in patch:
-                continue
-            
-            clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
-            MSs.run(
-                f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
-                log = f'$nameMS_subtract_{patch}.log',
-                commandType = 'general'
-            )
 
-            MSs.run(
-                f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
-                log = f'$nameMS_subtract_{patch}.log', 
-                commandType = 'general'
-            )
-            clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
-            MSs.deletecol(patch)
-            
-            # Restore of FLAGS
-            MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"',
-                    log='$nameMS_taql.log', commandType='general')
-            
+                # TEST
+                clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
+
+                MSs.deletecol(patch)           
 
     with w.if_todo('c%02i-imaging' % c):
         logger.info('Preparing region file...')
@@ -867,7 +849,7 @@ for c in range(maxIter):
                     os.system('cp %s %s' % (im, wideMextpb))
                     lib_img.blank_image_reg(wideMextpb, beamReg, blankval=0.)
                 logger.info('Set MODEL_DATA=0...')
-                MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c' + str(c) + '.log')
+                MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
                 # Recreate MODEL_DATA of external region for subtraction -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam
                 logger.info('Predict corrupted model of external region...')
                 s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
@@ -981,4 +963,4 @@ for c in range(maxIter):
 os.system(f'mv img/wideM-{maxIter-1}-*-model.fits self/skymodel')
 os.system(f'mv img/wideM-{maxIter-1}-*-model-pb.fits self/skymodel')
 
-logger.info("Done.")
+w.alldone()

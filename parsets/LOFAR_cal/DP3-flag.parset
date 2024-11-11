@@ -14,5 +14,5 @@ aoflagger.type=aoflagger
 aoflagger.autocorr=T
 aoflagger.keepstatistics=T # maybe for debugging purposes (if needed)
 aoflagger.memoryperc=90
-aoflagger.timewindow=0 # use the largest time window possible (the larger the better)
+aoflagger.timewindow=900 # 1h timewindow otherwise the flagging of datasets with IS gets killed
 aoflagger.strategy = 
