@@ -569,10 +569,11 @@ for c in range(maxIter):
                 if "patch" in patch:
                     continue
                 
+                # TEST
                 clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
 
-                # Set MODEL_DATA = 0 where data are flagged, then unflag everything
-                MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
+                # TODO: Set MODEL_DATA = 0 where data are flagged, then unflag everything
+                #MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
                 
                 MSs.run(
                     f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
@@ -585,11 +586,11 @@ for c in range(maxIter):
                     log = f'$nameMS_subtract_{patch}.log', 
                     commandType = 'general'
                 )
-                clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
-                MSs.deletecol(patch)
-    
 
-            
+                # TEST
+                clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
+
+                MSs.deletecol(patch)           
 
     with w.if_todo('c%02i-imaging' % c):
         logger.info('Preparing region file...')
@@ -845,7 +846,7 @@ for c in range(maxIter):
                     os.system('cp %s %s' % (im, wideMextpb))
                     lib_img.blank_image_reg(wideMextpb, beamReg, blankval=0.)
                 logger.info('Set MODEL_DATA=0...')
-                MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c' + str(c) + '.log')
+                MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
                 # Recreate MODEL_DATA of external region for subtraction -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam
                 logger.info('Predict corrupted model of external region...')
                 s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
@@ -959,4 +960,4 @@ for c in range(maxIter):
 os.system(f'mv img/wideM-{maxIter-1}-*-model.fits self/skymodel')
 os.system(f'mv img/wideM-{maxIter-1}-*-model-pb.fits self/skymodel')
 
-logger.info("Done.")
+w.alldone()
