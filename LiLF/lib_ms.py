@@ -278,20 +278,6 @@ class MS(object):
         """
         if pathMS[-1] == "/": pathMS = pathMS[:-1]
         self.setPathVariables(pathMS)
-
-        # If the field name is not a recognised calibrator name, one of two scenarios is true:
-        # 1. The field is not a calibrator field;
-        # 2. The field is a calibrator field, but the name was not properly set.
-        # The following lines correct the field name if scenario 2 is the case.
-        #calibratorDistanceThreshold = 0.5 # in degrees
-        #if (not self.isCalibrator()):
-        #    if (self.getCalibratorDistancesSorted()[0] < calibratorDistanceThreshold):
-        #        #nameFieldOld = self.getNameField()
-        #        nameFieldNew = self.getCalibratorNamesSorted()[0]
-        #        #logger.warning("Although the field name '" + nameFieldOld + "' is not recognised as a known calibrator name, " +
-        #        #                "the phase centre coordinates suggest that this scan is a calibrator scan. Changing field name into '" +
-        #        #                nameFieldNew + "'...")
-        #        self.setNameField(nameFieldNew)
         
     def get_telescope_coords(self):
         """
@@ -428,12 +414,22 @@ class MS(object):
         tables.taql("update $pathcodeTable set CODE=$code")
 
 
-    def getNameField(self):
+    def getNameField(self, checkCalName=False):
         """
         Retrieve field name.
         """
         pathFieldTable = self.pathMS + "/FIELD"
         nameField      = (tables.taql("select NAME from $pathFieldTable")).getcol("NAME")[0]
+
+        # If the field name is not a recognised calibrator name, one of two scenarios is true:
+        # 1. The field is not a calibrator field;
+        # 2. The field is a calibrator field, but the name was not properly set.
+        # The following lines correct the field name if scenario 2 is the case.
+        if (checkCalName and not self.isCalibrator()):
+            calibratorDistanceThreshold = 0.1 # in degrees
+            if (self.getCalibratorDistancesSorted()[0] < calibratorDistanceThreshold):
+                nameField = self.getCalibratorNamesSorted()[0]
+
         return nameField
 
 
