@@ -42,6 +42,7 @@ subfield_min_flux = parset.getfloat('LOFAR_ddparallel','subfield_min_flux') # de
 subfield = parset.get('LOFAR_ddparallel','subfield') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
 maxIter = parset.getint('LOFAR_ddparallel','maxIter') # default = 2 (try also 3)
 phaseSolMode = parset.get('LOFAR_ddparallel', 'ph_sol_mode') # tecandphase, tec, phase
+remove3c = parset.getboolean('LOFAR_ddparallel', 'remove3c') # get rid of 3c sources in the sidelobes
 sf_phaseSolMode = 'phase' #'tec'
 start_sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
@@ -376,7 +377,10 @@ for c in range(maxIter):
                 # Create initial sourcedb from GSM
                 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')*1.8 # to null
                 logger.info('Get skymodel from GSM.')
-                os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"')
+                s.add(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"',
+                      log='wget.log', commandType='general')
+                s.run(check=True)
+                #os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"')
                 sm = lsmtool.load(sourcedb, beamMS=beamMS)
         else:
             # get wsclean skymodel of previous iteration
@@ -403,7 +407,7 @@ for c in range(maxIter):
         sm.setPatchPositions(bright_pos)
         lib_dd_parallel.rename_skymodel_patches(sm, applyBeam=intrinsic)
 
-        if c == 0:
+        if c == 0 and remove3c:
             # Add models of bright 3c sources to the sky model. model will be subtracted from data before imaging.
             sm = add_3c_models(sm, phasecentre=phasecentre, fwhm=fwhm)
         
@@ -471,18 +475,19 @@ for c in range(maxIter):
     ### DONE
     
     ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
-    if c == 0:
+    if c == 0 and remove3c:
         _3c_patches = [p for p in patches if not p.startswith('patch_')]
         _3c_patch_fluxes = [f for p, f in zip(patches, patch_fluxes) if not p.startswith('patch_')]
-    
-        with w.if_todo('3c_solve_amp'):
-            logger.info('Solving Amplitude for 3C...')
-            solve_amplitude(MSs, c, _3c_patches, smMHz1[c], 16*base_solint, model_column_fluxes=_3c_patch_fluxes, variable_solint_threshold=8.)
-        ### DONE
 
-        with w.if_todo('3c_corrupt_amp'):
-            corrupt_model_dirs(MSs, c, 1, _3c_patches, 'scalaramplitude')
-        ### DONE
+        if len(_3c_patches) > 0:
+            with w.if_todo('3c_solve_amp'):
+                logger.info('Solving Amplitude for 3C...')
+                solve_amplitude(MSs, c, _3c_patches, smMHz1[c], 16*base_solint, model_column_fluxes=_3c_patch_fluxes, variable_solint_threshold=8.)
+            ### DONE
+
+            with w.if_todo('3c_corrupt_amp'):
+                corrupt_model_dirs(MSs, c, 1, _3c_patches, 'scalaramplitude')
+            ### DONE
 
     ########################### AMP-CAL PART ####################################
     # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
