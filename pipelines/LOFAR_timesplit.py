@@ -24,6 +24,7 @@ data_dir = parset.get('LOFAR_timesplit','data_dir')
 cal_dir = parset.get('LOFAR_timesplit','cal_dir')
 ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
+apply_fr = parset.getboolean('LOFAR_timesplit','apply_fr') # also transfer the FR solutions (possibly useful if calibrator and target are close, especially for IS data.)
 no_aoflagger = parset.getboolean('LOFAR_timesplit','no_aoflagger')
 bl2flag = parset.get('flag','stations')
 
@@ -109,6 +110,10 @@ with w.if_todo('apply'):
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_bp} msin.datacolumn=CORRECTED_DATA \
                     cor.correction=amplitudeSmooth cor.updateweights=True',
                     log='$nameMS_corBP.log', commandType="DP3")
+    if apply_fr:
+        logger.info('FR correction...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={cal_dir}/cal-fr.h5 msin.datacolumn=CORRECTED_DATA \
+                        cor.correction=rotationmeasure000 ', log='$nameMS_corBP.log', commandType="DP3")
 
 ### DONE
 
