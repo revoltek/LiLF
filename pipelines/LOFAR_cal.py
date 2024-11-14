@@ -97,7 +97,7 @@ if skymodel == '':  # default case
     else:
         skymodel = os.path.dirname(__file__) + '/../models/calib-simple.skymodel'
 
-calname = MSs.getListObj()[0].getNameField()
+calname = MSs.getListObj()[0].getNameField(checkCalName=True)
 nchan = MSs.mssListObj[0].getNchan()
 tint = MSs.mssListObj[0].getTimeInt()
 freqres = MSs.mssListObj[0].getChanband()

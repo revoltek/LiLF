@@ -93,6 +93,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'subfield_min_flux', '20') # min flux within calibration subfield
     add_default('LOFAR_ddparallel', 'ph_sol_mode', 'phase') # phase or tecandphase
     add_default('LOFAR_ddparallel', 'intrinsic', 'True')
+    add_default('LOFAR_ddparallel', 'remove3c', 'False')
     # dd
     add_default('LOFAR_ddserial', 'maxIter', '2')
     add_default('LOFAR_ddserial', 'minCalFlux60', '0.7')
@@ -886,7 +887,8 @@ class Scheduler():
         if out != b'':
             out = out.split(b'\n')[0].decode()
             logger.error(commandType+' run problem on:\n'+out)
-            raise RuntimeError(commandType+' run problem on:\n'+out)
+            errlines = subprocess.check_output('tail -n 10 '+log, shell = True, stderr = subprocess.STDOUT).decode()
+            raise RuntimeError(commandType+' run problem on:\n'+out+'\n'+errlines)
 
         return 0
 

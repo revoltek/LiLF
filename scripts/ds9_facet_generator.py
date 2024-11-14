@@ -404,6 +404,8 @@ def main(args):
         facets, points = tessellate(
             x, y, w, dist_pix, bbox, plot_tessellation=args.plottessellation
         )
+        print("facets: ", facets)
+        print("points: ", points)
 
         write_ds9(
             args.outputfile, facets, points=points if args.writevoronoipoints else None, names=sourcename if args.h5 else None

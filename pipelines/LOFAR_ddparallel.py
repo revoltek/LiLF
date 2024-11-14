@@ -43,6 +43,7 @@ subfield_min_flux = parset.getfloat('LOFAR_ddparallel','subfield_min_flux') # de
 subfield = parset.get('LOFAR_ddparallel','subfield') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
 maxIter = parset.getint('LOFAR_ddparallel','maxIter') # default = 2 (try also 3)
 phaseSolMode = parset.get('LOFAR_ddparallel', 'ph_sol_mode') # tecandphase, tec, phase
+remove3c = parset.getboolean('LOFAR_ddparallel', 'remove3c') # get rid of 3c sources in the sidelobes
 sf_phaseSolMode = 'phase' #'tec'
 start_sourcedb = parset.get('model','sourcedb')
 apparent = parset.getboolean('model','apparent')
@@ -175,7 +176,7 @@ def solve_amplitude(MSs, c, model_columns, smMHz, solint, resetant=None, constra
         commandType="DP3"
     )
     
-    losoto_parsets = [parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-clip2.parset']
+    losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset']
     
     lib_util.run_losoto(s, f'solamp-c{c}', [ms+f'/solamp_c{c}.h5' for ms in MSs.getListStr()], losoto_parsets, 
                         plots_dir=f'self/plots/plots-solamp-c{c}', h5_dir=f'self/solutions/')
@@ -206,9 +207,12 @@ def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], fwhm=0, max_
     logger.info('Adding 3C models...')
     for i, source in enumerate(all_3c):
         pos = SkyCoord(table['_RA.icrs'][i], table['_DE.icrs'][i], unit=(u.hourangle, u.deg))
-        if phasecentre.separation(pos).deg < fwhm/2 or phasecentre.separation(pos).deg > max_sep:
-            continue 
-        
+        if phasecentre.separation(pos).deg < fwhm/2:
+            logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
+            continue
+        elif phasecentre.separation(pos).deg > max_sep:
+            continue
+
         sourcedb = os.path.dirname(__file__) + f'/../models/3CRR/{source.replace(" ","")}.txt'
         if not os.path.exists(sourcedb):
             logger.warning(f'No model found for {source} (seperation {phasecentre.separation(pos).deg:.2f} deg)')
@@ -218,7 +222,7 @@ def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], fwhm=0, max_
         sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
         sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
         sm_3c.select(f'I>{threshold:.02f}', aggregate='sum', applyBeam=True)
-        sm.concatenate(sm_3c)
+        sm.concatenate(sm_3c, matchBy='position', keep="from2", radius='10 arcsec')
         sm.setPatchPositions(method='wmean', applyBeam=True)
     return sm
 
@@ -255,7 +259,8 @@ with w.if_todo('cleaning'):
     if not os.path.exists('self/skymodel'): os.makedirs('self/skymodel')
 ### DONE
 
-MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s, check_flags=True)
+MSs.run('taql "UPDATE $pathMS SET FLAG=False"', log='$nameMS_taql.log', commandType='general')
 
 try:
     MSs.print_HAcov()
@@ -377,7 +382,10 @@ for c in range(maxIter):
                 # Create initial sourcedb from GSM
                 fwhm = MSs.getListObj()[0].getFWHM(freq='mid')*1.8 # to null
                 logger.info('Get skymodel from GSM.')
-                os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"')
+                s.add(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"',
+                      log='wget.log', commandType='general')
+                s.run(check=True)
+                #os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"')
                 sm = lsmtool.load(sourcedb, beamMS=beamMS)
         else:
             # get wsclean skymodel of previous iteration
@@ -404,7 +412,7 @@ for c in range(maxIter):
         sm.setPatchPositions(bright_pos)
         lib_dd_parallel.rename_skymodel_patches(sm, applyBeam=intrinsic)
 
-        if c == 0:
+        if c == 0 and remove3c:
             # Add models of bright 3c sources to the sky model. model will be subtracted from data before imaging.
             sm = add_3c_models(sm, phasecentre=phasecentre, fwhm=fwhm)
         
@@ -415,6 +423,7 @@ for c in range(maxIter):
     else:
         logger.info(f'Load existing skymodel {sourcedb}')
         sm = lsmtool.load(sourcedb, beamMS=beamMS if intrinsic else None)
+        sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
 
     # copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
     sourcedb_basename = sourcedb.split('/')[-1]
@@ -472,16 +481,20 @@ for c in range(maxIter):
     ### DONE
     
     ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
-    if c == 0:
+    if c == 0 and remove3c:
         _3c_patches = [p for p in patches if not p.startswith('patch_')]
         _3c_patch_fluxes = [f for p, f in zip(patches, patch_fluxes) if not p.startswith('patch_')]
-    
-        with w.if_todo('3c_solve_amp'):
-            logger.info('Solving Amplitude for 3C...')
-            solve_amplitude(MSs, c, _3c_patches, smMHz1[c], 16*base_solint, model_column_fluxes=_3c_patch_fluxes, variable_solint_threshold=8.)
-        ### DONE
+
+        if len(_3c_patches) > 0:
+            with w.if_todo('3c_solve_amp'):
+                logger.info('Solving Amplitude for 3C...')
+                solve_amplitude(MSs, c, _3c_patches, smMHz1[c], 16*base_solint, model_column_fluxes=_3c_patch_fluxes, variable_solint_threshold=8.)
+            ### DONE
 
         with w.if_todo('3c_corrupt_amp'):
+            MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+            MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"',
+                             log='$nameMS_taql.log', commandType='general')
             corrupt_model_dirs(MSs, c, 1, _3c_patches, 'scalaramplitude')
         ### DONE
 
@@ -573,28 +586,24 @@ for c in range(maxIter):
                 if "patch" in patch:
                     continue
                 
-                # TEST
-                clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
-
-                # TODO: Set MODEL_DATA = 0 where data are flagged, then unflag everything
-                #MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
-                
+                # Set MODEL_DATA = 0 where data are flagged, then unflag everything
+                logger.info(f'Subtracting {patch}...')
+                MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
+                #clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
                 MSs.run(
                     f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
                     log = f'$nameMS_subtract_{patch}.log', 
                     commandType = 'general'
                 )
-                
                 MSs.run(
                     f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
                     log = f'$nameMS_subtract_{patch}.log', 
                     commandType = 'general'
                 )
-
-                # TEST
-                clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
-
-                MSs.deletecol(patch)           
+                #clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
+                MSs.deletecol(patch)
+                
+            MSs.run(f'taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')      
 
     with w.if_todo('c%02i-imaging' % c):
         logger.info('Preparing region file...')

@@ -1,10 +1,10 @@
 Ncpu = 0
 
-[clip]
-operation = CLIP
-soltab = sol000/amplitude000
-mode = below
-clipLevel = 0.2
+#[clip]
+#operation = CLIP
+#soltab = sol000/amplitude000
+#mode = below
+#clipLevel = 0.1
 
 [clip2]
 operation = CLIP
@@ -13,10 +13,10 @@ mode = above
 clipLevel = 5.0
 
 # use [time,freq] instead of just freq: it's much faster
-[flagextendT]
-operation = FLAGEXTEND
-soltab = sol000/amplitude000
-axesToExt = [time,freq]
-size = [0,1]
-percent = 40
-maxCycles = 1
+#[flagextendT]
+#operation = FLAGEXTEND
+#soltab = sol000/amplitude000
+#axesToExt = [time,freq]
+#size = [0,1]
+#percent = 40
+#maxCycles = 1
