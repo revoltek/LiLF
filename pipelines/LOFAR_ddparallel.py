@@ -482,20 +482,43 @@ for c in range(maxIter):
     ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
     if c == 0 and remove3c:
         _3c_patches = [p for p in patches if not p.startswith('patch_')]
-        _3c_patch_fluxes = [f for p, f in zip(patches, patch_fluxes) if not p.startswith('patch_')]
 
         if len(_3c_patches) > 0:
             with w.if_todo('3c_solve_amp'):
                 logger.info('Solving Amplitude for 3C...')
-                solve_amplitude(MSs, c, _3c_patches, smMHz1[c], 16*base_solint, model_column_fluxes=_3c_patch_fluxes, variable_solint_threshold=8.)
+                solve_amplitude(MSs, c, patches, smMHz1[c], 16*base_solint, model_column_fluxes=patch_fluxes, variable_solint_threshold=8.)
             ### DONE
-
-        with w.if_todo('3c_corrupt_amp'):
-            MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
-            MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"',
-                             log='$nameMS_taql.log', commandType='general')
-            corrupt_model_dirs(MSs, c, 1, _3c_patches, 'scalaramplitude')
-        ### DONE
+            
+            with w.if_todo('3C_corrupt_subtract'):
+                MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+                MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"',
+                                log='$nameMS_taql.log', commandType='general')
+                
+                for patch in patches:
+                    if "patch" in patch:
+                        continue
+                    
+                    corrupt_model_dirs(MSs, c, 1, patch, 'scalaramplitude')
+                    MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
+                    
+                    # Set MODEL_DATA = 0 where data are flagged, then unflag everything
+                    logger.info(f'Subtracting {patch}...')
+                    MSs.run(
+                        f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
+                        log = f'$nameMS_subtract_{patch}.log', 
+                        commandType = 'general'
+                    )
+                    MSs.run(
+                        f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
+                        log = f'$nameMS_subtract_{patch}.log', 
+                        commandType = 'general'
+                    )
+                    
+                    MSs.deletecol(patch)
+                    MSs.run(f'taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')      
+                
+                MSs.deletecol('FLAG_BKP')  
+            ### DONE
 
     ########################### AMP-CAL PART ####################################
     # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
@@ -579,30 +602,7 @@ for c in range(maxIter):
                                 h5_dir='self/solutions')
     facetregname = f'self/solutions/facets-c{c}.reg'
     
-    if c == 0:
-        with w.if_todo('subtract_3Csources'):
-            for patch in patches:
-                if "patch" in patch:
-                    continue
-                
-                # Set MODEL_DATA = 0 where data are flagged, then unflag everything
-                logger.info(f'Subtracting {patch}...')
-                MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
-                #clean_empty(MSs, "empty-pre-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
-                MSs.run(
-                    f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
-                    log = f'$nameMS_subtract_{patch}.log', 
-                    commandType = 'general'
-                )
-                MSs.run(
-                    f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
-                    log = f'$nameMS_subtract_{patch}.log', 
-                    commandType = 'general'
-                )
-                #clean_empty(MSs, "empty-post-subtract-"+patch, size=imgsizepix_wide, col="CORRECTED_DATA")
-                MSs.deletecol(patch)
-                
-            MSs.run(f'taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')      
+           
 
     with w.if_todo('c%02i-imaging' % c):
         logger.info('Preparing region file...')
