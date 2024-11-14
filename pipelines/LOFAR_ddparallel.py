@@ -195,7 +195,7 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     s.run(check=True)
     return current_best_mask
 
-def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], fwhm=0, max_sep=30., threshold=1.):
+def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold=1.):
     from astroquery.vizier import Vizier
     from astropy.coordinates import SkyCoord
     
@@ -207,7 +207,7 @@ def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], fwhm=0, max_
     logger.info('Adding 3C models...')
     for i, source in enumerate(all_3c):
         pos = SkyCoord(table['_RA.icrs'][i], table['_DE.icrs'][i], unit=(u.hourangle, u.deg))
-        if phasecentre.separation(pos).deg < fwhm/2:
+        if phasecentre.separation(pos).deg < null_mid_freq/2:
             logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
             continue
         elif phasecentre.separation(pos).deg > max_sep:
@@ -270,7 +270,7 @@ except:
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
 
-fwhm = MSs.getListObj()[0].getFWHM(freq='mid') * 1.8 # FWHM to null
+null_mid_freq = MSs.getListObj()[0].getFWHM(freq='mid') * 1.8 # FWHM to null
 MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='mid', to_pbval=0)
 
 beamReg = 'self/beam.reg'
@@ -380,12 +380,11 @@ for c in range(maxIter):
                 sm = lsmtool.load(start_sourcedb, beamMS=beamMS)
             else:
                 # Create initial sourcedb from GSM
-                fwhm = MSs.getListObj()[0].getFWHM(freq='mid')*1.8 # to null
                 logger.info('Get skymodel from GSM.')
-                s.add(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"',
+                s.add(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={null_mid_freq/2}&unit=deg"',
                       log='wget.log', commandType='general')
                 s.run(check=True)
-                #os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={fwhm/2}&unit=deg"')
+                #os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={null_mid_freq/2}&unit=deg"')
                 sm = lsmtool.load(sourcedb, beamMS=beamMS)
         else:
             # get wsclean skymodel of previous iteration
@@ -414,7 +413,7 @@ for c in range(maxIter):
 
         if c == 0 and remove3c:
             # Add models of bright 3c sources to the sky model. model will be subtracted from data before imaging.
-            sm = add_3c_models(sm, phasecentre=phasecentre, fwhm=fwhm)
+            sm = add_3c_models(sm, phasecentre=phasecentre, null_mid_freq=null_mid_freq)
         
         sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
         make_source_regions(sm, c)
