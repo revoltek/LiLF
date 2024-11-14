@@ -13,6 +13,7 @@
 # 6. Repeat dd self-cal cycles with a growing number of directions
 # they need to be in "./mss/"
 
+# TODO subtraction of sidelobe for RS smaring
 # TODO test the effect of scalar-visibilities on stoke I and V image quality
 # TODO the subfield algorithm should not cut any sources ... how to best implement that? Something with mask islands?
 # TODO final imaging products
@@ -304,7 +305,7 @@ facet_fluxes = np.array([4, 1.8, 1.2, 0.9, 0.8, 0.8])*(54e6/np.mean(MSs.getFreqs
 min_facets = [3, 6, 18, 24, 24, 24]
 
 smMHz2 = [1.0,5.0,5.0,5.0,5.0,5.0]
-smMHz1 = [5.0,8.0,8.0,8.0,8.0,8.0]
+smMHz1 = [5.0,12.0,12.0,12.0,12.0,12.0]
 # smMHz0 = [6.0,10.0,10.0,10.0,10.0,10.0]
 #################################################################
 
@@ -471,7 +472,7 @@ for c in range(maxIter):
     ### solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
     with w.if_todo('c%02i_solve_tecCS' % c):
         logger.info('Solving TEC (CS)...')
-        solve_iono(MSs, c, 1, patches, smMHz1[c], 8*base_solint, 'phase', constrainant=None,  model_column_fluxes=patch_fluxes, variable_solint=True) # 'RS'
+        solve_iono(MSs, c, 1, patches, smMHz1[c], 45*base_solint, 'phase', constrainant=None,  model_column_fluxes=patch_fluxes, variable_solint=True) # 'RS'
     ### DONE
 
     ### CORRUPT the MODEL_DATA columns for all patches
