@@ -93,7 +93,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'subfield_min_flux', '20') # min flux within calibration subfield
     add_default('LOFAR_ddparallel', 'ph_sol_mode', 'phase') # phase or tecandphase
     add_default('LOFAR_ddparallel', 'intrinsic', 'True')
-    add_default('LOFAR_ddparallel', 'remove3c', 'False')
+    add_default('LOFAR_ddparallel', 'remove3c', 'True')
     # dd
     add_default('LOFAR_ddserial', 'maxIter', '2')
     add_default('LOFAR_ddserial', 'minCalFlux60', '0.7')
