@@ -1,0 +1,12 @@
+msin = 
+msin.datacolumn =
+msout =.
+# do not use dysco!
+msout.storagemanager =
+
+steps = [lin2circ]
+
+lin2circ.type = python
+lin2circ.python.class = PolConv
+lin2circ.python.module = LiLF.polconv
+lin2circ.lin2circ = 1 # use lin2circ.circ2lin=1 for opposite transformation

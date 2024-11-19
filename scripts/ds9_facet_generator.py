@@ -20,7 +20,7 @@ import tables
 
 def read_dir_fromh5(h5):
     """
-    Read in the direction info from a H5 file
+    Read in the direction info from an H5 file
     Parameters
     ----------
     h5 : str
@@ -34,11 +34,12 @@ def read_dir_fromh5(h5):
 
     H5 = tables.open_file(h5, mode="r")
     sourcedir = H5.root.sol000.source[:]["dir"]
-    if len(sourcedir) < 2:
-        print("Error: H5 seems to contain only one direction")
-        sys.exit(1)
+    sourcename = H5.root.sol000.source[:]["name"].astype('str')
+    # if len(sourcedir) < 2:
+        # print("Error: H5 seems to contain only one direction")
+        # sys.exit(1)
     H5.close()
-    return sourcedir
+    return sourcedir, sourcename
 
 
 def makeWCS(centreX, centreY, refRA, refDec, crdelt=0.066667):
@@ -282,7 +283,7 @@ def polygon_intersect(poly1, poly2):
     return clip
 
 
-def write_ds9(fname, polygons, points=None):
+def write_ds9(fname, polygons, points=None, names=None):
     """
     Write ds9 regions file, given a list of polygons
     and (optionally) a set of points attached to
@@ -322,6 +323,8 @@ def write_ds9(fname, polygons, points=None):
             poly_string = poly_string[:-1] + ")"
             if points is not None:
                 poly_string += f"\npoint({points[i, 0]:.5f}, {points[i, 1]:.5f})"
+                if names is not None:
+                    poly_string += f" # text={names[i]}"
             polygon_strings.append(poly_string)
         f.write("\n".join(polygon_strings))
 
@@ -354,9 +357,13 @@ def main(args):
     # Make World Coord Stystem transform object
     w = makeWCS(centreX, centreY, phaseCentreRa, phaseCentreDec, dl_dm)
 
+    single_dir = False # If there is only one direction in the h5 file, we should return rectangle over the full image
+
     if args.h5:
         # load in the directions from the H5
-        sourcedir = read_dir_fromh5(args.h5)
+        sourcedir, sourcename = read_dir_fromh5(args.h5)
+        if len(sourcedir) < 2:
+            single_dir = True
 
         # make ra and dec arrays and coordinates c
         ralist = sourcedir[:, 0]
@@ -381,13 +388,29 @@ def main(args):
         )
 
     bbox = Polygon([(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)])
-    facets, points = tessellate(
-        x, y, w, dist_pix, bbox, plot_tessellation=args.plottessellation
-    )
+    if single_dir:
+        pointsarr = [(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)]
+        skyarr = []
+        for x,y in pointsarr:
+            xsky,ysky = w.wcs_pix2world(x, y, 1)
+            skyarr.append((xsky,ysky))
+        skybox = Polygon(skyarr)
 
-    write_ds9(
-        args.outputfile, facets, points=points if args.writevoronoipoints else None
-    )
+        write_ds9(
+            args.outputfile, np.array([skybox]), points=np.array([[phaseCentreRa,phaseCentreDec]]) if args.writevoronoipoints else None, names=sourcename if args.h5 else None
+        )
+
+    else:
+        facets, points = tessellate(
+            x, y, w, dist_pix, bbox, plot_tessellation=args.plottessellation
+        )
+        print("facets: ", facets)
+        print("points: ", points)
+
+        write_ds9(
+            args.outputfile, facets, points=points if args.writevoronoipoints else None, names=sourcename if args.h5 else None
+        )
+
 
 
 if __name__ == "__main__":

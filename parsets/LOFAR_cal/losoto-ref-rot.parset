@@ -1,0 +1,7 @@
+Ncpu = 0
+
+[reference]
+operation = REFERENCE
+refAnt = SuperSt
+soltab = sol000/rotation000
+

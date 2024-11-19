@@ -94,8 +94,10 @@ class MShandler():
 
     def get_elev(self):
         # TODO: fix if multiple time MSs passed
-        ms_avgbl = taql('SELECT TIME, MEANS(GAGGR(MSCAL.AZEL1()[1]), 0) AS ELEV FROM %s GROUPBY TIME' %(self.ms_files[0]))
-        return ms_avgbl.getcol('ELEV')
+        # TODO elevation bugged
+        ms_avgbl = taql('SELECT TIME FROM %s GROUPBY TIME' %(self.ms_files[0]))
+        # ms_avgbl = taql('SELECT TIME, MEANS(GAGGR(MSCAL.AZEL1()[1]), 0) AS ELEV FROM %s GROUPBY TIME' %(self.ms_files[0]))
+        return np.ones_like(ms_avgbl.getcol('TIME'))
 
     def iter_antenna(self, antennas=None):
         """
@@ -393,7 +395,8 @@ def plot(MSh, antennas):
 
         imagename = ant_name+'.png'
         logging.info('Save file: %s' % (imagename))
-        fig.savefig(imagename, bbox_inches='tight', additional_artists=leg, dpi=250)
+        fig.savefig(imagename, bbox_inches='tight',  dpi=250)
+        # fig.savefig(imagename, bbox_inches='tight', additional_artists=leg, dpi=250)
         fig.clf()
 
 def readArguments():

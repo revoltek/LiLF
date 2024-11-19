@@ -1,0 +1,24 @@
+msin = 
+msin.datacolumn = DATA
+
+msout = .
+msout.datacolumn = MODEL_DATA
+#msout.storagemanager = dysco # by default uncompressed
+
+steps = [pre]
+
+pre.type = h5parmpredict
+pre.sourcedb =
+pre.beaminterval=120
+pre.correctfreqsmearing=True
+pre.usebeammodel = True
+pre.usechannelfreq = True
+pre.beammode = array_factor
+pre.correctfreqsmearing = True
+pre.directions = # leave empty for all
+#pre.applycal.steps = corriono
+pre.applycal.correction = phase000
+pre.applycal.parmdb =
+
+# pre.correcttimesmearing = 2 # upsampling factor - set it to 2 when dp3 bug is solved
+

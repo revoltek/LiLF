@@ -3,6 +3,7 @@ import socket
 import datetime
 
 from casacore import tables
+import lsmtool.skymodel
 import numpy as np
 import multiprocessing, subprocess
 from threading import Thread
@@ -10,6 +11,11 @@ from queue import Queue
 import pyregion
 from astropy.io import fits
 import gc
+
+# remove some annoying warnings from astropy
+import warnings
+from astropy.io.fits.verify import VerifyWarning
+warnings.simplefilter('ignore', category=VerifyWarning)
 
 if (sys.version_info > (3, 0)):
     from configparser import ConfigParser
@@ -65,32 +71,37 @@ def getParset(parsetFile=''):
     add_default('LOFAR_preprocess', 'demix_skymodel', '')  # Use non-default demix skymodel.
     add_default('LOFAR_preprocess', 'demix_field_skymodel', 'gsm')  # Provide a custom target skymodel instead of online gsm model. Set to '' to ignore target.
     add_default('LOFAR_preprocess', 'run_aoflagger', 'False')  # run aoflagger on individual sub-bands, only in cases where this was not one by the observatory!
-    add_default('LOFAR_preprocess', 'tar', 'False')  # Tar MS files at the end 
+    add_default('LOFAR_preprocess', 'tar', 'True')  # Tar MS files at the end 
     # cal
     add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
     add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
     add_default('LOFAR_cal', 'imaging', 'False')
     add_default('LOFAR_cal', 'fillmissingedges', 'True')
     add_default('LOFAR_cal', 'sparse_sb', 'False') # change flagging so that we can handle data with alternating SBs only
+    add_default('LOFAR_cal', 'develop', 'False') # if true prevents the deletion of files
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
+    add_default('LOFAR_timesplit', 'fillmissingedges', 'True')
+    add_default('LOFAR_timesplit', 'apply_fr', 'False') # Also transfer rotationmeasure sols? (E.g. for nearby calibrator and target)
     add_default('LOFAR_timesplit', 'no_aoflagger', 'False') # TEST: Skip aoflagger (e.g. for observations of A-Team sources)
     # self
-    add_default('LOFAR_self', 'maxIter', '2')
-    add_default('LOFAR_self', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
-    add_default('LOFAR_self', 'subfield_min_flux', '40') # min flux within calibration subfield
-    add_default('LOFAR_self', 'ph_sol_mode', 'tecandphase') # phase or tecandphase
+    add_default('LOFAR_ddparallel', 'maxIter', '2')
+    add_default('LOFAR_ddparallel', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
+    add_default('LOFAR_ddparallel', 'subfield_min_flux', '20') # min flux within calibration subfield
+    add_default('LOFAR_ddparallel', 'ph_sol_mode', 'phase') # phase or tecandphase
+    add_default('LOFAR_ddparallel', 'intrinsic', 'True')
+    add_default('LOFAR_ddparallel', 'remove3c', 'True')
     # dd
-    add_default('LOFAR_dd', 'maxIter', '2')
-    add_default('LOFAR_dd', 'minCalFlux60', '1.')
-    add_default('LOFAR_dd', 'solve_amp', 'True') # to disable amp sols
-    # add_default('LOFAR_dd', 'removeExtendedCutoff', '0.0005')
-    add_default('LOFAR_dd', 'target_dir', '') # ra,dec
-    add_default('LOFAR_dd', 'manual_dd_cal', '')
-    # add_default('LOFAR_dd', 'solve_tec', 'False') # per default, solve each dd for scalarphase. if solve_tec==True, solve for TEC instead.
+    add_default('LOFAR_ddserial', 'maxIter', '2')
+    add_default('LOFAR_ddserial', 'minCalFlux60', '0.7')
+    add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
+    # add_default('LOFAR_ddserial', 'removeExtendedCutoff', '0.0005')
+    add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec
+    add_default('LOFAR_ddserial', 'manual_dd_cal', '')
+    # add_default('LOFAR_ddserial', 'solve_tec', 'False') # per default, solve each dd for scalarphase. if solve_tec==True, solve for TEC instead.
     # extract
     add_default('LOFAR_extract', 'max_niter', '10')
     add_default('LOFAR_extract', 'subtract_region', '') # Sources inside extract-reg that should still be subtracted! Use this e.g. for individual problematic sources in a large extractReg
@@ -112,11 +123,6 @@ def getParset(parsetFile=''):
     add_default('LOFAR_m87', 'skipmodel', 'False')
     add_default('LOFAR_m87', 'model_dir', '')
     # peel
-    #add_default('LOFAR_peel', 'peelReg', 'peel.reg')
-    #add_default('LOFAR_peel', 'predictReg', '')
-    #add_default('LOFAR_peel', 'cal_dir', '')
-    #add_default('LOFAR_peel', 'data_dir', './')
-
     ### uGMRT ###
     # init - deprecated
     #add_default('uGMRT_init', 'data_dir', './datadir')
@@ -262,7 +268,7 @@ def check_rm(regexp):
     for filename in filenames:
         # glob is used to check if file exists
         for f in glob.glob(filename):
-            os.system("rm -r " + f)
+            os.system("rm -r " + f)    
 
 
 class Sol_iterator(object):
@@ -307,17 +313,21 @@ def lofar_nu2num(nu):
 
     return int(np.floor((1024./nu_clk) * (nu - (n-1) * nu_clk/2.)))
 
-def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
+def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
     """
     s : scheduler
-    c : cycle name, e.g. "final"
+    c : cycle name, e.g. "final" (or h5 output in a format filename.h5)
     h5s : lists of H5parm files or string of 1 h5parm
     parsets : lists of parsets to execute
+    plots_dir : rename the "plots" dir to this name at the end
+    h5_dir : dir where to move the new h5parm
     """
 
     logger.info("Running LoSoTo...")
-
-    h5out = 'cal-'+c+'.h5'
+    if c[-3:] == '.h5':
+        h5out = c
+    else:
+        h5out = 'cal-'+c+'.h5'
 
     if type(h5s) is str: h5s = [h5s]
 
@@ -334,8 +344,12 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
         check_rm(h5out)
         s.add('H5parm_collector.py -V -s sol000 -o '+h5out+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
         s.run(check = True)
-    else:
+    elif h5s[0] != h5out:
         os.system('cp -r %s %s' % (h5s[0], h5out) )
+
+    if h5_dir:
+        os.system(f'mv {h5out} {h5_dir}/{h5out}')
+        h5out = f'{h5_dir}/{h5out}'
 
     check_rm('plots')
     os.makedirs('plots')
@@ -388,7 +402,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
             for g, group in enumerate(groups):
                 # cp is faster than taql, ok for groups of 1
                 if len(group) == 1:
-                    os.system(f'cp {group[0]} wsclean_concat_{g}.MS')
+                    os.system(f'cp -r {group[0]} wsclean_concat_{g}.MS')
                 else:
                     s.add(f'taql select from {group} giving wsclean_concat_{g}.MS as plain', log=logfile, commandType='general')
                     s.run(check=True)
@@ -738,6 +752,9 @@ class Scheduler():
             logger.debug('Running DDFacet: %s' % cmd)
         elif commandType == 'python':
             logger.debug('Running python: %s' % cmd)
+        else:
+            logger.debug('Running general: %s' % cmd)
+
 
         if (processors != None and processors == 'max'):
             processors = self.max_processors
@@ -818,44 +835,42 @@ class Scheduler():
             return 1
 
         if (commandType == "DP3"):
-            out = subprocess.check_output('grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            # TODO: This needs to be uncommented once the malloc_consolidate stuff is fixed
-            # out += subprocess.check_output('grep -l "Aborted (core dumped)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -i -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "**** uncaught exception ****" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(r'grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Aborted (core dumped)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -i -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             # this interferes with the missingantennabehaviour=error option...
             # out += subprocess.check_output('grep -l "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "misspelled" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "misspelled" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "CASA"):
-            out = subprocess.check_output('grep -l "[a-z]Error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "An error occurred running" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "\*\*\* Error \*\*\*" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(r'grep -l "[a-z]Error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "An error occurred running" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "\*\*\* Error \*\*\*" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "wsclean"):
-            out = subprocess.check_output('grep -l "exception occur" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Aborted" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(r'grep -l "exception occur" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Aborted" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             # out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
-            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "exception occur" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Segmentation fault\|Killed" ' + log + ' ; exit 0', shell=True,
+            out = subprocess.check_output(r'grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "exception occur" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" ' + log + ' ; exit 0', shell=True,
                                            stderr=subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "killed by signal" ' + log + ' ; exit 0', shell=True,
+            out += subprocess.check_output(r'grep -l "killed by signal" ' + log + ' ; exit 0', shell=True,
                                            stderr=subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Aborted" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Aborted" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
 
         elif (commandType == "python"):
-            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "ERROR" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(r'grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            # out += subprocess.check_output(r'grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "ERROR" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Traceback (most recent call last)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
 #        elif (commandType == "singularity"):
 #            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
@@ -872,7 +887,8 @@ class Scheduler():
         if out != b'':
             out = out.split(b'\n')[0].decode()
             logger.error(commandType+' run problem on:\n'+out)
-            raise RuntimeError(commandType+' run problem on:\n'+out)
+            errlines = subprocess.check_output('tail -n 10 '+log, shell = True, stderr = subprocess.STDOUT).decode()
+            raise RuntimeError(commandType+' run problem on:\n'+out+'\n'+errlines)
 
         return 0
 

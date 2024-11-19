@@ -3,7 +3,7 @@ Ncpu = 0
 [plotA1]
 operation = PLOT
 Soltab = sol000/amplitude000
-freq.minmaxstep = [0,300e6,100]
+freq.minmaxstep = [0,300e6,200]
 axesInPlot = time
 axisInTable = ant
 axisInCol = pol

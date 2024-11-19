@@ -22,8 +22,10 @@ logger.info('Parset: '+str(dict(parset['LOFAR_timesplit'])))
 parset_dir = parset.get('LOFAR_timesplit','parset_dir')
 data_dir = parset.get('LOFAR_timesplit','data_dir')
 cal_dir = parset.get('LOFAR_timesplit','cal_dir')
+fillmissingedges = parset.getboolean('LOFAR_timesplit', 'fillmissingedges')
 ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
+apply_fr = parset.getboolean('LOFAR_timesplit','apply_fr') # also transfer the FR solutions (possibly useful if calibrator and target are close, especially for IS data.)
 no_aoflagger = parset.getboolean('LOFAR_timesplit','no_aoflagger')
 bl2flag = parset.get('flag','stations')
 
@@ -32,7 +34,10 @@ bl2flag = parset.get('flag','stations')
 # Clean
 with w.if_todo('clean'):
     logger.info('Cleaning...')
-    lib_util.check_rm('mss*')
+    mss_list = glob.glob('mss*')
+    if len(mss_list) > 0:
+        raise ValueError(f'mss folders exist already {mss_list}! If this is the output of a previous LOFAR_timesplit.py run and you want to re-run LOFAR_timesplit.py, then delete them manually.')
+    # lib_util.check_rm('mss*')
 ### DONE
 
 with w.if_todo('copy'):
@@ -106,43 +111,56 @@ with w.if_todo('apply'):
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_bp} msin.datacolumn=CORRECTED_DATA \
                     cor.correction=amplitudeSmooth cor.updateweights=True',
                     log='$nameMS_corBP.log', commandType="DP3")
+    if apply_fr:
+        logger.info('FR correction...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={cal_dir}/cal-fr.h5 msin.datacolumn=CORRECTED_DATA \
+                        cor.correction=rotationmeasure000 ', log='$nameMS_corBP.log', commandType="DP3")
 
 ### DONE
 
 ###################################################################################################
 # Create groups
 groupnames = []
-logger.info('Concatenating in frequency...')
 for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
-   if ngroups == 1:
-       groupname = 'mss'
-   else:
-       groupname = 'mss-%02i' % i
-   groupnames.append(groupname)
+    if ngroups == 1:
+        groupname = 'mss'
+    else:
+        groupname = 'mss-%02i' % i
+    groupnames.append(groupname)
 
-   # skip if already done
-   if not os.path.exists(groupname):
-       os.makedirs(groupname)
+    # skip if already done
+    if not os.path.exists(groupname):
+        logger.info('Concatenating in frequency...')
+        os.makedirs(groupname)
 
-       # add missing SB with a fake name not to leave frequency holes
-       min_nu = pt.table(MSs.getListStr()[0], ack=False).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MIN']
-       max_nu = pt.table(MSs.getListStr()[0], ack=False).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MAX']
-       num_init = lib_util.lofar_nu2num(min_nu)+1  # +1 because FREQ_MIN/MAX somewhat have the lowest edge of the SB freq
-       num_fin = lib_util.lofar_nu2num(max_nu)+1
-       prefix = re.sub('SB[0-9]*.MS','',msg[0])
-       msg = []
-       for j in range(num_init, num_fin+1):
-           msg.append(prefix+'SB%03i.MS' % j)
+        if fillmissingedges:
+            # add missing SB with a fake name not to leave frequency holes
+            min_nu = pt.table(MSs.getListStr()[0], ack=False).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MIN']
+            max_nu = pt.table(MSs.getListStr()[0], ack=False).OBSERVATION[0]['LOFAR_OBSERVATION_FREQUENCY_MAX']
+        else:
+            min_nu = min(MSs.getFreqs())/1e6
+            max_nu = max(MSs.getFreqs())/1e6
+        num_init = lib_util.lofar_nu2num(min_nu)+1  # +1 because FREQ_MIN/MAX somewhat have the lowest edge of the SB freq
+        num_fin = lib_util.lofar_nu2num(max_nu)+1
+        prefix = re.sub('SB[0-9]*.MS','',msg[0])
+        msg = []
+        for j in range(num_init, num_fin+1):
+            msg.append(prefix+'SB%03i.MS' % j)
 
-       # check that nchan is divisible by 48 - necessary in dd pipeline; discard high freq unused channels
-       nchan_init = MSs.getListObj()[0].getNchan()*len(msg)
-       nchan = nchan_init - nchan_init % 48
-       logger.info('Reducing total channels: %ich -> %ich)' % (nchan_init, nchan))
-
-       # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected)
-       s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(msg)+']" msin.nchan='+str(nchan)+'  msout='+groupname+'/'+groupname+'.MS', \
+        # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected)
+        s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(msg)+']" msout='+groupname+'/'+groupname+'-temp.MS', \
                    log=groupname+'_DP3_concat.log', commandType='DP3')
-       s.run(check=True)
+        s.run(check=True)
+
+        # check that nchan is divisible by 48 - necessary in dd pipeline; discard high freq unused channels
+        nchan_init = MSs.getListObj()[0].getNchan()*len(msg)
+        nchan = nchan_init - nchan_init % 48
+        logger.info('Reducing total channels: %ich -> %ich)' % (nchan_init, nchan))
+        s.add(f'DP3 {parset_dir}/DP3-concat.parset msin={groupname}/{groupname}-temp.MS msin.datacolumn=DATA msin.nchan={nchan} msout={groupname}/{groupname}.MS',
+              log=groupname+'_DP3_concat.log', commandType='DP3')
+        s.run(check=True)
+        # delete temporary MSs:
+        os.system(f'rm -r {groupname}/{groupname}-temp.MS')
 
 MSs = lib_ms.AllMSs( glob.glob('mss*/*MS'), s )
 
@@ -155,14 +173,21 @@ with w.if_todo('flag'):
             aoflagger.strategy='+parset_dir+flag_strat,
             log='$nameMS_DP3_flag.log', commandType='DP3')
 
-    logger.info('Remove bad timestamps...')
-    MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+    if MSs.hasIS:
+        # flagonmindata code cannot handle larger MS - anyway shouldn't be needed if we have the minvisratio in the solves?
+        logger.warning('Skip flagonmindata for data with IS present...')
+    else:
+        logger.info('Remove bad timestamps...')
+        MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
 
-    logger.info('Plot weights...')
-    MSs.run('reweight.py $pathMS -v -p -a %s' % (MSs.getListObj()[0].getAntennas()[0]),
-            log='$nameMS_weights.log', commandType='python')
-    lib_util.check_rm('plots-weights')
-    os.system('mkdir plots-weights; mv *png plots-weights')
+    try:
+        logger.info('Plot weights...')
+        MSs.run('reweight.py $pathMS -v -p -a %s' % (MSs.getListObj()[0].getAntennas()[0]),
+                log='$nameMS_weights.log', commandType='python')
+        lib_util.check_rm('plots-weights')
+        os.system('mkdir plots-weights; mv *png plots-weights')
+    except RuntimeError:
+        logger.warning('Plotting weights failed... continue.')
 ### DONE
 
 #####################################

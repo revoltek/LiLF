@@ -29,7 +29,7 @@ demix_sources = parset.get('LOFAR_preprocess','demix_sources') # demix the sourc
 demix_skymodel = parset.get('LOFAR_preprocess','demix_skymodel') # Use non-default demix skymodel
 demix_field_skymodel = parset.get('LOFAR_preprocess','demix_field_skymodel') # provide a custom target skymodel instead of online gsm model - assumes intrinsic sky.
 run_aoflagger = parset.getboolean('LOFAR_preprocess','run_aoflagger') # run aoflagger on individual subbands - do this only in rare cases where it was not done by the observatory!
-tar = parset.get('LOFAR_preprocess','tar') # tar the output ms
+tar = parset.getboolean('LOFAR_preprocess','tar') # tar the output ms
 
 ###########################################
 if os.path.exists('html.txt'):
@@ -48,6 +48,10 @@ def getName(ms):
         with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
             code = t.getcell('LOFAR_TARGET',0)[0]
     code = code.lower().replace(' ','_')
+    
+    # remove unecessary info for survey pointings
+    if len(re.findall(r'[P|p]\d{3}\+\d{2}',code)) != 0:
+        code =  re.findall(r'[P|p]\d{3}\+\d{2}',code)[0].upper()
     
     # get obsid
     with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
@@ -99,10 +103,16 @@ if len(MSs.getListStr()) == 0:
     sys.exit(0)
 
 ######################################
-with pt.table(MSs.getListStr()[0]+'/OBSERVATION', readonly=True, ack=False) as obs:
-    t = Time(obs.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
-    time = int(t.iso.replace('-','')[0:8])
-
+if len(MSs.getListObj()) > 0:
+    logger.warning('Many MSs detected, using only the first to determine the observing time (for rescaling/fixtables).')
+    t = MSs.getListObj()[0].get_time()
+    times = [int(t.iso.replace('-','')[0:8])] * len(MSs.getListObj())
+else:
+    times = []
+    for MS in MSs.getListObj():
+        t = MS.get_time()
+        times.append(int(t.iso.replace('-','')[0:8]))
+    
 if run_aoflagger:
     with w.if_todo('flag'):
         # Flag in an identical way to the observatory flagging
@@ -110,26 +120,27 @@ if run_aoflagger:
         MSs.run('DP3 ' + parset_dir + '/DP3-flag.parset msin=$pathMS aoflagger.strategy=' + parset_dir + '/LBAdefaultwideband.lua',
             log='$nameMS_flag.log', commandType='DP3', maxThreads=16) # there might be a better way of parallelizing
 
-
-
 if fix_table:
     with w.if_todo('fix_table'):
         #logger.info('Fix MS table...')
         #MSs.run('fixMS_TabRef.py $pathMS', log='$nameMS_fixms.log', commandType='python')
         # only ms created in range (2/2013->2/2014)
-        if time > 20130200 and time < 20140300:
-            logger.info('Fix beam table...')
-            MSs.run('/home/fdg/scripts/fixinfo/fixbeaminfo $pathMS', log='$nameMS_fixbeam.log', commandType='python')
+        for i, MS in enumerate(MSs.getListStr()):
+            if times[i] > 20130200 and times[i] < 20140300:
+                logger.info('Fix beam table...')
+                s.add('/home/fdg/scripts/fixinfo/fixbeaminfo '+MS, log='fixbeam.log', commandType='python')
+        s.run(check=True)
 
 # Rescale visibilities by 1e3 if before 2014-03-19 (old correlator), and by 1e-2 otherwise
 with w.if_todo('rescale_flux'):
     logger.info('Rescaling flux...')
-    if time < 20140319:
-        rescale_factor = 1e6
-    else:
-        rescale_factor = 1e-4
 
-    for MS in MSs.getListStr():
+    for i, MS in enumerate(MSs.getListStr()):
+        if times[i] < 20140319:
+            rescale_factor = 1e6
+        else:
+            rescale_factor = 1e-4
+
         with pt.table(MS+'/HISTORY', readonly=False, ack=False) as hist:
             if "Flux rescaled" not in hist.getcol('MESSAGE'):
                 s.add('taql "update %s set DATA = %f*DATA" && taql "insert into %s/HISTORY (TIME,MESSAGE) values (mjd(), \'Flux rescaled\')"' % (MS,rescale_factor,MS), \
@@ -148,9 +159,10 @@ if renameavg:
             logger.info('Min freq: %.2f MHz' % (minfreq/1e6))
             for MS in MSs.getListObj():
 
-                if np.all(MS.getFreqs() > 168.3e6):
-                    logger.warning(f'Skipping HBA above 168 MHz: deleting {MS.pathMS}')
+                if 'HBA' in MS.getAntennaSet():
+                    logger.warning(f'Skipping HBA: deleting {MS.pathMS}')
                     lib_util.check_rm(MS.pathMS)
+                    flog.write(MS.nameMS+'.MS\n') # after averaging to be sure no log is written if an error occurs
                     continue
 
                 # get avg time/freq values
@@ -159,8 +171,8 @@ if renameavg:
 
                 if nchan == 1:
                     avg_factor_f = 1
-                elif nchan % 2 == 0 and MSs.isHBA: # case HBA
-                    avg_factor_f = int(nchan / 4)  # to 2 ch/SB
+                #elif nchan % 2 == 0 and MSs.isHBA: # case HBA
+                #    avg_factor_f = int(nchan / 4)  # to 2 ch/SB
                 elif nchan % 8 == 0 and minfreq < 40e6:
                     avg_factor_f = int(nchan / 8)  # to 8 ch/SB
                 elif nchan % 8 == 0 and 'SPARSE' in MS.getAntennaSet():
@@ -174,7 +186,7 @@ if renameavg:
                     sys.exit(1)
 
                 if keep_IS:
-                     avg_factor_f = int(nchan / 16) if MSs.isHBA else int(nchan / 16) # to have the full FoV in LBA we need 32 ch/SB
+                     avg_factor_f = int(nchan / 16) # to have the full FoV in LBA we need 32 ch/SB
                 if avg_factor_f < 1: avg_factor_f = 1
 
                 avg_factor_t = int(np.round(2/timeint)) if keep_IS else int(np.round(4/timeint)) # to 4 sec (2 for IS)
@@ -287,7 +299,7 @@ if renameavg:
                     MS.move(MSout)
 
                 if tar:
-                    logger.info("Tar {MSout}...")
+                    logger.info(f"Tar {MSout}...")
                     s.add(f'tar cf {MSout}.tar --directory={os.path.dirname(MSout)} {os.path.basename(MSout)}', log='tar.log', commandType='general')
                     s.run(check=True)
                     lib_util.check_rm(MSout)

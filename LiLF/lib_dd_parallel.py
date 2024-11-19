@@ -18,6 +18,136 @@ except:
 from LiLF.lib_log import logger
 from LiLF import lib_img
 
+def merge_faintest_patch(skymodel, applyBeam):
+    fluxes = skymodel.getColValues('I', aggregate='sum', applyBeam=applyBeam)
+    names =skymodel.getPatchNames()
+    faintest = names[np.argmin(fluxes)]
+    pos = skymodel.getPatchPositions()[faintest]
+    distances = skymodel.getDistance(*pos, byPatch=True)
+    closest = names[np.argsort(distances)[1]] # 0 would be the faintest patch itself
+    skymodel.merge([closest, faintest])
+    skymodel.setPatchPositions(method='wmean', applyBeam=applyBeam)
+    return skymodel
+
+
+def merge_faint_facets(skymodel, min_flux, applyBeam=False):
+    """
+    Merge all patches of a skymodel with a flux density below a threshold with the closest patch.
+
+    Parameters
+    ----------
+    skymodel
+    min_flux
+    applyBeam
+
+    Returns
+    -------
+    merged skymodel
+    """
+    skymodel = skymodel.copy()
+    i = 0
+    while min(skymodel.getColValues('I', aggregate='sum', applyBeam=applyBeam)) < min_flux:
+        print(i)
+        merge_faintest_patch(skymodel, applyBeam=applyBeam)
+        i += 1
+    return skymodel
+
+def closest_distance_between_patches(skymodel):
+    """
+    Return the name of the two patches which are closes and their distance
+
+    Parameters
+    ----------
+    skymodel
+
+    Returns
+    -------
+    closest_name: (str, str) - names of the two closest patches
+    closest_distance: float - distance
+    """
+
+    closest_patch = np.zeros(len(skymodel.getPatchNames()))
+    closest_name = []
+    names = skymodel.getPatchNames()
+    for i, (name, pos) in enumerate(skymodel.getPatchPositions().items()):
+        distances = skymodel.getDistance(*pos, byPatch=True)
+        closest_patch[i] = np.sort(distances)[1]
+        nearby_name = names[distances == closest_patch[i]]
+        # Case multiple patches at distance = 0
+        if len(nearby_name) > 1:
+            logger.warning(f'Possible issue, multiple patches with same distance {nearby_name}!')
+            if nearby_name[0] == name:
+                nearby_name = nearby_name[1]
+            else:
+                nearby_name = nearby_name[0]
+        else: nearby_name = nearby_name[0]
+
+        closest_name.append([name,nearby_name])
+    return closest_name[np.argmin(closest_patch)], np.min(closest_patch)
+
+
+def merge_nearby_bright_facets(skymodel, max_distance, min_flux, applyBeam=False):
+    """
+    Merge all bright patches of a skymodel that are within min_distance of another patch
+
+    Parameters
+    ----------
+    skymodel
+    max_distance: max distance to merge
+    min_flux: min flux of facets to be considered bright
+    applyBeam
+
+    Returns
+    -------
+    merged skymodel
+    """
+    skymodel = skymodel.copy()
+    skymodel_bright = skymodel.copy()
+    skymodel_bright.select(f'I>{min_flux}', aggregate='sum', applyBeam=applyBeam)
+    if len(skymodel_bright) > 1:
+        while closest_distance_between_patches(skymodel_bright)[1] < max_distance:
+            closest_patches, closest_distance = closest_distance_between_patches(skymodel_bright)
+            logger.info(f'Merging nearby bright patches {closest_patches[0]} {closest_patches[1]} (distance={closest_distance*3600:.2f}arcsec')
+            skymodel_bright.merge(closest_patches)
+            skymodel.merge(closest_patches)
+    else:
+        logger.warning(f'Only one bright source - nothing to merge.')
+    skymodel.setPatchPositions(method='wmean', applyBeam=applyBeam)
+    return skymodel
+
+
+def rename_skymodel_patches(skymodel, applyBeam=False):
+    """
+    Rename the patches in the input sky model according to flux
+
+    Parameters
+    ----------
+    skymodel : LSMTool skymodel.SkyModel object
+        Input sky model
+    applyBeam : bool, intrinsic/apparent
+    """
+    if not skymodel.hasPatches:
+        raise ValueError('Cannot rename patches since the input skymodel is not grouped '
+                         'into patches.')
+    patch_names = skymodel.getPatchNames()
+    patch_fluxes = skymodel.getColValues('I', aggregate='sum', applyBeam=applyBeam)
+    patch_pos = skymodel.getPatchPositions()
+
+    old_new_dict = {}
+    for i, id in enumerate(np.argsort(patch_fluxes)[::-1]):
+        old_new_dict[patch_names[id]] = f'patch_{i:02.0f}'
+
+    patch_col = skymodel.getColValues('Patch')
+    for old_name, new_name in old_new_dict.items():
+        patch_col[patch_col == old_name] = new_name
+        patch_pos[new_name] = patch_pos.pop(old_name)
+
+    skymodel.setColValues('Patch', patch_col)
+    skymodel.setPatchPositions(patch_pos)
+
+
+
+
 # class Direction(object):
 
 #     def __init__(self, name):
