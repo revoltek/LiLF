@@ -1,5 +1,5 @@
 msin =
-msin.datacolumn = DATA
+msin.datacolumn = CORRECTED_DATA
 msout = .
 msout.datacolumn = CORRECTED_DATA
 
@@ -8,3 +8,4 @@ steps = [cor, count]
 cor.type = correct
 cor.parmdb = 
 cor.correction =
+cor.missingantennabehavior = unit
