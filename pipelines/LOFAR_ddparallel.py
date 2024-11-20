@@ -14,6 +14,7 @@
 # they need to be in "./mss/"
 
 # TODO subtraction of sidelobe for RS smaring
+# TODO add timesmearing
 # TODO test the effect of scalar-visibilities on stoke I and V image quality
 # TODO the subfield algorithm should not cut any sources ... how to best implement that? Something with mask islands?
 # TODO final imaging products
@@ -65,11 +66,11 @@ def corrupt_model_dirs(MSs, c, tc, model_columns, solmode='phase'):
     ----------
     MSs: MSs object
     c: int, cycle
-    tc: tec/phase step (e.g. 2 for fast RS, 1 for intermediate, 0 for slow CS
+    tc: tec/phase step suffix
     model_columns: list of patch names
     solmode: which solution mode to corrupt for (phase, tec, tecandphase)
     """
-    logger.info(f'Corrupt models: {phaseSolMode}{tc}...')
+    logger.info(f'Corrupt models: {solmode}{tc}...')
     for model_column in model_columns:
         if solmode in ['tec', 'tecandphase']:
             MSs.run(
@@ -81,11 +82,11 @@ def corrupt_model_dirs(MSs, c, tc, model_columns, solmode='phase'):
                 f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
                     cor.parmdb=self/solutions/cal-tec{tc}-c{c}.h5 cor.correction=phase000 cor.invert=False',
                 log='$nameMS_corrupt.log', commandType='DP3')
-        elif solmode in ['scalaramplitude']:
+        elif solmode in ['amplitude']:
             if not model_column.startswith('patch'):    
                 MSs.run(
                     f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
-                        cor.parmdb=self/solutions/cal-solamp-c{c}.h5 cor.correction=amplitude000 cor.invert=False',
+                        cor.parmdb=self/solutions/cal-amp-3C.h5 cor.correction=amplitude000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DP3')
 
 def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None, constrainant=None, model_column_fluxes=None, variable_solint=False):
@@ -163,23 +164,6 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None,
                         plots_dir=f'self/plots/plots-tec{tc}-c{c}', h5_dir=f'self/solutions/')
     
     
-def solve_amplitude(MSs, c, model_columns, smMHz, solint, resetant=None, constrainant=None, model_column_fluxes=None, variable_solint_threshold=8.):
-    solutions_per_direction = np.ones(len(model_columns), dtype=int)
-    
-    MSs.run(
-        f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS \
-            msin.datacolumn=SMOOTHED_DATA sol.mode=scalaramplitude sol.nchan=1\
-            sol.h5parm=$pathMS/solamp_c{c}.h5 sol.modeldatacolumns="[{",".join(model_columns)}]" \
-            sol.solutions_per_direction={np.array2string(solutions_per_direction.astype(int), separator=",")} \
-            sol.smoothnessreffrequency=54e6 sol.solint={solint} sol.smoothnessconstraint={smMHz}e6',
-        log=f'$nameMS_solamp_c{c}.log', 
-        commandType="DP3"
-    )
-    
-    losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-amp.parset', parset_dir+'/losoto-plot-amp.parset']
-    
-    lib_util.run_losoto(s, f'solamp-c{c}', [ms+f'/solamp_c{c}.h5' for ms in MSs.getListStr()], losoto_parsets, 
-                        plots_dir=f'self/plots/plots-solamp-c{c}', h5_dir=f'self/solutions/')
 
 
 def make_current_best_mask(imagename, threshold=6.5, userReg=None):
@@ -218,12 +202,13 @@ def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], null_mid_fre
             logger.warning(f'No model found for {source} (seperation {phasecentre.separation(pos).deg:.2f} deg)')
             continue
         
-        logger.info(f'Appending model from {sourcedb.split("/")[-1]} (seperation {phasecentre.separation(pos).deg:.2f} deg)...')
         sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
         sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
-        sm_3c.select(f'I>{threshold:.02f}', aggregate='sum', applyBeam=True)
-        sm.concatenate(sm_3c, matchBy='position', keep="from2", radius='10 arcsec')
-        sm.setPatchPositions(method='wmean', applyBeam=True)
+        flux_3c =  sm_3c.getColValues("I", aggregate="sum", applyBeam=True)[0]
+        if flux_3c > threshold:
+            logger.info(f'Appending model from {sourcedb.split("/")[-1]} (seperation {phasecentre.separation(pos).deg:.2f} deg; app. flux {flux_3c:.2f}Jy)...')
+            sm.concatenate(sm_3c, matchBy='position', keep="from2", radius='10 arcsec')
+            sm.setPatchPositions(method='wmean', applyBeam=True)
     return sm
 
 def make_source_regions(sm, c):
@@ -460,23 +445,23 @@ for c in range(maxIter):
         # Smooth MSs:CORRECTED_DATA -> SMOOTHED_DATA
         MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
         logger.info('Solving TEC (RS)...')
-        solve_iono(MSs, c, 2, patches, smMHz2[c], 2*base_solint, 'phase', resetant='CS', model_column_fluxes=patch_fluxes, variable_solint=True)
+        solve_iono(MSs, c, '-RS', patches, smMHz2[c], 2*base_solint, 'phase', resetant='CS', model_column_fluxes=patch_fluxes, variable_solint=True)
     ### DONE
 
     ### CORRUPT the MODEL_DATA columns for all patches
     with w.if_todo('c%02i_corrupt_tecRS' % c):
-        corrupt_model_dirs(MSs, c, 2, patches)
+        corrupt_model_dirs(MSs, c, '-RS', patches)
     ### DONE
 
     ### solve ionosphere phase - ms:SMOOTHED_DATA - > reset for central CS
     with w.if_todo('c%02i_solve_tecCS' % c):
         logger.info('Solving TEC (CS)...')
-        solve_iono(MSs, c, 1, patches, smMHz1[c], 45*base_solint, 'phase', constrainant=None,  model_column_fluxes=patch_fluxes, variable_solint=True) # 'RS'
+        solve_iono(MSs, c, '-CS', patches, smMHz1[c], 45*base_solint, 'phase', constrainant=None,  model_column_fluxes=patch_fluxes, variable_solint=True) # 'RS'
     ### DONE
 
     ### CORRUPT the MODEL_DATA columns for all patches
     with w.if_todo('c%02i_corrupt_tecCS' % c):
-        corrupt_model_dirs(MSs, c, 1, patches, 'phase')
+        corrupt_model_dirs(MSs, c, '-CS', patches, 'phase')
     ### DONE
     
     ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
@@ -485,24 +470,28 @@ for c in range(maxIter):
 
         if len(_3c_patches) > 0:
             with w.if_todo('3c_solve_amp'):
-                logger.info('Solving Amplitude for 3C...')
-                solve_amplitude(MSs, c, patches, smMHz1[c], 16*base_solint, model_column_fluxes=patch_fluxes, variable_solint_threshold=8.)
-            ### DONE
+                logger.info('Solving amplitude for 3C...')
+                # Solve diagonal amplitude MSs:SMOOTHED_DATA
+                # TODO add use_dd_constraint_weights
+                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
+                          sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=dual \
+                          sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=75', log=f'$nameMS_solamp_c{c}.log', commandType="DP3")
+
+                losoto_parsets = [parset_dir + '/losoto-clip2.parset', parset_dir + '/losoto-plot-amp.parset']
+                lib_util.run_losoto(s, f'amp-3C', [ms + f'/amp-3C.h5' for ms in MSs.getListStr()], losoto_parsets,
+                                    plots_dir=f'self/plots/plots-amp-3C', h5_dir=f'self/solutions/')
+                ### DONE
             
             with w.if_todo('3C_corrupt_subtract'):
                 MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
-                MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"',
-                                log='$nameMS_taql.log', commandType='general')
+                MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"', log='$nameMS_taql.log', commandType='general')
                 
-                for patch in patches:
-                    if "patch" in patch:
-                        continue
-                    
-                    corrupt_model_dirs(MSs, c, 1, patch, 'scalaramplitude')
+                for patch in _3c_patches:
+                    logger.info(f'Subtracting {patch}...')
+                    # Corrupt MODEL_DATA with amplitude, set MODEL_DATA = 0 where data are flagged, then unflag everything
+                    corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
                     MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
                     
-                    # Set MODEL_DATA = 0 where data are flagged, then unflag everything
-                    logger.info(f'Subtracting {patch}...')
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
                         log = f'$nameMS_subtract_{patch}.log', 
@@ -565,37 +554,36 @@ for c in range(maxIter):
         sol_dir = 'self/solutions'
         lib_util.check_rm(f'{sol_dir}/cal-tec-merged-c{c}.h5')
         # make sure the h5parm directions are correctly set - this should actually work automatically with DP3 -> eventually fix this in the DP3 solve call
-        # lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec0-c{c}.h5', sourcedb)
-        lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec1-c{c}.h5', sourcedb)
-        lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec2-c{c}.h5', sourcedb)
+        lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec-CS-c{c}.h5', sourcedb)
+        lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec-RS-c{c}.h5', sourcedb)
         # reference, unflag and reset the added stations f'{sol_dir}/cal-tec0-c{c}.h5',
         logger.info('Merge solutions...')
-        s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-RS-c{c}.h5 --h5_tables {sol_dir}/cal-tec2-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 \
+        s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-RSm-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RS-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 \
               --no_antenna_crash --no_pol --propagate_flags' , log='h5_merger.log', commandType='python')
         s.run(check=True)
-        lib_util.run_losoto(s, f'tec-RS-c{c}', f'{sol_dir}/cal-tec-RS-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
-                            plots_dir=f'self/plots/plots-tec-RS-c{c}', h5_dir='self/solutions')
-        s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-CS-c{c}.h5 --h5_tables {sol_dir}/cal-tec1-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 \
+        lib_util.run_losoto(s, f'tec-RSm-c{c}', f'{sol_dir}/cal-tec-RSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
+                            plots_dir=f'self/plots/plots-tec-RSm-c{c}', h5_dir='self/solutions')
+        s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-CSm-c{c}.h5 --h5_tables {sol_dir}/cal-tec-CS-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 \
               --no_antenna_crash --no_pol --propagate_flags' , log='h5_merger.log', commandType='python')
         s.run(check=True)
-        lib_util.run_losoto(s, f'tec-CS-c{c}', f'{sol_dir}/cal-tec-CS-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
-                            plots_dir=f'self/plots/plots-tec-CS-c{c}', h5_dir='self/solutions')
+        lib_util.run_losoto(s, f'tec-CSm-c{c}', f'{sol_dir}/cal-tec-CSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
+                            plots_dir=f'self/plots/plots-tec-CSm-c{c}', h5_dir='self/solutions')
         if c > 1:
             lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-amp-dd-c{c}.h5', sourcedb)
-            s.add(f'h5_merger.py --h5_out {sol_dir}/cal-amp-dd-merged-c{c}.h5 --h5_tables {sol_dir}/cal-amp-dd-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 \
+            s.add(f'h5_merger.py --h5_out {sol_dir}/cal-amp-dd-merged-c{c}.h5 --h5_tables {sol_dir}/cal-amp-dd-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 \
               --no_antenna_crash --no_pol --propagate_flags' , log='h5_merger.log', commandType='python')
             s.run(check=True)
             lib_util.run_losoto(s, f'amp-dd-merged-c{c}', f'{sol_dir}/cal-amp-dd-merged-c{c}.h5', [f'{parset_dir}/losoto-plot-scalaramp.parset'],
                                 plots_dir=f'self/plots/plots-amp-dd-c{c}', h5_dir=f'self/solutions/')
-            s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RS-c{c}.h5 {sol_dir}/cal-tec-CS-c{c}.h5 {sol_dir}/cal-amp-dd-merged-c{c}.h5 \
-                   --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 --no_antenna_crash --no_pol --propagate_flags' , log='h5_merger.log', commandType='python')
+            s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RSm-c{c}.h5 {sol_dir}/cal-tec-CSm-c{c}.h5 {sol_dir}/cal-amp-dd-merged-c{c}.h5 \
+                   --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 --no_antenna_crash --no_pol --propagate_flags' , log='h5_merger.log', commandType='python')
             s.run(check=True)
             lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5',
                                 [f'{parset_dir}/losoto-plot-scalar.parset', f'{parset_dir}/losoto-plot-scalaramp.parset'], plots_dir=f'self/plots/plots-tec-merged-c{c}',
                                 h5_dir='self/solutions')
         else:
-            s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RS-c{c}.h5 {sol_dir}/cal-tec-CS-c{c}.h5 \
-                   --h5_time_freq {sol_dir}/cal-tec2-c{c}.h5 --no_antenna_crash --no_pol --propagate_flags', log='h5_merger.log', commandType='python')
+            s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RSm-c{c}.h5 {sol_dir}/cal-tec-CSm-c{c}.h5 \
+                   --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 --no_antenna_crash --no_pol --propagate_flags', log='h5_merger.log', commandType='python')
             s.run(check=True)
             lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5',
                                 [f'{parset_dir}/losoto-plot-scalar.parset'], plots_dir=f'self/plots/plots-tec-merged-c{c}',
@@ -886,10 +874,10 @@ for c in range(maxIter):
             with w.if_todo('image_sidelobe'):
                 logger.info('Cleaning low-res...')
                 lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
-                                     parallel_gridding=4, size=imgsizepix_lr, scale='30arcsec',
+                                     parallel_gridding=4, size=imgsizepix_lr, scale='30arcsec', save_source_list='',
                                      weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                                      taper_gaussian='200arcsec', mgain=0.85, channels_out=MSs.getChout(2.e6), parallel_deconvolution=512, baseline_averaging='',
-                                     local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='')
+                                     local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5)
 
             # Subtract full low-resolution field (including possible large-scale emission within primary beam)
             # to get empty data set for flagging
@@ -897,7 +885,6 @@ for c in range(maxIter):
                 logger.info('Subtract low-resolution to get empty data set (SUBFIELD_DATA = SUBFIELD_DATA - MODEL_DATA)...')
                 MSs.run('taql "update $pathMS set SUBFIELD_DATA = SUBFIELD_DATA - MODEL_DATA"',
                     log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
-                clean_empty(MSs, 'empty', 'SUBFIELD_DATA')
 
             # Flag on residuals (SUBFIELD_DATA)
             with w.if_todo('flag_residuals'):
@@ -908,17 +895,28 @@ for c in range(maxIter):
 
             # Now subtract the sidelobe
             with w.if_todo('subtract_sidelobe'):
-                # blank within main-libe to not subtract anything from there (maybe extended sources not properly sobtracted at the beginning)
-                for im in glob.glob(f'{imagename_lr}*model*fits'):
-                    wideLRext = im.replace(imagename_lr, f'{imagename_lr}-blank')
-                    os.system('cp %s %s' % (im, wideLRext))
-                    lib_img.blank_image_reg(wideLRext, beamReg , blankval=0.)
+                sidelobe_predict_mode = 'wsclean'
+                if sidelobe_predict_mode=='wsclean':
+                    # blank within main-libe to not subtract anything from there (maybe extended sources not properly sobtracted at the beginning)
+                    for im in glob.glob(f'{imagename_lr}*model*fits'):
+                        wideLRext = im.replace(imagename_lr, f'{imagename_lr}-blank')
+                        os.system('cp %s %s' % (im, wideLRext))
+                        lib_img.blank_image_reg(wideLRext, beamReg , blankval=0.)
 
-                logger.info('Predict model of sidelobe region...')
-                s.add(
-                    f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_processors} -channels-out {MSs.getChout(2.e6)} {MSs.getStrWsclean()}',
-                    log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
-                s.run(check=True)
+                    logger.info('Predict model of sidelobe region (wsclean)...')
+                    s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_processors} -channels-out {MSs.getChout(2.e6)} {MSs.getStrWsclean()}',
+                        log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
+                    s.run(check=True)
+                elif sidelobe_predict_mode=='DP3':
+                    logger.info('Predict model of sidelobe region (DP3)...')
+                    sidelobe_sky = lsmtool.load(f'{imagename_lr}-sources.txt')
+                    sidelobe_sky.remove(f'{beamMask}==True')
+                    pred_parset = 'DP3-predict.parset'
+                    MSs.run(f'DP3 {parset_dir}/{pred_parset} msin=$pathMS pre.sourcedb={imagename_lr}-sources.txt msout.datacolumn=MODEL_DATA',
+                        log='$nameMS_pre.log', commandType='DP3')
+                # predict just for empty test image
+                MSs.run('taql "update $pathMS set SUBFIELD_DATA = SUBFIELD_DATA - MODEL_DATA"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
+                clean_empty(MSs, 'empty', 'SUBFIELD_DATA')
 
                 logger.info('Corrupt sidelobe model with subfield solutions...')
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
