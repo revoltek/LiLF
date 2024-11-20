@@ -69,20 +69,23 @@ def corrupt_model_dirs(MSs, c, tc, model_columns, solmode='phase'):
     model_columns: list of patch names
     solmode: which solution mode to corrupt for (phase, tec, tecandphase)
     """
-    logger.info(f'Corrupt models: {phaseSolMode}{tc}...')
+    
     for model_column in model_columns:
         if solmode in ['tec', 'tecandphase']:
+            logger.info(f'Corrupt models: {phaseSolMode}{tc}...')
             MSs.run(
                 f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}]  \
                     cor.parmdb=self/solutions/cal-tec{tc}-c{c}.h5 cor.correction=tec000 cor.invert=False',
                 log='$nameMS_corrupt.log', commandType='DP3')
         elif solmode in ['phase', 'tecandphase']:
+            logger.info(f'Corrupt models: {phaseSolMode}{tc}...')
             MSs.run(
                 f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
                     cor.parmdb=self/solutions/cal-tec{tc}-c{c}.h5 cor.correction=phase000 cor.invert=False',
                 log='$nameMS_corrupt.log', commandType='DP3')
         elif solmode in ['scalaramplitude']:
-            if not model_column.startswith('patch'):    
+            if not model_column.startswith('patch'):
+                logger.info(f'Corrupt scalaramplitude models: {model_column}...')    
                 MSs.run(
                     f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
                         cor.parmdb=self/solutions/cal-solamp-c{c}.h5 cor.correction=amplitude000 cor.invert=False',
@@ -498,7 +501,7 @@ for c in range(maxIter):
                     if "patch" in patch:
                         continue
                     
-                    corrupt_model_dirs(MSs, c, 1, patch, 'scalaramplitude')
+                    corrupt_model_dirs(MSs, c, 1, [patch], 'scalaramplitude')
                     MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
                     
                     # Set MODEL_DATA = 0 where data are flagged, then unflag everything
