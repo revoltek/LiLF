@@ -179,18 +179,18 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     s.run(check=True)
     return current_best_mask
 
-def add_3c_models(sm: lsmtool.skymodel.SkyModel, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold=1.):
-    from astroquery.vizier import Vizier
+def add_3c_models(sm, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold=1.):
     from astropy.coordinates import SkyCoord
+    import json
     
-    Vizier.ROW_LIMIT = 200
-    table = Vizier.get_catalogs("J/MNRAS/204/151")[0]
-    all_3c = table['Name']
+    with open(parset_dir+"/3C_coordinates.json", "r") as file:
+        all_3c = json.load(file)
     
     phasecentre = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg))
     logger.info('Adding 3C models...')
-    for i, source in enumerate(all_3c):
-        pos = SkyCoord(table['_RA.icrs'][i], table['_DE.icrs'][i], unit=(u.hourangle, u.deg))
+    for source, coord in all_3c.items():
+        pos = SkyCoord(ra=coord[0], dec=coord[1], unit=(u.hourangle, u.deg))
+        
         if phasecentre.separation(pos).deg < null_mid_freq/2:
             logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
             continue
