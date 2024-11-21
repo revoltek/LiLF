@@ -164,8 +164,6 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None,
                         plots_dir=f'self/plots/plots-tec{tc}-c{c}', h5_dir=f'self/solutions/')
     
     
-
-
 def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     current_best_mask = f'{imagename}-mask.fits'
     if userReg:
@@ -355,7 +353,7 @@ for c in range(maxIter):
     # get sourcedb
     sourcedb = f'tgts-c{c}.skymodel'
     beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
-    intrinsic = c == 0 # these cycles we only have the apparent skymodel - predict w/o beam, find patches in apparent model
+    intrinsic = True #c == 0 # these cycles we only have the apparent skymodel - predict w/o beam, find patches in apparent model
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
@@ -601,54 +599,46 @@ for c in range(maxIter):
 
         imagename = 'img/wide-' + str(c)
         imagenameM = 'img/wideM-' + str(c)
-        reuse_kwargs = {}
-        # make quick image with -local-rms to get a mask
+        # common imaging arguments used by all of the following wsclean calls
+        widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec' weight='briggs -0.3', niter=1000000, 
+                                gridder='wgridder',  parallel_gridding=32,minuv_l=30, mgain=0.9, parallel_deconvolution=1024,beam_size=15, 
+                                join_channels='', fit_spectral_pol=3,channels_out=MSs.getChout(4.e6), deconvolution_channels=3, multiscale='',
+                                multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',facet_regions=facetregname)
+    
+        if c < 2: # cylce 0 and 1 only dd-phase
+            widefield_kwargs['apply_facet_solutions'] = 'self/solutions/cal-tec-merged-c{c}.h5 phase000'
+        else:
+            widefield_kwargs['apply_facet_solutions'] = 'self/solutions/cal-tec-merged-c{c}.h5 phase000,amplitude000'
+        
         # TODO make this faster - experiment with increased parallel-gridding as well as shared facet reads option
+        # c0: make quick initial image to get a mask
         if c==0:
             logger.info('Making wide-field image for clean mask...')
-            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
-                                 weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.9, parallel_deconvolution=1024,
-                                 auto_threshold=5.0, auto_mask=8.0, beam_size=15, join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
-                                 multiscale='', pol='i', nmiter=6,   facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000' )
+            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename,  no_update_model_required='', auto_threshold=5.0, auto_mask=8.0,   nmiter=6, **widefield_kwargs)
             # make initial mask
             current_best_mask = make_current_best_mask(imagename, mask_threshold[c], userReg)
             # safe a bit of time by reusing psf and dirty in first iteration
             reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
         else:
             current_best_mask = f'img/wideM-{c-1}-mask.fits'
+            reuse_kwargs = {}
 
-        if c>9999: # add earlier if bug is fixed
-            beam_kwargs = {'apply_facet_beam':'', 'facet_beam_update':120, 'use_differential_lofar_beam':''}
-        else:
-            beam_kwargs = {}
-        if c > 1:
-            applyamp = ',amplitude000'
-        else:
-            applyamp = ''
-        # clean again, with mask now
+        # main wsclean call, with mask now
         logger.info('Making wide field image ...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
-                             weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='',
-                             update_model_required='', minuv_l=30, beam_size=15, mgain=0.9, nmiter=20, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
-                             join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
-                             multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',
-                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000{applyamp}',
-                             **reuse_kwargs, **beam_kwargs)
-        if c == 0: # imagename if c=0 else imagenameM
-            reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
-        # make a new mask from the image
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask, 
+                             save_source_list='', update_model_required='',  nmiter=20,  auto_threshold=3.0, auto_mask=4.0,
+                             apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', **widefield_kwargs, **reuse_kwargs)
+        
+        # update the mask
         current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
         # rename source lists
         os.system(f'mv {imagenameM}-sources.txt {imagenameM}-clean1-sources.txt')
         os.system(f'mv {imagenameM}-sources-pb.txt {imagenameM}-clean1-sources-pb.txt')
-        # Continue-clean faint sources using local-rms
-        logger.info('Making wide field image ...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
-                             weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='', local_rms='', cont='',
-                             update_model_required='', minuv_l=30, beam_size=15, mgain=0.9, nmiter=10, parallel_deconvolution=1024, auto_threshold=2.0, auto_mask=4.0,
-                             join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
-                             multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',
-                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000{applyamp} ', **reuse_kwargs, **beam_kwargs)
+        # Continue-clean for faint sources using local-rms
+        logger.info('Making wide field image (faint sources) ...')
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask,
+                             save_source_list='', local_rms='', cont='', update_model_required='', nmiter=10, auto_threshold=2.0, auto_mask=4.0,
+                             apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', **widefield_kwargs, **reuse_kwargs)
         # make a new mask from the image
         current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
         # merge source lists
@@ -679,20 +669,17 @@ for c in range(maxIter):
                 sm.remove('MajorAxis > 80')  # remove largest scales
                 field_center1, field_size1 = lib_dd.make_subfield_region(subfield_path, MSs.getListObj()[0], sm,
                                                                          subfield_min_flux, debug_dir='img/')
-            if subtract_predict_mode == 'wsclean':
-                # prepare model of central/external regions
-                logger.info('Blanking central region of model files and reverse...')
-                for im in glob.glob(f'img/wideM-{c}*model*.fits'):
-                    wideMint = im.replace('wideM','wideMint')
-                    os.system('cp %s %s' % (im, wideMint))
-                    lib_img.blank_image_reg(wideMint, subfield_path, blankval = 0., inverse=True)
-                    wideMext = im.replace('wideM','wideMext')
-                    os.system('cp %s %s' % (im, wideMext))
-                    lib_img.blank_image_reg(wideMext, subfield_path, blankval = 0.)
-            elif subtract_predict_mode == 'DP3':
-                raise ValueError('Not implemented.')
-            else: raise ValueError
+            # prepare model of central/external regions
+            logger.info('Blanking central region of model files and reverse...')
+            for im in glob.glob(f'img/wideM-{c}*model*.fits'):
+                wideMint = im.replace('wideM','wideMint')
+                os.system('cp %s %s' % (im, wideMint))
+                lib_img.blank_image_reg(wideMint, subfield_path, blankval = 0., inverse=True)
+                wideMext = im.replace('wideM','wideMext')
+                os.system('cp %s %s' % (im, wideMext))
+                lib_img.blank_image_reg(wideMext, subfield_path, blankval = 0.)
         # DONE
+
         subfield_reg = Regions.read(subfield_path)[0]
         field_center = subfield_reg.center.ra, subfield_reg.center.dec
         field_size = np.max([subfield_reg.width.to_value('deg'), subfield_reg.height.to_value('deg')])
@@ -703,8 +690,8 @@ for c in range(maxIter):
             logger.info('Predict corrupted model of external region (wsclean)...')
             # TODO ignore facet beam for now due to bug
             s.add(f'wsclean -predict -padding 1.8 -name img/wideMext-{c} -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
-                    -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 \
-                    {MSs.getStrWsclean()}',
+                    -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
+                    -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
                 log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
             s.run(check=True)
 
@@ -849,7 +836,8 @@ for c in range(maxIter):
                 # Recreate MODEL_DATA of external region for subtraction -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam
                 logger.info('Predict corrupted model of external region...')
                 s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
-                       -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
+                       -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam -facet-regions {facetregname} \
+                       -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
                     log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
                 s.run(check=True)
 
@@ -873,6 +861,7 @@ for c in range(maxIter):
             # Image the sidelobe data
             with w.if_todo('image_sidelobe'):
                 logger.info('Cleaning low-res...')
+                # TODO add PB?
                 lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
                                      parallel_gridding=4, size=imgsizepix_lr, scale='30arcsec', save_source_list='',
                                      weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
