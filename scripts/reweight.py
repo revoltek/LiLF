@@ -102,10 +102,8 @@ class MShandler():
 
     def get_elev(self):
         # TODO: fix if multiple time MSs passed
-        # TODO elevation bugged
-        ms_avgbl = taql('SELECT TIME FROM %s GROUPBY TIME' %(self.ms_files[0]))
-        # ms_avgbl = taql('SELECT TIME, MEANS(GAGGR(MSCAL.AZEL1()[1]), 0) AS ELEV FROM %s GROUPBY TIME' %(self.ms_files[0]))
-        return np.ones_like(ms_avgbl.getcol('TIME'))
+        ms_avgbl = taql('SELECT TIME, GMEANS(MSCAL.AZEL1())[1] deg AS ELEV FROM %s GROUPBY TIME' %(self.ms_files[0]))
+        return ms_avgbl.getcol('ELEV')
 
     def iter_antenna(self, antennas=None):
         """
@@ -347,7 +345,7 @@ def plot(MSh, antennas):
 
         # Elevation
         ax_elev = axt.twinx()
-        ax_elev.plot(time, elev * 180/np.pi, 'k', linestyle=':', linewidth=1, label='Elevation')
+        ax_elev.plot(time, elev, 'k', linestyle=':', linewidth=1, label='Elevation')
         ax_elev.set_ylabel('Elevation [deg]')
 
         axt.scatter(time, w_t[:,0], marker='.', alpha=0.25, color='red', label='XX Weights')

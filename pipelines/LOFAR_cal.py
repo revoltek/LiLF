@@ -58,7 +58,7 @@ def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
 # Clear
 with w.if_todo('cleaning'):
     logger.info('Cleaning...')
-    lib_util.check_rm('plots-preiono plots-preiono-cs plots-fr plots-bp plots-bp-sub plots-fj plots-iono plots-iono-cs plots-pa plots-amp plots-test*}')
+    lib_util.check_rm('plots-preiono plots-preiono-cs plots-fr plots-bp plots-bp-sub plots-fj plots-iono plots-iono-cs plots-pa plots-amp plots-weights plots-test*}')
     lib_util.check_rm('cal*.h5')
 ### DONE
 
@@ -139,6 +139,10 @@ uvlambdamin = 50 if min(MSs_concat_all.getFreqs()) < 30e6 else 100 # for Decamet
 ######################################################
 # rescale data to expected theoretical bandpass
 with w.if_todo('scale_bp'):
+    # check weights
+    MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (MSs_concat_all.getListObj()[0].getAntennas()[0]),
+                log='$nameMS_weights.log', commandType='python')
+    os.system('mkdir plots-weights; mv *png plots-weights/prebptheo.png')
     logger.info("Scale data to expected bandpass...")
     # Solve concat_all.MS:DATA
     # dummy call to create template
@@ -151,6 +155,11 @@ with w.if_todo('scale_bp'):
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA '
                        f'cor.parmdb=cal-bp-theo.h5 cor.correction=amplitude000 cor.updateweights=True',
                        log="$nameMS_bpscale.log", commandType="DP3")
+
+    # check weights
+    MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (MSs_concat_all.getListObj()[0].getAntennas()[0]),
+                log='$nameMS_weights.log', commandType='python')
+    os.system('mv *png plots-weights/postbptheo.png')
 
 # flag bad stations, flags will propagate
 with w.if_todo('flag'):
@@ -193,6 +202,12 @@ with w.if_todo('pre_iono'):
     logger.info('Beam correction...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.updateweights=True',
                        log='$nameMS_beam.log', commandType="DP3")
+    
+    # check weights
+    MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (MSs_concat_all.getListObj()[0].getAntennas()[0]),
+                log='$nameMS_weights.log', commandType='python')
+    os.system('mv *png plots-weights/postbeam.png')
+    
     # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
 
@@ -569,7 +584,7 @@ if not develop:
 
 # a debug image
 if imaging:
-    with w.if_todo('cal_leakage'):
+    with w.if_todo('cal_final'):
         ## Pol align correction concat_all.MS:DATA -> CORRECTED_DATA
         logger.info('Polalign correction...')
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
@@ -587,11 +602,17 @@ if imaging:
         # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
         logger.info('BP correction...')
         MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp-sub.h5 \
-            cor.correction=amplitudeSmooth  cor.updateweights=False', log='$nameMS_corBP.log', commandType="DP3")
+            cor.correction=amplitudeSmooth  cor.updateweights=True', log='$nameMS_corBP.log', commandType="DP3")
+        
         # FR correction concat_all.MS:CORRECTED_DATA -> FR_CORRECTED_DATA
         logger.info('FR correction (for imaging)...')
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msout.datacolumn=FR_CORRECTED_DATA \
                             cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+
+        # check weights
+        MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (MSs_concat_all.getListObj()[0].getAntennas()[0]),
+                log='$nameMS_weights.log', commandType='python')
+        os.system('mv *png plots-weights/postbp.png')
 
         debug_imaging(MSs_concat_all, 'afterbp', column='FR_CORRECTED_DATA')
 
@@ -606,10 +627,15 @@ if imaging:
         lib_util.run_losoto(s, 'amp', [ms + '/amp.h5' for ms in MSs_concat_all.getListStr()],
                             [parset_dir + '/losoto-plot-scalaramp.parset'])
 
-        # FR correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
+        # Fast amp correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Amp scintillation correction...')
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-amp.h5 \
             cor.correction=amplitude000  cor.updateweights=True', log='$nameMS_corBP.log', commandType="DP3")
+
+        # check weights
+        MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (MSs_concat_all.getListObj()[0].getAntennas()[0]),
+                log='$nameMS_weights.log', commandType='python')
+        os.system('mv *png plots-weights/postfastamp.png')
 
         # FR correction concat_all.MS:CORRECTED_DATA -> FR_CORRECTED_DATA
         logger.info('FR correction (for imaging)...')
@@ -618,19 +644,16 @@ if imaging:
 
         debug_imaging(MSs_concat_all, 'afteramp', column='FR_CORRECTED_DATA')
 
-        # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA (BL-based smoothing)
         # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
         logger.info('Calibrating slow leakage...')
         timestep = int(20*np.rint(120 / tint))  # brings down to 20min
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/fj.h5 sol.mode=fulljones \
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/fj.h5 sol.mode=fulljones \
                             sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.nchan={str(2*small_freqstep)}',
                            log='$nameMS_solFJ.log', commandType="DP3")
 
         lib_util.run_losoto(s, 'fj', [ms + '/fj.h5' for ms in MSs_concat_all.getListStr()],
                             [parset_dir + '/losoto-plot-fullj.parset'])
-
-    with w.if_todo('cal_imaging'):
-
+        
         # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Leakage correction...')
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fj.h5 \
@@ -639,9 +662,10 @@ if imaging:
 
         # Correct FR concat_all-phaseup.MS:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Faraday rotation correction...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cat cor.parmdb=cal-fr.h5 \
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cat cor.parmdb=cal-fr.h5 \
                        cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
 
+    with w.if_todo('cal_imaging'):
         debug_imaging(MSs_concat_all, 'final')
 
     ### DONE
