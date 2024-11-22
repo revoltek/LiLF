@@ -600,15 +600,15 @@ for c in range(maxIter):
         imagename = 'img/wide-' + str(c)
         imagenameM = 'img/wideM-' + str(c)
         # common imaging arguments used by all of the following wsclean calls
-        widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec' weight='briggs -0.3', niter=1000000, 
+        widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec', weight='briggs -0.3', niter=1000000, 
                                 gridder='wgridder',  parallel_gridding=32,minuv_l=30, mgain=0.9, parallel_deconvolution=1024,beam_size=15, 
                                 join_channels='', fit_spectral_pol=3,channels_out=MSs.getChout(4.e6), deconvolution_channels=3, multiscale='',
                                 multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',facet_regions=facetregname)
     
         if c < 2: # cylce 0 and 1 only dd-phase
-            widefield_kwargs['apply_facet_solutions'] = 'self/solutions/cal-tec-merged-c{c}.h5 phase000'
+            widefield_kwargs['apply_facet_solutions'] = f'self/solutions/cal-tec-merged-c{c}.h5 phase000'
         else:
-            widefield_kwargs['apply_facet_solutions'] = 'self/solutions/cal-tec-merged-c{c}.h5 phase000,amplitude000'
+            widefield_kwargs['apply_facet_solutions'] = f'self/solutions/cal-tec-merged-c{c}.h5 phase000,amplitude000'
         
         # TODO make this faster - experiment with increased parallel-gridding as well as shared facet reads option
         # c0: make quick initial image to get a mask
@@ -630,22 +630,22 @@ for c in range(maxIter):
                              apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', **widefield_kwargs, **reuse_kwargs)
         
         # update the mask
-        current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
-        # rename source lists
-        os.system(f'mv {imagenameM}-sources.txt {imagenameM}-clean1-sources.txt')
-        os.system(f'mv {imagenameM}-sources-pb.txt {imagenameM}-clean1-sources-pb.txt')
-        # Continue-clean for faint sources using local-rms
-        logger.info('Making wide field image (faint sources) ...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask,
-                             save_source_list='', local_rms='', cont='', update_model_required='', nmiter=10, auto_threshold=2.0, auto_mask=4.0,
-                             apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', **widefield_kwargs, **reuse_kwargs)
+        # jcurrent_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
+        # j# rename source lists
+        # jos.system(f'mv {imagenameM}-sources.txt {imagenameM}-clean1-sources.txt')
+        # jos.system(f'mv {imagenameM}-sources-pb.txt {imagenameM}-clean1-sources-pb.txt')
+        # j# Continue-clean for faint sources using local-rms
+        # jlogger.info('Making wide field image (faint sources) ...')
+        # jlib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask,
+        # j                     save_source_list='', local_rms='', cont='', update_model_required='', nmiter=10, auto_threshold=2.0, auto_mask=4.0,
+        # j                     apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', **widefield_kwargs, **reuse_kwargs)
         # make a new mask from the image
         current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
         # merge source lists
-        os.system(f'mv {imagenameM}-sources.txt {imagenameM}-clean2-sources.txt')
-        os.system(f'mv {imagenameM}-sources-pb.txt {imagenameM}-clean2-sources-pb.txt')
-        os.system(f'cat {imagenameM}-clean1-sources-pb.txt {imagenameM}-clean2-sources-pb.txt >> {imagenameM}-sources-pb.txt')
-        os.system(f'cat {imagenameM}-clean1-sources.txt {imagenameM}-clean2-sources.txt >> {imagenameM}-sources.txt')
+        # os.system(f'mv {imagenameM}-sources.txt {imagenameM}-clean2-sources.txt')
+        # os.system(f'mv {imagenameM}-sources-pb.txt {imagenameM}-clean2-sources-pb.txt')
+        # os.system(f'cat {imagenameM}-clean1-sources-pb.txt {imagenameM}-clean2-sources-pb.txt >> {imagenameM}-sources-pb.txt')
+        # os.system(f'cat {imagenameM}-clean1-sources.txt {imagenameM}-clean2-sources.txt >> {imagenameM}-sources.txt')
 
         # reset NaNs if present
         im = lib_img.Image(f'{imagenameM}-MFS-image.fits')
@@ -885,7 +885,7 @@ for c in range(maxIter):
             # Now subtract the sidelobe
             with w.if_todo('subtract_sidelobe'):
                 sidelobe_predict_mode = 'wsclean'
-                if sidelobe_predict_mode=='wsclean':
+                if sidelobe_predict_mode == 'wsclean':
                     # blank within main-libe to not subtract anything from there (maybe extended sources not properly sobtracted at the beginning)
                     for im in glob.glob(f'{imagename_lr}*model*fits'):
                         wideLRext = im.replace(imagename_lr, f'{imagename_lr}-blank')
@@ -956,6 +956,7 @@ for c in range(maxIter):
 
 # Copy model
 os.system(f'mv img/wideM-{maxIter-1}-*-model.fits self/skymodel')
+os.system(f'mv img/wideM-{maxIter-1}-*-model-fpb.fits self/skymodel')
 os.system(f'mv img/wideM-{maxIter-1}-*-model-pb.fits self/skymodel')
 
 w.alldone()
