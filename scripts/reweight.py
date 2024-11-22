@@ -23,12 +23,20 @@
 # Author: Francesco de Gasperin
 # Credits: Frits Sweijen, Etienne Bonnassieux
 
-import os, sys, logging, time
+import os, sys, time
+import logging as logging_module
 import numpy as np
 from casacore.tables import taql, table
 import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
+
+# Create a custom logger
+logging = logging_module.getLogger("reweight")
+console_handler = logging_module.StreamHandler()
+formatter = logging_module.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+console_handler.setFormatter(formatter)
+logging.addHandler(console_handler)
 
 class Timer(object):
     """
@@ -413,6 +421,7 @@ def readArguments():
     return vars(args)
 
 if __name__=="__main__":
+
     start_time = time.time()
 
     args         = readArguments()
@@ -423,8 +432,8 @@ if __name__=="__main__":
     wcolname     = args["wcolname"]
     dcolname     = args["dcolname"]
 
-    if verbose: logging.basicConfig(level=logging.DEBUG)
-    else: logging.basicConfig(level=logging.INFO)
+    if verbose: logging.setLevel(logging_module.DEBUG)
+    else: logging.setLevel(logging_module.INFO)
 
     if len(ms_files) > 1:
         logging.error('More than 1 MS not implemented.')

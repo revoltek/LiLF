@@ -338,7 +338,6 @@ for cmaj in range(maxIter):
                 log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean', processors='max')
             s.run(check=True)
         else:
-            full_image.nantozeroModel()
             s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
                     -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                     -facet-regions '+facetregname+' \
@@ -908,6 +907,7 @@ for cmaj in range(maxIter):
     ### DONE
 
     full_image = lib_img.Image('ddcal/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
+    full_image.nantozeroModel()
     min_cal_flux60 *= 0.8  # go deeper
 
 ##############################################################################################################
@@ -916,7 +916,7 @@ for cmaj in range(maxIter):
 with w.if_todo('output-vstokes'):
     imagenameV = 'img/wideDD-v-c%02i' % (cmaj)
     logger.info('Cleaning (V-stokes)...')
-    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=imgsizepix, scale=str(pixscale)+'sarcsec',
+    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=imgsizepix, scale=str(pixscale)+'arcsec',
                 weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
                 pol='v')
