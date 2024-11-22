@@ -194,8 +194,9 @@ def add_3c_models(sm, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold
         pos = SkyCoord(ra=coord[0], dec=coord[1], unit=(u.hourangle, u.deg))
         
         if phasecentre.separation(pos).deg < null_mid_freq/2:
-            logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
-            continue
+            #logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
+            #continue
+            logger.info(f'3C source {source} is within primary beam. Adding model for subtraction.')
         elif phasecentre.separation(pos).deg > max_sep:
             continue
 
@@ -469,7 +470,6 @@ for c in range(maxIter):
     ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
     if c == 0 and remove3c:
         _3c_patches = [p for p in patches if not p.startswith('patch_')]
-
         if len(_3c_patches) > 0:
             with w.if_todo('3c_solve_amp'):
                 logger.info('Solving amplitude for 3C...')
@@ -506,8 +506,13 @@ for c in range(maxIter):
                     )
                     
                     MSs.deletecol(patch)
-                    MSs.run(f'taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')      
-                
+                    sm = lsmtool.load(sourcedb, beamMS=beamMS)
+                    sm.select(f'Patch != {patch}')
+                    sm.write(sourcedb, clobber=True)
+                    patches = np.delete(patches, np.where(patches == patch)[0])
+                    
+                    MSs.run(f'taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')    
+
                 MSs.deletecol('FLAG_BKP')  
             ### DONE
 
@@ -554,6 +559,8 @@ for c in range(maxIter):
     # merge solutions into one h5parms for large scale image
     with w.if_todo('c%02i_merge_h5' % c):
         sol_dir = 'self/solutions'
+        # by construction, the 3c sources are always at the last indices
+        filter_directions = f"--filter_directions '["+', '.join([str(i) for i in range(len(patches))])+"]'" if c == 0 else ''
         lib_util.check_rm(f'{sol_dir}/cal-tec-merged-c{c}.h5')
         # make sure the h5parm directions are correctly set - this should actually work automatically with DP3 -> eventually fix this in the DP3 solve call
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec-CS-c{c}.h5', sourcedb)
@@ -561,39 +568,39 @@ for c in range(maxIter):
         # reference, unflag and reset the added stations f'{sol_dir}/cal-tec0-c{c}.h5',
         logger.info('Merge solutions...')
         s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-RSm-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RS-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 \
-              --no_antenna_crash --no_pol --propagate_flags' , log='h5_merger.log', commandType='python')
+              --no_antenna_crash --no_pol --propagate_flags {filter_directions}' , log='h5_merger.log', commandType='python')
         s.run(check=True)
         lib_util.run_losoto(s, f'tec-RSm-c{c}', f'{sol_dir}/cal-tec-RSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
                             plots_dir=f'self/plots/plots-tec-RSm-c{c}', h5_dir='self/solutions')
         s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-CSm-c{c}.h5 --h5_tables {sol_dir}/cal-tec-CS-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 \
-              --no_antenna_crash --no_pol --propagate_flags' , log='h5_merger.log', commandType='python')
+              --no_antenna_crash --no_pol --propagate_flags {filter_directions}' , log='h5_merger.log', commandType='python')
         s.run(check=True)
         lib_util.run_losoto(s, f'tec-CSm-c{c}', f'{sol_dir}/cal-tec-CSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
                             plots_dir=f'self/plots/plots-tec-CSm-c{c}', h5_dir='self/solutions')
         if c > 1:
             lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-amp-dd-c{c}.h5', sourcedb)
             s.add(f'h5_merger.py --h5_out {sol_dir}/cal-amp-dd-merged-c{c}.h5 --h5_tables {sol_dir}/cal-amp-dd-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 \
-              --no_antenna_crash --no_pol --propagate_flags' , log='h5_merger.log', commandType='python')
+              --no_antenna_crash --no_pol --propagate_flags {filter_directions}' , log='h5_merger.log', commandType='python')
             s.run(check=True)
             lib_util.run_losoto(s, f'amp-dd-merged-c{c}', f'{sol_dir}/cal-amp-dd-merged-c{c}.h5', [f'{parset_dir}/losoto-plot-scalaramp.parset'],
                                 plots_dir=f'self/plots/plots-amp-dd-c{c}', h5_dir=f'self/solutions/')
             s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RSm-c{c}.h5 {sol_dir}/cal-tec-CSm-c{c}.h5 {sol_dir}/cal-amp-dd-merged-c{c}.h5 \
-                   --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 --no_antenna_crash --no_pol --propagate_flags' , log='h5_merger.log', commandType='python')
+                   --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 --no_antenna_crash --no_pol --propagate_flags {filter_directions}' , log='h5_merger.log', commandType='python')
             s.run(check=True)
             lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5',
                                 [f'{parset_dir}/losoto-plot-scalar.parset', f'{parset_dir}/losoto-plot-scalaramp.parset'], plots_dir=f'self/plots/plots-tec-merged-c{c}',
                                 h5_dir='self/solutions')
         else:
             s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RSm-c{c}.h5 {sol_dir}/cal-tec-CSm-c{c}.h5 \
-                   --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 --no_antenna_crash --no_pol --propagate_flags', log='h5_merger.log', commandType='python')
+                   --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 --no_antenna_crash --no_pol --propagate_flags {filter_directions}', log='h5_merger.log', commandType='python')
             s.run(check=True)
             lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5',
                                 [f'{parset_dir}/losoto-plot-scalar.parset'], plots_dir=f'self/plots/plots-tec-merged-c{c}',
                                 h5_dir='self/solutions')
+            
     facetregname = f'self/solutions/facets-c{c}.reg'
+    channels_out = MSs.getChout(4.e6) if MSs.getChout(4.e6) > 1 else 2
     
-           
-
     with w.if_todo('c%02i-imaging' % c):
         logger.info('Preparing region file...')
         s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+f' --h5 self/solutions/cal-tec-merged-c{c}.h5 --imsize '+str(imgsizepix_wide)+' \
@@ -604,13 +611,14 @@ for c in range(maxIter):
         imagename = 'img/wide-' + str(c)
         imagenameM = 'img/wideM-' + str(c)
         reuse_kwargs = {}
+        
         # make quick image with -local-rms to get a mask
         # TODO make this faster - experiment with increased parallel-gridding as well as shared facet reads option
         if c==0:
             logger.info('Making wide-field image for clean mask...')
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
                                  weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.9, parallel_deconvolution=1024,
-                                 auto_threshold=5.0, auto_mask=8.0, beam_size=15, join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
+                                 auto_threshold=5.0, auto_mask=8.0, beam_size=15, join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3,
                                  multiscale='', pol='i', nmiter=6,   facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000' )
             # make initial mask
             current_best_mask = make_current_best_mask(imagename, mask_threshold[c], userReg)
@@ -632,7 +640,7 @@ for c in range(maxIter):
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
                              weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='',
                              update_model_required='', minuv_l=30, beam_size=15, mgain=0.9, nmiter=20, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
-                             join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
+                             join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3,
                              multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',
                              facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000{applyamp}',
                              **reuse_kwargs, **beam_kwargs)
@@ -648,7 +656,7 @@ for c in range(maxIter):
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
                              weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='', local_rms='', cont='',
                              update_model_required='', minuv_l=30, beam_size=15, mgain=0.9, nmiter=10, parallel_deconvolution=1024, auto_threshold=2.0, auto_mask=4.0,
-                             join_channels='', fit_spectral_pol=3, channels_out=MSs.getChout(4.e6), deconvolution_channels=3,
+                             join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3,
                              multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',
                              facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000{applyamp} ', **reuse_kwargs, **beam_kwargs)
         # make a new mask from the image
@@ -830,7 +838,7 @@ for c in range(maxIter):
             lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=3000, scale='4arcsec',
                                  weight='briggs -0.3', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{field_center[0].to(u.hourangle).to_string()} {field_center[1].to_string()}',
                                  no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
-                                 join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
+                                 join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=channels_out, deconvolution_channels=3, baseline_averaging='',
                                  multiscale='',  multiscale_scale_bias=0.7, pol='i')
         ### DONE
         #####################################################################################################
@@ -850,7 +858,7 @@ for c in range(maxIter):
                 MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
                 # Recreate MODEL_DATA of external region for subtraction -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam
                 logger.info('Predict corrupted model of external region...')
-                s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
+                s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_processors} -channels-out {channels_out} \
                        -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
                     log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
                 s.run(check=True)
@@ -875,10 +883,11 @@ for c in range(maxIter):
             # Image the sidelobe data
             with w.if_todo('image_sidelobe'):
                 logger.info('Cleaning low-res...')
+                channels_out = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
                 lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
                                      parallel_gridding=4, size=imgsizepix_lr, scale='30arcsec', save_source_list='',
                                      weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
-                                     taper_gaussian='200arcsec', mgain=0.85, channels_out=MSs.getChout(2.e6), parallel_deconvolution=512, baseline_averaging='',
+                                     taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out, parallel_deconvolution=512, baseline_averaging='',
                                      local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5)
 
             # Subtract full low-resolution field (including possible large-scale emission within primary beam)
@@ -906,7 +915,7 @@ for c in range(maxIter):
                         lib_img.blank_image_reg(wideLRext, beamReg , blankval=0.)
 
                     logger.info('Predict model of sidelobe region (wsclean)...')
-                    s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_processors} -channels-out {MSs.getChout(2.e6)} {MSs.getStrWsclean()}',
+                    s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_processors} -channels-out {channels_out} {MSs.getStrWsclean()}',
                         log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
                     s.run(check=True)
                 elif sidelobe_predict_mode=='DP3':
