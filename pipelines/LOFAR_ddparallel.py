@@ -587,8 +587,6 @@ for c in range(maxIter):
                                 [f'{parset_dir}/losoto-plot-scalar.parset'], plots_dir=f'self/plots/plots-tec-merged-c{c}',
                                 h5_dir='self/solutions')
     facetregname = f'self/solutions/facets-c{c}.reg'
-    
-           
 
     with w.if_todo('c%02i-imaging' % c):
         logger.info('Preparing region file...')
@@ -949,10 +947,12 @@ for c in range(maxIter):
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt self/images') for c in range(maxIter) ]
 # debugging images -> can be removed in production
 [ os.system('mv img/subfield-'+str(c)+'-MFS-image*.fits self/images') for c in range(maxIter) ]
-[ os.system('mv img/only*image.fits self/images') for c in range(maxIter) ]
-[ os.system('mv img/empty*image.fits self/images') for c in range(maxIter) ]
 # os.system('mv img/wideP-MFS-*-image.fits self/images')
 # os.system('mv img/wide-lr-MFS-image.fits self/images')
+
+# debug images
+os.system('mv img/only*image.fits self/images')
+os.system('mv img/empty*image.fits self/images')
 
 # Copy model
 os.system(f'mv img/wideM-{maxIter-1}-*-model.fits self/skymodel')

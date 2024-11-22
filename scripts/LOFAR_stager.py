@@ -265,7 +265,11 @@ class Worker_downloader(Worker):
         import os
         while not self.exit.is_set():
             if len(self.L_toDownload) > 0:
-                surl = self.L_toDownload.pop()
+                try:
+                    surl = self.L_toDownload.pop()
+                except:
+                    # sometimes there are simultaneous pop() that crashes one of the worker
+                    continue
                 self.L_inDownload.append(surl)
 
                 tar_file = surl.split('/')[-1]  # e.g. .../L769079_SB020_uv.MS_daf24388.tar

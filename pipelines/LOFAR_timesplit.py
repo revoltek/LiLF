@@ -76,6 +76,7 @@ else:
     # cal_dir can either be a path to the directory containing multiple calibrator observation or one specifies an exact directory.
     subdirs = glob.glob(f'{cal_dir}/id{obsid}_-_*3[c|C]196')+glob.glob(f'{cal_dir}/id{obsid}_-_*3[c|C]295')+glob.glob(f'{cal_dir}/id{obsid}_-_*3[c|C]380')
     if len(subdirs) > 0:
+        logger.warning('Multiple cal dirs found (using the first):', subdirs)
         cal_dir = subdirs[0]
 
 logger.info('Calibrator directory: %s' % cal_dir)
