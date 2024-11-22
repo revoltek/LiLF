@@ -23,12 +23,20 @@
 # Author: Francesco de Gasperin
 # Credits: Frits Sweijen, Etienne Bonnassieux
 
-import os, sys, logging, time
+import os, sys, time
+import logging as logging_module
 import numpy as np
 from casacore.tables import taql, table
 import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
+
+# Create a custom logger
+logging = logging_module.getLogger("reweight")
+console_handler = logging_module.StreamHandler()
+formatter = logging_module.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+console_handler.setFormatter(formatter)
+logging.addHandler(console_handler)
 
 class Timer(object):
     """
@@ -94,10 +102,8 @@ class MShandler():
 
     def get_elev(self):
         # TODO: fix if multiple time MSs passed
-        # TODO elevation bugged
-        ms_avgbl = taql('SELECT TIME FROM %s GROUPBY TIME' %(self.ms_files[0]))
-        # ms_avgbl = taql('SELECT TIME, MEANS(GAGGR(MSCAL.AZEL1()[1]), 0) AS ELEV FROM %s GROUPBY TIME' %(self.ms_files[0]))
-        return np.ones_like(ms_avgbl.getcol('TIME'))
+        ms_avgbl = taql('SELECT TIME, GMEANS(MSCAL.AZEL1())[1] deg AS ELEV FROM %s GROUPBY TIME' %(self.ms_files[0]))
+        return ms_avgbl.getcol('ELEV')
 
     def iter_antenna(self, antennas=None):
         """
@@ -339,7 +345,7 @@ def plot(MSh, antennas):
 
         # Elevation
         ax_elev = axt.twinx()
-        ax_elev.plot(time, elev * 180/np.pi, 'k', linestyle=':', linewidth=1, label='Elevation')
+        ax_elev.plot(time, elev, 'k', linestyle=':', linewidth=1, label='Elevation')
         ax_elev.set_ylabel('Elevation [deg]')
 
         axt.scatter(time, w_t[:,0], marker='.', alpha=0.25, color='red', label='XX Weights')
@@ -413,6 +419,7 @@ def readArguments():
     return vars(args)
 
 if __name__=="__main__":
+
     start_time = time.time()
 
     args         = readArguments()
@@ -423,8 +430,8 @@ if __name__=="__main__":
     wcolname     = args["wcolname"]
     dcolname     = args["dcolname"]
 
-    if verbose: logging.basicConfig(level=logging.DEBUG)
-    else: logging.basicConfig(level=logging.INFO)
+    if verbose: logging.setLevel(logging_module.DEBUG)
+    else: logging.setLevel(logging_module.INFO)
 
     if len(ms_files) > 1:
         logging.error('More than 1 MS not implemented.')
