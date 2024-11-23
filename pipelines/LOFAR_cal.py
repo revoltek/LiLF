@@ -287,7 +287,7 @@ with w.if_todo('cal_pa'):
         # predict the element-corrupted model
         logger.info(f'Add beam-corrupted model of {calname} from {os.path.basename(skymodel)} to MODEL_DATA...')
         MSs_pa.run(f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname} \
-                  pre.usebeammodel=True, pre.beammode=element", log="$nameMS_pre.log", commandType="DP3")
+                  pre.usebeammodel=True, pre.beammode=element pre.beam_interval=120", log="$nameMS_pre.log", commandType="DP3")
 
         # HE: sol.rotationdiagonalmode diagonalphase seemes to give more stable results and surpresses the ~60 MHz bump weirdness
         # Solve concat_pa.MS:DATA (only solve)
@@ -303,7 +303,7 @@ with w.if_todo('cal_pa'):
         # predict the element-corrupted model
         logger.info(f'Add beam-corrupted model of {calname} from {os.path.basename(skymodel)} to MODEL_DATA_BEAMCOR...')
         MSs_concat_all.run(f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_BEAMCOR \
-                           pre.sourcedb={skymodel} pre.sources={calname} \
+                           pre.sourcedb={skymodel} pre.sources={calname} pre.beam_interval=120 \
                            pre.usebeammodel=True, pre.beammode=element", log="$nameMS_pre.log", commandType="DP3")
 
         # Solve concat_all.MS:SMOOTHED_DATA (only solve)
