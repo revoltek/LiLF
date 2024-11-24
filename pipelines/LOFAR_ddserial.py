@@ -155,8 +155,10 @@ ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
-facetregname_self = 'self/solutions/facets-c1.reg'
-interp_h5parm_self = 'self/solutions/cal-tec-merged-c1.h5'
+# initially use facets and h5parm from LOFAR_ddparallel
+facetregname = 'self/solutions/facets-c1.reg'
+interp_h5parm = 'self/solutions/cal-tec-merged-c1.h5'
+correct_for = 'phase000'
 
 with w.if_todo('add_columns'):
     logger.info('Add columns...')
@@ -174,9 +176,6 @@ for cmaj in range(maxIter):
     
     # cycle specific variables
     picklefile = 'ddcal/directions-c%02i.pickle' % cmaj
-    interp_h5parm = 'ddcal/c%02i/solutions/interp.h5' % cmaj
-    interp_h5parm_old = 'ddcal/c%02i/solutions/interp.h5' % (cmaj-1)
-    #aterm_config_file = 'ddcal/c%02i/aterm/aterm.config' % cmaj
     #mask_ddcal = full_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
     mask_ddcal = 'ddcal/c%02i/skymodels/mask-ddcal-c%02i.fits' % (cmaj, cmaj)  # this is used to find calibrators
 
@@ -328,23 +327,14 @@ for cmaj in range(maxIter):
 
     # do a full predict of the sky (if c>0, corrupted with solutions of prev cycle)
     with w.if_todo('c%02i-fullpredict' % cmaj):
-        # wsclean predict
+        # wsclean predict - from ddparallel in cycle 0, otherwise from previous iteration
         logger.info('Predict full model...')
-        if cmaj == 0:
-            # TODO ignore facet beam for now due to bug
-            s.add(f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_processors} -channels-out {ch_out} \
-                    -facet-regions {facetregname_self} -apply-facet-solutions {interp_h5parm_self} phase000 \
-                    -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
-                log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean', processors='max')
-            s.run(check=True)
-        else:
-            s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
-                    -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
-                    -facet-regions '+facetregname+' \
-                    -apply-facet-solutions '+interp_h5parm_old+' '+correct_for+' \
-                    -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                    log='wscleanPRE-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
-            s.run(check=True)
+        s.add(f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_processors} -channels-out {ch_out} \
+                -facet-regions {facetregname} -apply-facet-solutions {interp_h5parm} {correct_for} \
+                -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
+                -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
+              log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean', processors='max')
+        s.run(check=True)
     ### DONE
 
     # just for debug, to be removed
@@ -391,24 +381,14 @@ for cmaj in range(maxIter):
         with w.if_todo('%s-predict' % logstring):
 
             logger.info('Predict model...')
-            if cmaj == 0:
-                # Predict - ms:MODEL_DATA
-                # TODO ignore facet beam for now due to bug
-                s.add(f'wsclean -predict -padding 1.8 -name {d.get_model("init")} -j {s.max_processors} -channels-out {ch_out} \
-                    -facet-regions {facetregname_self} -apply-facet-solutions {interp_h5parm_self} phase000 \
-                    -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
-                    log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
-                s.run(check=True)
-            else:
-                # Predict - ms:MODEL_DATA
-                s.add('wsclean -predict -padding 1.8 -name '+d.get_model('init')+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
-                    -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
-                    -facet-regions '+facetregname+' \
-                    -apply-facet-solutions '+interp_h5parm_old+' '+correct_for+' \
-                    -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                    log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
-                s.run(check=True)
-    
+            # Predict - ms:MODEL_DATA
+            s.add(f'wsclean -predict -padding 1.8 -name {d.get_model("init")} -j {s.max_processors} -channels-out {ch_out} \
+                -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
+                -facet-regions {facetregname} -apply-facet-solutions {interp_h5parm} {correct_for} \
+                -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
+                log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
+            s.run(check=True)
+
             # Add back the model previously subtracted for this dd-cal
             logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA...')
             MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA"',
@@ -465,10 +445,10 @@ for cmaj in range(maxIter):
             logger.info('Pre-imaging (uncorr)...')
             clean('%s-uncorr' % logstring, MSs_dir, res='normal', size=[d.size, d.size], masksigma=5)  # , imagereg=d.get_region())
             
-            closest = lib_h5.get_closest_dir(interp_h5parm_self, d.position)
+            closest = lib_h5.get_closest_dir(interp_h5parm, d.position)
             logger.info('Correct init phase - closest facet ({})'.format(closest))
             MSs_dir.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
-                          cor.parmdb={interp_h5parm_self} cor.correction=phase000 cor.direction={closest}', log='$nameMS_init-correct.log', commandType='DP3')
+                          cor.parmdb={interp_h5parm} cor.correction=phase000 cor.direction={closest}', log='$nameMS_init-correct.log', commandType='DP3')
             
             logger.info('Pre-imaging (pre)...')
             clean('%s-pre' % logstring, MSs_dir, res='normal', size=[d.size,d.size], masksigma=5)#, imagereg=d.get_region())
@@ -837,10 +817,11 @@ for cmaj in range(maxIter):
         log += ' Amp2 (%s)' % (d.get_h5parm('amp2',-2))
         logger.info(log)
 
-    # it might happens that no directions ended up with amp solutions, restrict to phase only correction
-    correct_for = 'phase000'
+    # If we hava amplitudes (should normally be the case), apply them during facet imaging
     if len(h5parms['amp1']) != 0: correct_for += ',amplitude000'
 
+    # update interp_h5parm to current cycle
+    interp_h5parm = 'ddcal/c%02i/solutions/interp.h5' % cmaj
     with w.if_todo('c%02i-interpsol' % cmaj):
         logger.info("Imaging - preparing solutions:")
 

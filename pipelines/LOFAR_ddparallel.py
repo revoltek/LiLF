@@ -353,7 +353,7 @@ for c in range(maxIter):
     # get sourcedb
     sourcedb = f'tgts-c{c}.skymodel'
     beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
-    intrinsic = True #c == 0 # these cycles we only have the apparent skymodel - predict w/o beam, find patches in apparent model
+    intrinsic = True # test always using intrinsic model
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
@@ -872,7 +872,6 @@ for c in range(maxIter):
                 logger.info('Subtract low-resolution to get empty data set (SUBFIELD_DATA = SUBFIELD_DATA - MODEL_DATA)...')
                 MSs.run('taql "update $pathMS set SUBFIELD_DATA = SUBFIELD_DATA - MODEL_DATA"',
                     log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
-                clean_empty(MSs, 'empty', 'SUBFIELD_DATA')
 
             # Flag on residuals (SUBFIELD_DATA)
             with w.if_todo('flag_residuals'):
@@ -885,7 +884,7 @@ for c in range(maxIter):
             with w.if_todo('subtract_sidelobe'):
                 sidelobe_predict_mode = 'wsclean'
                 if sidelobe_predict_mode == 'wsclean':
-                    # blank within main-libe to not subtract anything from there (maybe extended sources not properly sobtracted at the beginning)
+                    # blank within main-libe to not subtract anything from there (maybe extended sources not properly subtracted at the beginning)
                     for im in glob.glob(f'{imagename_lr}*model*fits'):
                         wideLRext = im.replace(imagename_lr, f'{imagename_lr}-blank')
                         os.system('cp %s %s' % (im, wideLRext))
@@ -902,6 +901,9 @@ for c in range(maxIter):
                     pred_parset = 'DP3-predict.parset'
                     MSs.run(f'DP3 {parset_dir}/{pred_parset} msin=$pathMS pre.sourcedb={imagename_lr}-sources.txt msout.datacolumn=MODEL_DATA',
                         log='$nameMS_pre.log', commandType='DP3')
+                # predict just for empty test image
+                MSs.run('taql "update $pathMS set SUBFIELD_DATA = SUBFIELD_DATA - MODEL_DATA"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
+                clean_empty(MSs, 'empty', 'SUBFIELD_DATA')
 
                 logger.info('Corrupt sidelobe model with subfield solutions...')
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
