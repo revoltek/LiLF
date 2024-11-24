@@ -47,9 +47,7 @@ phaseSolMode = parset.get('LOFAR_ddparallel', 'ph_sol_mode') # tecandphase, tec,
 remove3c = parset.getboolean('LOFAR_ddparallel', 'remove3c') # get rid of 3c sources in the sidelobes
 sf_phaseSolMode = 'phase' #'tec'
 start_sourcedb = parset.get('model','sourcedb')
-apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
-subtract_predict_mode = 'wsclean'
 
 #############################################################################
 
