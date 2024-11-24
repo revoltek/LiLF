@@ -263,7 +263,7 @@ for cmaj in range(maxIter):
                 d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
                 d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
                 model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
-                for model_file in glob.glob(full_image.root+'*[0-9]-model.fits') + glob.glob(full_image.root+'*[0-9]-model-pb.fits'):
+                for model_file in glob.glob(full_image.root+'*[0-9]-model*.fits'):
                     os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
                 d.set_model(model_root, typ='init', apply_region=True)
                 if not d.is_in_region(peelReg, wcs=full_image.getWCS()): d.peel_off = True
@@ -301,7 +301,7 @@ for cmaj in range(maxIter):
             d.set_size([ra], [dec], [man_cal[0].radius.to_value('deg')], img_beam[0] / 3600)
             d.set_region(loc='ddcal/c%02i/skymodels' % cmaj)
             model_root = 'ddcal/c%02i/skymodels/%s-init' % (cmaj, name)
-            for model_file in glob.glob(full_image.root + '*[0-9]-model.fits') + glob.glob(full_image.root + '*[0-9]-model-pb.fits'):
+            for model_file in glob.glob(full_image.root + '*[0-9]-model*.fits'):
                 os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
             d.set_model(model_root, typ='init', apply_region=True)
             directions.insert(0, d)
