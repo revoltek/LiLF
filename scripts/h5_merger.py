@@ -1942,17 +1942,18 @@ class MergeH5:
                     axes = make_utf8(st2.val.attrs["AXES"]).split(',')
                     
                     weight = st2.weight[:]
-                    dir_index = axes.index('dir')
-                    if dir_index == 0:
-                        weight = weight[:len(self.filtered_dir) , ...]
-                    elif dir_index == 1:
-                        weight = weight[:, :len(self.filtered_dir), ...]
-                    elif dir_index == 2:
-                        weight = weight[:, :, :len(self.filtered_dir), ...]
-                    elif dir_index == 3:
-                        weight = weight[:, :, :, :len(self.filtered_dir), ...]
-                    elif dir_index == 4:
-                        weight = weight[:, :, :, :, :len(self.filtered_dir), ...]
+                    if self.filtered_dir:
+                        dir_index = axes.index('dir')
+                        if dir_index == 0:
+                            weight = weight[:len(self.filtered_dir) , ...]
+                        elif dir_index == 1:
+                            weight = weight[:, :len(self.filtered_dir), ...]
+                        elif dir_index == 2:
+                            weight = weight[:, :, :len(self.filtered_dir), ...]
+                        elif dir_index == 3:
+                            weight = weight[:, :, :, :len(self.filtered_dir), ...]
+                        elif dir_index == 4:
+                            weight = weight[:, :, :, :, :len(self.filtered_dir), ...]
                     weight = reorderAxes(weight, axes, [a for a in axes_new if a in axes])
 
                     # important to do the following in case the input tables are not all different directions
