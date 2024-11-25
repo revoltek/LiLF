@@ -47,9 +47,7 @@ phaseSolMode = parset.get('LOFAR_ddparallel', 'ph_sol_mode') # tecandphase, tec,
 remove3c = parset.getboolean('LOFAR_ddparallel', 'remove3c') # get rid of 3c sources in the sidelobes
 sf_phaseSolMode = 'phase' #'tec'
 start_sourcedb = parset.get('model','sourcedb')
-apparent = parset.getboolean('model','apparent')
 userReg = parset.get('model','userReg')
-subtract_predict_mode = 'wsclean'
 
 #############################################################################
 
@@ -70,16 +68,14 @@ def corrupt_model_dirs(MSs, c, tc, model_columns, solmode='phase'):
     model_columns: list of patch names
     solmode: which solution mode to corrupt for (phase, tec, tecandphase)
     """
-    
+    logger.info(f'Corrupt models: {solmode}{tc}...')
     for model_column in model_columns:
         if solmode in ['tec', 'tecandphase']:
-            logger.info(f'Corrupt models: {phaseSolMode}{tc}...')
             MSs.run(
                 f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}]  \
                     cor.parmdb=self/solutions/cal-tec{tc}-c{c}.h5 cor.correction=tec000 cor.invert=False',
                 log='$nameMS_corrupt.log', commandType='DP3')
         elif solmode in ['phase', 'tecandphase']:
-            logger.info(f'Corrupt models: {phaseSolMode}{tc}...')
             MSs.run(
                 f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
                     cor.parmdb=self/solutions/cal-tec{tc}-c{c}.h5 cor.correction=phase000 cor.invert=False',
@@ -165,8 +161,6 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None,
     lib_util.run_losoto(s, f'tec{tc}-c{c}', [ms+f'/tec{tc}.h5' for ms in MSs.getListStr()], losoto_parsets, 
                         plots_dir=f'self/plots/plots-tec{tc}-c{c}', h5_dir=f'self/solutions/')
     
-    
-
 
 def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     current_best_mask = f'{imagename}-mask.fits'
@@ -194,9 +188,8 @@ def add_3c_models(sm, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold
         pos = SkyCoord(ra=coord[0], dec=coord[1], unit=(u.hourangle, u.deg))
         
         if phasecentre.separation(pos).deg < null_mid_freq/2:
-            #logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
-            #continue
-            logger.info(f'3C source {source} is within primary beam. Adding model for subtraction.')
+            logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
+            continue
         elif phasecentre.separation(pos).deg > max_sep:
             continue
 
@@ -358,7 +351,7 @@ for c in range(maxIter):
     # get sourcedb
     sourcedb = f'tgts-c{c}.skymodel'
     beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
-    intrinsic = c == 0 # these cycles we only have the apparent skymodel - predict w/o beam, find patches in apparent model
+    intrinsic = True # test always using intrinsic model
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
@@ -510,8 +503,8 @@ for c in range(maxIter):
                     sm.select(f'Patch != {patch}')
                     sm.write(sourcedb, clobber=True)
                     patches = np.delete(patches, np.where(patches == patch)[0])
-                    
-                    MSs.run(f'taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')    
+
+                    MSs.run(f'taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')
 
                 MSs.deletecol('FLAG_BKP')  
             ### DONE
@@ -585,22 +578,21 @@ for c in range(maxIter):
             lib_util.run_losoto(s, f'amp-dd-merged-c{c}', f'{sol_dir}/cal-amp-dd-merged-c{c}.h5', [f'{parset_dir}/losoto-plot-scalaramp.parset'],
                                 plots_dir=f'self/plots/plots-amp-dd-c{c}', h5_dir=f'self/solutions/')
             s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RSm-c{c}.h5 {sol_dir}/cal-tec-CSm-c{c}.h5 {sol_dir}/cal-amp-dd-merged-c{c}.h5 \
-                   --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 --no_antenna_crash --no_pol --propagate_flags {filter_directions}' , log='h5_merger.log', commandType='python')
+                   --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 --no_antenna_crash --no_pol --propagate_flags' , log='h5_merger.log', commandType='python')
             s.run(check=True)
             lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5',
                                 [f'{parset_dir}/losoto-plot-scalar.parset', f'{parset_dir}/losoto-plot-scalaramp.parset'], plots_dir=f'self/plots/plots-tec-merged-c{c}',
                                 h5_dir='self/solutions')
         else:
             s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RSm-c{c}.h5 {sol_dir}/cal-tec-CSm-c{c}.h5 \
-                   --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 --no_antenna_crash --no_pol --propagate_flags {filter_directions}', log='h5_merger.log', commandType='python')
+                   --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 --no_antenna_crash --no_pol --propagate_flags', log='h5_merger.log', commandType='python')
             s.run(check=True)
             lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5',
                                 [f'{parset_dir}/losoto-plot-scalar.parset'], plots_dir=f'self/plots/plots-tec-merged-c{c}',
                                 h5_dir='self/solutions')
-            
+
     facetregname = f'self/solutions/facets-c{c}.reg'
-    channels_out = MSs.getChout(4.e6) if MSs.getChout(4.e6) > 1 else 2
-    
+
     with w.if_todo('c%02i-imaging' % c):
         logger.info('Preparing region file...')
         s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+f' --h5 self/solutions/cal-tec-merged-c{c}.h5 --imsize '+str(imgsizepix_wide)+' \
@@ -610,62 +602,53 @@ for c in range(maxIter):
 
         imagename = 'img/wide-' + str(c)
         imagenameM = 'img/wideM-' + str(c)
-        reuse_kwargs = {}
-        
-        # make quick image with -local-rms to get a mask
+        # common imaging arguments used by all of the following wsclean calls
+        widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec', weight='briggs -0.3', niter=1000000,
+                                gridder='wgridder',  parallel_gridding=32,minuv_l=30, mgain=0.9, parallel_deconvolution=1024,beam_size=15,
+                                join_channels='', fit_spectral_pol=3,channels_out=MSs.getChout(4.e6), deconvolution_channels=3, multiscale='',
+                                multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',facet_regions=facetregname)
+
+        if c < 2: # cylce 0 and 1 only dd-phase
+            widefield_kwargs['apply_facet_solutions'] = f'self/solutions/cal-tec-merged-c{c}.h5 phase000'
+        else:
+            widefield_kwargs['apply_facet_solutions'] = f'self/solutions/cal-tec-merged-c{c}.h5 phase000,amplitude000'
+
         # TODO make this faster - experiment with increased parallel-gridding as well as shared facet reads option
+        # c0: make quick initial image to get a mask
         if c==0:
             logger.info('Making wide-field image for clean mask...')
-            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
-                                 weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.9, parallel_deconvolution=1024,
-                                 auto_threshold=5.0, auto_mask=8.0, beam_size=15, join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3,
-                                 multiscale='', pol='i', nmiter=6,   facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000' )
+            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename,  no_update_model_required='', auto_threshold=5.0, auto_mask=8.0,   nmiter=6, **widefield_kwargs)
             # make initial mask
             current_best_mask = make_current_best_mask(imagename, mask_threshold[c], userReg)
             # safe a bit of time by reusing psf and dirty in first iteration
             reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
         else:
             current_best_mask = f'img/wideM-{c-1}-mask.fits'
+            reuse_kwargs = {}
 
-        if c>9999: # add earlier if bug is fixed
-            beam_kwargs = {'apply_facet_beam':'', 'facet_beam_update':120, 'use_differential_lofar_beam':''}
-        else:
-            beam_kwargs = {}
-        if c > 1:
-            applyamp = ',amplitude000'
-        else:
-            applyamp = ''
-        # clean again, with mask now
+        # main wsclean call, with mask now
         logger.info('Making wide field image ...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
-                             weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='',
-                             update_model_required='', minuv_l=30, beam_size=15, mgain=0.9, nmiter=20, parallel_deconvolution=1024, auto_threshold=3.0, auto_mask=4.0,
-                             join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3,
-                             multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',
-                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000{applyamp}',
-                             **reuse_kwargs, **beam_kwargs)
-        if c == 0: # imagename if c=0 else imagenameM
-            reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
-        # make a new mask from the image
-        current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
-        # rename source lists
-        os.system(f'mv {imagenameM}-sources.txt {imagenameM}-clean1-sources.txt')
-        os.system(f'mv {imagenameM}-sources-pb.txt {imagenameM}-clean1-sources-pb.txt')
-        # Continue-clean faint sources using local-rms
-        logger.info('Making wide field image ...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask, data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec',
-                             weight='briggs -0.3', niter=1000000, gridder='wgridder',  parallel_gridding=32, save_source_list='', local_rms='', cont='',
-                             update_model_required='', minuv_l=30, beam_size=15, mgain=0.9, nmiter=10, parallel_deconvolution=1024, auto_threshold=2.0, auto_mask=4.0,
-                             join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3,
-                             multiscale='',  multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',
-                             facet_regions=facetregname, scalar_visibilities='', apply_facet_solutions=f'self/solutions/cal-tec-merged-c{c}.h5 phase000{applyamp} ', **reuse_kwargs, **beam_kwargs)
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask,
+                             save_source_list='', update_model_required='',  nmiter=20,  auto_threshold=3.0, auto_mask=4.0,
+                             apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', **widefield_kwargs, **reuse_kwargs)
+
+        # update the mask
+        # current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
+        # # rename source lists
+        # os.system(f'mv {imagenameM}-sources.txt {imagenameM}-clean1-sources.txt')
+        # os.system(f'mv {imagenameM}-sources-pb.txt {imagenameM}-clean1-sources-pb.txt')
+        # # Continue-clean for faint sources using local-rms
+        # logger.info('Making wide field image (faint sources) ...')
+        # lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask,
+        #                      save_source_list='', local_rms='', cont='', update_model_required='', nmiter=10, auto_threshold=2.0, auto_mask=4.0,
+        #                      apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', **widefield_kwargs, **reuse_kwargs)
         # make a new mask from the image
         current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
         # merge source lists
-        os.system(f'mv {imagenameM}-sources.txt {imagenameM}-clean2-sources.txt')
-        os.system(f'mv {imagenameM}-sources-pb.txt {imagenameM}-clean2-sources-pb.txt')
-        os.system(f'cat {imagenameM}-clean1-sources-pb.txt {imagenameM}-clean2-sources-pb.txt >> {imagenameM}-sources-pb.txt')
-        os.system(f'cat {imagenameM}-clean1-sources.txt {imagenameM}-clean2-sources.txt >> {imagenameM}-sources.txt')
+        # os.system(f'mv {imagenameM}-sources.txt {imagenameM}-clean2-sources.txt')
+        # os.system(f'mv {imagenameM}-sources-pb.txt {imagenameM}-clean2-sources-pb.txt')
+        # os.system(f'cat {imagenameM}-clean1-sources-pb.txt {imagenameM}-clean2-sources-pb.txt >> {imagenameM}-sources-pb.txt')
+        # os.system(f'cat {imagenameM}-clean1-sources.txt {imagenameM}-clean2-sources.txt >> {imagenameM}-sources.txt')
 
         # reset NaNs if present
         im = lib_img.Image(f'{imagenameM}-MFS-image.fits')
@@ -689,20 +672,17 @@ for c in range(maxIter):
                 sm.remove('MajorAxis > 80')  # remove largest scales
                 field_center1, field_size1 = lib_dd.make_subfield_region(subfield_path, MSs.getListObj()[0], sm,
                                                                          subfield_min_flux, debug_dir='img/')
-            if subtract_predict_mode == 'wsclean':
-                # prepare model of central/external regions
-                logger.info('Blanking central region of model files and reverse...')
-                for im in glob.glob(f'img/wideM-{c}*model*.fits'):
-                    wideMint = im.replace('wideM','wideMint')
-                    os.system('cp %s %s' % (im, wideMint))
-                    lib_img.blank_image_reg(wideMint, subfield_path, blankval = 0., inverse=True)
-                    wideMext = im.replace('wideM','wideMext')
-                    os.system('cp %s %s' % (im, wideMext))
-                    lib_img.blank_image_reg(wideMext, subfield_path, blankval = 0.)
-            elif subtract_predict_mode == 'DP3':
-                raise ValueError('Not implemented.')
-            else: raise ValueError
+            # prepare model of central/external regions
+            logger.info('Blanking central region of model files and reverse...')
+            for im in glob.glob(f'img/wideM-{c}*model*.fits'):
+                wideMint = im.replace('wideM','wideMint')
+                os.system('cp %s %s' % (im, wideMint))
+                lib_img.blank_image_reg(wideMint, subfield_path, blankval = 0., inverse=True)
+                wideMext = im.replace('wideM','wideMext')
+                os.system('cp %s %s' % (im, wideMext))
+                lib_img.blank_image_reg(wideMext, subfield_path, blankval = 0.)
         # DONE
+
         subfield_reg = Regions.read(subfield_path)[0]
         field_center = subfield_reg.center.ra, subfield_reg.center.dec
         field_size = np.max([subfield_reg.width.to_value('deg'), subfield_reg.height.to_value('deg')])
@@ -713,8 +693,8 @@ for c in range(maxIter):
             logger.info('Predict corrupted model of external region (wsclean)...')
             # TODO ignore facet beam for now due to bug
             s.add(f'wsclean -predict -padding 1.8 -name img/wideMext-{c} -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
-                    -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 \
-                    {MSs.getStrWsclean()}',
+                    -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
+                    -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
                 log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
             s.run(check=True)
 
@@ -838,7 +818,7 @@ for c in range(maxIter):
             lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=3000, scale='4arcsec',
                                  weight='briggs -0.3', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{field_center[0].to(u.hourangle).to_string()} {field_center[1].to_string()}',
                                  no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
-                                 join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=channels_out, deconvolution_channels=3, baseline_averaging='',
+                                 join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
                                  multiscale='',  multiscale_scale_bias=0.7, pol='i')
         ### DONE
         #####################################################################################################
@@ -858,8 +838,9 @@ for c in range(maxIter):
                 MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
                 # Recreate MODEL_DATA of external region for subtraction -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam
                 logger.info('Predict corrupted model of external region...')
-                s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_processors} -channels-out {channels_out} \
-                       -facet-regions {facetregname} -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
+                s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
+                       -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam -facet-regions {facetregname} \
+                       -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
                     log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
                 s.run(check=True)
 
@@ -883,11 +864,12 @@ for c in range(maxIter):
             # Image the sidelobe data
             with w.if_todo('image_sidelobe'):
                 logger.info('Cleaning low-res...')
-                channels_out = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
+                # TODO add PB?
+                channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
                 lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
                                      parallel_gridding=4, size=imgsizepix_lr, scale='30arcsec', save_source_list='',
                                      weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
-                                     taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out, parallel_deconvolution=512, baseline_averaging='',
+                                     taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512, baseline_averaging='',
                                      local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5)
 
             # Subtract full low-resolution field (including possible large-scale emission within primary beam)
@@ -907,15 +889,15 @@ for c in range(maxIter):
             # Now subtract the sidelobe
             with w.if_todo('subtract_sidelobe'):
                 sidelobe_predict_mode = 'wsclean'
-                if sidelobe_predict_mode=='wsclean':
-                    # blank within main-libe to not subtract anything from there (maybe extended sources not properly sobtracted at the beginning)
+                if sidelobe_predict_mode == 'wsclean':
+                    # blank within main-libe to not subtract anything from there (maybe extended sources not properly subtracted at the beginning)
                     for im in glob.glob(f'{imagename_lr}*model*fits'):
                         wideLRext = im.replace(imagename_lr, f'{imagename_lr}-blank')
                         os.system('cp %s %s' % (im, wideLRext))
                         lib_img.blank_image_reg(wideLRext, beamReg , blankval=0.)
 
                     logger.info('Predict model of sidelobe region (wsclean)...')
-                    s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_processors} -channels-out {channels_out} {MSs.getStrWsclean()}',
+                    s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_processors} -channels-out {channels_out_lr} {MSs.getStrWsclean()}',
                         log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
                     s.run(check=True)
                 elif sidelobe_predict_mode=='DP3':
@@ -980,6 +962,7 @@ os.system('mv img/empty*image.fits self/images')
 
 # Copy model
 os.system(f'mv img/wideM-{maxIter-1}-*-model.fits self/skymodel')
+os.system(f'mv img/wideM-{maxIter-1}-*-model-fpb.fits self/skymodel')
 os.system(f'mv img/wideM-{maxIter-1}-*-model-pb.fits self/skymodel')
 
 w.alldone()
