@@ -593,6 +593,7 @@ for c in range(maxIter):
 
     facetregname = f'self/solutions/facets-c{c}.reg'
 
+    channels_out = MSs.getChout(4.e6) if MSs.getChout(4.e6) > 1 else 2
     with w.if_todo('c%02i-imaging' % c):
         logger.info('Preparing region file...')
         s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+f' --h5 self/solutions/cal-tec-merged-c{c}.h5 --imsize '+str(imgsizepix_wide)+' \
@@ -605,7 +606,7 @@ for c in range(maxIter):
         # common imaging arguments used by all of the following wsclean calls
         widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec', weight='briggs -0.3', niter=1000000,
                                 gridder='wgridder',  parallel_gridding=32,minuv_l=30, mgain=0.9, parallel_deconvolution=1024,beam_size=15,
-                                join_channels='', fit_spectral_pol=3,channels_out=MSs.getChout(4.e6), deconvolution_channels=3, multiscale='',
+                                join_channels='', fit_spectral_pol=3,channels_out=channels_out, deconvolution_channels=3, multiscale='',
                                 multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',facet_regions=facetregname)
 
         if c < 2: # cylce 0 and 1 only dd-phase
@@ -692,7 +693,7 @@ for c in range(maxIter):
             MSs.run('taql "update $pathMS set MODEL_DATA=0"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
             logger.info('Predict corrupted model of external region (wsclean)...')
             # TODO ignore facet beam for now due to bug
-            s.add(f'wsclean -predict -padding 1.8 -name img/wideMext-{c} -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
+            s.add(f'wsclean -predict -padding 1.8 -name img/wideMext-{c} -j {s.max_processors} -channels-out {channels_out} \
                     -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                     -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
                 log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
@@ -729,7 +730,7 @@ for c in range(maxIter):
         with w.if_todo('c%02i_intreg_predict' % c):
             # Recreate MODEL_DATA of internal region for solve
             logger.info('Predict model of internal region...')
-            s.add(f'wsclean -predict -padding 1.8 -name img/wideMint-{c} -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
+            s.add(f'wsclean -predict -padding 1.8 -name img/wideMint-{c} -j {s.max_processors} -channels-out {channels_out} \
                     {MSs.getStrWsclean()}',
                   log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
             s.run(check=True)
@@ -838,7 +839,7 @@ for c in range(maxIter):
                 MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
                 # Recreate MODEL_DATA of external region for subtraction -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam
                 logger.info('Predict corrupted model of external region...')
-                s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_processors} -channels-out {MSs.getChout(4.e6)} \
+                s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_processors} -channels-out {channels_out} \
                        -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam -facet-regions {facetregname} \
                        -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
                     log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
