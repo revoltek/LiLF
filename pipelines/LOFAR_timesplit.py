@@ -149,9 +149,8 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
             msg.append(prefix+'SB%03i.MS' % j)
 
         # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected)
-        s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(msg)+']" msin=mss/mss-temp.MS msin.datacolumn=DATA \
-              msin.nchan=480 msout=mss/mss.MS msout='+groupname+'/'+groupname+'-temp.MS', log=groupname+'_DP3_concat.log', 
-              commandType='DP3')
+        s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(msg)+']" msin.missingdata=True msin.orderms=False \
+               msout='+groupname+'/'+groupname+'-temp.MS', log=groupname+'_DP3_concat.log', commandType='DP3')
         s.run(check=True)
 
         # check that nchan is divisible by 48 - necessary in dd pipeline; discard high freq unused channels
