@@ -15,12 +15,10 @@
 
 # TODO subtraction of sidelobe for RS smaring
 # TODO add timesmearing
-# TODO test the effect of scalar-visibilities on stoke I and V image quality
 # TODO the subfield algorithm should not cut any sources ... how to best implement that? Something with mask islands?
 # TODO final imaging products
 
 # Waiting for bug fixes in other software
-# TODO add facet-beam in imaging and predict steps once wsclean bug is fixed!
 # TODO add LoTSS query for statring model once bug is fixed! (Don't use for now, it crashes the VO server)
 # TODO add BDA
 
@@ -205,6 +203,8 @@ def add_3c_models(sm, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold
             logger.info(f'Appending model from {sourcedb.split("/")[-1]} (seperation {phasecentre.separation(pos).deg:.2f} deg; app. flux {flux_3c:.2f}Jy)...')
             sm.concatenate(sm_3c, matchBy='position', keep="from2", radius='10 arcsec')
             sm.setPatchPositions(method='wmean', applyBeam=True)
+        else:
+            logger.debug(f'3C source {source} app. flux {flux_3c:.2f}Jy below threshold {threshold:.2f}Jy.')
     return sm
 
 def make_source_regions(sm, c):
@@ -372,7 +372,6 @@ for c in range(maxIter):
                 s.add(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={null_mid_freq/2}&unit=deg"',
                       log='wget.log', commandType='general')
                 s.run(check=True)
-                #os.system(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={null_mid_freq/2}&unit=deg"')
                 sm = lsmtool.load(sourcedb, beamMS=beamMS)
         else:
             # get wsclean skymodel of previous iteration
@@ -466,7 +465,8 @@ for c in range(maxIter):
     with w.if_todo('c%02i_corrupt_tecCS' % c):
         corrupt_model_dirs(MSs, c, '-CS', patches, 'phase')
     ### DONE
-    
+
+    ########################### 3C-subtract PART ####################################
     ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
     if c == 0 and remove3c:
         _3c_patches = [p for p in patches if not p.startswith('patch_')]
@@ -476,7 +476,7 @@ for c in range(maxIter):
                 # Solve diagonal amplitude MSs:SMOOTHED_DATA
                 # TODO add use_dd_constraint_weights
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
-                          sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=dual \
+                          sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
                           sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=75', log=f'$nameMS_solamp_c{c}.log', commandType="DP3")
 
                 losoto_parsets = [parset_dir + '/losoto-clip2.parset', parset_dir + '/losoto-plot-amp.parset']
@@ -526,7 +526,7 @@ for c in range(maxIter):
             MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(patches)}"', log='$nameMS_taql_phdiff.log', commandType='general')
             # solve ionosphere phase - ms:SMOOTHED_DATA
             logger.info('Solving amp-di...')
-            MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=dual sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
+            MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
                      sol.mode=diagonal sol.h5parm=$pathMS/amp-di.h5 sol.solint={150*base_solint} \
                      sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
                      log='$nameMS_solamp-c' + str(c) + '.log', commandType='DP3')
