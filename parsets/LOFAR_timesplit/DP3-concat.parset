@@ -2,9 +2,6 @@ msin =
 msin.datacolumn = CORRECTED_DATA
 #do not copy aucorr as they have too weird weights for dysco
 msin.baseline = "*&"
-msin.missingdata = True
-
-msin.orderms = False
 
 msout = 
 msout.storagemanager = dysco
