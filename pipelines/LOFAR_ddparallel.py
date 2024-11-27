@@ -621,9 +621,12 @@ for c in range(maxIter):
         imagenameM = 'img/wideM-' + str(c)
         # common imaging arguments used by all of the following wsclean calls
         widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=pixscale, weight='briggs -0.3', niter=1000000,
-                                gridder='wgridder',  parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, beam_size=15,
+                                gridder='wgridder',  parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                 join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
                                 multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname)
+        # for low-freq data, allow the beam to be fitted, otherwise (survey) force 15"
+        if not(np.mean(MSs.getFreqs()) < 50e6):
+            widefield_kwargs['beam_size'] = 15
 
         if c < 2: # cylce 0 and 1 only dd-phase
             widefield_kwargs['apply_facet_solutions'] = f'self/solutions/cal-tec-merged-c{c}.h5 phase000'
