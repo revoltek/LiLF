@@ -112,7 +112,7 @@ with w.if_todo('concat_all'):
     logger.info('Concatenating data all (avg time %i)...' % timestep)
     lib_util.check_rm('concat_all.MS')
     s.add('DP3 ' + parset_dir + '/DP3-concat.parset msin="[' + ','.join(msg) + ']" msout=concat_all.MS \
-              msin.baseline="*&" avg.freqstep=' + str(freqstep) + ' avg.timestep=' + str(timestep),
+              msin.baseline=!CS003LBA avg.freqstep=' + str(freqstep) + ' avg.timestep=' + str(timestep),
           log='concat.log', commandType='DP3')
     s.run(check=True)
 ### DONE
