@@ -264,6 +264,7 @@ if imgsizepix_wide > 10000:
     imgsizepix_wide = 10000
 imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/(pixscale*8))
 current_best_mask = None
+logger.info(f'Setting wide-field image size: {imgsizepix_wide}pix; scale:  {pixscale:.2f}arcsec.')
 
 # set clean componet fit order (use 5 for large BW)
 if MSs.getChout(4.e6) >= 7:  # Bandwidth of 28 MHz or more
@@ -389,7 +390,7 @@ for c in range(maxIter):
         patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
         if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]:
             bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor
-            logger.warning(f'Not enough bright sources above minimum flux {bright_sources_flux:.2f} Jy! Using sources above {bright_sources_flux:.2f} Jy')
+            logger.warning(f'Less than {min_facets[c]} bright sources above minimum flux {facet_fluxes[c]:.2f} Jy! Using sources above {bright_sources_flux:.2f} Jy')
         else:
             bright_sources_flux = facet_fluxes[c]
         bright_names = sm.getPatchNames()[patch_fluxes > bright_sources_flux*si_factor]
@@ -521,7 +522,8 @@ for c in range(maxIter):
     if c == 1:
         with w.if_todo('solve_amp_di'):
             # TODO -> down the road this could be a fulljones-calibration to correct element-beam related leakage.
-            MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
+            # no smoothing, cycle 1 CORRECTED_DATA should be the same
+            # MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
             logger.info('Setting MODEL_DATA to sum of corrupted patch models...')
             MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(patches)}"', log='$nameMS_taql_phdiff.log', commandType='general')
             # solve ionosphere phase - ms:SMOOTHED_DATA
@@ -534,7 +536,7 @@ for c in range(maxIter):
             lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
                                 [f'{parset_dir}/losoto-plot-amp.parset', f'{parset_dir}/losoto-plot-ph.parset', f'{parset_dir}/losoto-amp-di.parset'],
                                 plots_dir=f'self/plots/plots-amp-di', h5_dir=f'self/solutions/')
-            
+
         with w.if_todo('correct_amp_di'):
             # TODO add updateweights in production
             # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
@@ -545,15 +547,17 @@ for c in range(maxIter):
     elif c > 1:
         # Starting from cycle 2: do DD-slow amp solutions
         with w.if_todo(f'c%02i_solve_amp_dd' % c):
-            MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
+            # no smoothing, cycle 2 CORRECTED_DATA should be the same
+            # MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
             solutions_per_direction = np.ones(len(patches), dtype=int)
             solutions_per_direction[patch_fluxes > 4] = 2
             solutions_per_direction[patch_fluxes > 8] = 4
             logger.info('Solving amp (slow)...')
+            # this might be very memory hungry since we solve on long timescales
             MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset memory_logging=True msin=$pathMS sol.nchan=24 \
-                          sol.mode=diagonal sol.datause=full sol.h5parm=$pathMS/amp-dd-c{c}.h5 sol.solint={150*base_solint} \
+                          sol.mode=diagonal sol.datause=full sol.h5parm=$pathMS/amp-dd-c{c}.h5 sol.solint={300*base_solint} \
                           sol.modeldatacolumns="[{",".join(patches)}]" sol.solutions_per_direction="{np.array2string(solutions_per_direction, separator=",")}"',
-                    log='$nameMS_solamp-c' + str(c) + '.log', commandType='DP3')
+                    log='$nameMS_solamp-c' + str(c) + '.log', commandType='DP3', maxThreads=1)
 
             lib_util.run_losoto(s, f'amp-dd-c{c}', [ms + f'/amp-dd-c{c}.h5' for ms in MSs.getListStr()],
                                 [f'{parset_dir}/losoto-norm.parset',f'{parset_dir}/losoto-plot-scalaramp.parset'],
@@ -617,10 +621,10 @@ for c in range(maxIter):
         imagename = 'img/wide-' + str(c)
         imagenameM = 'img/wideM-' + str(c)
         # common imaging arguments used by all of the following wsclean calls
-        widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale='4arcsec', weight='briggs -0.3', niter=1000000,
-                                gridder='wgridder',  parallel_gridding=32,minuv_l=30, mgain=0.9, parallel_deconvolution=1024,beam_size=15,
-                                join_channels='', fit_spectral_pol=3,channels_out=channels_out, deconvolution_channels=3, multiscale='',
-                                multiscale_scale_bias=0.65, multiscale_max_scales=5, pol='i',facet_regions=facetregname)
+        widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=pixscale, weight='briggs -0.3', niter=1000000,
+                                gridder='wgridder',  parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, beam_size=15,
+                                join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
+                                multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname)
 
         if c < 2: # cylce 0 and 1 only dd-phase
             widefield_kwargs['apply_facet_solutions'] = f'self/solutions/cal-tec-merged-c{c}.h5 phase000'
@@ -631,7 +635,8 @@ for c in range(maxIter):
         # c0: make quick initial image to get a mask
         if c==0:
             logger.info('Making wide-field image for clean mask...')
-            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename,  no_update_model_required='', auto_threshold=5.0, auto_mask=8.0,   nmiter=6, **widefield_kwargs)
+            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename,  no_update_model_required='',
+                                 auto_threshold=5.0, auto_mask=8.0, multiscale_max_scales=2,   nmiter=6, **widefield_kwargs)
             # make initial mask
             current_best_mask = make_current_best_mask(imagename, mask_threshold[c], userReg)
             # safe a bit of time by reusing psf and dirty in first iteration
@@ -643,7 +648,7 @@ for c in range(maxIter):
         # main wsclean call, with mask now
         logger.info('Making wide field image ...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask,
-                             save_source_list='', update_model_required='',  nmiter=20,  auto_threshold=3.0, auto_mask=4.0,
+                             save_source_list='', update_model_required='',  nmiter=20,  auto_threshold=3.0, auto_mask=4.0, multiscale_max_scales=5,
                              apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', **widefield_kwargs, **reuse_kwargs)
 
         # update the mask
@@ -829,7 +834,7 @@ for c in range(maxIter):
         # Do a quick debug image...
         with w.if_todo('c%02i_image-subfield' % c):
             logger.info('Test image subfield...')
-            lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=3000, scale='4arcsec',
+            lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=3000, scale=pixscale,
                                  weight='briggs -0.3', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{field_center[0].to(u.hourangle).to_string()} {field_center[1].to_string()}',
                                  no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
                                  join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
