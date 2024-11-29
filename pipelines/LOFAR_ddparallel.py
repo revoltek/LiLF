@@ -638,7 +638,7 @@ for c in range(maxIter):
         if c==0:
             logger.info('Making wide-field image for clean mask...')
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename,  no_update_model_required='',
-                                 auto_threshold=5.0, auto_mask=8.0, multiscale_max_scales=2,   nmiter=6, **widefield_kwargs)
+                                 auto_threshold=5.0, auto_mask=8.0, multiscale_max_scales=3,   nmiter=6, **widefield_kwargs)
             # make initial mask
             current_best_mask = make_current_best_mask(imagename, mask_threshold[c], userReg)
             # safe a bit of time by reusing psf and dirty in first iteration
@@ -650,7 +650,7 @@ for c in range(maxIter):
         # main wsclean call, with mask now
         logger.info('Making wide field image ...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask,
-                             save_source_list='', update_model_required='',  nmiter=20,  auto_threshold=3.0, auto_mask=4.0, multiscale_max_scales=5,
+                             save_source_list='', update_model_required='',  nmiter=20,  auto_threshold=2.5, auto_mask=4.0,
                              apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', **widefield_kwargs, **reuse_kwargs)
 
         # update the mask
