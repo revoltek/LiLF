@@ -899,6 +899,7 @@ for c in range(maxIter):
                 logger.info('Subtract low-resolution to get empty data set (SUBFIELD_DATA = SUBFIELD_DATA - MODEL_DATA)...')
                 MSs.run('taql "update $pathMS set SUBFIELD_DATA = SUBFIELD_DATA - MODEL_DATA"',
                     log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
+                clean_empty(MSs, 'empty', 'SUBFIELD_DATA')
 
             # Flag on residuals (SUBFIELD_DATA)
             with w.if_todo('flag_residuals'):
@@ -930,7 +931,6 @@ for c in range(maxIter):
                         log='$nameMS_pre.log', commandType='DP3')
                 # predict just for empty test image
                 MSs.run('taql "update $pathMS set SUBFIELD_DATA = SUBFIELD_DATA - MODEL_DATA"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
-                clean_empty(MSs, 'empty', 'SUBFIELD_DATA')
 
                 logger.info('Corrupt sidelobe model with subfield solutions...')
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
