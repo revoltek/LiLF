@@ -620,10 +620,13 @@ for c in range(maxIter):
         imagename = 'img/wide-' + str(c)
         imagenameM = 'img/wideM-' + str(c)
         # common imaging arguments used by all of the following wsclean calls
-        widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=pixscale, weight='briggs -0.3', niter=1000000,
-                                gridder='wgridder',  parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, beam_size=15,
+        widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec', weight='briggs -0.3', niter=1000000,
+                                gridder='wgridder',  parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                 join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
                                 multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname)
+        # for low-freq data, allow the beam to be fitted, otherwise (survey) force 15"
+        if not(np.mean(MSs.getFreqs()) < 50e6):
+            widefield_kwargs['beam_size'] = 15
 
         if c < 2: # cylce 0 and 1 only dd-phase
             widefield_kwargs['apply_facet_solutions'] = f'self/solutions/cal-tec-merged-c{c}.h5 phase000'
@@ -635,7 +638,7 @@ for c in range(maxIter):
         if c==0:
             logger.info('Making wide-field image for clean mask...')
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename,  no_update_model_required='',
-                                 auto_threshold=5.0, auto_mask=8.0, multiscale_max_scales=2,   nmiter=6, **widefield_kwargs)
+                                 auto_threshold=5.0, auto_mask=8.0, multiscale_max_scales=3,   nmiter=6, **widefield_kwargs)
             # make initial mask
             current_best_mask = make_current_best_mask(imagename, mask_threshold[c], userReg)
             # safe a bit of time by reusing psf and dirty in first iteration
@@ -647,7 +650,7 @@ for c in range(maxIter):
         # main wsclean call, with mask now
         logger.info('Making wide field image ...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask,
-                             save_source_list='', update_model_required='',  nmiter=20,  auto_threshold=3.0, auto_mask=4.0, multiscale_max_scales=5,
+                             save_source_list='', update_model_required='',  nmiter=20,  auto_threshold=2.5, auto_mask=4.0,
                              apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', **widefield_kwargs, **reuse_kwargs)
 
         # update the mask
@@ -833,7 +836,7 @@ for c in range(maxIter):
         # Do a quick debug image...
         with w.if_todo('c%02i_image-subfield' % c):
             logger.info('Test image subfield...')
-            lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=3000, scale=pixscale,
+            lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=3000, scale=f'{pixscale}arcsec',
                                  weight='briggs -0.3', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{field_center[0].to(u.hourangle).to_string()} {field_center[1].to_string()}',
                                  no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
                                  join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
@@ -885,7 +888,7 @@ for c in range(maxIter):
                 # TODO add PB?
                 channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
                 lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
-                                     parallel_gridding=4, size=imgsizepix_lr, scale='30arcsec', save_source_list='',
+                                     parallel_gridding=4, size=imgsizepix_lr, scale=f'30arcsec', save_source_list='',
                                      weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                                      taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512, baseline_averaging='',
                                      local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5)
