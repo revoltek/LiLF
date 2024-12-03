@@ -119,6 +119,20 @@ class AllMSs(object):
         """
         return int(round(self.getBandwidth()/(size)))
 
+    def getMaxBL(self, check_flags=True, dutch_only=False, uvw=False):
+        """
+        Return length of longest baseline
+        Parameters
+        ----------
+        check_flags: bool, check flags? default = True
+        dutch_only: bool, check only dutch-dutch BL? default = False
+        uvw: bool, consider also w values? default = False
+
+        Returns
+        -------
+        max_bl: float
+        """
+        return np.max([ms.getMaxBL(check_flags=check_flags, dutch_only=dutch_only, uvw=uvw) for ms in self.getListObj()])
 
     def run(self, command, log, commandType='', maxThreads=None):
         """
@@ -667,18 +681,27 @@ class MS(object):
         lib_util.check_rm(outfile)
         regions.write(outfile)
 
-    def getMaxBL(self, check_flags=True):
+    def getMaxBL(self, check_flags=True, dutch_only=False, uvw=False):
         """
         Return the max BL length in meters
+        dutch_only: bool, check only the dutch stations, default=False
+        uvw: bool, get max uvw length, not just uv.
         """
-        if check_flags:
-            with tables.table(self.pathMS, ack = False).query('not all(FLAG)') as t:
+        if dutch_only:
+            with tables.taql(f"SELECT FROM {self.pathMS} WHERE ANTENNA1 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME \
+                         ~p/[CR]S*/] && ANTENNA2 in [SELECT ROWID() FROM ::ANTENNA WHERE NAME ~p/[CR]S*/]") as t:
+                if check_flags:
+                    t = t.query(not all("FLAG"))
                 col = t.getcol('UVW')
         else:
-            with tables.table(self.pathMS, ack = False) as t:
+            with tables.table(self.pathMS, ack=False) as t:
+                if check_flags:
+                    t = t.query(not all("FLAG"))
                 col = t.getcol('UVW')
-
-        maxdist = np.nanmax( np.sqrt(col[:,0] ** 2 + col[:,1] ** 2) )
+        if uvw:
+            maxdist = np.nanmax( np.sqrt(col[:,0] ** 2 + col[:,1] ** 2 + col[:,2] ** 2) )
+        else:
+            maxdist = np.nanmax( np.sqrt(col[:,0] ** 2 + col[:,1] ** 2) )
         return maxdist
 
     def getResolution(self, check_flags=True):
