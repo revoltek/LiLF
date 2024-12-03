@@ -190,10 +190,10 @@ class AllMSs(object):
         for ms_file in self.mssListStr:
             with tables.table(ms_file, ack=False, readonly=False) as t:
                 if col not in t.colnames():
-                    logger.info(f'Column {col} does not exist in {ms_file}. Skipping..')
+                    logger.debug(f'deletecol: Column {col} does not exist in {ms_file}. Skipping..')
                     continue
                 else:
-                    logger.info(f'Deleting column {col} from {ms_file}....')
+                    logger.debug(f'Deleting column {col} from {ms_file}....')
                     t.removecols(col)
 
     def run_Blsmooth(self, incol='DATA', outcol='SMOOTHED_DATA', ionf='auto',  notime=False, nofreq=False, logstr='smooth'):

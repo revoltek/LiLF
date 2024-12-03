@@ -103,14 +103,14 @@ class Image(object):
 
     def nantozeroModel(self):
         """
-        Set nan to 0 in all model images
+        Set nan/inf to 0 in all model images
         """
         for modelimage in sorted(glob.glob(self.root + '*model*.fits')):
             with pyfits.open(modelimage, mode='update') as fits:
                 for hdu in fits:
-                    if np.isnan(hdu.data).any():
-                        logger.info(f"Model image '{modelimage}' has '{np.sum(np.isnan(hdu.data))}' NaN values (NaN -> zeros)")
-                    hdu.data[hdu.data != hdu.data] = 0
+                    if not np.isfinite(hdu.data).all():
+                        logger.info(f"Model image '{modelimage}' has '{np.sum(~np.isfinite(hdu.data))}' NaN/inf values (NaN/inf -> zeros)")
+                    hdu.data[~np.isfinite(hdu.data)] = 0
 
     # TODO: separate makemask (using breizorro) and makecat (using bdsf)
     def makeMask(self, threshpix=5, atrous_do=False, rmsbox=(100,10), remove_extended_cutoff=0., only_beam=False, maskname=None,

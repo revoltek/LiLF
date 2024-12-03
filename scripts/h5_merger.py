@@ -1930,6 +1930,7 @@ class MergeH5:
                 shape = st.val.shape
                 weight_out = ones(shape)
                 axes_new = make_utf8(st.val.attrs["AXES"]).split(',')
+                
                 for m, input_h5 in enumerate(self.h5_tables):
 
                     print(input_h5)
@@ -1939,7 +1940,20 @@ class MergeH5:
                         continue
                     st2 = T.root._f_get_child(solset)._f_get_child(soltab)
                     axes = make_utf8(st2.val.attrs["AXES"]).split(',')
+                    
                     weight = st2.weight[:]
+                    if self.filtered_dir:
+                        dir_index = axes.index('dir')
+                        if dir_index == 0:
+                            weight = weight[:len(self.filtered_dir) , ...]
+                        elif dir_index == 1:
+                            weight = weight[:, :len(self.filtered_dir), ...]
+                        elif dir_index == 2:
+                            weight = weight[:, :, :len(self.filtered_dir), ...]
+                        elif dir_index == 3:
+                            weight = weight[:, :, :, :len(self.filtered_dir), ...]
+                        elif dir_index == 4:
+                            weight = weight[:, :, :, :, :len(self.filtered_dir), ...]
                     weight = reorderAxes(weight, axes, [a for a in axes_new if a in axes])
 
                     # important to do the following in case the input tables are not all different directions
@@ -2007,8 +2021,7 @@ class MergeH5:
                             elif len(weight_out.shape) == 5:
                                 weight_out[:, :, :, m, :] *= newvals[:, :, :, 0, :]
                         elif weight_out.shape[dirind] != newvals.shape[dirind]:
-                            sys.exit(
-                                'ERROR: Upsampling of weights because same direction exists multiple times in input h5 (verify and/or remove --propagate_flags)')
+                            sys.exit('ERROR: Upsampling of weights because same direction exists multiple times in input h5 (verify and/or remove --propagate_flags)')
                         else:
                             weight_out *= newvals
 

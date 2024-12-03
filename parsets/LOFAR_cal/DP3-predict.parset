@@ -10,6 +10,5 @@ pre.type = predict
 pre.sourcedb = 
 pre.sources = 
 pre.usebeammodel = False
-pre.beam_interval = 120
 #pre.usechannelfreq = False
 #pre.beammode = array_factor

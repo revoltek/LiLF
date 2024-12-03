@@ -1,0 +1,16 @@
+FORMAT = Name, Type, Patch, Ra, Dec, I, SpectralIndex='[]', LogarithmicSI, ReferenceFrequency='57709787.39435674', MajorAxis, MinorAxis, Orientation
+
+# LSMTool history:
+# 2024-11-29 22:40:59: LOAD (from file 'img/img-3c382-final-sources.txt')
+# 2024-11-29 22:40:59: GROUP (algorithm = 'single')
+# 2024-11-29 22:40:59: SETPATCHPOSITIONS (method = 'mid')
+# 2024-11-29 22:41:00: SETPATCHPOSITIONS (method = 'mid')
+# 2024-11-29 22:41:54: GROUP (algorithm = 'meanshift')
+# 2024-11-29 22:41:57: SETPATCHPOSITIONS (method = 'mid')
+# 2024-11-29 22:42:01: SETPATCHPOSITIONS (method = 'mid')
+# 2024-11-29 22:42:02: FILTER (Patch = Patch_80 None)
+# 2024-11-29 22:42:02: SETPATCHPOSITIONS (method = 'mid')
+
+ , , 3c382, 18:35:08.7753, 32.39.03.9955
+s0c1332, POINT, 3c382, 18:32:21.272, 32.21.22.383, 0.0232461, [-0.7], false, 57709787.39435674, 0.0, 0.0, 0.0
+s0c3277, POINT, 3c382, 18:37:57.353, 32.56.31.449, 0.01892084, [-0.7], false, 57709787.39435674, 0.0, 0.0, 0.0
