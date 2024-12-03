@@ -691,12 +691,12 @@ class MS(object):
             with tables.taql(f"SELECT FROM {self.pathMS} WHERE ANTENNA1 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME \
                          ~p/[CR]S*/] && ANTENNA2 in [SELECT ROWID() FROM ::ANTENNA WHERE NAME ~p/[CR]S*/]") as t:
                 if check_flags:
-                    t = t.query(not all("FLAG"))
+                    t = t.query('not all("FLAG")')
                 col = t.getcol('UVW')
         else:
             with tables.table(self.pathMS, ack=False) as t:
                 if check_flags:
-                    t = t.query(not all("FLAG"))
+                    t = t.query('not all("FLAG")')
                 col = t.getcol('UVW')
         if uvw:
             maxdist = np.nanmax( np.sqrt(col[:,0] ** 2 + col[:,1] ** 2 + col[:,2] ** 2) )
