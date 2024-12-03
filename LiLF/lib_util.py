@@ -73,7 +73,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_preprocess', 'run_aoflagger', 'False')  # run aoflagger on individual sub-bands, only in cases where this was not one by the observatory!
     add_default('LOFAR_preprocess', 'tar', 'False')  # Tar MS files at the end 
     # cal
-    add_default('LOFAR_cal', 'data_dir', 'mss/')
+    add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
     add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
     add_default('LOFAR_cal', 'imaging', 'False')
     add_default('LOFAR_cal', 'fillmissingedges', 'True')
