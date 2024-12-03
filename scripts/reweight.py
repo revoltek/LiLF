@@ -305,6 +305,7 @@ def plot(MSh, antennas):
 
         # skip if completely flagged
         if np.all(flag):
+            logging.warning(f'Fully flagged antenna ({ant_name}): skip.')
             continue
 
         logging.info('Plotting %s...' % ant_name)

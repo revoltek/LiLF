@@ -159,7 +159,9 @@ if renameavg:
             logger.info('Min freq: %.2f MHz' % (minfreq/1e6))
             for MS in MSs.getListObj():
 
-                if 'HBA' in MS.getAntennaSet():
+                antennaset = MS.getAntennaSet()
+
+                if 'HBA' in antennaset:
                     logger.warning(f'Skipping HBA: deleting {MS.pathMS}')
                     lib_util.check_rm(MS.pathMS)
                     flog.write(MS.nameMS+'.MS\n') # after averaging to be sure no log is written if an error occurs
@@ -175,7 +177,7 @@ if renameavg:
                 #    avg_factor_f = int(nchan / 4)  # to 2 ch/SB
                 elif nchan % 8 == 0 and minfreq < 40e6:
                     avg_factor_f = int(nchan / 8)  # to 8 ch/SB
-                elif nchan % 8 == 0 and 'SPARSE' in MS.getAntennaSet():
+                elif nchan % 8 == 0 and 'SPARSE' in antennaset:
                     avg_factor_f = int(nchan / 8)  # to 8 ch/SB
                 elif nchan % 4 == 0:
                     avg_factor_f = int(nchan / 4)  # to 4 ch/SB
@@ -186,7 +188,7 @@ if renameavg:
                     sys.exit(1)
 
                 if keep_IS:
-                     avg_factor_f = int(nchan / 16) # to have the full FoV in LBA we need 32 ch/SB
+                     avg_factor_f = int(nchan / 16) # to have the full FoV in LBA we need 16 ch/SB
                 if avg_factor_f < 1: avg_factor_f = 1
 
                 avg_factor_t = int(np.round(2/timeint)) if keep_IS else int(np.round(4/timeint)) # to 4 sec (2 for IS)
