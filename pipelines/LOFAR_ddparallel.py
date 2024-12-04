@@ -712,7 +712,6 @@ for c in range(maxIter):
             # Recreate MODEL_DATA of external region for subtraction
             MSs.run('taql "update $pathMS set MODEL_DATA=0"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
             logger.info('Predict corrupted model of external region (wsclean)...')
-            # TODO ignore facet beam for now due to bug
             s.add(f'wsclean -predict -padding 1.8 -name img/wideMext-{c} -j {s.max_processors} -channels-out {channels_out} \
                     -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                     -apply-facet-solutions self/solutions/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',

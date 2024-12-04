@@ -335,6 +335,14 @@ for cmaj in range(maxIter):
                 -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
               log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean', processors='max')
         s.run(check=True)
+
+        logger.info('Corrupt MODEL_DATA with subfield solutions...')
+        # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
+        MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                  cor.parmdb=self/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False', log='$nameMS_sf-correct.log', commandType='DP3')
+        MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                  cor.parmdb=self/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True', log='$nameMS_sf-correct.log', commandType='DP3')
+
     ### DONE
 
     # just for debug, to be removed
@@ -388,6 +396,15 @@ for cmaj in range(maxIter):
                 -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
                 log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
             s.run(check=True)
+
+            logger.info('Corrupt MODEL_DATA with subfield solutions...')
+            # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
+            MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                      cor.parmdb=self/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False',
+                    log='$nameMS_sf-correct.log', commandType='DP3')
+            MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                      cor.parmdb=self/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True',
+                    log='$nameMS_sf-correct.log', commandType='DP3')
 
             # Add back the model previously subtracted for this dd-cal
             logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA...')
