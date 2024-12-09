@@ -204,7 +204,7 @@ def add_3c_models(sm, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold
             sm.concatenate(sm_3c, matchBy='position', keep="from2", radius='10 arcsec')
             sm.setPatchPositions(method='wmean', applyBeam=True)
         else:
-            logger.debug(f'3C source {source} app. flux {flux_3c:.2f}Jy below threshold {threshold:.2f}Jy.')
+            logger.debug(f'3C source {source} app. flux {flux_3c:.2f} Jy below threshold {threshold:.2f} Jy.')
     return sm
 
 def make_source_regions(sm, c):
@@ -230,7 +230,6 @@ with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('img')
     os.makedirs('img')
-    lib_util.check_rm('tgts*skymodel')
 
     # here images, models, solutions for each group will be saved
     lib_util.check_rm('self')
@@ -240,8 +239,10 @@ with w.if_todo('cleaning'):
     if not os.path.exists('self/skymodel'): os.makedirs('self/skymodel')
 ### DONE
 
+sol_dir = 'self/solutions'
+plot_dir = 'self/plots'
+
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s, check_flags=True)
-MSs.run('taql "UPDATE $pathMS SET FLAG=False"', log='$nameMS_taql.log', commandType='general')
 
 try:
     MSs.print_HAcov()
@@ -250,12 +251,7 @@ except:
 
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
-
 null_mid_freq = MSs.getListObj()[0].getFWHM(freq='mid') * 1.8 # FWHM to null
-MSs.getListObj()[0].makeBeamReg('self/beam.reg', freq='mid', to_pbval=0)
-
-beamReg = 'self/beam.reg'
-beamMask = 'self/beam.fits'
 
 # set image size - this should be a bit more than the beam region used for calibration
 pixscale = MSs.getListObj()[0].getPixelScale()
@@ -296,9 +292,11 @@ else:
 smMHz2 = [2.0,5.0,5.0,5.0,5.0,5.0]
 smMHz1 = [8.0,12.0,12.0,12.0,12.0,12.0]
 # smMHz0 = [6.0,10.0,10.0,10.0,10.0,10.0]
-#################################################################
 
-# Make beam mask
+# Make beam mask/reg
+beamMask = 'self/beam.fits'
+beamReg = 'self/beam.reg'
+MSs.getListObj()[0].makeBeamReg(beamReg, freq='mid', to_pbval=0)
 if not os.path.exists(beamMask):
     logger.info('Making mask of primary beam...')
     lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), size=imgsizepix_lr, scale='30arcsec')
@@ -314,7 +312,7 @@ with w.if_todo('solve_fr'):
     # lin2circ conversion TCxx.MS:DATA -> CIRC_PHASEDIFF_DATA # use no dysco here!
     MSs.run(f'DP3 {parset_dir}/DP3-lin2circ.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CIRC_PHASEDIFF_DATA', log='$nameMS_lin2circ.log', commandType="DP3")
 
-    # Get circular phase diff CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
+    # Get circular phase diff TC.MS: CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
     logger.info('Get circular phase difference...')
     MSs.run('taql "UPDATE $pathMS SET\
          CIRC_PHASEDIFF_DATA[,0]=0.5*EXP(1.0i*(PHASE(CIRC_PHASEDIFF_DATA[,0])-PHASE(CIRC_PHASEDIFF_DATA[,3]))), \
@@ -327,7 +325,7 @@ with w.if_todo('solve_fr'):
     MSs.run('taql "UPDATE $pathMS SET MODEL_DATA_FR[,0]=0.5+0i, MODEL_DATA_FR[,1]=0.0+0i, MODEL_DATA_FR[,2]=0.0+0i, \
          MODEL_DATA_FR[,3]=0.5+0i"', log='$nameMS_taql.log', commandType='general')
 
-    # Solve TCXX.MS:CIRC_PHASEDIFF_DATA against MODEL_DATA_FR (only solve - solint=2m nchan=0 as it has the smoothnessconstrain)
+    # Solve TC.MS: CIRC_PHASEDIFF_DATA against MODEL_DATA_FR (only solve - solint=2m nchan=0 as it has the smoothnessconstrain)
     logger.info('Solving circ phase difference ...')
     MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint=' + str(30 * base_solint),
             log='$nameMS_solFR.log', commandType="DP3")
@@ -340,24 +338,24 @@ with w.if_todo('solve_fr'):
             log='$nameMS_taql.log', commandType='general')
 
 with w.if_todo('cor_fr'):
-    # Correct FR with results of solve - group*_TC.MS:DATA -> group*_TC.MS:CORRECTED_DATA_FR
+    # Correct FR with results of solve - TC.MS: DATA -> CORRECTED_DATA_FR
     logger.info('Correcting FR (DATA -> CORRECTED_DATA_FR...')
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA_FR \
             cor.parmdb=self/solutions/cal-fr.h5 cor.correction=rotationmeasure000',
             log='$nameMS_corFR.log', commandType='DP3')
+    
+    # Copy TC.MS: CORRECTED_DATA_FR -> CORRECTED_DATA
+    logger.info('Creating CORRECTED_DATA = CORRECTED_DATA_FR...')
+    MSs.addcol('CORRECTED_DATA', 'CORRECTED_DATA_FR')
 ### DONE
 
 #####################################################################################################
 # Self-cal cycle
 for c in range(maxIter):
     logger.info('Start selfcal cycle: '+str(c))
-    if c == 0:
-        with w.if_todo('c%02i_set_corrected_data' % c):
-            logger.info('Creating CORRECTED_DATA = CORRECTED_DATA_FR...')
-            MSs.addcol('CORRECTED_DATA', 'CORRECTED_DATA_FR')
 
     # get sourcedb
-    sourcedb = f'tgts-c{c}.skymodel'
+    sourcedb = f'self/skymodel/tgts-c{c}.skymodel'
     beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
     intrinsic = True # test always using intrinsic model
     if not os.path.exists(sourcedb):
@@ -378,10 +376,11 @@ for c in range(maxIter):
             # get wsclean skymodel of previous iteration
             wsc_src = f'img/wideM-{c-1}-sources-pb.txt' if intrinsic else f'img/wideM-{c-1}-sources.txt'
             sm = lsmtool.load(wsc_src, beamMS=beamMS if intrinsic else None)
+        
         # if using e.g. LoTSS, adjust for the frequency
         logger.debug(f'Extrapolating input skymodel fluxes from {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
         si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S144 = si_factor * S54
-        # sm.select(f'I>{0.01*si_factor}', applyBeam=intrinsic)  # keep only reasonably bright sources
+        # sm.select(f'I>{0.01*si_factor}', applyBeam=intrinsic)  # keep only reasonably bright sources, this make biases
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
         sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
         sm.setPatchPositions(method='wmean', applyBeam=intrinsic)
@@ -400,17 +399,17 @@ for c in range(maxIter):
         lib_dd_parallel.rename_skymodel_patches(sm, applyBeam=intrinsic)
 
         if c == 0 and remove3c:
-            # Add models of bright 3c sources to the sky model. model will be subtracted from data before imaging.
+            # Add models of bright 3c sources to the sky model. Model will be subtracted from data before imaging.
             sm = add_3c_models(sm, phasecentre=phasecentre, null_mid_freq=null_mid_freq)
         
-        sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
         make_source_regions(sm, c)
         sm.write(sourcedb, clobber=True)
         logger.info(f'Using {len(sm.getPatchNames())} patches.')
     else:
         logger.info(f'Load existing skymodel {sourcedb}')
         sm = lsmtool.load(sourcedb, beamMS=beamMS if intrinsic else None)
-        sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
+    
+    sm.plot(f'self/skymodel/patches-c{c}.png', 'patch')
 
     # copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
     sourcedb_basename = sourcedb.split('/')[-1]
@@ -422,7 +421,7 @@ for c in range(maxIter):
     patches = sm.getPatchNames()
     patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
     for patch in patches[np.argsort(patch_fluxes)[::-1]]:
-        logger.info(f'{patch}: {patch_fluxes[patches==patch][0]:.1f}Jy')
+        logger.info(f'{patch}: {patch_fluxes[patches==patch][0]:.1f} Jy')
 
     with w.if_todo('c%02i_init_model' % c):
         for patch in patches:
@@ -441,7 +440,7 @@ for c in range(maxIter):
             #                      weight='briggs -0.3', niter=10000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.9,
             #                      parallel_deconvolution=512, beam_size=15, join_channels='', fit_spectral_pol=3,
             #                      channels_out=MSs.getChout(4.e6), deconvolution_channels=3, pol='i', nmiter=5 )
-        ### DONE
+    ### DONE
 
     ### solve ionosphere phase - ms:SMOOTHED_DATA - > reset for all BUT most distant RS!
     with w.if_todo('c%02i_solve_tecRS' % c):
@@ -480,7 +479,7 @@ for c in range(maxIter):
                           sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
                           sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=75', log=f'$nameMS_solamp_c{c}.log', commandType="DP3")
 
-                losoto_parsets = [parset_dir + '/losoto-clip2.parset', parset_dir + '/losoto-plot-amp.parset']
+                losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
                 lib_util.run_losoto(s, f'amp-3C', [ms + f'/amp-3C.h5' for ms in MSs.getListStr()], losoto_parsets,
                                     plots_dir=f'self/plots/plots-amp-3C', h5_dir=f'self/solutions/')
                 ### DONE
@@ -565,7 +564,6 @@ for c in range(maxIter):
 
     # merge solutions into one h5parms for large scale image
     with w.if_todo('c%02i_merge_h5' % c):
-        sol_dir = 'self/solutions'
         lib_util.check_rm(f'{sol_dir}/cal-tec-merged-c{c}.h5')
         # make sure the h5parm directions are correctly set - this should actually work automatically with DP3 -> eventually fix this in the DP3 solve call
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec-CS-c{c}.h5', sourcedb)
@@ -710,7 +708,6 @@ for c in range(maxIter):
 
         with w.if_todo('c%02i_xtreg_subtract' % c):
             # Recreate MODEL_DATA of external region for subtraction
-            MSs.run('taql "update $pathMS set MODEL_DATA=0"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
             logger.info('Predict corrupted model of external region (wsclean)...')
             s.add(f'wsclean -predict -padding 1.8 -name img/wideMext-{c} -j {s.max_processors} -channels-out {channels_out} \
                     -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
@@ -738,6 +735,7 @@ for c in range(maxIter):
             MSs.addcol('SUBFIELD_DATA','CORRECTED_DATA_FR')
             logger.info('Subtracting external region model (SUBFIELD_DATA = CORRECTED_DATA_FR - MODEL_DATA)...')
             MSs.run('taql "update $pathMS set SUBFIELD_DATA = CORRECTED_DATA_FR - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+            
             if c > 0:
                 logger.info('Correct subfield DI amplitude...')
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
@@ -820,7 +818,6 @@ for c in range(maxIter):
 
         # merge solutions into one h5parms for plotting and apply
         with w.if_todo('c%02i_merge_h5_subfield' % c):
-            sol_dir = 'self/solutions'
             lib_util.check_rm(f'{sol_dir}/cal-tec-sf-merged-c{c}.h5')
             # reference, unflag and reset the added stations
             s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-sf-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec0-sf-c{c}.h5 {sol_dir}/cal-tec1-sf-c{c}.h5 {sol_dir}/cal-tec2-sf-c{c}.h5 \
@@ -902,8 +899,8 @@ for c in range(maxIter):
             # Flag on residuals (SUBFIELD_DATA)
             with w.if_todo('flag_residuals'):
                 logger.info('Flagging residuals (SUBFIELD_DATA)...')
-                MSs.run(
-                    'DP3 ' + parset_dir + '/DP3-flag.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA aoflagger.strategy=' + parset_dir + '/LBAdefaultwideband.lua',
+                MSs.run('DP3 ' + parset_dir + '/DP3-flag.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA \
+                    aoflagger.strategy=' + parset_dir + '/LBAdefaultwideband.lua',
                     log='$nameMS_flag-c' + str(c) + '.log', commandType='DP3')
 
             # Now subtract the sidelobe
@@ -939,7 +936,7 @@ for c in range(maxIter):
                 logger.info('Subtract corrupted sidelobe model (CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA)...')
                 MSs.run('taql "update $pathMS set CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
 
-            if c < 2 :
+            if c < 2:
                 # Only after the 0th and 1st iteration: apply the subfield solutions to the data.
                 with w.if_todo('c%02i_corr_sf_sols' % c):
                     logger.info('Correct subfield ionosphere (CORRECTED_DATA_FR -> CORRECTED_DATA)...')

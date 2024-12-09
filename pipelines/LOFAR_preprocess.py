@@ -39,7 +39,7 @@ else:
 
 def getName(ms):
     """
-    Get new MS name based on obs name and time
+    Get new MS name based on target name and obs id
     """
     # get pointing name
     with pt.table(ms+'/FIELD', readonly=True, ack=False) as t:
@@ -60,19 +60,6 @@ def getName(ms):
     # get freq
     with pt.table(ms+'/SPECTRAL_WINDOW', readonly=True, ack=False) as t:
         freq = t.getcell('REF_FREQUENCY',0)
-
-    # get time (saved in ms as MJD in seconds)
-    #with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
-    #    time = Time(t.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
-    #    time = time.iso.replace('-','').replace(' ','').replace(':','')[0:12]
-
-    #pattern = re.compile("^c[0-9][0-9]-.*$")
-    # is survey?
-    #if pattern.match(code):
-    #    cycle_obs, sou = code.split('_')
-    #    if not os.path.exists(cycle_obs+'/'+sou): os.makedirs(cycle_obs+'/'+sou)
-    #    return cycle_obs+'/'+sou+'/'+sou+'_t'+time+'_SB'+str(lib_util.lofar_nu2num(freq/1.e6))+'.MS'
-    #else:
     
     if not os.path.exists('mss/id'+obsid+'_-_'+code): os.makedirs('mss/id'+obsid+'_-_'+code)
     return 'mss/id'+obsid+'_-_'+code+'/'+code+'_SB%03i.MS' % lib_util.lofar_nu2num(freq/1.e6)
@@ -103,7 +90,7 @@ if len(MSs.getListStr()) == 0:
     sys.exit(0)
 
 ######################################
-if len(MSs.getListObj()) > 0:
+if len(MSs.getListObj()) > 1000:
     logger.warning('Many MSs detected, using only the first to determine the observing time (for rescaling/fixtables).')
     t = MSs.getListObj()[0].get_time()
     times = [int(t.iso.replace('-','')[0:8])] * len(MSs.getListObj())
