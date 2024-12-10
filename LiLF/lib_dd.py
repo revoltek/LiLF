@@ -81,7 +81,7 @@ class Direction(object):
 
         if apply_region:
             region_file = self.get_region()
-            for model_file in glob.glob(root+'*[0-9]-model.fits') + glob.glob(root+'*[0-9]-model-pb.fits'):
+            for model_file in glob.glob(root+'*[0-9]-model.fits') + glob.glob(root+'*[0-9]-model-pb.fits') + glob.glob(root+'*[0-9]-model-fpb.fits'):
                 lib_img.blank_image_reg(model_file, region_file, model_file, inverse=True, blankval=0.)
 
         self.model[typ] = root
