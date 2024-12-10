@@ -115,14 +115,14 @@ with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('ddserial')
     os.makedirs('ddserial/init')
-    os.system('cp self/skymodel/wideM-*model*.fits ddserial/init/')
-    os.system('cp '+sorted(glob.glob("self/images/wideM-*image.fits"))[-1]+' ddserial/init/')
+    os.system('cp ddparallel/skymodel/wideM-*model*.fits ddserial/init/')
+    os.system('cp '+sorted(glob.glob("ddparallel/images/wideM-*image.fits"))[-1]+' ddserial/init/')
     lib_util.check_rm('img')
     os.makedirs('img')
     lib_util.check_rm('mss-avg')
 ### DONE
 
-# use unaveraged MSs to be sure to get the same pixscale and imgsizepix of parallelself
+# use unaveraged MSs to be sure to get the same pixscale and imgsizepix of ddparallel
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 pixscale = MSs.getListObj()[0].getPixelScale() 
 imgsizepix = int(1.85*MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / pixscale) # roughly to null
@@ -156,8 +156,8 @@ ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 # initially use facets and h5parm from LOFAR_ddparallel
-facetregname = 'self/solutions/facets-c1.reg'
-interp_h5parm = 'self/solutions/cal-tec-merged-c1.h5'
+facetregname = 'ddparallel/solutions/facets-c1.reg'
+interp_h5parm = 'ddparallel/solutions/cal-tec-merged-c1.h5'
 correct_for = 'phase000'
 
 with w.if_todo('add_columns'):
@@ -339,9 +339,9 @@ for cmaj in range(maxIter):
         logger.info('Corrupt MODEL_DATA with subfield solutions...')
         # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
         MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                  cor.parmdb=self/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False', log='$nameMS_sf-correct.log', commandType='DP3')
+                  cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False', log='$nameMS_sf-correct.log', commandType='DP3')
         MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                  cor.parmdb=self/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True', log='$nameMS_sf-correct.log', commandType='DP3')
+                  cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True', log='$nameMS_sf-correct.log', commandType='DP3')
 
     ### DONE
 
@@ -400,10 +400,10 @@ for cmaj in range(maxIter):
             logger.info('Corrupt MODEL_DATA with subfield solutions...')
             # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
             MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                      cor.parmdb=self/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False',
+                      cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False',
                     log='$nameMS_sf-correct.log', commandType='DP3')
             MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                      cor.parmdb=self/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True',
+                      cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True',
                     log='$nameMS_sf-correct.log', commandType='DP3')
 
             # Add back the model previously subtracted for this dd-cal
@@ -457,7 +457,7 @@ for cmaj in range(maxIter):
                         log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
             ### DONE
 
-        # apply init - closest parallelself sol - dd-phases
+        # apply init - closest ddparallel sol - dd-phases
         with w.if_todo('%s-initcorr' % logstring):
             logger.info('Pre-imaging (uncorr)...')
             clean('%s-uncorr' % logstring, MSs_dir, res='normal', size=[d.size, d.size], masksigma=5)  # , imagereg=d.get_region())
