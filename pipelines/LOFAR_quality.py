@@ -20,7 +20,7 @@ w = lib_util.Walker('pipeline-quality.walker')
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_quality','parset_dir')
 self_dir = parset.get('LOFAR_quality','self_dir')
-ddcal_dir = parset.get('LOFAR_quality','ddcal_dir')
+ddserial_dir = parset.get('LOFAR_quality','ddserial_dir')
 
 def get_noise(fitsfile):
     eps = 1e-3; niter = 100; sigma = 5
@@ -53,8 +53,8 @@ with w.if_todo('cleaning'):
 MSs = lib_ms.AllMSs( glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False)
 ra, dec = MSs.getListObj()[0].getPhaseCentre()
 fwhm = MSs.getListObj()[0].getFWHM()
-qdict = {'self_c0_rms': None, 'self_c1_rms': None, 'ddcal_c0_rms': None,
-                'ddcal_c1_rms': None, 'nvss_ratio': None, 'nvss_match': None, 'flag_frac':None}
+qdict = {'self_c0_rms': None, 'self_c1_rms': None, 'ddserial_c0_rms': None,
+                'ddserial_c1_rms': None, 'nvss_ratio': None, 'nvss_match': None, 'flag_frac':None}
 # MS flags, count all flags and print %
 
 # self images [noise per cycle]
@@ -92,17 +92,17 @@ else:
     logger.warning(f'Total flagged: {flag_frac:.1%}')
 qdict['flag_frac'] = flag_frac
 
-# ddcal images [noise per cycle, astrometry, fluxscale]
-if os.path.exists('ddcal'):
-    img_ddcal_c0 = sorted(glob.glob(ddcal_dir+'/c00/images/wideDD-c00.residual*.fits'))[-1]
-    qdict['ddcal_c0_rms'] = get_noise(img_ddcal_c0)
-    logger.info('DDcal residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddcal_c0_rms']*1e3))
-    img_ddcal_c1 = sorted(glob.glob(ddcal_dir+'/c01/images/wideDD-c01.residual*.fits'))[-1]
-    qdict['ddcal_c1_rms'] = get_noise(img_ddcal_c1)
-    logger.info('DD-cal residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddcal_c1_rms']*1e3))
+# ddserial images [noise per cycle, astrometry, fluxscale]
+if os.path.exists('ddserial'):
+    img_ddserial_c0 = sorted(glob.glob(ddserial_dir+'/c00/images/wideDD-c00.residual*.fits'))[-1]
+    qdict['ddserial_c0_rms'] = get_noise(img_ddserial_c0)
+    logger.info('ddserial residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddserial_c0_rms']*1e3))
+    img_ddserial_c1 = sorted(glob.glob(ddserial_dir+'/c01/images/wideDD-c01.residual*.fits'))[-1]
+    qdict['ddserial_c1_rms'] = get_noise(img_ddserial_c1)
+    logger.info('DD-cal residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddserial_c1_rms']*1e3))
 
     with w.if_todo('process_ddimage'):
-        os.chdir(f'{ddcal_dir}/c01/images/') # bdsf raises error if image not in wdir?
+        os.chdir(f'{ddserial_dir}/c01/images/') # bdsf raises error if image not in wdir?
         img = bdsf.process_image(f'wideDD-c01.int.restored.fits', detection_image=f'wideDD-c01.app.restored.fits',
                                  thresh_isl=4.0, thresh_pix=5.0, rms_box=(150, 15),
                                  rms_map=True, mean_map='zero', ini_method='intensity', adaptive_rms_box=True,
@@ -124,7 +124,7 @@ if os.path.exists('ddcal'):
     qdict['nvss_ratio'] = median_nvss_ratio
     qdict['nvss_match'] = n_match
 else:
-    logger.warning('Skip "ddcal" tests, missing dir.')
+    logger.warning('Skip "ddserial" tests, missing dir.')
 
 
 with open('quality/quality.pickle', 'wb') as f:
