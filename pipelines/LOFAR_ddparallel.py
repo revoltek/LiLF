@@ -851,10 +851,8 @@ for c in range(maxIter):
                     wideMextpb = im.replace('wideM', 'wideMextpb')
                     os.system('cp %s %s' % (im, wideMextpb))
                     lib_img.blank_image_reg(wideMextpb, beamReg, blankval=0.)
-                logger.info('Set MODEL_DATA=0...')
-                MSs.run('taql "update $pathMS set MODEL_DATA = 0"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
-                # Recreate MODEL_DATA of external region for subtraction -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam
-                logger.info('Predict corrupted model of external region...')
+                # Recreate MODEL_DATA of internal region for subtraction
+                logger.info('Predict corrupted model of internal region...')
                 s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_processors} -channels-out {channels_out} \
                        -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam -facet-regions {facetregname} \
                        -apply-facet-solutions {sol_dir}/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
