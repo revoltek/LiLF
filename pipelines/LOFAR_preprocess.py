@@ -79,7 +79,7 @@ if not download_file is None:
                 ms = re.findall(r'L[0-9]*.*_SB[0-9]*_uv', line)[0]
                 if ms+'.MS' in downloaded or ms+'.dppp.MS' in downloaded: continue
                 if ms+'.MS' in glob.glob('*MS') or ms+'.dppp.MS' in glob.glob('*MS'): continue
-                s.add('wget -nv "'+line[:-1]+'" -O - | tar -x', log=ms+'_download.log', commandType='general')
+                s.add('wget -nv --no-check-certificate "'+line[:-1]+'" -O - | tar -x', log=ms+'_download.log', commandType='general')
             #    print 'wget -nv "'+line[:-1]+'" -O - | tar -x'
                 logger.debug('Queue download of: '+line[:-1])
             s.run(check=True, maxThreads=4)
