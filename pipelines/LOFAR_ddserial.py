@@ -474,7 +474,7 @@ for cmaj in range(maxIter):
         ### DONE
         
         # get initial noise and set iterators for timeint solutions
-        image = lib_img.Image('img/ddcalM-%s-pre-MFS-image.fits' % logstring, userReg=userReg)
+        image = lib_img.Image('img/ddserialM-%s-pre-MFS-image.fits' % logstring, userReg=userReg)
         d.rms_noise_init = image.getNoise(); rms_noise_pre = d.rms_noise_init
         d.mm_ratio_init = image.getMaxMinRatio(); mm_ratio_pre = d.mm_ratio_init
 
@@ -631,7 +631,7 @@ for cmaj in range(maxIter):
                 clean('%s' % logstringcal, MSs_dir, res='normal', size=[d.size,d.size])#, imagereg=d.get_region())
             ### DONE
 
-            image = lib_img.Image('img/ddcalM-%s-MFS-image.fits' % logstringcal, userReg=userReg)
+            image = lib_img.Image('img/ddserialM-%s-MFS-image.fits' % logstringcal, userReg=userReg)
             # something went wrong during last imaging, break
             if not os.path.exists(image.imagename):
                 logger.warning('Breaking because the imaging diverged...')
