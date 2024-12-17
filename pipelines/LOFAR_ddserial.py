@@ -158,7 +158,6 @@ if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 # initially use facets and h5parm from LOFAR_ddparallel
 facetregname = 'ddparallel/solutions/facets-c1.reg'
 interp_h5parm = 'ddparallel/solutions/cal-tec-merged-c1.h5'
-correct_for = 'phase000'
 
 with w.if_todo('add_columns'):
     logger.info('Add columns...')
@@ -173,7 +172,8 @@ full_image = lib_img.Image('ddserial/init/wideM-1-MFS-image.fits', userReg=userR
 
 for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
-    
+    correct_for = 'phase000' # if needed add amplitudes000 before imaging
+
     # cycle specific variables
     picklefile = 'ddserial/directions-c%02i.pickle' % cmaj
     #mask_ddcal = full_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
