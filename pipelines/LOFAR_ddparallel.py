@@ -715,7 +715,7 @@ for c in range(maxIter):
         with w.if_todo('c%02i_xtreg_subtract' % c):
             # Recreate MODEL_DATA of external region for subtraction
             logger.info('Predict corrupted model of external region (wsclean)...')
-            s.add(f'wsclean -predict -padding 1.8 -name img/wideMext-{c} -j {s.max_processors} -channels-out {channels_out} \
+            s.add(f'wsclean -predict -padding 1.8 -name img/wideMext-{c} -j {s.max_cpucores} -channels-out {channels_out} \
                     -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                     -apply-facet-solutions {sol_dir}/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
                 log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
@@ -753,7 +753,7 @@ for c in range(maxIter):
         with w.if_todo('c%02i_intreg_predict' % c):
             # Recreate MODEL_DATA of internal region for solve
             logger.info('Predict model of internal region...')
-            s.add(f'wsclean -predict -padding 1.8 -name img/wideMint-{c} -j {s.max_processors} -channels-out {channels_out} \
+            s.add(f'wsclean -predict -padding 1.8 -name img/wideMint-{c} -j {s.max_cpucores} -channels-out {channels_out} \
                     {MSs.getStrWsclean()}',
                   log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
             s.run(check=True)
@@ -859,7 +859,7 @@ for c in range(maxIter):
                     lib_img.blank_image_reg(wideMextpb, beamReg, blankval=0.)
                 # Recreate MODEL_DATA of internal region for subtraction
                 logger.info('Predict corrupted model of internal region...')
-                s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_processors} -channels-out {channels_out} \
+                s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_cpucores} -channels-out {channels_out} \
                        -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam -facet-regions {facetregname} \
                        -apply-facet-solutions {sol_dir}/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
                     log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
@@ -919,7 +919,7 @@ for c in range(maxIter):
                         lib_img.blank_image_reg(wideLRext, beamReg , blankval=0.)
 
                     logger.info('Predict model of sidelobe region (wsclean)...')
-                    s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_processors} -channels-out {channels_out_lr} {MSs.getStrWsclean()}',
+                    s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} -channels-out {channels_out_lr} {MSs.getStrWsclean()}',
                         log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
                     s.run(check=True)
                 elif sidelobe_predict_mode=='DP3':

@@ -416,10 +416,10 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
         MSs_files_clean = MSs_files
 
     wsc_parms = []
-    #reordering_processors = np.min([len(MSs_files_clean),s.max_processors])
+    #reordering_processors = np.min([len(MSs_files_clean),s.max_cpucores])
 
     # basic parms
-    wsc_parms.append( '-j '+str(s.max_processors)+' -reorder -parallel-reordering 4 ' )
+    wsc_parms.append( '-j '+str(s.max_cpucores)+' -reorder -parallel-reordering 4 ' )
     if 'use_idg' in kwargs.keys():
         if s.get_cluster() == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
             wsc_parms.append( '-idg-mode hybrid' )
@@ -473,7 +473,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
         # Test without reorder as it apperas to be faster
         # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
         command_string = 'wsclean -predict -padding 1.8 ' \
-                         '-j '+str(s.max_processors)+' '+' '.join(wsc_parms)
+                         '-j '+str(s.max_cpucores)+' '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean')
         s.run(check=True)
     if not keep_concat:
@@ -489,7 +489,7 @@ def run_DDF(s, logfile, **kwargs):
     ddf_parms = []
 
     # basic parms
-    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i --Misc-IgnoreDeprecationMarking=1 ' % (s.max_processors) )
+    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i --Misc-IgnoreDeprecationMarking=1 ' % (s.max_cpucores) )
 
     # cache dir
     if not 'Cache_Dir' in list(kwargs.keys()):
@@ -647,19 +647,19 @@ class Walker():
         logger.info('Done. Total time: '+delta)
 
 class Scheduler():
-    def __init__(self, qsub = None, maxThreads = None, max_processors = None, log_dir = 'logs', dry = False):
+    def __init__(self, qsub = None, maxThreads = None, max_cpucores = None, log_dir = 'logs', dry = False):
         """
         qsub:           if true call a shell script which call qsub and then wait
                         for the process to finish before returning
         maxThreads:    max number of parallel processes
         dry:            don't schedule job
-        max_processors: max number of processors in a node (ignored if qsub=False)
+        max_cpucores: max number of cpu cores avilable in a node
         """
         self.hostname = socket.gethostname()
         self.cluster = self.get_cluster()
         self.log_dir = log_dir
         self.qsub    = qsub
-        # if qsub/max_thread/max_processors not set, guess from the cluster
+        # if qsub/max_thread/max_cpucores not set, guess from the cluster
         # if they are set, double check number are reasonable
         if (self.qsub == None):
             if (self.cluster == "Hamburg"):
@@ -681,18 +681,18 @@ class Scheduler():
         else:
             self.maxThreads = maxThreads
 
-        if (max_processors == None):
+        if (max_cpucores == None):
             if   (self.cluster == "Hamburg"):
-                self.max_processors = 6
+                self.max_cpucores = 6
             else:
-                self.max_processors = multiprocessing.cpu_count()
+                self.max_cpucores = multiprocessing.cpu_count()
         else:
-            self.max_processors = max_processors
+            self.max_cpucores = max_cpucores
 
         self.dry = dry
 
         logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname + " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
-                     str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
+                     str(self.qsub) + ", max_cpucores: " + str(self.max_cpucores) + ").")
 
 
         self.action_list = []
@@ -757,7 +757,7 @@ class Scheduler():
 
 
         if processors == 'max':
-            processors = self.max_processors
+            processors = self.max_cpucores
 
         if self.qsub:
             # if number of processors not specified, try to find automatically
@@ -766,9 +766,9 @@ class Scheduler():
                 if ("DP3" == cmd[ : 4]):
                     processors = 1
                 if ("wsclean" == cmd[ : 7]):
-                    processors = self.max_processors
-            if (processors > self.max_processors):
-                processors = self.max_processors
+                    processors = self.max_cpucores
+            if (processors > self.max_cpucores):
+                processors = self.max_cpucores
 
             self.action_list.append([str(processors), '\'' + cmd + '\''])
         else:

@@ -32,7 +32,7 @@ def killms_data(s, logfile, MSs, imagename, outsols, clusterfile=None, colname='
             
         else:
             runcommand = "kMS.py --MSName %s --SolverType %s --PolMode %s --BaseImageName %s --dt %f --NIterKF %i --CovQ %f --LambdaKF 0.5 --NCPU %i --OutSolsName %s --InCol %s --DoBar 1 --SolsDir %s" \
-                    % (f, SolverType, PolMode, imagename, dt, niterkf, CovQ, s.max_processors, outsols, colname, sols_dir)
+                    % (f, SolverType, PolMode, imagename, dt, niterkf, CovQ, s.max_cpucores, outsols, colname, sols_dir)
 
             # set weights
             if robust is None:
