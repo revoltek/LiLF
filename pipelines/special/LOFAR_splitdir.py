@@ -189,7 +189,7 @@ with w.if_todo('correct_dutch_di'):
 with w.if_todo('predict'):
     # prepare model of central/external regions
     logger.info('Blanking direction region of model files and reverse...')
-    for im in glob.glob(f'{dutchdir}/img/wideDD-*model*.fits'):
+    for im in glob.glob(f'{dutchdir}/ddserial/c00/images/wideDD-*model*.fits'):
         wideMext = im.replace('wideDD',f'wideDD{name}').split('/')[-1]
         os.system('cp %s %s' % (im, wideMext))
         lib_img.blank_image_reg(wideMext, regfile, blankval = 0.)
@@ -197,14 +197,13 @@ with w.if_todo('predict'):
     # Recreate MODEL_DATA of external region for subtraction
     logger.info('Predict corrupted model of external region (wsclean)...')
     s.add(f'wsclean -predict -padding 1.8 -name {wideMext} -j {s.max_processors} -channels-out {len(glob.glob(f"{wideMext}*fbp.fits"))} \
-            -facet-regions {dutchdir}/ddcal/c00/images/wideDD-c00_facets.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
-            -apply-facet-solutions {dutchdir}/ddcal/c00/solutions/interp.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
+            -facet-regions {dutchdir}/ddserial/c00/images/wideDD-c00_facets.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
+            -apply-facet-solutions {dutchdir}/ddserial/c00/solutions/interp.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
           log='wscleanPRE.log', commandType='wsclean', processors='max')
     # Set to zero for non-dutch baselines
     MSs.run('taql "update $pathMS set MODEL_DATA=0 WHERE ANTENNA1 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME ! \
                          ~p/[CR]S*/] && ANTENNA2 in [SELECT ROWID() FROM ::ANTENNA WHERE NAME ! ~p/[CR]S*/]"', log='$nameMS_resetISmodel.log', commandType='general')
     s.run(check=True)
-
 
 with w.if_todo('subtract'):
     MSs.addcol('SUBTRACTED_DATA', 'CORRECTED_DATA')
