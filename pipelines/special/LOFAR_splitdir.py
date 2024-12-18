@@ -163,13 +163,13 @@ with w.if_todo('predict'):
     # prepare model of central/external regions
     logger.info('Blanking direction region of model files and reverse...')
     for im in glob.glob(f'{dutchdir}/img/wideDD-*model*.fits'):
-        wideMreg = im.replace('wideDD',f'wideDD{name}').split('/')[-1]
-        os.system('cp %s %s' % (im, wideMreg))
-        lib_img.blank_image_reg(wideMreg, regfile, blankval = 0.)
+        wideMext = im.replace('wideDD',f'wideDD{name}').split('/')[-1]
+        os.system('cp %s %s' % (im, wideMext))
+        lib_img.blank_image_reg(wideMext, regfile, blankval = 0.)
 
     # Recreate MODEL_DATA of external region for subtraction
     logger.info('Predict corrupted model of external region (wsclean)...')
-    s.add(f'wsclean -predict -padding 1.8 -name wideDDext-c00 -j {s.max_processors} -channels-out {len(glob.glob("wideDDext-c00-0*fbp.fits"))} \
+    s.add(f'wsclean -predict -padding 1.8 -name {wideMext} -j {s.max_processors} -channels-out {len(glob.glob(f"{wideMext}*fbp.fits"))} \
             -facet-regions {dutchdir}/ddcal/c00/images/wideDD-c00_facets.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
             -apply-facet-solutions {dutchdir}/ddcal/c00/solutions/interp.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
           log='wscleanPRE.log', commandType='wsclean', processors='max')
@@ -280,16 +280,11 @@ for p in close_pointings:
               log='wscleanPRE.log', commandType='wsclean', processors='max')
         s.run(check=True)
 
-    with w.if_todo('subtract_rest_'+p):
-
-
-    # Phase shift in the target location
 
 if no_selfcal: # finish here
     logger.info('No selfcal option is set in lilf.config. Done.')
     sys.exit(0)
 
-MSs_extract = lib_ms.AllMSs(glob.glob('mss-extract/shiftavg/*.MS-extract'), s)
 
 # initial imaging to get the model in the MODEL_DATA (could also be done using the Dico DDFacet model)
 do_beam = len(close_pointings) > 1 # if > 1 pointing, correct beam every cycle, otherwise only at the end.
