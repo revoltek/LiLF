@@ -39,7 +39,7 @@ else:
 
 def getName(ms):
     """
-    Get new MS name based on obs name and time
+    Get new MS name based on target name and obs id
     """
     # get pointing name
     with pt.table(ms+'/FIELD', readonly=True, ack=False) as t:
@@ -60,19 +60,6 @@ def getName(ms):
     # get freq
     with pt.table(ms+'/SPECTRAL_WINDOW', readonly=True, ack=False) as t:
         freq = t.getcell('REF_FREQUENCY',0)
-
-    # get time (saved in ms as MJD in seconds)
-    #with pt.table(ms+'/OBSERVATION', readonly=True, ack=False) as t:
-    #    time = Time(t.getcell('TIME_RANGE',0)[0]/(24*3600.), format='mjd')
-    #    time = time.iso.replace('-','').replace(' ','').replace(':','')[0:12]
-
-    #pattern = re.compile("^c[0-9][0-9]-.*$")
-    # is survey?
-    #if pattern.match(code):
-    #    cycle_obs, sou = code.split('_')
-    #    if not os.path.exists(cycle_obs+'/'+sou): os.makedirs(cycle_obs+'/'+sou)
-    #    return cycle_obs+'/'+sou+'/'+sou+'_t'+time+'_SB'+str(lib_util.lofar_nu2num(freq/1.e6))+'.MS'
-    #else:
     
     if not os.path.exists('mss/id'+obsid+'_-_'+code): os.makedirs('mss/id'+obsid+'_-_'+code)
     return 'mss/id'+obsid+'_-_'+code+'/'+code+'_SB%03i.MS' % lib_util.lofar_nu2num(freq/1.e6)
@@ -92,7 +79,7 @@ if not download_file is None:
                 ms = re.findall(r'L[0-9]*.*_SB[0-9]*_uv', line)[0]
                 if ms+'.MS' in downloaded or ms+'.dppp.MS' in downloaded: continue
                 if ms+'.MS' in glob.glob('*MS') or ms+'.dppp.MS' in glob.glob('*MS'): continue
-                s.add('wget -nv "'+line[:-1]+'" -O - | tar -x', log=ms+'_download.log', commandType='general')
+                s.add('wget -nv --no-check-certificate "'+line[:-1]+'" -O - | tar -x', log=ms+'_download.log', commandType='general')
             #    print 'wget -nv "'+line[:-1]+'" -O - | tar -x'
                 logger.debug('Queue download of: '+line[:-1])
             s.run(check=True, maxThreads=4)
@@ -103,7 +90,7 @@ if len(MSs.getListStr()) == 0:
     sys.exit(0)
 
 ######################################
-if len(MSs.getListObj()) > 0:
+if len(MSs.getListObj()) > 1000:
     logger.warning('Many MSs detected, using only the first to determine the observing time (for rescaling/fixtables).')
     t = MSs.getListObj()[0].get_time()
     times = [int(t.iso.replace('-','')[0:8])] * len(MSs.getListObj())
@@ -159,7 +146,9 @@ if renameavg:
             logger.info('Min freq: %.2f MHz' % (minfreq/1e6))
             for MS in MSs.getListObj():
 
-                if 'HBA' in MS.getAntennaSet():
+                antennaset = MS.getAntennaSet()
+
+                if 'HBA' in antennaset:
                     logger.warning(f'Skipping HBA: deleting {MS.pathMS}')
                     lib_util.check_rm(MS.pathMS)
                     flog.write(MS.nameMS+'.MS\n') # after averaging to be sure no log is written if an error occurs
@@ -175,7 +164,7 @@ if renameavg:
                 #    avg_factor_f = int(nchan / 4)  # to 2 ch/SB
                 elif nchan % 8 == 0 and minfreq < 40e6:
                     avg_factor_f = int(nchan / 8)  # to 8 ch/SB
-                elif nchan % 8 == 0 and 'SPARSE' in MS.getAntennaSet():
+                elif nchan % 8 == 0 and 'SPARSE' in antennaset:
                     avg_factor_f = int(nchan / 8)  # to 8 ch/SB
                 elif nchan % 4 == 0:
                     avg_factor_f = int(nchan / 4)  # to 4 ch/SB
@@ -186,7 +175,7 @@ if renameavg:
                     sys.exit(1)
 
                 if keep_IS:
-                     avg_factor_f = int(nchan / 16) # to have the full FoV in LBA we need 32 ch/SB
+                     avg_factor_f = int(nchan / 16) # to have the full FoV in LBA we need 16 ch/SB
                 if avg_factor_f < 1: avg_factor_f = 1
 
                 avg_factor_t = int(np.round(2/timeint)) if keep_IS else int(np.round(4/timeint)) # to 4 sec (2 for IS)

@@ -34,6 +34,7 @@ parser.add_argument('--radecdist', '-r', dest='radecdist', help='ra,dec,dist in 
 parser.add_argument('--calonly', '-c', dest='calonly', action='store_true', help='Get only calibrator data.')
 parser.add_argument('--nocal', '-n', dest='nocal', action='store_true', help='Do not download calibrator data.')
 parser.add_argument('--nobug', '-b', dest='nobug', action='store_true', help='Remove observations taken turing the correlator bug in 2021.')
+parser.add_argument('--antennaset', '-a', dest='antennaset', default='LBA', help='AntennaSet must contain this string (default: LBA).')
 parser.add_argument('--quiet', '-q', dest='quiet', action='store_true', help='Limit the output.')
 args = parser.parse_args()
 
@@ -82,7 +83,6 @@ else:
     print('WARNING: using uris.pickle')
     uris = pickle.load(open('uris.pickle','rb'))
     print("Adding %i obs IDs." % len(uris))
-    print(uris)
 
 for project in projects:
     print("Quering project: %s" % project)
@@ -108,6 +108,12 @@ for project in projects:
             timeobs = observation.as_dict()['Observation.startTime']
             if timeobs.year == 2021 and ( (timeobs.month==2 and timeobs.day>=8) or (timeobs.month>2 and timeobs.month<8) or ( timeobs.month==8 and timeobs.day<=3) ):
                 continue
+
+        obsAntennaSet = observation.as_dict()['Observation.antennaSet']
+        if not args.antennaset in obsAntennaSet:
+            print(f'WARNING: skip {obsID} with antennaSet: {obsAntennaSet}.')
+            continue
+
         print("Querying ObservationID %i" % obsID, end='')
 
         # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried

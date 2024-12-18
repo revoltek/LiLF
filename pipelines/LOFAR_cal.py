@@ -25,7 +25,7 @@ data_dir = parset.get('LOFAR_cal', 'data_dir')
 skymodel = parset.get('LOFAR_cal', 'skymodel')
 imaging = parset.getboolean('LOFAR_cal', 'imaging')
 fillmissingedges = parset.getboolean('LOFAR_cal', 'fillmissingedges')
-sparse_sb = parset.getboolean('LOFAR_cal', 'sparse_sb') # change flagging to hande data that uses only alternating sb
+less_aggressive_flag = parset.getboolean('LOFAR_cal', 'less_aggressive_flag') # change flagging to hande data that uses only alternating sb
 develop = parset.getboolean('LOFAR_cal', 'develop') # for development, don't delete files
 bl2flag = parset.get('flag', 'stations')
 
@@ -112,7 +112,7 @@ with w.if_todo('concat_all'):
     logger.info('Concatenating data all (avg time %i)...' % timestep)
     lib_util.check_rm('concat_all.MS')
     s.add('DP3 ' + parset_dir + '/DP3-concat.parset msin="[' + ','.join(msg) + ']" msout=concat_all.MS \
-              msin.baseline="*&" avg.freqstep=' + str(freqstep) + ' avg.timestep=' + str(timestep),
+              msin.baseline=!CS003LBA avg.freqstep=' + str(freqstep) + ' avg.timestep=' + str(timestep),
           log='concat.log', commandType='DP3')
     s.run(check=True)
 ### DONE
@@ -448,7 +448,7 @@ with w.if_todo('cal_bp'):
                         sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.nchan=1',
                        log='$nameMS_solBP.log', commandType="DP3")
 
-    flag_parset = '/losoto-flag-sparse.parset' if sparse_sb else '/losoto-flag.parset'
+    flag_parset = '/losoto-flag-lessaggressive.parset' if less_aggressive_flag else '/losoto-flag.parset'
     lib_util.run_losoto(s, 'bp-sub', [ms + '/bp-sub.h5' for ms in MSs_concat_all.getListStr()],
                         [parset_dir + flag_parset])
 
@@ -644,8 +644,9 @@ if imaging:
         # Solve concat_all.MS:CORRECTED_DATA (only solve)
         logger.info('Calibrating slow leakage...')
         timestep = int(20*np.rint(120 / tint))  # brings down to 20min
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/fj.h5 sol.mode=fulljones \
-                            sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.nchan={str(2*small_freqstep)}',
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+                           sol.h5parm=$pathMS/fj.h5 sol.mode=fulljones sol.minvisratio=0 \
+                           sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.smoothnessconstraint=5e6',
                            log='$nameMS_solFJ.log', commandType="DP3")
 
         lib_util.run_losoto(s, 'fj', [ms + '/fj.h5' for ms in MSs_concat_all.getListStr()],

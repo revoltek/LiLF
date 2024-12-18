@@ -81,7 +81,7 @@ class Direction(object):
 
         if apply_region:
             region_file = self.get_region()
-            for model_file in glob.glob(root+'*[0-9]-model.fits') + glob.glob(root+'*[0-9]-model-pb.fits'):
+            for model_file in glob.glob(root+'*[0-9]-model.fits') + glob.glob(root+'*[0-9]-model-pb.fits') + glob.glob(root+'*[0-9]-model-fpb.fits'):
                 lib_img.blank_image_reg(model_file, region_file, model_file, inverse=True, blankval=0.)
 
         self.model[typ] = root
@@ -365,21 +365,21 @@ class Grouper( object ):
         logger.info('Plotting: grouping_clusters.png')
         fig.savefig('grouping_clusters.png', bbox_inches='tight')
 
-def cut_skymodel(skymodel_in, skymodel_out, d, do_skydb=True, do_regions=False):
-    """
-    Load full skymodel and extract sources in the square around the calibrator of the given size
-    """
-    lsm = lsmtool.load(skymodel_in)
-    # select all sources within a sqare of patch size
-    lsm.select('Ra > %f' % (d.position[0]-(d.size/2)/np.cos(d.position[1]* np.pi / 180.)))
-    lsm.select('Ra < %f' % (d.position[0]+(d.size/2)/np.cos(d.position[1]* np.pi / 180.)))
-    lsm.select('Dec > %f' % (d.position[1]-d.size/2))
-    lsm.select('Dec < %f' % (d.position[1]+d.size/2))
-    if do_regions: lsm.write('ddcal/masks/regions-c%02i/%s.reg' % (cmaj,d.name), format='ds9', clobber=True)
-    lsm.write(dir_skymodel, format='makesourcedb', clobber=True)
-    lib_util.check_rm(dir_skydb)
-    s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (dir_skymodel, dir_skydb), log='makesourcedb_cl.log', commandType='general' )
-    s.run(check=True)
+#def cut_skymodel(skymodel_in, skymodel_out, d, do_skydb=True, do_regions=False):
+#    """
+#    Load full skymodel and extract sources in the square around the calibrator of the given size
+#    """
+#    lsm = lsmtool.load(skymodel_in)
+#    # select all sources within a sqare of patch size
+#    lsm.select('Ra > %f' % (d.position[0]-(d.size/2)/np.cos(d.position[1]* np.pi / 180.)))
+#    lsm.select('Ra < %f' % (d.position[0]+(d.size/2)/np.cos(d.position[1]* np.pi / 180.)))
+#    lsm.select('Dec > %f' % (d.position[1]-d.size/2))
+#    lsm.select('Dec < %f' % (d.position[1]+d.size/2))
+#    if do_regions: lsm.write('ddserial/masks/regions-c%02i/%s.reg' % (cmaj,d.name), format='ds9', clobber=True)
+#    lsm.write(dir_skymodel, format='makesourcedb', clobber=True)
+#    lib_util.check_rm(dir_skydb)
+#    s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (dir_skymodel, dir_skydb), log='makesourcedb_cl.log', commandType='general' )
+#    s.run(check=True)
 
 def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
     """
