@@ -179,14 +179,12 @@ with w.if_todo('correct_dutch_di'):
     lib_util.run_wsclean(s, 'wsclean-test0.log', MSs.getStrWsclean(), name=f'img/dutchdicorr',
                          data_column='CORRECTED_DATA', size=3000, scale=f'4arcsec',
                          weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
-                         no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, beam_size=15, mgain=0.85, nmiter=12,
+                         no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.85, nmiter=12,
                          parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
                          join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
                          deconvolution_channels=3, baseline_averaging='',
                          multiscale='', multiscale_scale_bias=0.7, pol='i')
 ### DONE
-
-sys.exit()
 
 with w.if_todo('predict'):
     # prepare model of central/external regions
@@ -207,13 +205,29 @@ with w.if_todo('predict'):
                          ~p/[CR]S*/] && ANTENNA2 in [SELECT ROWID() FROM ::ANTENNA WHERE NAME ! ~p/[CR]S*/]"', log='$nameMS_resetISmodel.log', commandType='general')
     s.run(check=True)
 
-sys.exit()
 
 with w.if_todo('subtract'):
     MSs.addcol('SUBTRACTED_DATA', 'CORRECTED_DATA')
     logger.info('Subtracting external region model (SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
             log='$nameMS_taql.log', commandType='general')
+    lib_util.run_wsclean(s, 'wsclean-test0.log', MSs.getStrWsclean(), name=f'img/dutchsub',
+                         data_column='CORRECTED_DATA', size=3000, scale=f'4arcsec',
+                         weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
+                         no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.85, nmiter=12,
+                         parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
+                         join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
+                         deconvolution_channels=3, baseline_averaging='',
+                         multiscale='', multiscale_scale_bias=0.7, pol='i')
+    lib_util.run_wsclean(s, 'wsclean-test0.log', MSs.getStrWsclean(), name=f'img/allsub',
+                         data_column='CORRECTED_DATA', size=6000, scale=f'0.5arcsec',
+                         weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
+                         no_update_model_required='', minuv_l=30, mgain=0.85, nmiter=12,
+                         parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
+                         join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
+                         deconvolution_channels=3, baseline_averaging='', multiscale='', multiscale_scale_bias=0.7, pol='i')
+
+sys.exit()
 
 with w.if_todo('phaseshift'):
     t_avg_factor = int(round(16/MSs.getListObj()[0].getTimeInt()))
