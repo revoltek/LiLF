@@ -329,11 +329,11 @@ for cmaj in range(maxIter):
     with w.if_todo('c%02i-fullpredict' % cmaj):
         # wsclean predict - from ddparallel in cycle 0, otherwise from previous iteration
         logger.info('Predict full model...')
-        s.add(f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_processors} -channels-out {ch_out} \
+        s.add(f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_cpucores} -channels-out {ch_out} \
                 -facet-regions {facetregname} -apply-facet-solutions {interp_h5parm} {correct_for} \
                 -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                 -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
-              log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean', processors='max')
+              log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean')
         s.run(check=True)
 
         logger.info('Corrupt MODEL_DATA with subfield solutions...')
@@ -392,11 +392,11 @@ for cmaj in range(maxIter):
 
             logger.info('Predict model...')
             # Predict - ms:MODEL_DATA
-            s.add(f'wsclean -predict -padding 1.8 -name {d.get_model("init")} -j {s.max_processors} -channels-out {ch_out} \
+            s.add(f'wsclean -predict -padding 1.8 -name {d.get_model("init")} -j {s.max_cpucores} -channels-out {ch_out} \
                 -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                 -facet-regions {facetregname} -apply-facet-solutions {interp_h5parm} {correct_for} \
                 -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
-                log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
+                log='wscleanPRE-'+logstring+'.log', commandType='wsclean')
             s.run(check=True)
 
             logger.info('Corrupt MODEL_DATA with subfield solutions...')
@@ -929,12 +929,12 @@ with w.if_todo('output-lres'):
 
     # now make a low res and source subtracted map for masking extended sources
     logger.info('Predicting DD-corrupted...')
-    s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+    s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_cpucores)+' -channels-out '+str(ch_out)+' \
                     -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                     -facet-regions '+facetregname+' \
                     -apply-facet-solutions '+interp_h5parm+' amplitude000,phase000 \
                     -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                    log='wscleanPRE4LR-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
+                    log='wscleanPRE4LR-c'+str(cmaj)+'.log', commandType='wsclean')
     s.run(check=True)
 
     logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
@@ -954,8 +954,7 @@ with w.if_todo('output-lres'):
 
 with w.if_todo('output_PB'):
     logger.info('Make primary beam...')
-    s.add('makepb.py -o ddserial/primarybeam.fits -s 10 -p 120 %s' % MSs.getStrWsclean(),
-          log='makepb.log', commandType='python', processors='max')
+    s.add('makepb.py -o ddserial/primarybeam.fits -s 10 -p 120 %s' % MSs.getStrWsclean(), log='makepb.log', commandType='python')
     s.run(check=True)
 ### DONE
 

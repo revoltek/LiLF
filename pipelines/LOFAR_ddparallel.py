@@ -491,7 +491,9 @@ for c in range(maxIter):
                 for patch in _3c_patches:
                     logger.info(f'Subtracting {patch}...')
                     # Corrupt MODEL_DATA with amplitude, set MODEL_DATA = 0 where data are flagged, then unflag everything
+                    clean_empty(MSs,f'{patch}_model', f'{patch}')
                     corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
+                    clean_empty(MSs,f'{patch}_modelcorr', f'{patch}')
                     MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
                     
                     MSs.run(
@@ -499,11 +501,14 @@ for c in range(maxIter):
                         log = f'$nameMS_subtract_{patch}.log', 
                         commandType = 'general'
                     )
+                    clean_empty(MSs,f'{patch}_cdfr', 'CORRECTED_DATA_FR')
+
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
                         log = f'$nameMS_subtract_{patch}.log', 
                         commandType = 'general'
                     )
+                    clean_empty(MSs,f'{patch}_cd', 'CORRECTED_DATA')
                     
                     MSs.deletecol(patch)
                     sm = lsmtool.load(sourcedb, beamMS=beamMS)
@@ -515,6 +520,7 @@ for c in range(maxIter):
 
                 MSs.deletecol('FLAG_BKP')  
             ### DONE
+    sys.exit()
 
     ########################### AMP-CAL PART ####################################
     # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
@@ -709,10 +715,10 @@ for c in range(maxIter):
         with w.if_todo('c%02i_xtreg_subtract' % c):
             # Recreate MODEL_DATA of external region for subtraction
             logger.info('Predict corrupted model of external region (wsclean)...')
-            s.add(f'wsclean -predict -padding 1.8 -name img/wideMext-{c} -j {s.max_processors} -channels-out {channels_out} \
+            s.add(f'wsclean -predict -padding 1.8 -name img/wideMext-{c} -j {s.max_cpucores} -channels-out {channels_out} \
                     -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                     -apply-facet-solutions {sol_dir}/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
-                log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
+                log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
             s.run(check=True)
 
             # # Add model to MODEL_DATA
@@ -747,9 +753,9 @@ for c in range(maxIter):
         with w.if_todo('c%02i_intreg_predict' % c):
             # Recreate MODEL_DATA of internal region for solve
             logger.info('Predict model of internal region...')
-            s.add(f'wsclean -predict -padding 1.8 -name img/wideMint-{c} -j {s.max_processors} -channels-out {channels_out} \
+            s.add(f'wsclean -predict -padding 1.8 -name img/wideMint-{c} -j {s.max_cpucores} -channels-out {channels_out} \
                     {MSs.getStrWsclean()}',
-                  log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
+                  log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
             s.run(check=True)
         ### DONE
 
@@ -853,10 +859,10 @@ for c in range(maxIter):
                     lib_img.blank_image_reg(wideMextpb, beamReg, blankval=0.)
                 # Recreate MODEL_DATA of internal region for subtraction
                 logger.info('Predict corrupted model of internal region...')
-                s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_processors} -channels-out {channels_out} \
+                s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_cpucores} -channels-out {channels_out} \
                        -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam -facet-regions {facetregname} \
                        -apply-facet-solutions {sol_dir}/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
-                    log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
+                    log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
                 s.run(check=True)
 
                 # subtract internal region from CORRECTED_DATA_FR to create SUBFIELD_DATA
@@ -913,8 +919,8 @@ for c in range(maxIter):
                         lib_img.blank_image_reg(wideLRext, beamReg , blankval=0.)
 
                     logger.info('Predict model of sidelobe region (wsclean)...')
-                    s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_processors} -channels-out {channels_out_lr} {MSs.getStrWsclean()}',
-                        log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean', processors='max')
+                    s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} -channels-out {channels_out_lr} {MSs.getStrWsclean()}',
+                        log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
                     s.run(check=True)
                 elif sidelobe_predict_mode=='DP3':
                     logger.info('Predict model of sidelobe region (DP3)...')

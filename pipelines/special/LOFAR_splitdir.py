@@ -169,7 +169,7 @@ with w.if_todo('predict'):
 
     # Recreate MODEL_DATA of external region for subtraction
     logger.info('Predict corrupted model of external region (wsclean)...')
-    s.add(f'wsclean -predict -padding 1.8 -name {wideMext} -j {s.max_processors} -channels-out {len(glob.glob(f"{wideMext}*fbp.fits"))} \
+    s.add(f'wsclean -predict -padding 1.8 -name {wideMext} -j {s.max_cpucores} -channels-out {len(glob.glob(f"{wideMext}*fbp.fits"))} \
             -facet-regions {dutchdir}/ddcal/c00/images/wideDD-c00_facets.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
             -apply-facet-solutions {dutchdir}/ddcal/c00/solutions/interp.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
           log='wscleanPRE.log', commandType='wsclean', processors='max')
@@ -273,7 +273,7 @@ for p in close_pointings:
 
         facet_path = f'extract/init/{p}/wideDD-{highest_ddcal}_facets.reg'
         #TODO apply beam here when bug is fixed...
-        s.add(f'wsclean -predict -padding 1.8 -name extract/init/{p}/wideDDext-{highest_ddcal} -j ' + str(s.max_processors) + ' -channels-out ' + str(
+        s.add(f'wsclean -predict -padding 1.8 -name extract/init/{p}/wideDDext-{highest_ddcal} -j ' + str(s.max_cpucores) + ' -channels-out ' + str(
             ch_out) + ' -facet-regions ' + facet_path + ' -diagonal-solutions -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
             -apply-facet-solutions ' + dde_h5parm + ' ' + correct_for + ' \
             -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
