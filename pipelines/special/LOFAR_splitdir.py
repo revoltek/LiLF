@@ -159,6 +159,35 @@ MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s)
 
 max_uvw_m_dutch = MSs.getMaxBL(check_flags=True, dutch_only=True)
 
+
+with w.if_todo('correct_dutch_di'):
+    logger.info('Correcting FR (Dutch stations) DATA -> CORRECTED_DATA...')
+    # Correct FR with results of solve - TC.MS: DATA -> CORRECTED_DATA
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={dutchdir}/ddparallel/solutions/cal-fr.h5 \
+            cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType='DP3')
+    logger.info('Correcting phase (Dutch stations) CORRECTED_DATA -> CORRECTED_DATA...')
+    # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+            cor.parmdb={dutchdir}/ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000',
+            log='$nameMS_sf-correct.log', commandType='DP3')
+    # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('Correcting DI amplitude (Dutch stations) CORRECTED_DATA -> CORRECTED_DATA...')
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+                cor.parmdb={dutchdir}/ddparallel/solutions/cal-amp-di.h5 cor.correction=amplitudeSmooth ',
+            log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
+    logger.info('Test image (corrected)...')
+    lib_util.run_wsclean(s, 'wsclean-test0.log', MSs.getStrWsclean(), name=f'img/dutchdicorr',
+                         data_column='CORRECTED_DATA', size=3000, scale=f'4arcsec',
+                         weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
+                         no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, beam_size=15, mgain=0.85, nmiter=12,
+                         parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
+                         join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
+                         deconvolution_channels=3, baseline_averaging='',
+                         multiscale='', multiscale_scale_bias=0.7, pol='i')
+### DONE
+
+sys.exit()
+
 with w.if_todo('predict'):
     # prepare model of central/external regions
     logger.info('Blanking direction region of model files and reverse...')
