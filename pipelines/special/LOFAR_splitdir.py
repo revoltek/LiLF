@@ -159,10 +159,37 @@ MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s)
 
 max_uvw_m_dutch = MSs.getMaxBL(check_flags=True, dutch_only=True)
 
+
+with w.if_todo('correct_dutch_di'):
+    logger.info('Correcting FR (Dutch stations) DATA -> CORRECTED_DATA...')
+    # Correct FR with results of solve - TC.MS: DATA -> CORRECTED_DATA
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={dutchdir}/ddparallel/solutions/cal-fr.h5 \
+            cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType='DP3')
+    logger.info('Correcting phase (Dutch stations) CORRECTED_DATA -> CORRECTED_DATA...')
+    # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+            cor.parmdb={dutchdir}/ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000',
+            log='$nameMS_sf-correct.log', commandType='DP3')
+    # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('Correcting DI amplitude (Dutch stations) CORRECTED_DATA -> CORRECTED_DATA...')
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+                cor.parmdb={dutchdir}/ddparallel/solutions/cal-amp-di.h5 cor.correction=amplitudeSmooth ',
+            log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
+    logger.info('Test image (corrected)...')
+    lib_util.run_wsclean(s, 'wsclean-test0.log', MSs.getStrWsclean(), name=f'img/dutchdicorr',
+                         data_column='CORRECTED_DATA', size=3000, scale=f'4arcsec',
+                         weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
+                         no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.85, nmiter=12,
+                         parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
+                         join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
+                         deconvolution_channels=3, baseline_averaging='',
+                         multiscale='', multiscale_scale_bias=0.7, pol='i')
+### DONE
+
 with w.if_todo('predict'):
     # prepare model of central/external regions
     logger.info('Blanking direction region of model files and reverse...')
-    for im in glob.glob(f'{dutchdir}/img/wideDD-*model*.fits'):
+    for im in glob.glob(f'{dutchdir}/ddserial/c00/images/wideDD-*model*.fits'):
         wideMext = im.replace('wideDD',f'wideDD{name}').split('/')[-1]
         os.system('cp %s %s' % (im, wideMext))
         lib_img.blank_image_reg(wideMext, regfile, blankval = 0.)
@@ -170,21 +197,36 @@ with w.if_todo('predict'):
     # Recreate MODEL_DATA of external region for subtraction
     logger.info('Predict corrupted model of external region (wsclean)...')
     s.add(f'wsclean -predict -padding 1.8 -name {wideMext} -j {s.max_cpucores} -channels-out {len(glob.glob(f"{wideMext}*fbp.fits"))} \
-            -facet-regions {dutchdir}/ddcal/c00/images/wideDD-c00_facets.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
-            -apply-facet-solutions {dutchdir}/ddcal/c00/solutions/interp.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
+            -facet-regions {dutchdir}/ddserial/c00/images/wideDD-c00_facets.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
+            -apply-facet-solutions {dutchdir}/ddserial/c00/solutions/interp.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
           log='wscleanPRE.log', commandType='wsclean', processors='max')
     # Set to zero for non-dutch baselines
     MSs.run('taql "update $pathMS set MODEL_DATA=0 WHERE ANTENNA1 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME ! \
                          ~p/[CR]S*/] && ANTENNA2 in [SELECT ROWID() FROM ::ANTENNA WHERE NAME ! ~p/[CR]S*/]"', log='$nameMS_resetISmodel.log', commandType='general')
     s.run(check=True)
 
-sys.exit()
-
 with w.if_todo('subtract'):
     MSs.addcol('SUBTRACTED_DATA', 'CORRECTED_DATA')
     logger.info('Subtracting external region model (SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
             log='$nameMS_taql.log', commandType='general')
+    lib_util.run_wsclean(s, 'wsclean-test0.log', MSs.getStrWsclean(), name=f'img/dutchsub',
+                         data_column='CORRECTED_DATA', size=3000, scale=f'4arcsec',
+                         weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
+                         no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.85, nmiter=12,
+                         parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
+                         join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
+                         deconvolution_channels=3, baseline_averaging='',
+                         multiscale='', multiscale_scale_bias=0.7, pol='i')
+    lib_util.run_wsclean(s, 'wsclean-test0.log', MSs.getStrWsclean(), name=f'img/allsub',
+                         data_column='CORRECTED_DATA', size=6000, scale=f'0.5arcsec',
+                         weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
+                         no_update_model_required='', minuv_l=30, mgain=0.85, nmiter=12,
+                         parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
+                         join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
+                         deconvolution_channels=3, baseline_averaging='', multiscale='', multiscale_scale_bias=0.7, pol='i')
+
+sys.exit()
 
 with w.if_todo('phaseshift'):
     t_avg_factor = int(round(16/MSs.getListObj()[0].getTimeInt()))
