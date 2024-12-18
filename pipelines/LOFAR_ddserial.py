@@ -333,7 +333,7 @@ for cmaj in range(maxIter):
                 -facet-regions {facetregname} -apply-facet-solutions {interp_h5parm} {correct_for} \
                 -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                 -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
-              log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean', processors='max')
+              log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean')
         s.run(check=True)
 
         logger.info('Corrupt MODEL_DATA with subfield solutions...')
@@ -396,7 +396,7 @@ for cmaj in range(maxIter):
                 -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                 -facet-regions {facetregname} -apply-facet-solutions {interp_h5parm} {correct_for} \
                 -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
-                log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
+                log='wscleanPRE-'+logstring+'.log', commandType='wsclean')
             s.run(check=True)
 
             logger.info('Corrupt MODEL_DATA with subfield solutions...')
@@ -934,7 +934,7 @@ with w.if_todo('output-lres'):
                     -facet-regions '+facetregname+' \
                     -apply-facet-solutions '+interp_h5parm+' amplitude000,phase000 \
                     -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                    log='wscleanPRE4LR-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
+                    log='wscleanPRE4LR-c'+str(cmaj)+'.log', commandType='wsclean')
     s.run(check=True)
 
     logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
@@ -954,8 +954,7 @@ with w.if_todo('output-lres'):
 
 with w.if_todo('output_PB'):
     logger.info('Make primary beam...')
-    s.add('makepb.py -o ddserial/primarybeam.fits -s 10 -p 120 %s' % MSs.getStrWsclean(),
-          log='makepb.log', commandType='python', processors='max')
+    s.add('makepb.py -o ddserial/primarybeam.fits -s 10 -p 120 %s' % MSs.getStrWsclean(), log='makepb.log', commandType='python')
     s.run(check=True)
 ### DONE
 

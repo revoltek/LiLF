@@ -442,7 +442,7 @@ for p in close_pointings:
             ch_out) + ' -facet-regions ' + facet_path + ' -diagonal-solutions -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
             -apply-facet-solutions ' + dde_h5parm + ' ' + correct_for + ' \
             -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
-              log='wscleanPRE.log', commandType='wsclean', processors='max')
+            log='wscleanPRE.log', commandType='wsclean')
         s.run(check=True)
 
     with w.if_todo('subtract_rest_'+p):

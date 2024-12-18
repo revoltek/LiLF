@@ -335,14 +335,14 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
     for i, h5 in enumerate(h5s):
         if h5[-3:] == 'npz':
             newh5 = h5.replace('.npz','.h5')
-            s.add('killMS2H5parm.py -V --nofulljones %s %s ' % (newh5, h5), log='losoto-'+c+'.log', commandType="python", processors='max')
+            s.add('killMS2H5parm.py -V --nofulljones %s %s ' % (newh5, h5), log='losoto-'+c+'.log', commandType="python")
             s.run(check = True)
             h5s[i] = newh5
 
     # concat/move
     if len(h5s) > 1:
         check_rm(h5out)
-        s.add('H5parm_collector.py -V -s sol000 -o '+h5out+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
+        s.add('H5parm_collector.py -V -s sol000 -o '+h5out+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python")
         s.run(check = True)
     elif h5s[0] != h5out:
         os.system('cp -r %s %s' % (h5s[0], h5out) )
@@ -356,7 +356,7 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
 
     for parset in parsets:
         logger.debug('-- executing '+parset+'...')
-        s.add('losoto -V '+h5out+' '+parset, log='losoto-'+c+'.log', logAppend=True, commandType="python", processors='max')
+        s.add('losoto -V '+h5out+' '+parset, log='losoto-'+c+'.log', logAppend=True, commandType="python")
         s.run(check = True)
 
     if plots_dir is None:
@@ -416,7 +416,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
         MSs_files_clean = MSs_files
 
     wsc_parms = []
-    reordering_processors = np.min([len(MSs_files_clean),s.max_processors])
+    #reordering_processors = np.min([len(MSs_files_clean),s.max_processors])
 
     # basic parms
     wsc_parms.append( '-j '+str(s.max_processors)+' -reorder -parallel-reordering 4 ' )
@@ -452,7 +452,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
 
     # create command string
     command_string = 'wsclean '+' '.join(wsc_parms)
-    s.add(command_string, log=logfile, commandType='wsclean', processors='max')
+    s.add(command_string, log=logfile, commandType='wsclean')
     logger.info('Running WSClean...')
     s.run(check=True)
 
@@ -474,7 +474,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
         # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
         command_string = 'wsclean -predict -padding 1.8 ' \
                          '-j '+str(s.max_processors)+' '+' '.join(wsc_parms)
-        s.add(command_string, log=logfile, commandType='wsclean', processors='max')
+        s.add(command_string, log=logfile, commandType='wsclean')
         s.run(check=True)
     if not keep_concat:
         check_rm('wsclean_concat_*.MS')
@@ -508,7 +508,7 @@ def run_DDF(s, logfile, **kwargs):
 
     # create command string
     command_string = 'DDF.py '+' '.join(ddf_parms)
-    s.add(command_string, log=logfile, commandType='DDFacet', processors='max')
+    s.add(command_string, log=logfile, commandType='DDFacet')
     s.run(check=True)
 
 
@@ -756,7 +756,7 @@ class Scheduler():
             logger.debug('Running general: %s' % cmd)
 
 
-        if (processors != None and processors == 'max'):
+        if processors == 'max':
             processors = self.max_processors
 
         if self.qsub:
