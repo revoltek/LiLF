@@ -145,16 +145,17 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None,
         # get two solutions per solint (i.e. one per time step) for bright directions
         solutions_per_direction[model_column_fluxes > 4] = 2
         solutions_per_direction[model_column_fluxes > 8] = 4
-
+    
+    maxThreads = 1 if len(model_columns) > 30 else None
     if solmode == 'phase':
         MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec{tc}.h5 sol.solint={solint} \
                   sol.mode=scalarphase sol.smoothnessconstraint={smMHz}e6 sol.smoothnessreffrequency=54e6 sol.nchan=1 {antennaconstraint} \
                   sol.modeldatacolumns="[{",".join(model_columns)}]" sol.solutions_per_direction="{np.array2string(solutions_per_direction, separator=",")}"',
-                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
+                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3', maxThreads=maxThreads)
     else:
         MSs.run(f'DP3 {parset_dir}/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec{tc}.h5 sol.solint={solint} {antennaconstraint} \
                   sol.modeldatacolumns="[{",".join(model_columns)}]" sol.mode={solmode}',
-                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
+                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3', maxThreads=maxThreads)
 
     lib_util.run_losoto(s, f'tec{tc}-c{c}', [ms+f'/tec{tc}.h5' for ms in MSs.getListStr()], losoto_parsets, 
                         plots_dir=f'{plot_dir}/plots-tec{tc}-c{c}', h5_dir=sol_dir)
