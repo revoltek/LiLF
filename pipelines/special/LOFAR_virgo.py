@@ -191,7 +191,7 @@ with w.if_todo('init_model'):
     model = m87_model_hires if is_IS else m87_model
     n = len(glob.glob(f'{model}-[0-9]*-model.fits'))
     logger.info('Predict (wsclean: %s - chan: %i)...' % (model, n))
-    s.add(f'wsclean -predict -no-reorder -name {model} -j {s.max_processors} -use-wgridder -channels-out {n} {MSs.getStrWsclean()}',
+    s.add(f'wsclean -predict -no-reorder -name {model} -j {s.max_cpucores} -use-wgridder -channels-out {n} {MSs.getStrWsclean()}',
           log='wscleanPRE-init.log', commandType='wsclean', processors='max')
     s.run(check=True)
     # else:
@@ -359,7 +359,7 @@ for c in range(100):
             #     logger.info('Predict rest-field...')
             #     n = len(glob.glob(field_model + 'm87-field-[0-9]*-model.fits'))
             #     logger.info('Predict (wsclean: %s - chan: %i)...' % ('model-field', n))
-            #     s.add(f'wsclean -predict -name {field_model}m87-field -j {s.max_processors} -channels-out {n} {MSs.getStrWsclean()}',
+            #     s.add(f'wsclean -predict -name {field_model}m87-field -j {s.max_cpucores} -channels-out {n} {MSs.getStrWsclean()}',
             #           log='wscleanPRE-field.log', commandType='wsclean', processors='max')
             #     s.run(check=True)
             #
@@ -389,7 +389,7 @@ for c in range(100):
             #         log='$nameMS_smooth.log', commandType='python', maxThreads=8)
             #
             # logger.info('Get back Virgo A MODEL_DATA...')
-            # s.add(f'wsclean -predict -name {imagename} -j {s.max_processors} -channels-out {wsclean_params["channels_out"]} {MSs.getStrWsclean()}',
+            # s.add(f'wsclean -predict -name {imagename} -j {s.max_cpucores} -channels-out {wsclean_params["channels_out"]} {MSs.getStrWsclean()}',
             #       log='wscleanPRE-field.log', commandType='wsclean', processors='max')
             # s.run(check=True)
 logger.info("Done.")

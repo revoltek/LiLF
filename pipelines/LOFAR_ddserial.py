@@ -329,11 +329,11 @@ for cmaj in range(maxIter):
     with w.if_todo('c%02i-fullpredict' % cmaj):
         # wsclean predict - from ddparallel in cycle 0, otherwise from previous iteration
         logger.info('Predict full model...')
-        s.add(f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_processors} -channels-out {ch_out} \
+        s.add(f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_cpucores} -channels-out {ch_out} \
                 -facet-regions {facetregname} -apply-facet-solutions {interp_h5parm} {correct_for} \
                 -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                 -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
-              log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean', processors='max')
+              log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean')
         s.run(check=True)
 
         logger.info('Corrupt MODEL_DATA with subfield solutions...')
@@ -392,11 +392,11 @@ for cmaj in range(maxIter):
 
             logger.info('Predict model...')
             # Predict - ms:MODEL_DATA
-            s.add(f'wsclean -predict -padding 1.8 -name {d.get_model("init")} -j {s.max_processors} -channels-out {ch_out} \
+            s.add(f'wsclean -predict -padding 1.8 -name {d.get_model("init")} -j {s.max_cpucores} -channels-out {ch_out} \
                 -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                 -facet-regions {facetregname} -apply-facet-solutions {interp_h5parm} {correct_for} \
                 -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
-                log='wscleanPRE-'+logstring+'.log', commandType='wsclean', processors='max')
+                log='wscleanPRE-'+logstring+'.log', commandType='wsclean')
             s.run(check=True)
 
             logger.info('Corrupt MODEL_DATA with subfield solutions...')
@@ -581,7 +581,7 @@ for cmaj in range(maxIter):
                     # Calibration - ms:CORRECTED_DATA
                     # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                     MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp1)+' sol.nchan='+str(solch_amp1)+' sol.minvisratio=0.5 \
+                        sol.mode=diagonal sol.solint='+str(solint_amp1)+' sol.nchan='+str(solch_amp1)+' sol.minvisratio=0.3 \
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DP3')
 
@@ -605,7 +605,7 @@ for cmaj in range(maxIter):
                     logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
                     # Calibration - ms:CORRECTED_DATA
                     MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.minvisratio=0.5',
+                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.minvisratio=0.3',
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DP3')
 
                     if d.peel_off:
@@ -929,12 +929,12 @@ with w.if_todo('output-lres'):
 
     # now make a low res and source subtracted map for masking extended sources
     logger.info('Predicting DD-corrupted...')
-    s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_processors)+' -channels-out '+str(ch_out)+' \
+    s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_cpucores)+' -channels-out '+str(ch_out)+' \
                     -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
                     -facet-regions '+facetregname+' \
                     -apply-facet-solutions '+interp_h5parm+' amplitude000,phase000 \
                     -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                    log='wscleanPRE4LR-c'+str(cmaj)+'.log', commandType='wsclean', processors='max')
+                    log='wscleanPRE4LR-c'+str(cmaj)+'.log', commandType='wsclean')
     s.run(check=True)
 
     logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
@@ -954,8 +954,7 @@ with w.if_todo('output-lres'):
 
 with w.if_todo('output_PB'):
     logger.info('Make primary beam...')
-    s.add('makepb.py -o ddserial/primarybeam.fits -s 10 -p 120 %s' % MSs.getStrWsclean(),
-          log='makepb.log', commandType='python', processors='max')
+    s.add('makepb.py -o ddserial/primarybeam.fits -s 10 -p 120 %s' % MSs.getStrWsclean(), log='makepb.log', commandType='python')
     s.run(check=True)
 ### DONE
 
