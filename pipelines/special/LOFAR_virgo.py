@@ -192,7 +192,7 @@ with w.if_todo('init_model'):
     n = len(glob.glob(f'{model}-[0-9]*-model.fits'))
     logger.info('Predict (wsclean: %s - chan: %i)...' % (model, n))
     s.add(f'wsclean -predict -no-reorder -name {model} -j {s.max_cpucores} -use-wgridder -channels-out {n} {MSs.getStrWsclean()}',
-          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
+          log='wscleanPRE-init.log', commandType='wsclean')
     s.run(check=True)
     # else:
     #     copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
@@ -360,7 +360,7 @@ for c in range(100):
             #     n = len(glob.glob(field_model + 'm87-field-[0-9]*-model.fits'))
             #     logger.info('Predict (wsclean: %s - chan: %i)...' % ('model-field', n))
             #     s.add(f'wsclean -predict -name {field_model}m87-field -j {s.max_cpucores} -channels-out {n} {MSs.getStrWsclean()}',
-            #           log='wscleanPRE-field.log', commandType='wsclean', processors='max')
+            #           log='wscleanPRE-field.log', commandType='wsclean')
             #     s.run(check=True)
             #
             # logger.info('TEST EMPTY')
@@ -390,7 +390,7 @@ for c in range(100):
             #
             # logger.info('Get back Virgo A MODEL_DATA...')
             # s.add(f'wsclean -predict -name {imagename} -j {s.max_cpucores} -channels-out {wsclean_params["channels_out"]} {MSs.getStrWsclean()}',
-            #       log='wscleanPRE-field.log', commandType='wsclean', processors='max')
+            #       log='wscleanPRE-field.log', commandType='wsclean')
             # s.run(check=True)
 logger.info("Done.")
 

@@ -651,9 +651,9 @@ class Scheduler():
         """
         qsub:           if true call a shell script which call qsub and then wait
                         for the process to finish before returning
-        maxThreads:    max number of parallel processes
+        maxThreads:     max number of parallel processes
         dry:            don't schedule job
-        max_cpucores: max number of cpu cores avilable in a node
+        max_cpucores:   max number of cpu cores avilable in a node
         """
         self.hostname = socket.gethostname()
         self.cluster = self.get_cluster()
@@ -691,9 +691,9 @@ class Scheduler():
 
         self.dry = dry
 
-        logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname + " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
-                     str(self.qsub) + ", max_cpucores: " + str(self.max_cpucores) + ").")
-
+        logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname + 
+                    " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
+                    str(self.qsub) + ", max_cpucores: " + str(self.max_cpucores) + ").")
 
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
@@ -714,21 +714,19 @@ class Scheduler():
             return "Herts"
         elif ('leidenuniv' in hostname):
             return "Leiden"
-        elif (hostname[0 : 3] == 'lof'):
-            return "CEP3"
         else:
             logger.warning('Hostname %s unknown.' % hostname)
             return "Unknown"
 
 
-    def add(self, cmd = '', log = '', logAppend = True, commandType = '', processors = None):
+    def add(self, cmd = '', log = '', logAppend = True, commandType = '', qsub_cpucores = None):
         """
         Add a command to the scheduler list
         cmd:         the command to run
         log:         log file name that can be checked at the end
-        logAppend:  if True append, otherwise replace
+        logAppend:   if True append, otherwise replace
         commandType: can be a list of known command types as "wsclean", "DP3", ...
-        processors:  number of processors to use, can be "max" to automatically use max number of processors per node
+        qsub_cpucores: number of cores to use, can be "max" to automatically use max number of cores per node
         """
 
         if (log != ''):
@@ -740,7 +738,6 @@ class Scheduler():
                 cmd += " > "
             cmd += log + " 2>&1"
 
-        # if running wsclean add the string
         if commandType == 'wsclean':
             logger.debug('Running wsclean: %s' % cmd)
         elif commandType == 'DP3':
@@ -755,22 +752,21 @@ class Scheduler():
         else:
             logger.debug('Running general: %s' % cmd)
 
-
-        if processors == 'max':
-            processors = self.max_cpucores
+        if qsub_cpucores == 'max':
+            qsub_cpucores = self.max_cpucores
 
         if self.qsub:
-            # if number of processors not specified, try to find automatically
-            if (processors == None):
-                processors = 1 # default use single CPU
+            # if number of cores not specified, try to find automatically
+            if (qsub_cpucores == None):
+                qsub_cpucores = 1 # default use single CPU
                 if ("DP3" == cmd[ : 4]):
-                    processors = 1
+                    qsub_cpucores = 1
                 if ("wsclean" == cmd[ : 7]):
-                    processors = self.max_cpucores
-            if (processors > self.max_cpucores):
-                processors = self.max_cpucores
+                    qsub_cpucores = self.max_cpucores
+            if (qsub_cpucores > self.max_cpucores):
+                qsub_cpucores = self.max_cpucores
 
-            self.action_list.append([str(processors), '\'' + cmd + '\''])
+            self.action_list.append([str(qsub_cpucores), '\'' + cmd + '\''])
         else:
             self.action_list.append(cmd)
 

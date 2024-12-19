@@ -307,7 +307,7 @@ for c in range(100):
                 logger.info('Peel - Predict init...')
                 s.add('wsclean -predict -name ' + imagename_peel + ' -j ' + str(s.max_cpucores) + ' -channels-out 2 \
                       -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
-                      log='wsclean-pre.log', commandType='wsclean', processors='max')
+                      log='wsclean-pre.log', commandType='wsclean')
                 s.run(check=True)
 
                 # add the source to peel back
@@ -353,7 +353,7 @@ for c in range(100):
                     lib_img.blank_image_reg(model_file, peel_region_file, blankval=0., inverse=True)
                 s.add('wsclean -predict -name ' + imagename_peel + ' -j ' + str(s.max_cpucores) + ' -channels-out 2 \
                       -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
-                      log='wsclean-pre.log', commandType='wsclean', processors='max')
+                      log='wsclean-pre.log', commandType='wsclean')
                 s.run(check=True)
 
                 # corrupt
@@ -377,7 +377,7 @@ for c in range(100):
             # ft models
             s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_cpucores)+' -channels-out 2 \
                   -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                  log='wsclean-pre.log', commandType='wsclean', processors='max')
+                  log='wsclean-pre.log', commandType='wsclean')
             s.run(check=True)
 
             # prepare new data
