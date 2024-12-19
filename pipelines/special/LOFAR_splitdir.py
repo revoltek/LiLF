@@ -155,7 +155,7 @@ if not regfile:
 dir_reg = lib_util.Region_helper(regfile)
 center = dir_reg.get_center() # center of the extract region
 
-MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s)
+MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s, check_flags=False, check_sun=False)
 
 max_uvw_m_dutch = MSs.getMaxBL(check_flags=True, dutch_only=True)
 
@@ -190,20 +190,21 @@ with w.if_todo('predict'):
     # prepare model of central/external regions
     logger.info('Blanking direction region of model files and reverse...')
     for im in glob.glob(f'{dutchdir}/ddserial/c00/images/wideDD-*model*.fits'):
-        wideMext = im.replace('wideDD',f'wideDD{name}').split('/')[-1]
+        wideMext = im.replace('wideDD-c00',f'wideDD-c00-{name}').split('/')[-1]
         os.system('cp %s %s' % (im, wideMext))
         lib_img.blank_image_reg(wideMext, regfile, blankval = 0.)
 
+    print(wideMext)
     # Recreate MODEL_DATA of external region for subtraction
     logger.info('Predict corrupted model of external region (wsclean)...')
-    s.add(f'wsclean -predict -padding 1.8 -name {wideMext} -j {s.max_cpucores} -channels-out {len(glob.glob(f"{wideMext}*fbp.fits"))} \
+    s.add(f'wsclean -predict -padding 1.8 -name wideDD-c00-{name} -j {s.max_cpucores} -channels-out {len(glob.glob(f"wideDD-c00-{name}*fpb.fits"))} \
             -facet-regions {dutchdir}/ddserial/c00/images/wideDD-c00_facets.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
             -apply-facet-solutions {dutchdir}/ddserial/c00/solutions/interp.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
           log='wscleanPRE.log', commandType='wsclean', processors='max')
+    s.run(check=True)
     # Set to zero for non-dutch baselines
     MSs.run('taql "update $pathMS set MODEL_DATA=0 WHERE ANTENNA1 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME ! \
                          ~p/[CR]S*/] && ANTENNA2 in [SELECT ROWID() FROM ::ANTENNA WHERE NAME ! ~p/[CR]S*/]"', log='$nameMS_resetISmodel.log', commandType='general')
-    s.run(check=True)
 
 with w.if_todo('subtract'):
     MSs.addcol('SUBTRACTED_DATA', 'CORRECTED_DATA')
