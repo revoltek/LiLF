@@ -83,7 +83,6 @@ else:
     print('WARNING: using uris.pickle')
     uris = pickle.load(open('uris.pickle','rb'))
     print("Adding %i obs IDs." % len(uris))
-    print(uris)
 
 for project in projects:
     print("Quering project: %s" % project)

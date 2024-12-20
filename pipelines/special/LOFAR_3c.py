@@ -305,9 +305,9 @@ for c in range(100):
 
                 # predict the source to peel
                 logger.info('Peel - Predict init...')
-                s.add('wsclean -predict -name ' + imagename_peel + ' -j ' + str(s.max_processors) + ' -channels-out 2 \
+                s.add('wsclean -predict -name ' + imagename_peel + ' -j ' + str(s.max_cpucores) + ' -channels-out 2 \
                       -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
-                      log='wsclean-pre.log', commandType='wsclean', processors='max')
+                      log='wsclean-pre.log', commandType='wsclean')
                 s.run(check=True)
 
                 # add the source to peel back
@@ -351,9 +351,9 @@ for c in range(100):
                 logger.info('Peel - Predict final...')
                 for model_file in glob.glob(imagename_peel + '*model.fits'):
                     lib_img.blank_image_reg(model_file, peel_region_file, blankval=0., inverse=True)
-                s.add('wsclean -predict -name ' + imagename_peel + ' -j ' + str(s.max_processors) + ' -channels-out 2 \
+                s.add('wsclean -predict -name ' + imagename_peel + ' -j ' + str(s.max_cpucores) + ' -channels-out 2 \
                       -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
-                      log='wsclean-pre.log', commandType='wsclean', processors='max')
+                      log='wsclean-pre.log', commandType='wsclean')
                 s.run(check=True)
 
                 # corrupt
@@ -375,9 +375,9 @@ for c in range(100):
                 lib_img.blank_image_reg(model_file, beam07reg, blankval=0., inverse=True)
 
             # ft models
-            s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 2 \
+            s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_cpucores)+' -channels-out 2 \
                   -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                  log='wsclean-pre.log', commandType='wsclean', processors='max')
+                  log='wsclean-pre.log', commandType='wsclean')
             s.run(check=True)
 
             # prepare new data

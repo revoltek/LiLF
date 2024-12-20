@@ -76,8 +76,8 @@ with w.if_todo('model'):
         im.rescaleModel(f)
         n = len(glob.glob(model_dir+'/img-[0-9]*-model.fits'))
         logger.info('Predict (wsclean: %s - chan: %i)...' % (model_dir, n))
-        s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channels-out '+str(n)+' '+MSs.getStrWsclean(), \
-              log='wscleanPRE-init.log', commandType='wsclean', processors='max')
+        s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_cpucores)+' -channels-out '+str(n)+' '+MSs.getStrWsclean(), \
+              log='wscleanPRE-init.log', commandType='wsclean')
         s.run(check=True)
     elif not skipmodel:
         logger.info('Predict (DP3)...')
@@ -234,8 +234,8 @@ for c in range(100):
         #im = lib_img.Image(imagename+'-MFS-image.fits')
         #im.rescaleModel(f)
         logger.info('Predict (wsclean: %s)...' % imagename)
-        s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out '+str(channels_out)+' '+MSs.getStrWsclean(), \
-              log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+        s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_cpucores)+' -channels-out '+str(channels_out)+' '+MSs.getStrWsclean(), \
+              log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean')
         s.run(check=True)
 
 #    # every 5 cycles: sub model and rescale model
@@ -252,8 +252,8 @@ for c in range(100):
 #                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16)
 # 
 #        #logger.info('Predict wide (wsclean)...')
-#        #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 32 '+MSs.getStrWsclean(), \
-#        #      log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+#        #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_cpucores)+' -channelsout 32 '+MSs.getStrWsclean(), \
+#        #      log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean')
 #        #s.run(check = True)
 #
 #        #logger.info('Sub low-res model...')

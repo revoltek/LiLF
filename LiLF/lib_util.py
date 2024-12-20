@@ -335,14 +335,14 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
     for i, h5 in enumerate(h5s):
         if h5[-3:] == 'npz':
             newh5 = h5.replace('.npz','.h5')
-            s.add('killMS2H5parm.py -V --nofulljones %s %s ' % (newh5, h5), log='losoto-'+c+'.log', commandType="python", processors='max')
+            s.add('killMS2H5parm.py -V --nofulljones %s %s ' % (newh5, h5), log='losoto-'+c+'.log', commandType="python")
             s.run(check = True)
             h5s[i] = newh5
 
     # concat/move
     if len(h5s) > 1:
         check_rm(h5out)
-        s.add('H5parm_collector.py -V -s sol000 -o '+h5out+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
+        s.add('H5parm_collector.py -V -s sol000 -o '+h5out+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python")
         s.run(check = True)
     elif h5s[0] != h5out:
         os.system('cp -r %s %s' % (h5s[0], h5out) )
@@ -356,7 +356,7 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
 
     for parset in parsets:
         logger.debug('-- executing '+parset+'...')
-        s.add('losoto -V '+h5out+' '+parset, log='losoto-'+c+'.log', logAppend=True, commandType="python", processors='max')
+        s.add('losoto -V '+h5out+' '+parset, log='losoto-'+c+'.log', logAppend=True, commandType="python")
         s.run(check = True)
 
     if plots_dir is None:
@@ -416,10 +416,10 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
         MSs_files_clean = MSs_files
 
     wsc_parms = []
-    reordering_processors = np.min([len(MSs_files_clean),s.max_processors])
+    #reordering_processors = np.min([len(MSs_files_clean),s.max_cpucores])
 
     # basic parms
-    wsc_parms.append( '-j '+str(s.max_processors)+' -reorder -parallel-reordering 4 ' )
+    wsc_parms.append( '-j '+str(s.max_cpucores)+' -reorder -parallel-reordering 4 ' )
     if 'use_idg' in kwargs.keys():
         if s.get_cluster() == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
             wsc_parms.append( '-idg-mode hybrid' )
@@ -452,7 +452,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
 
     # create command string
     command_string = 'wsclean '+' '.join(wsc_parms)
-    s.add(command_string, log=logfile, commandType='wsclean', processors='max')
+    s.add(command_string, log=logfile, commandType='wsclean')
     logger.info('Running WSClean...')
     s.run(check=True)
 
@@ -473,8 +473,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
         # Test without reorder as it apperas to be faster
         # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
         command_string = 'wsclean -predict -padding 1.8 ' \
-                         '-j '+str(s.max_processors)+' '+' '.join(wsc_parms)
-        s.add(command_string, log=logfile, commandType='wsclean', processors='max')
+                         '-j '+str(s.max_cpucores)+' '+' '.join(wsc_parms)
+        s.add(command_string, log=logfile, commandType='wsclean')
         s.run(check=True)
     if not keep_concat:
         check_rm('wsclean_concat_*.MS')
@@ -489,7 +489,7 @@ def run_DDF(s, logfile, **kwargs):
     ddf_parms = []
 
     # basic parms
-    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i --Misc-IgnoreDeprecationMarking=1 ' % (s.max_processors) )
+    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i --Misc-IgnoreDeprecationMarking=1 ' % (s.max_cpucores) )
 
     # cache dir
     if not 'Cache_Dir' in list(kwargs.keys()):
@@ -508,7 +508,7 @@ def run_DDF(s, logfile, **kwargs):
 
     # create command string
     command_string = 'DDF.py '+' '.join(ddf_parms)
-    s.add(command_string, log=logfile, commandType='DDFacet', processors='max')
+    s.add(command_string, log=logfile, commandType='DDFacet')
     s.run(check=True)
 
 
@@ -647,19 +647,19 @@ class Walker():
         logger.info('Done. Total time: '+delta)
 
 class Scheduler():
-    def __init__(self, qsub = None, maxThreads = None, max_processors = None, log_dir = 'logs', dry = False):
+    def __init__(self, qsub = None, maxThreads = None, max_cpucores = None, log_dir = 'logs', dry = False):
         """
         qsub:           if true call a shell script which call qsub and then wait
                         for the process to finish before returning
-        maxThreads:    max number of parallel processes
+        maxThreads:     max number of parallel processes
         dry:            don't schedule job
-        max_processors: max number of processors in a node (ignored if qsub=False)
+        max_cpucores:   max number of cpu cores avilable in a node
         """
         self.hostname = socket.gethostname()
         self.cluster = self.get_cluster()
         self.log_dir = log_dir
         self.qsub    = qsub
-        # if qsub/max_thread/max_processors not set, guess from the cluster
+        # if qsub/max_thread/max_cpucores not set, guess from the cluster
         # if they are set, double check number are reasonable
         if (self.qsub == None):
             if (self.cluster == "Hamburg"):
@@ -681,19 +681,19 @@ class Scheduler():
         else:
             self.maxThreads = maxThreads
 
-        if (max_processors == None):
+        if (max_cpucores == None):
             if   (self.cluster == "Hamburg"):
-                self.max_processors = 6
+                self.max_cpucores = 6
             else:
-                self.max_processors = multiprocessing.cpu_count()
+                self.max_cpucores = multiprocessing.cpu_count()
         else:
-            self.max_processors = max_processors
+            self.max_cpucores = max_cpucores
 
         self.dry = dry
 
-        logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname + " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
-                     str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
-
+        logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname + 
+                    " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
+                    str(self.qsub) + ", max_cpucores: " + str(self.max_cpucores) + ").")
 
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
@@ -714,21 +714,19 @@ class Scheduler():
             return "Herts"
         elif ('leidenuniv' in hostname):
             return "Leiden"
-        elif (hostname[0 : 3] == 'lof'):
-            return "CEP3"
         else:
             logger.warning('Hostname %s unknown.' % hostname)
             return "Unknown"
 
 
-    def add(self, cmd = '', log = '', logAppend = True, commandType = '', processors = None):
+    def add(self, cmd = '', log = '', logAppend = True, commandType = '', qsub_cpucores = None):
         """
         Add a command to the scheduler list
         cmd:         the command to run
         log:         log file name that can be checked at the end
-        logAppend:  if True append, otherwise replace
+        logAppend:   if True append, otherwise replace
         commandType: can be a list of known command types as "wsclean", "DP3", ...
-        processors:  number of processors to use, can be "max" to automatically use max number of processors per node
+        qsub_cpucores: number of cores to use, can be "max" to automatically use max number of cores per node
         """
 
         if (log != ''):
@@ -740,7 +738,6 @@ class Scheduler():
                 cmd += " > "
             cmd += log + " 2>&1"
 
-        # if running wsclean add the string
         if commandType == 'wsclean':
             logger.debug('Running wsclean: %s' % cmd)
         elif commandType == 'DP3':
@@ -755,22 +752,21 @@ class Scheduler():
         else:
             logger.debug('Running general: %s' % cmd)
 
-
-        if (processors != None and processors == 'max'):
-            processors = self.max_processors
+        if qsub_cpucores == 'max':
+            qsub_cpucores = self.max_cpucores
 
         if self.qsub:
-            # if number of processors not specified, try to find automatically
-            if (processors == None):
-                processors = 1 # default use single CPU
+            # if number of cores not specified, try to find automatically
+            if (qsub_cpucores == None):
+                qsub_cpucores = 1 # default use single CPU
                 if ("DP3" == cmd[ : 4]):
-                    processors = 1
+                    qsub_cpucores = 1
                 if ("wsclean" == cmd[ : 7]):
-                    processors = self.max_processors
-            if (processors > self.max_processors):
-                processors = self.max_processors
+                    qsub_cpucores = self.max_cpucores
+            if (qsub_cpucores > self.max_cpucores):
+                qsub_cpucores = self.max_cpucores
 
-            self.action_list.append([str(processors), '\'' + cmd + '\''])
+            self.action_list.append([str(qsub_cpucores), '\'' + cmd + '\''])
         else:
             self.action_list.append(cmd)
 
