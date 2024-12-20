@@ -207,9 +207,9 @@ class Worker_stager(Worker):
     def run(self):
         import time
         while not self.exit.is_set():
-            # if there's space add a block of 200
+            # if there's space add a block of 300
             if len(self.L_inStage) < 5 and len(self.L_toStage) > 0:
-                uris = self.L_toStage[:200]
+                uris = self.L_toStage[:300]
                 #uris = [self.L_toStage[0]] # debug to stage 1 uri at a time
                 print("%s: Stager -- Staging %i uris" % (time.ctime(), len(uris)))
                 try:
@@ -220,7 +220,7 @@ class Worker_stager(Worker):
                 except Exception as e:
                     print("Error at staging...", e)
     
-            time.sleep(600)
+            time.sleep(300)
     
     
 class Worker_checker(Worker):
