@@ -521,7 +521,6 @@ for c in range(maxIter):
 
                 MSs.deletecol('FLAG_BKP')  
             ### DONE
-    sys.exit()
 
     ########################### AMP-CAL PART ####################################
     # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
