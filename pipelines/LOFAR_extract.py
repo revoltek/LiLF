@@ -506,7 +506,7 @@ with w.if_todo('image_init'):
 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
 with w.if_todo('smooth'):
     logger.info('BL-based smoothing...')
-    MSs_extract.run('BLsmooth.py -c 1 -n 8 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python', maxThreads=1)
+    MSs_extract.run('BLsmooth.py -c 1 -n 8 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python', maxProcs=1)
 
 # get initial noise and set iterators for timeint solutions
 image = lib_img.Image('img/extractM-init-MFS-image.fits', userReg=userReg)
@@ -641,7 +641,7 @@ for c in range(maxniter):
                 logger.info('BL-based smoothing...')
                 MSs_extract.run('BLsmooth.py -c 1 -n 8 -r -i CORRECTED_DATA -o SMOOTHED_CORRECTED_DATA $pathMS',
                                 log='$nameMS_smooth.log',
-                                commandType='python', maxThreads=1)
+                                commandType='python', maxProcs=1)
                 ### DONE
 
             with w.if_todo('cal_fulljones_%02i' % c):

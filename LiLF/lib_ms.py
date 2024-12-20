@@ -74,13 +74,21 @@ class AllMSs(object):
         """
         return self.mssListStr
 
-    def getNThreads(self):
+    def getNThreads(self, maxProcs=None):
         """
         Return the max number of threads per process assuming all MSs run at the same time
+        with a max parallel runs of maxProcs
         """
-        if self.scheduler.max_cpucores < len(self.mssListStr): NThreads = 1
+        NumMSs = len(self.mssListStr)
+        if self.scheduler.max_cpucores < NumMSs: 
+            NThreads = 1
         else:
-            NThreads = int(np.rint( self.scheduler.max_cpucores/len(self.mssListStr) ))
+            if maxProcs != None:
+                Nprocs = min(maxProcs, NumMSs)
+            else:
+                Nprocs = NumMSs
+
+            NThreads = int(np.rint( self.scheduler.max_cpucores/Nprocs ))
 
         return NThreads
 
@@ -134,16 +142,15 @@ class AllMSs(object):
         """
         return np.max([ms.getMaxBL(check_flags=check_flags, dutch_only=dutch_only, uvw=uvw) for ms in self.getListObj()])
 
-    def run(self, command, log, commandType='', maxThreads=None):
+    def run(self, command, log, commandType='', maxProcs=None):
         """
-        Run command 'command' of type 'commandType', and use 'log' for logger,
-        for each MS of AllMSs.
+        Run command 'command' of type 'commandType', and use 'log' for logger,for each MS of AllMSs.
         The command and log file path can be customised for each MS using keywords (see: 'MS.concretiseString()').
         Beware: depending on the value of 'Scheduler.max_threads' (see: lib_util.py), the commands are run in parallel.
         """
         # add max num of threads given the total jobs to run
         # e.g. in a 64 processors machine running on 16 MSs, would result in numthreads=4
-        if commandType == 'DP3': command += ' numthreads='+str(self.getNThreads())
+        if commandType == 'DP3': command += ' numthreads='+str(self.getNThreads(maxProcs))
 
         for MSObject in self.mssListObj:
             commandCurrent = MSObject.concretiseString(command)
@@ -157,7 +164,7 @@ class AllMSs(object):
             #lib_util.printLineBold("logCurrent:")
             #print (logCurrent)
 
-        self.scheduler.run(check = True, maxThreads = maxThreads)
+        self.scheduler.run(check = True, maxProcs = maxProcs)
 
     def addcol(self, newcol, fromcol, usedysco='auto', log='$nameMS_addcol.log', overwrite=True):
         """
@@ -229,10 +236,10 @@ class AllMSs(object):
 
         # if multiple MSs - parallelize on MSs before adding chunks
         n_ms = len(self.getListObj())
-        maxthreads = min([n_ms, 8])
-        # possibly, we need to reduce the maxthreads for IS observations? Let's see.
+        maxProcs = min([n_ms, 8])
+        # possibly, we need to reduce the maxProcs for IS observations? Let's see.
         # if self.hasIS:
-        #     maxthreads = 1
+        #     maxProcs = 1
 
         # calculate the "size" of a single MS (~times*freq*BL). We assume that all MSs have the same size here.
         ms_size = self.mssListObj[0].getNtime() # N_times
@@ -245,20 +252,20 @@ class AllMSs(object):
         # TODO: If this runs out of memory, we need to increase the prefactor (4) below
         chunks = 4 * ms_size / reference_size
         # if we have less than 8 threads, we can also reduce the number of chunks
-        chunks *= maxthreads/8
+        chunks *= maxProcs/8
         # make sure chunks >= 1 and integer
         if chunks < 1: chunks = 1
         chunks = int(np.round(chunks))
 
-        ncpu = int(np.rint(self.scheduler.max_cpucores / maxthreads))  # cpu max_proc / threads
+        ncpu = int(np.rint(self.scheduler.max_cpucores / maxProcs))  # cpu max_proc / threads
 
         extra_flags = ''
         if notime: extra_flags += ' -t'
         if nofreq: extra_flags += ' -q'
 
-        logger.info(f'BL-smooth: chunks={chunks}; ncpu={ncpu}; threads={maxthreads}...')
+        logger.info(f'BL-smooth: chunks={chunks}; ncpu={ncpu}; max processes={maxProcs}...')
         self.run(f'BLsmooth.py -c {chunks} -n {ncpu} -f {ionf} -r -i {incol} -o {outcol} {extra_flags} $pathMS',
-                log=f'$nameMS_{logstr}.log', commandType='python', maxThreads=maxthreads)
+                log=f'$nameMS_{logstr}.log', commandType='python', maxProcs=maxProcs)
 
     def print_HAcov(self, png=None):
         """
@@ -428,9 +435,11 @@ class MS(object):
         tables.taql("update $pathcodeTable set CODE=$code")
 
 
-    def getNameField(self, checkCalName=False):
+    def getNameField(self, checkCalName=False, updateCalName=False):
         """
         Retrieve field name.
+        checkCalNAme: if true check if the target is a calibrator although the fieldname says otherwise
+        updateCalName: if it turns out to be a calibrator, update the name in FIELD table
         """
         pathFieldTable = self.pathMS + "/FIELD"
         nameField      = (tables.taql("select NAME from $pathFieldTable")).getcol("NAME")[0]
@@ -443,6 +452,7 @@ class MS(object):
             calibratorDistanceThreshold = 0.1 # in degrees
             if (self.getCalibratorDistancesSorted()[0] < calibratorDistanceThreshold):
                 nameField = self.getCalibratorNamesSorted()[0]
+                if updateCalName: self.setNameField(nameField)
 
         return nameField
 

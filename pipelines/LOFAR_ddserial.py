@@ -461,6 +461,7 @@ for cmaj in range(maxIter):
 
         # apply init - closest ddparallel sol - dd-phases
         with w.if_todo('%s-initcorr' % logstring):
+            # DEBUG imaging
             logger.info('Pre-imaging (uncorr)...')
             clean('%s-uncorr' % logstring, MSs_dir, res='normal', size=[d.size, d.size], masksigma=5)  # , imagereg=d.get_region())
             
@@ -474,7 +475,7 @@ for cmaj in range(maxIter):
         ### DONE
         
         # get initial noise and set iterators for timeint solutions
-        image = lib_img.Image('img/ddserialM-%s-pre-MFS-image.fits' % logstring, userReg=userReg)
+        image = lib_img.Image('img/ddserialM-%s-uncorr-MFS-image.fits' % logstring, userReg=userReg)
         d.rms_noise_init = image.getNoise(); rms_noise_pre = d.rms_noise_init
         d.mm_ratio_init = image.getMaxMinRatio(); mm_ratio_pre = d.mm_ratio_init
 
@@ -674,7 +675,7 @@ for cmaj in range(maxIter):
             
             d.converged = False
             logger.warning('%s: something went wrong during the first self-cal cycle or noise did not decrease.' % (d.name))
-            d.clean()
+            #d.clean() # keep tables to print debug table TODO: maybe move this later on?
             with w.if_todo('%s-subtract' % logstring):
                 # Remove the ddcal to clean up the SUBTRACTED_DATA
                 logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
@@ -879,7 +880,7 @@ for cmaj in range(maxIter):
         s.run(check=True)
 
         # non-circ beam at low dec
-        if phase_center[1] < 24:
+        if phase_center[1] < 23:
             logger.info(f'Low-declination observation ({phase_center[1]}deg). Use non-circular PSF')
             beam_kwargs = {}
         else:

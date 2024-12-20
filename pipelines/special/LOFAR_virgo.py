@@ -386,7 +386,7 @@ for c in range(100):
             #
             # logger.info('BL-smooth...')
             # MSs.run('BLsmooth.py -r -c 4 -n 8 -f 5e-3 -i FR_CORRECTED_DATA -o FR_SMOOTHED_DATA $pathMS',
-            #         log='$nameMS_smooth.log', commandType='python', maxThreads=8)
+            #         log='$nameMS_smooth.log', commandType='python', maxProcs=8)
             #
             # logger.info('Get back Virgo A MODEL_DATA...')
             # s.add(f'wsclean -predict -name {imagename} -j {s.max_cpucores} -channels-out {wsclean_params["channels_out"]} {MSs.getStrWsclean()}',
