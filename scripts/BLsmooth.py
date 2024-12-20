@@ -187,7 +187,7 @@ for c, idx in enumerate(np.array_split(np.arange(n_bl), options.chunks)):
         new_weights = np.zeros_like(weights_chunk)
 
     # Iterate on each baseline in this chunk
-    mpm = multiprocManager(options.ncpu, smooth_baseline)
+    mpm = multiprocManager(options.ncores, smooth_baseline)
     for i_chunk, (ant1, ant2, dist) in enumerate(zip(ants1_chunk, ants2_chunk, dists[idx])):
         if ant1 == ant2:
             continue  # skip autocorrelations
