@@ -190,17 +190,30 @@ def add_3c_models(sm, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold
             continue
         elif phasecentre.separation(pos).deg > max_sep:
             continue
-
-        sourcedb = os.path.dirname(__file__) + f'/../models/3CRR/{source.replace(" ","")}.txt'
-        if not os.path.exists(sourcedb):
-            logger.warning(f'No model found for {source} (seperation {phasecentre.separation(pos).deg:.2f} deg)')
-            continue
         
-        sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
-        sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
+        if source in ["3C 196", "3C 380", "3C 295"]: # take pre-existing model for calibrators
+            sourcedb = os.path.dirname(__file__) + f'/../models/calib-simple.skymodel'
+            sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
+            sm_3c.select(f'patch=={source.replace(" ","")}')
+            sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
+            
+        elif source in ["3C 274"]: # take pre-existing model for CasA
+            sourcedb = os.path.dirname(__file__) + f'/../models/demix_all.skymodel'
+            sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
+            sm_3c.select(f'patch==CasA')
+            sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
+            
+        else:
+            sourcedb = os.path.dirname(__file__) + f'/../models/3CRR/{source.replace(" ","")}.txt'
+            if not os.path.exists(sourcedb):
+                logger.warning(f'No model found for {source} (seperation {phasecentre.separation(pos).deg:.2f} deg)')
+                continue
+            sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
+            sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
+            
         flux_3c =  sm_3c.getColValues("I", aggregate="sum", applyBeam=True)[0]
         if flux_3c > threshold:
-            logger.info(f'Appending model from {sourcedb.split("/")[-1]} (seperation {phasecentre.separation(pos).deg:.2f} deg; app. flux {flux_3c:.2f}Jy)...')
+            logger.info(f'Appending model from {source} (seperation {phasecentre.separation(pos).deg:.2f} deg; app. flux {flux_3c:.2f}Jy)...')
             sm.concatenate(sm_3c, matchBy='position', keep="from2", radius='10 arcsec')
             sm.setPatchPositions(method='wmean', applyBeam=True)
         else:

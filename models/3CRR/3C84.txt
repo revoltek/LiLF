@@ -1,0 +1,17 @@
+FORMAT = Name, Type, Patch, Ra, Dec, I, SpectralIndex='[]', LogarithmicSI, ReferenceFrequency='57696847.7658271', MajorAxis, MinorAxis, Orientation
+
+# LSMTool history:
+# 2024-12-09 22:51:52: LOAD (from file 'img/img-3c84-final-taper20arcsec-sources.txt')
+# 2024-12-09 22:51:52: GROUP (algorithm = 'single')
+# 2024-12-09 22:51:52: SETPATCHPOSITIONS (method = 'mid')
+# 2024-12-09 22:51:52: SETPATCHPOSITIONS (method = 'mid')
+# 2024-12-09 22:52:25: GROUP (algorithm = 'meanshift')
+# 2024-12-09 22:52:28: SETPATCHPOSITIONS (method = 'mid')
+# 2024-12-09 22:52:31: SETPATCHPOSITIONS (method = 'mid')
+# 2024-12-09 22:52:32: FILTER (Patch = Patch_428 None)
+# 2024-12-09 22:52:32: SETPATCHPOSITIONS (method = 'mid')
+
+ , , 3c84, 3:20:17.5568, 41.34.29.0375
+s2c360, GAUSSIAN, 3c84, 3:19:46.733, 41.08.26.34, 0.02323396, [-0.7], false, 57696847.7658271, 26.49172550659818, 26.49172550659818, 0
+s2c361, GAUSSIAN, 3c84, 3:19:46.733, 41.08.28.34, 0.2334945, [-0.7], false, 57696847.7658271, 26.49172550659818, 26.49172550659818, 0
+s2c708, GAUSSIAN, 3c84, 3:20:48.801, 42.00.31.384, 0.07585716, [-0.7], false, 57696847.7658271, 26.49172550659818, 26.49172550659818, 0
