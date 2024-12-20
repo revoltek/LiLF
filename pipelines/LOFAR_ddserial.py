@@ -233,7 +233,7 @@ for cmaj in range(maxIter):
                     if (subcal['Flux_ratio'] < 5):
                         good_flux += subcal['Total_flux'] 
                 
-                # if compact flux is present for less than 3 Jy then consider excluding it
+                # if compact flux is present for less than 2 Jy then consider excluding it
                 if (good_flux < 2) and (good_flux < 0.7*fluxes):
                     logger.debug("%s: found extended source compact flux: %.0f%% (skip)" % (name,100*good_flux/fluxes))
                     cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
