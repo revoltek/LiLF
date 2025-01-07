@@ -220,7 +220,7 @@ class Worker_stager(Worker):
                 except Exception as e:
                     print("Error at staging...", e)
     
-            time.sleep(300)
+            time.sleep(60)
     
     
 class Worker_checker(Worker):
