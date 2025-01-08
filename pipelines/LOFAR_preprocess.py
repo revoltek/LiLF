@@ -82,7 +82,7 @@ if not download_file is None:
                 s.add('wget -nv --no-check-certificate "'+line[:-1]+'" -O - | tar -x', log=ms+'_download.log', commandType='general')
             #    print 'wget -nv "'+line[:-1]+'" -O - | tar -x'
                 logger.debug('Queue download of: '+line[:-1])
-            s.run(check=True, maxThreads=4)
+            s.run(check=True, maxProcs=4)
 
 MSs = lib_ms.AllMSs(glob.glob('*MS'), s, check_flags=False)
 if len(MSs.getListStr()) == 0:
@@ -90,7 +90,7 @@ if len(MSs.getListStr()) == 0:
     sys.exit(0)
 
 ######################################
-if len(MSs.getListObj()) > 1000:
+if len(MSs.getListObj()) > 10000:
     logger.warning('Many MSs detected, using only the first to determine the observing time (for rescaling/fixtables).')
     t = MSs.getListObj()[0].get_time()
     times = [int(t.iso.replace('-','')[0:8])] * len(MSs.getListObj())
@@ -105,7 +105,7 @@ if run_aoflagger:
         # Flag in an identical way to the observatory flagging
         logger.info('Flagging...')
         MSs.run('DP3 ' + parset_dir + '/DP3-flag.parset msin=$pathMS aoflagger.strategy=' + parset_dir + '/LBAdefaultwideband.lua',
-            log='$nameMS_flag.log', commandType='DP3', maxThreads=16) # there might be a better way of parallelizing
+            log='$nameMS_flag.log', commandType='DP3', maxProcs=16) # there might be a better way of parallelizing
 
 if fix_table:
     with w.if_todo('fix_table'):
@@ -193,7 +193,7 @@ if renameavg:
                         s.add(f'DP3 {parset_dir}/DP3-avg.parset msin={MS.pathMS} msin.baseline={bl_sel} msout={MSout} '
                               f'msin.datacolumn=DATA avg.timestep={avg_factor_t} avg.freqstep={avg_factor_f}',
                               log=MS.nameMS+'_avg.log', commandType='DP3')
-                        s.run(check=True, maxThreads=1) # limit threads to prevent I/O isssues
+                        s.run(check=True, maxProcs=1) # limit threads to prevent I/O isssues
                     # special case: run demix and average in demixer call
                     else:
                         # check HBA - not tested
@@ -272,7 +272,7 @@ if renameavg:
                             logger.warning('You did not provide a target source. Using ignoretarget=False to deproject (not tested)')
                             cmd += 'demix.ignoretarget=False demix.targetsource="" '
                         s.add(cmd, log=MS.nameMS+'_demix.log', commandType='DP3')
-                        s.run(check=True, maxThreads=None)
+                        s.run(check=True)
 
                     if backup_full_res:
                         logger.info('Backup full resolution data...')

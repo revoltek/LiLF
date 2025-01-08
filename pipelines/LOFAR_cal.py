@@ -68,7 +68,7 @@ for tarfile in glob.glob(data_dir + '/*tar'):
         s.add(f'tar xf {tarfile} --one-top-level={data_dir}', log='tar.log', commandType='general')
 if len(s.action_list) > 0:
     logger.info('Untar files...')
-    s.run(check=True, maxThreads=5)
+    s.run(check=True, maxProcs=5)
 
 MSs = lib_ms.AllMSs(glob.glob(data_dir + '/*MS'), s, check_flags=False)
 
@@ -569,7 +569,7 @@ if not develop:
         s.add('losoto -d sol000/phase_offset000 cal-iono.h5', log='losoto-compress.log', commandType="python")
         s.add('losoto -d sol000/phaseResid000 cal-iono.h5', log='losoto-compress.log', commandType="python")
 
-        s.run(maxThreads=1, check=True) # final check on losoto-compress.log
+        s.run(maxProcs=1, check=True) # final check on losoto-compress.log
 
         os.system('h5repack cal-pa.h5 cal-pa-compressed.h5; mv cal-pa-compressed.h5 cal-pa.h5')
         os.system('h5repack cal-fr.h5 cal-fr-compressed.h5; mv cal-fr-compressed.h5 cal-fr.h5')

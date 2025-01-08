@@ -233,7 +233,8 @@ for cmaj in range(maxIter):
                     if (subcal['Flux_ratio'] < 5):
                         good_flux += subcal['Total_flux'] 
                 
-                if good_flux < 0.7*fluxes:
+                # if compact flux is present for less than 2 Jy then consider excluding it
+                if (good_flux < 2) and (good_flux < 0.7*fluxes):
                     logger.debug("%s: found extended source compact flux: %.0f%% (skip)" % (name,100*good_flux/fluxes))
                     cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
                     raise continue_i
@@ -336,14 +337,16 @@ for cmaj in range(maxIter):
               log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean')
         s.run(check=True)
 
-        logger.info('Corrupt MODEL_DATA with subfield solutions...')
-        # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
-        # corrupt:
-        MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                  cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False', log='$nameMS_sf-correct.log', commandType='DP3')
-        # correct:
-        MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                  cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True', log='$nameMS_sf-correct.log', commandType='DP3')
+        if cmaj == 0:
+            logger.info('Corrupt MODEL_DATA with correct subfield solutions...')
+            # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions while data are corrected for cycle 1 subfield solutions.
+            # Take this into account!
+            # corrupt:
+            MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                      cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False', log='$nameMS_sf-correct.log', commandType='DP3')
+            # correct:
+            MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                      cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True', log='$nameMS_sf-correct.log', commandType='DP3')
 
     ### DONE
 
@@ -372,8 +375,8 @@ for cmaj in range(maxIter):
                     log='$nameMS_taql.log', commandType='general')
 
         ### TESTTESTTEST: empty image
-        if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-            clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
+        if not os.path.exists('img/empty-init-c%02i-image.fits' % (cmaj)):
+            clean('init-c%02i' % (cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
         ###
     ### DONE
 
@@ -398,13 +401,14 @@ for cmaj in range(maxIter):
                 -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
                 log='wscleanPRE-'+logstring+'.log', commandType='wsclean')
             s.run(check=True)
-
-            logger.info('Corrupt MODEL_DATA with subfield solutions...')
-            # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
-            MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+            
+            if cmaj == 0:
+                logger.info('Corrupt MODEL_DATA with correct subfield solutions...')
+                # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
+                MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
                       cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False',
                     log='$nameMS_sf-correct.log', commandType='DP3')
-            MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
                       cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True',
                     log='$nameMS_sf-correct.log', commandType='DP3')
 
@@ -414,8 +418,8 @@ for cmaj in range(maxIter):
                     log='$nameMS_taql.log', commandType='general')
     
             ### TTESTTESTTEST: empty image but with the DD cal
-            if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
-                 clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+            if not os.path.exists('img/empty-butcal-%s-image.fits' % (logstring)):
+                 clean('butcal-%s' % (logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
         ### DONE
 
@@ -461,6 +465,7 @@ for cmaj in range(maxIter):
 
         # apply init - closest ddparallel sol - dd-phases
         with w.if_todo('%s-initcorr' % logstring):
+            # DEBUG imaging
             logger.info('Pre-imaging (uncorr)...')
             clean('%s-uncorr' % logstring, MSs_dir, res='normal', size=[d.size, d.size], masksigma=5)  # , imagereg=d.get_region())
             
@@ -474,7 +479,7 @@ for cmaj in range(maxIter):
         ### DONE
         
         # get initial noise and set iterators for timeint solutions
-        image = lib_img.Image('img/ddserialM-%s-pre-MFS-image.fits' % logstring, userReg=userReg)
+        image = lib_img.Image('img/ddserialM-%s-uncorr-MFS-image.fits' % logstring, userReg=userReg)
         d.rms_noise_init = image.getNoise(); rms_noise_pre = d.rms_noise_init
         d.mm_ratio_init = image.getMaxMinRatio(); mm_ratio_pre = d.mm_ratio_init
 
@@ -674,7 +679,7 @@ for cmaj in range(maxIter):
             
             d.converged = False
             logger.warning('%s: something went wrong during the first self-cal cycle or noise did not decrease.' % (d.name))
-            d.clean()
+            #d.clean() # keep tables to print debug table TODO: maybe move this later on?
             with w.if_todo('%s-subtract' % logstring):
                 # Remove the ddcal to clean up the SUBTRACTED_DATA
                 logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
@@ -879,7 +884,7 @@ for cmaj in range(maxIter):
         s.run(check=True)
 
         # non-circ beam at low dec
-        if phase_center[1] < 24:
+        if phase_center[1] < 23:
             logger.info(f'Low-declination observation ({phase_center[1]}deg). Use non-circular PSF')
             beam_kwargs = {}
         else:

@@ -62,7 +62,7 @@ with w.if_todo('setup'):
             logger.info('Making %s...' % MS_concat)
             s.add('DP3 '+parset_dir+'/DP3-avg.parset msin=\"'+str(mss_toconcat)+'\" msout='+MS_concat,\
                 log=MS_concat+'_avg.log', commandType='DP3')
-            s.run(check=True, maxThreads=1)
+            s.run(check=True, maxProcs=1)
     
             MSs = lib_ms.AllMSs( [MS_concat], s )
             
@@ -99,7 +99,7 @@ with w.if_todo('setup'):
     
             # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
             #logger.info('Converting to circular...')
-            #MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+            #MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxProcs=10)
     
             # Move CORRECTED_DATA -> DATA
             logger.info('Move CORRECTED_DATA -> DATA...')
