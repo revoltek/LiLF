@@ -1,0 +1,15 @@
+msin = 
+msin.datacolumn =
+#do not copy aucorr as they have too weird weights for dysco
+msout =
+msout.storagemanager = dysco
+
+steps = [shift, avg, count]
+
+shift.type = phaseshifter
+shift.phasecenter =
+
+avg.type = averager
+avg.freqstep =
+avg.timestep =
+

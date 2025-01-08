@@ -1,143 +1,38 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# HE: this is an experimental script to split out individual directions from LBA observations with IS present
+#     use cases are e.g. the preparation of in-field calibrators
 
 import sys, os, glob, argparse
 import numpy as np
 import lsmtool as lsm
-from astropy.io import fits
-from astropy.wcs import WCS
 import astropy.wcs
-from losoto.h5parm import h5parm
-from pathlib import Path
 import warnings
-from astropy.cosmology import FlatLambdaCDM
+from losoto.h5parm import h5parm
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 
 #####################################################
-def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_beam=False, datacol=None, minuv=30, numiter=100000, fits_mask=None, update_model=True):
-
-    """
-    p = patch name
-    mss = list of mss to clean
-    size = in deg of the image
-    """
-    # set pixscale and imsize
-    if userReg and fits_mask:
-        raise ValueError('Cannot provide both fits_mask and UserReg.')
-    pixscale = MSs.resolution
-
-    if res == 'normal':
-        pixscale = float('%.1f' % (pixscale / 2.5))
-    elif res == 'high':
-        pixscale = float('%.1f' % (pixscale / 3.5))
-    elif res == 'ultrahigh':
-        pixscale = float('%.1f' % (pixscale / 3.5))
-    elif res == 'low':
-        pass  # no change
-
-    imsize = [int(size[0] * 1.5 / (pixscale / 3600.)), int(size[1] * 1.5 / (pixscale / 3600.))]  # add 50%
-    imsize[0] += imsize[0] % 2
-    imsize[1] += imsize[1] % 2
-    if imsize[0] < 256: imsize[0] = 256
-    if imsize[1] < 256: imsize[1] = 256
-
-    logger.debug('Image size: ' + str(imsize) + ' - Pixel scale: ' + str(pixscale))
-
-    if res == 'normal':
-        weight = 'briggs -0.3'
-        maxuv_l = None
-    elif res == 'high':
-        weight = 'briggs -0.6'
-        maxuv_l = None
-    elif res == 'ultrahigh':
-        weight = 'briggs -1'
-        maxuv_l = None
-    elif res == 'low':
-        weight = 'briggs 0'
-        maxuv_l = 3500
-    else:
-        logger.error('Wrong "res": %s.' % str(res))
-        sys.exit()
-
-    if empty:
-        logger.info('Cleaning empty (' + str(p) + ')...')
-        imagename = 'img/empty-' + str(p)
-        lib_util.run_wsclean(s, 'wscleanE-' + str(p) + '.log', MSs.getStrWsclean(), concat_mss = False, name=imagename,
-                             data_column='SUBTRACTED_DATA',
-                             size=imsize, scale=str(pixscale) + 'arcsec',
-                             weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0,
-                             baseline_averaging='')
-    else:
-        arg_dict = dict()
-        if datacol:
-            arg_dict['data_column'] = datacol
-        # in case userReg is provided -> shallow clean, mask, merge mask with userReg, deep clean with mask
-        if userReg:
-            # clean 1 -- only if userReg
-            logger.info('Cleaning (' + str(p) + ')...')
-            imagename = 'img/extract-' + str(p)
-
-            lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename, concat_mss = False,
-                                 size=imsize, scale=str(pixscale) + 'arcsec',
-                                 weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
-                                 mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
-                                 fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3, baseline_averaging='',**arg_dict)
-            # New mask method using Makemask.py
-            mask = imagename + '-MFS-image.fits'
-            try:
-                os.system(f'MakeMask.py --RestoredIm {mask} --Th 5 --Box 150,5')
-            except:
-                logger.warning('Fail to create mask for %s.' % imagename + '-MFS-image.fits')
-                return
-            lib_img.blank_image_reg(mask + '.mask.fits', userReg, inverse=False, blankval=1.)
-
-        # clean 2
-        # TODO: add deconvolution_channels when bug fixed
-        if userReg:
-            logger.info('Cleaning w/ mask (' + str(p) + ')...')
-        else:
-            logger.info('Cleaning (' + str(p) + ')...')
-        imagenameM = 'img/extractM-' + str(p)
-        if apply_beam:
-            imsize[0] = imsize[1]
-            arg_dict['use_idg'] = ''
-            arg_dict['idg_mode'] = 'cpu'
-            arg_dict['grid_with_beam'] = ''
-            arg_dict['beam_aterm_update'] = 800
-            if update_model:
-                arg_dict['update_model_required'] = ''
-            else:
-                arg_dict['no_update_model_required'] = ''
-        else:
-            arg_dict['baseline_averaging'] = ''
-            arg_dict['no_update_model_required'] = ''
-            if update_model:
-                arg_dict['do_predict'] = True
-        if userReg:
-            arg_dict['reuse_psf'] = imagename
-            arg_dict['reuse_dirty'] = imagename
-            arg_dict['fits_mask'] = mask + '.mask.fits'
-        if fits_mask:
-            arg_dict['fits_mask'] = fits_mask
-
-        lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), concat_mss = False, name=imagenameM,
-                             size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter,
-                             minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
-                             parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
-                             join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
-
-        os.system('cat '+logger_obj.log_dir+'/wscleanB-' + str(p) + '.log | grep "background noise"')
-
+def test_image_dutch(MSs, imgname):
+    """ Create a quick debug image..."""
+    lib_util.run_wsclean(s, 'wsclean-test.log', MSs.getStrWsclean(), name=f'img/{imgname}',
+                         data_column='SUBTRACTED_DATA', size=3000, scale=f'4arcsec',
+                         weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
+                         no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.85, nmiter=12,
+                         parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
+                         join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
+                         deconvolution_channels=3, baseline_averaging='',
+                         multiscale='', multiscale_scale_bias=0.7, pol='i')
 
 parser = argparse.ArgumentParser(description='Split out a single direction by subtracting the rest field and correcting the stations.')
 parser.add_argument('--dirreg',action='store', default=None, type=str, help='Provide a region for the source to be split of (ds9 circle or square).')
 parser.add_argument('--name', dest='name', type=str, default='target_extracted', help='Name of the direction.')
 parser.add_argument('--dutchdir', type=str, default='dutchdir', help='Directory of the dutch processing.')
+parser.add_argument('--freqres', type=float, default=0.195312, help='Freq. resolution of the split-off MSs in Mhz. Default=0.195312MHz (1 subband)')
+parser.add_argument('--timeres', type=int, default=16, help='Time resolution of the split-off MSs in s. Default: 16s.')
 
 args = parser.parse_args()
-regfile = args.dirreg
-name = args.name
-dutchdir = args.dutchdir
+regfile, name, dutchdir = args.dirreg, args.name, args.dutchdir
+time_resolution, freq_resolution = args.timeres, args.freqres
 
 logger_obj = lib_log.Logger(f'pipeline-splitdir')
 logger = lib_log.logger
@@ -152,20 +47,25 @@ if not regfile:
     logger.error('No target direction region file provided (--dirreg.')
     sys.exit()
 
+if not os.path.exists(f'mss-{name}'):
+    os.makedirs(f'mss-{name}')
+
+if not os.path.exists(f'img'):
+    os.makedirs(f'img')
+
 dir_reg = lib_util.Region_helper(regfile)
 center = dir_reg.get_center() # center of the extract region
 
 MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s, check_flags=False, check_sun=False)
+max_uvw_m_dutch = MSs.getMaxBL(check_flags=True, dutch_only=True) # this is important, it is the maximum uvw value in meters of any dutch-dutch baseline. Everything above this value is certainly IS data
 
-max_uvw_m_dutch = MSs.getMaxBL(check_flags=True, dutch_only=True)
-
-
+# 1. Apply dutch direction-independent solutions (FR, amp and phase)
 with w.if_todo('correct_dutch_di'):
     logger.info('Correcting FR (Dutch stations) DATA -> CORRECTED_DATA...')
     # Correct FR with results of solve - TC.MS: DATA -> CORRECTED_DATA
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={dutchdir}/ddparallel/solutions/cal-fr.h5 \
             cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType='DP3')
-    logger.info('Correcting phase (Dutch stations) CORRECTED_DATA -> CORRECTED_DATA...')
+    logger.info('Correcting subfield phase (Dutch stations) CORRECTED_DATA -> CORRECTED_DATA...')
     # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
             cor.parmdb={dutchdir}/ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000',
@@ -186,6 +86,31 @@ with w.if_todo('correct_dutch_di'):
                          multiscale='', multiscale_scale_bias=0.7, pol='i')
 ### DONE
 
+# 2. Prepare the h5parm solutions from dutch processing so they can be used for IS data (reorder dirs and add IS stations with unit solutions)
+with w.if_todo('interph5'):
+    # first we need to reorder the soltab dir axis to have the same order as the solset.getSou() dict, otherwise h5_merger creates a mess (best would be to fix this in h5_merger)
+    os.system(f'cp {dutchdir}/ddserial/c00/solutions/interp.h5 interp.h5')
+    with h5parm('interp.h5', readonly=False) as h5:
+        solset = h5.getSolset('sol000')
+        soltab_ph = solset.getSoltab('phase000')
+        soltab_amp = solset.getSoltab('amplitude000')
+
+        sou = solset.getSou()
+        order_ph = []
+        order_amp = []
+        for src in sou:
+            order_ph.append(np.argwhere(soltab_ph.dir == src)[0])
+            order_amp.append(np.argwhere(soltab_amp.dir == src)[0])
+        order_ph = np.squeeze(order_ph)
+        order_amp = np.squeeze(order_amp)
+        h5.getSolset('sol000').getSoltab('phase000').setValues(soltab_ph.getValues()[0][order_ph])
+        h5.getSolset('sol000').getSoltab('phase000').setAxisValues('dir', list(sou.keys()))
+        h5.getSolset('sol000').getSoltab('amplitude000').setValues(soltab_amp.getValues()[0][order_amp])
+        h5.getSolset('sol000').getSoltab('amplitude000').setAxisValues('dir', list(sou.keys()))
+    s.add(f'h5_merger.py --h5_out interp_merged.h5 --h5_tables interp.h5 -ms {MSs.getListStr()[0]} --add_ms_stations --no_antenna_crash --propagate_flags')
+    s.run(check=True)
+
+# 3. Predict corrupted visibilities for all but the direction to split off - set to zero for all non-dutch baselines!
 with w.if_todo('predict'):
     # prepare model of central/external regions
     logger.info('Blanking direction region of model files and reverse...')
@@ -193,78 +118,76 @@ with w.if_todo('predict'):
         wideMext = im.replace('wideDD-c00',f'wideDD-c00-{name}').split('/')[-1]
         os.system('cp %s %s' % (im, wideMext))
         lib_img.blank_image_reg(wideMext, regfile, blankval = 0.)
-
-    print(wideMext)
     # Recreate MODEL_DATA of external region for subtraction
     logger.info('Predict corrupted model of external region (wsclean)...')
     s.add(f'wsclean -predict -padding 1.8 -name wideDD-c00-{name} -j {s.max_cpucores} -channels-out {len(glob.glob(f"wideDD-c00-{name}*fpb.fits"))} \
             -facet-regions {dutchdir}/ddserial/c00/images/wideDD-c00_facets.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
-            -apply-facet-solutions {dutchdir}/ddserial/c00/solutions/interp.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
-          log='wscleanPRE.log', commandType='wsclean', processors='max')
+            -apply-facet-solutions interp_merged.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
+          log='wscleanPRE.log', commandType='wsclean')
     s.run(check=True)
     # Set to zero for non-dutch baselines
-    MSs.run('taql "update $pathMS set MODEL_DATA=0 WHERE ANTENNA1 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME ! \
-                         ~p/[CR]S*/] && ANTENNA2 in [SELECT ROWID() FROM ::ANTENNA WHERE NAME ! ~p/[CR]S*/]"', log='$nameMS_resetISmodel.log', commandType='general')
+    MSs.run("taql 'update $pathMS set MODEL_DATA=0 WHERE ANTENNA1 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME !~p/[CR]S*/]'", log='$nameMS_resetISmodel.log', commandType='general')
+    MSs.run("taql 'update $pathMS set MODEL_DATA=0 WHERE ANTENNA2 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME !~p/[CR]S*/]'", log='$nameMS_resetISmodel.log', commandType='general')
+    # MSs.run('taql "update $pathMS set MODEL_DATA=0 WHERE ANTENNA1 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME ! \
+    #                      ~p/[CR]S*/] && ANTENNA2 in [SELECT ROWID() FROM ::ANTENNA WHERE NAME ! ~p/[CR]S*/]"', log='$nameMS_resetISmodel.log', commandType='general')
 
+# 4. subtract for dutch baselines
 with w.if_todo('subtract'):
     MSs.addcol('SUBTRACTED_DATA', 'CORRECTED_DATA')
     logger.info('Subtracting external region model (SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
             log='$nameMS_taql.log', commandType='general')
-    lib_util.run_wsclean(s, 'wsclean-test0.log', MSs.getStrWsclean(), name=f'img/dutchsub',
-                         data_column='CORRECTED_DATA', size=3000, scale=f'4arcsec',
-                         weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
-                         no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.85, nmiter=12,
-                         parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
-                         join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
-                         deconvolution_channels=3, baseline_averaging='',
-                         multiscale='', multiscale_scale_bias=0.7, pol='i')
+    test_image_dutch(MSs, 'dutchsub')
     lib_util.run_wsclean(s, 'wsclean-test0.log', MSs.getStrWsclean(), name=f'img/allsub',
-                         data_column='CORRECTED_DATA', size=6000, scale=f'0.5arcsec',
+                         data_column='SUBTRACTED_DATA', size=6000, scale=f'0.5arcsec',
                          weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
                          no_update_model_required='', minuv_l=30, mgain=0.85, nmiter=12,
                          parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
                          join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
                          deconvolution_channels=3, baseline_averaging='', multiscale='', multiscale_scale_bias=0.7, pol='i')
 
-sys.exit()
+# 5. apply closest direction solutions for dutch baselines
+with w.if_todo('correct_dutch_dd'):
+    # apply init - closest DDE sol
+    # TODO: this assumes phase000 and optionally, amplitude000
+    h5init = h5parm('interp_merged.h5')
+    solset_dde = h5init.getSolset('sol000')
+    # get closest dir to target reg center
+    dirs = np.array([solset_dde.getSou()[k] for k in solset_dde.getSoltab('phase000').dir])
+    dir_dist = lib_util.distanceOnSphere(dirs[:, 0], dirs[:, 1], *np.deg2rad(center), rad=True)
+    closest = solset_dde.getSoltab('phase000').dir[np.argmin(dir_dist)]
+    logger.info('Init apply: correct closest DDE solutions ({})'.format(closest))
+    logger.info('Correct init ph...')
+    MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA '
+                                          'msout.datacolumn=SUBTRACTED_DATA cor.parmdb=interp_merged.h5 cor.correction=phase000 cor.direction=' + closest,
+                    log='$nameMS_init-correct.log', commandType='DP3')
+    if 'amplitude000' in solset_dde.getSoltabNames():
+        logger.info('Correct init amp...')
+        MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=SUBTRACTED_DATA \
+                         cor.parmdb=interp_merged.h5 cor.correction=amplitude000 cor.direction=' + closest,
+                        log='$nameMS_init-correct.log', commandType='DP3')
+    h5init.close()
+    test_image_dutch(MSs, 'dutchsubcorr')
+### DONE
 
+# 6. phase shift and average the data -> to 16s,
 with w.if_todo('phaseshift'):
-    t_avg_factor = int(round(16/MSs.getListObj()[0].getTimeInt()))
-    f_avg_factor = 4
-    logger.info('Phase shift and avg...')
-    MSs.run(f'DP3 {parset_dir}/DP3-shiftavg.parset msin=$pathMS msout=mss-{name}/{name}.MS-extract msin.datacolumn=SUBTRACTED_DATA '
+    t_avg_factor = int(round(time_resolution/MSs.getListObj()[0].getTimeInt()))
+    f_avg_factor = int(round(freq_resolution*1e6/MSs.getListObj()[0].getChanband()))
+    logger.info(f'Phase shift and avg to {time_resolution}s, {freq_resolution:.4f}MHz (x{t_avg_factor} in t; x{f_avg_factor} in f)...')
+    MSs.run(f'DP3 {parset_dir}/DP3-shiftavg.parset msin=$pathMS msout=mss-{name}/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA '
             f'shift.phasecenter=[{center[0]}deg,{center[1]}deg] avg.freqstep={f_avg_factor} avg.timestep={t_avg_factor}',
             log='$nameMS_shiftavg.log', commandType='DP3')
+    test_image_dutch(MSs, 'dutchsubcorrshift')
 
-sys.exit()
-MSs_extract = lib_ms.AllMSs( glob.glob('mss-extract/shiftavg/'+p+'_*.MS-extract'), s )
+MSs_extract = lib_ms.AllMSs( glob.glob(f'mss-{name}/*.MS'), s )
 
 with w.if_todo('beamcorr'):
     logger.info('Correcting beam...')
     MSs_extract.run('DP3 ' + parset_dir + '/DP3-beam.parset msin=$pathMS', log='$nameMS_beam.log', commandType='DP3')
+    test_image_dutch(MSs, 'dutchsubcorrshiftbeam')
 
-# apply init - closest DDE sol
-# TODO: this assumes phase000 and optionally, amplitude000
-with w.if_todo('apply_init_'+p):
-    h5init = h5parm(dde_h5parm)
-    solset_dde = h5init.getSolset('sol000')
-    # get closest dir to target reg center
-    dirs = np.array([solset_dde.getSou()[k] for k in solset_dde.getSoltab('phase000').dir])
-    dir_dist = lib_util.distanceOnSphere(dirs[:,0], dirs[:,1],*np.deg2rad(center), rad=True)
-    closest = solset_dde.getSoltab('phase000').dir[np.argmin(dir_dist)]
-    logger.info('Init apply: correct closest DDE solutions ({})'.format(closest))
-    logger.info('Correct init ph...')
-    MSs_extract.run('DP3 ' + parset_dir + '/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA '
-                                          'msout.datacolumn=CORRECTED_DATA cor.parmdb=' + dde_h5parm + ' cor.correction=phase000 cor.direction='+closest,
-                    log='$nameMS_init-correct.log', commandType='DP3')
-    if 'amplitude000' in solset_dde.getSoltabNames():
-        logger.info('Correct init amp...')
-        MSs_extract.run('DP3 ' + parset_dir + '/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-                     cor.parmdb=' + dde_h5parm + ' cor.correction=amplitude000 cor.direction=' + closest,
-                        log='$nameMS_init-correct.log', commandType='DP3')
-    h5init.close()
-### DONE
+sys.exit()
 
 for p in close_pointings:
     MSs = lib_ms.AllMSs( glob.glob('mss-extract/'+p+'/*MS'), s )

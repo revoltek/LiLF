@@ -272,7 +272,7 @@ for cmaj in range(maxIter):
         # take care of manually provided region to include in cal
         # TODO: if this clutters the pipeline, we can move it to lib_dd!
         if manual_dd_cal != '':
-            man_cal = regions.read_ds9(manual_dd_cal)
+            man_cal = regions.regions.Regions.read(manual_dd_cal)
             logger.warning(
                 f'Using DS9 region {manual_dd_cal} for manual dd-calibrator (experimental).')
             assert len(man_cal) == 1
