@@ -515,7 +515,7 @@ for c in range(maxIter):
                     #corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
                     #clean_empty(MSs,f'{patch}_modelcorr', f'{patch}')
                     
-                    MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
+                    #MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
                     
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",

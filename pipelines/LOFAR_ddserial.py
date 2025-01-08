@@ -337,14 +337,16 @@ for cmaj in range(maxIter):
               log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean')
         s.run(check=True)
 
-        logger.info('Corrupt MODEL_DATA with subfield solutions...')
-        # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
-        # corrupt:
-        MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                  cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False', log='$nameMS_sf-correct.log', commandType='DP3')
-        # correct:
-        MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                  cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True', log='$nameMS_sf-correct.log', commandType='DP3')
+        if cmaj == 0:
+            logger.info('Corrupt MODEL_DATA with correct subfield solutions...')
+            # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions while data are corrected for cycle 1 subfield solutions.
+            # Take this into account!
+            # corrupt:
+            MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                      cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False', log='$nameMS_sf-correct.log', commandType='DP3')
+            # correct:
+            MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                      cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True', log='$nameMS_sf-correct.log', commandType='DP3')
 
     ### DONE
 
@@ -373,8 +375,8 @@ for cmaj in range(maxIter):
                     log='$nameMS_taql.log', commandType='general')
 
         ### TESTTESTTEST: empty image
-        if not os.path.exists('img/empty-init-c'+str(cmaj)+'-image.fits'):
-            clean('init-c'+str(cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
+        if not os.path.exists('img/empty-init-c%02i-image.fits' % (cmaj)):
+            clean('init-c%02i' % (cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
         ###
     ### DONE
 
@@ -399,13 +401,14 @@ for cmaj in range(maxIter):
                 -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
                 log='wscleanPRE-'+logstring+'.log', commandType='wsclean')
             s.run(check=True)
-
-            logger.info('Corrupt MODEL_DATA with subfield solutions...')
-            # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
-            MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+            
+            if cmaj == 0:
+                logger.info('Corrupt MODEL_DATA with correct subfield solutions...')
+                # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
+                MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
                       cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False',
                     log='$nameMS_sf-correct.log', commandType='DP3')
-            MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
+                MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
                       cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True',
                     log='$nameMS_sf-correct.log', commandType='DP3')
 
@@ -415,8 +418,8 @@ for cmaj in range(maxIter):
                     log='$nameMS_taql.log', commandType='general')
     
             ### TTESTTESTTEST: empty image but with the DD cal
-            if not os.path.exists('img/empty-butcal-%02i-%s-image.fits' % (dnum, logstring)):
-                 clean('butcal-%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+            if not os.path.exists('img/empty-butcal-%s-image.fits' % (logstring)):
+                 clean('butcal-%s' % (logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
     
         ### DONE
 
