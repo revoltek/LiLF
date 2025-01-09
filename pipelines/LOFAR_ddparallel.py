@@ -196,9 +196,6 @@ def add_3c_models(sm, phasecentre, beamMask, null_mid_freq, max_sep=30., thresho
         #    continue
         if phasecentre.separation(pos).deg > max_sep:
             continue
-        #if sep < null_mid_freq/2:
-        #    logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
-        #    continue
         
         if threshold == 0:
             #determining a linear threshold based on the distance from the null and beam corrected flux
@@ -210,14 +207,14 @@ def add_3c_models(sm, phasecentre, beamMask, null_mid_freq, max_sep=30., thresho
             sourcedb = os.path.dirname(__file__) + f'/../models/calib-simple.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch=={source.replace(" ","")}')
-            sm_3c.select(f'{beamMask}==Flase') # remove within beamMask
+            sm_3c.select(f'{beamMask}==False') # remove within beamMask
             sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
 
         elif source in ["3C 274"]: # take pre-existing model for CasA
             sourcedb = os.path.dirname(__file__) + f'/../models/demix_all.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch==CasA')
-            sm_3c.select(f'{beamMask}==Flase') # remove within beamMask
+            sm_3c.select(f'{beamMask}==False') # remove within beamMask
             sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
             
         else:
@@ -226,17 +223,17 @@ def add_3c_models(sm, phasecentre, beamMask, null_mid_freq, max_sep=30., thresho
                 logger.warning(f'No model found for {source} (seperation {sep:.2f} deg)')
                 continue
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
-            sm_3c.select(f'{beamMask}==Flase') # remove within beamMask
+            sm_3c.select(f'{beamMask}==False') # remove within beamMask
             sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
             
         flux_3c =  sm_3c.getColValues("I", aggregate="sum", applyBeam=True)[0]
         if flux_3c > threshold:
             sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
-            logger.info(f'Appending model from {source} (seperation {sep:.2f} deg; app. flux {flux_3c:.2f}Jy)...')
+            logger.info(f'3C source {source} (seperation: {sep:.2f} deg) app. flux {flux_3c:.2f} Jy is above threshold {threshold:.2f} Jy: keep.')
             sm.concatenate(sm_3c)
             sm.setPatchPositions(method='wmean', applyBeam=True)
         else:
-            logger.debug(f'3C source {source} app. flux {flux_3c:.2f} Jy below threshold {threshold:.2f} Jy. (seperation: {sep:.2f} deg)')
+            logger.debug(f'3C source {source} (seperation: {sep:.2f} deg) app. flux {flux_3c:.2f} Jy is below threshold {threshold:.2f} Jy: ignore.')
         
         del sm_3c
         threshold = 0
