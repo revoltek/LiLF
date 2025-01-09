@@ -125,7 +125,7 @@ with w.if_todo('cleaning'):
 # use unaveraged MSs to be sure to get the same pixscale and imgsizepix of ddparallel
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 pixscale = MSs.getListObj()[0].getPixelScale() 
-imgsizepix = int(1.85*MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / pixscale) # roughly to null
+imgsizepix = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True)) * 3600 / pixscale) # roughly to null
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 
@@ -144,7 +144,7 @@ if not os.path.exists('mss-avg'):
             avg.timestep='+str(avgtimeint)+' avg.freqstep=1', log='$nameMS_initavg.log', commandType='DP3')
 
 MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
-fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
+fwhm = max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))
 workingReg = 'ddserial/workingRegion.reg' # sources outside of this region will be ignored (and not peeled)
 MSs.getListObj()[0].makeBeamReg(workingReg, freq='mid', to_pbval=0)
 peelReg = 'ddserial/peelingRegion.reg' # sources outside of this region will be peeled

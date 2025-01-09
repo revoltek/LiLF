@@ -175,7 +175,7 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     s.run(check=True)
     return current_best_mask
 
-def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=30., threshold=1.):
+def add_3c_models(sm, phasecentre, beamMask, max_sep=30., threshold=1.):
     from astropy.coordinates import SkyCoord
     import json
     
@@ -187,22 +187,24 @@ def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=30., threshold=1.):
     for source, coord in all_3c.items():
         pos = SkyCoord(ra=coord[0], dec=coord[1], unit=(u.hourangle, u.deg))
         
-        if phasecentre.separation(pos).deg < null_mid_freq/2:
-            logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
-            continue
-        elif phasecentre.separation(pos).deg > max_sep:
+        #if phasecentre.separation(pos).deg < null_mid_freq/2:
+        #    logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
+        #    continue
+        if phasecentre.separation(pos).deg > max_sep:
             continue
         
         if source in ["3C 196", "3C 380", "3C 295"]: # take pre-existing model for calibrators
             sourcedb = os.path.dirname(__file__) + f'/../models/calib-simple.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch=={source.replace(" ","")}')
+            sm_3c.select(f'{beamMask}==Flase') # remove within beamMask
             sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
-            
+
         elif source in ["3C 274"]: # take pre-existing model for CasA
             sourcedb = os.path.dirname(__file__) + f'/../models/demix_all.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch==CasA')
+            sm_3c.select(f'{beamMask}==Flase') # remove within beamMask
             sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
             
         else:
@@ -211,6 +213,7 @@ def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=30., threshold=1.):
                 logger.warning(f'No model found for {source} (seperation {phasecentre.separation(pos).deg:.2f} deg)')
                 continue
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
+            sm_3c.select(f'{beamMask}==Flase') # remove within beamMask
             sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
             
         flux_3c =  sm_3c.getColValues("I", aggregate="sum", applyBeam=True)[0]
@@ -266,15 +269,15 @@ except:
 
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
-null_mid_freq = MSs.getListObj()[0].getFWHM(freq='mid') * 1.8 # FWHM to null
-#TODO: null_mid_freq should be elliptical=True, also 3c should use beam fits, not this single number
+null_mid_freq = max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True)) * 1.8 # FWHM to null
+#TODO: 3c should use beam fits, not this single number
 
 # set image size - this should be a bit more than the beam region used for calibration
 pixscale = MSs.getListObj()[0].getPixelScale()
-imgsizepix_wide = int(1.85*MSs.getListObj()[0].getFWHM(freq='mid')*3600/pixscale) # roughly to null
+imgsizepix_wide = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/pixscale) # roughly to null
 if imgsizepix_wide > 10000: imgsizepix_wide = 10000
 if imgsizepix_wide % 2 != 0: imgsizepix_wide += 1  # prevent odd img sizes
-imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/(pixscale*8))
+imgsizepix_lr = int(5*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/(pixscale*8))
 if imgsizepix_lr % 2 != 0: imgsizepix_lr += 1  # prevent odd img sizes
 
 current_best_mask = None
@@ -423,7 +426,7 @@ for c in range(maxIter):
 
         if c == 0 and remove3c:
             # Add models of bright 3c sources to the sky model. Model will be subtracted from data before imaging.
-            sm = add_3c_models(sm, phasecentre=phasecentre, null_mid_freq=null_mid_freq)
+            sm = add_3c_models(sm, phasecentre=phasecentre, beamMask=beamMask)
         
         make_source_regions(sm, c)
         sm.write(sourcedb, clobber=True)
