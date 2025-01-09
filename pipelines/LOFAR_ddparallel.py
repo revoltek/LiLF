@@ -43,6 +43,8 @@ subfield = parset.get('LOFAR_ddparallel','subfield') # possible to provide a ds9
 maxIter = parset.getint('LOFAR_ddparallel','maxIter') # default = 2 (try also 3)
 phaseSolMode = parset.get('LOFAR_ddparallel', 'ph_sol_mode') # tecandphase, tec, phase
 remove3c = parset.getboolean('LOFAR_ddparallel', 'remove3c') # get rid of 3c sources in the sidelobes
+min_facets = parset.get('LOFAR_ddparallel', 'min_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [2,3,6..]
+min_flux_factor = parset.getfloat('LOFAR_ddparallel', 'min_flux_factor') # min facet flux factor, default = 1. Higher value -> less facets.
 sf_phaseSolMode = 'phase' #'tec'
 start_sourcedb = parset.get('model','sourcedb')
 userReg = parset.get('model','userReg')
@@ -293,15 +295,20 @@ else: base_solint = 1
 
 mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
-facet_fluxes = np.array([4, 1.8, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+facet_fluxes = min_flux_factor*np.array([4, 1.8, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 
-# use more facets for SPARSE (larger FoV)
-if 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
-    min_facets = [3, 6, 18, 24, 24, 24]
-elif 'OUTER' in MSs.getListObj()[0].getAntennaSet():
-    min_facets = [2, 4, 12, 20, 20, 20]
-else:
-    raise ValueError(f'{MSs.getListObj()[0].getAntennaSet()} not recognized.')
+if min_facets: # if manually provided
+    if not isinstance(min_facets, list):
+        min_facets = min_facets.replace('[', '').replace(']', '').split(',')
+        min_facets = np.array(min_facets).astype(int)
+else: #default settings
+    # use more facets for SPARSE (larger FoV)
+    if 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
+        min_facets = [3, 6, 18, 24, 24, 24]
+    elif 'OUTER' in MSs.getListObj()[0].getAntennaSet():
+        min_facets = [2, 4, 12, 20, 20, 20]
+    else:
+        raise ValueError(f'{MSs.getListObj()[0].getAntennaSet()} not recognized.')
 
 smMHz2 = [2.0,5.0,5.0,5.0,5.0,5.0]
 smMHz1 = [8.0,12.0,12.0,12.0,12.0,12.0]

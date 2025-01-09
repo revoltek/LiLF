@@ -1,0 +1,8 @@
+# (Name, Type, Patch, Ra, Dec, I, ReferenceFrequency='57703680.69709868', SpectralIndex, MajorAxis, MinorAxis, Orientation) = format
+
+# This model is rescaled from the calib-simple model to match the reference frequency. The spectral index was NOT adjusted and is slightly off!
+, , 3C196, 08:13:36.0, 48.13.03
+3C196A1, GAUSSIAN, 3C196, 08:13:35.925, +48.13.00.061,  58.08910113, , [-0.592,  -0.042], 1.476, 1.091, 135.27
+3C196A2, GAUSSIAN, 3C196, 08:13:35.772, +48.13.02.507,   28.28672744, , [-1.003,  -0.319], 2.738, 1.754, 93.30
+3C196B1, GAUSSIAN, 3C196, 08:13:36.182, +48.13.04.725,   22.98823328, , [-0.587,  -0.270], 1.034, 0.248, 124.03
+3C196B2, GAUSSIAN, 3C196, 08:13:36.389, +48.13.02.735,   46.4237097, , [-0.870,  -0.288], 1.456, 2.159, 324.58
