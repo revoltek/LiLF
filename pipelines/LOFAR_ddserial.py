@@ -437,7 +437,7 @@ for cmaj in range(maxIter):
             if not (avgfreqint == 8 or avgfreqint == 16):
                 logger.warning('Strange averaging of channels (%i): %i -> %i' % (avgfreqint,MSs.getListObj()[0].getNchan(),int(MSs.getListObj()[0].getNchan()/avgfreqint)))
             MSs.run('DP3 '+parset_dir+'/DP3-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=DATA \
-                    avg.timestep='+str(avgtimeint)+' avg.freqstep='+str(avgfreqint)+' shift.phasecenter=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\]', \
+                    avg.timestep='+str(avgtimeint)+' avg.freqstep='+str(avgfreqint)+' shift.phasecenter=['+str(d.position[0])+'deg,'+str(d.position[1])+'deg]', \
                     log='$nameMS_shift-'+logstring+'.log', commandType='DP3')
 
             # save some info for debug
@@ -458,8 +458,8 @@ for cmaj in range(maxIter):
                 logger.info('Correcting beam...')
                 # Convince DP3 that DATA is corrected for the beam in the phase centre and correct for the new direction
                 MSs_dir.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
-                        setbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] \
-                        corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=True',
+                        setbeam.direction=['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg] \
+                        corrbeam.direction=['+str(d.position[0])+'deg,'+str(d.position[1])+'deg] corrbeam.invert=True',
                         log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
             ### DONE
 
@@ -740,11 +740,11 @@ for cmaj in range(maxIter):
                     # Convince DP3 that MODELDATA is corrected for the beam in the dd-cal direction, so I can corrupt.
                     # Then correct for the element to align with the phase centre situation
                     MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                           setbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] \
-                           corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=False', \
+                           setbeam.direction=['+str(d.position[0])+'deg,'+str(d.position[1])+'deg] \
+                           corrbeam.direction=['+str(d.position[0])+'deg,'+str(d.position[1])+'deg] corrbeam.invert=False', \
                            log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
                     MSs.run('DP3 '+parset_dir+'/DP3-beam2.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                           corrbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] corrbeam.beammode=element corrbeam.invert=True', \
+                           corrbeam.direction=['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg] corrbeam.beammode=element corrbeam.invert=True', \
                            log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
         
                 if d.peel_off:
