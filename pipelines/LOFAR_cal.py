@@ -250,7 +250,7 @@ with w.if_todo('pre_iono'):
     MSs_concat_phaseupIONO.run_Blsmooth(incol='DATA', logstr='smooth')
     # Solve concat_all-phaseupIONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
-    smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.6e6'
+    smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.5e6'
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                            sol.h5parm=$pathMS/preiono.h5 sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase sol.datause=full \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
@@ -401,7 +401,7 @@ with w.if_todo('cal_iono'):
     MSs_concat_phaseupIONO.run_Blsmooth(incol='DATA', nofreq=True, logstr='smooth')
     # Solve concat_all-phaseup-IONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
-    smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.6e6'
+    smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.5e6'
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS \
                            sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \

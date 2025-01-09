@@ -36,8 +36,9 @@ def getParset(parsetFile=''):
     def add_default(section, option, val):
         if not config.has_option(section, option): config.set(section, option, val)
     
-    if parsetFile == '' and os.path.exists('lilf.config'): parsetFile='lilf.config'
-    if parsetFile == '' and os.path.exists('../lilf.config'): parsetFile='../lilf.config'
+    if parsetFile == '': 
+        matched_conf_files = glob.glob('[Ll][Ii][Ll][Ff].conf*') + glob.glob('../[Ll][Ii][Ll][Ff].conf*')
+        if len(matched_conf_files) > 0: parsetFile = matched_conf_files[0]
 
     config = ConfigParser(defaults=None)
     config.read(parsetFile)
@@ -66,12 +67,12 @@ def getParset(parsetFile=''):
     add_default('LOFAR_preprocess', 'fix_table', 'True') # fix bug in some old observations
     add_default('LOFAR_preprocess', 'renameavg', 'True')
     add_default('LOFAR_preprocess', 'keep_IS', 'True')
-    add_default('LOFAR_preprocess', 'backup_full_res', 'True')
+    add_default('LOFAR_preprocess', 'backup_full_res', 'False')
     add_default('LOFAR_preprocess', 'demix_sources', '')  # Demix  sources in these patches (e.g. [VirA,TauA], default: No demix
     add_default('LOFAR_preprocess', 'demix_skymodel', '')  # Use non-default demix skymodel.
     add_default('LOFAR_preprocess', 'demix_field_skymodel', 'gsm')  # Provide a custom target skymodel instead of online gsm model. Set to '' to ignore target.
     add_default('LOFAR_preprocess', 'run_aoflagger', 'False')  # run aoflagger on individual sub-bands, only in cases where this was not one by the observatory!
-    add_default('LOFAR_preprocess', 'tar', 'False')  # Tar MS files at the end 
+    add_default('LOFAR_preprocess', 'tar', 'True')  # Tar MS files at the end 
     # cal
     add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
     add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
@@ -92,8 +93,9 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
     add_default('LOFAR_ddparallel', 'subfield_min_flux', '20') # min flux within calibration subfield
     add_default('LOFAR_ddparallel', 'ph_sol_mode', 'phase') # phase or tecandphase
-    add_default('LOFAR_ddparallel', 'intrinsic', 'True')
     add_default('LOFAR_ddparallel', 'remove3c', 'True')
+    add_default('LOFAR_ddparallel', 'min_facets', '')
+    add_default('LOFAR_ddparallel', 'min_flux_factor', '')
     # dd
     add_default('LOFAR_ddserial', 'maxIter', '2')
     add_default('LOFAR_ddserial', 'minCalFlux60', '0.7')

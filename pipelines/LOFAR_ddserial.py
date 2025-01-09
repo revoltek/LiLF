@@ -126,6 +126,8 @@ with w.if_todo('cleaning'):
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 pixscale = MSs.getListObj()[0].getPixelScale() 
 imgsizepix = int(1.85*MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / pixscale) # roughly to null
+if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
+if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 
 # goes down to 8 seconds and multiple of 48 chans (this should be already the case as it's done in timesplit)
 if not os.path.exists('mss-avg'):
@@ -153,15 +155,13 @@ phase_center = MSs.getListObj()[0].getPhaseCentre()
 timeint = MSs.getListObj()[0].getTimeInt()
 ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 
-if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
-if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 # initially use facets and h5parm from LOFAR_ddparallel
 facetregname = 'ddparallel/solutions/facets-c1.reg'
 interp_h5parm = 'ddparallel/solutions/cal-tec-merged-c1.h5'
 
 with w.if_todo('add_columns'):
     logger.info('Add columns...')
-    # TODO using mix of ms.addcol and addcol2ms because ms.addcol does not work with non-data columns
+    # using mix of ms.addcol and addcol2ms because ms.addcol does not work with non-data columns
     MSs.addcol('CORRECTED_DATA', 'DATA', log='$nameMS_addcol.log')
     MSs.addcol('SUBTRACTED_DATA', 'DATA', log='$nameMS_addcol.log')
     MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
@@ -271,9 +271,8 @@ for cmaj in range(maxIter):
                 directions.append(d)
 
         # take care of manually provided region to include in cal
-        # TODO: if this clutters the pipeline, we can move it to lib_dd!
         if manual_dd_cal != '':
-            man_cal = regions.read_ds9(manual_dd_cal)
+            man_cal = regions.regions.Regions.read(manual_dd_cal)
             logger.warning(
                 f'Using DS9 region {manual_dd_cal} for manual dd-calibrator (experimental).')
             assert len(man_cal) == 1
