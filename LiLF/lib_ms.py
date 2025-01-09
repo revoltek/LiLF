@@ -722,12 +722,10 @@ class MS(object):
         c = 299792458. # in metres per second
 
         with tables.table(self.pathMS+'/SPECTRAL_WINDOW', ack = False) as t:
-            wavelength = c / t.getcol('REF_FREQUENCY')[0]             # in metres
-        #print 'Wavelength:', wavelength,'m (Freq: '+str(t.getcol('REF_FREQUENCY')[0]/1.e6)+' MHz)'
+            wavelength = c / np.mean(t.getcol("CHAN_FREQ")[0]) # in metres
         
         maxdist = self.getMaxBL(check_flags)
 
-        #return int(round(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcseconds
         return float('%.1f'%(wavelength / maxdist * (180 / np.pi) * 3600)) # in arcsec
 
     def getPixelScale(self, check_flags=True):
