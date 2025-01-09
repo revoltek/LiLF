@@ -529,7 +529,6 @@ for c in range(maxIter):
                         log = f'$nameMS_subtract_{patch}.log', 
                         commandType = 'general'
                     )
-                    clean_empty(MSs,f'{patch}_cd', 'CORRECTED_DATA')
                     
                     MSs.deletecol(patch)
                     sm = lsmtool.load(sourcedb, beamMS=beamMS)
