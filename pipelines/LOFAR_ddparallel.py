@@ -16,7 +16,6 @@
 # TODO subtraction of sidelobe for RS smaring
 # TODO add timesmearing
 # TODO the subfield algorithm should not cut any sources ... how to best implement that? Something with mask islands?
-# TODO final imaging products
 
 # Waiting for bug fixes in other software
 # TODO add LoTSS query for statring model once bug is fixed! (Don't use for now, it crashes the VO server)
@@ -176,7 +175,7 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     s.run(check=True)
     return current_best_mask
 
-def add_3c_models(sm, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold=1.):
+def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=30., threshold=1.):
     from astropy.coordinates import SkyCoord
     import json
     
@@ -268,13 +267,16 @@ except:
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
 null_mid_freq = MSs.getListObj()[0].getFWHM(freq='mid') * 1.8 # FWHM to null
+#TODO: null_mid_freq should be elliptical=True, also 3c should use beam fits, not this single number
 
 # set image size - this should be a bit more than the beam region used for calibration
 pixscale = MSs.getListObj()[0].getPixelScale()
 imgsizepix_wide = int(1.85*MSs.getListObj()[0].getFWHM(freq='mid')*3600/pixscale) # roughly to null
-if imgsizepix_wide > 10000:
-    imgsizepix_wide = 10000
+if imgsizepix_wide > 10000: imgsizepix_wide = 10000
+if imgsizepix_wide % 2 != 0: imgsizepix_wide += 1  # prevent odd img sizes
 imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/(pixscale*8))
+if imgsizepix_lr % 2 != 0: imgsizepix_lr += 1  # prevent odd img sizes
+
 current_best_mask = None
 logger.info(f'Setting wide-field image size: {imgsizepix_wide}pix; scale:  {pixscale:.2f}arcsec.')
 
@@ -321,7 +323,7 @@ MSs.getListObj()[0].makeBeamReg(beamReg, freq='mid', to_pbval=0)
 if not os.path.exists(beamMask):
     logger.info('Making mask of primary beam...')
     lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), size=imgsizepix_lr, scale='30arcsec')
-    os.system(f'mv {beamMask.replace(".fits","-image.fits")} {beamMask}')
+    os.system(f'mv {beamMask.replace(".fits","-image.fits")} {beamMask}') # beam-image.fits -> beam.fits
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 1.)
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 0., inverse=True)
 
