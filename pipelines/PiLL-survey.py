@@ -14,7 +14,6 @@ parset = lib_util.getParset(parsetFile='lilf.config')
 # get parameters
 # use lilf.config (this is also used by all other scripits)
 working_dir = os.path.abspath(parset.get('PiLL','working_dir'))
-redo_cal = parset.getboolean('PiLL','redo_cal')
 project = parset.get('PiLL','project')
 target = parset.get('PiLL','target')
 obsid = parset.get('PiLL','obsid')
@@ -54,7 +53,6 @@ def calibrator_tables_available(obsid):
 def update_status_db(field, status):
     with SurveysDB(survey='lba',readonly=False) as sdb:
         r = sdb.execute('UPDATE fields SET status="%s" WHERE id="%s"' % (status,field))
-
 
 def check_done(pipename):
     """

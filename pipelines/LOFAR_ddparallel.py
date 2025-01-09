@@ -16,7 +16,6 @@
 # TODO subtraction of sidelobe for RS smaring
 # TODO add timesmearing
 # TODO the subfield algorithm should not cut any sources ... how to best implement that? Something with mask islands?
-# TODO final imaging products
 
 # Waiting for bug fixes in other software
 # TODO add LoTSS query for statring model once bug is fixed! (Don't use for now, it crashes the VO server)
@@ -43,6 +42,8 @@ subfield = parset.get('LOFAR_ddparallel','subfield') # possible to provide a ds9
 maxIter = parset.getint('LOFAR_ddparallel','maxIter') # default = 2 (try also 3)
 phaseSolMode = parset.get('LOFAR_ddparallel', 'ph_sol_mode') # tecandphase, tec, phase
 remove3c = parset.getboolean('LOFAR_ddparallel', 'remove3c') # get rid of 3c sources in the sidelobes
+min_facets = parset.get('LOFAR_ddparallel', 'min_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [2,3,6..]
+min_flux_factor = parset.getfloat('LOFAR_ddparallel', 'min_flux_factor') # min facet flux factor, default = 1. Higher value -> less facets.
 sf_phaseSolMode = 'phase' #'tec'
 start_sourcedb = parset.get('model','sourcedb')
 userReg = parset.get('model','userReg')
@@ -174,7 +175,7 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     s.run(check=True)
     return current_best_mask
 
-def add_3c_models(sm, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold=0):
+def add_3c_models(sm, phasecentre, beamMask, null_mid_freq, max_sep=30., threshold=0):
     from astropy.coordinates import SkyCoord
     import json
     
@@ -190,9 +191,14 @@ def add_3c_models(sm, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold
         pos = SkyCoord(ra=coord[0], dec=coord[1], unit=(u.hourangle, u.deg))
         sep = phasecentre.separation(pos).deg
         
-        if sep < null_mid_freq/2:
-            logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
+        #if phasecentre.separation(pos).deg < null_mid_freq/2:
+        #    logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
+        #    continue
+        if phasecentre.separation(pos).deg > max_sep:
             continue
+        #if sep < null_mid_freq/2:
+        #    logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
+        #    continue
         
         if threshold == 0:
             #determining a linear threshold based on the distance from the null and beam corrected flux
@@ -204,11 +210,15 @@ def add_3c_models(sm, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold
             sourcedb = os.path.dirname(__file__) + f'/../models/calib-simple.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch=={source.replace(" ","")}')
-            
+            sm_3c.select(f'{beamMask}==Flase') # remove within beamMask
+            sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
+
         elif source in ["3C 274"]: # take pre-existing model for CasA
             sourcedb = os.path.dirname(__file__) + f'/../models/demix_all.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch==CasA')
+            sm_3c.select(f'{beamMask}==Flase') # remove within beamMask
+            sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
             
         else:
             sourcedb = os.path.dirname(__file__) + f'/../models/3CRR/{source.replace(" ","")}.txt'
@@ -216,6 +226,8 @@ def add_3c_models(sm, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold
                 logger.warning(f'No model found for {source} (seperation {sep:.2f} deg)')
                 continue
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
+            sm_3c.select(f'{beamMask}==Flase') # remove within beamMask
+            sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
             
         flux_3c =  sm_3c.getColValues("I", aggregate="sum", applyBeam=True)[0]
         if flux_3c > threshold:
@@ -274,14 +286,17 @@ except:
 
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
-null_mid_freq = MSs.getListObj()[0].getFWHM(freq='mid') * 1.8 # FWHM to null
+null_mid_freq = max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True)) * 1.8 # FWHM to null
+#TODO: 3c should use beam fits, not this single number
 
 # set image size - this should be a bit more than the beam region used for calibration
 pixscale = MSs.getListObj()[0].getPixelScale()
-imgsizepix_wide = int(1.85*MSs.getListObj()[0].getFWHM(freq='mid')*3600/pixscale) # roughly to null
-if imgsizepix_wide > 10000:
-    imgsizepix_wide = 10000
-imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/(pixscale*8))
+imgsizepix_wide = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/pixscale) # roughly to null
+if imgsizepix_wide > 10000: imgsizepix_wide = 10000
+if imgsizepix_wide % 2 != 0: imgsizepix_wide += 1  # prevent odd img sizes
+imgsizepix_lr = int(5*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/(pixscale*8))
+if imgsizepix_lr % 2 != 0: imgsizepix_lr += 1  # prevent odd img sizes
+
 current_best_mask = None
 logger.info(f'Setting wide-field image size: {imgsizepix_wide}pix; scale:  {pixscale:.2f}arcsec.')
 
@@ -302,15 +317,20 @@ else: base_solint = 1
 
 mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 # define list of facet fluxes per iteration -> this can go into the config
-facet_fluxes = np.array([4, 1.8, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+facet_fluxes = min_flux_factor*np.array([4, 1.8, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 
-# use more facets for SPARSE (larger FoV)
-if 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
-    min_facets = [3, 6, 18, 24, 24, 24]
-elif 'OUTER' in MSs.getListObj()[0].getAntennaSet():
-    min_facets = [2, 4, 12, 20, 20, 20]
-else:
-    raise ValueError(f'{MSs.getListObj()[0].getAntennaSet()} not recognized.')
+if min_facets: # if manually provided
+    if not isinstance(min_facets, list):
+        min_facets = min_facets.replace('[', '').replace(']', '').split(',')
+        min_facets = np.array(min_facets).astype(int)
+else: #default settings
+    # use more facets for SPARSE (larger FoV)
+    if 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
+        min_facets = [3, 6, 18, 24, 24, 24]
+    elif 'OUTER' in MSs.getListObj()[0].getAntennaSet():
+        min_facets = [2, 4, 12, 20, 20, 20]
+    else:
+        raise ValueError(f'{MSs.getListObj()[0].getAntennaSet()} not recognized.')
 
 smMHz2 = [2.0,5.0,5.0,5.0,5.0,5.0]
 smMHz1 = [8.0,12.0,12.0,12.0,12.0,12.0]
@@ -323,7 +343,7 @@ MSs.getListObj()[0].makeBeamReg(beamReg, freq='mid', to_pbval=0)
 if not os.path.exists(beamMask):
     logger.info('Making mask of primary beam...')
     lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), size=imgsizepix_lr, scale='30arcsec')
-    os.system(f'mv {beamMask.replace(".fits","-image.fits")} {beamMask}')
+    os.system(f'mv {beamMask.replace(".fits","-image.fits")} {beamMask}') # beam-image.fits -> beam.fits
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 1.)
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 0., inverse=True)
 
@@ -423,7 +443,7 @@ for c in range(maxIter):
 
         if c == 0 and remove3c:
             # Add models of bright 3c sources to the sky model. Model will be subtracted from data before imaging.
-            sm = add_3c_models(sm, phasecentre=phasecentre, null_mid_freq=null_mid_freq)
+            sm = add_3c_models(sm, phasecentre=phasecentre, beamMask=beamMask, null_mid_freq=null_mid_freq)
             sm.setColValues("Q", np.zeros(len(sm.getColValues("I")))) # force non I Stokes to zero
             sm.setColValues("U", np.zeros(len(sm.getColValues("I"))))
             sm.setColValues("V", np.zeros(len(sm.getColValues("I"))))
@@ -521,7 +541,7 @@ for c in range(maxIter):
                     # TEST: comment out amps
                     #corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
                     
-                    MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
+                    #MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
                     
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
