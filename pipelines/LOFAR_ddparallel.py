@@ -16,7 +16,6 @@
 # TODO subtraction of sidelobe for RS smaring
 # TODO add timesmearing
 # TODO the subfield algorithm should not cut any sources ... how to best implement that? Something with mask islands?
-# TODO final imaging products
 
 # Waiting for bug fixes in other software
 # TODO add LoTSS query for statring model once bug is fixed! (Don't use for now, it crashes the VO server)
@@ -176,7 +175,7 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     s.run(check=True)
     return current_best_mask
 
-def add_3c_models(sm, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold=1.):
+def add_3c_models(sm, phasecentre, beamMask, null_mid_freq, max_sep=30., threshold=0):
     from astropy.coordinates import SkyCoord
     import json
     
@@ -186,41 +185,58 @@ def add_3c_models(sm, phasecentre=[0,0], null_mid_freq=0, max_sep=30., threshold
     phasecentre = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg))
     logger.info('Adding 3C models...')
     for source, coord in all_3c.items():
-        pos = SkyCoord(ra=coord[0], dec=coord[1], unit=(u.hourangle, u.deg))
+        #if source in ["3C 274"]:
+        #    continue
         
-        if phasecentre.separation(pos).deg < null_mid_freq/2:
-            logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
+        pos = SkyCoord(ra=coord[0], dec=coord[1], unit=(u.hourangle, u.deg))
+        sep = phasecentre.separation(pos).deg
+        
+        #if phasecentre.separation(pos).deg < null_mid_freq/2:
+        #    logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
+        #    continue
+        if phasecentre.separation(pos).deg > max_sep:
             continue
-        elif phasecentre.separation(pos).deg > max_sep:
-            continue
+        
+        if threshold == 0:
+            #determining a linear threshold based on the distance from the null and beam corrected flux
+            hnmf = null_mid_freq/2
+            a = (19 - 1)/(50 - hnmf)
+            threshold = a * (sep - hnmf) + 1
         
         if source in ["3C 196", "3C 380", "3C 295"]: # take pre-existing model for calibrators
             sourcedb = os.path.dirname(__file__) + f'/../models/calib-simple.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch=={source.replace(" ","")}')
+            sm_3c.select(f'{beamMask}==False') # remove within beamMask
             sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
-            
+
         elif source in ["3C 274"]: # take pre-existing model for CasA
             sourcedb = os.path.dirname(__file__) + f'/../models/demix_all.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch==CasA')
+            sm_3c.select(f'{beamMask}==False') # remove within beamMask
             sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
             
         else:
             sourcedb = os.path.dirname(__file__) + f'/../models/3CRR/{source.replace(" ","")}.txt'
             if not os.path.exists(sourcedb):
-                logger.warning(f'No model found for {source} (seperation {phasecentre.separation(pos).deg:.2f} deg)')
+                logger.warning(f'No model found for {source} (seperation {sep:.2f} deg)')
                 continue
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
+            sm_3c.select(f'{beamMask}==False') # remove within beamMask
             sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
             
         flux_3c =  sm_3c.getColValues("I", aggregate="sum", applyBeam=True)[0]
         if flux_3c > threshold:
-            logger.info(f'Appending model from {source} (seperation {phasecentre.separation(pos).deg:.2f} deg; app. flux {flux_3c:.2f}Jy)...')
-            sm.concatenate(sm_3c, matchBy='position', keep="from2", radius='10 arcsec')
+            sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
+            logger.info(f'3C source {source} (seperation: {sep:.2f} deg) app. flux {flux_3c:.2f} Jy is above threshold {threshold:.2f} Jy: keep.')
+            sm.concatenate(sm_3c)
             sm.setPatchPositions(method='wmean', applyBeam=True)
         else:
-            logger.debug(f'3C source {source} app. flux {flux_3c:.2f} Jy below threshold {threshold:.2f} Jy.')
+            logger.debug(f'3C source {source} (seperation: {sep:.2f} deg) app. flux {flux_3c:.2f} Jy is below threshold {threshold:.2f} Jy: ignore.')
+        
+        del sm_3c
+        threshold = 0
     return sm
 
 def make_source_regions(sm, c):
@@ -267,14 +283,17 @@ except:
 
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
-null_mid_freq = MSs.getListObj()[0].getFWHM(freq='mid') * 1.8 # FWHM to null
+null_mid_freq = max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True)) * 1.8 # FWHM to null
+#TODO: 3c should use beam fits, not this single number
 
 # set image size - this should be a bit more than the beam region used for calibration
 pixscale = MSs.getListObj()[0].getPixelScale()
-imgsizepix_wide = int(1.85*MSs.getListObj()[0].getFWHM(freq='mid')*3600/pixscale) # roughly to null
-if imgsizepix_wide > 10000:
-    imgsizepix_wide = 10000
-imgsizepix_lr = int(5*MSs.getListObj()[0].getFWHM(freq='mid')*3600/(pixscale*8))
+imgsizepix_wide = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/pixscale) # roughly to null
+if imgsizepix_wide > 10000: imgsizepix_wide = 10000
+if imgsizepix_wide % 2 != 0: imgsizepix_wide += 1  # prevent odd img sizes
+imgsizepix_lr = int(5*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/(pixscale*8))
+if imgsizepix_lr % 2 != 0: imgsizepix_lr += 1  # prevent odd img sizes
+
 current_best_mask = None
 logger.info(f'Setting wide-field image size: {imgsizepix_wide}pix; scale:  {pixscale:.2f}arcsec.')
 
@@ -321,7 +340,7 @@ MSs.getListObj()[0].makeBeamReg(beamReg, freq='mid', to_pbval=0)
 if not os.path.exists(beamMask):
     logger.info('Making mask of primary beam...')
     lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), size=imgsizepix_lr, scale='30arcsec')
-    os.system(f'mv {beamMask.replace(".fits","-image.fits")} {beamMask}')
+    os.system(f'mv {beamMask.replace(".fits","-image.fits")} {beamMask}') # beam-image.fits -> beam.fits
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 1.)
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 0., inverse=True)
 
@@ -421,7 +440,10 @@ for c in range(maxIter):
 
         if c == 0 and remove3c:
             # Add models of bright 3c sources to the sky model. Model will be subtracted from data before imaging.
-            sm = add_3c_models(sm, phasecentre=phasecentre, null_mid_freq=null_mid_freq)
+            sm = add_3c_models(sm, phasecentre=phasecentre, beamMask=beamMask, null_mid_freq=null_mid_freq)
+            sm.setColValues("Q", np.zeros(len(sm.getColValues("I")))) # force non I Stokes to zero
+            sm.setColValues("U", np.zeros(len(sm.getColValues("I"))))
+            sm.setColValues("V", np.zeros(len(sm.getColValues("I"))))
         
         make_source_regions(sm, c)
         sm.write(sourcedb, clobber=True)
@@ -443,7 +465,7 @@ for c in range(maxIter):
     patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
     for patch in patches[np.argsort(patch_fluxes)[::-1]]:
         logger.info(f'{patch}: {patch_fluxes[patches==patch][0]:.1f} Jy')
-
+  
     with w.if_todo('c%02i_init_model' % c):
         for patch in patches:
             # Add model to MODEL_DATA
@@ -484,11 +506,7 @@ for c in range(maxIter):
 
     ### CORRUPT the MODEL_DATA columns for all patches
     with w.if_todo('c%02i_corrupt_tecCS' % c):
-        for patch in patches:
-            clean_empty(MSs,f'{patch}_model', f'{patch}')
         corrupt_model_dirs(MSs, c, '-CS', patches, 'phase')
-        for patch in patches:
-            clean_empty(MSs,f'{patch}_modelcorr', f'{patch}')
     ### DONE
 
     ########################### 3C-subtract PART ####################################
@@ -501,8 +519,8 @@ for c in range(maxIter):
                 # Solve diagonal amplitude MSs:SMOOTHED_DATA
                 # TODO add use_dd_constraint_weights
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
-                          sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
-                          sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=75', log=f'$nameMS_solamp_c{c}.log', commandType="DP3")
+                          sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
+                          sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=60', log=f'$nameMS_solamp_c{c}.log', commandType="DP3")
 
                 losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
                 lib_util.run_losoto(s, f'amp-3C', [ms + f'/amp-3C.h5' for ms in MSs.getListStr()], losoto_parsets,
@@ -516,11 +534,9 @@ for c in range(maxIter):
                 for patch in _3c_patches:
                     logger.info(f'Subtracting {patch}...')
                     # Corrupt MODEL_DATA with amplitude, set MODEL_DATA = 0 where data are flagged, then unflag everything
-                    #clean_empty(MSs,f'{patch}_model', f'{patch}')
                     
                     # TEST: comment out amps
                     #corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
-                    #clean_empty(MSs,f'{patch}_modelcorr', f'{patch}')
                     
                     #MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
                     
@@ -536,14 +552,12 @@ for c in range(maxIter):
                         log = f'$nameMS_subtract_{patch}.log', 
                         commandType = 'general'
                     )
-                    clean_empty(MSs,f'{patch}_cd', 'CORRECTED_DATA')
                     
                     MSs.deletecol(patch)
                     sm = lsmtool.load(sourcedb, beamMS=beamMS)
                     sm.select(f'Patch != {patch}')
                     sm.write(sourcedb, clobber=True)
                     patches = np.delete(patches, np.where(patches == patch)[0])
-
                     MSs.run(f'taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')
 
                 MSs.deletecol('FLAG_BKP')  

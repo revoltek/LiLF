@@ -126,7 +126,9 @@ with w.if_todo('cleaning'):
 # use unaveraged MSs to be sure to get the same pixscale and imgsizepix of ddparallel
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
 pixscale = MSs.getListObj()[0].getPixelScale() 
-imgsizepix = int(1.85*MSs.getListObj()[0].getFWHM(freq='mid') * 3600 / pixscale) # roughly to null
+imgsizepix = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True)) * 3600 / pixscale) # roughly to null
+if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
+if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 
 # goes down to 8 seconds and multiple of 48 chans (this should be already the case as it's done in timesplit)
 if not os.path.exists('mss-avg'):
@@ -143,7 +145,7 @@ if not os.path.exists('mss-avg'):
             avg.timestep='+str(avgtimeint)+' avg.freqstep=1', log='$nameMS_initavg.log', commandType='DP3')
 
 MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
-fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
+fwhm = max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))
 workingReg = 'ddserial/workingRegion.reg' # sources outside of this region will be ignored (and not peeled)
 MSs.getListObj()[0].makeBeamReg(workingReg, freq='mid', to_pbval=0)
 peelReg = 'ddserial/peelingRegion.reg' # sources outside of this region will be peeled
@@ -154,15 +156,13 @@ phase_center = MSs.getListObj()[0].getPhaseCentre()
 timeint = MSs.getListObj()[0].getTimeInt()
 ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 
-if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
-if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 # initially use facets and h5parm from LOFAR_ddparallel
 facetregname = 'ddparallel/solutions/facets-c1.reg'
 interp_h5parm = 'ddparallel/solutions/cal-tec-merged-c1.h5'
 
 with w.if_todo('add_columns'):
     logger.info('Add columns...')
-    # TODO using mix of ms.addcol and addcol2ms because ms.addcol does not work with non-data columns
+    # using mix of ms.addcol and addcol2ms because ms.addcol does not work with non-data columns
     MSs.addcol('CORRECTED_DATA', 'DATA', log='$nameMS_addcol.log')
     MSs.addcol('SUBTRACTED_DATA', 'DATA', log='$nameMS_addcol.log')
     MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
@@ -272,7 +272,6 @@ for cmaj in range(maxIter):
                 directions.append(d)
 
         # take care of manually provided region to include in cal
-        # TODO: if this clutters the pipeline, we can move it to lib_dd!
         if manual_dd_cal != '':
             man_cal = regions.regions.Regions.read(manual_dd_cal)
             logger.warning(
@@ -438,7 +437,7 @@ for cmaj in range(maxIter):
             if not (avgfreqint == 8 or avgfreqint == 16):
                 logger.warning('Strange averaging of channels (%i): %i -> %i' % (avgfreqint,MSs.getListObj()[0].getNchan(),int(MSs.getListObj()[0].getNchan()/avgfreqint)))
             MSs.run('DP3 '+parset_dir+'/DP3-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=DATA \
-                    avg.timestep='+str(avgtimeint)+' avg.freqstep='+str(avgfreqint)+' shift.phasecenter=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\]', \
+                    avg.timestep='+str(avgtimeint)+' avg.freqstep='+str(avgfreqint)+' shift.phasecenter=['+str(d.position[0])+'deg,'+str(d.position[1])+'deg]', \
                     log='$nameMS_shift-'+logstring+'.log', commandType='DP3')
 
             # save some info for debug
@@ -459,8 +458,8 @@ for cmaj in range(maxIter):
                 logger.info('Correcting beam...')
                 # Convince DP3 that DATA is corrected for the beam in the phase centre and correct for the new direction
                 MSs_dir.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
-                        setbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] \
-                        corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=True',
+                        setbeam.direction=['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg] \
+                        corrbeam.direction=['+str(d.position[0])+'deg,'+str(d.position[1])+'deg] corrbeam.invert=True',
                         log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
             ### DONE
 
@@ -741,11 +740,11 @@ for cmaj in range(maxIter):
                     # Convince DP3 that MODELDATA is corrected for the beam in the dd-cal direction, so I can corrupt.
                     # Then correct for the element to align with the phase centre situation
                     MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                           setbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] \
-                           corrbeam.direction=\['+str(d.position[0])+'deg,'+str(d.position[1])+'deg\] corrbeam.invert=False', \
+                           setbeam.direction=['+str(d.position[0])+'deg,'+str(d.position[1])+'deg] \
+                           corrbeam.direction=['+str(d.position[0])+'deg,'+str(d.position[1])+'deg] corrbeam.invert=False', \
                            log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
                     MSs.run('DP3 '+parset_dir+'/DP3-beam2.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                           corrbeam.direction=\['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg\] corrbeam.beammode=element corrbeam.invert=True', \
+                           corrbeam.direction=['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg] corrbeam.beammode=element corrbeam.invert=True', \
                            log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
         
                 if d.peel_off:

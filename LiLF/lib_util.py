@@ -36,8 +36,11 @@ def getParset(parsetFile=''):
     def add_default(section, option, val):
         if not config.has_option(section, option): config.set(section, option, val)
     
-    if parsetFile == '' and os.path.exists('lilf.config'): parsetFile='lilf.config'
-    if parsetFile == '' and os.path.exists('../lilf.config'): parsetFile='../lilf.config'
+    if parsetFile == '': 
+        matched_conf_files = glob.glob('[Ll][Ii][Ll][Ff].conf*') + glob.glob('../[Ll][Ii][Ll][Ff].conf*')
+        if len(matched_conf_files) > 0:
+            parsetFile = matched_conf_files[0]
+            logger.info(f'Found config file: {parsetFile}')
 
     config = ConfigParser(defaults=None)
     config.read(parsetFile)
@@ -94,7 +97,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'ph_sol_mode', 'phase') # phase or tecandphase
     add_default('LOFAR_ddparallel', 'remove3c', 'True')
     add_default('LOFAR_ddparallel', 'min_facets', '')
-    add_default('LOFAR_ddparallel', 'min_flux_factor', '')
+    add_default('LOFAR_ddparallel', 'min_flux_factor', '1')
     # dd
     add_default('LOFAR_ddserial', 'maxIter', '2')
     add_default('LOFAR_ddserial', 'minCalFlux60', '0.7')

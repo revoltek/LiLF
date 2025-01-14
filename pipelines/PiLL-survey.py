@@ -14,7 +14,6 @@ parset = lib_util.getParset(parsetFile='lilf.config')
 # get parameters
 # use lilf.config (this is also used by all other scripits)
 working_dir = os.path.abspath(parset.get('PiLL','working_dir'))
-redo_cal = parset.getboolean('PiLL','redo_cal')
 project = parset.get('PiLL','project')
 target = parset.get('PiLL','target')
 obsid = parset.get('PiLL','obsid')
@@ -23,15 +22,15 @@ download_file = parset.get('PiLL','download_file')
 caldirroot = ('iranet/groups/ulu/fdg/surveycals/done/')
 tgtdirroot = ('/iranet/groups/ulu/fdg/surveytgts/download*/mss/')
 
-def calibrator_tables_available(obsid):
-    """
-    check if calibrator data exist in the database
-    """
-    with SurveysDB(survey='lba',readonly=True) as sdb:
-        sdb.execute('SELECT * FROM observations WHERE id=%f' % obsid)
-        r = sdb.cur.fetchall()
-        if len(r) != 0 and r[0]['location'] != '': return True
-        else: return False
+#def calibrator_tables_available(obsid):
+#    """
+#    check if calibrator data exist in the database
+#    """
+#    with SurveysDB(survey='lba',readonly=True) as sdb:
+#        sdb.execute('SELECT * FROM observations WHERE id=%f' % obsid)
+#        r = sdb.cur.fetchall()
+#        if len(r) != 0 and r[0]['location'] != '': return True
+#        else: return False
 
 
 #def local_calibrator_dirs(searchdir='', obsid=None):
@@ -55,7 +54,6 @@ def update_status_db(field, status):
     with SurveysDB(survey='lba',readonly=False) as sdb:
         r = sdb.execute('UPDATE fields SET status="%s" WHERE id="%s"' % (status,field))
 
-
 def check_done(pipename):
     """
     check if "Done" is written in the last line of the log file, otherwise quit with error.
@@ -72,7 +70,7 @@ def check_done(pipename):
 # the the target from the db
 logger.info('### Quering database...')
 with SurveysDB(survey='lba',readonly=True) as sdb:
-    sdb.execute('SELECT * FROM fields WHERE status="Observed" order by priority asc')
+    sdb.execute('SELECT * FROM fields WHERE status="Downloaded" order by priority asc')
     r = sdb.cur.fetchall()
     if len(r) == 0:
         logger.warning('No field left in the db...')
