@@ -205,12 +205,10 @@ with w.if_todo('correct_dutch_dd'):
 if infield_h5:
     # apply infield delay calibrator solutions to full data
     with w.if_todo('correct_IS_di'):
-        logger.info('Correcting delay cal phase (IS) SUBTRACTED_DATA -> SUBTRACTED_DATA...')
+        logger.info('Correcting delay cal full solutions (IS) SUBTRACTED_DATA -> SUBTRACTED_DATA...')
         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={infield_h5}  \
-                cor.correction=phase000 msin.datacolumn=SUBTRACTED_DATA msin.datacolumn=SUBTRACTED_DATA ', log='$nameMS_corFR.log', commandType='DP3')
-        logger.info('Correcting delay cal amplitude (IS) SUBTRACTED_DATA -> SUBTRACTED_DATA...')
-        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=SUBTRACTED_DATA \
-                cor.parmdb={infield_h5} cor.correction=amplitude000', log='$nameMS_sf-correct.log', commandType='DP3')
+                cor.correction=fulljones cor.soltab=[amplitude000,phase000] msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=SUBTRACTED_DATA ', log='$nameMS_corIS.log', commandType='DP3')
+        test_image_dutch(MSs, 'dutchsubcorris',data_col='SUBTRACTED_DATA')
 ### DONE
 
 # 6. phase shift and average the data -> to 16s,
