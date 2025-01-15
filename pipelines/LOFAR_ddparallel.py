@@ -175,7 +175,15 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     s.run(check=True)
     return current_best_mask
 
-def add_3c_models(sm, phasecentre, beamMask, null_mid_freq, max_sep=30., threshold=0):
+def source_within_beam(regname, pos) -> bool:
+    """check whether a given sky position is within the primary beam using beam.reg file"""
+    beam = Regions.read(regname)[0]
+    x_rot = ((pos.ra.deg - beam.center.ra.deg) * np.cos(beam.angle) + (pos.dec.deg - beam.center.dec.deg) * np.sin(beam.angle)) * u.deg
+    y_rot = -((pos.ra.deg - beam.center.ra.deg) * np.sin(beam.angle) + (pos.dec.deg - beam.center.dec.deg) * np.cos(beam.angle)) * u.deg
+    ellipse = (2 * x_rot / beam.width) ** 2.0 + (2 * y_rot / beam.height) ** 2.0
+    return False if ellipse > 1 else True
+
+def add_3c_models(sm, phasecentre, beamReg, null_mid_freq, max_sep=50., threshold=0):
     from astropy.coordinates import SkyCoord
     import json
     
@@ -191,10 +199,10 @@ def add_3c_models(sm, phasecentre, beamMask, null_mid_freq, max_sep=30., thresho
         pos = SkyCoord(ra=coord[0], dec=coord[1], unit=(u.hourangle, u.deg))
         sep = phasecentre.separation(pos).deg
         
-        #if phasecentre.separation(pos).deg < null_mid_freq/2:
-        #    logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
-        #    continue
-        if phasecentre.separation(pos).deg > max_sep:
+        if source_within_beam(beamReg, pos):
+            logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
+            continue
+        elif phasecentre.separation(pos).deg > max_sep:
             continue
         
         if threshold == 0:
@@ -207,15 +215,15 @@ def add_3c_models(sm, phasecentre, beamMask, null_mid_freq, max_sep=30., thresho
             sourcedb = os.path.dirname(__file__) + f'/../models/calib-simple.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch=={source.replace(" ","")}')
-            sm_3c.select(f'{beamMask}==False') # remove within beamMask
-            sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
+            #sm_3c.select(f'{beamMask}==False') # remove within beamMask
+            #sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
 
         elif source in ["3C 274"]: # take pre-existing model for CasA
             sourcedb = os.path.dirname(__file__) + f'/../models/demix_all.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch==CasA')
-            sm_3c.select(f'{beamMask}==False') # remove within beamMask
-            sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
+            #sm_3c.select(f'{beamMask}==False') # remove within beamMask
+            #sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
             
         else:
             sourcedb = os.path.dirname(__file__) + f'/../models/3CRR/{source.replace(" ","")}.txt'
@@ -223,9 +231,9 @@ def add_3c_models(sm, phasecentre, beamMask, null_mid_freq, max_sep=30., thresho
                 logger.warning(f'No model found for {source} (seperation {sep:.2f} deg)')
                 continue
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
-            sm_3c.select(f'{beamMask}==False') # remove within beamMask
-            sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
-            
+            #sm_3c.select(f'{beamMask}==False') # remove within beamMask
+        
+        sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
         flux_3c =  sm_3c.getColValues("I", aggregate="sum", applyBeam=True)[0]
         if flux_3c > threshold:
             sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
@@ -440,7 +448,7 @@ for c in range(maxIter):
 
         if c == 0 and remove3c:
             # Add models of bright 3c sources to the sky model. Model will be subtracted from data before imaging.
-            sm = add_3c_models(sm, phasecentre=phasecentre, beamMask=beamMask, null_mid_freq=null_mid_freq)
+            sm = add_3c_models(sm, phasecentre=phasecentre, beamReg=beamReg, null_mid_freq=null_mid_freq)
             sm.setColValues("Q", np.zeros(len(sm.getColValues("I")))) # force non I Stokes to zero
             sm.setColValues("U", np.zeros(len(sm.getColValues("I"))))
             sm.setColValues("V", np.zeros(len(sm.getColValues("I"))))
