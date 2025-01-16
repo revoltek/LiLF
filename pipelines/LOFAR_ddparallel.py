@@ -294,7 +294,7 @@ if imgsizepix_wide % 2 != 0: imgsizepix_wide += 1  # prevent odd img sizes
 imgsizepix_lr = int(5*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/(pixscale*8))
 if imgsizepix_lr % 2 != 0: imgsizepix_lr += 1  # prevent odd img sizes
 
-current_best_mask = None
+current_best_mask = None #can be removed
 logger.info(f'Setting wide-field image size: {imgsizepix_wide}pix; scale:  {pixscale:.2f}arcsec.')
 
 # set clean componet fit order (use 5 for large BW)
@@ -617,7 +617,7 @@ for c in range(maxIter):
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec-RS-c{c}.h5', sourcedb)
 
         # by construction, the 3c sources are always at the last indices
-        filter_directions = f"--filter_directions '["+', '.join([str(i) for i in range(len(patches))])+"]'" if c == 0 else ''
+        filter_directions = f"--filter_directions '["+', '.join([str(i) for i in range(len(patches))])+"]'" if (c == 0 and remove3c) else ''
         # if we have dd-amplitudes, add polarization
         usepol = ' --no_pol ' if c <2 else ''
         # reference, unflag and reset the added stations f'{sol_dir}/cal-tec0-c{c}.h5',
@@ -683,7 +683,7 @@ for c in range(maxIter):
         if c==0:
             logger.info('Making wide-field image for clean mask...')
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename,  no_update_model_required='',
-                                 auto_threshold=5.0, auto_mask=8.0, multiscale_max_scales=3,   nmiter=6, **widefield_kwargs)
+                                 auto_threshold=5.0, auto_mask=8.0, multiscale_max_scales=3, nmiter=6, **widefield_kwargs)
             # make initial mask
             current_best_mask = make_current_best_mask(imagename, mask_threshold[c], userReg)
             # safe a bit of time by reusing psf and dirty in first iteration

@@ -19,7 +19,7 @@ target = parset.get('PiLL','target')
 obsid = parset.get('PiLL','obsid')
 download_file = parset.get('PiLL','download_file')
 
-caldirroot = ('iranet/groups/ulu/fdg/surveycals/done/')
+caldirroot = ('/iranet/groups/ulu/fdg/surveycals/done/')
 tgtdirroot = ('/iranet/groups/ulu/fdg/surveytgts/download*/mss/')
 
 #def calibrator_tables_available(obsid):
@@ -113,12 +113,12 @@ with w.if_todo('copy_data'):
             
     # get the targets
     for obsid in obsids:
-        tgtdir = glob.glob(f'{tgtdirroot}/id{obsid}*{target}*')
+        tgtdir = glob.glob(f'{tgtdirroot}/id{obsid}*{target[:-1]}*')
         if len(tgtdir) == 0:
             logger.error(f'Missing target data for target: {target} (id: {obsid}).')
             sys.exit()
-        logger.info(f'Found target data:', tgtdir[0])
-        os.system('cp -r {tgtdir[0]} .')
+        logger.info(f'Copy target data: {tgtdir[0]}')
+        os.system(f'cp -r {tgtdir[0]} .')
 
     # now get the cals
     for obsid in obsids:
@@ -126,11 +126,11 @@ with w.if_todo('copy_data'):
         if len(tgtdir) != 1:
             logger.error(f'Missing or too many calibrator data for target: {target} (id: {obsid}).')
             sys.exit()
-        logger.info(f'Found calibrator data:', caldir[0])
-        os.system('cp -r {caldir[0]} .')
+        logger.info(f'Copy calibrator data: {caldir[0]}')
+        os.system(f'cp -r {caldir[0]} .')
 ### DONE
 
-target_dirs = glob.glob('id*_-_*'+target+'*')
+target_dirs = glob.glob('id*_-_*'+target[:-1]+'*')
 logger.debug('TARGET DIRS: %s' % (','.join(target_dirs) ) )
 
 ################################################################################
@@ -158,7 +158,7 @@ os.chdir(working_dir+'/'+target)
 # collet mss for this target
 if not os.path.exists('mss'):
     os.makedirs('mss')
-    for i, tc in enumerate(sorted(glob.glob('../id*_-_*'+target+'*/mss/TC*MS'))):
+    for i, tc in enumerate(sorted(glob.glob('../id*_-_*'+target[:-1]+'*/mss/TC*MS'))):
         tc_ren = 'TC%02i.MS' % i
         logger.debug('mv %s mss/%s' % (tc,tc_ren))
         os.system('mv %s mss/%s' % (tc,tc_ren))
@@ -212,6 +212,7 @@ with w.if_todo('quality_%s' % target):
 update_status_db(target, 'SaveProducts')
 
 with w.if_todo('saveproducts_%s' % target):
+    archive = '/iranet/groups/ulu/fdg/storagetgts/done/'
     # copy images in herts
     logger.info('Copy ddcal products -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % target)
     os.system('ssh herts "rm -rf /beegfs/lofar/lba/products/%s"' % target)
