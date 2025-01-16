@@ -188,26 +188,6 @@ class Direction(object):
         """
         return self.region_facets_file
 
-    # def set_h5parm_facets(self, facets_h5parm_file, loc, s):
-    #     """
-    #     Isolate the important directions (those in the intersection region) from the h5parm
-    #     """
-    #     with h5parm(facets_h5parm_file, readonly=True) as h5:
-    #         solset = h5.getSolset('sol000')
-    #         sou = solset.getSou().keys()
-    #     #print(sou, self.facets_dirs)
-    #     dirs_to_keep = [i for i, dir in enumerate(sou) if dir in self.facets_dirs] # list of index of direcitons
-    #     self.h5parm_facet_file = loc+'/'+self.name+'-facets.h5'
-    #     s.add(f'h5_merger.py -in {facets_h5parm_file} -out {self.h5parm_facet_file} --no_pol --no_antenna_crash --filter_directions "{dirs_to_keep}"',
-    #           log='h5_merger.log', commandType='python')
-    #     s.run(check=True)
-
-    # def get_h5parm_facets(self):
-    #     """
-    #     Return the h5parm with the subset of directions required for initial predict+corrupt
-    #     """
-    #     return self.h5parm_facet_file
-
     def set_model(self, root, typ, apply_region=True):
         """
         apply_region: Isolate the clean components of a model fits file to those under self.region
