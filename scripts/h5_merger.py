@@ -36,7 +36,7 @@ warnings.filterwarnings('ignore')
 
 __all__ = ['merge_h5', 'output_check', 'move_source_in_sourcetable', 'h5_check']
 
-diagdiag_math = """
+diagdiag_math = r"""
 Diagonal times Diagonal
 -------------------------------------------------
 
@@ -47,7 +47,7 @@ Diagonal times Diagonal
 -------------------------------------------------
  """
 
-diagfull_math = """
+diagfull_math = r"""
 Diagonal times Fulljones
 -------------------------------------------------
 
@@ -58,7 +58,7 @@ Diagonal times Fulljones
 -------------------------------------------------
  """
 
-fulldiag_math = """
+fulldiag_math = r"""
  Fulljones times Diagonal
 -------------------------------------------------
 
@@ -69,7 +69,7 @@ fulldiag_math = """
 -------------------------------------------------
 """
 
-doublefulljones_math = """
+doublefulljones_math = r"""
  Fulljones times Fulljones
 -------------------------------------------------
 
@@ -80,7 +80,7 @@ doublefulljones_math = """
 -------------------------------------------------
 """
 
-lin2circ_math = """
+lin2circ_math = r"""
 Convert linear polarization to circular polarization
 -----------------------------
 RR = XX - iXY + iYX + YY
@@ -90,7 +90,7 @@ LL = XX + iXY - iYX + YY
 -----------------------------
 """
 
-circ2lin_math = """
+circ2lin_math = r"""
 Convert circular polarization to linear polarization
 -----------------------------
 XX = RR + RL + LR + LL

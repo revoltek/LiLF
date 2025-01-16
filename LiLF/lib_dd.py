@@ -3,12 +3,14 @@ import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.convolution import convolve_fft
+from astropy.io import fits
 from astropy.wcs import WCS
-import matplotlib.pyplot as plt
 import pyregion
 from regions import Regions
 from pyregion.parser_helper import Shape
+from shapely.geometry import Polygon, Point
 import lsmtool
+from losoto.h5parm import h5parm
 
 from LiLF.lib_log import logger
 from LiLF import lib_img, lib_util
@@ -72,6 +74,139 @@ class Direction(object):
             raise "Missing region file."
 
         return self.region_file
+
+    def set_region_facets(self, facets_region_file, loc):
+        """
+        Create an intersection of the ddcal region and the facet regions to be used for fast predict
+        """
+        
+        def create_circle_polygon(center, radius, num_points=100):
+            """
+            Create a circular polygon by sampling points along the circumference.
+
+            Parameters:
+            - center: tuple (x, y) representing the circle center in ra/dec coordinates (deg).
+            - radius: float, the radius of the circle in deg.
+            - num_points: int, the number of points to sample along the circumference.
+
+            Returns:
+            - Shapely Polygon object approximating the circle.
+            """
+
+            center_rad = np.radians(center)
+            radius_rad = np.radians(radius)
+            #print(center_rad, radius_rad)
+
+            theta = np.linspace(0, 2 * np.pi, num_points)
+            ra_points = center_rad[0] + radius_rad * np.cos(theta) / np.cos(center_rad[1])
+            dec_points = center_rad[1] + radius_rad * np.sin(theta)
+            ra_points = np.degrees(ra_points) % 360  # Ensure RA is within 0-360 degrees
+            dec_points = np.degrees(dec_points)
+            return Polygon(np.column_stack((ra_points, dec_points)))
+
+        def load_regions_with_comments(region_file):
+            regions = []
+            comments = []
+
+            with open(region_file, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        # Skip empty lines or header comments
+                        continue
+
+                    # Extract region and inline comment
+                    if '#' in line:
+                        region_part, comment_part = line.split('#', 1)
+                        region_part = 'fk5\n'+region_part.strip()
+                        comment_part = comment_part.strip()
+                    else:
+                        region_part = 'fk5\n'+line
+                        comment_part = ''
+
+                    # Try to parse the region part into a region object
+                    try:
+                        region = Regions.parse(region_part, format='ds9')[0]  # Parse first region
+                        regions.append(region)
+                        comments.append(comment_part)
+                    except Exception as e:
+                        pass
+                        #print(f"Could not parse region: {region_part}. Error: {e}")
+                        #regions.append(None)
+                        #comments.append(comment_part)
+
+            return regions, comments
+
+        # Load the regions
+        circular_region = Regions.read(self.region_file, format="ds9")[0]
+        # Convert the circular region to a Shapely object
+        circle_shapely = create_circle_polygon([circular_region.center.ra.value % 360, circular_region.center.dec.value], circular_region.radius.value)
+
+        # now work on a series of polygon regions
+        region_str = ''
+        regions, comments = load_regions_with_comments(facets_region_file)
+        facet_dirs = []
+        for i, region in enumerate(regions):
+            # Extract vertices from the PolygonSkyRegion
+            try:
+                vertices_skycoord = region.vertices  # This is a SkyCoord object
+            except:
+                continue
+
+            vertices_radec = np.array([[v.ra.value%360,v.dec.value] for v in vertices_skycoord]) # extract ra and recs
+            # Convert the polygon to a Shapely object
+            polygon_shapely = Polygon(vertices_radec)
+
+            # Calculate the intersection - this is approximate as it assumes eucledian while we use ra/dec
+            intersection = polygon_shapely.intersection(circle_shapely)
+
+            if not intersection.is_empty:
+                # Convert the intersection back to a DS9 polygon region
+                if isinstance(intersection, Polygon):
+                    vertices = np.array(intersection.exterior.coords)
+                    region_str += "polygon(" + ", ".join(f"{x}, {y}" for x, y in vertices) + ")\n"
+                    ra, dec = regions[i+1].center.ra.value, regions[i+1].center.dec.value
+                    region_str += f"point({ra},{dec}) # "+comments[i+1]+"\n"
+                    facet_dirs.append(comments[i+1].split("=")[1])
+                else:
+                    logger.error("Intersection is not a single polygon. Unable to save.")
+            else:
+                pass
+                #print("The regions do not overlap; no intersection region created.")
+
+        # Save the intersection region to a DS9 region file
+        self.region_facets_file = loc+'/'+self.name+'-facets.reg'
+        self.facets_dirs = facet_dirs
+        with open(self.region_facets_file, "w") as f:
+            f.write("# Region file format: DS9\n")
+            f.write("fk5\n")
+            f.write(region_str)
+    
+    def get_region_facets(self):
+        """
+        Return the intersection of the ddcal region and the facet regions
+        """
+        return self.region_facets_file
+
+    # def set_h5parm_facets(self, facets_h5parm_file, loc, s):
+    #     """
+    #     Isolate the important directions (those in the intersection region) from the h5parm
+    #     """
+    #     with h5parm(facets_h5parm_file, readonly=True) as h5:
+    #         solset = h5.getSolset('sol000')
+    #         sou = solset.getSou().keys()
+    #     #print(sou, self.facets_dirs)
+    #     dirs_to_keep = [i for i, dir in enumerate(sou) if dir in self.facets_dirs] # list of index of direcitons
+    #     self.h5parm_facet_file = loc+'/'+self.name+'-facets.h5'
+    #     s.add(f'h5_merger.py -in {facets_h5parm_file} -out {self.h5parm_facet_file} --no_pol --no_antenna_crash --filter_directions "{dirs_to_keep}"',
+    #           log='h5_merger.log', commandType='python')
+    #     s.run(check=True)
+
+    # def get_h5parm_facets(self):
+    #     """
+    #     Return the h5parm with the subset of directions required for initial predict+corrupt
+    #     """
+    #     return self.h5parm_facet_file
 
     def set_model(self, root, typ, apply_region=True):
         """

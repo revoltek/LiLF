@@ -1,5 +1,10 @@
 import os, sys, logging, time
 
+import warnings
+from astropy.wcs import FITSFixedWarning
+# Suppress FITSFixedWarning
+warnings.simplefilter('ignore', FITSFixedWarning)
+
 class _ColorStreamHandler(logging.StreamHandler):
 
     DEFAULT = '\x1b[0m'

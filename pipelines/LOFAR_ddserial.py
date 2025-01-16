@@ -90,11 +90,11 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None, masksigm
         # make mask
         if imagereg is not None:
             s.add('breizorro.py -t %f -r %s -b 50 -o %s --merge %s' % (masksigma, imagename+'-MFS-image.fits', imagename+'-mask.fits', imagereg), 
-                    log='makemask-'+str(p)+'.log', commandType='python' )
+                    log='makemask-'+str(p)+'.log', commandType='python')
             s.run(check=True)        
         else:
             s.add('breizorro.py -t %f -r %s -b 50 -o %s' % (masksigma, imagename+'-MFS-image.fits', imagename+'-mask.fits'), 
-                    log='makemask-'+str(p)+'.log', commandType='python' )
+                    log='makemask-'+str(p)+'.log', commandType='python')
             s.run(check=True)        
 
         # clean 2
@@ -236,7 +236,7 @@ for cmaj in range(maxIter):
                 
                 # if compact flux is present for less than 2 Jy then consider excluding it
                 if (good_flux < 2) and (good_flux < 0.7*fluxes):
-                    logger.debug("%s: found extended source compact flux: %.0f%% (skip)" % (name,100*good_flux/fluxes))
+                    logger.debug("%s: found extended source; compact flux: %.0f%% (skip)" % (name,100*good_flux/fluxes))
                     cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
                     raise continue_i
             except ContinueI:
@@ -264,10 +264,12 @@ for cmaj in range(maxIter):
                 #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,freq_mid,size,img_beam,lsm.getColValues('MajorAxis')[idx])
                 d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
                 d.set_region(loc='ddserial/c%02i/skymodels' % cmaj)
-                model_root = 'ddserial/c%02i/skymodels/%s-init' % (cmaj, name)
-                for model_file in glob.glob(full_image.root+'*[0-9]-model*.fits'):
-                    os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
-                d.set_model(model_root, typ='init', apply_region=True)
+                d.set_region_facets(facets_region_file=facetregname, loc='ddserial/c%02i/skymodels' % cmaj)
+                #d.set_h5parm_facets(facets_h5parm_file=interp_h5parm, loc='ddserial/c%02i/solutions' % cmaj, s=s)
+                #model_root = 'ddserial/c%02i/skymodels/%s-init' % (cmaj, name)
+                #for model_file in glob.glob(full_image.root+'*[0-9]-model*.fits'):
+                #    os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
+                #d.set_model(model_root, typ='init', apply_region=True)
                 if not d.is_in_region(peelReg, wcs=full_image.getWCS()): d.peel_off = True
                 directions.append(d)
 
@@ -301,10 +303,12 @@ for cmaj in range(maxIter):
             d.set_position([ra, dec], phase_center)
             d.set_size([ra], [dec], [man_cal[0].radius.to_value('deg')], img_beam[0] / 3600)
             d.set_region(loc='ddserial/c%02i/skymodels' % cmaj)
-            model_root = 'ddserial/c%02i/skymodels/%s-init' % (cmaj, name)
-            for model_file in glob.glob(full_image.root + '*[0-9]-model*.fits'):
-                os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
-            d.set_model(model_root, typ='init', apply_region=True)
+            d.set_region_facets(facets_region_file=facetregname, loc='ddserial/c%02i/skymodels' % cmaj)
+            #d.set_h5parm_facets(facets_h5parm_file=interp_h5parm, loc='ddserial/c%02i/solutions' % cmaj, s=s)
+            #model_root = 'ddserial/c%02i/skymodels/%s-init' % (cmaj, name)
+            #for model_file in glob.glob(full_image.root + '*[0-9]-model*.fits'):
+            #    os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
+            #d.set_model(model_root, typ='init', apply_region=True)
             directions.insert(0, d)
             
         # create a concat region for debugging
@@ -395,9 +399,9 @@ for cmaj in range(maxIter):
 
             logger.info('Predict model...')
             # Predict - ms:MODEL_DATA
-            s.add(f'wsclean -predict -padding 1.8 -name {d.get_model("init")} -j {s.max_cpucores} -channels-out {ch_out} \
+            s.add(f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_cpucores} -channels-out {ch_out} \
                 -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
-                -facet-regions {facetregname} -apply-facet-solutions {interp_h5parm} {correct_for} \
+                -facet-regions {d.get_region_facets()} -no-solution-directions-check -apply-facet-solutions {interp_h5parm} {correct_for} \
                 -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
                 log='wscleanPRE-'+logstring+'.log', commandType='wsclean')
             s.run(check=True)
