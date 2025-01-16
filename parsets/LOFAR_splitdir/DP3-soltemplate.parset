@@ -1,0 +1,16 @@
+msin = 
+msin.datacolumn = DATA
+msout = .
+
+steps=[sol]
+
+sol.type = ddecal
+sol.solveralgorithm = directioniterative # needed for sol.datause
+sol.datause = single
+
+sol.h5parm = template.h5
+sol.maxiter = 1
+sol.solint =
+sol.nchan =
+sol.mode = scalarcomplexgain
+sol.modeldatacolumns=[DATA]

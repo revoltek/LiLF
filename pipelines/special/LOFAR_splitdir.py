@@ -3,6 +3,8 @@
 # HE: this is an experimental script to split out individual directions from LBA observations with IS present
 #     use cases are e.g. the preparation of in-field calibrators
 
+# TODO: possible improvement: interpolate IS DI phase solutions
+
 import sys, os, glob, argparse
 import numpy as np
 import lsmtool as lsm
@@ -12,28 +14,30 @@ from losoto.h5parm import h5parm
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 
 #####################################################
-def test_image_dutch(MSs, imgname):
+def test_image_dutch(MSs, imgname, data_col='SUBTRACTED_DATA'):
     """ Create a quick debug image..."""
     lib_util.run_wsclean(s, 'wsclean-test.log', MSs.getStrWsclean(), name=f'img/{imgname}',
-                         data_column='SUBTRACTED_DATA', size=3000, scale=f'4arcsec',
+                         data_column=data_col, size=3000, scale=f'4arcsec',
                          weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
-                         no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.85, nmiter=12,
+                         no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.88, nmiter=10,
                          parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
                          join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
                          deconvolution_channels=3, baseline_averaging='',
                          multiscale='', multiscale_scale_bias=0.7, pol='i')
 
+#####################################################
 parser = argparse.ArgumentParser(description='Split out a single direction by subtracting the rest field and correcting the stations.')
 parser.add_argument('--dirreg',action='store', default=None, type=str, help='Provide a region for the source to be split of (ds9 circle or square).')
 parser.add_argument('--name', dest='name', type=str, default='target_extracted', help='Name of the direction.')
 parser.add_argument('--dutchdir', type=str, default='dutchdir', help='Directory of the dutch processing.')
 parser.add_argument('--freqres', type=float, default=0.195312, help='Freq. resolution of the split-off MSs in Mhz. Default=0.195312MHz (1 subband)')
 parser.add_argument('--timeres', type=int, default=16, help='Time resolution of the split-off MSs in s. Default: 16s.')
+parser.add_argument('--infieldh5', type=str, default=None, help='Path towards IS di solutions that should be applied to the MSs (infield delay calibrator).')
 
 args = parser.parse_args()
 regfile, name, dutchdir = args.dirreg, args.name, args.dutchdir
 time_resolution, freq_resolution = args.timeres, args.freqres
-
+infield_h5 = args.infieldh5
 logger_obj = lib_log.Logger(f'pipeline-splitdir')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
@@ -57,8 +61,9 @@ dir_reg = lib_util.Region_helper(regfile)
 center = dir_reg.get_center() # center of the extract region
 
 MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s, check_flags=False, check_sun=False)
-max_uvw_m_dutch = MSs.getMaxBL(check_flags=True, dutch_only=True) # this is important, it is the maximum uvw value in meters of any dutch-dutch baseline. Everything above this value is certainly IS data
+max_uvw_m_dutch = 1.1*MSs.getMaxBL(check_flags=True, dutch_only=True) # this is important, it is the maximum uvw value in meters of any dutch-dutch baseline. Everything above this value is certainly IS data
 
+#####################################################
 # 1. Apply dutch direction-independent solutions (FR, amp and phase)
 with w.if_todo('correct_dutch_di'):
     logger.info('Correcting FR (Dutch stations) DATA -> CORRECTED_DATA...')
@@ -84,12 +89,29 @@ with w.if_todo('correct_dutch_di'):
                          join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
                          deconvolution_channels=3, baseline_averaging='',
                          multiscale='', multiscale_scale_bias=0.7, pol='i')
+    # logger.info('Test image (dd-corrected)...')
+    # lib_util.run_wsclean(s, 'wsclean-c.log', MSs.getStrWsclean(), name='img/dutchddcorr',
+    #                      data_column='CORRECTED_DATA', size=3000, scale='4arcsec',
+    #                      weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=32,
+    #                      no_update_model_required='', minuv_l=30, nmiter=20, mgain=0.85,
+    #                      parallel_deconvolution=1024,
+    #                      auto_threshold=3.0, auto_mask=5.0, join_channels='', fit_spectral_pol=3,
+    #                      channels_out=6, deconvolution_channels=3,
+    #                      multiscale='', multiscale_scale_bias=0.65, pol='i', beam_size=15,
+    #                      apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
+    #                      facet_regions=f'{dutchdir}/ddserial/c00/images/wideDD-c00_facets.reg', maxuvw_m=max_uvw_m_dutch,
+    #                      apply_facet_solutions=f'{dutchdir}/ddserial/c00/solutions/interp.h5 phase000,amplitude000')
 ### DONE
 
 # 2. Prepare the h5parm solutions from dutch processing so they can be used for IS data (reorder dirs and add IS stations with unit solutions)
 with w.if_todo('interph5'):
-    # first we need to reorder the soltab dir axis to have the same order as the solset.getSou() dict, otherwise h5_merger creates a mess (best would be to fix this in h5_merger)
     os.system(f'cp {dutchdir}/ddserial/c00/solutions/interp.h5 interp.h5')
+    with h5parm('interp.h5') as h5:
+        h5_timeres = np.diff(h5.getSolset('sol000').getSoltab('phase000').getAxisValues('time'))[0]
+        h5_freqres = np.diff(h5.getSolset('sol000').getSoltab('phase000').getAxisValues('freq'))[0]
+    solint = int(np.round(h5_timeres/MSs.getListObj()[0].getTimeInt()))
+    nchan = int(round(h5_freqres/np.diff(MSs.getFreqs())[0]))
+    # first we need to reorder the soltab dir axis to have the same order as the solset.getSou() dict, otherwise h5_merger creates a mess (best would be to fix this in h5_merger)
     with h5parm('interp.h5', readonly=False) as h5:
         solset = h5.getSolset('sol000')
         soltab_ph = solset.getSoltab('phase000')
@@ -107,8 +129,20 @@ with w.if_todo('interph5'):
         h5.getSolset('sol000').getSoltab('phase000').setAxisValues('dir', list(sou.keys()))
         h5.getSolset('sol000').getSoltab('amplitude000').setValues(soltab_amp.getValues()[0][order_amp])
         h5.getSolset('sol000').getSoltab('amplitude000').setAxisValues('dir', list(sou.keys()))
-    s.add(f'h5_merger.py --h5_out interp_merged.h5 --h5_tables interp.h5 -ms {MSs.getListStr()[0]} --add_ms_stations --no_antenna_crash --propagate_flags')
+    s.add(f'h5_merger.py --h5_out interp_merged.h5 --h5_tables interp.h5 -ms "mss-IS/TC*.MS" --freq_av {nchan} --time_av {solint} --add_ms_stations --no_antenna_crash --propagate_flags')
     s.run(check=True)
+    # logger.info('Test image (dd-corrected)...')
+    # lib_util.run_wsclean(s, 'wsclean-c.log', MSs.getStrWsclean(), name='img/dutchddcorrmerged',
+    #                      data_column='CORRECTED_DATA', size=3000, scale='4arcsec',
+    #                      weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=32,
+    #                      no_update_model_required='', minuv_l=30, nmiter=20, mgain=0.85,
+    #                      parallel_deconvolution=1024,
+    #                      auto_threshold=3.0, auto_mask=5.0, join_channels='', fit_spectral_pol=3,
+    #                      channels_out=6, deconvolution_channels=3,
+    #                      multiscale='', multiscale_scale_bias=0.65, pol='i', beam_size=15,
+    #                      apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
+    #                      facet_regions=f'{dutchdir}/ddserial/c00/images/wideDD-c00_facets.reg', maxuvw_m=max_uvw_m_dutch,
+    #                      apply_facet_solutions='interp_merged.h5 phase000,amplitude000')
 
 # 3. Predict corrupted visibilities for all but the direction to split off - set to zero for all non-dutch baselines!
 with w.if_todo('predict'):
@@ -128,8 +162,6 @@ with w.if_todo('predict'):
     # Set to zero for non-dutch baselines
     MSs.run("taql 'update $pathMS set MODEL_DATA=0 WHERE ANTENNA1 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME !~p/[CR]S*/]'", log='$nameMS_resetISmodel.log', commandType='general')
     MSs.run("taql 'update $pathMS set MODEL_DATA=0 WHERE ANTENNA2 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME !~p/[CR]S*/]'", log='$nameMS_resetISmodel.log', commandType='general')
-    # MSs.run('taql "update $pathMS set MODEL_DATA=0 WHERE ANTENNA1 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME ! \
-    #                      ~p/[CR]S*/] && ANTENNA2 in [SELECT ROWID() FROM ::ANTENNA WHERE NAME ! ~p/[CR]S*/]"', log='$nameMS_resetISmodel.log', commandType='general')
 
 # 4. subtract for dutch baselines
 with w.if_todo('subtract'):
@@ -138,13 +170,13 @@ with w.if_todo('subtract'):
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
             log='$nameMS_taql.log', commandType='general')
     test_image_dutch(MSs, 'dutchsub')
-    lib_util.run_wsclean(s, 'wsclean-test0.log', MSs.getStrWsclean(), name=f'img/allsub',
-                         data_column='SUBTRACTED_DATA', size=6000, scale=f'0.5arcsec',
-                         weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
-                         no_update_model_required='', minuv_l=30, mgain=0.85, nmiter=12,
-                         parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
-                         join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
-                         deconvolution_channels=3, baseline_averaging='', multiscale='', multiscale_scale_bias=0.7, pol='i')
+    # lib_util.run_wsclean(s, 'wsclean-test0.log', MSs.getStrWsclean(), name=f'img/allsub',
+    #                      data_column='SUBTRACTED_DATA', size=6000, scale=f'0.5arcsec',
+    #                      weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
+    #                      no_update_model_required='', minuv_l=30, mgain=0.85, nmiter=12,
+    #                      parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
+    #                      join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
+    #                      deconvolution_channels=3, baseline_averaging='', multiscale='', multiscale_scale_bias=0.7, pol='i')
 
 # 5. apply closest direction solutions for dutch baselines
 with w.if_todo('correct_dutch_dd'):
@@ -168,6 +200,17 @@ with w.if_todo('correct_dutch_dd'):
                         log='$nameMS_init-correct.log', commandType='DP3')
     h5init.close()
     test_image_dutch(MSs, 'dutchsubcorr')
+### DONE
+
+if infield_h5:
+    # apply infield delay calibrator solutions to full data
+    with w.if_todo('correct_IS_di'):
+        logger.info('Correcting delay cal phase (IS) SUBTRACTED_DATA -> SUBTRACTED_DATA...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={infield_h5}  \
+                cor.correction=phase000 msin.datacolumn=SUBTRACTED_DATA msin.datacolumn=SUBTRACTED_DATA ', log='$nameMS_corFR.log', commandType='DP3')
+        logger.info('Correcting delay cal amplitude (IS) SUBTRACTED_DATA -> SUBTRACTED_DATA...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=SUBTRACTED_DATA \
+                cor.parmdb={infield_h5} cor.correction=amplitude000', log='$nameMS_sf-correct.log', commandType='DP3')
 ### DONE
 
 # 6. phase shift and average the data -> to 16s,

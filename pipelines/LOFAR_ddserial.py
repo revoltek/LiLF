@@ -117,6 +117,7 @@ with w.if_todo('cleaning'):
     os.makedirs('ddserial/init')
     os.system('cp ddparallel/skymodel/wideM-*model*.fits ddserial/init/')
     os.system('cp '+sorted(glob.glob("ddparallel/images/wideM-*image.fits"))[-1]+' ddserial/init/')
+    os.system('cp '+sorted(glob.glob("ddparallel/images/wideM-*residual.fits"))[-1]+' ddserial/init/')
     lib_util.check_rm('img')
     os.makedirs('img')
     lib_util.check_rm('mss-avg')
@@ -470,7 +471,7 @@ for cmaj in range(maxIter):
         with w.if_todo('%s-initcorr' % logstring):
             # DEBUG imaging
             logger.info('Pre-imaging (uncorr)...')
-            clean('%s-uncorr' % logstring, MSs_dir, res='normal', size=[d.size, d.size], masksigma=5)  # , imagereg=d.get_region())
+            clean('%s-uncorr' % logstring, MSs_dir, res='normal', size=[d.size, d.size], masksigma=5, imagereg=userReg)
             
             closest = lib_h5.get_closest_dir(interp_h5parm, d.position)
             logger.info('Correct init phase - closest facet ({})'.format(closest))
@@ -478,7 +479,7 @@ for cmaj in range(maxIter):
                           cor.parmdb={interp_h5parm} cor.correction=phase000 cor.direction={closest}', log='$nameMS_init-correct.log', commandType='DP3')
             
             logger.info('Pre-imaging (pre)...')
-            clean('%s-pre' % logstring, MSs_dir, res='normal', size=[d.size,d.size], masksigma=5)#, imagereg=d.get_region())
+            clean('%s-pre' % logstring, MSs_dir, res='normal', size=[d.size,d.size], masksigma=5, imagereg=userReg)
         ### DONE
         
         # get initial noise and set iterators for timeint solutions
@@ -636,7 +637,7 @@ for cmaj in range(maxIter):
             with w.if_todo('%s-image' % logstringcal):
 
                 logger.info('%s (cdd: %02i): imaging...' % (d.name, cdd))
-                clean('%s' % logstringcal, MSs_dir, res='normal', size=[d.size,d.size])#, imagereg=d.get_region())
+                clean('%s' % logstringcal, MSs_dir, res='normal', size=[d.size,d.size], imagereg=userReg)
             ### DONE
 
             image = lib_img.Image('img/ddserialM-%s-MFS-image.fits' % logstringcal, userReg=userReg)
@@ -904,7 +905,7 @@ for cmaj in range(maxIter):
         # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
         # TODO: do we need dd_psf_grid='25 25'
         logger.info('Cleaning...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale=str(pixscale)+'arcsec',
+        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(),  name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale=str(pixscale)+'arcsec',
                 weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=32, save_source_list='', no_update_model_required='', minuv_l=30, nmiter=40, mgain=0.85, parallel_deconvolution=1024,
                 auto_threshold=3.0, auto_mask=5.0, fits_mask=maskname, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.65, pol='i', **beam_kwargs,
