@@ -30,7 +30,7 @@ min_cal_flux60 = parset.getfloat('LOFAR_ddserial','minCalFlux60')
 solve_amp = parset.getboolean('LOFAR_ddserial','solve_amp')
 manual_dd_cal = parset.get('LOFAR_ddserial','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
 
-def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None, masksigma=6.5):
+def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=6.5):
     """
     p = patch name
     mss = list of mss to clean
@@ -88,7 +88,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None, masksigm
                 join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
     
         # make mask
-        if imagereg is not None:
+        if imagereg != '':
             s.add('breizorro.py -t %f -r %s -b 50 -o %s --merge %s' % (masksigma, imagename+'-MFS-image.fits', imagename+'-mask.fits', imagereg), 
                     log='makemask-'+str(p)+'.log', commandType='python')
             s.run(check=True)        
