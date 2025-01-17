@@ -30,7 +30,7 @@ solve_amp = parset.getboolean('LOFAR_ddserial','solve_amp')
 manual_dd_cal = parset.get('LOFAR_ddserial','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
 userReg = parset.get('model','userReg')
 
-def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None, masksigma=6.5):
+def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=6.5):
     """
     p = patch name
     mss = list of mss to clean
@@ -88,7 +88,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None, masksigm
                 join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
     
         # make mask
-        if imagereg is not None:
+        if imagereg != '':
             s.add('breizorro.py -t %f -r %s -b 50 -o %s --merge %s' % (masksigma, imagename+'-MFS-image.fits', imagename+'-mask.fits', imagereg), 
                     log='makemask-'+str(p)+'.log', commandType='python')
             s.run(check=True)        
@@ -895,11 +895,14 @@ for cmaj in range(maxIter):
         # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
         # TODO: do we need dd_psf_grid='25 25'
         logger.info('Cleaning...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(),  name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale=str(pixscale)+'arcsec',
-                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=32, save_source_list='', no_update_model_required='', minuv_l=30, nmiter=40, mgain=0.85, parallel_deconvolution=1024,
-                auto_threshold=3.0, auto_mask=5.0, fits_mask=maskname, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
-                multiscale='', multiscale_scale_bias=0.65, pol='i', **beam_kwargs,
-                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname, apply_facet_solutions=f'{interp_h5parm} {correct_for}')
+        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(),  name=imagename, data_column='CORRECTED_DATA',
+                size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.3', niter=1000000, gridder='wgridder',
+                parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
+                channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
+                save_source_list='', no_update_model_required='',  nmiter=40, auto_threshold=2.0, auto_mask=3.5, fits_mask=maskname,
+                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
+                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.5,
+                **beam_kwargs)
  
         os.system('mv %s*MFS*fits %s-0*fits %s_mask.fits ddserial/c%02i/images' % (imagename, imagename, imagename, cmaj))
 
