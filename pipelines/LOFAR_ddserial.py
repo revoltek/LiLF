@@ -255,6 +255,10 @@ for cmaj in range(maxIter):
             if d.get_flux(60e6) < min_cal_flux60:
                 logger.debug("%s: flux density @ 60 MHz: %.1f mJy (skip)" % (name, 1e3 * d.get_flux(60e6)))
                 cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
+            # skip sources that are too close to other dd-cals
+            elif not lib_dd.distance_check( d, directions, min_dist_bright=20, min_dist=10):
+                logger.debug("%s: too close to another ddcal (skip)" % (name))
+                cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
             # skip if outside the mid-freq null (that should be empty)
             elif not d.is_in_region(workingReg, wcs=full_image.getWCS()):
                 logger.debug("%s: outside the mid-freq null region (skip)" % (name))
@@ -309,7 +313,7 @@ for cmaj in range(maxIter):
         # order directions from the fluxiest one
         directions = [x for _, x in sorted(zip([d.get_flux(freq_mid) for d in directions],directions))][::-1]
 
-        logger.info('Found {} cals brighter than {} Jy (expected at 60 MHz):'.format(len(directions), min_cal_flux60))
+        logger.info(f'Found {len(directions)} cals brighter than {min_cal_flux60} Jy (expected at 60 MHz):')
         for d in directions:
             if not d.peel_off:
                 logger.info('%s: flux: %.2f Jy (rms:%.2f mJy)' % (d.name, d.get_flux(freq_mid), d.localrms*1e3))
