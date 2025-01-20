@@ -24,13 +24,13 @@ w = lib_util.Walker('pipeline-ddserial.walker')
 parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_ddserial'])))
 parset_dir = parset.get('LOFAR_ddserial','parset_dir')
-userReg = parset.get('model','userReg')
 maxIter = parset.getint('LOFAR_ddserial','maxIter')
 min_cal_flux60 = parset.getfloat('LOFAR_ddserial','minCalFlux60')
 solve_amp = parset.getboolean('LOFAR_ddserial','solve_amp')
 manual_dd_cal = parset.get('LOFAR_ddserial','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
+userReg = parset.get('model','userReg')
 
-def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None, masksigma=6.5):
+def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=6.5):
     """
     p = patch name
     mss = list of mss to clean
@@ -88,13 +88,13 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None, masksigm
                 join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
     
         # make mask
-        if imagereg is not None:
+        if imagereg != '':
             s.add('breizorro.py -t %f -r %s -b 50 -o %s --merge %s' % (masksigma, imagename+'-MFS-image.fits', imagename+'-mask.fits', imagereg), 
-                    log='makemask-'+str(p)+'.log', commandType='python' )
+                    log='makemask-'+str(p)+'.log', commandType='python')
             s.run(check=True)        
         else:
             s.add('breizorro.py -t %f -r %s -b 50 -o %s' % (masksigma, imagename+'-MFS-image.fits', imagename+'-mask.fits'), 
-                    log='makemask-'+str(p)+'.log', commandType='python' )
+                    log='makemask-'+str(p)+'.log', commandType='python')
             s.run(check=True)        
 
         # clean 2
@@ -105,7 +105,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None, masksigm
                 size=imsize, save_source_list='', scale=str(localpixscale)+'arcsec', reuse_psf=imagename, reuse_dirty=imagename,
                 weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', 
-                baseline_averaging='',  auto_threshold=0.75, auto_mask=1.5, fits_mask=imagename+'-mask.fits',
+                baseline_averaging='',  auto_threshold=0.75, auto_mask=2.5, fits_mask=imagename+'-mask.fits',
                 join_channels='', fit_spectral_pol=3, channels_out=ch_out)  #, deconvolution_channels=3) #local_rms
 
         os.system('cat '+logger_obj.log_dir+'/wscleanB-'+str(p)+'.log | grep "background noise"')
@@ -159,6 +159,7 @@ ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 # initially use facets and h5parm from LOFAR_ddparallel
 facetregname = 'ddparallel/solutions/facets-c1.reg'
 interp_h5parm = 'ddparallel/solutions/cal-tec-merged-c1.h5'
+correct_for = 'phase000'  # if needed add amplitudes000 before imaging
 
 with w.if_todo('add_columns'):
     logger.info('Add columns...')
@@ -173,7 +174,6 @@ full_image = lib_img.Image('ddserial/init/wideM-1-MFS-image.fits', userReg=userR
 
 for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
-    correct_for = 'phase000' # if needed add amplitudes000 before imaging
 
     # cycle specific variables
     picklefile = 'ddserial/directions-c%02i.pickle' % cmaj
@@ -236,7 +236,7 @@ for cmaj in range(maxIter):
                 
                 # if compact flux is present for less than 2 Jy then consider excluding it
                 if (good_flux < 2) and (good_flux < 0.7*fluxes):
-                    logger.debug("%s: found extended source compact flux: %.0f%% (skip)" % (name,100*good_flux/fluxes))
+                    logger.debug("%s: found extended source; compact flux: %.0f%% (skip)" % (name,100*good_flux/fluxes))
                     cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
                     raise continue_i
             except ContinueI:
@@ -255,6 +255,10 @@ for cmaj in range(maxIter):
             if d.get_flux(60e6) < min_cal_flux60:
                 logger.debug("%s: flux density @ 60 MHz: %.1f mJy (skip)" % (name, 1e3 * d.get_flux(60e6)))
                 cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
+            # skip sources that are too close to other dd-cals
+            elif not lib_dd.distance_check( d, directions, min_dist_bright=20, min_dist=10):
+                logger.debug("%s: too close to another ddcal (skip)" % (name))
+                cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
             # skip if outside the mid-freq null (that should be empty)
             elif not d.is_in_region(workingReg, wcs=full_image.getWCS()):
                 logger.debug("%s: outside the mid-freq null region (skip)" % (name))
@@ -264,10 +268,7 @@ for cmaj in range(maxIter):
                 #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,freq_mid,size,img_beam,lsm.getColValues('MajorAxis')[idx])
                 d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
                 d.set_region(loc='ddserial/c%02i/skymodels' % cmaj)
-                model_root = 'ddserial/c%02i/skymodels/%s-init' % (cmaj, name)
-                for model_file in glob.glob(full_image.root+'*[0-9]-model*.fits'):
-                    os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
-                d.set_model(model_root, typ='init', apply_region=True)
+                d.set_region_facets(facets_region_file=facetregname, loc='ddserial/c%02i/skymodels' % cmaj)
                 if not d.is_in_region(peelReg, wcs=full_image.getWCS()): d.peel_off = True
                 directions.append(d)
 
@@ -301,21 +302,18 @@ for cmaj in range(maxIter):
             d.set_position([ra, dec], phase_center)
             d.set_size([ra], [dec], [man_cal[0].radius.to_value('deg')], img_beam[0] / 3600)
             d.set_region(loc='ddserial/c%02i/skymodels' % cmaj)
-            model_root = 'ddserial/c%02i/skymodels/%s-init' % (cmaj, name)
-            for model_file in glob.glob(full_image.root + '*[0-9]-model*.fits'):
-                os.system('cp %s %s' % (model_file, model_file.replace(full_image.root, model_root)))
-            d.set_model(model_root, typ='init', apply_region=True)
+            d.set_region_facets(facets_region_file=facetregname, loc='ddserial/c%02i/skymodels' % cmaj)
             directions.insert(0, d)
             
         # create a concat region for debugging
-        os.system('cat ddserial/c%02i/skymodels/ddcal*reg > ddserial/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj,cmaj))
+        os.system('cat ddserial/c%02i/skymodels/ddcal[0-9][0-9][0-9][0-9].reg > ddserial/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj,cmaj))
         # save catalogue for debugging
         cal.write('ddserial/c%02i/skymodels/cat-c%02i.fits' % (cmaj,cmaj), format='fits', overwrite=True)
 
         # order directions from the fluxiest one
         directions = [x for _, x in sorted(zip([d.get_flux(freq_mid) for d in directions],directions))][::-1]
 
-        logger.info('Found {} cals brighter than {} Jy (expected at 60 MHz):'.format(len(directions), min_cal_flux60))
+        logger.info(f'Found {len(directions)} cals brighter than {min_cal_flux60} Jy (expected at 60 MHz):')
         for d in directions:
             if not d.peel_off:
                 logger.info('%s: flux: %.2f Jy (rms:%.2f mJy)' % (d.name, d.get_flux(freq_mid), d.localrms*1e3))
@@ -395,9 +393,9 @@ for cmaj in range(maxIter):
 
             logger.info('Predict model...')
             # Predict - ms:MODEL_DATA
-            s.add(f'wsclean -predict -padding 1.8 -name {d.get_model("init")} -j {s.max_cpucores} -channels-out {ch_out} \
+            s.add(f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_cpucores} -channels-out {ch_out} \
                 -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
-                -facet-regions {facetregname} -apply-facet-solutions {interp_h5parm} {correct_for} \
+                -facet-regions {d.get_region_facets()} -no-solution-directions-check -apply-facet-solutions {interp_h5parm} {correct_for} \
                 -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
                 log='wscleanPRE-'+logstring+'.log', commandType='wsclean')
             s.run(check=True)
@@ -432,9 +430,14 @@ for cmaj in range(maxIter):
             # Shift - ms:SUBTRACTED_DATA -> ms-dir:DATA (->8/16/32 s and 1 chan every 2 SBs: tot of 60 or 120 chan)
             if d.get_flux(freq_mid) > 10: avgtimeint = int(round(8/timeint))
             elif d.get_flux(freq_mid) > 4: avgtimeint = int(round(16/timeint))
-            else: avgtimeint = int(round(32/timeint))
-            avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=2*0.192e6))) # avg to 1 ch every 2 SBs
-            if not (avgfreqint == 8 or avgfreqint == 16):
+            elif d.get_flux(freq_mid) > 1: avgtimeint = int(round(32/timeint))
+            else: avgtimeint = int(round(64/timeint))
+            if d.get_flux(freq_mid) > 10: avgtimeint = int(round(8/timeint))
+            if d.size > 0.1/3600: # region larger than 0.1 deg -> average less to avoid smearing
+                avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=2*0.192e6))) # avg to 1 ch every 2 SBs
+            else:
+                avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=4*0.192e6)))  # avg to 1 ch every 4 SBs
+            if not (avgfreqint == 8 or avgfreqint == 16 or avgfreqint == 32):
                 logger.warning('Strange averaging of channels (%i): %i -> %i' % (avgfreqint,MSs.getListObj()[0].getNchan(),int(MSs.getListObj()[0].getNchan()/avgfreqint)))
             MSs.run('DP3 '+parset_dir+'/DP3-shiftavg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=DATA \
                     avg.timestep='+str(avgtimeint)+' avg.freqstep='+str(avgfreqint)+' shift.phasecenter=['+str(d.position[0])+'deg,'+str(d.position[1])+'deg]', \
@@ -486,7 +489,7 @@ for cmaj in range(maxIter):
         doamp = False
         # usually there are 3600/32=112 or 3600/16=225 or 3600/8=450 timesteps and \
         # 60 (halfband)/120 (fullband) chans, try to use multiple numbers
-        iter_ph_solint = lib_util.Sol_iterator([8, 4, 1])  # 32 or 16 or 8 * [8,4,1] s
+        iter_ph_solint = lib_util.Sol_iterator([4, 2, 1])  # 32 or 16 or 8 * [4,2,1] s
         iter_amp_solint = lib_util.Sol_iterator([30, 20, 10])  # 32 or 16 or 8 * [30,20,10] s
         iter_amp2_solint = lib_util.Sol_iterator([120, 60])
         iter_ph_soltype = 'diagonalphase' if (d.get_flux(freq_mid) > 5 and cmaj > 0) else 'scalarphase'
@@ -650,11 +653,11 @@ for cmaj in range(maxIter):
             logger.info('MM ratio (cdd:%02i): %f' % (cdd,mm_ratio))
             # if noise incresed and mm ratio decreased - or noise increased a lot!
             if (rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre) or rms_noise > 1.2*rms_noise_pre:
-                   if (mm_ratio < 10 and cdd >= 2) or \
-                   (mm_ratio < 20 and cdd >= 3) or \
-                   (cdd >= 4): 
-                       logger.debug('BREAK ddcal self cycle with noise: %f (noise_pre: %f) - mmratio: %f (mmratio_pre: %f)' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
-                       break
+                # if (mm_ratio < 10 and cdd >= 2) or \
+                # (mm_ratio < 20 and cdd >= 3) or \
+                # (cdd >= 4):
+                logger.debug('BREAK ddcal self cycle with noise: %f (noise_pre: %f) - mmratio: %f (mmratio_pre: %f)' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
+                break
 
             if (d.peel_off or cdd >= 3) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or (d.get_flux(freq_mid) > 5)) and solve_amp:
                 logger.debug('START AMP WITH MODE 1 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
@@ -693,7 +696,6 @@ for cmaj in range(maxIter):
             logger.info('%s: converged.' % d.name)
             # copy in the ddcal dir the best model
             model_skymodel = 'ddserial/c%02i/skymodels/%s-best-source.txt' % (cmaj, d.name)
-            model_skydb = 'ddserial/c%02i/skymodels/%s-best-source.skydb' % (cmaj, d.name)
             os.system('cp %s %s' % (d.get_model('best')+'-sources.txt', model_skymodel))
 
             # restrict to initial mask
@@ -782,7 +784,7 @@ for cmaj in range(maxIter):
             continue
         else:
             logger.info("### Direction: %s -- %.2f Jy" % (d.name, np.sum(d.fluxes)))
-        logger.info("- Averaging: %i s - %i ch" % (d.avg_t, d.avg_f))
+        logger.info("- Averaging: %i time - %i freq" % (d.avg_t, d.avg_f))
         logger.info("- Converged: %s" % str(d.converged))
         logger.info('init: Rms: %f, MMratio: %f' % (d.rms_noise_init,d.mm_ratio_init))
         for ic, (rms_noise, mm_ratio) in enumerate(zip(d.rms_noise,d.mm_ratio)):
@@ -901,11 +903,14 @@ for cmaj in range(maxIter):
         # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
         # TODO: do we need dd_psf_grid='25 25'
         logger.info('Cleaning...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(),  name=imagename, data_column='CORRECTED_DATA', size=imgsizepix, scale=str(pixscale)+'arcsec',
-                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=32, save_source_list='', no_update_model_required='', minuv_l=30, nmiter=40, mgain=0.85, parallel_deconvolution=1024,
-                auto_threshold=3.0, auto_mask=5.0, fits_mask=maskname, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
-                multiscale='', multiscale_scale_bias=0.65, pol='i', **beam_kwargs,
-                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname, apply_facet_solutions=f'{interp_h5parm} {correct_for}')
+        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(),  name=imagename, data_column='CORRECTED_DATA',
+                size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.3', niter=1000000, gridder='wgridder',
+                parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
+                channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
+                save_source_list='', no_update_model_required='',  nmiter=40, auto_threshold=2.0, auto_mask=3.5, fits_mask=maskname,
+                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
+                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.5,
+                **beam_kwargs)
  
         os.system('mv %s*MFS*fits %s-0*fits %s_mask.fits ddserial/c%02i/images' % (imagename, imagename, imagename, cmaj))
 

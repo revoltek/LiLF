@@ -3,12 +3,14 @@ import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.convolution import convolve_fft
+from astropy.io import fits
 from astropy.wcs import WCS
-import matplotlib.pyplot as plt
 import pyregion
 from regions import Regions
 from pyregion.parser_helper import Shape
+from shapely.geometry import Polygon, Point
 import lsmtool
+from losoto.h5parm import h5parm
 
 from LiLF.lib_log import logger
 from LiLF import lib_img, lib_util
@@ -73,6 +75,119 @@ class Direction(object):
 
         return self.region_file
 
+    def set_region_facets(self, facets_region_file, loc):
+        """
+        Create an intersection of the ddcal region and the facet regions to be used for fast predict
+        """
+        
+        def create_circle_polygon(center, radius, num_points=100):
+            """
+            Create a circular polygon by sampling points along the circumference.
+
+            Parameters:
+            - center: tuple (x, y) representing the circle center in ra/dec coordinates (deg).
+            - radius: float, the radius of the circle in deg.
+            - num_points: int, the number of points to sample along the circumference.
+
+            Returns:
+            - Shapely Polygon object approximating the circle.
+            """
+
+            center_rad = np.radians(center)
+            radius_rad = np.radians(radius)
+            #print(center_rad, radius_rad)
+
+            theta = np.linspace(0, 2 * np.pi, num_points)
+            ra_points = center_rad[0] + radius_rad * np.cos(theta) / np.cos(center_rad[1])
+            dec_points = center_rad[1] + radius_rad * np.sin(theta)
+            ra_points = np.degrees(ra_points) % 360  # Ensure RA is within 0-360 degrees
+            dec_points = np.degrees(dec_points)
+            return Polygon(np.column_stack((ra_points, dec_points)))
+
+        def load_regions_with_comments(region_file):
+            regions = []
+            comments = []
+
+            with open(region_file, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        # Skip empty lines or header comments
+                        continue
+
+                    # Extract region and inline comment
+                    if '#' in line:
+                        region_part, comment_part = line.split('#', 1)
+                        region_part = 'fk5\n'+region_part.strip()
+                        comment_part = comment_part.strip()
+                    else:
+                        region_part = 'fk5\n'+line
+                        comment_part = ''
+
+                    # Try to parse the region part into a region object
+                    try:
+                        region = Regions.parse(region_part, format='ds9')[0]  # Parse first region
+                        regions.append(region)
+                        comments.append(comment_part)
+                    except Exception as e:
+                        pass
+                        #print(f"Could not parse region: {region_part}. Error: {e}")
+                        #regions.append(None)
+                        #comments.append(comment_part)
+
+            return regions, comments
+
+        # Load the regions
+        circular_region = Regions.read(self.region_file, format="ds9")[0]
+        # Convert the circular region to a Shapely object
+        circle_shapely = create_circle_polygon([circular_region.center.ra.value % 360, circular_region.center.dec.value], circular_region.radius.value)
+
+        # now work on a series of polygon regions
+        region_str = ''
+        regions, comments = load_regions_with_comments(facets_region_file)
+        facet_dirs = []
+        for i, region in enumerate(regions):
+            # Extract vertices from the PolygonSkyRegion
+            try:
+                vertices_skycoord = region.vertices  # This is a SkyCoord object
+            except:
+                continue
+
+            vertices_radec = np.array([[v.ra.value%360,v.dec.value] for v in vertices_skycoord]) # extract ra and recs
+            # Convert the polygon to a Shapely object
+            polygon_shapely = Polygon(vertices_radec)
+
+            # Calculate the intersection - this is approximate as it assumes eucledian while we use ra/dec
+            intersection = polygon_shapely.intersection(circle_shapely)
+
+            if not intersection.is_empty:
+                # Convert the intersection back to a DS9 polygon region
+                if isinstance(intersection, Polygon):
+                    vertices = np.array(intersection.exterior.coords)
+                    region_str += "polygon(" + ", ".join(f"{x}, {y}" for x, y in vertices) + ")\n"
+                    ra, dec = regions[i+1].center.ra.value, regions[i+1].center.dec.value
+                    region_str += f"point({ra},{dec}) # "+comments[i+1]+"\n"
+                    facet_dirs.append(comments[i+1].split("=")[1])
+                else:
+                    logger.error("Intersection is not a single polygon. Unable to save.")
+            else:
+                pass
+                #print("The regions do not overlap; no intersection region created.")
+
+        # Save the intersection region to a DS9 region file
+        self.region_facets_file = loc+'/'+self.name+'-facets.reg'
+        self.facets_dirs = facet_dirs
+        with open(self.region_facets_file, "w") as f:
+            f.write("# Region file format: DS9\n")
+            f.write("fk5\n")
+            f.write(region_str)
+    
+    def get_region_facets(self):
+        """
+        Return the intersection of the ddcal region and the facet regions
+        """
+        return self.region_facets_file
+
     def set_model(self, root, typ, apply_region=True):
         """
         apply_region: Isolate the clean components of a model fits file to those under self.region
@@ -126,9 +241,9 @@ class Direction(object):
         phase_center: the phase centre of the obs in [ra,dec] (in deg)
         """
         self.position = [round(position[0], 5), round(position[1], 5)]
-        SC_dd = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
-        SC_phasecentre = SkyCoord(phase_center[0]*u.deg, phase_center[1]*u.deg, frame='fk5')
-        self.dist_from_centre = SC_dd.separation(SC_phasecentre).deg
+        self.position_skycoord = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
+        phasecentre_skycoord = SkyCoord(phase_center[0]*u.deg, phase_center[1]*u.deg, frame='fk5')
+        self.dist_from_centre = self.position_skycoord.separation(phasecentre_skycoord).deg
 
     def is_in_region(self, region, wcs):
         """
@@ -140,7 +255,7 @@ class Direction(object):
 
     def get_flux(self, freq):
         """
-        freq: frequency to evaluate the flux
+        freq: frequency to evaluate the flux [Hz]
         """
         return np.sum(np.array(self.fluxes) * (freq/np.array(self.ref_freq))**(np.array(self.spidx_coeffs)))
 
@@ -171,6 +286,38 @@ class Direction(object):
         #elif ncomp > 1 and size < 10*img_beam:
         #    # for complex sources force a larger region
         #    self.size = 8*img_beam
+
+
+def distance_check( d_to_check, brighter_ds, min_dist_bright=20, min_dist=10):
+    """
+    Check if direction d is not too close to another direction, if false discard the direction
+    min_dist_bright: minimum acceptable distance from a ddcal with >1 Jy [arcmin]
+    min_dist: minimum acceptable distance from another ddcal [arcmin]
+    """
+    # keep everything above 2 Jy
+    if d_to_check.get_flux(60e6) > 2: 
+        #print('above 2Jy - keep')
+        return True
+    
+    brighter_ds_skycoord = SkyCoord(ra=[d.position_skycoord.ra for d in brighter_ds],
+                                    dec=[d.position_skycoord.dec for d in brighter_ds])
+    distances = d_to_check.position_skycoord.separation(brighter_ds_skycoord)
+    #print(distances)
+    fluxes = [d.get_flux(60e6) for d in brighter_ds]
+    #print(fluxes)
+
+    for dist, flux in zip(distances, fluxes):
+        if flux >= 1 and dist < min_dist_bright*u.arcmin:
+            # too close to another bright source
+            logger.info(f'{d_to_check.name} is too close to a bright ddcal source.')
+            return False
+        elif dist < min_dist*u.arcmin:
+            # too close to another source
+            logger.info(f'{d_to_check.name} is too close to another ddcal source.')
+            return False
+        
+    # all ok, we can use this
+    return True
 
 
 class Grouper( object ):
@@ -365,21 +512,6 @@ class Grouper( object ):
         logger.info('Plotting: grouping_clusters.png')
         fig.savefig('grouping_clusters.png', bbox_inches='tight')
 
-#def cut_skymodel(skymodel_in, skymodel_out, d, do_skydb=True, do_regions=False):
-#    """
-#    Load full skymodel and extract sources in the square around the calibrator of the given size
-#    """
-#    lsm = lsmtool.load(skymodel_in)
-#    # select all sources within a sqare of patch size
-#    lsm.select('Ra > %f' % (d.position[0]-(d.size/2)/np.cos(d.position[1]* np.pi / 180.)))
-#    lsm.select('Ra < %f' % (d.position[0]+(d.size/2)/np.cos(d.position[1]* np.pi / 180.)))
-#    lsm.select('Dec > %f' % (d.position[1]-d.size/2))
-#    lsm.select('Dec < %f' % (d.position[1]+d.size/2))
-#    if do_regions: lsm.write('ddserial/masks/regions-c%02i/%s.reg' % (cmaj,d.name), format='ds9', clobber=True)
-#    lsm.write(dir_skymodel, format='makesourcedb', clobber=True)
-#    lib_util.check_rm(dir_skydb)
-#    s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (dir_skymodel, dir_skydb), log='makesourcedb_cl.log', commandType='general' )
-#    s.run(check=True)
 
 def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
     """

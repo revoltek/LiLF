@@ -324,7 +324,7 @@ def write_ds9(fname, polygons, points=None, names=None):
             if points is not None:
                 poly_string += f"\npoint({points[i, 0]:.5f}, {points[i, 1]:.5f})"
                 if names is not None:
-                    poly_string += f" # text={names[i]}"
+                    poly_string += f" # text=\"{names[i]}\""
             polygon_strings.append(poly_string)
         f.write("\n".join(polygon_strings))
 
