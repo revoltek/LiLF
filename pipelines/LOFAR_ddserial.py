@@ -24,11 +24,11 @@ w = lib_util.Walker('pipeline-ddserial.walker')
 parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_ddserial'])))
 parset_dir = parset.get('LOFAR_ddserial','parset_dir')
-userReg = parset.get('model','userReg')
 maxIter = parset.getint('LOFAR_ddserial','maxIter')
 min_cal_flux60 = parset.getfloat('LOFAR_ddserial','minCalFlux60')
 solve_amp = parset.getboolean('LOFAR_ddserial','solve_amp')
 manual_dd_cal = parset.get('LOFAR_ddserial','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
+userReg = parset.get('model','userReg')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=6.5):
     """
@@ -302,7 +302,7 @@ for cmaj in range(maxIter):
             directions.insert(0, d)
             
         # create a concat region for debugging
-        os.system('cat ddserial/c%02i/skymodels/ddcal*reg > ddserial/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj,cmaj))
+        os.system('cat ddserial/c%02i/skymodels/ddcal[0-9][0-9][0-9][0-9].reg > ddserial/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj,cmaj))
         # save catalogue for debugging
         cal.write('ddserial/c%02i/skymodels/cat-c%02i.fits' % (cmaj,cmaj), format='fits', overwrite=True)
 
