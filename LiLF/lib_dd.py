@@ -288,7 +288,7 @@ class Direction(object):
         #    self.size = 8*img_beam
 
 
-def distance_check( d_to_check, brighter_ds, min_dist_bright=30, min_dist=10):
+def distance_check( d_to_check, brighter_ds, min_dist_bright=20, min_dist=10):
     """
     Check if direction d is not too close to another direction, if false discard the direction
     min_dist_bright: minimum acceptable distance from a ddcal with >1 Jy [arcmin]
