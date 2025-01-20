@@ -255,6 +255,10 @@ for cmaj in range(maxIter):
             if d.get_flux(60e6) < min_cal_flux60:
                 logger.debug("%s: flux density @ 60 MHz: %.1f mJy (skip)" % (name, 1e3 * d.get_flux(60e6)))
                 cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
+            # skip sources that are too close to other dd-cals
+            elif not lib_dd.distance_check( d, directions, min_dist_bright=20, min_dist=10):
+                logger.debug("%s: too close to another ddcal (skip)" % (name))
+                cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
             # skip if outside the mid-freq null (that should be empty)
             elif not d.is_in_region(workingReg, wcs=full_image.getWCS()):
                 logger.debug("%s: outside the mid-freq null region (skip)" % (name))
@@ -309,7 +313,7 @@ for cmaj in range(maxIter):
         # order directions from the fluxiest one
         directions = [x for _, x in sorted(zip([d.get_flux(freq_mid) for d in directions],directions))][::-1]
 
-        logger.info('Found {} cals brighter than {} Jy (expected at 60 MHz):'.format(len(directions), min_cal_flux60))
+        logger.info(f'Found {len(directions)} cals brighter than {min_cal_flux60} Jy (expected at 60 MHz):')
         for d in directions:
             if not d.peel_off:
                 logger.info('%s: flux: %.2f Jy (rms:%.2f mJy)' % (d.name, d.get_flux(freq_mid), d.localrms*1e3))
@@ -651,8 +655,10 @@ for cmaj in range(maxIter):
                 # if (mm_ratio < 10 and cdd >= 2) or \
                 # (mm_ratio < 20 and cdd >= 3) or \
                 # (cdd >= 4):
-                logger.debug('BREAK ddcal self cycle with noise: %f (noise_pre: %f) - mmratio: %f (mmratio_pre: %f)' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
-                break
+                # in the first few iterations, it's ok if noise doens't improve, let's get to the amps
+                if ((cdd <= 3) and (rms_noise > 1.01*rms_noise_pre and mm_ratio < 0.99*mm_ratio_pre)) or (cdd >=4) :
+                    logger.debug('BREAK ddcal self cycle with noise: %f (noise_pre: %f) - mmratio: %f (mmratio_pre: %f)' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
+                    break
 
             if (d.peel_off or cdd >= 3) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or (d.get_flux(freq_mid) > 5)) and solve_amp:
                 logger.debug('START AMP WITH MODE 1 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
@@ -839,7 +845,7 @@ for cmaj in range(maxIter):
         logger.info(log)
 
     # If we hava amplitudes (should normally be the case), apply them during facet imaging
-    if len(h5parms['amp1']) != 0: correct_for += ',amplitude000'
+    if (len(h5parms['amp1']) != 0) and not 'amplitude' in correct_for: correct_for += ',amplitude000'
 
     # update interp_h5parm to current cycle
     interp_h5parm = 'ddserial/c%02i/solutions/interp.h5' % cmaj

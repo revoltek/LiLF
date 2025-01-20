@@ -241,9 +241,9 @@ class Direction(object):
         phase_center: the phase centre of the obs in [ra,dec] (in deg)
         """
         self.position = [round(position[0], 5), round(position[1], 5)]
-        SC_dd = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
-        SC_phasecentre = SkyCoord(phase_center[0]*u.deg, phase_center[1]*u.deg, frame='fk5')
-        self.dist_from_centre = SC_dd.separation(SC_phasecentre).deg
+        self.position_skycoord = SkyCoord(position[0]*u.deg, position[1]*u.deg, frame='fk5')
+        phasecentre_skycoord = SkyCoord(phase_center[0]*u.deg, phase_center[1]*u.deg, frame='fk5')
+        self.dist_from_centre = self.position_skycoord.separation(phasecentre_skycoord).deg
 
     def is_in_region(self, region, wcs):
         """
@@ -255,7 +255,7 @@ class Direction(object):
 
     def get_flux(self, freq):
         """
-        freq: frequency to evaluate the flux
+        freq: frequency to evaluate the flux [Hz]
         """
         return np.sum(np.array(self.fluxes) * (freq/np.array(self.ref_freq))**(np.array(self.spidx_coeffs)))
 
@@ -286,6 +286,38 @@ class Direction(object):
         #elif ncomp > 1 and size < 10*img_beam:
         #    # for complex sources force a larger region
         #    self.size = 8*img_beam
+
+
+def distance_check( d_to_check, brighter_ds, min_dist_bright=20, min_dist=10):
+    """
+    Check if direction d is not too close to another direction, if false discard the direction
+    min_dist_bright: minimum acceptable distance from a ddcal with >1 Jy [arcmin]
+    min_dist: minimum acceptable distance from another ddcal [arcmin]
+    """
+    # keep everything above 2 Jy
+    if d_to_check.get_flux(60e6) > 2: 
+        #print('above 2Jy - keep')
+        return True
+    
+    brighter_ds_skycoord = SkyCoord(ra=[d.position_skycoord.ra for d in brighter_ds],
+                                    dec=[d.position_skycoord.dec for d in brighter_ds])
+    distances = d_to_check.position_skycoord.separation(brighter_ds_skycoord)
+    #print(distances)
+    fluxes = [d.get_flux(60e6) for d in brighter_ds]
+    #print(fluxes)
+
+    for dist, flux in zip(distances, fluxes):
+        if flux >= 1 and dist < min_dist_bright*u.arcmin:
+            # too close to another bright source
+            logger.info(f'{d_to_check.name} is too close to a bright ddcal source.')
+            return False
+        elif dist < min_dist*u.arcmin:
+            # too close to another source
+            logger.info(f'{d_to_check.name} is too close to another ddcal source.')
+            return False
+        
+    # all ok, we can use this
+    return True
 
 
 class Grouper( object ):
@@ -480,21 +512,6 @@ class Grouper( object ):
         logger.info('Plotting: grouping_clusters.png')
         fig.savefig('grouping_clusters.png', bbox_inches='tight')
 
-#def cut_skymodel(skymodel_in, skymodel_out, d, do_skydb=True, do_regions=False):
-#    """
-#    Load full skymodel and extract sources in the square around the calibrator of the given size
-#    """
-#    lsm = lsmtool.load(skymodel_in)
-#    # select all sources within a sqare of patch size
-#    lsm.select('Ra > %f' % (d.position[0]-(d.size/2)/np.cos(d.position[1]* np.pi / 180.)))
-#    lsm.select('Ra < %f' % (d.position[0]+(d.size/2)/np.cos(d.position[1]* np.pi / 180.)))
-#    lsm.select('Dec > %f' % (d.position[1]-d.size/2))
-#    lsm.select('Dec < %f' % (d.position[1]+d.size/2))
-#    if do_regions: lsm.write('ddserial/masks/regions-c%02i/%s.reg' % (cmaj,d.name), format='ds9', clobber=True)
-#    lsm.write(dir_skymodel, format='makesourcedb', clobber=True)
-#    lib_util.check_rm(dir_skydb)
-#    s.add('makesourcedb outtype="blob" format="<" in="%s" out="%s"' % (dir_skymodel, dir_skydb), log='makesourcedb_cl.log', commandType='general' )
-#    s.run(check=True)
 
 def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
     """
