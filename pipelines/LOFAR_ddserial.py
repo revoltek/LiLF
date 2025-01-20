@@ -428,7 +428,6 @@ for cmaj in range(maxIter):
             elif d.get_flux(freq_mid) > 4: avgtimeint = int(round(16/timeint))
             elif d.get_flux(freq_mid) > 1: avgtimeint = int(round(32/timeint))
             else: avgtimeint = int(round(64/timeint))
-            if d.get_flux(freq_mid) > 10: avgtimeint = int(round(8/timeint))
             if d.size > 0.1/3600: # region larger than 0.1 deg -> average less to avoid smearing
                 avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=2*0.192e6))) # avg to 1 ch every 2 SBs
             else:
