@@ -124,7 +124,7 @@ with w.if_todo('cleaning'):
 ### DONE
 
 # use unaveraged MSs to be sure to get the same pixscale and imgsizepix of ddparallel
-MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s)
 pixscale = MSs.getListObj()[0].getPixelScale() 
 imgsizepix = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True)) * 3600 / pixscale) # roughly to null
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
@@ -432,7 +432,6 @@ for cmaj in range(maxIter):
             elif d.get_flux(freq_mid) > 4: avgtimeint = int(round(16/timeint))
             elif d.get_flux(freq_mid) > 1: avgtimeint = int(round(32/timeint))
             else: avgtimeint = int(round(64/timeint))
-            if d.get_flux(freq_mid) > 10: avgtimeint = int(round(8/timeint))
             if d.size > 0.1/3600: # region larger than 0.1 deg -> average less to avoid smearing
                 avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=2*0.192e6))) # avg to 1 ch every 2 SBs
             else:

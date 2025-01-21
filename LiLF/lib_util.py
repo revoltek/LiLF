@@ -116,8 +116,8 @@ def getParset(parsetFile=''):
     add_default('LOFAR_extract', 'ampcal', 'auto')
     add_default('LOFAR_extract', 'extractRegion', 'target.reg')
     # quality
-    add_default('LOFAR_quality', 'self_dir', 'self')
-    add_default('LOFAR_quality', 'ddcal_dir', 'ddcal')
+    add_default('LOFAR_quality', 'ddparallel_dir', 'ddparallel')
+    add_default('LOFAR_quality', 'ddserial_dir', 'ddserial')
     # virgo
     add_default('LOFAR_virgo', 'cal_dir', '')
     add_default('LOFAR_virgo', 'data_dir', './')
