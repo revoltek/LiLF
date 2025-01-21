@@ -843,7 +843,8 @@ for cmaj in range(maxIter):
         logger.info(log)
 
     # If we hava amplitudes (should normally be the case), apply them during facet imaging
-    if len(h5parms['amp1']) != 0: correct_for += ',amplitude000'
+    if len(h5parms['amp1']) != 0: correct_for = 'phase000,amplitude000'
+    else: correct_for = 'phase000'
 
     # update interp_h5parm to current cycle
     interp_h5parm = 'ddserial/c%02i/solutions/interp.h5' % cmaj
