@@ -175,22 +175,19 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     s.run(check=True)
     return current_best_mask
 
-def source_within_beam(regname, pos) -> bool:
-    """check whether a given sky position is within the primary beam using beam.reg file"""
-    beam = Regions.read(regname)[0]
-    x_rot = ((pos.ra.deg - beam.center.ra.deg) * np.cos(beam.angle) + (pos.dec.deg - beam.center.dec.deg) * np.sin(beam.angle)) * u.deg
-    y_rot = -((pos.ra.deg - beam.center.ra.deg) * np.sin(beam.angle) + (pos.dec.deg - beam.center.dec.deg) * np.cos(beam.angle)) * u.deg
-    ellipse = (2 * x_rot / beam.width) ** 2.0 + (2 * y_rot / beam.height) ** 2.0
-    return False if ellipse > 1 else True
-
-def add_3c_models(sm, phasecentre, beamReg, null_mid_freq, max_sep=50., threshold=0):
+def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=50., threshold=0):
     from astropy.coordinates import SkyCoord
+    from astropy.io import fits
+    from astropy import wcs
     import json
     
     with open(parset_dir+"/3C_coordinates.json", "r") as file:
         all_3c = json.load(file)
     
     phasecentre = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg))
+    beam_hdu = fits.open(beamMask)[0]
+    beam_wcs = wcs.WCS(beam_hdu.header)
+        
     logger.info('Adding 3C models...')
     for source, coord in all_3c.items():
         #if source in ["3C 274"]:
@@ -199,7 +196,13 @@ def add_3c_models(sm, phasecentre, beamReg, null_mid_freq, max_sep=50., threshol
         pos = SkyCoord(ra=coord[0], dec=coord[1], unit=(u.hourangle, u.deg))
         sep = phasecentre.separation(pos).deg
         
-        if source_within_beam(beamReg, pos):
+        within_beam = False
+        if sep < 20:
+            pix_pos = np.round(np.asarray(wcs.utils.skycoord_to_pixel(pos, beam_wcs, origin=1))).astype(int)
+            if (0 <= pix_pos[0] < beam_hdu.data.shape[-2]) and (0 <= pix_pos[1] < beam_hdu.data.shape[-1]):
+                within_beam = bool(beam_hdu.data[0,0,pix_pos[1], pix_pos[0]])
+        
+        if within_beam:
             logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
             continue
         elif phasecentre.separation(pos).deg > max_sep:
@@ -448,7 +451,7 @@ for c in range(maxIter):
 
         if c == 0 and remove3c:
             # Add models of bright 3c sources to the sky model. Model will be subtracted from data before imaging.
-            sm = add_3c_models(sm, phasecentre=phasecentre, beamReg=beamReg, null_mid_freq=null_mid_freq)
+            sm = add_3c_models(sm, phasecentre=phasecentre, null_mid_freq=null_mid_freq)
             sm.setColValues("Q", np.zeros(len(sm.getColValues("I")))) # force non I Stokes to zero
             sm.setColValues("U", np.zeros(len(sm.getColValues("I"))))
             sm.setColValues("V", np.zeros(len(sm.getColValues("I"))))
