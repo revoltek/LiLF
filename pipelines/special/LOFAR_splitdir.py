@@ -16,15 +16,18 @@ from LiLF import lib_ms, lib_img, lib_util, lib_log
 
 #####################################################
 def test_image_dutch(MSs, imgname, data_col='SUBTRACTED_DATA'):
-    """ Create a quick debug image..."""
-    lib_util.run_wsclean(s, 'wsclean-test.log', MSs.getStrWsclean(), name=f'img/{imgname}',
-                         data_column=data_col, size=3000, scale=f'4arcsec',
-                         weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
-                         no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.88, nmiter=10,
-                         parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
-                         join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
-                         deconvolution_channels=3, baseline_averaging='',
-                         multiscale='', multiscale_scale_bias=0.7, pol='i')
+    if True:
+        logger.warning('skip image')
+    else:
+        """ Create a quick debug image..."""
+        lib_util.run_wsclean(s, 'wsclean-test.log', MSs.getStrWsclean(), name=f'img/{imgname}',
+                             data_column=data_col, size=3000, scale=f'4arcsec',
+                             weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
+                             no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.88, nmiter=10,
+                             parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
+                             join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
+                             deconvolution_channels=3, baseline_averaging='',
+                             multiscale='', multiscale_scale_bias=0.7, pol='i')
 
 #####################################################
 parser = argparse.ArgumentParser(description='Split out a single direction by subtracting the rest field and correcting the stations.')
