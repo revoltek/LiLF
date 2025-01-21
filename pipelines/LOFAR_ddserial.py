@@ -124,7 +124,7 @@ with w.if_todo('cleaning'):
 ### DONE
 
 # use unaveraged MSs to be sure to get the same pixscale and imgsizepix of ddparallel
-MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s )
+MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s)
 pixscale = MSs.getListObj()[0].getPixelScale() 
 imgsizepix = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True)) * 3600 / pixscale) # roughly to null
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
@@ -528,7 +528,8 @@ for cmaj in range(maxIter):
                 # Fast phase solutions
                 logger.info('Distant RS phase calibration (solint: %i)...' % solint_ph)
                 MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph1.h5 \
-                            sol.mode='+iter_ph_soltype+' sol.datause='+datause+' sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=2e6 sol.smoothnessreffrequency=54e6 ',
+                            sol.mode='+iter_ph_soltype+' sol.datause='+datause+' sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=2e6 sol.smoothnessreffrequency=54e6 \
+                            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]]',
                             log='$nameMS_solGph1-'+logstringcal+'.log', commandType='DP3')
                 # reset solutions for CS and inner RS
                 lib_util.run_losoto(s, 'ph1', [ms+'/cal-ph1.h5' for ms in MSs_dir.getListStr()],
@@ -543,7 +544,8 @@ for cmaj in range(maxIter):
                 MSs_dir.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-{logstringcal}')
                 logger.info('Close RS phase calibration (solint: %i)...' % (solint_ph_intermediate))
                 MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph2.h5 \
-                            sol.mode='+iter_ph_soltype+' sol.datause='+datause+' sol.solint='+str(solint_ph_intermediate)+' sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6',
+                            sol.mode='+iter_ph_soltype+' sol.datause='+datause+' sol.solint='+str(solint_ph_intermediate)+' sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 \
+                            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]]',
                             log='$nameMS_solGph2-'+logstringcal+'.log', commandType='DP3')
                 # reset solutions for inner CS
                 lib_util.run_losoto(s, 'ph2', [ms+'/cal-ph2.h5' for ms in MSs_dir.getListStr()],
@@ -554,19 +556,19 @@ for cmaj in range(maxIter):
                              cor.parmdb=cal-ph2.h5 cor.correction=phase000',
                             log='$nameMS_correct-'+logstringcal+'.log', commandType='DP3')
 
-                # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
-                MSs_dir.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-{logstringcal}')
-                logger.info('CS phase calibration (solint: %i)...' % (solint_ph_long))
-                MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph3.h5 \
-                            sol.mode='+iter_ph_soltype+' sol.datause='+datause+' sol.solint='+str(solint_ph_long)+' sol.smoothnessconstraint=8e6 sol.smoothnessreffrequency=54e6',
-                            log='$nameMS_solGph3-'+logstringcal+'.log', commandType='DP3')
-                lib_util.run_losoto(s, 'ph3', [ms+'/cal-ph3.h5' for ms in MSs_dir.getListStr()],
-                                    [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-ph3.parset'], plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                # # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
+                # MSs_dir.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-{logstringcal}')
+                # logger.info('CS phase calibration (solint: %i)...' % (solint_ph_long))
+                # MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph3.h5 \
+                #             sol.mode='+iter_ph_soltype+' sol.datause='+datause+' sol.solint='+str(solint_ph_long)+' sol.smoothnessconstraint=8e6 sol.smoothnessreffrequency=54e6',
+                #             log='$nameMS_solGph3-'+logstringcal+'.log', commandType='DP3')
+                # lib_util.run_losoto(s, 'ph3', [ms+'/cal-ph3.h5' for ms in MSs_dir.getListStr()],
+                #                     [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-ph3.parset'], plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
 
                 # merge the individual h5parms.
                 logger.info('Merge solutions...')
                 pol_param = '--no_pol' if iter_ph_soltype == 'scalarphase' else ''
-                s.add('h5_merger.py --h5_out cal-ph-merged.h5 --h5_tables cal-ph1.h5 cal-ph2.h5 cal-ph3.h5 --h5_time_freq cal-ph1.h5 \
+                s.add('h5_merger.py --h5_out cal-ph-merged.h5 --h5_tables cal-ph1.h5 cal-ph2.h5 --h5_time_freq cal-ph1.h5 \
                       --no_antenna_crash %s' % (pol_param), log='h5_merger.log', commandType='python' )
                 s.run(check=True)
                 lib_util.run_losoto(s, f'ph-merged', f'cal-ph-merged.h5',
@@ -845,7 +847,8 @@ for cmaj in range(maxIter):
         logger.info(log)
 
     # If we hava amplitudes (should normally be the case), apply them during facet imaging
-    if (len(h5parms['amp1']) != 0) and not 'amplitude' in correct_for: correct_for += ',amplitude000'
+    if len(h5parms['amp1']) != 0: correct_for = 'phase000,amplitude000'
+    else: correct_for = 'phase000'
 
     # update interp_h5parm to current cycle
     interp_h5parm = 'ddserial/c%02i/solutions/interp.h5' % cmaj

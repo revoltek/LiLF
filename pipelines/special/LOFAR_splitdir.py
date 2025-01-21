@@ -16,7 +16,7 @@ from LiLF import lib_ms, lib_img, lib_util, lib_log
 
 #####################################################
 def test_image_dutch(MSs, imgname, data_col='SUBTRACTED_DATA'):
-    if True:
+    if False:
         logger.warning('skip image')
     else:
         """ Create a quick debug image..."""
