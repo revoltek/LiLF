@@ -820,7 +820,7 @@ for cmaj in range(maxIter):
     
     imagename = 'img/wideDD-c%02i' % (cmaj)
     maskname = imagename+'_mask.fits'
-    facetregname = 'ddserial/c%02i/images/wideDD-c%02i_facets.reg' % (cmaj, cmaj)
+    facetregname = 'ddserial/c%02i/solutions/facets-c%02i.reg' % (cmaj, cmaj)
 
     # combine the h5parms
     h5parms = {'ph':[], 'amp1':[], 'amp2':[]}
@@ -912,13 +912,14 @@ for cmaj in range(maxIter):
                 apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.5,
                 **beam_kwargs)
  
-        os.system('mv %s*MFS*fits %s-0*fits %s_mask.fits ddserial/c%02i/images' % (imagename, imagename, imagename, cmaj))
+        os.system(f'mv {imagename}*MFS-image*fits {imagename}*MFS-model*fits {imagename}*MFS-residual*fits \
+                  {imagename}-0*image*fits {imagename}-0*model*fits {imagename}_mask.fits ddserial/c{cmaj:02}/images')
 
     ### DONE
 
     full_image = lib_img.Image('ddserial/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
     full_image.nantozeroModel()
-    min_cal_flux60 *= 0.8  # go deeper
+    min_cal_flux60 *= 0.9  # go deeper
 
 ##############################################################################################################
 ### Calibration finished - additional images with scientific value
@@ -931,7 +932,7 @@ with w.if_todo('output-vstokes'):
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
                 pol='v')
 
-    os.system('mv %s*MFS*.fits ddserial/c%02i/images' % (imagenameV, cmaj))
+    os.system('mv %s-MFS-image*.fits %s-MFS-model.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameV, cmaj))
 ### DONE
 
 # TODO: the model to subtract should be done from a high-res image to remove only point sources
@@ -959,7 +960,7 @@ with w.if_todo('output-lres'):
                 multiscale='', multiscale_scale_bias=0.65, pol='i', taper_gaussian='60arcsec',
                 apply_facet_beam='', use_differential_lofar_beam='', facet_beam_update=120, facet_regions=facetregname, apply_facet_solutions=f'{interp_h5parm} {correct_for}')
  
-    os.system('mv %s*MFS*.fits ddserial/c%02i/images' % (imagenameL, cmaj))
+    os.system('mv %s-MFS-image*.fits %s-MFS-model.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameL, cmaj))
 ### DONE
 
 with w.if_todo('output_PB'):

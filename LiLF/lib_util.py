@@ -90,7 +90,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_timesplit', 'fillmissingedges', 'True')
     add_default('LOFAR_timesplit', 'apply_fr', 'False') # Also transfer rotationmeasure sols? (E.g. for nearby calibrator and target)
     add_default('LOFAR_timesplit', 'no_aoflagger', 'False') # TEST: Skip aoflagger (e.g. for observations of A-Team sources)
-    # self
+    # ddparallel
     add_default('LOFAR_ddparallel', 'maxIter', '2')
     add_default('LOFAR_ddparallel', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
     add_default('LOFAR_ddparallel', 'subfield_min_flux', '20') # min flux within calibration subfield
@@ -98,7 +98,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'remove3c', 'True')
     add_default('LOFAR_ddparallel', 'min_facets', '')
     add_default('LOFAR_ddparallel', 'min_flux_factor', '1')
-    # dd
+    # ddserial
     add_default('LOFAR_ddserial', 'maxIter', '2')
     add_default('LOFAR_ddserial', 'minCalFlux60', '0.7')
     add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols

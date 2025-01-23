@@ -70,17 +70,21 @@ def check_done(pipename):
 # the the target from the db
 logger.info('### Quering database...')
 with SurveysDB(survey='lba',readonly=True) as sdb:
-    sdb.execute('SELECT * FROM fields WHERE status="Downloaded" order by priority asc')
-    r = sdb.cur.fetchall()
-    if len(r) == 0:
-        logger.warning('No field left in the db...')
-        sys.exit()
-    target = r[0]['id'] # here we set $target
-    target_ra = r[0]['ra']
-    target_dec = r[0]['decl']
-    # save target name
-    with open("target.txt", "w") as file:
-        print('%s,%f,%f' % (target,target_ra,target_dec), file=file)
+    if os.path.exists('target.txt'):
+         with open("target.txt", "r") as file:
+            target, target_ra, target_dec = file.readline()[:-1].split(',')
+    else:
+        sdb.execute('SELECT * FROM fields WHERE status="Downloaded" order by priority asc')
+        r = sdb.cur.fetchall()
+        if len(r) == 0:
+            logger.warning('No field left in the db...')
+            sys.exit()
+        target = r[0]['id'] # here we set $target
+        target_ra = r[0]['ra']
+        target_dec = r[0]['decl']
+        # save target name
+        with open("target.txt", "w") as file:
+            print('%s,%f,%f' % (target,target_ra,target_dec), file=file)
 
     sdb.execute('SELECT * FROM field_obs WHERE field_id="%s"' % target)
     r = sdb.cur.fetchall()
@@ -195,16 +199,16 @@ with w.if_todo('quality_%s' % target):
 
         with open('quality/quality.pickle', 'rb') as f:
             qdict = pickle.load(f)
-        logger.info(f'Self residual rms noise (cycle 0): %.1f mJy/b' % (qdict["self_c0_rms"] * 1e3))
-        logger.info(f'Self residual rms noise (cycle 1): %.1f mJy/b' % (qdict["self_c1_rms"] * 1e3))
-        logger.info('DDcal residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddcal_c0_rms'] * 1e3))
-        logger.info('DDcal residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddcal_c1_rms'] * 1e3))
-        logger.info('DDcal NVSS ratio (cycle 1): %.1f with %i matches' % (qdict['nvss_ratio'], qdict['nvss_match']))
-        logger.info('DDcal total flags: %.1f%%' % (qdict['flag_frac']*100))
+        logger.info('DDparallel residual rms noise (cycle 0): %.1f mJy/b' % (qdict["ddparallel_c0_rms"] * 1e3))
+        logger.info('DDparallel residual rms noise (cycle 1): %.1f mJy/b' % (qdict["ddparallel_c1_rms"] * 1e3))
+        logger.info('DDserial residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddserial_c0_rms'] * 1e3))
+        logger.info('DDserial residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddserial_c1_rms'] * 1e3))
+        logger.info('DDserial NVSS ratio (cycle 1): %.1f with %i matches' % (qdict['nvss_ratio'], qdict['nvss_match']))
+        logger.info('DDserial total flags: %.1f%%' % (qdict['flag_frac']*100))
 
         with SurveysDB(survey='lba', readonly=False) as sdb:
             r = sdb.execute('UPDATE fields SET noise="%s", nvss_ratio="%s", nvss_match="%s", flag_frac="%s" WHERE id="%s"' \
-                    % (qdict['ddcal_c1_rms'],qdict['nvss_ratio'], qdict['nvss_match'], qdict['flag_frac'],  target))
+                    % (qdict['ddserial_c1_rms'],qdict['nvss_ratio'], qdict['nvss_match'], qdict['flag_frac'],  target))
 ### DONE
 
 ################################################################################
@@ -213,26 +217,24 @@ update_status_db(target, 'SaveProducts')
 
 # on pleiadi
 with w.if_todo('saveproducts_%s' % target):
-    archive = '/iranet/groups/ulu/fdg/storagetgts/done/'+target
+    archive = '/iranet/groups/ulu/fdg/surveytgts/done/'+target
     # copy images in herts
     logger.info(f'Copy ddcal products -> {archive}')
     lib_util.check_rm(f'{archive}')
     os.system(f'mkdir {archive}; mkdir {archive}/plots {archive}/logs')
-    os.system(f'cp ddparallel/images/wideP*.fits {archive}')
     os.system(f'cp ddparallel/images/wideM-1-MFS-image.fits {archive}')
-    os.system(f'cp ddparallel/images/wide-largescale-MFS-image.fits {archive}')
     os.system(f'cp -r ddparallel/plots/* {archive}/plots')
-    os.system(f'cp ddserial/c0*/images/wideDD-c*.MFS-image*.fits {archive}')
+    os.system(f'cp ddserial/c0*/images/*.MFS-image*.fits {archive}')
     os.system(f'cp ddserial/c0*/images/wideDD-c*.MFS-residual.fits {archive}')
-    os.system(f'cp ddserial/c01/solutions/interp.h5 {archive}')
+    os.system(f'cp ddserial/c01/solutions/interp.h5 ddserial/c01/solutions/facets-c01.reg {archive}')
     os.system(f'cp ddserial/c0*/skymodels/all*reg {archive}')
     os.system(f'cp ddserial/primarybeam.fits {archive}')
     # copy logs
-    os.system(f'cp ../*logger ../*walker ../*{target}*/*logger ../*{target}*/*walker {archive}/logs')
+    os.system(f'cp -r ../*logger ../*walker ../*{target[:-1]}*/*logger ../*{target[:-1]}*/*walker ../*{target[:-1]}*/logs* {archive}/logs')
     # copy ms
     logger.info(f'Copy mss -> {archive}')
     os.system(f'tar zcf {target}.tgz mss-avg')
-    os.system(f'cp %s.tgz {archive}')
+    os.system(f'cp {target}.tgz {archive}')
 ### DONE
 
 # on herts
