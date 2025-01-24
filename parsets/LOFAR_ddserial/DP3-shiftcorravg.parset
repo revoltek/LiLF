@@ -5,10 +5,15 @@ msin.baseline = [CR]S*&
 msout = 
 msout.storagemanager = dysco
 
-steps = [shift, avg]
+steps = [shift, cor, avg]
 
 shift.type = phaseshifter
 shift.phasecenter = 
+
+cor.type = applycal
+cor.parmdb =
+cor.correction =
+cor.missingantennabehavior=unit
 
 avg.type = averager
 avg.freqstep = 8

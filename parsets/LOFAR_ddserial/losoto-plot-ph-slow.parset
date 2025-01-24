@@ -12,7 +12,7 @@ operation = PLOT
 soltab = sol000/phase000
 axesInPlot = [time,freq]
 axisInTable = ant
-prefix = plots/ph2_
+prefix = plots/ph-slow_
 refAnt = auto
 minmax = [-3.14,3.14]
 
@@ -22,7 +22,7 @@ soltab = sol000/phase000
 freq.minmaxstep = [55e6,100e6,1000]
 axesInPlot = [time]
 axisInTable = ant
-prefix = plots/ph2_
+prefix = plots/ph-slow_
 refAnt = auto
 minmax = [-3.14,3.14]
 
@@ -32,6 +32,6 @@ minmax = [-3.14,3.14]
 #axesInPlot = [time,freq]
 #axisInTable = ant
 #axisDiff = pol
-#prefix = plots/ph-dif1
+#prefix = plots/ph-slow-dif1
 #refAnt = auto
 #minmax = [-1,+1]
