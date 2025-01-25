@@ -18,7 +18,7 @@ from LiLF import lib_img, lib_util
 
 class Direction(object):
 
-    def __init__(self, name, soltypes=['ph','ph1','ph2','fr','amp1','amp2']):
+    def __init__(self, name, soltypes=['ph','ph1','ph2','ph-ddserial','fr','amp1','amp2']):
         self.name = name 
         self.soltypes = soltypes
         self.position = None  # [deg, deg]
