@@ -157,20 +157,10 @@ phase_center = MSs.getListObj()[0].getPhaseCentre()
 timeint = MSs.getListObj()[0].getTimeInt()
 ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 
-# initially use facets and h5parm from LOFAR_ddparallel
 facetregname = 'ddparallel/solutions/facets-c1.reg'
-interp_h5parm = 'ddparallel/solutions/cal-tec-merged-c1.h5'
+ddparallel_h5parm = 'ddparallel/solutions/cal-tec-merged-c1.h5'
+interp_h5parm = ddparallel_h5parm # this variable points to the most recent dd-solutions and will be updated before each imaging step
 correct_for = 'phase000'  # if needed add amplitudes000 before imaging
-
-# with w.if_todo('split_h5_patches'):
-#     logger.info('Split out patches of ddparallel h5 solutions...')
-#     with h5parm(interp_h5parm) as h5:
-#         patches = h5.getSolset('sol000').getSou()
-#     # iterate over patches and create a new h5parm for each patch...
-#     for p_idx, patch in enumerate(patches):
-#         s.add(f'h5_merger.py --h5_out {interp_h5parm.replace(".h5",patch+".h5")} --h5_tables {interp_h5parm} --filter_directions [{p_idx}] --no_pol --no_antenna_crash',
-#               log='h5_merger.log', commandType='python')
-#         s.run(check=True)
 
 with w.if_todo('add_columns'):
     logger.info('Add columns...')
@@ -253,7 +243,7 @@ for cmaj in range(maxIter):
             except ContinueI:
                 continue
 
-            d = lib_dd.Direction(name, soltypes=['ph1','amp1','amp2'])
+            d = lib_dd.Direction(name, soltypes=['ph-ddserial','ph1','amp1','amp2'])
             d.fluxes = fluxes
             d.spidx_coeffs = spidx_coeffs
             d.ref_freq = freq_mid
@@ -432,7 +422,7 @@ for cmaj in range(maxIter):
         ### DONE
 
         # Determine parameters for correction of closest ddparallel facet
-        closest = lib_h5.get_closest_dir(interp_h5parm, d.position)
+        closest = lib_h5.get_closest_dir(ddparallel_h5parm, d.position)
         with w.if_todo('%s-shift' % logstring):
 
             logger.info(f'Phase shift, apply phase of closest facet ({closest}) and avg...')
@@ -451,7 +441,7 @@ for cmaj in range(maxIter):
             if not (avgfreqint == 8 or avgfreqint == 16 or avgfreqint == 32):
                 logger.warning('Strange averaging of channels (%i): %i -> %i' % (avgfreqint,MSs.getListObj()[0].getNchan(),int(MSs.getListObj()[0].getNchan()/avgfreqint)))
             MSs.run(f'DP3 {parset_dir}/DP3-shiftcorravg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=DATA \
-                    avg.timestep={avgtimeint} avg.freqstep={avgfreqint} cor.parmdb={interp_h5parm} cor.correction=phase000 cor.direction={closest} \
+                    avg.timestep={avgtimeint} avg.freqstep={avgfreqint} cor.parmdb={ddparallel_h5parm} cor.correction=phase000 cor.direction={closest} \
                     shift.phasecenter=[{d.position[0]}deg,{d.position[1]}deg]', log='$nameMS_shiftcorravg-'+logstring+'.log', commandType='DP3')
 
             # save some info for debug
@@ -560,12 +550,12 @@ for cmaj in range(maxIter):
                             log='$nameMS_correct-'+logstringcal+'.log', commandType='DP3')
 
                 # merge the individual h5parms.
-                logger.info('Merge solutions...')
+                logger.info('Merge solutions (ph-fast + ph-slow -> ph-ddserial...')
                 pol_param = '--no_pol' if iter_ph_soltype == 'scalarphase' else ''
                 s.add('h5_merger.py --h5_out cal-ph-ddserial.h5 --h5_tables cal-ph-fast.h5 cal-ph-slow.h5 --h5_time_freq cal-ph-fast.h5 \
                       --no_antenna_crash %s' % (pol_param), log='h5_merger.log', commandType='python' )
                 s.run(check=True)
-                lib_util.run_losoto(s, f'ph-ddserial', f'cal-ph-ddcal.h5',
+                lib_util.run_losoto(s, f'ph-ddserial', f'cal-ph-ddserial.h5',
                                     [f'{parset_dir}/losoto-plot-ph-ddserial.parset'],
                                     plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                 os.system('mv cal-ph-ddserial.h5 %s' % d.get_h5parm('ph-ddserial'))
@@ -645,6 +635,7 @@ for cmaj in range(maxIter):
             if (cdd == 0 ) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
                 logger.warning('Image quality decreased after cdd00! What should we do in this case?')
             # if in cdd01 and cdd02 (before using amps) noise and mm ratio are worse or noise is a lot higher -> go back to previous ph_solint and restore current best model...
+            # TODO technically if the cycle after we continue is converged, we would use the skipped cycle solutions since those are the "-2" ones... Fix that somehow.
             elif (cdd in [1,2,3]) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
                 logger.warning(f'Image quality decreased after cdd{cdd}. Restore previous iteration ph_solint and model...')
                 iter_ph_solint = lib_util.Sol_iterator([2*solint_ph]) # go from 1 to 2 or 2 to 4 and don't decrease further.
@@ -711,14 +702,14 @@ for cmaj in range(maxIter):
             with w.if_todo('%s-merge_h5' % logstring):
                 # split out only the closest direction from the ddparallel h5parm
                 logger.info(f'Split out dir {closest} of ddparallel solutions...')
-                with h5parm(interp_h5parm) as h5:
+                with h5parm(ddparallel_h5parm) as h5:
                     patches = h5.getSolset('sol000').getSou()
                 p_idx = np.argwhere(np.array(list(patches.keys())) == closest) # get index of closest facet
                 assert len(p_idx) == 1 # sanity check
                 p_idx = p_idx[0]
                 # name of split h5parm, need to remove square brackets for system commands...
-                split_h5 = f'ddserial/c0{cmaj}/solutions/'+interp_h5parm.split('/')[-1].replace('.h5',closest.replace('[','').replace(']','')+'.h5')
-                s.add(f'h5_merger.py --h5_out {split_h5} --h5_tables {interp_h5parm} --filter_directions [{p_idx}] --no_pol --no_antenna_crash',
+                split_h5 = f'ddserial/c0{cmaj}/solutions/'+ddparallel_h5parm.split('/')[-1].replace('.h5',closest.replace('[','').replace(']','')+'.h5')
+                s.add(f'h5_merger.py --h5_out {split_h5} --h5_tables {ddparallel_h5parm} --filter_directions [{p_idx}] --no_pol --no_antenna_crash',
                     log='h5_merger.log', commandType='python')
                 s.run(check=True)
                 # change the direction of the closest facet to be exactly identical with the ddcal
