@@ -53,18 +53,18 @@ with w.if_todo('cleaning'):
 MSs = lib_ms.AllMSs( glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False)
 ra, dec = MSs.getListObj()[0].getPhaseCentre()
 fwhm = MSs.getListObj()[0].getFWHM(elliptical=True)
-qdict = {'self_c0_rms': None, 'self_c1_rms': None, 'ddserial_c0_rms': None,
+qdict = {'ddparallel_c0_rms': None, 'ddparallel_c1_rms': None, 'ddserial_c0_rms': None,
                 'ddserial_c1_rms': None, 'nvss_ratio': None, 'nvss_match': None, 'flag_frac':None}
 # MS flags, count all flags and print %
 
-# self images [noise per cycle]
+# ddparallel images [noise per cycle]
 if os.path.exists(ddparallel_dir):
-    img_self_c0 = ddparallel_dir+'/images/wideM-0-MFS-residual.fits'
-    qdict['self_c0_rms'] = get_noise(img_self_c0)
-    logger.info(f'Self residual rms noise (cycle 0): %.1f mJy/b' % (qdict["self_c0_rms"]*1e3))
-    img_self_c1 = ddparallel_dir+'/images/wideM-1-MFS-residual.fits'
-    qdict['self_c1_rms'] = get_noise(img_self_c1)
-    logger.info(f'Self residual rms noise (cycle 1): %.1f mJy/b' % (qdict["self_c1_rms"]*1e3))
+    img_ddparallel_c0 = ddparallel_dir+'/images/wideM-0-MFS-residual.fits'
+    qdict['ddparallel_c0_rms'] = get_noise(img_ddparallel_c0)
+    logger.info(f'ddparallel residual rms noise (cycle 0): %.1f mJy/b' % (qdict["ddparallel_c0_rms"]*1e3))
+    img_ddparallel_c1 = ddparallel_dir+'/images/wideM-1-MFS-residual.fits'
+    qdict['ddparallel_c1_rms'] = get_noise(img_ddparallel_c1)
+    logger.info(f'ddparallel residual rms noise (cycle 1): %.1f mJy/b' % (qdict["ddparallel_c1_rms"]*1e3))
 else:
     logger.warning('Skip "ddparallel" tests, missing dir.')
 

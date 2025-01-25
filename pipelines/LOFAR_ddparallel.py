@@ -305,7 +305,6 @@ if imgsizepix_wide % 2 != 0: imgsizepix_wide += 1  # prevent odd img sizes
 imgsizepix_lr = int(5*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/(pixscale*8))
 if imgsizepix_lr % 2 != 0: imgsizepix_lr += 1  # prevent odd img sizes
 
-current_best_mask = None #can be removed
 logger.info(f'Setting wide-field image size: {imgsizepix_wide}pix; scale:  {pixscale:.2f}arcsec.')
 
 # set clean componet fit order (use 5 for large BW)
@@ -704,7 +703,7 @@ for c in range(maxIter):
             # safe a bit of time by reusing psf and dirty in first iteration
             reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
         else:
-            current_best_mask = f'img/wideM-{c-1}-mask.fits'
+            current_best_mask = f'img/wideM-{c-1}-mask.fits' # is this already set by the make_current_best_mask() below?
             reuse_kwargs = {}
 
         # main wsclean call, with mask now
@@ -747,27 +746,38 @@ for c in range(maxIter):
         else:
             subfield_path = 'ddparallel/skymodel/subfield.reg'
 
-        with w.if_todo('c%02i_extreg_prepare' % c):
-            if not subfield and not os.path.exists(subfield_path): # automatically find subfield
-                sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
-                # sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted
-                sm.remove('MajorAxis > 80')  # remove largest scales
-                field_center1, field_size1 = lib_dd.make_subfield_region(subfield_path, MSs.getListObj()[0], sm,
+        if not subfield and not os.path.exists(subfield_path): # automatically find subfield
+            sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
+            # sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted
+            sm.remove('MajorAxis > 80')  # remove largest scales
+            field_center1, field_size1 = lib_dd.make_subfield_region(subfield_path, MSs.getListObj()[0], sm,
                                                                          subfield_min_flux, debug_dir='img/')
+            
+        subfield_reg = Regions.read(subfield_path)[0]
+        subfield_center = [subfield_reg.center.ra, subfield_reg.center.dec]
+        subfield_size = np.max([subfield_reg.width.to_value('deg'), subfield_reg.height.to_value('deg')])
+        
+        with w.if_todo('c%02i_extreg_prepare' % c):
             # prepare model of central/external regions
             logger.info('Blanking central region of model files and reverse...')
+            # copy mask
+            current_best_mask = f'img/wideM-{c}-mask.fits'
+            subfield_intmask='ddparallel/images/subfieldint-mask.fits'
+            os.system(f'cp {current_best_mask} {subfield_intmask}')
+            lib_img.blank_image_reg(subfield_intmask, subfield_path, blankval = 1.)
+            lib_img.select_connected_island(subfield_intmask, subfield_center)
+            subfield_extmask='ddparallel/images/subfieldext-mask.fits'
+            os.system(f'cp {current_best_mask} {subfield_extmask}')
+            lib_img.blank_image_fits(subfield_extmask, subfield_intmask, blankval = 0.)
+
             for im in glob.glob(f'img/wideM-{c}*model*.fits'):
                 wideMint = im.replace('wideM','wideMint')
                 os.system('cp %s %s' % (im, wideMint))
-                lib_img.blank_image_reg(wideMint, subfield_path, blankval = 0., inverse=True)
+                lib_img.blank_image_fits(wideMint, subfield_intmask, blankval = 0., inverse=True)
                 wideMext = im.replace('wideM','wideMext')
                 os.system('cp %s %s' % (im, wideMext))
-                lib_img.blank_image_reg(wideMext, subfield_path, blankval = 0.)
+                lib_img.blank_image_fits(wideMext, subfield_extmask, blankval = 0., inverse=True)
         # DONE
-
-        subfield_reg = Regions.read(subfield_path)[0]
-        field_center = subfield_reg.center.ra, subfield_reg.center.dec
-        field_size = np.max([subfield_reg.width.to_value('deg'), subfield_reg.height.to_value('deg')])
 
         with w.if_todo('c%02i_xtreg_subtract' % c):
             # Recreate MODEL_DATA of external region for subtraction
@@ -895,8 +905,8 @@ for c in range(maxIter):
         # Do a quick debug image...
         with w.if_todo('c%02i_image-subfield' % c):
             logger.info('Test image subfield...')
-            lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=3000, scale=f'{pixscale}arcsec',
-                                 weight='briggs -0.3', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{field_center[0].to(u.hourangle).to_string()} {field_center[1].to_string()}',
+            lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=int(1.2*subfield_size*3600/pixscale), scale=f'{pixscale}arcsec',
+                                 weight='briggs -0.3', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}',
                                  no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
                                  join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
                                  multiscale='',  multiscale_scale_bias=0.7, pol='i')

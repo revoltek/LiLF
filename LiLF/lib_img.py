@@ -10,6 +10,8 @@ from LiLF import make_mask, lib_util
 from LiLF.lib_log import logger
 import astropy.io.fits as fits
 import astropy.wcs as wcs
+from astropy.coordinates import SkyCoord
+import astropy.units as u
 
 class Image(object):
     def __init__(self, imagename, userReg = None, beamReg= None ):
@@ -267,7 +269,6 @@ def flatten(f, channel = 0, freqaxis = 0):
     """
     Flatten a fits file so that it becomes a 2D image. Return new header and data
     """
-    from astropy import wcs
 
     naxis=f[0].header['NAXIS']
     if (naxis < 2):
@@ -308,6 +309,35 @@ def flatten(f, channel = 0, freqaxis = 0):
     return header, f[0].data[tuple(slicing)]
 
 
+def select_connected_island(filename, coords, outfile=None):
+    """
+    Select only connected pixels starting from coords on a mask file.
+    All other pixels will be set to 0.
+    coords: SkyCoord with units
+    """
+    from scipy.ndimage import label
+
+    if (outfile == None):
+        outfile = filename
+    
+    with pyfits.open(filename) as fits:
+        mask = fits[0].data
+        w = wcs.WCS(fits[0].header).celestial
+        selected_pixel = w.world_to_pixel(SkyCoord(coords[0], coords[1]))
+
+        # Label connected components in the array
+        labeled_array, __num_features = label(mask.byteswap().newbyteorder())
+        # Get the label of the starting pixel
+        #print(labeled_array.shape, selected_pixel)
+        selected_label = labeled_array[0,0,int(selected_pixel[1]),int(selected_pixel[0])]
+        # Extract only the pixels belonging to the same island as the starting pixel
+        mask[:] = 0
+        mask[labeled_array == selected_label] = 1
+
+        fits[0].data = mask
+        fits.writeto(outfile, overwrite=True)
+
+
 def blank_image_fits(filename, maskname, outfile = None, inverse = False, blankval = 0.):
     """
     Set to "blankval" all the pixels inside the given region
@@ -324,9 +354,9 @@ def blank_image_fits(filename, maskname, outfile = None, inverse = False, blankv
         outfile = filename
 
     with pyfits.open(maskname) as fits:
-        mask = fits[0].data
+        mask = fits[0].data.astype(bool)
     
-    if (inverse): mask = ~(mask.astype(bool))
+    if (inverse): mask = ~(mask)
 
     with pyfits.open(filename) as fits:
         data = fits[0].data
