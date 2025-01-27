@@ -219,22 +219,29 @@ update_status_db(target, 'SaveProducts')
 with w.if_todo('saveproducts_%s' % target):
     archive = '/iranet/groups/ulu/fdg/surveytgts/done/'+target
     # copy images in herts
-    logger.info(f'Copy ddcal products -> {archive}')
+    logger.info(f'Copy products -> {archive}')
     lib_util.check_rm(f'{archive}')
     os.system(f'mkdir {archive}; mkdir {archive}/plots {archive}/logs')
     os.system(f'cp ddparallel/images/wideM-1-MFS-image.fits {archive}')
     os.system(f'cp -r ddparallel/plots/* {archive}/plots')
-    os.system(f'cp ddserial/c0*/images/*.MFS-image*.fits {archive}')
-    os.system(f'cp ddserial/c0*/images/wideDD-c*.MFS-residual.fits {archive}')
+    os.system(f'cp ddserial/c0*/images/*MFS-image*.fits {archive}')
+    os.system(f'cp ddserial/c0*/images/wideDD-c*MFS-residual.fits {archive}')
     os.system(f'cp ddserial/c01/solutions/interp.h5 ddserial/c01/solutions/facets-c01.reg {archive}')
     os.system(f'cp ddserial/c0*/skymodels/all*reg {archive}')
     os.system(f'cp ddserial/primarybeam.fits {archive}')
-    # copy logs
-    os.system(f'cp -r ../*logger ../*walker ../*{target[:-1]}*/*logger ../*{target[:-1]}*/*walker ../*{target[:-1]}*/logs* {archive}/logs')
     # copy ms
     logger.info(f'Copy mss -> {archive}')
     os.system(f'tar zcf {target}.tgz mss-avg')
     os.system(f'cp {target}.tgz {archive}')
+    # copy logs
+    logger.info(f'Copy logs -> {archive}')
+    os.chdir(working_dir)
+    os.system(f'cp -r Pill_*logger Pill*walker logs_Pill_* 
+              *{target[:-1]}*/pipeline-timesplit_*logger *{target[:-1]}*/pipeline-timesplit.walker *{target[:-1]}*/logs_pipeline-timesplit_* 
+              {target}/pipeline-ddparallel_*logger {target}/pipeline-ddparallel.walker {target}/logs_pipeline-ddparallel_* 
+              {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* 
+              {archive}/logs')
+
 ### DONE
 
 # on herts

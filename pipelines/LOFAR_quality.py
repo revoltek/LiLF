@@ -108,7 +108,7 @@ if os.path.exists(ddserial_dir):
                                  rms_map=True, mean_map='zero', ini_method='intensity', adaptive_rms_box=True,
                                  adaptive_thresh=50, rms_box_bright=(60, 15),group_by_isl=False, group_tol=10.0,
                                  output_opts=True, output_all=True, atrous_do=False, atrous_jmax=4, flagging_opts=True,
-                                 flag_maxsize_fwhm=0.5, advanced_opts=True, blank_limit=None)
+                                 flag_maxsize_fwhm=0.5, advanced_opts=True, blank_limit=None, quiet=True, debug=False)
         os.chdir('../../../')
         img.write_catalog(outfile='quality/wideDD-c01-MFS-image-pb.cat.fits', catalog_type='srl', format='fits', correct_proj='True',
                           clobber=True)

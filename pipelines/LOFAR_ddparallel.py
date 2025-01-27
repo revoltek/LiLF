@@ -814,7 +814,7 @@ for c in range(maxIter):
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
                         cor.parmdb={sol_dir}/cal-amp-di.h5 cor.correction=amplitudeSmooth cor.invert=True',
                         log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
-            clean_empty(MSs,f'only_subfield-{c}', 'SUBFIELD_DATA') # DEBUG
+            #clean_empty(MSs,f'only_subfield-{c}', 'SUBFIELD_DATA') # DEBUG
         ### DONE
 
         with w.if_todo('c%02i_intreg_predict' % c):
