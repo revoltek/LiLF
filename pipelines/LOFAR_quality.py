@@ -19,7 +19,7 @@ w = lib_util.Walker('pipeline-quality.walker')
 # parse parset
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_quality','parset_dir')
-self_dir = parset.get('LOFAR_quality','self_dir')
+ddparallel_dir = parset.get('LOFAR_quality','ddparallel_dir')
 ddserial_dir = parset.get('LOFAR_quality','ddserial_dir')
 
 def get_noise(fitsfile):
@@ -52,21 +52,21 @@ with w.if_todo('cleaning'):
 
 MSs = lib_ms.AllMSs( glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False)
 ra, dec = MSs.getListObj()[0].getPhaseCentre()
-fwhm = MSs.getListObj()[0].getFWHM()
-qdict = {'self_c0_rms': None, 'self_c1_rms': None, 'ddserial_c0_rms': None,
+fwhm = MSs.getListObj()[0].getFWHM(elliptical=True)
+qdict = {'ddparallel_c0_rms': None, 'ddparallel_c1_rms': None, 'ddserial_c0_rms': None,
                 'ddserial_c1_rms': None, 'nvss_ratio': None, 'nvss_match': None, 'flag_frac':None}
 # MS flags, count all flags and print %
 
-# self images [noise per cycle]
-if os.path.exists('self'):
-    img_self_c0 = self_dir+'/images/wideM-0-MFS-residual.fits'
-    qdict['self_c0_rms'] = get_noise(img_self_c0)
-    logger.info(f'Self residual rms noise (cycle 0): %.1f mJy/b' % (qdict["self_c0_rms"]*1e3))
-    img_self_c1 = self_dir+'/images/wideM-1-MFS-residual.fits'
-    qdict['self_c1_rms'] = get_noise(img_self_c1)
-    logger.info(f'Self residual rms noise (cycle 1): %.1f mJy/b' % (qdict["self_c1_rms"]*1e3))
+# ddparallel images [noise per cycle]
+if os.path.exists(ddparallel_dir):
+    img_ddparallel_c0 = ddparallel_dir+'/images/wideM-0-MFS-residual.fits'
+    qdict['ddparallel_c0_rms'] = get_noise(img_ddparallel_c0)
+    logger.info(f'ddparallel residual rms noise (cycle 0): %.1f mJy/b' % (qdict["ddparallel_c0_rms"]*1e3))
+    img_ddparallel_c1 = ddparallel_dir+'/images/wideM-1-MFS-residual.fits'
+    qdict['ddparallel_c1_rms'] = get_noise(img_ddparallel_c1)
+    logger.info(f'ddparallel residual rms noise (cycle 1): %.1f mJy/b' % (qdict["ddparallel_c1_rms"]*1e3))
 else:
-    logger.warning('Skip "self" tests, missing dir.')
+    logger.warning('Skip "ddparallel" tests, missing dir.')
 
 # flag fraction
 flags = []
@@ -93,33 +93,41 @@ else:
 qdict['flag_frac'] = flag_frac
 
 # ddserial images [noise per cycle, astrometry, fluxscale]
-if os.path.exists('ddserial'):
-    img_ddserial_c0 = sorted(glob.glob(ddserial_dir+'/c00/images/wideDD-c00.residual*.fits'))[-1]
+if os.path.exists(ddserial_dir):
+    img_ddserial_c0 = ddserial_dir+'/c00/images/wideDD-c00-MFS-residual.fits'
     qdict['ddserial_c0_rms'] = get_noise(img_ddserial_c0)
     logger.info('ddserial residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddserial_c0_rms']*1e3))
-    img_ddserial_c1 = sorted(glob.glob(ddserial_dir+'/c01/images/wideDD-c01.residual*.fits'))[-1]
+    img_ddserial_c1 = ddserial_dir+'/c01/images/wideDD-c01-MFS-residual.fits'
     qdict['ddserial_c1_rms'] = get_noise(img_ddserial_c1)
-    logger.info('DD-cal residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddserial_c1_rms']*1e3))
+    logger.info('ddserial residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddserial_c1_rms']*1e3))
 
     with w.if_todo('process_ddimage'):
         os.chdir(f'{ddserial_dir}/c01/images/') # bdsf raises error if image not in wdir?
-        img = bdsf.process_image(f'wideDD-c01.int.restored.fits', detection_image=f'wideDD-c01.app.restored.fits',
+        img = bdsf.process_image(f'wideDD-c01-MFS-image-pb.fits', detection_image=f'wideDD-c01-MFS-image.fits',
                                  thresh_isl=4.0, thresh_pix=5.0, rms_box=(150, 15),
                                  rms_map=True, mean_map='zero', ini_method='intensity', adaptive_rms_box=True,
                                  adaptive_thresh=50, rms_box_bright=(60, 15),group_by_isl=False, group_tol=10.0,
                                  output_opts=True, output_all=True, atrous_do=False, atrous_jmax=4, flagging_opts=True,
-                                 flag_maxsize_fwhm=0.5, advanced_opts=True, blank_limit=None)
+                                 flag_maxsize_fwhm=0.5, advanced_opts=True, blank_limit=None, quiet=True, debug=False)
         os.chdir('../../../')
-        img.write_catalog(outfile='quality/wideDD-c01.int.cat.fits', catalog_type='srl', format='fits', correct_proj='True',
+        img.write_catalog(outfile='quality/wideDD-c01-MFS-image-pb.cat.fits', catalog_type='srl', format='fits', correct_proj='True',
                           clobber=True)
-
-    nvss = lib_cat.RadioCat(f'{parset_dir}/NVSS_small.fits', 'NVSS', log=logger, col_pflux=None, col_maj=None)
-    nvss.filter(sigma=5, circle=[ra, dec, fwhm/2], isolation=90)
-    lofar = lib_cat.RadioCat('quality/wideDD-c01.int.cat.fits', 'LOFAR', log=logger)
-    lofar.filter(sigma=5, circle=[ra, dec, fwhm/2], isolation=30, minflux=0.06, size=25)
+        
+    from astropy.io import fits
+    from astropy.wcs import WCS
+    with fits.open(f'{ddserial_dir}/c01/images/wideDD-c01-MFS-image-pb.fits') as hdul:
+        wcs = WCS(hdul[0].header)
+        wcs = wcs.dropaxis(2)
+        wcs = wcs.dropaxis(2)
+    nvss = lib_cat.RadioCat(f'{parset_dir}/NVSS_small.fits', 'NVSS', log=logger, col_pflux=None, col_maj=None, wcs=wcs)
+    nvss.filter(sigma=5, ellipse=[ra, dec, fwhm[0]/2, fwhm[1]/2, 0], isolation=120)
+    nvss.write('quality/debug_nvss.fits', overwrite=True, format='fits')
+    lofar = lib_cat.RadioCat('quality/wideDD-c01-MFS-image-pb.cat.fits', 'LOFAR', log=logger, wcs=wcs)
+    lofar.filter(sigma=5, ellipse=[ra, dec, fwhm[0]/2, fwhm[1]/2, 0], isolation=45, minflux=0.06, size=25)
+    lofar.write('quality/debug_lofar.fits', overwrite=True, format='fits')
     lofar.match(nvss, 10)
     n_match = len(lofar.get_matches('NVSS'))
-    lofar.write('quality/wideDD-c01.int.cat_match_nvss.fits', overwrite=True)
+    lofar.write('quality/wideDD-c01-MFS-image-pb.cat_match_nvss.fits', overwrite=True, format='fits')
     median_nvss_ratio = lofar.flux_ratio('NVSS')
     qdict['nvss_ratio'] = median_nvss_ratio
     qdict['nvss_match'] = n_match

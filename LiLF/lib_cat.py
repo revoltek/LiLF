@@ -25,7 +25,8 @@ from astropy.coordinates import SkyCoord
 
 def separation(c_ra,c_dec,ra,dec):
     # all values in degrees
-    return np.sqrt((np.cos(c_dec.to_value('rad'))*(ra-c_ra))**2.0+(dec-c_dec)**2.0)
+    return SkyCoord(c_ra,c_dec).separation(SkyCoord(ra,dec)).value
+    #return np.sqrt((np.cos(c_dec.to_value('rad'))*(ra-c_ra))**2.0+(dec-c_dec)**2.0)
 
 class Cat():
     """ Wrapper class to include filtering and cross-matching utilities for astropy tables"""
@@ -59,6 +60,9 @@ class Cat():
                         break
                 except KeyError:
                     pass
+        # be sure it's between 0 and 360
+        cat['RA'] = cat['RA'] % 360
+        
         if dec:
             try:
                 cat['DEC'] = cat[dec].to('degree')
@@ -194,10 +198,10 @@ class Cat():
         cat2 = cat2[(cat2['RA'] > minra) & (cat2['RA'] < maxra) & (cat2['DEC'] > mindec) & (cat2['DEC'] < maxdec)]
         matches = 0
         for r in cat:
-            dist = separation(r['RA']*cat['RA'].unit, r['DEC']*cat['DEC'].unit, cat2['RA'], cat2['DEC'])
+            dist = separation(r['RA']*cat['RA'].unit, r['DEC']*cat['DEC'].unit, cat2['RA'], cat2['DEC'])*u.deg
             stab = cat2[dist < radius*u.arcsec]
-            df = dist[dist < radius*u.arcsec]
             if len(stab) > 0:
+                df = dist[dist < radius*u.arcsec]
                 # got at least one match
                 if not unique and len(stab) > 1:
                     print(f"Non-unique match {len(stab)} - using closest match.")
@@ -299,6 +303,7 @@ class RadioCat(Cat):
             logstr += f'->rectangle:{len(cat)}'
         if circle: # filter in circle
             r = separation(circle[0]*u.deg, circle[1]*u.deg, cat['RA'], cat['DEC'])
+            print(circle)
             cat['center_dist'] = r
             cat = cat[cat['center_dist'] < circle[2]]
             logstr += f'->circle:{len(cat)}'
@@ -314,10 +319,10 @@ class RadioCat(Cat):
         if isolation:
             cat['NN_dist']=np.nan*u.deg
             for row in cat:
-                dist=3600.0*separation(row['RA']*u.deg,row['DEC']*u.deg,cat['RA'],cat['DEC'])
+                dist=separation(row['RA']*u.deg,row['DEC']*u.deg,cat['RA'],cat['DEC'])
                 dist.sort()
-                row['NN_dist']=dist[1].to_value('degree')
-            cat=cat[cat['NN_dist']> isolation]
+                row['NN_dist']=dist[1]
+            cat=cat[cat['NN_dist'] > isolation/3600.] # deg and arcsec->deg
             logstr += f'->isolation:{len(cat)}'
         if size:
             cat = cat[cat['Maj'] < size*u.arcsec]
