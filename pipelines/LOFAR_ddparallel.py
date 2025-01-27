@@ -50,12 +50,18 @@ userReg = parset.get('model','userReg')
 
 #############################################################################
 
-def clean_empty(MSs, name, col='CORRECTED_DATA', size=5000):
+def clean_empty(MSs, name, col='CORRECTED_DATA', size=5000, shift=None):
     """ For testing/debugging only"""
-    lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
-                         data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=0, nmiter=0,
-                         weight='briggs 0.0', gridder='wgridder', parallel_gridding=1,
-                         no_update_model_required='')
+    if shift is None:
+        lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
+                            data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=0, nmiter=0,
+                            weight='briggs 0.0', gridder='wgridder', parallel_gridding=1,
+                            no_update_model_required='')
+    else:
+        lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
+                            data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=0, nmiter=0,
+                            weight='briggs 0.0', gridder='wgridder', parallel_gridding=1, shift= f'{shift[0]} {shift[1]}',
+                            no_update_model_required='')
 
 def corrupt_model_dirs(MSs, c, tc, model_columns, solmode='phase'):
     """ CORRUPT the MODEL_DATA columns for model_columns
@@ -218,15 +224,11 @@ def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=50., threshold=0):
             sourcedb = os.path.dirname(__file__) + f'/../models/calib-simple.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch=={source.replace(" ","")}')
-            #sm_3c.select(f'{beamMask}==False') # remove within beamMask
-            #sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
 
-        elif source in ["3C 274"]: # take pre-existing model for CasA
-            sourcedb = os.path.dirname(__file__) + f'/../models/demix_all.skymodel'
-            sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
-            sm_3c.select(f'patch==CasA')
-            #sm_3c.select(f'{beamMask}==False') # remove within beamMask
-            #sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
+        #elif source in ["3C 274"]: # take pre-existing model for CasA
+        #    sourcedb = os.path.dirname(__file__) + f'/../models/demix_all.skymodel'
+        #    sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
+        #    sm_3c.select(f'patch==VirA')
             
         else:
             sourcedb = os.path.dirname(__file__) + f'/../models/3CRR/{source.replace(" ","")}.txt'
@@ -234,7 +236,6 @@ def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=50., threshold=0):
                 logger.warning(f'No model found for {source} (seperation {sep:.2f} deg)')
                 continue
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
-            #sm_3c.select(f'{beamMask}==False') # remove within beamMask
         
         sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
         flux_3c =  sm_3c.getColValues("I", aggregate="sum", applyBeam=True)[0]
@@ -529,8 +530,8 @@ for c in range(maxIter):
                 logger.info('Solving amplitude for 3C...')
                 # Solve diagonal amplitude MSs:SMOOTHED_DATA
                 # TODO add use_dd_constraint_weights
-                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
-                          sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
+                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true sol.usebeammodel \
+                          sol.mode=scalaramplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
                           sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=60', log=f'$nameMS_solamp_c{c}.log', commandType="DP3")
 
                 losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
@@ -556,7 +557,7 @@ for c in range(maxIter):
                         log = f'$nameMS_subtract_{patch}.log', 
                         commandType = 'general'
                     )
-                    clean_empty(MSs,f'{patch}_cdfr', 'CORRECTED_DATA_FR')
+                    #clean_empty(MSs,f'{patch}_cdfr', 'DATA_SUB')
 
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
