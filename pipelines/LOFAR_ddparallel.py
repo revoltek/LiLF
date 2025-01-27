@@ -323,8 +323,12 @@ if tint < 4:
 else: base_solint = 1
 
 mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
+
 # define list of facet fluxes per iteration -> this can go into the config
-facet_fluxes = min_flux_factor*np.array([4, 1.8, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+if 'OUTER' in MSs.getListObj()[0].getAntennaSet():
+    facet_fluxes = min_flux_factor*np.array([4,2.0, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+elif 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
+    facet_fluxes = min_flux_factor*np.array([4,2.4, 1.3, 1.1, 1.0, 0.9])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 
 if min_facets: # if manually provided
     if not isinstance(min_facets, list):
