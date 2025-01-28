@@ -70,17 +70,21 @@ def check_done(pipename):
 # the the target from the db
 logger.info('### Quering database...')
 with SurveysDB(survey='lba',readonly=True) as sdb:
-    sdb.execute('SELECT * FROM fields WHERE status="Downloaded" order by priority asc')
-    r = sdb.cur.fetchall()
-    if len(r) == 0:
-        logger.warning('No field left in the db...')
-        sys.exit()
-    target = r[0]['id'] # here we set $target
-    target_ra = r[0]['ra']
-    target_dec = r[0]['decl']
-    # save target name
-    with open("target.txt", "w") as file:
-        print('%s,%f,%f' % (target,target_ra,target_dec), file=file)
+    if os.path.exists('target.txt'):
+         with open("target.txt", "r") as file:
+            target, target_ra, target_dec = file.readline()[:-1].split(',')
+    else:
+        sdb.execute('SELECT * FROM fields WHERE status="Downloaded" order by priority asc')
+        r = sdb.cur.fetchall()
+        if len(r) == 0:
+            logger.warning('No field left in the db...')
+            sys.exit()
+        target = r[0]['id'] # here we set $target
+        target_ra = r[0]['ra']
+        target_dec = r[0]['decl']
+        # save target name
+        with open("target.txt", "w") as file:
+            print('%s,%f,%f' % (target,target_ra,target_dec), file=file)
 
     sdb.execute('SELECT * FROM field_obs WHERE field_id="%s"' % target)
     r = sdb.cur.fetchall()
@@ -195,52 +199,81 @@ with w.if_todo('quality_%s' % target):
 
         with open('quality/quality.pickle', 'rb') as f:
             qdict = pickle.load(f)
-        logger.info(f'Self residual rms noise (cycle 0): %.1f mJy/b' % (qdict["self_c0_rms"] * 1e3))
-        logger.info(f'Self residual rms noise (cycle 1): %.1f mJy/b' % (qdict["self_c1_rms"] * 1e3))
-        logger.info('DDcal residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddcal_c0_rms'] * 1e3))
-        logger.info('DDcal residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddcal_c1_rms'] * 1e3))
-        logger.info('DDcal NVSS ratio (cycle 1): %.1f with %i matches' % (qdict['nvss_ratio'], qdict['nvss_match']))
-        logger.info('DDcal total flags: %.1f%%' % (qdict['flag_frac']*100))
+        logger.info('DDparallel residual rms noise (cycle 0): %.1f mJy/b' % (qdict["ddparallel_c0_rms"] * 1e3))
+        logger.info('DDparallel residual rms noise (cycle 1): %.1f mJy/b' % (qdict["ddparallel_c1_rms"] * 1e3))
+        logger.info('DDserial residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddserial_c0_rms'] * 1e3))
+        logger.info('DDserial residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddserial_c1_rms'] * 1e3))
+        logger.info('DDserial NVSS ratio (cycle 1): %.1f with %i matches' % (qdict['nvss_ratio'], qdict['nvss_match']))
+        logger.info('DDserial total flags: %.1f%%' % (qdict['flag_frac']*100))
 
         with SurveysDB(survey='lba', readonly=False) as sdb:
             r = sdb.execute('UPDATE fields SET noise="%s", nvss_ratio="%s", nvss_match="%s", flag_frac="%s" WHERE id="%s"' \
-                    % (qdict['ddcal_c1_rms'],qdict['nvss_ratio'], qdict['nvss_match'], qdict['flag_frac'],  target))
+                    % (qdict['ddserial_c1_rms'],qdict['nvss_ratio'], qdict['nvss_match'], qdict['flag_frac'],  target))
 ### DONE
 
 ################################################################################
 # Save products
 update_status_db(target, 'SaveProducts')
 
+# on pleiadi
 with w.if_todo('saveproducts_%s' % target):
-    archive = '/iranet/groups/ulu/fdg/storagetgts/done/'
+    archive = '/iranet/groups/ulu/fdg/surveytgts/done/'+target
     # copy images in herts
-    logger.info('Copy ddcal products -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % target)
-    os.system('ssh herts "rm -rf /beegfs/lofar/lba/products/%s"' % target)
-    os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s"' % target)
-    os.system('scp -q self/images/wideP*.fits herts:/beegfs/lofar/lba/products/%s' % target)
-    os.system('scp -q self/images/wideM-1-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % target)
-    os.system('scp -q self/images/wide-largescale-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % target)
-    os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/plots"' % target)
-    os.system('scp -q -r self/plots/* herts:/beegfs/lofar/lba/products/%s/plots' % target)
-    os.system('scp -q ddcal/c0*/images/wideDD-c*.MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % target)
-    os.system('scp -q ddcal/c0*/images/wideDD-c*.MFS-image-pb.fits herts:/beegfs/lofar/lba/products/%s' % target)
-    os.system('scp -q ddcal/c0*/images/wideDD-c*.MFS-residual.fits herts:/beegfs/lofar/lba/products/%s' % target)
-    os.system('scp -q ddcal/c01/solutions/interp.h5 herts:/beegfs/lofar/lba/products/%s' % target)
-    os.system('scp -q ddcal/c0*/skymodels/all*reg herts:/beegfs/lofar/lba/products/%s' % target)
-    os.system('scp -q ddcal/primarybeam.fits herts:/beegfs/lofar/lba/products/%s' % target)
-    os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/init"' % target)
-    os.system('scp -q -r ddcal/init/*model.fits ddcal/init/wideM-1-sources.txt herts:/beegfs/lofar/lba/products/%s/init' % target)
-    # logs
-    os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/logs"' % target)
-    os.system('scp -q ../*logger ../*walker ../*%s*/*logger ../*%s*/*walker herts:/beegfs/lofar/lba/products/%s/logs' % (target, target, target))
-    # copy ms in Bologna
-    logger.info('Copy mss -> pleiadi:/iranet/lofarfs2/lofar2/fdg/surveytgts/%s' % target)
-    os.system('tar zcf %s.tgz mss-avg' % target)
-    os.system('ssh pleiadi "rm -rf /iranet/lofarfs2/lofar2/fdg/surveytgts/%s"' % target)
-    os.system('ssh pleiadi "mkdir -p /iranet/lofarfs2/lofar2/fdg/surveytgts/%s"' % target)
-    os.system('scp -q %s.tgz pleiadi:/iranet/lofarfs2/lofar2/fdg/surveytgts/%s' % (target,target))
+    logger.info(f'Copy products -> {archive}')
+    lib_util.check_rm(f'{archive}')
+    os.system(f'mkdir {archive}; mkdir {archive}/plots {archive}/logs')
+    os.system(f'cp ddparallel/images/wideM-1-MFS-image.fits {archive}')
+    os.system(f'cp -r ddparallel/plots/* {archive}/plots')
+    os.system(f'cp ddserial/c0*/images/*MFS-image*.fits {archive}')
+    os.system(f'cp ddserial/c0*/images/wideDD-c*MFS-residual.fits {archive}')
+    os.system(f'cp ddserial/c01/solutions/interp.h5 ddserial/c01/solutions/facets-c01.reg {archive}')
+    os.system(f'cp ddserial/c0*/skymodels/all*reg {archive}')
+    os.system(f'cp ddserial/primarybeam.fits {archive}')
+    # copy ms
+    logger.info(f'Copy mss -> {archive}')
+    os.system(f'tar zcf {target}.tgz mss-avg')
+    os.system(f'cp {target}.tgz {archive}')
+    # copy logs
+    logger.info(f'Copy logs -> {archive}')
+    os.chdir(working_dir)
+    os.system(f'cp -r Pill_*logger Pill*walker logs_Pill_* \
+              *{target[:-1]}*/pipeline-timesplit_*logger *{target[:-1]}*/pipeline-timesplit.walker *{target[:-1]}*/logs_pipeline-timesplit_* \
+              {target}/pipeline-ddparallel_*logger {target}/pipeline-ddparallel.walker {target}/logs_pipeline-ddparallel_* \
+              {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
+              {archive}/logs')
+
 ### DONE
 
+# on herts
+# with w.if_todo('saveproducts_%s' % target):
+#     archive = '/iranet/groups/ulu/fdg/storagetgts/done/'
+#     # copy images in herts
+#     logger.info('Copy ddcal products -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % target)
+#     os.system('ssh herts "rm -rf /beegfs/lofar/lba/products/%s"' % target)
+#     os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s"' % target)
+#     os.system('scp -q self/images/wideP*.fits herts:/beegfs/lofar/lba/products/%s' % target)
+#     os.system('scp -q self/images/wideM-1-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % target)
+#     os.system('scp -q self/images/wide-largescale-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % target)
+#     os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/plots"' % target)
+#     os.system('scp -q -r self/plots/* herts:/beegfs/lofar/lba/products/%s/plots' % target)
+#     os.system('scp -q ddcal/c0*/images/wideDD-c*.MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % target)
+#     os.system('scp -q ddcal/c0*/images/wideDD-c*.MFS-image-pb.fits herts:/beegfs/lofar/lba/products/%s' % target)
+#     os.system('scp -q ddcal/c0*/images/wideDD-c*.MFS-residual.fits herts:/beegfs/lofar/lba/products/%s' % target)
+#     os.system('scp -q ddcal/c01/solutions/interp.h5 herts:/beegfs/lofar/lba/products/%s' % target)
+#     os.system('scp -q ddcal/c0*/skymodels/all*reg herts:/beegfs/lofar/lba/products/%s' % target)
+#     os.system('scp -q ddcal/primarybeam.fits herts:/beegfs/lofar/lba/products/%s' % target)
+#     os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/init"' % target)
+#     os.system('scp -q -r ddcal/init/*model.fits ddcal/init/wideM-1-sources.txt herts:/beegfs/lofar/lba/products/%s/init' % target)
+#     # logs
+#     os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/logs"' % target)
+#     os.system('scp -q ../*logger ../*walker ../*%s*/*logger ../*%s*/*walker herts:/beegfs/lofar/lba/products/%s/logs' % (target, target, target))
+#     # copy ms in Bologna
+#     logger.info('Copy mss -> pleiadi:/iranet/lofarfs2/lofar2/fdg/surveytgts/%s' % target)
+#     os.system('tar zcf %s.tgz mss-avg' % target)
+#     os.system('ssh pleiadi "rm -rf /iranet/lofarfs2/lofar2/fdg/surveytgts/%s"' % target)
+#     os.system('ssh pleiadi "mkdir -p /iranet/lofarfs2/lofar2/fdg/surveytgts/%s"' % target)
+#     os.system('scp -q %s.tgz pleiadi:/iranet/lofarfs2/lofar2/fdg/surveytgts/%s' % (target,target))
+# ### DONE
 
 update_status_db(target, 'Done')
 logger.info('### %s: Done. #####################################' % target)

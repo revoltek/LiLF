@@ -13,33 +13,42 @@ import warnings
 from losoto.h5parm import h5parm
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 
+
 #####################################################
 def test_image_dutch(MSs, imgname, data_col='SUBTRACTED_DATA'):
-    """ Create a quick debug image..."""
-    lib_util.run_wsclean(s, 'wsclean-test.log', MSs.getStrWsclean(), name=f'img/{imgname}',
-                         data_column=data_col, size=3000, scale=f'4arcsec',
-                         weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
-                         no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.88, nmiter=10,
-                         parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
-                         join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
-                         deconvolution_channels=3, baseline_averaging='',
-                         multiscale='', multiscale_scale_bias=0.7, pol='i')
+    if False:
+        logger.warning('skip image')
+    else:
+        """ Create a quick debug image..."""
+        lib_util.run_wsclean(s, 'wsclean-test.log', MSs.getStrWsclean(), name=f'img/{imgname}',
+                             data_column=data_col, size=3000, scale=f'4arcsec',
+                             weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
+                             no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.88, nmiter=10,
+                             parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
+                             join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
+                             deconvolution_channels=3, baseline_averaging='',
+                             multiscale='', multiscale_scale_bias=0.7, pol='i')
 
 #####################################################
 parser = argparse.ArgumentParser(description='Split out a single direction by subtracting the rest field and correcting the stations.')
-parser.add_argument('--dirreg',action='store', default=None, type=str, help='Provide a region for the source to be split of (ds9 circle or square).')
-parser.add_argument('--name', dest='name', type=str, default='target_extracted', help='Name of the direction.')
-parser.add_argument('--dutchdir', type=str, default='dutchdir', help='Directory of the dutch processing.')
+### Options for all modes
+parser.add_argument('--mode', type=str, help='Either infield, ddcal or widefield.')
+parser.add_argument('--infieldreg', default=None, type=str, help='Provide a region for the infield calibrator (ds9 circle or square).')
+parser.add_argument('--dutchdir', type=str, default=None, help='Directory of the dutch processing.')
+### Options for splitting of infield or ddcal
 parser.add_argument('--freqres', type=float, default=0.195312, help='Freq. resolution of the split-off MSs in Mhz. Default=0.195312MHz (1 subband)')
 parser.add_argument('--timeres', type=int, default=16, help='Time resolution of the split-off MSs in s. Default: 16s.')
+### Options for ddcal or widefield imaging
 parser.add_argument('--infieldh5', type=str, default=None, help='Path towards IS di solutions that should be applied to the MSs (infield delay calibrator).')
-parser.add_argument('--forwidefield', action='store_true', help='Prepare data for wide-field imaging.')
-
+### Options for ddcal only
+parser.add_argument('--dirreg',action='store', default=None, type=str, help='Provide a region for the source to be split of (ds9 circle or square).')
 args = parser.parse_args()
-regfile, name, dutchdir = args.dirreg, args.name, args.dutchdir
+
+mode = args.mode
+dirregfile, infieldregfile, dutchdir = args.dirreg, args.infieldreg, args.dutchdir
 time_resolution, freq_resolution = args.timeres, args.freqres
 infield_h5 = args.infieldh5
-widefield = args.forwidefield
+
 logger_obj = lib_log.Logger(f'pipeline-splitdir')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
@@ -49,48 +58,69 @@ warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_splitdir','parset_dir')
 
-if not regfile:
-    logger.error('No target direction region file provided (--dirreg.')
-    sys.exit()
+# check input
+# general input
+if mode not in ['infield', 'ddcal', 'widefield']:
+    raise ValueError('mode must be either infield or ddcal or widefield.')
+if not infieldregfile:
+    raise ValueError('No infield direction region file provided (--infieldreg.')
+if not dutchdir:
+    raise ValueError('No dutch processing directory provided.')
 
-if not os.path.exists(f'mss-{name}'):
-    os.makedirs(f'mss-{name}')
+if mode in ['widefield','ddcal']:
+    if not infield_h5: raise ValueError('No infield direction region file provided (--infieldreg.')
+if mode == 'ddcal':
+    if not dirregfile: raise ValueError('No ddcal direction region file provided (--dirreg.')
+
+if mode == 'infield':
+    name = infieldregfile.split('.reg')[0]
+elif mode == 'ddcal':
+    name = dirregfile.split('.reg')[0]
+if mode in ['infield','ddcal']:
+    if not os.path.exists(f'mss-{name}'):
+        os.makedirs(f'mss-{name}')
+
+if not os.path.exists(f'mss-IS'):
+    os.makedirs(f'mss-IS')
 
 if not os.path.exists(f'img'):
     os.makedirs(f'img')
 
-dir_reg = lib_util.Region_helper(regfile)
-center = dir_reg.get_center() # center of the extract region
+dir_reg = lib_util.Region_helper(dirregfile)
+dir_center = dir_reg.get_center() # center of the ddcal region
+infield_reg = lib_util.Region_helper(infieldregfile)
+infield_center = dir_reg.get_center() # center of the infield cal region
 
-MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s, check_flags=False, check_sun=False)
-max_uvw_m_dutch = 1.1*MSs.getMaxBL(check_flags=True, dutch_only=True) # this is important, it is the maximum uvw value in meters of any dutch-dutch baseline. Everything above this value is certainly IS data
+MSs_orig = lib_ms.AllMSs(glob.glob('../id801224_-_a2255/mss/*MS'), s, check_flags=False, check_sun=False)
+max_uvw_m_dutch = 1.1*MSs_orig.getMaxBL(check_flags=True, dutch_only=True) # this is important, it is the maximum uvw value in meters of any dutch-dutch baseline. Everything above this value is certainly IS data
 
 #####################################################
-# 1. Apply dutch direction-independent solutions (FR, amp and phase)
+# 1. Get MSs with IS from LiLF/LOFAR_timesplit output and apply dutch direction-independent solutions (FR, amp and phase) to column DATA
 with w.if_todo('correct_dutch_di'):
-    logger.info('Correcting FR (Dutch stations) DATA -> CORRECTED_DATA...')
-    # Correct FR with results of solve - TC.MS: DATA -> CORRECTED_DATA
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={dutchdir}/ddparallel/solutions/cal-fr.h5 \
+    logger.info('Correcting FR (Dutch stations) DATA -> DATA...')
+    # Correct FR- MSs-orig/TC.MS:DATA -> MSs/TC.MS:DATA
+    MSs_orig.run(f'DP3 {parset_dir}/DP3-cor.parset msin.nchan=1920 msin=$pathMS msout=mss-IS/$nameMS.MS msout.datacolumn=DATA cor.parmdb={dutchdir}/ddparallel/solutions/cal-fr.h5 \
             cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType='DP3')
-    logger.info('Correcting subfield phase (Dutch stations) CORRECTED_DATA -> CORRECTED_DATA...')
-    # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+    MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s, check_flags=False, check_sun=False)
+    logger.info('Correcting subfield phase (Dutch stations) DATA -> DATA...')
+    # Correct MSs>DATA -> DATA
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
             cor.parmdb={dutchdir}/ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000',
             log='$nameMS_sf-correct.log', commandType='DP3')
-    # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Correcting DI amplitude (Dutch stations) CORRECTED_DATA -> CORRECTED_DATA...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+    # Correct MSs:DATA -> DATA
+    logger.info('Correcting DI amplitude (Dutch stations) DATA -> DATA...')
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
                 cor.parmdb={dutchdir}/ddparallel/solutions/cal-amp-di.h5 cor.correction=amplitudeSmooth ',
             log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
-    logger.info('Test image (corrected)...')
-    lib_util.run_wsclean(s, 'wsclean-test0.log', MSs.getStrWsclean(), name=f'img/dutchdicorr',
-                         data_column='CORRECTED_DATA', size=3000, scale=f'4arcsec',
-                         weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
-                         no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.85, nmiter=12,
-                         parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
-                         join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
-                         deconvolution_channels=3, baseline_averaging='',
-                         multiscale='', multiscale_scale_bias=0.7, pol='i')
+    # logger.info('Test image (corrected)...')
+    # lib_util.run_wsclean(s, 'wsclean-test0.log', MSs.getStrWsclean(), name=f'img/dutchdicorr',
+    #                      data_column='DATA', size=3000, scale=f'4arcsec',
+    #                      weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
+    #                      no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.85, nmiter=12,
+    #                      parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
+    #                      join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
+    #                      deconvolution_channels=3, baseline_averaging='',
+    #                      multiscale='', multiscale_scale_bias=0.7, pol='i')
     # logger.info('Test image (dd-corrected)...')
     # lib_util.run_wsclean(s, 'wsclean-c.log', MSs.getStrWsclean(), name='img/dutchddcorr',
     #                      data_column='CORRECTED_DATA', size=3000, scale='4arcsec',
@@ -104,6 +134,8 @@ with w.if_todo('correct_dutch_di'):
     #                      facet_regions=f'{dutchdir}/ddserial/c00/images/wideDD-c00_facets.reg', maxuvw_m=max_uvw_m_dutch,
     #                      apply_facet_solutions=f'{dutchdir}/ddserial/c00/solutions/interp.h5 phase000,amplitude000')
 ### DONE
+
+MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s, check_flags=False, check_sun=False)
 
 # 2. Prepare the h5parm solutions from dutch processing so they can be used for IS data (reorder dirs and add IS stations with unit solutions)
 with w.if_todo('interph5'):
@@ -147,14 +179,14 @@ with w.if_todo('interph5'):
     #                      apply_facet_solutions='interp_merged.h5 phase000,amplitude000')
 
 # 3. Predict corrupted visibilities for all but the direction to split off - set to zero for all non-dutch baselines!
-if not widefield:
+if mode in ['infield', 'ddcal']:
     with w.if_todo('predict'):
         # prepare model of central/external regions
         logger.info('Blanking direction region of model files and reverse...')
         for im in glob.glob(f'{dutchdir}/ddserial/c00/images/wideDD-*model*.fits'):
             wideMext = im.replace('wideDD-c00',f'wideDD-c00-{name}').split('/')[-1]
             os.system('cp %s %s' % (im, wideMext))
-            lib_img.blank_image_reg(wideMext, regfile, blankval = 0.)
+            lib_img.blank_image_reg(wideMext, infieldregfile if mode=='infield' else dirregfile, blankval = 0.)
         # Recreate MODEL_DATA of external region for subtraction
         logger.info('Predict corrupted model of external region (wsclean)...')
         s.add(f'wsclean -predict -padding 1.8 -name wideDD-c00-{name} -j {s.max_cpucores} -channels-out {len(glob.glob(f"wideDD-c00-{name}*fpb.fits"))} \
@@ -168,9 +200,9 @@ if not widefield:
 
     # 4. subtract for dutch baselines
     with w.if_todo('subtract'):
-        MSs.addcol('SUBTRACTED_DATA', 'CORRECTED_DATA')
-        logger.info('Subtracting external region model (SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA)...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
+        MSs.addcol('SUBTRACTED_DATA', 'DATA')
+        logger.info('Subtracting external region model (SUBTRACTED_DATA = DATA - MODEL_DATA)...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"',
                 log='$nameMS_taql.log', commandType='general')
         test_image_dutch(MSs, 'dutchsub')
         # lib_util.run_wsclean(s, 'wsclean-test0.log', MSs.getStrWsclean(), name=f'img/allsub',
@@ -181,8 +213,10 @@ if not widefield:
         #                      join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
         #                      deconvolution_channels=3, baseline_averaging='', multiscale='', multiscale_scale_bias=0.7, pol='i')
 
-correct_col = 'CORRECTED_DATA' if widefield else 'SUBTRACTED_DATA'
+correct_col = 'CORRECTED_DATA' if mode == 'widefield' else 'SUBTRACTED_DATA'
+
 # 5. apply closest direction solutions for dutch baselines
+# TODO for now we correct DUTCH stations for the INFIELD CALIBRATOR direction. Test also using the ddcal direction for the case of splitting off ddcals.
 with w.if_todo('correct_dutch_dd'):
     # apply init - closest DDE sol
     # TODO: this assumes phase000 and optionally, amplitude000
@@ -190,11 +224,11 @@ with w.if_todo('correct_dutch_dd'):
     solset_dde = h5init.getSolset('sol000')
     # get closest dir to target reg center
     dirs = np.array([solset_dde.getSou()[k] for k in solset_dde.getSoltab('phase000').dir])
-    dir_dist = lib_util.distanceOnSphere(dirs[:, 0], dirs[:, 1], *np.deg2rad(center), rad=True)
+    dir_dist = lib_util.distanceOnSphere(dirs[:, 0], dirs[:, 1], *np.deg2rad(infield_center), rad=True)
     closest = solset_dde.getSoltab('phase000').dir[np.argmin(dir_dist)]
     logger.info('Init apply: correct closest DDE solutions ({})'.format(closest))
     logger.info('Correct init ph...')
-    MSs.run('DP3 ' + parset_dir + f'/DP3-cor.parset msin=$pathMS msin.datacolumn={correct_col} '
+    MSs.run('DP3 ' + parset_dir + f'/DP3-cor.parset msin=$pathMS msin.datacolumn={"DATA" if mode=="widefield" else "SUBTRACTED_DATA"} '
                                           f'msout.datacolumn={correct_col} cor.parmdb=interp_merged.h5 cor.correction=phase000 cor.direction=' + closest,
                     log='$nameMS_init-correct.log', commandType='DP3')
     if 'amplitude000' in solset_dde.getSoltabNames():
@@ -203,23 +237,40 @@ with w.if_todo('correct_dutch_dd'):
                          cor.parmdb=interp_merged.h5 cor.correction=amplitude000 cor.direction=' + closest,
                         log='$nameMS_init-correct.log', commandType='DP3')
     h5init.close()
-    test_image_dutch(MSs, 'dutchsubcorr')
+    test_image_dutch(MSs, 'dutchsubcorr', data_col=correct_col)
 ### DONE
 
-if infield_h5:
+with w.if_todo('beamcorr-infield'):
+    logger.info('Correcting beam (infield calibrator)...')
+    MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn={correct_col} msout.datacolumn={correct_col} \
+            corrbeam.direction=[{infield_center[0]}deg,{infield_center[1]}deg]', log='$nameMS_beam.log', commandType='DP3')
+    test_image_dutch(MSs, 'dutchsubcorrbeam1', data_col='DATA')
+
+if mode in ['ddcal', 'widefield']:
     # apply infield delay calibrator solutions to full data
     with w.if_todo('correct_IS_di'):
         logger.info('Correcting delay cal full solutions (IS)...')
         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={infield_h5}  \
                 cor.correction=fulljones cor.soltab=[amplitude000,phase000] msin.datacolumn={correct_col} msout.datacolumn={correct_col} ', log='$nameMS_corIS.log', commandType='DP3')
-        test_image_dutch(MSs, 'dutchsubcorris',data_col='SUBTRACTED_DATA')
+        test_image_dutch(MSs, 'dutchsubcorrbeam1is',data_col=correct_col)
 ### DONE
 
-if not widefield:
+# wide-field imaging - apply the beam again to the phase center...
+if mode == 'widefield':
+    with w.if_todo('beamcorr-widefield'):
+        logger.info('Correcting beam (original phase center for widefield)...')
+        orig_center = MSs.getListObj()[0].getPhaseCentre()
+        MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                corrbeam.direction=[{orig_center[0]}deg,{orig_center[1]}deg]', log='$nameMS_beam.log',
+            commandType='DP3')
+        test_image_dutch(MSs, 'dutchsubcorrbeam1isbeam2', data_col='DATA')
+
+if mode in ['infield', 'ddcal']:
     # 6. phase shift and average the data -> to 16s,
     with w.if_todo('phaseshift'):
         t_avg_factor = int(round(time_resolution/MSs.getListObj()[0].getTimeInt()))
         f_avg_factor = int(round(freq_resolution*1e6/MSs.getListObj()[0].getChanband()))
+        center = infield_center if mode == 'infield' else dir_center
         logger.info(f'Phase shift and avg to {time_resolution}s, {freq_resolution:.4f}MHz (x{t_avg_factor} in t; x{f_avg_factor} in f)...')
         MSs.run(f'DP3 {parset_dir}/DP3-shiftavg.parset msin=$pathMS msout=mss-{name}/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA '
                 f'shift.phasecenter=[{center[0]}deg,{center[1]}deg] avg.freqstep={f_avg_factor} avg.timestep={t_avg_factor}',
@@ -228,10 +279,11 @@ if not widefield:
 
     MSs_extract = lib_ms.AllMSs( glob.glob(f'mss-{name}/*.MS'), s )
 
-    with w.if_todo('beamcorr'):
-        logger.info('Correcting beam...')
-        MSs_extract.run('DP3 ' + parset_dir + '/DP3-beam.parset msin=$pathMS', log='$nameMS_beam.log', commandType='DP3')
-        test_image_dutch(MSs, 'dutchsubcorrshiftbeam')
+    if mode == 'ddcal':
+        with w.if_todo('beamcorr-ddcal'):
+            logger.info('Correcting beam (ddcal)...')
+            MSs_extract.run('DP3 ' + parset_dir + '/DP3-beam.parset msin=$pathMS', log='$nameMS_beam.log', commandType='DP3')
+            test_image_dutch(MSs_extract, 'dutchsubcorrshiftbeam', data_col='DATA')
 
 sys.exit()
 

@@ -50,12 +50,18 @@ userReg = parset.get('model','userReg')
 
 #############################################################################
 
-def clean_empty(MSs, name, col='CORRECTED_DATA', size=5000):
+def clean_empty(MSs, name, col='CORRECTED_DATA', size=5000, shift=None):
     """ For testing/debugging only"""
-    lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
-                         data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=0, nmiter=0,
-                         weight='briggs 0.0', gridder='wgridder', parallel_gridding=1,
-                         no_update_model_required='')
+    if shift is None:
+        lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
+                            data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=0, nmiter=0,
+                            weight='briggs 0.0', gridder='wgridder', parallel_gridding=1,
+                            no_update_model_required='')
+    else:
+        lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
+                            data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=0, nmiter=0,
+                            weight='briggs 0.0', gridder='wgridder', parallel_gridding=1, shift= f'{shift[0]} {shift[1]}',
+                            no_update_model_required='')
 
 def corrupt_model_dirs(MSs, c, tc, model_columns, solmode='phase'):
     """ CORRUPT the MODEL_DATA columns for model_columns
@@ -175,31 +181,32 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     s.run(check=True)
     return current_best_mask
 
-def source_within_beam(regname, pos) -> bool:
-    """check whether a given sky position is within the primary beam using beam.reg file"""
-    beam = Regions.read(regname)[0]
-    x_rot = ((pos.ra.deg - beam.center.ra.deg) * np.cos(beam.angle) + (pos.dec.deg - beam.center.dec.deg) * np.sin(beam.angle)) * u.deg
-    y_rot = -((pos.ra.deg - beam.center.ra.deg) * np.sin(beam.angle) + (pos.dec.deg - beam.center.dec.deg) * np.cos(beam.angle)) * u.deg
-    ellipse = (2 * x_rot / beam.width) ** 2.0 + (2 * y_rot / beam.height) ** 2.0
-    return False if ellipse > 1 else True
-
-def add_3c_models(sm, phasecentre, beamReg, null_mid_freq, max_sep=50., threshold=0):
+def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=50., threshold=0):
     from astropy.coordinates import SkyCoord
+    from astropy.io import fits
+    from astropy import wcs
     import json
     
     with open(parset_dir+"/3C_coordinates.json", "r") as file:
         all_3c = json.load(file)
     
     phasecentre = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg))
+    beam_hdu = fits.open(beamMask)[0]
+    beam_wcs = wcs.WCS(beam_hdu.header)
+        
     logger.info('Adding 3C models...')
     for source, coord in all_3c.items():
-        #if source in ["3C 274"]:
-        #    continue
         
         pos = SkyCoord(ra=coord[0], dec=coord[1], unit=(u.hourangle, u.deg))
         sep = phasecentre.separation(pos).deg
         
-        if source_within_beam(beamReg, pos):
+        within_beam = False
+        if sep < 20:
+            pix_pos = np.round(np.asarray(wcs.utils.skycoord_to_pixel(pos, beam_wcs, origin=1))).astype(int)
+            if (0 <= pix_pos[0] < beam_hdu.data.shape[-2]) and (0 <= pix_pos[1] < beam_hdu.data.shape[-1]):
+                within_beam = bool(beam_hdu.data[0,0,pix_pos[1], pix_pos[0]])
+        
+        if within_beam:
             logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
             continue
         elif phasecentre.separation(pos).deg > max_sep:
@@ -215,23 +222,13 @@ def add_3c_models(sm, phasecentre, beamReg, null_mid_freq, max_sep=50., threshol
             sourcedb = os.path.dirname(__file__) + f'/../models/calib-simple.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch=={source.replace(" ","")}')
-            #sm_3c.select(f'{beamMask}==False') # remove within beamMask
-            #sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
 
-        elif source in ["3C 274"]: # take pre-existing model for CasA
-            sourcedb = os.path.dirname(__file__) + f'/../models/demix_all.skymodel'
-            sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
-            sm_3c.select(f'patch==CasA')
-            #sm_3c.select(f'{beamMask}==False') # remove within beamMask
-            #sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
-            
         else:
             sourcedb = os.path.dirname(__file__) + f'/../models/3CRR/{source.replace(" ","")}.txt'
             if not os.path.exists(sourcedb):
                 logger.warning(f'No model found for {source} (seperation {sep:.2f} deg)')
                 continue
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
-            #sm_3c.select(f'{beamMask}==False') # remove within beamMask
         
         sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
         flux_3c =  sm_3c.getColValues("I", aggregate="sum", applyBeam=True)[0]
@@ -302,7 +299,6 @@ if imgsizepix_wide % 2 != 0: imgsizepix_wide += 1  # prevent odd img sizes
 imgsizepix_lr = int(5*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/(pixscale*8))
 if imgsizepix_lr % 2 != 0: imgsizepix_lr += 1  # prevent odd img sizes
 
-current_best_mask = None #can be removed
 logger.info(f'Setting wide-field image size: {imgsizepix_wide}pix; scale:  {pixscale:.2f}arcsec.')
 
 # set clean componet fit order (use 5 for large BW)
@@ -321,8 +317,12 @@ if tint < 4:
 else: base_solint = 1
 
 mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
+
 # define list of facet fluxes per iteration -> this can go into the config
-facet_fluxes = min_flux_factor*np.array([4, 1.8, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+if 'OUTER' in MSs.getListObj()[0].getAntennaSet():
+    facet_fluxes = min_flux_factor*np.array([4,2.0, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+elif 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
+    facet_fluxes = min_flux_factor*np.array([4,2.4, 1.3, 1.1, 1.0, 0.9])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 
 if min_facets: # if manually provided
     if not isinstance(min_facets, list):
@@ -448,7 +448,7 @@ for c in range(maxIter):
 
         if c == 0 and remove3c:
             # Add models of bright 3c sources to the sky model. Model will be subtracted from data before imaging.
-            sm = add_3c_models(sm, phasecentre=phasecentre, beamReg=beamReg, null_mid_freq=null_mid_freq)
+            sm = add_3c_models(sm, phasecentre=phasecentre, null_mid_freq=null_mid_freq)
             sm.setColValues("Q", np.zeros(len(sm.getColValues("I")))) # force non I Stokes to zero
             sm.setColValues("U", np.zeros(len(sm.getColValues("I"))))
             sm.setColValues("V", np.zeros(len(sm.getColValues("I"))))
@@ -526,8 +526,8 @@ for c in range(maxIter):
                 logger.info('Solving amplitude for 3C...')
                 # Solve diagonal amplitude MSs:SMOOTHED_DATA
                 # TODO add use_dd_constraint_weights
-                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
-                          sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
+                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true sol.usebeammodel \
+                          sol.mode=scalaramplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
                           sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=60', log=f'$nameMS_solamp_c{c}.log', commandType="DP3")
 
                 losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
@@ -553,7 +553,7 @@ for c in range(maxIter):
                         log = f'$nameMS_subtract_{patch}.log', 
                         commandType = 'general'
                     )
-                    clean_empty(MSs,f'{patch}_cdfr', 'CORRECTED_DATA_FR')
+                    #clean_empty(MSs,f'{patch}_cdfr', 'DATA_SUB')
 
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
@@ -697,7 +697,7 @@ for c in range(maxIter):
             # safe a bit of time by reusing psf and dirty in first iteration
             reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
         else:
-            current_best_mask = f'img/wideM-{c-1}-mask.fits'
+            current_best_mask = f'img/wideM-{c-1}-mask.fits' # is this already set by the make_current_best_mask() below?
             reuse_kwargs = {}
 
         # main wsclean call, with mask now
@@ -740,27 +740,38 @@ for c in range(maxIter):
         else:
             subfield_path = 'ddparallel/skymodel/subfield.reg'
 
-        with w.if_todo('c%02i_extreg_prepare' % c):
-            if not subfield and not os.path.exists(subfield_path): # automatically find subfield
-                sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
-                # sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted
-                sm.remove('MajorAxis > 80')  # remove largest scales
-                field_center1, field_size1 = lib_dd.make_subfield_region(subfield_path, MSs.getListObj()[0], sm,
+        if not subfield and not os.path.exists(subfield_path): # automatically find subfield
+            sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
+            # sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted
+            sm.remove('MajorAxis > 80')  # remove largest scales
+            field_center1, field_size1 = lib_dd.make_subfield_region(subfield_path, MSs.getListObj()[0], sm,
                                                                          subfield_min_flux, debug_dir='img/')
+            
+        subfield_reg = Regions.read(subfield_path)[0]
+        subfield_center = [subfield_reg.center.ra, subfield_reg.center.dec]
+        subfield_size = np.max([subfield_reg.width.to_value('deg'), subfield_reg.height.to_value('deg')])
+        
+        with w.if_todo('c%02i_extreg_prepare' % c):
             # prepare model of central/external regions
             logger.info('Blanking central region of model files and reverse...')
+            # copy mask
+            current_best_mask = f'img/wideM-{c}-mask.fits'
+            subfield_intmask='ddparallel/images/subfieldint-mask.fits'
+            os.system(f'cp {current_best_mask} {subfield_intmask}')
+            lib_img.blank_image_reg(subfield_intmask, subfield_path, blankval = 1.)
+            lib_img.select_connected_island(subfield_intmask, subfield_center)
+            subfield_extmask='ddparallel/images/subfieldext-mask.fits'
+            os.system(f'cp {current_best_mask} {subfield_extmask}')
+            lib_img.blank_image_fits(subfield_extmask, subfield_intmask, blankval = 0.)
+
             for im in glob.glob(f'img/wideM-{c}*model*.fits'):
                 wideMint = im.replace('wideM','wideMint')
                 os.system('cp %s %s' % (im, wideMint))
-                lib_img.blank_image_reg(wideMint, subfield_path, blankval = 0., inverse=True)
+                lib_img.blank_image_fits(wideMint, subfield_intmask, blankval = 0., inverse=True)
                 wideMext = im.replace('wideM','wideMext')
                 os.system('cp %s %s' % (im, wideMext))
-                lib_img.blank_image_reg(wideMext, subfield_path, blankval = 0.)
+                lib_img.blank_image_fits(wideMext, subfield_extmask, blankval = 0., inverse=True)
         # DONE
-
-        subfield_reg = Regions.read(subfield_path)[0]
-        field_center = subfield_reg.center.ra, subfield_reg.center.dec
-        field_size = np.max([subfield_reg.width.to_value('deg'), subfield_reg.height.to_value('deg')])
 
         with w.if_todo('c%02i_xtreg_subtract' % c):
             # Recreate MODEL_DATA of external region for subtraction
@@ -797,7 +808,7 @@ for c in range(maxIter):
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
                         cor.parmdb={sol_dir}/cal-amp-di.h5 cor.correction=amplitudeSmooth cor.invert=True',
                         log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
-            clean_empty(MSs,f'only_subfield-{c}', 'SUBFIELD_DATA') # DEBUG
+            #clean_empty(MSs,f'only_subfield-{c}', 'SUBFIELD_DATA') # DEBUG
         ### DONE
 
         with w.if_todo('c%02i_intreg_predict' % c):
@@ -888,8 +899,8 @@ for c in range(maxIter):
         # Do a quick debug image...
         with w.if_todo('c%02i_image-subfield' % c):
             logger.info('Test image subfield...')
-            lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=3000, scale=f'{pixscale}arcsec',
-                                 weight='briggs -0.3', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{field_center[0].to(u.hourangle).to_string()} {field_center[1].to_string()}',
+            lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=int(1.2*subfield_size*3600/pixscale), scale=f'{pixscale}arcsec',
+                                 weight='briggs -0.3', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}',
                                  no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
                                  join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
                                  multiscale='',  multiscale_scale_bias=0.7, pol='i')
