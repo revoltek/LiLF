@@ -289,7 +289,6 @@ except:
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
 null_mid_freq = max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True)) * 1.8 # FWHM to null
-#TODO: 3c should use beam fits, not this single number
 
 # set image size - this should be a bit more than the beam region used for calibration
 pixscale = MSs.getListObj()[0].getPixelScale()

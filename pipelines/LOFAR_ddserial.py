@@ -489,10 +489,13 @@ for cmaj in range(maxIter):
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
         logger.info('MM ratio (init): %f' % (mm_ratio_pre))
 
+        d.fractional_flag_init = MSs_dir.meanFractionalFlag()
+        logger.info(f'Mean fractional flag (init): {100*d.fractional_flag_init}%')
+
         for cdd in range(20):
 
             logger.info('c%02i - %s: Starting dd cycle: %02i' % (cmaj, d.name, cdd))
-            logstringcal = logstring+'-cdd%02i' % cdd
+            logstringcal = logstring+'-cdd%02i' % cdd          
 
             ################################################################
             # Calibrate
@@ -609,6 +612,13 @@ for cmaj in range(maxIter):
                         cor.parmdb='+d.get_h5parm('amp2')+' cor.correction=amplitude000',
                         log='$nameMS_correct-'+logstringcal+'.log', commandType='DP3')
             ### DONE
+
+            # check flags
+            d.fractional_flag.append(MSs_dir.meanFractionalFlag())
+            logger.info(f'Mean fractional flag: {100*d.fractional_flag[-1]}% (initial: {100*d.fractional_flag_init}%)')
+            if d.fractional_flag[-1] == 1.:
+                logger.info('Breaking because the fractional flag increased too much...')
+                break
 
             ###########################################################################
             # Imaging
@@ -804,7 +814,7 @@ for cmaj in range(maxIter):
         logger.info("- Averaging: %i time - %i freq" % (d.avg_t, d.avg_f))
         logger.info("- Converged: %s" % str(d.converged))
         logger.info('init: Rms: %f, MMratio: %f' % (d.rms_noise_init,d.mm_ratio_init))
-        for ic, (rms_noise, mm_ratio) in enumerate(zip(d.rms_noise,d.mm_ratio)):
+        for ic, (rms_noise, mm_ratio, fractional_flag) in enumerate(zip(d.rms_noise,d.mm_ratio,d.fractional_flag)):
 
             tables_to_print = '['
             for sol_type in ['ph1','amp1','amp2']: # fr
@@ -813,9 +823,9 @@ for cmaj in range(maxIter):
             tables_to_print = tables_to_print[:-1] + ']'
 
             if ic == len(d.rms_noise)-2 and d.converged:
-                logger.info('%02i: Rms: %f, MMratio: %f - %s ***' % (ic,rms_noise,mm_ratio,tables_to_print))
+                logger.info('%02i: Rms: %f, MMratio: %f (flag:%.0f%%) - %s ***' % (ic,rms_noise,mm_ratio,100*fractional_flag,tables_to_print))
             else:
-                logger.info('%02i: Rms: %f, MMratio: %f - %s' % (ic,rms_noise,mm_ratio,tables_to_print))
+                logger.info('%02i: Rms: %f, MMratio: %f (flag:%.0f%%) - %s' % (ic,rms_noise,mm_ratio,100*fractional_flag,tables_to_print))
 
         # replace color in the region file to distinguish region that converged from those that didn't
         if d.converged:
