@@ -236,10 +236,10 @@ with w.if_todo('saveproducts_%s' % target):
     # copy logs
     logger.info(f'Copy logs -> {archive}')
     os.chdir(working_dir)
-    os.system(f'cp -r Pill_*logger Pill*walker logs_Pill_* 
-              *{target[:-1]}*/pipeline-timesplit_*logger *{target[:-1]}*/pipeline-timesplit.walker *{target[:-1]}*/logs_pipeline-timesplit_* 
-              {target}/pipeline-ddparallel_*logger {target}/pipeline-ddparallel.walker {target}/logs_pipeline-ddparallel_* 
-              {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* 
+    os.system(f'cp -r Pill_*logger Pill*walker logs_Pill_* \
+              *{target[:-1]}*/pipeline-timesplit_*logger *{target[:-1]}*/pipeline-timesplit.walker *{target[:-1]}*/logs_pipeline-timesplit_* \
+              {target}/pipeline-ddparallel_*logger {target}/pipeline-ddparallel.walker {target}/logs_pipeline-ddparallel_* \
+              {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
               {archive}/logs')
 
 ### DONE

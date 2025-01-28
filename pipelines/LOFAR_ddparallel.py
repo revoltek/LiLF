@@ -225,7 +225,7 @@ def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=50., threshold=0):
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch=={source.replace(" ","")}')
 
-        #elif source in ["3C 274"]: # take pre-existing model for CasA
+        #elif source in ["3C 274"]: # take pre-existing model for VirA
         #    sourcedb = os.path.dirname(__file__) + f'/../models/demix_all.skymodel'
         #    sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
         #    sm_3c.select(f'patch==VirA')
