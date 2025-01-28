@@ -259,43 +259,42 @@ center = target_reg.get_center() # center of the extract region
 list_dirs = [_d for _d in Path(str(pathdir)).iterdir() if _d.is_dir()]
 tocheck = []
 for dir in list_dirs:
-    if dir/'ddcal' in dir.iterdir() and dir/'mss-avg' in dir.iterdir():
+    if dir/'ddserial' in dir.iterdir() and dir/'mss-avg' in dir.iterdir():
         tocheck.append(dir)
 close_pointings = []
 
-if not os.path.exists('pointinglist.txt'):
-    for pointing in tocheck:
 
-        #Pick latest DDcycle if not specified otherwise
-        if not ddcycle:
-            ddcal_dir = [d for d in os.listdir(f'{pathdir}/{pointing}/ddcal') if os.path.isdir(os.path.join(f'{pathdir}/{pointing}/ddcal', d)) and d.startswith('c')]
-            highest_ddcal = max(ddcal_dir, key=lambda x: int(x[1:]))
-            logger.info(f'Using DD calibration cycle {highest_ddcal}.')
+for pointing in tocheck:
+    #Pick latest DDcycle if not specified otherwise
+    if not ddcycle:
+        ddcal_dir = [d for d in os.listdir(f'{pointing}/ddserial') if os.path.isdir(os.path.join(f'{pointing}/ddserial', d)) and d.startswith('c')]
+        highest_ddcal = max(ddcal_dir, key=lambda x: int(x[1:]))
+        logger.info(f'Using DD calibration cycle {highest_ddcal}.')
+    else:
+        if ddcycle == 1:
+            highest_ddcal = 'c00'
         else:
-            if ddcycle == 1:
-                highest_ddcal = 'c00'
-            else:
-                highest_ddcal = 'c01'
-            logger.info(f'Using DD calibration cycle {highest_ddcal}.')
+            highest_ddcal = 'c01'
+        logger.info(f'Using DD calibration cycle {highest_ddcal}.')
 
-        chout_max = len(glob.glob(f'{pointing}/ddcal/{highest_ddcal}/images/wideDD-{highest_ddcal}-[0-9]*-beam.fits'))
-        with fits.open(f'{pointing}/ddcal/{highest_ddcal}/images/wideDD-{highest_ddcal}-000{chout_max-1}-beam.fits') as f:
-            header, data = lib_img.flatten(f)
-            wcs = WCS(header)
-            c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
-            if np.all(c_pix > 0):
-                try:
-                    beam_value = data[c_pix[1]][c_pix[0]]  # Checked -  1 and 0 are correct here.
-                except IndexError:
-                    continue
-            else:
+    chout_max = len(glob.glob(f'{pointing}/ddserial/{highest_ddcal}/images/wideDD-{highest_ddcal}-[0-9]*-beam.fits'))
+    with fits.open(f'{pointing}/ddserial/{highest_ddcal}/images/wideDD-{highest_ddcal}-000{chout_max-1}-beam.fits') as f:
+        header, data = lib_img.flatten(f)
+        wcs = WCS(header)
+        c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
+        if np.all(c_pix > 0):
+            try:
+                beam_value = data[c_pix[1]][c_pix[0]]  # Checked -  1 and 0 are correct here.
+            except IndexError:
                 continue
-            if beam_value > beam_cut**2: # square since Norm is sqrt(beam response)
-                close_pointings.append(str(pointing).split('/')[-1])
+        else:
+            continue
+        if beam_value > beam_cut**2: # square since Norm is sqrt(beam response)
+            close_pointings.append(str(pointing).split('/')[-1])
 
-    if len(close_pointings): # only write if we find something
-        with open('pointinglist.txt', 'w') as f:
-            f.write('\n'.join(close_pointings))
+if len(close_pointings): # only write if we find something
+    with open('pointinglist.txt', 'w') as f:
+        f.write('\n'.join(close_pointings))
 else:
     with open('pointinglist.txt', 'r') as f:
         close_pointings = f.readlines()
@@ -303,7 +302,7 @@ else:
 
 
 if not len(close_pointings): # raise error if none are found!
-    logger.error(f'Did not find any pointing covering coordinates {ra}, {dec} with primary beam response > {beam_cut} in {pathdir}.')
+    logger.error(f'Did not find any pointing covering coordinates {target_ra}, {target_dec} with primary beam response > {beam_cut} in {pathdir}.')
     logger.error(f'If this is somehow unexpected, check the path (-p) and coordinates and try again.')
     logger.error(f'If you wish to force the extraction, you can lower the beam sensitivity threshold (default = 0.3).')
     sys.exit(1)
@@ -333,10 +332,10 @@ with w.if_todo('cleaning'):
 
     for i, p in enumerate(close_pointings):
         os.makedirs('extract/init/'+p)
-        os.system(f'cp {str(pathdir)}/{p}/ddcal/{highest_ddcal}/images/wideDD-{highest_ddcal}-MFS-image-pb.fits extract/init/{p}')  # copy ddcal images
-        os.system(f'cp {str(pathdir)}/{p}/ddcal/{highest_ddcal}/images/wideDD-{highest_ddcal}-0*-model-pb.fits extract/init/{p}')  # copy models
-        os.system(f'cp {str(pathdir)}/{p}/ddcal/{highest_ddcal}/solutions/interp.h5 extract/init/{p}')  # copy final dde sols
-        os.system(f'cp {str(pathdir)}/{p}/ddcal/{highest_ddcal}/images/wideDD-{highest_ddcal}_facets.reg extract/init/{p}')  # copy facet file
+        os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/images/wideDD-{highest_ddcal}-MFS-image-pb.fits extract/init/{p}')  # copy ddcal images
+        os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/images/wideDD-{highest_ddcal}-0*-model-fpb.fits extract/init/{p}')  # copy models
+        os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/solutions/interp.h5 extract/init/{p}')  # copy final dde sols
+        os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/images/wideDD-{highest_ddcal}_facets.reg extract/init/{p}')  # copy facet file
         lib_util.check_rm('mss-extract/'+p)
         if not os.path.exists('mss-extract/'+p):
             logger.info('Copying MS of '+p+'...')
@@ -417,7 +416,7 @@ for p in close_pointings:
         outmask = inmask + '.mask'
         lib_img.blank_image_reg(inmask, target_reg_file, outfile=outmask, inverse=False, blankval=0.)
 
-        for im in glob.glob(f'extract/init/{p}/wideDD-{highest_ddcal}-0*model-pb.fits'):
+        for im in glob.glob(f'extract/init/{p}/wideDD-{highest_ddcal}-0*model-fpb.fits'):
             wideDDext = im.replace('wideDD', 'wideDDext')
             os.system('cp %s %s' % (im, wideDDext))
             lib_img.blank_image_reg(wideDDext, target_reg_file, blankval=0.)
@@ -432,7 +431,7 @@ for p in close_pointings:
         solset_dde = h5init.getSolset('sol000')
 
         if 'amplitude000' in solset_dde.getSoltabNames():
-            correct_for = 'phase000, amplitude000'
+            correct_for = 'phase000,amplitude000'
         else:
             correct_for = 'phase000'
 
