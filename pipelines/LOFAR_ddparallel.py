@@ -196,8 +196,6 @@ def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=50., threshold=0):
         
     logger.info('Adding 3C models...')
     for source, coord in all_3c.items():
-        #if source in ["3C 274"]:
-        #    continue
         
         pos = SkyCoord(ra=coord[0], dec=coord[1], unit=(u.hourangle, u.deg))
         sep = phasecentre.separation(pos).deg
@@ -225,11 +223,6 @@ def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=50., threshold=0):
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch=={source.replace(" ","")}')
 
-        #elif source in ["3C 274"]: # take pre-existing model for VirA
-        #    sourcedb = os.path.dirname(__file__) + f'/../models/demix_all.skymodel'
-        #    sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
-        #    sm_3c.select(f'patch==VirA')
-            
         else:
             sourcedb = os.path.dirname(__file__) + f'/../models/3CRR/{source.replace(" ","")}.txt'
             if not os.path.exists(sourcedb):
