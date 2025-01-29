@@ -707,7 +707,7 @@ for cmaj in range(maxIter):
                 assert len(p_idx) == 1 # sanity check
                 p_idx = p_idx[0]
                 # name of split h5parm, need to remove square brackets for system commands...
-                split_h5 = f'ddserial/c0{cmaj}/solutions/'+ddparallel_h5parm.split('/')[-1].replace('.h5',closest.replace('[','').replace(']','')+'.h5')
+                split_h5 = f'ddserial/c0{cmaj}/solutions/'+ddparallel_h5parm.split('/')[-1].replace('.h5','_'+closest.replace('[','').replace(']','')+'.h5')
                 s.add(f'h5_merger.py --h5_out {split_h5} --h5_tables {ddparallel_h5parm} --filter_directions [{p_idx}] --no_pol --no_antenna_crash --no_weight_prop',
                     log='h5_merger.log', commandType='python')
                 s.run(check=True)
@@ -878,6 +878,7 @@ for cmaj in range(maxIter):
                     # this is a workaround for the different order of axes we get depending on scalar or diag phase solve, this will make h5parm_interpolator run smoothely.
                     lib_h5.reorder_axes(h5parmFile, ['time', 'ant', 'dir', 'freq', 'pol'], 'phase000')
                     # TODO here we have unit amplitude solutions from the h5parm_merger... delete them?
+                    lib_h5.addpol(h5parmFile, 'amplitude000')
                     lib_h5.reorder_axes(h5parmFile, ['time', 'ant', 'dir', 'freq', 'pol'], 'amplitude000')
                     #lib_h5.addpol(h5parmFile, 'amplitude000')
                     s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-refph.parset ', log='h5parm_collector.log', commandType='python' )
