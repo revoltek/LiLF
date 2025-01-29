@@ -142,6 +142,14 @@ class AllMSs(object):
         """
         return np.max([ms.getMaxBL(check_flags=check_flags, dutch_only=dutch_only, uvw=uvw) for ms in self.getListObj()])
 
+
+    def meanFractionalFlag(self):
+        """
+        Return the mean fractional flags (assuming all MSs have the same size)
+        """
+        return np.mean([ms.fractionalFlag() for ms in self.getListObj()])
+
+
     def run(self, command, log, commandType='', maxProcs=None):
         """
         Run command 'command' of type 'commandType', and use 'log' for logger,for each MS of AllMSs.
@@ -754,6 +762,14 @@ class MS(object):
             logger.warning('Caugt MemoryError in checking for fully flagged MS! This can happen when working with large '
                            'measurement sets. You might want to manually inspect the flags. Trying to proceed...')
             
+    def fractionalFlag(self):
+        """
+        Return the fraction of flagged data
+        """
+        with tables.table(self.pathMS, ack = False) as t:
+            f = t.getcol('FLAG')
+            return np.sum(f)/f.size
+
 
 #    def delBeamInfo(self, col=None):
 #        """

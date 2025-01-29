@@ -39,9 +39,11 @@ class Direction(object):
         self.avg_t = 0
         self.avg_f = 0
         self.rms_noise = []
-        self.mm_ratio = []
         self.rms_noise_init = 0
+        self.mm_ratio = []
         self.mm_ratio_init = 0
+        self.fractional_flag = []
+        self.fractional_flag_init = 0
 
     def clean(self):
         # TODO: remove files?
@@ -531,7 +533,7 @@ def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
     bestbox_size: float, size of bestbox in deg
     """
     c_ra, c_dec = MS.getPhaseCentre()
-    fwhm = 2*MS.getFWHM(freq='mid')
+    fwhm = 1.85*max(MS.getFWHM(freq='mid', elliptical=True))
     cellsize  = 1/60 # 1 arcmin
     # TODO padding?/offset?
     size_pix = int(np.round(1.1*fwhm/cellsize)) # size in pix, 10% pad
