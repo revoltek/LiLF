@@ -650,11 +650,10 @@ for cmaj in range(maxIter):
                 logger.warning(f'Image quality decreased after cdd{cdd}. Restore previous iteration ph_solint and model...')
                 iter_ph_solint = lib_util.Sol_iterator([2*solint_ph]) # go from 1 to 2 or 2 to 4 and don't decrease further.
                 # Predict - ms:MODEL_DATA (could also use wsclean but this seems easier)
-                logger.info('Restore current best model to MODEL_DATA and continue...')
                 MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("best")}-sources.txt',   log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
                 continue
             # if noise incresed and mm ratio decreased - or noise increased a lot!
-            elif (cdd >= 3) and ((rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre) or rms_noise > 1.2*rms_noise_pre):
+            elif (cdd >= 4) and ((rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre) or rms_noise > 1.2*rms_noise_pre):
                 # if (mm_ratio < 10 and cdd >= 2) or \
                 # (mm_ratio < 20 and cdd >= 3) or \
                 # (cdd >= 4):
@@ -718,12 +717,12 @@ for cmaj in range(maxIter):
                 assert len(p_idx) == 1 # sanity check
                 p_idx = p_idx[0]
                 # name of split h5parm, need to remove square brackets for system commands...
-                split_h5 = f'ddserial/c0{cmaj}/solutions/'+ddparallel_h5parm.split('/')[-1].replace('.h5',closest.replace('[','').replace(']','')+'.h5')
-                s.add(f'h5_merger.py --h5_out {split_h5} --h5_tables {ddparallel_h5parm} --filter_directions [{p_idx}] --no_pol --no_antenna_crash',
+                split_h5 = f'ddserial/c0{cmaj}/solutions/'+ddparallel_h5parm.split('/')[-1].replace('.h5','_'+closest.replace('[','').replace(']','')+'.h5')
+                s.add(f'h5_merger.py --h5_out {split_h5} --h5_tables {ddparallel_h5parm} --filter_directions [{p_idx}] --no_pol --no_antenna_crash --no_weight_prop',
                     log='h5_merger.log', commandType='python')
                 s.run(check=True)
                 # change the direction of the closest facet to be exactly identical with the ddcal
-                lib_h5.repoint_h5dir(split_h5, closest, d.position)
+                lib_h5.repoint_h5dir(split_h5, 'Dir00', d.position)
                 logger.info(f'Merge final solutions for {d.name} with {closest}...')
                 s.add(f'h5_merger.py --h5_out {d.get_h5parm("ph1", -2)} --h5_tables {d.get_h5parm("ph-ddserial", -2)} {split_h5} \
                        --no_antenna_crash', log='h5_merger.log', commandType='python')
@@ -888,6 +887,9 @@ for cmaj in range(maxIter):
                     lib_h5.addpol(h5parmFile, 'phase000')
                     # this is a workaround for the different order of axes we get depending on scalar or diag phase solve, this will make h5parm_interpolator run smoothely.
                     lib_h5.reorder_axes(h5parmFile, ['time', 'ant', 'dir', 'freq', 'pol'], 'phase000')
+                    # TODO here we have unit amplitude solutions from the h5parm_merger... delete them?
+                    lib_h5.addpol(h5parmFile, 'amplitude000')
+                    lib_h5.reorder_axes(h5parmFile, ['time', 'ant', 'dir', 'freq', 'pol'], 'amplitude000')
                     #lib_h5.addpol(h5parmFile, 'amplitude000')
                     s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-refph.parset ', log='h5parm_collector.log', commandType='python' )
                     s.run()
