@@ -490,7 +490,7 @@ for cmaj in range(maxIter):
         logger.info('MM ratio (init): %f' % (mm_ratio_pre))
 
         d.fractional_flag_init = MSs_dir.meanFractionalFlag()
-        logger.info(f'Mean fractional flag (init): {100*d.fractional_flag_init}%')
+        logger.info(f'Mean fractional flag (init): {100*d.fractional_flag_init:.1f}%')
 
         for cdd in range(20):
 
@@ -615,7 +615,7 @@ for cmaj in range(maxIter):
 
             # check flags
             d.fractional_flag.append(MSs_dir.meanFractionalFlag())
-            logger.info(f'Mean fractional flag: {100*d.fractional_flag[-1]}% (initial: {100*d.fractional_flag_init}%)')
+            logger.info(f'Mean fractional flag: {100*d.fractional_flag[-1]:.1f}% (initial: {100*d.fractional_flag_init:.1f}%)')
             if d.fractional_flag[-1] == 1.:
                 logger.info('Breaking because the fractional flag increased too much...')
                 break
