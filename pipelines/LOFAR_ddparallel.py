@@ -624,7 +624,8 @@ for c in range(maxIter):
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec-RS-c{c}.h5', sourcedb)
 
         # by construction, the 3c sources are always at the last indices
-        filter_directions = f"--filter_directions '["+', '.join([str(i) for i in range(len(patches))])+"]'" if (c == 0 and remove3c) else ''
+        # TODO is it ok to use no_weight_prop here? That avoids an error in the h5_merger, but we will not have any flags in the merged h5parm
+        filter_directions = f"--no_weight_prop --filter_directions '["+', '.join([str(i) for i in range(len(patches))])+"]'" if (c == 0 and remove3c) else ''
         # if we have dd-amplitudes, add polarization
         usepol = ' --no_pol ' if c <2 else ''
         # reference, unflag and reset the added stations f'{sol_dir}/cal-tec0-c{c}.h5',
