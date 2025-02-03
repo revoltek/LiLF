@@ -63,7 +63,7 @@ class Direction(object):
         s.coord_list = [ self.position[0], self.position[1], self.size/2. ]  # ra, dec, radius
         s.coord_format = 'fk5'
         s.attr = ([], {'width': '2', 'point': 'cross',
-                       'font': '"helvetica 16 normal roman"'})
+                       'font': '"helvetica 10 normal roman"'})
         if not self.peel_off: s.comment = 'color=red text="%s"' % self.name
         else: s.comment = 'color=yellow text="%s"' % self.name
 
