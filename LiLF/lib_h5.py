@@ -181,7 +181,7 @@ def repoint_h5dir(h5, dirname, direction):
     repointed = False
     # check which of the directions to rename is in solset
     for i, (dirname_ss, direction_ss) in enumerate(sourceTable[:]):
-        if str(dirname_ss, 'utf-8') == f'{dirname}': # convert bytestring
+        if (str(dirname_ss, 'utf-8') == f'{dirname}') or (str(dirname_ss, 'utf-8') == f'[{dirname}]'): # convert bytestring
             ra, dec = direction.ra.rad, direction.dec.rad
             if ra > np.pi:
                 ra -= 2*np.pi  # map to -pi, pi

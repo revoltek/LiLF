@@ -257,7 +257,7 @@ for cmaj in range(maxIter):
                 logger.debug("%s: flux density @ 60 MHz: %.1f mJy (skip)" % (name, 1e3 * d.get_flux(60e6)))
                 cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
             # skip sources that are too close to other dd-cals
-            elif not lib_dd.distance_check( d, directions, min_dist_bright=20, min_dist=10):
+            elif not lib_dd.distance_check( d, directions):
                 logger.debug("%s: too close to another ddcal (skip)" % (name))
                 cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
             # skip if outside the mid-freq null (that should be empty)

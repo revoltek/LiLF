@@ -76,6 +76,8 @@ if mode == 'infield':
     name = infieldregfile.split('.reg')[0]
 elif mode == 'ddcal':
     name = dirregfile.split('.reg')[0]
+    dir_reg = lib_util.Region_helper(dirregfile)
+    dir_center = dir_reg.get_center() # center of the ddcal region
 if mode in ['infield','ddcal']:
     if not os.path.exists(f'mss-{name}'):
         os.makedirs(f'mss-{name}')
@@ -86,10 +88,8 @@ if not os.path.exists(f'mss-IS'):
 if not os.path.exists(f'img'):
     os.makedirs(f'img')
 
-dir_reg = lib_util.Region_helper(dirregfile)
-dir_center = dir_reg.get_center() # center of the ddcal region
 infield_reg = lib_util.Region_helper(infieldregfile)
-infield_center = dir_reg.get_center() # center of the infield cal region
+infield_center = infield_reg.get_center()  # center of the infield cal region
 
 MSs_orig = lib_ms.AllMSs(glob.glob('../id801224_-_a2255/mss/*MS'), s, check_flags=False, check_sun=False)
 max_uvw_m_dutch = 1.1*MSs_orig.getMaxBL(check_flags=True, dutch_only=True) # this is important, it is the maximum uvw value in meters of any dutch-dutch baseline. Everything above this value is certainly IS data

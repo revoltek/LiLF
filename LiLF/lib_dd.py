@@ -290,14 +290,17 @@ class Direction(object):
         #    self.size = 8*img_beam
 
 
-def distance_check( d_to_check, brighter_ds, min_dist_bright=20, min_dist=10):
+def distance_check( d_to_check, brighter_ds, keep_above=2):
     """
-    Check if direction d is not too close to another direction, if false discard the direction
-    min_dist_bright: minimum acceptable distance from a ddcal with >1 Jy [arcmin]
-    min_dist: minimum acceptable distance from another ddcal [arcmin]
+    Check if direction d is not too close to another direction, if false discard the direction.
+    The minimum acceptable distance depends on two parameters:
+    A) The flux of the fainter direction d, the brighter this source, the smaller the distance where we discard it.
+    B) The flux of the brighter direction. If the brighter direction has a total flux brighter than 1 Jy, double the acceptable distance.
+
+    keep_above: flux above which all sources are kept, default=2Jy
     """
     # keep everything above 2 Jy
-    if d_to_check.get_flux(60e6) > 2: 
+    if d_to_check.get_flux(60e6) > keep_above:
         #print('above 2Jy - keep')
         return True
     
@@ -308,6 +311,8 @@ def distance_check( d_to_check, brighter_ds, min_dist_bright=20, min_dist=10):
     fluxes = [d.get_flux(60e6) for d in brighter_ds]
     #print(fluxes)
 
+    min_dist = 5 + 5*(2-d_to_check.get_flux(60e6)) # This value starts at 5' for 2 Jy sources and linearly increases to 12.5' for 0.5 Jy sources.
+    min_dist_bright = 1.5*min_dist # discard up to a larger distance around bright cals (all above 1Jy), so 7.5' - 18.75'
     for dist, flux in zip(distances, fluxes):
         if flux >= 1 and dist < min_dist_bright*u.arcmin:
             # too close to another bright source
