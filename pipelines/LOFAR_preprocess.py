@@ -23,7 +23,7 @@ logger.info('Parset: '+str(dict(parset['LOFAR_preprocess'])))
 parset_dir = parset.get('LOFAR_preprocess','parset_dir')
 fix_table = parset.getboolean('LOFAR_preprocess','fix_table')
 renameavg = parset.getboolean('LOFAR_preprocess','renameavg')
-keep_IS = parset.getboolean('LOFAR_preprocess','keep_IS') # default False
+keep_IS = parset.getboolean('LOFAR_preprocess','keep_IS') # default True
 backup_full_res = parset.getboolean('LOFAR_preprocess','backup_full_res')
 demix_sources = parset.get('LOFAR_preprocess','demix_sources') # demix the sources in these patches (e.g. CasA or [VirA,TauA]), default: No demix. Assumes intrinsic sky
 demix_skymodel = parset.get('LOFAR_preprocess','demix_skymodel') # Use non-default demix skymodel
