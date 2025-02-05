@@ -311,16 +311,16 @@ def distance_check( d_to_check, brighter_ds, keep_above=2):
     fluxes = [d.get_flux(60e6) for d in brighter_ds]
     #print(fluxes)
 
-    min_dist = 5 + 5*(2-d_to_check.get_flux(60e6)) # This value starts at 5' for 2 Jy sources and linearly increases to 12.5' for 0.5 Jy sources.
-    min_dist_bright = 1.5*min_dist # discard up to a larger distance around bright cals (all above 1Jy), so 7.5' - 18.75'
+    min_dist = 5 + (20/3)*(2-d_to_check.get_flux(60e6)) # This value starts at 5' for 2 Jy sources and linearly increases to 15' for 0.5 Jy sources.
+    min_dist_bright = 1.5*min_dist # discard up to a larger distance around bright cals (all above 1Jy), so 7.5' - 22.5'
     for dist, flux in zip(distances, fluxes):
         if flux >= 1 and dist < min_dist_bright*u.arcmin:
             # too close to another bright source
-            logger.info(f'{d_to_check.name} is too close to a bright ddcal source.')
+            logger.info(f'{d_to_check.name} is too close to a bright ddcal source ({dist.to_value("arcmin"):.1f}\'<{min_dist_bright:.1f}).')
             return False
         elif dist < min_dist*u.arcmin:
             # too close to another source
-            logger.info(f'{d_to_check.name} is too close to another ddcal source.')
+            logger.info(f'{d_to_check.name} is too close to another ddcal source ({dist.to_value("arcmin"):.1f}\'<{min_dist:.1f}).')
             return False
         
     # all ok, we can use this

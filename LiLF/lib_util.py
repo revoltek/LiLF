@@ -102,7 +102,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'develop', 'False') # if true make more debug images (slower) 
     # ddserial
     add_default('LOFAR_ddserial', 'maxIter', '2')
-    add_default('LOFAR_ddserial', 'minCalFlux60', '0.7')
+    add_default('LOFAR_ddserial', 'minCalFlux60', '1.0')
     add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
     # add_default('LOFAR_ddserial', 'removeExtendedCutoff', '0.0005')
     add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec

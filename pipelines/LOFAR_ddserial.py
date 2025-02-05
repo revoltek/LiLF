@@ -950,7 +950,7 @@ for cmaj in range(maxIter):
 
     full_image = lib_img.Image('ddserial/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
     full_image.nantozeroModel()
-    min_cal_flux60 *= 0.9  # go deeper
+    min_cal_flux60 *= 0.8  # go deeper
 
 ##############################################################################################################
 ### Calibration finished - additional images with scientific value
