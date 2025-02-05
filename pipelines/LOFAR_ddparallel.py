@@ -42,6 +42,7 @@ subfield = parset.get('LOFAR_ddparallel','subfield') # possible to provide a ds9
 maxIter = parset.getint('LOFAR_ddparallel','maxIter') # default = 2 (try also 3)
 phaseSolMode = parset.get('LOFAR_ddparallel', 'ph_sol_mode') # tecandphase, tec, phase
 remove3c = parset.getboolean('LOFAR_ddparallel', 'remove3c') # get rid of 3c sources in the sidelobes
+fulljones = parset.getboolean('LOFAR_ddparallel', 'fulljones') # do fulljones DIE amp correction
 min_facets = parset.get('LOFAR_ddparallel', 'min_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [2,3,6..]
 min_flux_factor = parset.getfloat('LOFAR_ddparallel', 'min_flux_factor') # min facet flux factor, default = 1. Higher value -> less facets.
 develop = parset.getboolean('LOFAR_ddparallel', 'develop') # for development, make more output/images
@@ -129,9 +130,9 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None,
 
     if solmode == 'phase': #phase
         if resetant_parset is not None:
-            losoto_parsets = [parset_dir+'/losoto-refph.parset', resetant_parset, parset_dir+'/losoto-plot-scalar.parset']
+            losoto_parsets = [parset_dir+'/losoto-refph.parset', resetant_parset, parset_dir+'/losoto-plot-scalarph.parset']
         else:
-            losoto_parsets = [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-scalar.parset']
+            losoto_parsets = [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-scalarph.parset']
     else: # TEC or TecAndPhase
         if resetant_parset is not None:
             losoto_parsets = [parset_dir+'/losoto-reftec.parset', resetant_parset, parset_dir+'/losoto-plot-tec.parset']
@@ -525,7 +526,6 @@ for c in range(maxIter):
             with w.if_todo('3c_solve_amp'):
                 logger.info('Solving amplitude for 3C...')
                 # Solve diagonal amplitude MSs:SMOOTHED_DATA
-                # TODO add use_dd_constraint_weights
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true sol.usebeammodel \
                           sol.mode=scalaramplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
                           sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=60', log=f'$nameMS_solamp_c{c}.log', commandType="DP3")
@@ -574,30 +574,50 @@ for c in range(maxIter):
     ########################### AMP-CAL PART ####################################
     # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
     if c == 1:
-        with w.if_todo('solve_amp_di'):
+        with w.if_todo('amp_di'):
             # TODO -> down the road this could be a fulljones-calibration to correct element-beam related leakage.
             # no smoothing, cycle 1 CORRECTED_DATA should be the same
             # MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
             logger.info('Setting MODEL_DATA to sum of corrupted patch models...')
             MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(patches)}"', log='$nameMS_taql_phdiff.log', commandType='general')
-            # solve ionosphere phase - ms:SMOOTHED_DATA
-            logger.info('Solving amp-di...')
-            MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
+            
+            if fulljones:
+                logger.info('Solving amp-di (fulljones)...')
+                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
+                     sol.mode=fulljones sol.h5parm=$pathMS/amp-di.h5 sol.solint={150*base_solint} sol.minvisratio=0.5 \
+                     sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
+                     log='$nameMS_diampsol.log', commandType='DP3')
+
+                lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
+                                [f'{parset_dir}/losoto-plot-fulljones.parset', f'{parset_dir}/losoto-amp-difj.parset'],
+                                plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
+            
+                # TODO add updateweights in production
+                # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
+                logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                    cor.parmdb={sol_dir}/cal-amp-di.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phaseSmooth] \
+                    cor.updateweights=False',
+                    log='$nameMS_diampcor.log', commandType='DP3')
+            
+            else:
+                logger.info('Solving amp-di...')
+                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
                      sol.mode=diagonal sol.h5parm=$pathMS/amp-di.h5 sol.solint={150*base_solint} sol.minvisratio=0.5 \
                      sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
-                     log='$nameMS_solamp-c' + str(c) + '.log', commandType='DP3')
+                     log='$nameMS_diampsol.log', commandType='DP3')
 
-            lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
+                lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
                                 [f'{parset_dir}/losoto-plot-amp.parset', f'{parset_dir}/losoto-plot-ph.parset', f'{parset_dir}/losoto-amp-di.parset'],
                                 plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
 
-        with w.if_todo('correct_amp_di'):
-            # TODO add updateweights in production
-            # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
-            logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
-            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                # TODO add updateweights in production
+                # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
+                logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
                     cor.parmdb={sol_dir}/cal-amp-di.h5 cor.correction=amplitudeSmooth cor.updateweights=False',
-                    log='$nameMS_sf-correct.log', commandType='DP3')
+                    log='$nameMS_diampcor.log', commandType='DP3')
+                
     elif c > 1:
         # Starting from cycle 2: do DD-slow amp solutions
         with w.if_todo(f'c%02i_solve_amp_dd' % c):
@@ -633,12 +653,12 @@ for c in range(maxIter):
         s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-RSm-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RS-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 \
               --no_antenna_crash {usepol} --propagate_flags {filter_directions}' , log='h5_merger.log', commandType='python')
         s.run(check=True)
-        lib_util.run_losoto(s, f'tec-RSm-c{c}', f'{sol_dir}/cal-tec-RSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
+        lib_util.run_losoto(s, f'tec-RSm-c{c}', f'{sol_dir}/cal-tec-RSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalarph.parset'],
                             plots_dir=f'{plot_dir}/plots-tec-RSm-c{c}', h5_dir=sol_dir)
         s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-CSm-c{c}.h5 --h5_tables {sol_dir}/cal-tec-CS-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 \
               --no_antenna_crash {usepol} --propagate_flags {filter_directions}' , log='h5_merger.log', commandType='python')
         s.run(check=True)
-        lib_util.run_losoto(s, f'tec-CSm-c{c}', f'{sol_dir}/cal-tec-CSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalar.parset'],
+        lib_util.run_losoto(s, f'tec-CSm-c{c}', f'{sol_dir}/cal-tec-CSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalarph.parset'],
                             plots_dir=f'{plot_dir}/plots-tec-CSm-c{c}', h5_dir=sol_dir)
         if c > 1:
             lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-amp-dd-c{c}.h5', sourcedb)
@@ -651,14 +671,14 @@ for c in range(maxIter):
                    --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 --no_antenna_crash {usepol} --propagate_flags' , log='h5_merger.log', commandType='python')
             s.run(check=True)
             lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5',
-                                [f'{parset_dir}/losoto-plot-scalar.parset', f'{parset_dir}/losoto-plot-scalaramp.parset'], plots_dir=f'{plot_dir}/plots-tec-merged-c{c}',
+                                [f'{parset_dir}/losoto-plot-scalarph.parset', f'{parset_dir}/losoto-plot-scalaramp.parset'], plots_dir=f'{plot_dir}/plots-tec-merged-c{c}',
                                 h5_dir=sol_dir)
         else:
             s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-merged-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RSm-c{c}.h5 {sol_dir}/cal-tec-CSm-c{c}.h5 \
                    --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 --no_antenna_crash {usepol} --propagate_flags', log='h5_merger.log', commandType='python')
             s.run(check=True)
             lib_util.run_losoto(s, f'tec-merged-c{c}', f'{sol_dir}/cal-tec-merged-c{c}.h5',
-                                [f'{parset_dir}/losoto-plot-scalar.parset'], plots_dir=f'{plot_dir}/plots-tec-merged-c{c}',
+                                [f'{parset_dir}/losoto-plot-scalarph.parset'], plots_dir=f'{plot_dir}/plots-tec-merged-c{c}',
                                 h5_dir=sol_dir)
 
     facetregname = f'{sol_dir}/facets-c{c}.reg'
@@ -782,11 +802,6 @@ for c in range(maxIter):
                 log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
             s.run(check=True)
 
-            # # Add model to MODEL_DATA
-            # logger.info('Predict corrupted model of external region (DP3)...')
-            # MSs.run(f'DP3 {parset_dir}/DP3-h5parmpredict.parset msin=$pathMS pre.sourcedb=$pathMS/wideM-{c}-sources-pb.txt pre.applycal.parmdb=cal-tec-merged-c{c}.h5',
-            #         log='$nameMS_h5pre.log', commandType='DP3')
-
             # cycle > 0: need to add DI-corruption on top (previous iteration sub-field)
             if c > 0:
                 logger.info('Add previous iteration sub-field corruption on top of DD-corruption...')
@@ -892,7 +907,7 @@ for c in range(maxIter):
                 commandType='python')
             s.run(check=True)
             lib_util.run_losoto(s, f'tec-sf-merged-c{c}', f'{sol_dir}/cal-tec-sf-merged-c{c}.h5',
-                                [f'{parset_dir}/losoto-plot-scalar.parset'],
+                                [f'{parset_dir}/losoto-plot-scalarph.parset'],
                                 plots_dir=f'{plot_dir}/plots-tec-sf-merged-c{c}', h5_dir=sol_dir)
         ### DONE
 
