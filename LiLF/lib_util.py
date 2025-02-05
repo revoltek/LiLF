@@ -100,7 +100,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'min_flux_factor', '1')
     # ddserial
     add_default('LOFAR_ddserial', 'maxIter', '2')
-    add_default('LOFAR_ddserial', 'minCalFlux60', '0.7')
+    add_default('LOFAR_ddserial', 'minCalFlux60', '1.0')
     add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
     # add_default('LOFAR_ddserial', 'removeExtendedCutoff', '0.0005')
     add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec
