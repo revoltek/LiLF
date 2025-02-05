@@ -29,6 +29,7 @@ maxIter = parset.getint('LOFAR_ddserial','maxIter')
 min_cal_flux60 = parset.getfloat('LOFAR_ddserial','minCalFlux60')
 solve_amp = parset.getboolean('LOFAR_ddserial','solve_amp')
 manual_dd_cal = parset.get('LOFAR_ddserial','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
+develop = parset.getboolean('LOFAR_ddserial', 'develop') # for development, make more output/images
 userReg = parset.get('model','userReg')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=6.5):
@@ -57,10 +58,10 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=
     logger.debug('Image size: '+str(imsize)+' - Pixel scale: '+str(localpixscale))
 
     if res == 'normal':
-        weight = 'briggs -0.3'
+        weight = 'briggs -0.5'
         maxuv_l = None
     elif res == 'high':
-        weight = 'briggs -0.6'
+        weight = 'briggs -0.7'
         maxuv_l = None
     elif res == 'low':
         weight = 'briggs 0'
@@ -374,7 +375,7 @@ for cmaj in range(maxIter):
                     log='$nameMS_taql.log', commandType='general')
 
         ### TESTTESTTEST: empty image
-        if not os.path.exists('img/empty-init-c%02i-image.fits' % (cmaj)):
+        if develop and not os.path.exists('img/empty-init-c%02i-image.fits' % (cmaj)):
             clean('init-c%02i' % (cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
         ###
     ### DONE
@@ -417,7 +418,7 @@ for cmaj in range(maxIter):
                     log='$nameMS_taql.log', commandType='general')
     
             ### TTESTTESTTEST: empty image but with the DD cal
-            if not os.path.exists('img/empty-butcal-%s-image.fits' % (logstring)):
+            if develop and not os.path.exists('img/empty-butcal-%s-image.fits' % (logstring)):
                  clean('butcal-%s' % (logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ### DONE
 
@@ -796,8 +797,8 @@ for cmaj in range(maxIter):
             ### DONE
 
         ### TTESTTESTTEST: empty image
-        # if not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
-        #     clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
+        if develop and not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
+             clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
         ###
 
     #####################################################
@@ -934,7 +935,7 @@ for cmaj in range(maxIter):
         # TODO: do we need dd_psf_grid='25 25'
         logger.info('Cleaning...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(),  name=imagename, data_column='CORRECTED_DATA',
-                size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.3', niter=1000000, gridder='wgridder',
+                size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
                 parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                 save_source_list='', no_update_model_required='',  nmiter=40, auto_threshold=2.0, auto_mask=3.5, fits_mask=maskname,
@@ -958,7 +959,7 @@ with w.if_todo('output-vstokes'):
     imagenameV = 'img/wideDD-v-c%02i' % (cmaj)
     logger.info('Cleaning (V-stokes)...')
     lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=imgsizepix, scale=str(pixscale)+'arcsec',
-                weight='briggs -0.3', niter=1000000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
+                weight='briggs -0.5', niter=1000000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
                 pol='v')
 

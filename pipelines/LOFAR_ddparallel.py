@@ -44,6 +44,7 @@ phaseSolMode = parset.get('LOFAR_ddparallel', 'ph_sol_mode') # tecandphase, tec,
 remove3c = parset.getboolean('LOFAR_ddparallel', 'remove3c') # get rid of 3c sources in the sidelobes
 min_facets = parset.get('LOFAR_ddparallel', 'min_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [2,3,6..]
 min_flux_factor = parset.getfloat('LOFAR_ddparallel', 'min_flux_factor') # min facet flux factor, default = 1. Higher value -> less facets.
+develop = parset.getboolean('LOFAR_ddparallel', 'develop') # for development, make more output/images
 sf_phaseSolMode = 'phase' #'tec'
 start_sourcedb = parset.get('model','sourcedb')
 userReg = parset.get('model','userReg')
@@ -487,7 +488,7 @@ for c in range(maxIter):
             # logger.info(f'Test image MODEL_DATA...')
             # lib_util.run_wsclean(s, 'wscleanMODEL-c' + str(c) + '.log', MSs.getStrWsclean(), name=f'ddparallel/skymodel/{patch}',
             #                      data_column=patch, size=size, scale='8arcsec', shift=f'{pos[0].to(u.hourangle).to_string()} {pos[1].to_string()}',
-            #                      weight='briggs -0.3', niter=10000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.9,
+            #                      weight='briggs -0.5', niter=10000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.9,
             #                      parallel_deconvolution=512, beam_size=15, join_channels='', fit_spectral_pol=3,
             #                      channels_out=MSs.getChout(4.e6), deconvolution_channels=3, pol='i', nmiter=5 )
     ### DONE
@@ -672,7 +673,7 @@ for c in range(maxIter):
         imagename = 'img/wide-' + str(c)
         imagenameM = 'img/wideM-' + str(c)
         # common imaging arguments used by all of the following wsclean calls
-        widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec', weight='briggs -0.3', niter=1000000,
+        widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec', weight='briggs -0.5', niter=1000000,
                                 gridder='wgridder',  parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                 join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
                                 multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname)
@@ -807,7 +808,7 @@ for c in range(maxIter):
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
                         cor.parmdb={sol_dir}/cal-amp-di.h5 cor.correction=amplitudeSmooth cor.invert=True',
                         log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
-            #clean_empty(MSs,f'only_subfield-{c}', 'SUBFIELD_DATA') # DEBUG
+            if develop: clean_empty(MSs,f'only_subfield-{c}', 'SUBFIELD_DATA') # DEBUG
         ### DONE
 
         with w.if_todo('c%02i_intreg_predict' % c):
@@ -895,11 +896,11 @@ for c in range(maxIter):
                                 plots_dir=f'{plot_dir}/plots-tec-sf-merged-c{c}', h5_dir=sol_dir)
         ### DONE
 
-        # Do a quick debug image...
+        # Do a quick image of the subfield, not strictly necessary but good to have...
         with w.if_todo('c%02i_image-subfield' % c):
             logger.info('Test image subfield...')
             lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=int(1.2*subfield_size*3600/pixscale), scale=f'{pixscale}arcsec',
-                                 weight='briggs -0.3', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}',
+                                 weight='briggs -0.5', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}',
                                  no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
                                  join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
                                  multiscale='',  multiscale_scale_bias=0.7, pol='i')
@@ -929,7 +930,7 @@ for c in range(maxIter):
                 logger.info('Subtract main-lobe (SUBFIELD_DATA = CORRECTED_DATA_FR - MODEL_DATA)...')
                 MSs.run('taql "update $pathMS set SUBFIELD_DATA = CORRECTED_DATA_FR - MODEL_DATA"',
                         log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
-                clean_empty(MSs, 'only_sidelobe', 'SUBFIELD_DATA', size=10000)
+                if develop: clean_empty(MSs, 'only_sidelobe', 'SUBFIELD_DATA', size=10000)
             ### DONE
 
             # Do a rough correction of the sidelobe data using the subfield solutions
@@ -949,7 +950,7 @@ for c in range(maxIter):
                 channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
                 lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
                                      parallel_gridding=4, size=imgsizepix_lr, scale=f'30arcsec', save_source_list='',
-                                     weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
+                                     weight='briggs -0.5', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                                      taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512, baseline_averaging='',
                                      local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5)
 
@@ -959,7 +960,7 @@ for c in range(maxIter):
                 logger.info('Subtract low-resolution to get empty data set (SUBFIELD_DATA = SUBFIELD_DATA - MODEL_DATA)...')
                 MSs.run('taql "update $pathMS set SUBFIELD_DATA = SUBFIELD_DATA - MODEL_DATA"',
                     log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
-                clean_empty(MSs, 'empty', 'SUBFIELD_DATA')
+                if develop: clean_empty(MSs, 'empty', 'SUBFIELD_DATA')
 
             # Flag on residuals (SUBFIELD_DATA)
             with w.if_todo('flag_residuals'):
@@ -989,6 +990,7 @@ for c in range(maxIter):
                     pred_parset = 'DP3-predict.parset'
                     MSs.run(f'DP3 {parset_dir}/{pred_parset} msin=$pathMS pre.sourcedb={imagename_lr}-sources.txt msout.datacolumn=MODEL_DATA',
                         log='$nameMS_pre.log', commandType='DP3')
+                
                 # predict just for empty test image
                 MSs.run('taql "update $pathMS set SUBFIELD_DATA = SUBFIELD_DATA - MODEL_DATA"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
 
@@ -1016,18 +1018,6 @@ for c in range(maxIter):
                                 log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
             ### DONE
 
-# # polarisation imaging
-# with w.if_todo('imaging-pol'):
-#     logger.info('Cleaning (Pol)...')
-#     imagenameP = 'img/wideP'
-#     lib_util.run_wsclean(s, 'wscleanP.log', MSs.getStrWsclean(), name=imagenameP, pol='QUV',
-#         size=imgsizepix_p, scale='10arcsec', weight='briggs -0.3', niter=0, no_update_model_required='',
-#         parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500,
-#         join_channels='', channels_out=MSs.getChout(4.e6))
-#
-# MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN SUBFIELD_DATA, CORRECTED_DATA_FR"',
-#         log='$nameMS_taql_delcol.log', commandType='general')
-
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits ddparallel/images') for c in range(maxIter) ]
@@ -1038,8 +1028,9 @@ for c in range(maxIter):
 # os.system('mv img/wide-lr-MFS-image.fits ddparallel/images')
 
 # debug images
-os.system('mv img/only*image.fits ddparallel/images')
-os.system('mv img/empty*image.fits ddparallel/images')
+if develop:
+    os.system('mv img/only*image.fits ddparallel/images')
+    os.system('mv img/empty*image.fits ddparallel/images')
 
 # Copy model
 os.system(f'mv img/wideM-{maxIter-1}-*-model.fits ddparallel/skymodel')
