@@ -202,12 +202,16 @@ def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=50., threshold=0):
         pos = SkyCoord(ra=coord[0], dec=coord[1], unit=(u.hourangle, u.deg))
         sep = phasecentre.separation(pos).deg
         
-        within_beam = False
         if sep < 20:
             pix_pos = np.round(np.asarray(wcs.utils.skycoord_to_pixel(pos, beam_wcs, origin=1))).astype(int)
             if (0 <= pix_pos[0] < beam_hdu.data.shape[-2]) and (0 <= pix_pos[1] < beam_hdu.data.shape[-1]):
                 within_beam = bool(beam_hdu.data[0,0,pix_pos[1], pix_pos[0]])
-        
+        elif sep > 20 and source == "3C 274":
+            logger.info(f'3C source {source} (seperation: {sep:.2f} deg) too far from center to reliably subtract: ignore.')
+            continue
+        else:
+            within_beam = False
+            
         if within_beam:
             logger.info(f'3C source {source} is within primary beam. Not Adding model for subtraction.')
             continue
@@ -224,7 +228,6 @@ def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=50., threshold=0):
             sourcedb = os.path.dirname(__file__) + f'/../models/calib-simple.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch=={source.replace(" ","")}')
-
         else:
             sourcedb = os.path.dirname(__file__) + f'/../models/3CRR/{source.replace(" ","")}.txt'
             if not os.path.exists(sourcedb):
@@ -526,7 +529,7 @@ for c in range(maxIter):
             with w.if_todo('3c_solve_amp'):
                 logger.info('Solving amplitude for 3C...')
                 # Solve diagonal amplitude MSs:SMOOTHED_DATA
-                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true sol.usebeammodel \
+                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true sol.usebeammodel=True \
                           sol.mode=scalaramplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
                           sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=60', log=f'$nameMS_solamp_c{c}.log', commandType="DP3")
 
