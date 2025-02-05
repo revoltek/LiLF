@@ -1,5 +1,9 @@
 FORMAT = Name, Type, patch='[<Angle 123.40058332 deg>, <Angle 48.21709724 deg>]', Ra, Dec, I, SpectralIndex='[]', LogarithmicSI, ReferenceFrequency='58927154.541', MajorAxis, MinorAxis, Orientation
 
+
+, , 3C147, 05:42:36.1, 49.51.07
+3C147p, POINT, 3C147, 05:42:36.1, 49.51.07, 66.738, [-0.022, -1.012, 0.549], true, 150.e6, 0, 0, 0
+
 # This model does not have the correct flux density scale
  , , 3C196, 8:13:36.14, 48.13.01.5501
 s0c0, POINT, 3C196, 8:13:35.685, 48.12.55.2, -0.0142846703709679, [0.140388204166103, -0.062009202688362, -0.781054018502542], false, 58927154.5410156
