@@ -96,6 +96,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'subfield_min_flux', '20') # min flux within calibration subfield
     add_default('LOFAR_ddparallel', 'ph_sol_mode', 'phase') # phase or tecandphase
     add_default('LOFAR_ddparallel', 'remove3c', 'True')
+    add_default('LOFAR_ddparallel', 'fulljones', 'False')
     add_default('LOFAR_ddparallel', 'min_facets', '')
     add_default('LOFAR_ddparallel', 'min_flux_factor', '1')
     add_default('LOFAR_ddparallel', 'develop', 'False') # if true make more debug images (slower) 
