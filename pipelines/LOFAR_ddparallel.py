@@ -478,12 +478,11 @@ for c in range(maxIter):
     with w.if_todo('c%02i_init_model' % c):
         for patch in patches:
             # Add model to MODEL_DATA
+            # TODO: add time smearing in the predict parset
             logger.info(f'Add model to {patch}...')
             pred_parset = 'DP3-predict-beam.parset' if intrinsic else 'DP3-predict.parset'
             MSs.run(f'DP3 {parset_dir}/{pred_parset} msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch}',
                     log='$nameMS_pre.log', commandType='DP3')
-            # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-            # MSs_sol.run_Blsmooth(patch, patch, logstr=f'smooth-c{c}')
             # pos = sm.getPatchPositions()[patch]
             # size = int((1.1*sm.getPatchSizes()[np.argwhere(sm.getPatchNames()==patch)]) // 4)
             # logger.info(f'Test image MODEL_DATA...')
@@ -599,6 +598,8 @@ for c in range(maxIter):
                     cor.parmdb={sol_dir}/cal-amp-di.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phaseSmooth] \
                     cor.updateweights=False',
                     log='$nameMS_diampcor.log', commandType='DP3')
+                
+                # TODO: add normalisation solve (diag amp with ntimes=0)
             
             else:
                 logger.info('Solving amp-di...')
