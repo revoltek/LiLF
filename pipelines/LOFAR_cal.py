@@ -252,12 +252,12 @@ with w.if_todo('pre_iono'):
     logger.info('Calibrating IONO (distant stations)...')
     smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.5e6'
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
-                           sol.h5parm=$pathMS/preiono.h5 sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase sol.datause=full \
+                           sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase  sol.datause=single \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
                            log='$nameMS_sol.log', commandType="DP3")
 
     lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-ref-rot.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset', parset_dir + '/losoto-fr.parset'])
+                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
 
 ### DONE
 ########################################################
@@ -527,22 +527,22 @@ if develop:
                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
 
     # Correct iono CORRECTED_DATA -> CORRECTED_DATA
-    #logger.info('Iono correction...')
-    #MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 \
-    #               cor.correction=phase000', log='$nameMS_corIONO_CS-TEST.log', commandType="DP3")
-    #MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
-    #               cor.correction=phase000', log='$nameMS_corIONO-TEST.log', commandType="DP3")
+    logger.info('Iono correction...')
+    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 \
+                   cor.correction=phase000', log='$nameMS_corIONO_CS-TEST.log', commandType="DP3")
+    MSs_concat_all.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
+                   cor.correction=phase000', log='$nameMS_corIONO-TEST.log', commandType="DP3")
 
-    #MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth')
+    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth')
 
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve)
-    #logger.info('Calibrating test...')
-    #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS\
-    #            sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
-    #            sol.solint=1 sol.nchan=1', \
-    #            log='$nameMS_solTEST.log', commandType="DP3")
-    #lib_util.run_losoto(s, 'test-pabeambpfriono', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
-    #            [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
+    logger.info('Calibrating test...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS\
+                sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
+                sol.solint=1 sol.nchan=1', \
+                log='$nameMS_solTEST.log', commandType="DP3")
+    lib_util.run_losoto(s, 'test-pabeambpfriono', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
+                [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
 
 if not develop:
     with w.if_todo('compressing_h5'):
