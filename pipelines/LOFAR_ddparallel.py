@@ -409,7 +409,6 @@ for c in range(maxIter):
     # get sourcedb
     sourcedb = f'ddparallel/skymodel/tgts-c{c}.skymodel'
     beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
-    intrinsic = True # test always using intrinsic model
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
@@ -426,19 +425,18 @@ for c in range(maxIter):
                 sm = lsmtool.load(sourcedb, beamMS=beamMS)
         else:
             # get wsclean skymodel of previous iteration
-            wsc_src = f'img/wideM-{c-1}-sources-pb.txt' if intrinsic else f'img/wideM-{c-1}-sources.txt'
-            sm = lsmtool.load(wsc_src, beamMS=beamMS if intrinsic else None)
+            wsc_src = f'img/wideM-{c-1}-sources-pb.txt'
+            sm = lsmtool.load(wsc_src, beamMS=beamMS)
         
         # if using e.g. LoTSS, adjust for the frequency
         logger.debug(f'Extrapolating input skymodel fluxes from {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
         si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S144 = si_factor * S54
-        # sm.select(f'I>{0.01*si_factor}', applyBeam=intrinsic)  # keep only reasonably bright sources, this make biases
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
         sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
-        sm.setPatchPositions(method='wmean', applyBeam=intrinsic)
-        sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=intrinsic)
+        sm.setPatchPositions(method='wmean', applyBeam=True)
+        sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=True)
         # TODO we need some logic here to avoid picking up very extended sources. Also case no bright sources in a field.
-        patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
+        patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=True)
         if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]:
             bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor
             logger.warning(f'Less than {min_facets[c]} bright sources above minimum flux {facet_fluxes[c]:.2f} Jy! Using sources above {bright_sources_flux:.2f} Jy')
@@ -446,9 +444,9 @@ for c in range(maxIter):
             bright_sources_flux = facet_fluxes[c]
         bright_names = sm.getPatchNames()[patch_fluxes > bright_sources_flux*si_factor]
         bright_pos = sm.getPatchPositions(bright_names)
-        sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=intrinsic, root='', byPatch=True)
+        sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=True, root='', byPatch=True)
         sm.setPatchPositions(bright_pos)
-        lib_dd_parallel.rename_skymodel_patches(sm, applyBeam=intrinsic)
+        lib_dd_parallel.rename_skymodel_patches(sm, applyBeam=True)
 
         if c == 0 and remove3c:
             # Add models of bright 3c sources to the sky model. Model will be subtracted from data before imaging.
@@ -462,7 +460,7 @@ for c in range(maxIter):
         logger.info(f'Using {len(sm.getPatchNames())} patches.')
     else:
         logger.info(f'Load existing skymodel {sourcedb}')
-        sm = lsmtool.load(sourcedb, beamMS=beamMS if intrinsic else None)
+        sm = lsmtool.load(sourcedb, beamMS=beamMS)
     
     sm.plot(f'ddparallel/skymodel/patches-c{c}.png', 'patch')
 
@@ -474,7 +472,7 @@ for c in range(maxIter):
         os.system('cp -r ' + sourcedb + ' ' + MS)
 
     patches = sm.getPatchNames()
-    patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
+    patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=True)
     for patch in patches[np.argsort(patch_fluxes)[::-1]]:
         logger.info(f'{patch}: {patch_fluxes[patches==patch][0]:.1f} Jy')
   
@@ -483,7 +481,7 @@ for c in range(maxIter):
             # Add model to MODEL_DATA
             # TODO: add time smearing in the predict parset
             logger.info(f'Add model to {patch}...')
-            pred_parset = 'DP3-predict-beam.parset' if intrinsic else 'DP3-predict.parset'
+            pred_parset = 'DP3-predict-beam.parset'
             MSs.run(f'DP3 {parset_dir}/{pred_parset} msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch}',
                     log='$nameMS_pre.log', commandType='DP3')
             # pos = sm.getPatchPositions()[patch]
