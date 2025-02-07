@@ -127,6 +127,8 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
         groupname = 'mss'
     else:
         groupname = 'mss-%02i' % i
+    if MSs.hasIS:
+        groupname += '-IS'
     groupnames.append(groupname)
 
     # skip if already done
@@ -218,6 +220,18 @@ with w.if_todo('timesplit'):
 
         lib_util.check_rm(ms) # remove not-timesplitted file
 ### DONE
+
+# If we have IS present, also split out the averaged dutch baselines for DDparallel processing
+if MSs.hasIS:
+    for groupname in groupnames:
+        MSs = lib_ms.AllMSs( glob.glob(groupname+'/*MS'), s )
+        groupname_dutch = groupname.replace("-IS","")
+        with w.if_todo('avgdutch'):
+            if not os.path.exists(groupname_dutch):
+                os.system(f'mkdir {groupname_dutch}')
+            avg_factor_t, avg_factor_f = MS.getAvgFactors(keep_IS=False)
+            MSs.run(f'DP3 {parset_dir}/DP3-avgdutch.parset msin=$pathMS msout={groupname_dutch}/$nameMS.MS avg.freqstep={avg_factor_f} avg.timestep={avg_factor_t}',
+                              log=MS.nameMS+'_avg.log', commandType='DP3')
 
 logger.info('Cleaning up...')
 os.system('rm -r *MS')

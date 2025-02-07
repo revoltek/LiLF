@@ -157,7 +157,7 @@ if renameavg:
                 # get avg time/freq values
                 nchan = MS.getNchan()
                 timeint = MS.getTimeInt()
-
+                # TODO change these lines to use MS.getAvgFactors() after running survey
                 if nchan == 1:
                     avg_factor_f = 1
                 #elif nchan % 2 == 0 and MSs.isHBA: # case HBA

@@ -35,6 +35,7 @@ parser = argparse.ArgumentParser(description='Split out a single direction by su
 parser.add_argument('--mode', type=str, help='Either infield, ddcal or widefield.')
 parser.add_argument('--infieldreg', default=None, type=str, help='Provide a region for the infield calibrator (ds9 circle or square).')
 parser.add_argument('--dutchdir', type=str, default=None, help='Directory of the dutch processing.')
+parser.add_argument('--mss', type=str, default=None, help='Directory containing the IS MSs (after timesplit).')
 ### Options for splitting of infield or ddcal
 parser.add_argument('--freqres', type=float, default=0.195312, help='Freq. resolution of the split-off MSs in Mhz. Default=0.195312MHz (1 subband)')
 parser.add_argument('--timeres', type=int, default=16, help='Time resolution of the split-off MSs in s. Default: 16s.')
@@ -45,7 +46,7 @@ parser.add_argument('--dirreg',action='store', default=None, type=str, help='Pro
 args = parser.parse_args()
 
 mode = args.mode
-dirregfile, infieldregfile, dutchdir = args.dirreg, args.infieldreg, args.dutchdir
+dirregfile, infieldregfile, dutchdir, mss_path = args.dirreg, args.infieldreg, args.dutchdir, args.mss
 time_resolution, freq_resolution = args.timeres, args.freqres
 infield_h5 = args.infieldh5
 
@@ -91,7 +92,7 @@ if not os.path.exists(f'img'):
 infield_reg = lib_util.Region_helper(infieldregfile)
 infield_center = infield_reg.get_center()  # center of the infield cal region
 
-MSs_orig = lib_ms.AllMSs(glob.glob('../id801224_-_a2255/mss/*MS'), s, check_flags=False, check_sun=False)
+MSs_orig = lib_ms.AllMSs(glob.glob(mss_path+'/*MS'), s, check_flags=False, check_sun=False)
 max_uvw_m_dutch = 1.1*MSs_orig.getMaxBL(check_flags=True, dutch_only=True) # this is important, it is the maximum uvw value in meters of any dutch-dutch baseline. Everything above this value is certainly IS data
 
 #####################################################

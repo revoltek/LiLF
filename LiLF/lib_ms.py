@@ -661,6 +661,39 @@ class MS(object):
         else:
             raise('Only LOFAR or GMRT implemented.')
 
+    def getAvgFactors(self, keep_IS):
+        """
+        Get the time and frequency averaging factor to arrive at the standard LiLF processing resolution
+        depending on SPARSE/OUTER, frequency coverage and Dutch/IS.
+        keep_IS: compute resolution for IS data
+        """
+        nchan = self.getNchan()
+        timeint = self.getTimeInt()
+        minfreq = np.min(self.getFreqs())
+        if nchan == 1:
+            avg_factor_f = 1
+        # elif nchan % 2 == 0 and MSs.isHBA: # case HBA
+        #    avg_factor_f = int(nchan / 4)  # to 2 ch/SB
+        elif nchan % 8 == 0 and minfreq < 40e6:
+            avg_factor_f = int(nchan / 8)  # to 8 ch/SB
+        elif nchan % 8 == 0 and 'SPARSE' in self.getAntennaSet():
+            avg_factor_f = int(nchan / 8)  # to 8 ch/SB
+        elif nchan % 4 == 0:
+            avg_factor_f = int(nchan / 4)  # to 4 ch/SB
+        elif nchan % 5 == 0:
+            avg_factor_f = int(nchan / 5)  # to 5 ch/SB
+        else:
+            logger.error('Channels should be a multiple of 4 or 5.')
+            sys.exit(1)
+
+        if keep_IS:
+            avg_factor_f = int(nchan / 16)  # to have the full FoV in LBA we need 16 ch/SB
+        if avg_factor_f < 1: avg_factor_f = 1
+
+        avg_factor_t = int(np.round(2 / timeint)) if keep_IS else int(np.round(4 / timeint))  # to 4 sec (2 for IS)
+        if avg_factor_t < 1: avg_factor_t = 1
+        return avg_factor_t, avg_factor_f
+
     def makeBeamReg(self, outfile, pb_cut=None, to_pbval=0.5, freq='mid'):
         """
         Create a ds9 region of the beam to FWHM by default
