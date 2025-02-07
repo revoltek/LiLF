@@ -153,7 +153,7 @@ RUN cd /opt/losoto && pip3 install .
 #####################################################################
 # msoverview
 #####################################################################
-RUN cd /opt && mkdir -p msoverview/src && cd msoverview/src && svn export https://svn.astron.nl/LOFAR/tags/LOFAR-Release-4_0_17/CEP/MS/src/msoverview.cc \
+RUN cd /opt && mkdir -p msoverview/src && cd msoverview/src && wget https://git.astron.nl/ro/lofar/-/raw/LOFAR-Release-4_0_17/CEP/MS/src/msoverview.cc \
     && gcc -I/usr/local/include/casacore -L/usr/local/lib msoverview.cc -o /usr/local/bin/msoverview -lcasa_casa -lcasa_ms -lcasa_tables -lstdc++
 
 #####################################################################
