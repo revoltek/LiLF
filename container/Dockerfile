@@ -54,10 +54,10 @@ RUN cd /opt/python-casacore && pip3 install .
 #ENV PYTHONPATH /usr/local/lib/python3.8/site-packages/:$PYTHONPATH
 
 #####################################################################
-## EveryBeam v0.5.2
+## EveryBeam v0.5.8
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
-    && cd /opt/EveryBeam && git checkout tags/v0.5.2
+    && cd /opt/EveryBeam && git checkout tags/v0.5.8
 RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
     && make -j 64 && make install
