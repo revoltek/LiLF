@@ -159,24 +159,24 @@ RUN cd /opt && mkdir -p msoverview/src && cd msoverview/src && wget https://git.
 #####################################################################
 ## BUILD DDF FROM SOURCE
 #####################################################################
-RUN git clone https://github.com/cyriltasse/DDFacet.git
-RUN cd /DDFacet && git checkout c0bd5f9ccaa9b7c28376e3e2674428902fa5bf85
-RUN mkdir /opt/DDFacet
+# RUN git clone https://github.com/cyriltasse/DDFacet.git
+# RUN cd /DDFacet && git checkout c0bd5f9ccaa9b7c28376e3e2674428902fa5bf85
+# RUN mkdir /opt/DDFacet
 
 # Copy DDFacet and SkyModel into the image
-RUN cp -a DDFacet/DDFacet /opt/DDFacet/DDFacet && \
-    cp -a DDFacet/SkyModel /opt/DDFacet/SkyModel && \
-    cp -a DDFacet/MANIFEST.in /opt/DDFacet/MANIFEST.in && \
-    cp -a DDFacet/setup.py /opt/DDFacet/setup.py && \
-    cp -a DDFacet/setup.cfg /opt/DDFacet/setup.cfg && \
-    cp -a DDFacet/README.rst /opt/DDFacet/README.rst && \
-    cp -a DDFacet/pyproject.toml /opt/DDFacet/pyproject.toml && \
-    cp -a DDFacet/.git /opt/DDFacet/.git && \
-    cp -a DDFacet/.gitignore /opt/DDFacet/.gitignore && \
-    cp -a DDFacet/.gitmodules /opt/DDFacet/.gitmodules
+# RUN cp -a DDFacet/DDFacet /opt/DDFacet/DDFacet && \
+#     cp -a DDFacet/SkyModel /opt/DDFacet/SkyModel && \
+#     cp -a DDFacet/MANIFEST.in /opt/DDFacet/MANIFEST.in && \
+#     cp -a DDFacet/setup.py /opt/DDFacet/setup.py && \
+#     cp -a DDFacet/setup.cfg /opt/DDFacet/setup.cfg && \
+#     cp -a DDFacet/README.rst /opt/DDFacet/README.rst && \
+#     cp -a DDFacet/pyproject.toml /opt/DDFacet/pyproject.toml && \
+#     cp -a DDFacet/.git /opt/DDFacet/.git && \
+#     cp -a DDFacet/.gitignore /opt/DDFacet/.gitignore && \
+#     cp -a DDFacet/.gitmodules /opt/DDFacet/.gitmodules
 
 # Finally install DDFacet
-RUN rm -rf /opt/DDFacet/DDFacet/cbuild
+# RUN rm -rf /opt/DDFacet/DDFacet/cbuild
 #RUN pip3 install -U pip setuptools wheel
 #RUN python3 -m pip install tensorflow-cpu
 
@@ -185,9 +185,9 @@ RUN rm -rf /opt/DDFacet/DDFacet/cbuild
 # Forse ipython not to be upgraded too much otherwise we lose compatibility with come astropy
 #RUN pip3 install ipython==7.17.0
 
-RUN python3 -m pip install -U "/opt/DDFacet/[moresane-support,testing-requirements,fits-beam-support]"
-RUN cd /opt/DDFacet/ && python3 setup.py build
-RUN cd /opt/DDFacet/ && python3 setup.py install
+# RUN python3 -m pip install -U "/opt/DDFacet/[moresane-support,testing-requirements,fits-beam-support]"
+# RUN cd /opt/DDFacet/ && python3 setup.py build
+# RUN cd /opt/DDFacet/ && python3 setup.py install
 
 # Set MeqTrees Cattery path to installation directory
 #ENV MEQTREES_CATTERY_PATH /usr/local/lib/python3.6/dist-packages/Cattery/
