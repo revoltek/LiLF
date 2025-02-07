@@ -5,10 +5,6 @@ operation = DUPLICATE
 soltab = sol000/amplitude000
 soltabOut = amplitudeSmooth
 
-#[reset]
-#operation = RESET
-#soltab = sol000/phase000
-
 [replicate]
 operation = REPLICATEONAXIS
 soltab = sol000/amplitudeSmooth
