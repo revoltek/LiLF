@@ -3,7 +3,7 @@ Library for Low Frequencies
 
 LiLF is a set of functions linked together in pipelines for the reduction of low-frequency interferometric data in radio astronomy. It is built upon LOFAR software. LiLF can be used on both LOFAR and uGMRT data.
 
-- LOFAR: http://lofar.org/
+- LOFAR: https://www.astron.nl/telescopes/lofar/
 - uGMRT: http://www.ncra.tifr.res.in/ncra/gmrt
 
 ### Files:
@@ -58,7 +58,7 @@ as the pipeline requires to open many files at the same time.
 
 * To use PILL run
 
-`python3 /opt/LiLF/pipelines/PILL.py`
+`python3 /opt/LiLF/pipelines/PiLL.py`
 
 * To run the pipeline step-by-step follow these commands:
     1. On you working directory create a `Download` directory and put here the html.txt files obtained from a data staging request on Long Term Archive (LTA).  Then run: `python3 /opt/LiLF/pipelines/LOFAR_preprocess.py` to download the data from LTA, unpack, averaged to 4 chan/sb and 4 sec and finally arrange the data in sub-directories that you can find in `Download/mss` The subdirectories are called `id000_CAL` and `id000_TARGET`, where 000 is the id of your observation and CAL and TARGET are the name of the calibrator and target. If your observation is split in more than one night, you will have a calibrator and target directory for every observation. Inside that directories you will find all the ms files. Copy them in a directory called data-bkp (Don't change the name otherwise the pipeline doesn't find the ms files). So to summarize you will have `Download/mss/id000_CAL/data-bkp` and `Download/mss/id000_TARGET/data-bkp`.
