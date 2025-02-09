@@ -192,7 +192,7 @@ if mode in ['infield', 'ddcal']:
             lib_img.blank_image_reg(wideMext, infieldregfile if mode=='infield' else dirregfile, blankval = 0.)
         # Recreate MODEL_DATA of external region for subtraction
         logger.info('Predict corrupted model of external region (wsclean)...')
-        s.add(f'wsclean -predict -padding 1.8 -name wideDD-c01-{name} -j {s.max_cpucores} -channels-out {len(glob.glob(f"wideDD-c0{ddserialcycle}-{name}*fpb.fits"))} \
+        s.add(f'wsclean -predict -padding 1.8 -name wideDD-c0{ddserialcycle}-{name} -j {s.max_cpucores} -channels-out {len(glob.glob(f"wideDD-c0{ddserialcycle}-{name}*fpb.fits"))} \
                 -facet-regions {dutchdir}/ddserial/c0{ddserialcycle}/solutions/facets-c0{ddserialcycle}.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                 -apply-facet-solutions interp_merged.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
               log='wscleanPRE.log', commandType='wsclean')
