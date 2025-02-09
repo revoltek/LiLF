@@ -119,7 +119,7 @@ with w.if_todo('cleaning'):
     os.makedirs('ddserial/init')
     os.system('cp ddparallel/skymodel/wideM-*model*.fits ddserial/init/')
     os.system('cp '+sorted(glob.glob("ddparallel/images/wideM-*image.fits"))[-1]+' ddserial/init/')
-    os.system('cp '+sorted(glob.glob("ddparallel/images/wideM-*residual.fits"))[-1]+' ddserial/init/')
+    #os.system('cp '+sorted(glob.glob("ddparallel/images/wideM-*residual.fits"))[-1]+' ddserial/init/')
     lib_util.check_rm('img')
     os.makedirs('img')
     lib_util.check_rm('mss-avg')

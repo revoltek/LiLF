@@ -572,12 +572,10 @@ for c in range(maxIter):
             ### DONE
 
     ########################### AMP-CAL PART ####################################
-    # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
+    # Only once in cycle 1: do di amp to capture element beam 2nd order effect
     if c == 1:
         with w.if_todo('amp_di'):
-            # TODO -> down the road this could be a fulljones-calibration to correct element-beam related leakage.
             # no smoothing, cycle 1 CORRECTED_DATA should be the same
-            # MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
             logger.info('Setting MODEL_DATA to sum of corrupted patch models...')
             MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(patches)}"', log='$nameMS_taql_phdiff.log', commandType='general')
             
@@ -589,10 +587,9 @@ for c in range(maxIter):
                      log='$nameMS_diampsol.log', commandType='DP3')
 
                 lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
-                                [f'{parset_dir}/losoto-plot-fulljones.parset', f'{parset_dir}/losoto-amp-difj.parset'],
+                                [f'{parset_dir}/losoto-plot-fj.parset', f'{parset_dir}/losoto-amp-difj.parset'],
                                 plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
             
-                # TODO add updateweights in production
                 # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
                 logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
@@ -600,8 +597,21 @@ for c in range(maxIter):
                     cor.updateweights=False',
                     log='$nameMS_diampcor.log', commandType='DP3')
                 
-                # TODO: add normalisation solve (diag amp with ntimes=0)
+                # TODO: add a contrant to all antennas
+                #sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
+                logger.info('Solving amp-di for normalisation...')
+                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.datause=full sol.nchan=0 sol.solint=0 \
+                    sol.modeldatacolumns=[MODEL_DATA] sol.mode=diagonal sol.h5parm=$pathMS/amp-dinorm.h5',
+                    log='$nameMS_diampsol.log', commandType='DP3')
+                
+                lib_util.run_losoto(s, f'amp-dinorm', [ms + f'/amp-dinorm.h5' for ms in MSs.getListStr()],
+                                [f'{parset_dir}/losoto-plot-amp.parset'], plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
             
+                logger.info('Correct amp-di normalisation (CORRECTED_DATA -> CORRECTED_DATA)...')
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                    cor.parmdb={sol_dir}/cal-amp-dinorm.h5 cor.correction=amplitude000 cor.updateweights=False',
+                    log='$nameMS_diampcor.log', commandType='DP3')
+
             else:
                 logger.info('Solving amp-di...')
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
