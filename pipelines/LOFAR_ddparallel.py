@@ -612,6 +612,8 @@ for c in range(maxIter):
                     cor.parmdb={sol_dir}/cal-amp-dinorm.h5 cor.correction=amplitude000 cor.updateweights=False',
                     log='$nameMS_diampcor.log', commandType='DP3')
 
+                # TODO: do we need to correct CORRECTED_DATA_FR too?
+
             else:
                 logger.info('Solving amp-di...')
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
