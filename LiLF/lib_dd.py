@@ -1,16 +1,12 @@
-import os, sys, glob
+import glob
 import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.convolution import convolve_fft
-from astropy.io import fits
 from astropy.wcs import WCS
 import pyregion
 from regions import Regions
 from pyregion.parser_helper import Shape
-from shapely.geometry import Polygon, Point
-import lsmtool
-from losoto.h5parm import h5parm
 
 from LiLF.lib_log import logger
 from LiLF import lib_img, lib_util
