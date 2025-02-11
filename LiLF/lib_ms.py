@@ -1,17 +1,15 @@
 #!/usr/bin/python
 
 import os, sys, shutil
-
-from casacore import tables
 import numpy as np
 import pyregion
 from pyregion.parser_helper import Shape
-from LiLF import lib_util
-
+from casacore import tables
 from astropy.coordinates import get_sun, get_body, SkyCoord, EarthLocation, AltAz
 from astropy.time import Time
 from astropy import units as u
 
+from LiLF import lib_util
 from LiLF.lib_log import logger
 
 # remove ires warning
@@ -732,7 +730,7 @@ class MS(object):
         lib_util.check_rm(outfile)
         regions.write(outfile)
 
-    def getMaxBL(self, check_flags=True, dutch_only=False, uvw=False):
+    def getMaxBL(self, check_flags=True, dutch_only=False, uvw=True):
         """
         Return the max BL length in meters
         dutch_only: bool, check only the dutch stations, default=False
@@ -763,7 +761,7 @@ class MS(object):
         c = 299792458. # in metres per second
 
         with tables.table(self.pathMS+'/SPECTRAL_WINDOW', ack = False) as t:
-            wavelength = c / np.mean(t.getcol("CHAN_FREQ")[0]) # in metres
+            wavelength = c / np.max(t.getcol("CHAN_FREQ")[0]) # in metres
         
         maxdist = self.getMaxBL(check_flags)
 
@@ -774,7 +772,7 @@ class MS(object):
         Return a reasonable pixel scale
         """
         res = self.getResolution(check_flags)
-        return int(np.rint(res*1.6/4)) # reasonable value
+        return int(np.rint(res*2/4)) # reasonable value (4" for Dutch LBA)
 
     def getAntennas(self):
         """
