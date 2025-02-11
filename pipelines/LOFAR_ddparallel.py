@@ -56,14 +56,14 @@ def clean_empty(MSs, name, col='CORRECTED_DATA', size=5000, shift=None):
     """ For testing/debugging only"""
     if shift is None:
         lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
-                            data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=0, nmiter=0,
+                            data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=1, nmiter=0,
                             weight='briggs 0.0', gridder='wgridder', parallel_gridding=1,
-                            no_update_model_required='')
+                            no_update_model_required='', apply_primary_beam='')
     else:
         lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
-                            data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=0, nmiter=0,
+                            data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=1, nmiter=0,
                             weight='briggs 0.0', gridder='wgridder', parallel_gridding=1, shift= f'{shift[0]} {shift[1]}',
-                            no_update_model_required='')
+                            no_update_model_required='', apply_primary_beam='')
 
 def corrupt_model_dirs(MSs, c, tc, model_columns, solmode='phase'):
     """ CORRUPT the MODEL_DATA columns for model_columns
@@ -495,6 +495,7 @@ for c in range(maxIter):
             #                      weight='briggs -0.5', niter=10000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.9,
             #                      parallel_deconvolution=512, beam_size=15, join_channels='', fit_spectral_pol=3,
             #                      channels_out=MSs.getChout(4.e6), deconvolution_channels=3, pol='i', nmiter=5 )
+        #MSs = lib_ms.AllMSs(glob.glob("*-smearing.MS"), s, check_flags=True)
     ### DONE
 
     ### solve ionosphere phase - ms:SMOOTHED_DATA - > reset for all BUT most distant RS!
@@ -529,34 +530,46 @@ for c in range(maxIter):
             with w.if_todo('3c_solve_amp'):
                 logger.info('Solving amplitude for 3C...')
                 # Solve diagonal amplitude MSs:SMOOTHED_DATA
-                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true sol.usebeammodel=True \
-                          sol.mode=scalaramplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
-                          sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=60', log=f'$nameMS_solamp_c{c}.log', commandType="DP3")
+                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true\
+                          sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
+                          sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=60', log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
 
                 losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
                 lib_util.run_losoto(s, f'amp-3C', [ms + f'/amp-3C.h5' for ms in MSs.getListStr()], losoto_parsets,
                                     plots_dir=f'{plot_dir}/plots-amp-3C', h5_dir=sol_dir)
                 ### DONE
-            
+
             with w.if_todo('3C_corrupt_subtract'):
                 MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
                 MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"', log='$nameMS_taql.log', commandType='general')
                 
+                debug_3c_sub = False
+                if debug_3c_sub:
+                    with open(parset_dir+"/3C_coordinates.json", "r") as file:
+                        import json
+                        all_3c = json.load(file)
+                
                 for patch in _3c_patches:
                     logger.info(f'Subtracting {patch}...')
                     # Corrupt MODEL_DATA with amplitude, set MODEL_DATA = 0 where data are flagged, then unflag everything
-                    
-                    # TEST: comment out amps
-                    #corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
-                    
-                    #MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
+                    if debug_3c_sub:
+                        coords = all_3c[patch.replace('source_','').replace("C","C ")]
+                        coords[0] = coords[0].replace(" ", "h", 1).replace(" ", "m", 1) + "s"
+                        coords[1] = coords[1].replace(" ", "d", 1).replace(" ", "m", 1) + "s"
+                        clean_empty(MSs,f'{patch}_data_zoom_pre', 'CORRECTED_DATA_FR', shift=coords, size=2000)
+                        clean_empty(MSs,f'{patch}_model', f'{patch}', shift=coords, size=2000)
+                        
+                        # TEST: comment out amps
+                        corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
+                        MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
+                        clean_empty(MSs,f'{patch}_model_amp', f'{patch}', shift=coords, size=2000)
                     
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
                         log = f'$nameMS_subtract_{patch}.log', 
                         commandType = 'general'
                     )
-                    #clean_empty(MSs,f'{patch}_cdfr', 'DATA_SUB')
+                    if debug_3c_sub: clean_empty(MSs,f'{patch}_data_zoom_after', 'CORRECTED_DATA_FR', shift=coords, size=2000)
 
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
