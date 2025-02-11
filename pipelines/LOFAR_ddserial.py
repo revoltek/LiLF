@@ -119,7 +119,8 @@ with w.if_todo('cleaning'):
     os.makedirs('ddserial/init')
     os.system('cp ddparallel/skymodel/wideM-*model*.fits ddserial/init/')
     os.system('cp '+sorted(glob.glob("ddparallel/images/wideM-*image.fits"))[-1]+' ddserial/init/')
-    #os.system('cp '+sorted(glob.glob("ddparallel/images/wideM-*residual.fits"))[-1]+' ddserial/init/')
+    if manual_dd_cal != '':
+        os.system('cp '+sorted(glob.glob("ddparallel/images/wideM-*residual.fits"))[-1]+' ddserial/init/')
     lib_util.check_rm('img')
     os.makedirs('img')
     lib_util.check_rm('mss-avg')
@@ -938,9 +939,9 @@ for cmaj in range(maxIter):
                 size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
                 parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
-                save_source_list='', no_update_model_required='',  nmiter=40, auto_threshold=2.0, auto_mask=3.5, fits_mask=maskname,
+                save_source_list='', no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.5, fits_mask=maskname,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
-                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.5,
+                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75,
                 **beam_kwargs)
  
         os.system(f'mv {imagename}*MFS-image*fits {imagename}*MFS-model*fits {imagename}*MFS-residual*fits \
