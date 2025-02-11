@@ -1,4 +1,4 @@
-import os, sys, glob
+import os, glob
 import numpy as np
 import astropy.io.fits as pyfits
 import casacore.images as pim
@@ -11,7 +11,6 @@ from LiLF.lib_log import logger
 import astropy.io.fits as fits
 import astropy.wcs as wcs
 from astropy.coordinates import SkyCoord
-import astropy.units as u
 
 class Image(object):
     def __init__(self, imagename, userReg = None, beamReg= None ):
