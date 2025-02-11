@@ -6,7 +6,6 @@
 
 import sys, os, glob, re
 import numpy as np
-from astropy.time import Time
 import casacore.tables as pt
 
 ########################################################

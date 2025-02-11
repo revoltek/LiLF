@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys, os, re, glob, time
+import sys, os, re, glob
 
 import lsmtool
 import numpy as np
 import casacore.tables as pt
-from astropy.time import Time
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 
