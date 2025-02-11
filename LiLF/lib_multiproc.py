@@ -31,7 +31,6 @@
 # for r in mpm.get():
 #     print "funct_output:", r
 
-import sys
 import logging
 import multiprocessing
 
