@@ -3,7 +3,6 @@ import socket
 import datetime
 
 from casacore import tables
-import lsmtool.skymodel
 import numpy as np
 import multiprocessing, subprocess
 from threading import Thread
