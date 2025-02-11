@@ -662,8 +662,8 @@ for c in range(maxIter):
                     cor.parmdb={sol_dir}/cal-amp-di.h5 cor.correction=amplitudeSmooth cor.updateweights=False',
                     log='$nameMS_diampcor.log', commandType='DP3')
     
-    # just correct for it
-    elif c > 1:
+    # just correct for it after 1st cycle (not used)
+    elif c >= 2:
         corr_die_amp(MSs, col='CORRECTED_DATA', fulljones=fulljones)
 
     #if c > 1:
@@ -1049,7 +1049,7 @@ for c in range(maxIter):
                 MSs.run('taql "update $pathMS set CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
             ### DONE
 
-        # Only after the 0th and 1st iteration: apply the subfield solutions to the data.
+        # apply the subfield solutions to the data.
         if c < 2:
             with w.if_todo('c%02i_corr_sf_sols' % c):
                 logger.info('Correct subfield ionosphere (CORRECTED_DATA_FR -> CORRECTED_DATA)...')
@@ -1058,10 +1058,13 @@ for c in range(maxIter):
                                 cor.parmdb={sol_dir}/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=phase000',
                             log='$nameMS_sf-correct.log', commandType='DP3')
             ### DONE
-
+        
+        # finally re-correct for die amp on the newly created CORRECTED_DATA
+        if c >= 1:
             with w.if_todo('c%02i_corr_dieamp' % c):
                 # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA (sf corr, dieamp corr)
                 corr_die_amp(MSs, col='CORRECTED_DATA', fulljones=fulljones)
+            ### DONE
 
 # Copy images
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
