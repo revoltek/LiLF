@@ -174,10 +174,10 @@ RUN if [ $MARCH == "znver3" ]; then \
 ENV PYTHONPATH /usr/local/lib/python3.12/site-packages/:$PYTHONPATH
 
 #####################################################################
-## Wsclean write-facet-pb-model-image
+## Wsclean
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-    && cd /opt/wsclean && git checkout write-facet-pb-model-image
+    && cd /opt/wsclean
 
 RUN if [ $MARCH == "generic" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
