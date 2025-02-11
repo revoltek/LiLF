@@ -1,9 +1,7 @@
 import os, sys
 import numpy as np
-from astropy.coordinates import SkyCoord
 from astropy.io import fits as pyfits
 from astropy import wcs as pywcs
-import astropy.units as u
 import pyregion
 from pyregion.parser_helper import Shape
 from matplotlib.path import Path

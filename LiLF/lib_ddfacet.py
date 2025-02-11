@@ -1,10 +1,7 @@
-import os, sys, inspect
-from functools import wraps
+import os
 import numpy as np
-from astropy.io import fits
 
 from LiLF.lib_log import logger
-from LiLF import lib_img
 
 
 def killms_data(s, logfile, MSs, imagename, outsols, clusterfile=None, colname='DATA', niterkf=6, dicomodel=None,

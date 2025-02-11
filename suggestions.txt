@@ -1,21 +1,16 @@
 Suggestions for improvement of DPPP, LoSoTo and other LOFAR-related software,
-as conceived during PiLF development.
-
+as conceived during LiLF development.
 
 DPPP:
-- Currently (Sept. 2017), DPPP exports ParmDB files, which can be converted into H5Parm files using
-  Francesco's h5parm_importer.py. In the future, DPPP will export H5Parm files directly.
-  DPPP should read the MS POLARIZATION subtable to read polarisation names (and not blindly assume
-  that the polarisations are 'XX', 'XY', 'YX' and 'YY'). This is important for the uGMRT, which uses
-  circular polarisation.
 - DPPP should add the field name (e.g. '3C147') to the H5Parm file. This is useful for plotting in LoSoTo.
-
+- FR solve of some kind
 
 LoSoTo:
-- The PiLF uGMRT-dedicated bandpass - TEC separator program should be incorporated in LoSoTo as a function.
-- When using the function losoto.h5parm.h5parm.makeSolset(addTables = True), one should have an option to
-  give a path to a MS where the 'antenna' and 'source' tables are created from.
+- add a norm on the slope (in log space) in the "norm" operation. One should get the slope, then normalize so that it's value is 0.
 
-
-PiLF:
+PiLL:
 - Documentation should be written to explain the code structure of PiLF for future developers.
+- check fulljones amp
+- lower the number of iterations of wsclean in ddparallel+ddserial
+- be sure we use the optimal number of directions (e.g. check the local noise)
+- use a larger uvlambdamin in the solve in ddserial

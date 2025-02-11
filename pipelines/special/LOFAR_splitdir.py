@@ -35,6 +35,8 @@ parser = argparse.ArgumentParser(description='Split out a single direction by su
 parser.add_argument('--mode', type=str, help='Either infield, ddcal or widefield.')
 parser.add_argument('--infieldreg', default=None, type=str, help='Provide a region for the infield calibrator (ds9 circle or square).')
 parser.add_argument('--dutchdir', type=str, default=None, help='Directory of the dutch processing.')
+parser.add_argument('--ddserialcycle', type=int, default=1, help='cycle to use.')
+parser.add_argument('--mss', type=str, default=None, help='Directory containing the IS MSs (after timesplit).')
 ### Options for splitting of infield or ddcal
 parser.add_argument('--freqres', type=float, default=0.195312, help='Freq. resolution of the split-off MSs in Mhz. Default=0.195312MHz (1 subband)')
 parser.add_argument('--timeres', type=int, default=16, help='Time resolution of the split-off MSs in s. Default: 16s.')
@@ -45,7 +47,8 @@ parser.add_argument('--dirreg',action='store', default=None, type=str, help='Pro
 args = parser.parse_args()
 
 mode = args.mode
-dirregfile, infieldregfile, dutchdir = args.dirreg, args.infieldreg, args.dutchdir
+dirregfile, infieldregfile, dutchdir, mss_path = args.dirreg, args.infieldreg, args.dutchdir, args.mss
+ddserialcycle = args.ddserialcycle
 time_resolution, freq_resolution = args.timeres, args.freqres
 infield_h5 = args.infieldh5
 
@@ -91,7 +94,7 @@ if not os.path.exists(f'img'):
 infield_reg = lib_util.Region_helper(infieldregfile)
 infield_center = infield_reg.get_center()  # center of the infield cal region
 
-MSs_orig = lib_ms.AllMSs(glob.glob('../id801224_-_a2255/mss/*MS'), s, check_flags=False, check_sun=False)
+MSs_orig = lib_ms.AllMSs(glob.glob(mss_path+'/*MS'), s, check_flags=False, check_sun=False)
 max_uvw_m_dutch = 1.1*MSs_orig.getMaxBL(check_flags=True, dutch_only=True) # this is important, it is the maximum uvw value in meters of any dutch-dutch baseline. Everything above this value is certainly IS data
 
 #####################################################
@@ -139,7 +142,7 @@ MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s, check_flags=False, check_sun=Fal
 
 # 2. Prepare the h5parm solutions from dutch processing so they can be used for IS data (reorder dirs and add IS stations with unit solutions)
 with w.if_todo('interph5'):
-    os.system(f'cp {dutchdir}/ddserial/c00/solutions/interp.h5 interp.h5')
+    os.system(f'cp {dutchdir}/ddserial/c0{ddserialcycle}/solutions/interp.h5 interp.h5')
     with h5parm('interp.h5') as h5:
         h5_timeres = np.diff(h5.getSolset('sol000').getSoltab('phase000').getAxisValues('time'))[0]
         h5_freqres = np.diff(h5.getSolset('sol000').getSoltab('phase000').getAxisValues('freq'))[0]
@@ -183,14 +186,14 @@ if mode in ['infield', 'ddcal']:
     with w.if_todo('predict'):
         # prepare model of central/external regions
         logger.info('Blanking direction region of model files and reverse...')
-        for im in glob.glob(f'{dutchdir}/ddserial/c00/images/wideDD-*model*.fits'):
-            wideMext = im.replace('wideDD-c00',f'wideDD-c00-{name}').split('/')[-1]
+        for im in glob.glob(f'{dutchdir}/ddserial/c0{ddserialcycle}/images/wideDD-*model*.fits'):
+            wideMext = im.replace(f'wideDD-c0{ddserialcycle}',f'wideDD-c0{ddserialcycle}-{name}').split('/')[-1]
             os.system('cp %s %s' % (im, wideMext))
             lib_img.blank_image_reg(wideMext, infieldregfile if mode=='infield' else dirregfile, blankval = 0.)
         # Recreate MODEL_DATA of external region for subtraction
         logger.info('Predict corrupted model of external region (wsclean)...')
-        s.add(f'wsclean -predict -padding 1.8 -name wideDD-c00-{name} -j {s.max_cpucores} -channels-out {len(glob.glob(f"wideDD-c00-{name}*fpb.fits"))} \
-                -facet-regions {dutchdir}/ddserial/c00/images/wideDD-c00_facets.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
+        s.add(f'wsclean -predict -padding 1.8 -name wideDD-c01-{name} -j {s.max_cpucores} -channels-out {len(glob.glob(f"wideDD-c0{ddserialcycle}-{name}*fpb.fits"))} \
+                -facet-regions {dutchdir}/ddserial/c0{ddserialcycle}/solutions/facets-c0{ddserialcycle}.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                 -apply-facet-solutions interp_merged.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
               log='wscleanPRE.log', commandType='wsclean')
         s.run(check=True)

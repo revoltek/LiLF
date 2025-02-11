@@ -6,7 +6,7 @@ soltab = sol000/amplitude000
 axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
-prefix = plots/amp_
+prefix = plots/ampfj_
 #minmax = [0,300]
 
 [plotP]
@@ -15,7 +15,7 @@ soltab = sol000/phase000
 axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
-prefix = plots/ph_
+prefix = plots/phfj_
 refAnt = auto
 minmax = [-3.14,3.14]
 
@@ -27,6 +27,6 @@ axesInPlot = [time,freq]
 axisInTable = ant
 axisDiff = pol
 plotFlag = True
-prefix = plots/ph-diff_
+prefix = plots/phfj-diff_
 #refAnt = auto
 minmax = [-3.14,3.14]

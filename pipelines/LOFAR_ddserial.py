@@ -119,7 +119,7 @@ with w.if_todo('cleaning'):
     os.makedirs('ddserial/init')
     os.system('cp ddparallel/skymodel/wideM-*model*.fits ddserial/init/')
     os.system('cp '+sorted(glob.glob("ddparallel/images/wideM-*image.fits"))[-1]+' ddserial/init/')
-    os.system('cp '+sorted(glob.glob("ddparallel/images/wideM-*residual.fits"))[-1]+' ddserial/init/')
+    #os.system('cp '+sorted(glob.glob("ddparallel/images/wideM-*residual.fits"))[-1]+' ddserial/init/')
     lib_util.check_rm('img')
     os.makedirs('img')
     lib_util.check_rm('mss-avg')
@@ -950,7 +950,7 @@ for cmaj in range(maxIter):
 
     full_image = lib_img.Image('ddserial/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
     full_image.nantozeroModel()
-    min_cal_flux60 *= 0.8  # go deeper
+    # min_cal_flux60 *= 0.8  # go deeper
 
 ##############################################################################################################
 ### Calibration finished - additional images with scientific value

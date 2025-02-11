@@ -7,7 +7,6 @@ from shapely.geometry import Point, Polygon
 from shapely.prepared import prep
 from astropy.io import fits as pyfits
 from PIL import Image, ImageDraw
-from reproject import reproject_interp
 
 
 def read_vertices(filename):

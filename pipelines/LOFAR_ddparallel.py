@@ -409,7 +409,6 @@ for c in range(maxIter):
     # get sourcedb
     sourcedb = f'ddparallel/skymodel/tgts-c{c}.skymodel'
     beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
-    intrinsic = True # test always using intrinsic model
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
@@ -426,19 +425,18 @@ for c in range(maxIter):
                 sm = lsmtool.load(sourcedb, beamMS=beamMS)
         else:
             # get wsclean skymodel of previous iteration
-            wsc_src = f'img/wideM-{c-1}-sources-pb.txt' if intrinsic else f'img/wideM-{c-1}-sources.txt'
-            sm = lsmtool.load(wsc_src, beamMS=beamMS if intrinsic else None)
+            wsc_src = f'img/wideM-{c-1}-sources-pb.txt'
+            sm = lsmtool.load(wsc_src, beamMS=beamMS)
         
         # if using e.g. LoTSS, adjust for the frequency
         logger.debug(f'Extrapolating input skymodel fluxes from {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
         si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S144 = si_factor * S54
-        # sm.select(f'I>{0.01*si_factor}', applyBeam=intrinsic)  # keep only reasonably bright sources, this make biases
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
         sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
-        sm.setPatchPositions(method='wmean', applyBeam=intrinsic)
-        sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=intrinsic)
+        sm.setPatchPositions(method='wmean', applyBeam=True)
+        sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=True)
         # TODO we need some logic here to avoid picking up very extended sources. Also case no bright sources in a field.
-        patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
+        patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=True)
         if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]:
             bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor
             logger.warning(f'Less than {min_facets[c]} bright sources above minimum flux {facet_fluxes[c]:.2f} Jy! Using sources above {bright_sources_flux:.2f} Jy')
@@ -446,9 +444,9 @@ for c in range(maxIter):
             bright_sources_flux = facet_fluxes[c]
         bright_names = sm.getPatchNames()[patch_fluxes > bright_sources_flux*si_factor]
         bright_pos = sm.getPatchPositions(bright_names)
-        sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=intrinsic, root='', byPatch=True)
+        sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=True, root='', byPatch=True)
         sm.setPatchPositions(bright_pos)
-        lib_dd_parallel.rename_skymodel_patches(sm, applyBeam=intrinsic)
+        lib_dd_parallel.rename_skymodel_patches(sm, applyBeam=True)
 
         if c == 0 and remove3c:
             # Add models of bright 3c sources to the sky model. Model will be subtracted from data before imaging.
@@ -462,7 +460,7 @@ for c in range(maxIter):
         logger.info(f'Using {len(sm.getPatchNames())} patches.')
     else:
         logger.info(f'Load existing skymodel {sourcedb}')
-        sm = lsmtool.load(sourcedb, beamMS=beamMS if intrinsic else None)
+        sm = lsmtool.load(sourcedb, beamMS=beamMS)
     
     sm.plot(f'ddparallel/skymodel/patches-c{c}.png', 'patch')
 
@@ -474,19 +472,18 @@ for c in range(maxIter):
         os.system('cp -r ' + sourcedb + ' ' + MS)
 
     patches = sm.getPatchNames()
-    patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=intrinsic)
+    patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=True)
     for patch in patches[np.argsort(patch_fluxes)[::-1]]:
         logger.info(f'{patch}: {patch_fluxes[patches==patch][0]:.1f} Jy')
   
     with w.if_todo('c%02i_init_model' % c):
         for patch in patches:
             # Add model to MODEL_DATA
+            # TODO: add time smearing in the predict parset
             logger.info(f'Add model to {patch}...')
-            pred_parset = 'DP3-predict-beam.parset' if intrinsic else 'DP3-predict.parset'
+            pred_parset = 'DP3-predict-beam.parset'
             MSs.run(f'DP3 {parset_dir}/{pred_parset} msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch}',
                     log='$nameMS_pre.log', commandType='DP3')
-            # Smooth CORRECTED_DATA -> SMOOTHED_DATA
-            # MSs_sol.run_Blsmooth(patch, patch, logstr=f'smooth-c{c}')
             # pos = sm.getPatchPositions()[patch]
             # size = int((1.1*sm.getPatchSizes()[np.argwhere(sm.getPatchNames()==patch)]) // 4)
             # logger.info(f'Test image MODEL_DATA...')
@@ -588,12 +585,10 @@ for c in range(maxIter):
             ### DONE
 
     ########################### AMP-CAL PART ####################################
-    # # Only once in cycle 1: do di amp to capture element beam 2nd order effect
+    # Only once in cycle 1: do di amp to capture element beam 2nd order effect
     if c == 1:
         with w.if_todo('amp_di'):
-            # TODO -> down the road this could be a fulljones-calibration to correct element-beam related leakage.
             # no smoothing, cycle 1 CORRECTED_DATA should be the same
-            # MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
             logger.info('Setting MODEL_DATA to sum of corrupted patch models...')
             MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(patches)}"', log='$nameMS_taql_phdiff.log', commandType='general')
             
@@ -605,17 +600,33 @@ for c in range(maxIter):
                      log='$nameMS_diampsol.log', commandType='DP3')
 
                 lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
-                                [f'{parset_dir}/losoto-plot-fulljones.parset', f'{parset_dir}/losoto-amp-difj.parset'],
+                                [f'{parset_dir}/losoto-plot-fj.parset', f'{parset_dir}/losoto-amp-difj.parset'],
                                 plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
             
-                # TODO add updateweights in production
                 # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
                 logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
                     cor.parmdb={sol_dir}/cal-amp-di.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phaseSmooth] \
                     cor.updateweights=False',
                     log='$nameMS_diampcor.log', commandType='DP3')
+                
+                # TODO: add a contrant to all antennas
+                #sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
+                logger.info('Solving amp-di for normalisation...')
+                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.datause=full sol.nchan=0 sol.solint=0 \
+                    sol.modeldatacolumns=[MODEL_DATA] sol.mode=diagonal sol.h5parm=$pathMS/amp-dinorm.h5',
+                    log='$nameMS_diampsol.log', commandType='DP3')
+                
+                lib_util.run_losoto(s, f'amp-dinorm', [ms + f'/amp-dinorm.h5' for ms in MSs.getListStr()],
+                                [f'{parset_dir}/losoto-plot-amp.parset'], plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
             
+                logger.info('Correct amp-di normalisation (CORRECTED_DATA -> CORRECTED_DATA)...')
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                    cor.parmdb={sol_dir}/cal-amp-dinorm.h5 cor.correction=amplitude000 cor.updateweights=False',
+                    log='$nameMS_diampcor.log', commandType='DP3')
+
+                # TODO: do we need to correct CORRECTED_DATA_FR too?
+
             else:
                 logger.info('Solving amp-di...')
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
