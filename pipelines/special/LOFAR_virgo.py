@@ -5,11 +5,10 @@
 # pipeline for a bright a-team source in LOFAR HBA
 # they need to be in "./mss/"
 
-import sys, os, glob, re
-from shutil import copy2, copytree, move
+import sys, os, glob
+from shutil import copy2, move
 import numpy as np
 import casacore.tables as pt
-import lsmtool as lsm
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
