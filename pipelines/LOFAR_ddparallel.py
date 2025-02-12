@@ -990,13 +990,13 @@ for c in range(maxIter):
             # MSs: create MODEL_DATA (with just the sidelobe flux)
             with w.if_todo('image_lr'):
                 logger.info('Cleaning sidelobe low-res...')
-                # TODO test if IDG beam correction is fast enough, otherwise ignore beam corr or use facet beam
+                # TODO test if IDG beam correction is fast enough, otherwise ignore beam corr or use facet beam [for idg remove parallel gridding (parallel_gridding=4) and BLavg (baseline_averaging='')]
                 channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
                 lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
-                                     parallel_gridding=4, size=imgsizepix_lr, scale=f'30arcsec', save_source_list='',  use_idg='',
+                                     size=imgsizepix_lr, scale=f'30arcsec', save_source_list='',  use_idg='',
                                      idg_mode='cpu', grid_with_beam='', beam_aterm_update=900, use_differential_lofar_beam='',
                                      weight='briggs -0.5', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
-                                     taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512, baseline_averaging='',
+                                     taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512,
                                      local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5)
             ### DONE
 
@@ -1043,21 +1043,19 @@ for c in range(maxIter):
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                         cor.parmdb={sol_dir}/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=phase000 cor.invert=False',
                         log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
-                # TODO: here we should correct the sidelobe with dieamp too
 
                 logger.info('Subtract corrupted sidelobe model (CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA)...')
                 MSs.run('taql "update $pathMS set CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
             ### DONE
 
         # apply the subfield solutions to the data.
-        if c < 2:
-            with w.if_todo('c%02i_corr_sf_sols' % c):
-                logger.info('Correct subfield ionosphere (CORRECTED_DATA_FR -> CORRECTED_DATA)...')
-                # Correct MSs:CORRECTED_DATA_FR -> CORRECTED_DATA (sf corr)
-                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA_FR  \
-                                cor.parmdb={sol_dir}/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=phase000',
-                            log='$nameMS_sf-correct.log', commandType='DP3')
-            ### DONE
+        with w.if_todo('c%02i_corr_sf_sols' % c):
+            logger.info('Correct subfield ionosphere (CORRECTED_DATA_FR -> CORRECTED_DATA)...')
+            # Correct MSs:CORRECTED_DATA_FR -> CORRECTED_DATA (sf corr)
+            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA_FR  \
+                    cor.parmdb={sol_dir}/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=phase000',
+                    log='$nameMS_sf-correct.log', commandType='DP3')
+        ### DONE
         
         # finally re-correct for die amp on the newly created CORRECTED_DATA
         if c >= 1:
