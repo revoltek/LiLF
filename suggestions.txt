@@ -2,7 +2,6 @@ Suggestions for improvement of DPPP, LoSoTo and other LOFAR-related software,
 as conceived during LiLF development.
 
 DPPP:
-- DPPP should add the field name (e.g. '3C147') to the H5Parm file. This is useful for plotting in LoSoTo.
 - FR solve of some kind
 
 LoSoTo:
@@ -11,6 +10,5 @@ LoSoTo:
 PiLL:
 - Documentation should be written to explain the code structure of PiLF for future developers.
 - check fulljones amp
-- lower the number of iterations of wsclean in ddparallel+ddserial
 - be sure we use the optimal number of directions (e.g. check the local noise)
 - use a larger uvlambdamin in the solve in ddserial
