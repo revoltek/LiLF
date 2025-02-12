@@ -21,7 +21,7 @@
 # TODO add LoTSS query for statring model once bug is fixed! (Don't use for now, it crashes the VO server)
 # TODO add BDA
 
-import sys, os, glob, random, json
+import os, glob, random, json
 import numpy as np
 from regions import Regions
 import astropy.units as u

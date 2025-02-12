@@ -24,7 +24,6 @@ Create a new column in a measumrent set
 
 import optparse, logging
 import casacore.tables as pt
-import numpy
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
