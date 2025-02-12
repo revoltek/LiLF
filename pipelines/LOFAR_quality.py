@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys, os, glob, re, pickle
+import os, glob, pickle
 from astropy.io.fits import getdata
 import numpy as np
 from casacore.tables import table
-from astropy.table import Table
 from astropy.stats import median_absolute_deviation
 import bdsf
 
 ########################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_cat
+from LiLF import lib_ms, lib_util, lib_log, lib_cat
 logger_obj = lib_log.Logger('pipeline-quality')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)

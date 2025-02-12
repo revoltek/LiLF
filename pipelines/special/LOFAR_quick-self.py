@@ -4,13 +4,11 @@
 # perform self-calibration on a group of SBs concatenated in TCs.
 # they need to be in "./mss/"
 
-import sys, os, glob, re
-import numpy as np
-import casacore.tables as pt
+import os, glob
 import lsmtool
 
 ########################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log
+from LiLF import lib_ms, lib_util, lib_log
 logger_obj = lib_log.Logger('pipeline-quick-self.logger')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
