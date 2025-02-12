@@ -542,6 +542,7 @@ for c in range(maxIter):
                 
                 debug_3c_sub = False
                 if debug_3c_sub:
+                    MSs.run('addcol2ms.py -m $pathMS -c DATA_SUB -i CORRECTED_DATA_FR', log='$nameMS_addcol.log', commandType='python')
                     with open(parset_dir+"/3C_coordinates.json", "r") as file:
                         import json
                         all_3c = json.load(file)
@@ -550,23 +551,37 @@ for c in range(maxIter):
                     logger.info(f'Subtracting {patch}...')
                     # Corrupt MODEL_DATA with amplitude, set MODEL_DATA = 0 where data are flagged, then unflag everything
                     if debug_3c_sub:
+                        MSs.run('taql "update $pathMS set DATA_SUB = CORRECTED_DATA_FR"', log='$nameMS_taql.log', commandType='general')
                         coords = all_3c[patch.replace('source_','').replace("C","C ")]
                         coords[0] = coords[0].replace(" ", "h", 1).replace(" ", "m", 1) + "s"
                         coords[1] = coords[1].replace(" ", "d", 1).replace(" ", "m", 1) + "s"
                         clean_empty(MSs,f'{patch}_data_zoom_pre', 'CORRECTED_DATA_FR', shift=coords, size=2000)
                         clean_empty(MSs,f'{patch}_model', f'{patch}', shift=coords, size=2000)
                         
+                        MSs.run(
+                            f"taql 'UPDATE $pathMS SET DATA_SUB = DATA_SUB - {patch}'",
+                            log = f'$nameMS_subtract_{patch}.log', 
+                            commandType = 'general'
+                        )
+                        clean_empty(MSs,f'{patch}_data_after_phase', 'DATA_SUB', shift=coords, size=2000)
+                        
                         # TEST: comment out amps
                         corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
                         MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
                         clean_empty(MSs,f'{patch}_model_amp', f'{patch}', shift=coords, size=2000)
                     
+                        MSs.run('taql "update $pathMS set DATA_SUB = CORRECTED_DATA_FR"', log='$nameMS_taql.log', commandType='general')
+                        MSs.run(
+                            f"taql 'UPDATE $pathMS SET DATA_SUB = DATA_SUB - {patch}'",
+                            log = f'$nameMS_subtract_{patch}.log', 
+                            commandType = 'general'
+                        )
+                        clean_empty(MSs,f'{patch}_data_after_amp', 'DATA_SUB', shift=coords, size=2000)
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
                         log = f'$nameMS_subtract_{patch}.log', 
                         commandType = 'general'
                     )
-                    if debug_3c_sub: clean_empty(MSs,f'{patch}_data_zoom_after', 'CORRECTED_DATA_FR', shift=coords, size=2000)
 
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
@@ -574,6 +589,7 @@ for c in range(maxIter):
                         commandType = 'general'
                     )
                     
+                    if debug_3c_sub: MSs.deletecol('DATA_SUB')
                     MSs.deletecol(patch)
                     sm = lsmtool.load(sourcedb, beamMS=beamMS)
                     sm.select(f'Patch != {patch}')
