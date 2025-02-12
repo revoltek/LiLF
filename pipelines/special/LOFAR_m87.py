@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys, os, glob, re
+import os, glob
 import numpy as np
 
 patch = 'VirA'

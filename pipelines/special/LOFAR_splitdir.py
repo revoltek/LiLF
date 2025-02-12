@@ -5,9 +5,8 @@
 
 # TODO: possible improvement: interpolate IS DI phase solutions
 
-import sys, os, glob, argparse
+import os, glob, argparse
 import numpy as np
-import lsmtool as lsm
 import astropy.wcs
 import warnings
 from losoto.h5parm import h5parm
