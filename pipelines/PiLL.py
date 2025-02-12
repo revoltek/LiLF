@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-import os, sys, glob, getpass, socket, re, pickle
+import os, sys, glob, getpass, socket, pickle
 from LiLF.surveys_db import SurveysDB
-from LiLF import lib_ms, lib_img, lib_util, lib_log
+from LiLF import lib_util, lib_log
 logger_obj = lib_log.Logger('PiLL')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
