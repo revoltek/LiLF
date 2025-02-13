@@ -2,12 +2,8 @@
 # This script query the LTA and populate the field and field_obs table
 # At the same time set to "Observed" all fields that have at least 3 observed hours
 
-import os, sys, argparse, re
-from awlofar.database.Context import context
-from awlofar.main.aweimports import CorrelatedDataProduct, \
-    FileObject, \
-    Observation, Pointing, SubArrayPointing
-from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
+import sys, argparse, re
+from awlofar.main.aweimports import CorrelatedDataProduct, Observation
 from surveys_db import SurveysDB
 
 survey_projects = 'LT14_002,LC12_017,LC9_016,LC8_031' # list of projects related with the LBA survey

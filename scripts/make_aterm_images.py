@@ -11,7 +11,7 @@ import numpy as np
 from LiLF import lib_aterm_miscellaneous as misc
 from astropy.io import fits as pyfits
 from astropy import wcs
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point
 from scipy.spatial import Voronoi
 import shapely.geometry
 import shapely.ops
