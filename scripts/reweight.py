@@ -23,7 +23,7 @@
 # Author: Francesco de Gasperin
 # Credits: Frits Sweijen, Etienne Bonnassieux
 
-import os, sys, time
+import sys, time
 import logging as logging_module
 import numpy as np
 from casacore.tables import taql, table
