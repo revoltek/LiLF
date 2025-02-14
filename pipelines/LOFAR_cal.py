@@ -343,10 +343,14 @@ with w.if_todo('cal_fr'):
                sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase sol.datause=full \
                sol.solint={small_timestep} sol.nchan={int(small_freqstep/2)}', log='$nameMS_solFR.log', commandType="DP3")
 
-    # TODO add residual rotation plot after FR fit as soon as this option is present in LoSoTo!
-    lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_concat_all.getListStr()],
-                        [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
-                         parset_dir + '/losoto-fr.parset'])
+    if (min(MSs_concat_all.getFreqs()) < 30.e6):
+        lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_concat_all.getListStr()],
+                            [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
+                             parset_dir + '/losoto-fr-low.parset'])
+    else:
+        lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_concat_all.getListStr()],
+                            [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
+                             parset_dir + '/losoto-fr.parset'])
 
 ### DONE
 #################################################
