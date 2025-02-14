@@ -993,8 +993,8 @@ for c in range(maxIter):
                 # TODO test if IDG beam correction is fast enough, otherwise ignore beam corr or use facet beam [for idg remove parallel gridding (parallel_gridding=4) and BLavg (baseline_averaging='')]
                 channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
                 lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
-                                     size=imgsizepix_lr, scale=f'30arcsec', save_source_list='',  use_idg='',
-                                     idg_mode='cpu', grid_with_beam='', beam_aterm_update=900, use_differential_lofar_beam='',
+                                     size=imgsizepix_lr, scale='30arcsec', save_source_list='',  parallel_gridding=4, baseline_averaging='',
+                                     #use_idg='', idg_mode='cpu', grid_with_beam='', beam_aterm_update=900, use_differential_lofar_beam='',
                                      weight='briggs -0.5', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                                      taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512,
                                      local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5)
@@ -1029,7 +1029,9 @@ for c in range(maxIter):
                         lib_img.blank_image_reg(wideLRext, beamReg , blankval=0.)
 
                     logger.info('Predict model of sidelobe region (wsclean)...')
-                    s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} -use-idg -idg-mode cpu -grid-with-beam -beam-aterm-update 900 -use-differential-lofar-beam -channels-out {channels_out_lr} {MSs.getStrWsclean()}',
+                    # -use-idg -idg-mode cpu -grid-with-beam -beam-aterm-update 900 -use-differential-lofar-beam
+                    s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} \
+                        -channels-out {channels_out_lr} {MSs.getStrWsclean()}',
                         log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
                     s.run(check=True)
                 elif sidelobe_predict_mode=='DP3':
