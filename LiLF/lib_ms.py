@@ -217,7 +217,7 @@ class AllMSs(object):
         for ms_file in self.mssListStr:
             with tables.table(ms_file, ack=False, readonly=False) as t:
                 if col not in t.colnames():
-                    logger.debug(f'deletecol: Column {col} does not exist in {ms_file}. Skipping..')
+                    logger.info(f'deletecol: Column {col} does not exist in {ms_file}. Skipping..')
                     continue
                 else:
                     logger.debug(f'Deleting column {col} from {ms_file}....')

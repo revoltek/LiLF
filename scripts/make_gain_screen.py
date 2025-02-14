@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, sys, optparse
+import optparse
 import numpy as np
 from scipy.interpolate import Rbf
 import matplotlib.pyplot as plt

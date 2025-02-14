@@ -59,7 +59,7 @@ as the pipeline requires to open many files at the same time.
 `python3 /opt/LiLF/pipelines/PiLL.py`
 
 * To run the pipeline step-by-step follow these commands:
-    1. On you working directory create a `Download` directory and put here the html.txt files obtained from a data staging request on Long Term Archive (LTA).  Then run: `python3 /opt/LiLF/pipelines/LOFAR_preprocess.py` to download the data from LTA, unpack, averaged to 4 chan/sb and 4 sec and finally arrange the data in sub-directories that you can find in `Download/mss` The subdirectories are called `id000_CAL` and `id000_TARGET`, where 000 is the id of your observation and CAL and TARGET are the name of the calibrator and target. If your observation is split in more than one night, you will have a calibrator and target directory for every observation. Inside that directories you will find all the ms files. Copy them in a directory called data-bkp (Don't change the name otherwise the pipeline doesn't find the ms files). So to summarize you will have `Download/mss/id000_CAL/data-bkp` and `Download/mss/id000_TARGET/data-bkp`.
+    1. On you working directory create a `Download` directory and put here the html.txt files obtained from a data staging request on Long Term Archive (LTA).  Then run: `python3 /opt/LiLF/pipelines/LOFAR_preprocess.py` to download the data from LTA, unpack, average to 4 chan/sb and 4 sec and finally arrange the data in sub-directories that you can find in `Download/mss`. The subdirectories are called `id000_CAL` and `id000_TARGET`, where 000 is the id of your observation and CAL and TARGET are the name of the calibrator and target. If your observation is split in more than one night, you will have a calibrator and target directory for every observation. Inside that directories you will find all the ms files. Copy them in a directory called data-bkp (Don't change the name otherwise the pipeline doesn't find the ms files). So to summarize you will have `Download/mss/id000_CAL/data-bkp` and `Download/mss/id000_TARGET/data-bkp`.
     
     2. In your cal directory `Download/mss/id000_CAL/` run the calibrator pipeline that will estimate the contribution of systematic effects on your observations: `python3 /opt/LiLF/pipelines/LOFAR_cal.py`. Do it for every observations if you have more than one.
     
@@ -72,7 +72,7 @@ as the pipeline requires to open many files at the same time.
             
 # Extraction of LBA data:
 
-Usage: python LiLF/pipelines/target_extraction.py -p [/path/to/observation] --radec [RA and DEC in deg]
+Usage: `python LiLF/pipelines/target_extraction.py -p [/path/to/observation] --radec [RA and DEC in deg]`
 
 You can extract a target of interest to improve selfcalibration and try to fix ionospheric effects.
 If you wish to extract only one target, simply run the command above indicating the path to the directory of

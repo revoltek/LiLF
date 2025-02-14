@@ -6,8 +6,6 @@ import sys
 import numpy
 import shutil
 import logging
-import argparse
-import os.path
 import re
 import numpy as np
 from astropy.io import fits
