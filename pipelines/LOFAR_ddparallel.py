@@ -48,6 +48,7 @@ phaseSolMode = parset.get('LOFAR_ddparallel', 'ph_sol_mode') # tecandphase, tec,
 remove3c = parset.getboolean('LOFAR_ddparallel', 'remove3c') # get rid of 3c sources in the sidelobes
 fulljones = parset.getboolean('LOFAR_ddparallel', 'fulljones') # do fulljones DIE amp correction
 min_facets = parset.get('LOFAR_ddparallel', 'min_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [2,3,6..]
+max_facets = parset.get('LOFAR_ddparallel', 'max_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [5,10,20..]
 min_flux_factor = parset.getfloat('LOFAR_ddparallel', 'min_flux_factor') # min facet flux factor, default = 1. Higher value -> less facets.
 develop = parset.getboolean('LOFAR_ddparallel', 'develop') # for development, make more output/images
 sf_phaseSolMode = 'phase' #'tec'
@@ -361,6 +362,19 @@ else: #default settings
     else:
         raise ValueError(f'{MSs.getListObj()[0].getAntennaSet()} not recognized.')
 
+if max_facets: # if manually provided
+    if not isinstance(max_facets, list):
+        max_facets = max_facets.replace('[', '').replace(']', '').split(',')
+        max_facets = np.array(max_facets).astype(int)
+else: #default settings
+    # use more facets for SPARSE (larger FoV)
+    if 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
+        max_facets = [10, 30, 35, 35, 35, 35]
+    elif 'OUTER' in MSs.getListObj()[0].getAntennaSet():
+        max_facets = [6, 20, 25, 25, 25, 25]
+    else:
+        raise ValueError(f'{MSs.getListObj()[0].getAntennaSet()} not recognized.')
+
 smMHz2 = [2.0,5.0,5.0,5.0,5.0,5.0]
 smMHz1 = [8.0,12.0,12.0,12.0,12.0,12.0]
 # smMHz0 = [6.0,10.0,10.0,10.0,10.0,10.0]
@@ -461,6 +475,11 @@ for c in range(maxIter):
         if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]:
             bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor
             logger.warning(f'Less than {min_facets[c]} bright sources above minimum flux {facet_fluxes[c]:.2f} Jy! Using sources above {bright_sources_flux:.2f} Jy')
+        else:
+            bright_sources_flux = facet_fluxes[c]
+        if sum(patch_fluxes/si_factor > facet_fluxes[c]) > max_facets[c]:
+            bright_sources_flux = np.sort(patch_fluxes)[-max_facets[c]] / si_factor
+            logger.warning(f'More than {max_facets[c]} bright sources above minimum flux {facet_fluxes[c]:.2f} Jy! Using sources above {bright_sources_flux:.2f} Jy')
         else:
             bright_sources_flux = facet_fluxes[c]
         bright_names = sm.getPatchNames()[patch_fluxes > bright_sources_flux*si_factor]
@@ -1009,15 +1028,13 @@ for c in range(maxIter):
         ### DONE
 
             imagename_lr = 'img/wide-lr'
+            channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
             # Image the sidelobe data
             # MSs: create MODEL_DATA (with just the sidelobe flux)
             with w.if_todo('image_lr'):
                 logger.info('Cleaning sidelobe low-res...')
-                # TODO test if IDG beam correction is fast enough, otherwise ignore beam corr or use facet beam [for idg remove parallel gridding (parallel_gridding=4) and BLavg (baseline_averaging='')]
-                channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
                 lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
                                      size=imgsizepix_lr, scale='30arcsec', save_source_list='',  parallel_gridding=4, baseline_averaging='',
-                                     #use_idg='', idg_mode='cpu', grid_with_beam='', beam_aterm_update=900, use_differential_lofar_beam='',
                                      weight='briggs -0.5', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                                      taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512,
                                      local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5)
