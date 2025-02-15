@@ -1051,11 +1051,11 @@ for c in range(maxIter):
                     os.system('cp %s %s' % (im, wideLRext))
                     lib_img.blank_image_reg(wideLRext, beamReg , blankval=0.)
 
-                    logger.info('Predict model of sidelobe region (wsclean)...')
-                    s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} \
-                        -channels-out {channels_out_lr} {MSs.getStrWsclean()}',
-                        log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
-                    s.run(check=True)
+                logger.info('Predict model of sidelobe region (wsclean)...')
+                s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} \
+                    -channels-out {channels_out_lr} {MSs.getStrWsclean()}',
+                    log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
+                s.run(check=True)
             elif sidelobe_predict_mode=='DP3':
                 logger.info('Predict model of sidelobe region (DP3)...')
                 sidelobe_sky = lsmtool.load(f'{imagename_lr}-sources.txt')
