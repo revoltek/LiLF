@@ -193,7 +193,7 @@ for cmaj in range(maxIter):
         if not os.path.exists(mask_ddcal.replace('fits', 'cat.fits')): # re-use if exists
             # making skymodel from image
             full_image.makeMask(threshpix=4, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
-            global_rms = full_image.getNoise()
+        global_rms = full_image.getNoise()
         
         # locating DD-calibrators
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
