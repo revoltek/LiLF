@@ -134,7 +134,7 @@ The extraction will be run for each object in a different directory named after 
 
 # lilf.config specifications:
 
-One can create a `lilf.config` (or `lilf.conf`) file to pass specific settings to the pipeline. This file must be saved either in the working directory or in the one directly above it. A non-extensive list (for now) of parameters can be found below, they are also listed at the beginning of every script of the pipeline. For the config file to work one needs to include as first row the name of the step (for example, to put some specific options to the preprocess, the first row of the file must be `[LOFAR_preprocess]`).
+One can create a `lilf.config` (or `lilf.conf`) file to pass specific settings to the pipeline. This file must be saved either in the working directory or in the one directly above it. A non-extensive list (for now) of parameters can be found below, they are also listed at the beginning of every script of the pipeline. For the config file to work one needs to include as first row the name of the step (for example, to put some specific options to the preprocess, the first row of the file must be `[LOFAR_preprocess]`). A few small example files are reported at the end of the documentation.
 
 ### PiLL
 working_dir: dir path [./] # working directory
@@ -164,9 +164,7 @@ fix_table: bool [True] # fix bug in some old observations
 
 renameavg: bool [True] # rename and average the data
 
-flagelev: bool [True] # flag anything below 30 deg elevation
-
-keep_IS: bool [False] # keep the LOFAR international stations?
+keep_IS: bool [True] # keep the LOFAR international stations?
 
 demix_skymodel: path/to/file.skydb
 
@@ -203,3 +201,19 @@ minCalFlux60: float [1.5] # apparent flux [Jy] at 60 MHz to be considered a cali
 
 removeExtendedCutoff: float [0.0001] # remove extended sources from possible DD-calibrator list
 
+
+### lilf.config examples
+An example of a small lilf.config file is the following:
+
+```
+[LOFAR_preprocess]
+demix_sources = CygA
+demix_skymodel = /path/to/LiLF/models/demix_all.skymodel
+```
+this config file here adds a source to demix and passes in the skymodel.
+
+```
+[flag]
+stations = RS106
+```
+this config file works only for the LOFAR_cal and LOFAR_timesplit steps and is applied when running one of the two. Stations allows to select the stations to flag.
