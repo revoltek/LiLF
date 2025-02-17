@@ -204,7 +204,7 @@ def tessellate(x_pix, y_pix, w, dist_pix, bbox, nouter=64, plot_tessellation=Tru
         verts_xy = poly.exterior.xy
         verts_deg = []
         for x, y in zip(verts_xy[0], verts_xy[1]):
-            x_y = np.array([[y, x, 0.0, 0.0]])
+            # x_y = np.array([[y, x, 0.0, 0.0]])
             ra_deg, dec_deg = w.wcs_pix2world(x, y, 1)
             verts_deg.append((ra_deg, dec_deg))
         verts.append(verts_deg)
