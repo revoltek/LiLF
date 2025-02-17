@@ -269,7 +269,7 @@ for pointing in tocheck:
     if not ddcycle:
         ddcal_dir = [d for d in os.listdir(f'{pointing}/ddserial') if os.path.isdir(os.path.join(f'{pointing}/ddserial', d)) and d.startswith('c')]
         highest_ddcal = max(ddcal_dir, key=lambda x: int(x[1:]))
-        logger.info(f'Using DD calibration cycle {highest_ddcal}.')
+        logger.info(f'Pointing {pointing}: using DD calibration cycle {highest_ddcal}.')
     else:
         if ddcycle == 1:
             highest_ddcal = 'c00'
@@ -277,8 +277,8 @@ for pointing in tocheck:
             highest_ddcal = 'c01'
         logger.info(f'Using DD calibration cycle {highest_ddcal}.')
 
-    chout_max = len(glob.glob(f'{pointing}/ddserial/{highest_ddcal}/images/wideDD-{highest_ddcal}-[0-9]*-beam.fits'))
-    with fits.open(f'{pointing}/ddserial/{highest_ddcal}/images/wideDD-{highest_ddcal}-000{chout_max-1}-beam.fits') as f:
+    chout_max = len(glob.glob(f'{pointing}/ddserial/primarybeam.fits'))
+    with fits.open(f'{pointing}/ddserial/primarybeam.fits') as f:
         header, data = lib_img.flatten(f)
         wcs = WCS(header)
         c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
@@ -335,7 +335,7 @@ with w.if_todo('cleaning'):
         os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/images/wideDD-{highest_ddcal}-MFS-image-pb.fits extract/init/{p}')  # copy ddcal images
         os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/images/wideDD-{highest_ddcal}-0*-model-fpb.fits extract/init/{p}')  # copy models
         os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/solutions/interp.h5 extract/init/{p}')  # copy final dde sols
-        os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/images/wideDD-{highest_ddcal}_facets.reg extract/init/{p}')  # copy facet file
+        os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/solutions/facets-{highest_ddcal}.reg extract/init/{p}')  # copy facet file
         lib_util.check_rm('mss-extract/'+p)
         if not os.path.exists('mss-extract/'+p):
             logger.info('Copying MS of '+p+'...')
@@ -435,7 +435,7 @@ for p in close_pointings:
         else:
             correct_for = 'phase000'
 
-        facet_path = f'extract/init/{p}/wideDD-{highest_ddcal}_facets.reg'
+        facet_path = f'extract/init/{p}/facets-{highest_ddcal}.reg'
         #TODO apply beam here when bug is fixed...
         s.add(f'wsclean -predict -padding 1.8 -name extract/init/{p}/wideDDext-{highest_ddcal} -j ' + str(s.max_cpucores) + ' -channels-out ' + str(
             ch_out) + ' -facet-regions ' + facet_path + ' -diagonal-solutions -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
