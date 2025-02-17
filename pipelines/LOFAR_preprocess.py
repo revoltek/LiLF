@@ -88,6 +88,10 @@ if len(MSs.getListStr()) == 0:
     logger.info('Done.')
     sys.exit(0)
 
+if keep_IS and not MSs.hasIS:
+    logger.debug(f'Keeping IS requested but IS were not recorded - switching to averaging settings for Dutch only.')
+    keep_IS = False
+
 ######################################
 if len(MSs.getListObj()) > 10000:
     logger.warning('Many MSs detected, using only the first to determine the observing time (for rescaling/fixtables).')
@@ -173,11 +177,11 @@ if renameavg:
                     logger.error('Channels should be a multiple of 4 or 5.')
                     sys.exit(1)
 
-                if keep_IS and MSs.hasIS:
+                if keep_IS:
                      avg_factor_f = int(nchan / 16) # to have the full FoV in LBA we need 16 ch/SB
                 if avg_factor_f < 1: avg_factor_f = 1
 
-                avg_factor_t = int(np.round(2/timeint)) if (keep_IS and MSs.hasIS) else int(np.round(4/timeint)) # to 4 sec (2 for IS)
+                avg_factor_t = int(np.round(2/timeint)) if keep_IS else int(np.round(4/timeint)) # to 4 sec (2 for IS)
                 if avg_factor_t < 1: avg_factor_t = 1
 
                 # do not select IS baselines expect if specified
