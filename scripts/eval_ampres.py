@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys, pickle, glob, re
+import os, pickle, glob, re
 import numpy as np
 from losoto import h5parm
 
