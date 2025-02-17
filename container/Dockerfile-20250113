@@ -85,7 +85,7 @@ RUN if [ $MARCH == "broadwell" ]; then \
 RUN cd /opt && git clone --single-branch --branch master https://github.com/casacore/casacore.git \
     && cd /opt/casacore && git checkout tags/v3.6.1
 RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused ftp://anonymous@ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar
-RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=False -DBUILD_PYTHON3=True -DUSE_OPENMP=True -DUSE_FFTW3=True -DUSE_HDF5=True .. && make -j 6 && make install
+RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=False -DBUILD_PYTHON3=True -DUSE_OPENMP=True -DUSE_HDF5=True .. && make -j 6 && make install
 
 #####################################################################
 ## CASACORE-python v3.6.1
@@ -150,18 +150,17 @@ RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
 
 RUN if [ $MARCH == "generic" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
-    && cmake -DBUILD_BENCHMARKS=OFF .. \
+    && cmake .. \
     && make -j 6 && make install; fi
 
 RUN if [ $MARCH == "broadwell" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} -DBUILD_BENCHMARKS=OFF .. \
+    && cmake -DTARGET_CPU=${MARCH} .. \
     && make -j 6 && make install; fi
 
 RUN if [ $MARCH == "znver3" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} -DBUILD_BENCHMARKS=OFF \
-        .. \
+    && cmake -DTARGET_CPU=${MARCH} .. \
     && make -j 6 && make install; fi
 
 #        -DBLAS_flexiblas_LIBRARY=${AOCL_ROOT}/lib/libblis.so \

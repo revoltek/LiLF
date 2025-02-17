@@ -318,7 +318,7 @@ for cmaj in range(maxIter):
         directions = [x for _, x in sorted(zip([d.get_flux(freq_mid) for d in directions],directions))][::-1]
 
         logger.info(f'Found {len(directions)} cals brighter than {min_cal_flux60} Jy (expected at 60 MHz):')
-        logger.info(f'Global rms: {global_rms*1000} mJy')
+        logger.info(f'Global rms: {global_rms*1000:.2f} mJy')
         for d in directions:
             if not d.peel_off:
                 logger.info('%s: flux: %.2f Jy (rms:%.2f mJy)' % (d.name, d.get_flux(freq_mid), d.localrms*1e3))

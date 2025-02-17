@@ -27,11 +27,10 @@ import psutil
 import ast
 
 # Third-party imports
-import numpy as np
 from numpy import (
-    zeros, ones, round, unique, array_equal, append, where, isfinite, complex128,
+    zeros, ones, round, unique, array_equal, append, isfinite, complex128,
     expand_dims, ndarray, pi, array, all, exp, angle, sort, sum, finfo, take,
-    diff, equal, transpose, cumsum, insert, abs, asarray, newaxis, argmin,
+    diff, transpose, cumsum, insert, abs, asarray, newaxis, argmin,
     cos, sin, float32, memmap
 )
 from scipy.interpolate import interp1d

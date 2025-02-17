@@ -799,7 +799,7 @@ for c in range(maxIter):
             # safe a bit of time by reusing psf and dirty in first iteration
             reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
         else:
-            current_best_mask = f'img/wideM-{c-1}-mask.fits' # is this already set by the make_current_best_mask() below?
+            current_best_mask = f'img/wideM-{c-1}-mask.fits' # is this already set by the make_current_best_mask() below? (not if we restart)
             reuse_kwargs = {}
 
         # main wsclean call, with mask now
@@ -809,13 +809,13 @@ for c in range(maxIter):
                              apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
                              local_rms='', local_rms_window=50, local_rms_strength=0.5, **widefield_kwargs, **reuse_kwargs)
 
-        # Test: quick stokesV
-        logger.info('Making wide field image (pol) ...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM+'-v',
-                             no_update_model_required='',  nmiter=0,  niter=0,
-                             data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec',
-                             weight='briggs -0.5', gridder='wgridder', parallel_gridding=32, minuv_l=30, parallel_deconvolution=1024,
-                             channels_out=channels_out, pol='iquv', join_polarizations='', facet_regions=facetregname, apply_facet_solutions=f'{sol_dir}/cal-tec-merged-c{c}.h5 phase000')
+        # # Test: quick stokesV
+        # logger.info('Making wide field image (pol) ...')
+        # lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM+'-v',
+        #                      no_update_model_required='',  nmiter=0,  niter=0,
+        #                      data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec',
+        #                      weight='briggs -0.5', gridder='wgridder', parallel_gridding=32, minuv_l=30, parallel_deconvolution=1024,
+        #                      channels_out=channels_out, pol='iquv', join_polarizations='', facet_regions=facetregname, apply_facet_solutions=f'{sol_dir}/cal-tec-merged-c{c}.h5 phase000')
 
         current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
 
