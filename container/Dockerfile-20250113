@@ -150,18 +150,17 @@ RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
 
 RUN if [ $MARCH == "generic" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
-    && cmake -DBUILD_BENCHMARKS=OFF .. \
+    && cmake .. \
     && make -j 6 && make install; fi
 
 RUN if [ $MARCH == "broadwell" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} -DBUILD_BENCHMARKS=OFF .. \
+    && cmake -DTARGET_CPU=${MARCH} .. \
     && make -j 6 && make install; fi
 
 RUN if [ $MARCH == "znver3" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} -DBUILD_BENCHMARKS=OFF \
-        .. \
+    && cmake -DTARGET_CPU=${MARCH} .. \
     && make -j 6 && make install; fi
 
 #        -DBLAS_flexiblas_LIBRARY=${AOCL_ROOT}/lib/libblis.so \
