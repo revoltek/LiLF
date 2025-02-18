@@ -232,9 +232,9 @@ if MSs.hasIS:
         with w.if_todo('avgdutch'):
             if not os.path.exists(groupname_dutch):
                 os.system(f'mkdir {groupname_dutch}')
-            avg_factor_t, avg_factor_f = MSs.getListObj()[0].getAvgFactors(keep_IS=False)
+            avg_factor_t, avg_factor_f = MS.getAvgFactors(keep_IS=False)
             MSs.run(f'DP3 {parset_dir}/DP3-avgdutch.parset msin=$pathMS msout={groupname_dutch}/$nameMS.MS avg.freqstep={avg_factor_f} avg.timestep={avg_factor_t}',
-                              log=MSs.getListObj()[0].nameMS+'_avg.log', commandType='DP3')
+                              log=MS.nameMS+'_avg.log', commandType='DP3')
 
 logger.info('Cleaning up...')
 os.system('rm -r *MS')
