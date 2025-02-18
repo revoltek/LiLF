@@ -301,4 +301,4 @@ RUN ln -s /usr/bin/ipython3 /usr/bin/ipython
 ENV HDF5_USE_FILE_LOCKING FALSE
 ENV OMP_NUM_THREADS 1
 ENV OPENBLAS_NUM_THREADS 1
-ENTRYPOINT [ "ulimit -n 4000" ]
+ENTRYPOINT [ "ulimit -n 8192" ]
