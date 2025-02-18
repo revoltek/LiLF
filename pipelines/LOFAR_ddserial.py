@@ -193,6 +193,7 @@ for cmaj in range(maxIter):
         if not os.path.exists(mask_ddcal.replace('fits', 'cat.fits')): # re-use if exists
             # making skymodel from image
             full_image.makeMask(threshpix=4, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
+        global_rms = full_image.getNoise()
         
         # locating DD-calibrators
         cal = astrotab.read(mask_ddcal.replace('fits','cat.fits'), format='fits')
@@ -317,6 +318,7 @@ for cmaj in range(maxIter):
         directions = [x for _, x in sorted(zip([d.get_flux(freq_mid) for d in directions],directions))][::-1]
 
         logger.info(f'Found {len(directions)} cals brighter than {min_cal_flux60} Jy (expected at 60 MHz):')
+        logger.info(f'Global rms: {global_rms*1000:.2f} mJy')
         for d in directions:
             if not d.peel_off:
                 logger.info('%s: flux: %.2f Jy (rms:%.2f mJy)' % (d.name, d.get_flux(freq_mid), d.localrms*1e3))

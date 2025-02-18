@@ -182,6 +182,7 @@ with w.if_todo('interph5'):
 
 # 3. Predict corrupted visibilities for all but the direction to split off - set to zero for all non-dutch baselines!
 if mode in ['infield', 'ddcal']:
+    # TODO make this more efficient by subtracting evertything and then adding back what we need
     with w.if_todo('predict'):
         # prepare model of central/external regions
         logger.info('Blanking direction region of model files and reverse...')

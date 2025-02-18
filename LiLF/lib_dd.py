@@ -7,6 +7,7 @@ from astropy.wcs import WCS
 import pyregion
 from regions import Regions
 from pyregion.parser_helper import Shape
+from shapely.geometry import Polygon
 
 from LiLF.lib_log import logger
 from LiLF import lib_img, lib_util

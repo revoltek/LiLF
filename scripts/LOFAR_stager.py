@@ -13,7 +13,7 @@
 # password=<your password>
 
 import os, sys, time, glob, pickle, argparse, re
-import subprocess, multiprocessing
+import multiprocessing
 #from awlofar.database.Context import context
 from awlofar.main.aweimports import CorrelatedDataProduct, \
     FileObject, \

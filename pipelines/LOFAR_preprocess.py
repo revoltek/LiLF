@@ -88,6 +88,10 @@ if len(MSs.getListStr()) == 0:
     logger.info('Done.')
     sys.exit(0)
 
+if keep_IS and not MSs.hasIS:
+    logger.debug(f'Keeping IS requested but IS were not recorded - switching to averaging settings for Dutch only.')
+    keep_IS = False
+
 ######################################
 if len(MSs.getListObj()) > 10000:
     logger.warning('Many MSs detected, using only the first to determine the observing time (for rescaling/fixtables).')
