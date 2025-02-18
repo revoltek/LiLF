@@ -40,6 +40,10 @@ with w.if_todo('clean'):
 ### DONE
 
 with w.if_todo('copy'):
+    #if not os.path.exists(data_dir):
+    #    os.system('mkdir '+data_dir)
+    #    for ms in sorted(glob.glob('*.MS')):
+    #        os.system(f'cp -r {ms} {data_dir}')
     for tarfile in glob.glob(data_dir + '/*tar'):
         if not os.path.exists(tarfile.replace('.tar','')):
             s.add(f'tar xf {tarfile} --one-top-level={data_dir}', log='tar.log', commandType='general')
@@ -228,9 +232,9 @@ if MSs.hasIS:
         with w.if_todo('avgdutch'):
             if not os.path.exists(groupname_dutch):
                 os.system(f'mkdir {groupname_dutch}')
-            avg_factor_t, avg_factor_f = MS.getAvgFactors(keep_IS=False)
+            avg_factor_t, avg_factor_f = MSs.getListObj()[0].getAvgFactors(keep_IS=False)
             MSs.run(f'DP3 {parset_dir}/DP3-avgdutch.parset msin=$pathMS msout={groupname_dutch}/$nameMS.MS avg.freqstep={avg_factor_f} avg.timestep={avg_factor_t}',
-                              log=MS.nameMS+'_avg.log', commandType='DP3')
+                              log=MSs.getListObj()[0].nameMS+'_avg.log', commandType='DP3')
 
 logger.info('Cleaning up...')
 os.system('rm -r *MS')
