@@ -103,10 +103,10 @@ RUN cd /opt && git clone https://github.com/casacore/python-casacore.git \
 RUN cd /opt/python-casacore && pip install .
 
 #####################################################################
-## EveryBeam v0.6.0
+## EveryBeam v0.7.0
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
-    && cd /opt/EveryBeam && git checkout tags/v0.6.0
+    && cd /opt/EveryBeam && git checkout tags/v0.7.0
 RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -DDOWNLOAD_LOBES=On -DBUILD_WITH_PYTHON=On .. \
     && make -j 6 && make install
@@ -154,7 +154,7 @@ RUN cd /opt/aoflagger && mkdir build && cd build && mkdir install \
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
 RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
-    && cd /opt/DP3 && git checkout 86fba9228652932409845ebcf165dcc77f0dc4cb
+    && cd /opt/DP3 && git checkout f475bc30
 
 RUN if [ $MARCH == "generic" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
