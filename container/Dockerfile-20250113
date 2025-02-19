@@ -169,6 +169,7 @@ RUN if [ $MARCH == "znver3" ]; then \
 #        -DFFTW3_INCLUDE_DIR="${AOCL_ROOT}/include/" \
 #        -DLAPACK_flexiblas_LIBRARY=${AOCL_ROOT}/lib/libflame.so \
 
+RUN rm -rf /opt/DP3/
 # add "import dp3"
 ENV PYTHONPATH /usr/local/lib/python3.12/site-packages/:$PYTHONPATH
 
