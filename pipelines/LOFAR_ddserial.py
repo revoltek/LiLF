@@ -264,8 +264,8 @@ for cmaj in range(maxIter):
                 logger.debug("%s: too close to another ddcal (skip)" % (name))
                 cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
             # skip sources that are faint and in a low-rms region (no need to calibrate them)
-            elif d.get_flux(60e6) < 1.5 and d.localrms < 2.5*global_rms:
-                logger.debug("%s: faint source in low-rms region (skip)" % (name))
+            elif (d.get_flux(60e6) < 1.5) and (d.localrms < 2*global_rms) and (cmaj == 0):
+                logger.debug("%s: faint source (%.1f mJy) in low-rms region (%.1f mJy) (skip)" % (name, 1e3*d.get_flux(60e6), 1e3*d.localrms))
                 cal['Cluster_id'][cluster_idxs] = '_' + name  # identify unused sources for debug
             # skip if outside the mid-freq null (that should be empty)
             elif not d.is_in_region(workingReg, wcs=full_image.getWCS()):
