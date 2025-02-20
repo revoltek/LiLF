@@ -40,6 +40,10 @@ with w.if_todo('clean'):
 ### DONE
 
 with w.if_todo('copy'):
+    #if not os.path.exists(data_dir):
+    #    os.system('mkdir '+data_dir)
+    #    for ms in sorted(glob.glob('*.MS')):
+    #        os.system(f'cp -r {ms} {data_dir}')
     for tarfile in glob.glob(data_dir + '/*tar'):
         if not os.path.exists(tarfile.replace('.tar','')):
             s.add(f'tar xf {tarfile} --one-top-level={data_dir}', log='tar.log', commandType='general')
