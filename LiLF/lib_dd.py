@@ -139,7 +139,7 @@ class Direction(object):
         # Load the regions
         circular_region = Regions.read(self.region_file, format="ds9")[0]
         # Convert the circular region to a Shapely object
-        circle_shapely = create_circle_polygon([circular_region.center.ra.value % 360, circular_region.center.dec.value], circular_region.radius.value)
+        circle_shapely = create_circle_polygon([circular_region.center.ra.value % 360, circular_region.center.dec.value], circular_region.radius.to_value('deg'))
 
         # now work on a series of polygon regions
         region_str = ''
