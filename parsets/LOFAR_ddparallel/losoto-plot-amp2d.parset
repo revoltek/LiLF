@@ -10,16 +10,4 @@ plotFlag = True
 prefix = plots/amp_
 NColFig = 4
 figSize = [20,20]
-#minmax = [0,300]
-
-[plotA2]
-operation = PLOT
-soltab = sol000/amplitude000
-time.minmaxstep = [0,1e20,1800]
-axesInPlot = freq
-axisInTable = ant
-plotFlag = True
-prefix = plots/amp_
-#minmax = [0,300]
-
-
+minmax = [0.9,1.2]

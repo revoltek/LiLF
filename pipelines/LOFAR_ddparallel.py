@@ -825,7 +825,7 @@ for c in range(maxIter):
 
     #####################################################################################################
     # Find calibration solutions for subfield (does not touch CORRECTED_DATA or CORRECTED_DATA_FR)
-    # if c < 2:
+
     # User provided subfield
     if subfield:
         if len(Regions.read(subfield)) > 1:
@@ -1027,18 +1027,18 @@ for c in range(maxIter):
                     log='$nameMS_sf-correct.log', commandType='DP3')
         ### DONE
 
-            imagename_lr = 'img/wide-lr'
-            channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
-            # Image the sidelobe data
-            # MSs: create MODEL_DATA (with just the sidelobe flux)
-            with w.if_todo('image_lr'):
-                logger.info('Cleaning sidelobe low-res...')
-                lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
-                                     size=imgsizepix_lr, scale='30arcsec', save_source_list='',  parallel_gridding=4, baseline_averaging='',
-                                     weight='briggs -0.5', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
-                                     taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512,
-                                     local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5)
-            ### DONE
+        imagename_lr = 'img/wide-lr'
+        channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
+        # Image the sidelobe data
+        # MSs: create MODEL_DATA (with just the sidelobe flux)
+        with w.if_todo('image_lr'):
+            logger.info('Cleaning sidelobe low-res...')
+            lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
+                                size=imgsizepix_lr, scale='30arcsec', save_source_list='',  parallel_gridding=4, baseline_averaging='',
+                                weight='briggs -0.5', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
+                                taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512,
+                                local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5)
+        ### DONE
 
         # Subtract full low-resolution field (including possible large-scale emission within primary beam)
         # to get empty data set for flagging
@@ -1109,13 +1109,10 @@ for c in range(maxIter):
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits ddparallel/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt ddparallel/images') for c in range(maxIter) ]
-# debugging images -> can be removed in production
-[ os.system('mv img/subfield-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
-# os.system('mv img/wideP-MFS-*-image.fits ddparallel/images')
-# os.system('mv img/wide-lr-MFS-image.fits ddparallel/images')
 
 # debug images
 if develop:
+    [ os.system('mv img/subfield-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
     os.system('mv img/only*image.fits ddparallel/images')
     os.system('mv img/empty*image.fits ddparallel/images')
 else:
