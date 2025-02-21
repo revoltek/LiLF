@@ -327,4 +327,4 @@ ENV OMP_NUM_THREADS 1
 ENV OPENBLAS_NUM_THREADS 1
 
 # ENTRYPOINT [ "ulimit -n 8192" ]
-ENTRYPOINT ["/opt/intel/oneapi/mkl/latest/env/vars.sh 2> /dev/null"]
+ENTRYPOINT [ -f "/opt/intel/oneapi/mkl/latest/env/vars.sh" ] && source /opt/intel/oneapi/mkl/latest/env/vars.sh
