@@ -13,13 +13,10 @@
 # 6. Repeat dd self-cal cycles with a growing number of directions
 # they need to be in "./mss/"
 
-# TODO subtraction of sidelobe for RS smaring
-# TODO add timesmearing
-# TODO the subfield algorithm should not cut any sources ... how to best implement that? Something with mask islands?
-
 # Waiting for bug fixes in other software
 # TODO add LoTSS query for statring model once bug is fixed! (Don't use for now, it crashes the VO server)
 # TODO add BDA
+# TODO add timesmearing in dp3 predict
 
 import os, glob, random, json
 import numpy as np
@@ -212,7 +209,7 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     s.run(check=True)
     return current_best_mask
 
-def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=50., threshold=0):
+def add_3c_models(sm, phasecentre, null_mid_freq, beamMask, max_sep=50., threshold=0):
     
     with open(parset_dir+"/3C_coordinates.json", "r") as file:
         all_3c = json.load(file)
@@ -318,7 +315,7 @@ null_mid_freq = max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True)) * 
 
 # set image size - this should be a bit more than the beam region used for calibration
 pixscale = MSs.getListObj()[0].getPixelScale()
-imgsizepix_wide = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/pixscale) # roughly to null
+imgsizepix_wide = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='min', elliptical=True))*3600/pixscale) # roughly to biggest null
 if imgsizepix_wide > 10000: imgsizepix_wide = 10000
 if imgsizepix_wide % 2 != 0: imgsizepix_wide += 1  # prevent odd img sizes
 imgsizepix_lr = int(5*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/(pixscale*8))
@@ -382,7 +379,7 @@ smMHz1 = [8.0,12.0,12.0,12.0,12.0,12.0]
 # Make beam mask/reg
 beamMask = 'ddparallel/beam.fits'
 beamReg = 'ddparallel/beam.reg'
-MSs.getListObj()[0].makeBeamReg(beamReg, freq='mid', to_pbval=0)
+MSs.getListObj()[0].makeBeamReg(beamReg, freq='min', to_pbval=0)
 if not os.path.exists(beamMask):
     logger.info('Making mask of primary beam...')
     lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), size=imgsizepix_lr, scale='30arcsec')
@@ -490,7 +487,7 @@ for c in range(maxIter):
 
         if c == 0 and remove3c:
             # Add models of bright 3c sources to the sky model. Model will be subtracted from data before imaging.
-            sm = add_3c_models(sm, phasecentre=phasecentre, null_mid_freq=null_mid_freq)
+            sm = add_3c_models(sm, phasecentre=phasecentre, beamMask=beamMask, null_mid_freq=null_mid_freq)
             sm.setColValues("Q", np.zeros(len(sm.getColValues("I")))) # force non I Stokes to zero
             sm.setColValues("U", np.zeros(len(sm.getColValues("I"))))
             sm.setColValues("V", np.zeros(len(sm.getColValues("I"))))
@@ -783,10 +780,7 @@ for c in range(maxIter):
         if not(np.mean(MSs.getFreqs()) < 50e6):
             widefield_kwargs['beam_size'] = 15
 
-        # if c < 2: # cylce 0 and 1 only dd-phase
         widefield_kwargs['apply_facet_solutions'] = f'{sol_dir}/cal-tec-merged-c{c}.h5 phase000'
-        # else:
-        #     widefield_kwargs['apply_facet_solutions'] = f'{sol_dir}/cal-tec-merged-c{c}.h5 phase000,amplitude000'
 
         # TODO make this faster - experiment with increased parallel-gridding as well as shared facet reads option
         # c0: make quick initial image to get a mask
@@ -804,7 +798,7 @@ for c in range(maxIter):
 
         # main wsclean call, with mask now
         logger.info('Making wide field image ...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask,
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask,
                              save_source_list='', update_model_required='',  nmiter=12,  auto_threshold=2.0, auto_mask=4.0,
                              apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
                              local_rms='', local_rms_window=50, local_rms_strength=0.5, **widefield_kwargs, **reuse_kwargs)
