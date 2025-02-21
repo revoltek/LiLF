@@ -1109,6 +1109,11 @@ if develop:
     [ os.system('mv img/subfield-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
     os.system('mv img/only*image.fits ddparallel/images')
     os.system('mv img/empty*image.fits ddparallel/images')
+else:
+    # remove MODEL_DATA cols...
+    logger.info('Removing unwanted columns...')
+    for patch in patches:
+        MSs.deletecol(patch)
 
 # Copy model
 os.system(f'mv img/wideM-{maxIter-1}-*-model.fits ddparallel/skymodel')
