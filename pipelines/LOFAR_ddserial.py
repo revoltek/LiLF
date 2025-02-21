@@ -931,7 +931,7 @@ for cmaj in range(maxIter):
             beam_kwargs = {'beam_size': 15}
 
         # masking
-        s.add('breizorro.py -t 5 -r %s -b 50 -o %s' % (full_image.imagename, maskname), 
+        s.add('breizorro.py -t 3.0 -r %s -b 50 -o %s' % (full_image.imagename, maskname),
                 log='makemask-'+str(cmaj)+'.log', commandType='python' )
         s.run(check=True)        
 

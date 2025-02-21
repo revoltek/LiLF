@@ -272,7 +272,7 @@ with w.if_todo('correct_dutch_dd'):
                          cor.parmdb=interp_merged.h5 cor.correction=amplitude000 cor.direction=' + closest,
                         log='$nameMS_init-correct.log', commandType='DP3')
     h5init.close()
-    test_image_dutch(MSs, 'dutchsubcorr', data_col=correct_col)
+    # test_image_dutch(MSs, 'dutchsubcorr', data_col=correct_col)
 ### DONE
 
 with w.if_todo('beamcorr-infield'):
