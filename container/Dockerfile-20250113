@@ -118,18 +118,16 @@ RUN cd /opt/EveryBeam && mkdir build && cd build \
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/astron-idg/idg.git \
     && cd /opt/idg && git checkout tags/1.2.0
-RUN cd /opt/idg && mkdir build && cd build \
-    && cmake -DPORTABLE=True -DCMAKE_INSTALL_PREFIX:PATH=/ .. \
-    && make -j 6 && make install
+RUN if [ $MARCH == "generic" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=True -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j 6 && make install; fi
+RUN if [ $MARCH != "generic" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j 6 && make install; fi
 
 #####################################################################
 ## AOFlagger v3.4.0
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
     && cd /opt/aoflagger && git checkout tags/v3.4.0
-RUN cd /opt/aoflagger && mkdir build && cd build && mkdir install \
-    && cmake -DPORTABLE=True .. \
-    && make -j 6 && make install
+RUN if [ $MARCH == "generic" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=True .. && make -j 6 && make install; fi
+RUN if [ $MARCH != "generic" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=False .. && make -j 6 && make install; fi
 
 #####################################################################
 ## Dysco v1.3
