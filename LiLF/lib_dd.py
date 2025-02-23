@@ -517,7 +517,7 @@ class Grouper( object ):
         fig.savefig('grouping_clusters.png', bbox_inches='tight')
 
 
-def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
+def make_subfield_region(name, MS, sm, min_flux, pixscale, size_pix, debug_dir=None):
     """
     Identify the smallest region of sky model sources that contains a certain flux.
 
@@ -527,6 +527,7 @@ def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
     MS: lib_ms.MS object, MS to find center and size of field of view
     sm: lsmtool.skymodel, apparent skymodel of the field
     min_flux: float, minimum flux in calibration subfield in Jy
+    fwhm: float, FWHM in degrees
     debug_dir: str, default=None. Save debug fits files in this dir.
 
     Returns
@@ -535,13 +536,12 @@ def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
     bestbox_size: float, size of bestbox in deg
     """
     c_ra, c_dec = MS.getPhaseCentre()
-    fwhm = 1.85*max(MS.getFWHM(freq='mid', elliptical=True))
     cellsize  = 1/60 # 1 arcmin
     # TODO padding?/offset?
-    size_pix = int(np.round(1.1*fwhm/cellsize)) # size in pix, 10% pad
     freq = np.mean(MS.getFreqs())
     steps = 40 # how many scales to consider
-    boxsizes = np.linspace(fwhm/(steps),fwhm,steps)
+    size_deg = pixscale*size_pix/3600
+    boxsizes = np.linspace(size_deg/steps,size_deg,steps)
 
     # iterate over box sizes and convolve with boxcar kernel to find per scale the location of the box containing the
     # maximum flux

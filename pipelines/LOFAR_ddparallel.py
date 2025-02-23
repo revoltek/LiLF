@@ -479,8 +479,7 @@ for c in range(maxIter):
             logger.warning(f'More than {max_facets[c]} bright sources above minimum flux {facet_fluxes[c]:.2f} Jy! Using sources above {bright_sources_flux:.2f} Jy')
         else:
             bright_sources_flux = facet_fluxes[c]
-
-        bright_names = sm.getPatchNames()[patch_fluxes > bright_sources_flux*si_factor]
+        bright_names = sm.getPatchNames()[patch_fluxes >= bright_sources_flux*si_factor]
         bright_pos = sm.getPatchPositions(bright_names)
         sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=True, root='', byPatch=True)
         sm.setPatchPositions(bright_pos)
@@ -833,7 +832,7 @@ for c in range(maxIter):
         # sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted
         sm.remove('MajorAxis > 80')  # remove largest scales
         field_center1, field_size1 = lib_dd.make_subfield_region(subfield_path, MSs.getListObj()[0], sm,
-                                                                     subfield_min_flux, debug_dir='img/')
+                                                                     subfield_min_flux, pixscale, imgsizepix_wide, debug_dir='img/')
 
     subfield_reg = Regions.read(subfield_path)[0]
     subfield_center = [subfield_reg.center.ra, subfield_reg.center.dec]
