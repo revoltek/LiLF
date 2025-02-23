@@ -129,7 +129,7 @@ with w.if_todo('cleaning'):
 # use unaveraged MSs to be sure to get the same pixscale and imgsizepix of ddparallel
 MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s)
 pixscale = MSs.getListObj()[0].getPixelScale() 
-imgsizepix = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True)) * 3600 / pixscale) # roughly to null
+imgsizepix = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='max', elliptical=True)) * 3600 / pixscale) # roughly to smallest null
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 
@@ -150,7 +150,7 @@ if not os.path.exists('mss-avg'):
 MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
 fwhm = max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))
 workingReg = 'ddserial/workingRegion.reg' # sources outside of this region will be ignored (and not peeled)
-MSs.getListObj()[0].makeBeamReg(workingReg, freq='mid', to_pbval=0)
+MSs.getListObj()[0].makeBeamReg(workingReg, freq='max', to_pbval=0)
 peelReg = 'ddserial/peelingRegion.reg' # sources outside of this region will be peeled
 MSs.getListObj()[0].makeBeamReg(peelReg, freq='max', to_pbval=0.12) # this is slighly smaller than the null
 freq_min = np.min(MSs.getFreqs())
@@ -269,7 +269,7 @@ for cmaj in range(maxIter):
                 cal['Cluster_id'][cluster_idxs] = '_' + name  # identify unused sources for debug
             # skip if outside the mid-freq null (that should be empty)
             elif not d.is_in_region(workingReg, wcs=full_image.getWCS()):
-                logger.debug("%s: outside the mid-freq null region (skip)" % (name))
+                logger.debug("%s: outside the min-freq null region (skip)" % (name))
                 cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
             else:
                 logger.debug("%s: flux density @ 60 MHz: %.1f mJy (good)" % (name, 1e3 * d.get_flux(60e6)))
@@ -931,27 +931,28 @@ for cmaj in range(maxIter):
             beam_kwargs = {'beam_size': 15}
 
         # masking
-        s.add('breizorro.py -t 3.0 -r %s -b 50 -o %s' % (full_image.imagename, maskname),
-                log='makemask-'+str(cmaj)+'.log', commandType='python' )
-        s.run(check=True)        
+        #s.add('breizorro.py -t 3.0 -r %s -b 50 -o %s' % (full_image.imagename, maskname), 
+        #        log='makemask-'+str(cmaj)+'.log', commandType='python' )
+        #s.run(check=True)        
 
         # if defined, add userReg to the mask
-        if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
+        #if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
 
         # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
         # TODO: do we need dd_psf_grid='25 25'
+        # TODO: remove fits mask and use only automasking (fits_mask=maskname)
         logger.info('Cleaning...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(),  name=imagename, data_column='CORRECTED_DATA',
+        lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA',
                 size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
                 parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
-                save_source_list='', no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.5, fits_mask=maskname,
+                save_source_list='', no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
                 apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75,
                 **beam_kwargs)
  
         os.system(f'mv {imagename}*MFS-image*fits {imagename}*MFS-model*fits {imagename}*MFS-residual*fits \
-                  {imagename}-0*image*fits {imagename}-0*model*fits {imagename}_mask.fits ddserial/c{cmaj:02}/images')
+                  {imagename}-0*image*fits {imagename}-0*model*fits ddserial/c{cmaj:02}/images')
 
     ### DONE
 
@@ -973,8 +974,23 @@ with w.if_todo('output-vstokes'):
     os.system('mv %s-MFS-image*.fits %s-MFS-model.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, imagenameV, cmaj))
 ### DONE
 
-# TODO: the model to subtract should be done from a high-res image to remove only point sources
 with w.if_todo('output-lres'):
+    imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
+    logger.info('Cleaning (low res)...')
+    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagenameL, data_column='CORRECTED_DATA',
+                size=imgsizepix/4, scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='60arcsec', niter=1000000, gridder='wgridder',
+                parallel_gridding=32, minuv_l=20, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
+                channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
+                no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
+                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
+                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75,
+                **beam_kwargs)
+
+    os.system('mv %s-MFS-image*.fits %s-MFS-model.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameL, imagenameL, imagenameL, cmaj))
+### DONE
+
+# TODO: the model to subtract should be done from a high-res image to remove only point sources
+with w.if_todo('output-lressub'):
 
     # now make a low res and source subtracted map for masking extended sources
     logger.info('Predicting DD-corrupted...')
@@ -990,15 +1006,15 @@ with w.if_todo('output-lres'):
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
         log='$nameMS_taql.log', commandType='general')
 
-    imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
-    logger.info('Cleaning (low res)...')
-    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameL, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
-                weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
+    imagenameLS = 'img/wideDD-lressub-c%02i' % (cmaj)
+    logger.info('Cleaning (low res sub)...')
+    lib_util.run_wsclean(s, 'wscleanLRS-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameLS, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
+                weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=20, mgain=0.85, parallel_deconvolution=1024,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.65, pol='i', taper_gaussian='60arcsec',
                 apply_facet_beam='', use_differential_lofar_beam='', facet_beam_update=120, facet_regions=facetregname, apply_facet_solutions=f'{interp_h5parm} {correct_for}')
  
-    os.system('mv %s-MFS-image*.fits %s-MFS-model.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameL, imagenameL, imagenameL, cmaj))
+    os.system('mv %s-MFS-image*.fits %s-MFS-model.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameLS, imagenameLS, imagenameLS, cmaj))
 ### DONE
 
 with w.if_todo('output_PB'):
