@@ -30,7 +30,7 @@ RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 14 && \
     update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-14 14
 
 RUN curl -O http://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb
-RUN dpkg -i libaio1_0.3.113-4_amd64.deb
+RUN dpkg -i libaio1_0.3.113-4_amd64.deb && rm libaio1_0.3.113-4_amd64.deb
 
 # Add group. We chose GID 65527 to try avoiding conflicts.
 RUN groupadd -g 65527 lofar
@@ -83,7 +83,20 @@ ENV PIP_BREAK_SYSTEM_PACKAGES 1
 ##################################################################
 ## Intel specific
 RUN if [ $MARCH == "broadwell" ]; then \
-    apt-get install -y intel-mkl; fi
+    apt-get install -y gpg-agent && \
+    wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null && \
+    echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | tee /etc/apt/sources.list.d/oneAPI.list && \
+    apt-get update && \
+    apt-get install -y intel-oneapi-mkl intel-oneapi-mkl-devel; fi
+
+# Outside if condition, but does no harm if empty.
+ENV PKG_CONFIG_PATH /opt/intel/oneapi/mkl/latest/lib/pkgconfig:$PKG_CONFIG_PATH
+ENV CMAKE_PREFIX_PATH /opt/intel/oneapi/mkl/latest/lib/cmake:$CMAKE_PREFIX_PATH
+ENV LIBRARY_PATH /opt/intel/oneapi/mkl/latest/lib:$LIBRARY_PATH
+ENV LD_LIBRARY_PATH /opt/intel/oneapi/mkl/latest/lib:$LD_LIBRARY_PATH
+ENV MKLROOT /opt/intel/oneapi/mkl/latest
+ENV PATH /opt/intel/oneapi/mkl/latest/bin:$PATH
+ENV CPATH /opt/intel/oneapi/mkl/latest/include:$CPATH
 
 ## end Intel specific
 
@@ -313,4 +326,5 @@ RUN ln -s /usr/bin/ipython3 /usr/bin/ipython
 ENV HDF5_USE_FILE_LOCKING FALSE
 ENV OMP_NUM_THREADS 1
 ENV OPENBLAS_NUM_THREADS 1
-#ENTRYPOINT [ "ulimit -n 8192" ]
+
+# ENTRYPOINT [ "ulimit -n 8192" ]
