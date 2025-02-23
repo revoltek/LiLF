@@ -112,6 +112,7 @@ RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
 RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -DDOWNLOAD_LOBES=On -DBUILD_WITH_PYTHON=On .. \
     && make -j 6 && make install
+RUN rm -rf /opt/EveryBeam/
     
 #####################################################################
 ## idg v1.2.0
