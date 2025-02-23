@@ -150,7 +150,7 @@ RUN if [ $MARCH != "generic" ]; then cd /opt/aoflagger && mkdir build && cd buil
 #    && make -j 6 && make install
 
 ####################################################################
-## Dp3 master (12/01/25)
+## Dp3 master (03/02/25)
 #####################################################################
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
