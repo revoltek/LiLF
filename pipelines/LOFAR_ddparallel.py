@@ -465,23 +465,24 @@ for c in range(maxIter):
         
         # if using e.g. LoTSS, adjust for the frequency
         logger.debug(f'Extrapolating input skymodel fluxes from {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
-        si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S144 = si_factor * S54
+        si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S60 = si_factor * S54
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
         sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
         sm.setPatchPositions(method='wmean', applyBeam=True)
         sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=True)
-        # TODO we need some logic here to avoid picking up very extended sources. Also case no bright sources in a field.
+        # TODO we need some logic here to avoid picking up very extended sources.
         patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=True)
-        if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]:
-            bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor
+        # check if there are less than the minimum requested bright sources to form the facets
+        if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]: # convert skymodel fluxes to MS central freq
+            bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor # bright sources flux is at MSs central freq
             logger.warning(f'Less than {min_facets[c]} bright sources above minimum flux {facet_fluxes[c]:.2f} Jy! Using sources above {bright_sources_flux:.2f} Jy')
-        else:
-            bright_sources_flux = facet_fluxes[c]
-        if sum(patch_fluxes/si_factor > facet_fluxes[c]) > max_facets[c]:
+        # check if there are more than the maximum requested bright sources to form the facets
+        elif sum(patch_fluxes/si_factor > facet_fluxes[c]) > max_facets[c]:
             bright_sources_flux = np.sort(patch_fluxes)[-max_facets[c]] / si_factor
             logger.warning(f'More than {max_facets[c]} bright sources above minimum flux {facet_fluxes[c]:.2f} Jy! Using sources above {bright_sources_flux:.2f} Jy')
         else:
             bright_sources_flux = facet_fluxes[c]
+
         bright_names = sm.getPatchNames()[patch_fluxes > bright_sources_flux*si_factor]
         bright_pos = sm.getPatchPositions(bright_names)
         sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=True, root='', byPatch=True)
