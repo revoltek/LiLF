@@ -16,7 +16,7 @@ USER root
 RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
-RUN apt-get install -y g++ gfortran cmake texinfo git wget flex bison sudo vim hdf5-tools rename subversion python3-magic htop curl \
+RUN apt-get install -y g++ gfortran cmake texinfo git wget flex bison sudo vim hdf5-tools rename python3-magic htop curl \
     python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm \
     libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev libaio1t64 libaio-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
@@ -94,7 +94,7 @@ RUN apt-get clean
 ##################################################################
 RUN cd /opt && git clone --single-branch --branch master https://github.com/casacore/casacore.git \
     && cd /opt/casacore && git checkout tags/v3.6.1
-RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused ftp://anonymous@ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar
+RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused ftp://anonymous@ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar && rm WSRT_Measures.ztar
 RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=False -DBUILD_PYTHON3=True -DUSE_OPENMP=True -DUSE_HDF5=True .. && make -j 6 && make install
 
 #####################################################################
@@ -112,6 +112,7 @@ RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
 RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -DDOWNLOAD_LOBES=On -DBUILD_WITH_PYTHON=On .. \
     && make -j 6 && make install
+RUN rm -rf /opt/EveryBeam/
     
 #####################################################################
 ## idg v1.2.0
@@ -149,7 +150,7 @@ RUN if [ $MARCH != "generic" ]; then cd /opt/aoflagger && mkdir build && cd buil
 #    && make -j 6 && make install
 
 ####################################################################
-## Dp3 master (12/01/25)
+## Dp3 master (03/02/25)
 #####################################################################
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
@@ -185,7 +186,7 @@ ENV PYTHONPATH /usr/local/lib/python3.12/site-packages/:$PYTHONPATH
 ## Wsclean master (16/1/25)
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-    && cd /opt/wsclean && git checkout c1e4fcb2
+    && cd /opt/wsclean && git checkout af847af6b39986b18dd06c8e0846fb01f87f36c3
 
 RUN if [ $MARCH == "generic" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
