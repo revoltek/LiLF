@@ -939,7 +939,6 @@ for cmaj in range(maxIter):
         #if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
 
         # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
-        # TODO: do we need dd_psf_grid='25 25'
         # TODO: remove fits mask and use only automasking (fits_mask=maskname)
         logger.info('Cleaning...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA',

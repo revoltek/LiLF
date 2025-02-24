@@ -517,7 +517,7 @@ class Grouper( object ):
         fig.savefig('grouping_clusters.png', bbox_inches='tight')
 
 
-def make_subfield_region(name, MS, sm, min_flux, pixscale, size_pix, debug_dir=None):
+def make_subfield_region(name, MS, sm, min_flux, pixscale, imgsizepix, debug_dir=None):
     """
     Identify the smallest region of sky model sources that contains a certain flux.
 
@@ -536,12 +536,13 @@ def make_subfield_region(name, MS, sm, min_flux, pixscale, size_pix, debug_dir=N
     bestbox_size: float, size of bestbox in deg
     """
     c_ra, c_dec = MS.getPhaseCentre()
+    fwhm = imgsizepix*pixscale/3600
     cellsize  = 1/60 # 1 arcmin
     # TODO padding?/offset?
+    size_pix = int(np.round(1.1*fwhm/cellsize)) # size in pix, 10% pad
     freq = np.mean(MS.getFreqs())
     steps = 40 # how many scales to consider
-    size_deg = pixscale*size_pix/3600
-    boxsizes = np.linspace(size_deg/steps,size_deg,steps)
+    boxsizes = np.linspace(fwhm/(steps),fwhm,steps)
 
     # iterate over box sizes and convolve with boxcar kernel to find per scale the location of the box containing the
     # maximum flux
@@ -583,8 +584,7 @@ def make_subfield_region(name, MS, sm, min_flux, pixscale, size_pix, debug_dir=N
             #sys.exit()
         for flux, pix in zip(fluxes, pixcrd.T):
             imdata[pix[1],pix[0]] += flux
-
-        hdu[0].data = convolve_fft(imdata,kernel,normalize_kernel=False)
+        hdu[0].data = convolve_fft(imdata, kernel, normalize_kernel=False, allow_huge=True)
         if debug_dir:
             hdu.writeto(f'{debug_dir}/flux_region_map_{int(np.rint(boxsize*60)):03}amin.fits', overwrite=True)
         max_location[i] = np.unravel_index(np.argmax(hdu[0].data), hdu[0].data.shape)
