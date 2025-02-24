@@ -584,7 +584,7 @@ def make_subfield_region(name, MS, sm, min_flux, pixscale, imgsizepix, debug_dir
             #sys.exit()
         for flux, pix in zip(fluxes, pixcrd.T):
             imdata[pix[1],pix[0]] += flux
-        hdu[0].data = convolve_fft(imdata, kernel, normalize_kernel=False, allow_huge=True)
+        hdu[0].data = convolve_fft(imdata, kernel, normalize_kernel=False)
         if debug_dir:
             hdu.writeto(f'{debug_dir}/flux_region_map_{int(np.rint(boxsize*60)):03}amin.fits', overwrite=True)
         max_location[i] = np.unravel_index(np.argmax(hdu[0].data), hdu[0].data.shape)
