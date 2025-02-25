@@ -59,7 +59,7 @@ ENV PIP_BREAK_SYSTEM_PACKAGES 1
 #RUN cd /opt/aocl/aocl-linux-aocc-4.2.0 && ./install.sh -t /opt/aocl -i lp64
 #RUN source /opt/aocl/4.2.0/amd-libs.cfg
 #ENV CPLUS_INCLUDE_PATH /opt/aocl/4.2.0/include:$CPLUS_INCLUDE_PATH
-#ENV CPATH /opt/aocl/4.2.0/include:$CPLUS_INCLUDE_PATH
+#ENV CPATH /opt/aocl/4.2.0/include:$CPATH
 #ENV LD_LIBRARY_PATH /opt/aocl/4.2.0/lib:$LD_LIBRARY_PATH
 #ENV AOCL_ROOT /opt/aocl/4.2.0
 
