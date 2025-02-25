@@ -16,8 +16,8 @@ USER root
 RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 ENV CPPSTD c++17
-ENV CFLAGS "-w -march=${MARCH} -mtune=${MTUNE}"
-ENV CXXFLAGS "-w -march=${MARCH} -mtune=${MTUNE} -std=${CPPSTD}"
+ENV CFLAGS "-w -march=${MARCH} -mtune=${MARCH}"
+ENV CXXFLAGS "-w -march=${MARCH} -mtune=${MARCH} -std=${CPPSTD}"
 
 RUN apt-get update
 RUN apt-get install -y cmake texinfo git wget flex bison sudo vim hdf5-tools rename python3-magic htop curl \
