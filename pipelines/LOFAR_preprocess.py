@@ -29,6 +29,7 @@ demix_skymodel = parset.get('LOFAR_preprocess','demix_skymodel') # Use non-defau
 demix_field_skymodel = parset.get('LOFAR_preprocess','demix_field_skymodel') # provide a custom target skymodel instead of online gsm model - assumes intrinsic sky.
 run_aoflagger = parset.getboolean('LOFAR_preprocess','run_aoflagger') # run aoflagger on individual subbands - do this only in rare cases where it was not done by the observatory!
 tar = parset.getboolean('LOFAR_preprocess','tar') # tar the output ms
+data_dir = parset.get('LOFAR_preprocess','data_dir') # directory where the data is stored
 
 ###########################################
 if os.path.exists('html.txt'):
@@ -83,7 +84,7 @@ if not download_file is None:
                 logger.debug('Queue download of: '+line[:-1])
             s.run(check=True, maxProcs=4)
 
-MSs = lib_ms.AllMSs(glob.glob('*MS'), s, check_flags=False)
+MSs = lib_ms.AllMSs(glob.glob(data_dir + '*MS'), s, check_flags=False)
 if len(MSs.getListStr()) == 0:
     logger.info('Done.')
     sys.exit(0)
@@ -144,7 +145,7 @@ if renameavg:
     with w.if_todo('renameavg'):
         logger.info('Renaming/averaging...')
         with open('renamed.txt','a') as flog:
-            MSs = lib_ms.AllMSs([MS for MS in glob.glob('*MS') if not os.path.exists(getName(MS))], s, check_flags=False)
+            MSs = lib_ms.AllMSs([MS for MS in glob.glob(data_dir + '*MS') if not os.path.exists(getName(MS))], s, check_flags=False)
             minfreq = np.min(MSs.getFreqs())
             logger.info('Min freq: %.2f MHz' % (minfreq/1e6))
             for MS in MSs.getListObj():
