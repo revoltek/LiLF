@@ -13,13 +13,10 @@
 # 6. Repeat dd self-cal cycles with a growing number of directions
 # they need to be in "./mss/"
 
-# TODO subtraction of sidelobe for RS smaring
-# TODO add timesmearing
-# TODO the subfield algorithm should not cut any sources ... how to best implement that? Something with mask islands?
-
 # Waiting for bug fixes in other software
 # TODO add LoTSS query for statring model once bug is fixed! (Don't use for now, it crashes the VO server)
 # TODO add BDA
+# TODO add timesmearing in dp3 predict
 
 import os, glob, random, json
 import numpy as np
@@ -213,7 +210,7 @@ def make_current_best_mask(imagename, threshold=6.5, userReg=None):
     s.run(check=True)
     return current_best_mask
 
-def add_3c_models(sm, phasecentre, null_mid_freq, max_sep=50., threshold=0):
+def add_3c_models(sm, phasecentre, null_mid_freq, beamMask, max_sep=50., threshold=0):
     
     with open(parset_dir+"/3C_coordinates.json", "r") as file:
         all_3c = json.load(file)
@@ -319,7 +316,7 @@ null_mid_freq = max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True)) * 
 
 # set image size - this should be a bit more than the beam region used for calibration
 pixscale = MSs.getListObj()[0].getPixelScale()
-imgsizepix_wide = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/pixscale) # roughly to null
+imgsizepix_wide = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='min', elliptical=True))*3600/pixscale) # roughly to biggest null
 if imgsizepix_wide > 10000: imgsizepix_wide = 10000
 if imgsizepix_wide % 2 != 0: imgsizepix_wide += 1  # prevent odd img sizes
 imgsizepix_lr = int(5*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/(pixscale*8))
@@ -383,7 +380,7 @@ smMHz1 = [8.0,12.0,12.0,12.0,12.0,12.0]
 # Make beam mask/reg
 beamMask = 'ddparallel/beam.fits'
 beamReg = 'ddparallel/beam.reg'
-MSs.getListObj()[0].makeBeamReg(beamReg, freq='mid', to_pbval=0)
+MSs.getListObj()[0].makeBeamReg(beamReg, freq='min', to_pbval=0)
 if not os.path.exists(beamMask):
     logger.info('Making mask of primary beam...')
     lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), size=imgsizepix_lr, scale='30arcsec')
@@ -466,24 +463,24 @@ for c in range(maxIter):
         
         # if using e.g. LoTSS, adjust for the frequency
         logger.debug(f'Extrapolating input skymodel fluxes from {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
-        si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S144 = si_factor * S54
+        si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S60 = si_factor * S54
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
         sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
         sm.setPatchPositions(method='wmean', applyBeam=True)
         sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=True)
-        # TODO we need some logic here to avoid picking up very extended sources. Also case no bright sources in a field.
+        # TODO we need some logic here to avoid picking up very extended sources.
         patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=True)
-        if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]:
-            bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor
+        # check if there are less than the minimum requested bright sources to form the facets
+        if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]: # convert skymodel fluxes to MS central freq
+            bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor # bright sources flux is at MSs central freq
             logger.warning(f'Less than {min_facets[c]} bright sources above minimum flux {facet_fluxes[c]:.2f} Jy! Using sources above {bright_sources_flux:.2f} Jy')
-        else:
-            bright_sources_flux = facet_fluxes[c]
-        if sum(patch_fluxes/si_factor > facet_fluxes[c]) > max_facets[c]:
+        # check if there are more than the maximum requested bright sources to form the facets
+        elif sum(patch_fluxes/si_factor > facet_fluxes[c]) > max_facets[c]:
             bright_sources_flux = np.sort(patch_fluxes)[-max_facets[c]] / si_factor
             logger.warning(f'More than {max_facets[c]} bright sources above minimum flux {facet_fluxes[c]:.2f} Jy! Using sources above {bright_sources_flux:.2f} Jy')
         else:
             bright_sources_flux = facet_fluxes[c]
-        bright_names = sm.getPatchNames()[patch_fluxes > bright_sources_flux*si_factor]
+        bright_names = sm.getPatchNames()[patch_fluxes >= bright_sources_flux*si_factor]
         bright_pos = sm.getPatchPositions(bright_names)
         sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=True, root='', byPatch=True)
         sm.setPatchPositions(bright_pos)
@@ -491,7 +488,7 @@ for c in range(maxIter):
 
         if c == 0 and remove3c:
             # Add models of bright 3c sources to the sky model. Model will be subtracted from data before imaging.
-            sm = add_3c_models(sm, phasecentre=phasecentre, null_mid_freq=null_mid_freq)
+            sm = add_3c_models(sm, phasecentre=phasecentre, beamMask=beamMask, null_mid_freq=null_mid_freq)
             sm.setColValues("Q", np.zeros(len(sm.getColValues("I")))) # force non I Stokes to zero
             sm.setColValues("U", np.zeros(len(sm.getColValues("I"))))
             sm.setColValues("V", np.zeros(len(sm.getColValues("I"))))
@@ -750,10 +747,7 @@ for c in range(maxIter):
         if not(np.mean(MSs.getFreqs()) < 50e6):
             widefield_kwargs['beam_size'] = 15
 
-        # if c < 2: # cylce 0 and 1 only dd-phase
         widefield_kwargs['apply_facet_solutions'] = f'{sol_dir}/cal-tec-merged-c{c}.h5 phase000'
-        # else:
-        #     widefield_kwargs['apply_facet_solutions'] = f'{sol_dir}/cal-tec-merged-c{c}.h5 phase000,amplitude000'
 
         # TODO make this faster - experiment with increased parallel-gridding as well as shared facet reads option
         # c0: make quick initial image to get a mask
@@ -771,7 +765,7 @@ for c in range(maxIter):
 
         # main wsclean call, with mask now
         logger.info('Making wide field image ...')
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM,  fits_mask=current_best_mask,
+        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask,
                              save_source_list='', update_model_required='',  nmiter=12,  auto_threshold=2.0, auto_mask=4.0,
                              apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
                              local_rms='', local_rms_window=50, local_rms_strength=0.5, **widefield_kwargs, **reuse_kwargs)
@@ -792,7 +786,7 @@ for c in range(maxIter):
 
     #####################################################################################################
     # Find calibration solutions for subfield (does not touch CORRECTED_DATA or CORRECTED_DATA_FR)
-    # if c < 2:
+
     # User provided subfield
     if subfield:
         if len(Regions.read(subfield)) > 1:
@@ -805,7 +799,7 @@ for c in range(maxIter):
         # sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted
         sm.remove('MajorAxis > 80')  # remove largest scales
         field_center1, field_size1 = lib_dd.make_subfield_region(subfield_path, MSs.getListObj()[0], sm,
-                                                                     subfield_min_flux, debug_dir='img/')
+                                                                     subfield_min_flux, pixscale, imgsizepix_wide, debug_dir='img/')
 
     subfield_reg = Regions.read(subfield_path)[0]
     subfield_center = [subfield_reg.center.ra, subfield_reg.center.dec]
@@ -994,18 +988,18 @@ for c in range(maxIter):
                     log='$nameMS_sf-correct.log', commandType='DP3')
         ### DONE
 
-            imagename_lr = 'img/wide-lr'
-            channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
-            # Image the sidelobe data
-            # MSs: create MODEL_DATA (with just the sidelobe flux)
-            with w.if_todo('image_lr'):
-                logger.info('Cleaning sidelobe low-res...')
-                lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
-                                     size=imgsizepix_lr, scale='30arcsec', save_source_list='',  parallel_gridding=4, baseline_averaging='',
-                                     weight='briggs -0.5', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
-                                     taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512,
-                                     local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5)
-            ### DONE
+        imagename_lr = 'img/wide-lr'
+        channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
+        # Image the sidelobe data
+        # MSs: create MODEL_DATA (with just the sidelobe flux)
+        with w.if_todo('image_lr'):
+            logger.info('Cleaning sidelobe low-res...')
+            lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
+                                size=imgsizepix_lr, scale='30arcsec', save_source_list='',  parallel_gridding=4, baseline_averaging='',
+                                weight='briggs -0.5', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
+                                taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512,
+                                local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5)
+        ### DONE
 
         # Subtract full low-resolution field (including possible large-scale emission within primary beam)
         # to get empty data set for flagging
@@ -1076,15 +1070,17 @@ for c in range(maxIter):
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits ddparallel/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt ddparallel/images') for c in range(maxIter) ]
-# debugging images -> can be removed in production
-[ os.system('mv img/subfield-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
-# os.system('mv img/wideP-MFS-*-image.fits ddparallel/images')
-# os.system('mv img/wide-lr-MFS-image.fits ddparallel/images')
 
 # debug images
 if develop:
+    [ os.system('mv img/subfield-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
     os.system('mv img/only*image.fits ddparallel/images')
     os.system('mv img/empty*image.fits ddparallel/images')
+else:
+    # remove MODEL_DATA cols...
+    logger.info('Removing unwanted columns...')
+    for patch in patches:
+        MSs.deletecol(patch)
 
 # Copy model
 os.system(f'mv img/wideM-{maxIter-1}-*-model.fits ddparallel/skymodel')

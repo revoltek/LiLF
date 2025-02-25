@@ -10,7 +10,7 @@ import numpy as np
 import astropy.wcs
 import warnings
 from losoto.h5parm import h5parm
-from LiLF import lib_ms, lib_img, lib_util, lib_log
+from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd
 
 
 #####################################################
@@ -90,10 +90,14 @@ if not os.path.exists(f'mss-IS'):
 if not os.path.exists(f'img'):
     os.makedirs(f'img')
 
+if not os.path.exists(f'splitdir'):
+    os.makedirs(f'splitdir')
+
 infield_reg = lib_util.Region_helper(infieldregfile)
 infield_center = infield_reg.get_center()  # center of the infield cal region
 
 MSs_orig = lib_ms.AllMSs(glob.glob(mss_path+'/*MS'), s, check_flags=False, check_sun=False)
+orig_center = MSs_orig.getListObj()[0].getPhaseCentre()
 max_uvw_m_dutch = 1.1*MSs_orig.getMaxBL(check_flags=True, dutch_only=True) # this is important, it is the maximum uvw value in meters of any dutch-dutch baseline. Everything above this value is certainly IS data
 
 #####################################################
@@ -180,19 +184,23 @@ with w.if_todo('interph5'):
     #                      facet_regions=f'{dutchdir}/ddserial/c00/images/wideDD-c00_facets.reg', maxuvw_m=max_uvw_m_dutch,
     #                      apply_facet_solutions='interp_merged.h5 phase000,amplitude000')
 
-# 3. Predict corrupted visibilities for all but the direction to split off - set to zero for all non-dutch baselines!
+# 3. Predict corrupted visibilities for the full field - set to zero for all non-dutch baselines!
 if mode in ['infield', 'ddcal']:
-    # TODO make this more efficient by subtracting evertything and then adding back what we need
+    d = lib_dd.Direction(name)
+    if mode == 'infield':
+        center = infield_center
+        d.region_file = infieldregfile
+    elif mode == 'ddcal':
+        center = dir_center
+        d.region_file = dirregfile
+    d.set_position(center, orig_center)
+    d.set_region_facets(facets_region_file=f'{dutchdir}/ddserial/c0{ddserialcycle}/solutions/facets-c0{ddserialcycle}.reg', loc='splitdir')
+
     with w.if_todo('predict'):
         # prepare model of central/external regions
-        logger.info('Blanking direction region of model files and reverse...')
-        for im in glob.glob(f'{dutchdir}/ddserial/c0{ddserialcycle}/images/wideDD-*model*.fits'):
-            wideMext = im.replace(f'wideDD-c0{ddserialcycle}',f'wideDD-c0{ddserialcycle}-{name}').split('/')[-1]
-            os.system('cp %s %s' % (im, wideMext))
-            lib_img.blank_image_reg(wideMext, infieldregfile if mode=='infield' else dirregfile, blankval = 0.)
-        # Recreate MODEL_DATA of external region for subtraction
-        logger.info('Predict corrupted model of external region (wsclean)...')
-        s.add(f'wsclean -predict -padding 1.8 -name wideDD-c0{ddserialcycle}-{name} -j {s.max_cpucores} -channels-out {len(glob.glob(f"wideDD-c0{ddserialcycle}-{name}*fpb.fits"))} \
+        logger.info('Predict corrupted model of full field (wsclean)...')
+        image_channels = len(glob.glob(f"{dutchdir}/ddserial/c0{ddserialcycle}/images/wideDD-c0{ddserialcycle}*-fpb.fits"))
+        s.add(f'wsclean -predict -padding 1.8 -name {dutchdir}/ddserial/c0{ddserialcycle}/images/wideDD-c0{ddserialcycle} -j {s.max_cpucores} -channels-out {image_channels} \
                 -facet-regions {dutchdir}/ddserial/c0{ddserialcycle}/solutions/facets-c0{ddserialcycle}.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                 -apply-facet-solutions interp_merged.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
               log='wscleanPRE.log', commandType='wsclean')
@@ -216,7 +224,31 @@ if mode in ['infield', 'ddcal']:
         #                      join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
         #                      deconvolution_channels=3, baseline_averaging='', multiscale='', multiscale_scale_bias=0.7, pol='i')
 
-correct_col = 'CORRECTED_DATA' if mode == 'widefield' else 'SUBTRACTED_DATA'
+    # 5. Predict back the corrupted visibilities for the infield direction -  set to zero for all non-dutch baselines!
+    with w.if_todo('add_back_dir'):
+        # prepare model of central/external regions
+        logger.info('Blanking model: all but direction region...')
+        for im in glob.glob(f'{dutchdir}/ddserial/c0{ddserialcycle}/images/wideDD-c0{ddserialcycle}*model*fpb.fits'):
+            wideMext = 'splitdir/' + im.replace(f'wideDD-c0{ddserialcycle}',f'wideDD-c0{ddserialcycle}-{name}').split('/')[-1]
+            os.system('cp %s %s' % (im, wideMext))
+            lib_img.blank_image_reg(wideMext, infieldregfile if mode == 'infield' else dirregfile, blankval = 0., inverse=True)
+        # Recreate MODEL_DATA of external region for re-adding
+        logger.info('Predict corrupted model of internal region (wsclean)...')
+        s.add(f'wsclean -predict -padding 1.8 -name splitdir/wideDD-c0{ddserialcycle}-{name} -j {s.max_cpucores} -channels-out {len(glob.glob(f"splitdir/wideDD-c0{ddserialcycle}-{name}*fpb.fits"))} \
+                -facet-regions {d.get_region_facets()} -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam -no-solution-directions-check \
+                -apply-facet-solutions interp_merged.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
+              log='wscleanPRE.log', commandType='wsclean')
+        s.run(check=True)
+        # Set to zero for non-dutch baselines
+        MSs.run("taql 'update $pathMS set MODEL_DATA=0 WHERE ANTENNA1 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME !~p/[CR]S*/]'", log='$nameMS_resetISmodel.log', commandType='general')
+        MSs.run("taql 'update $pathMS set MODEL_DATA=0 WHERE ANTENNA2 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME !~p/[CR]S*/]'", log='$nameMS_resetISmodel.log', commandType='general')
+
+        logger.info('Subtracting external region model (CORRECTED_DATA = SUBTRACTED_DATA + MODEL_DATA)...')
+        MSs.addcol('CORRECTED_DATA', 'DATA')
+        MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA + MODEL_DATA"',
+                log='$nameMS_taql.log', commandType='general')
+
+correct_col = 'CORRECTED_DATA'
 
 # 5. apply closest direction solutions for dutch baselines
 # TODO for now we correct DUTCH stations for the INFIELD CALIBRATOR direction. Test also using the ddcal direction for the case of splitting off ddcals.
@@ -231,7 +263,7 @@ with w.if_todo('correct_dutch_dd'):
     closest = solset_dde.getSoltab('phase000').dir[np.argmin(dir_dist)]
     logger.info('Init apply: correct closest DDE solutions ({})'.format(closest))
     logger.info('Correct init ph...')
-    MSs.run('DP3 ' + parset_dir + f'/DP3-cor.parset msin=$pathMS msin.datacolumn={"DATA" if mode=="widefield" else "SUBTRACTED_DATA"} '
+    MSs.run('DP3 ' + parset_dir + f'/DP3-cor.parset msin=$pathMS msin.datacolumn={"DATA" if mode=="widefield" else "CORRECTED_DATA"} '
                                           f'msout.datacolumn={correct_col} cor.parmdb=interp_merged.h5 cor.correction=phase000 cor.direction=' + closest,
                     log='$nameMS_init-correct.log', commandType='DP3')
     if 'amplitude000' in solset_dde.getSoltabNames():
@@ -240,14 +272,14 @@ with w.if_todo('correct_dutch_dd'):
                          cor.parmdb=interp_merged.h5 cor.correction=amplitude000 cor.direction=' + closest,
                         log='$nameMS_init-correct.log', commandType='DP3')
     h5init.close()
-    test_image_dutch(MSs, 'dutchsubcorr', data_col=correct_col)
+    # test_image_dutch(MSs, 'dutchsubcorr', data_col=correct_col)
 ### DONE
 
 with w.if_todo('beamcorr-infield'):
     logger.info('Correcting beam (infield calibrator)...')
     MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn={correct_col} msout.datacolumn={correct_col} \
             corrbeam.direction=[{infield_center[0]}deg,{infield_center[1]}deg]', log='$nameMS_beam.log', commandType='DP3')
-    test_image_dutch(MSs, 'dutchsubcorrbeam1', data_col='DATA')
+    # test_image_dutch(MSs, 'dutchsubcorrbeam1', data_col=correct_col)
 
 if mode in ['ddcal', 'widefield']:
     # apply infield delay calibrator solutions to full data
@@ -262,7 +294,6 @@ if mode in ['ddcal', 'widefield']:
 if mode == 'widefield':
     with w.if_todo('beamcorr-widefield'):
         logger.info('Correcting beam (original phase center for widefield)...')
-        orig_center = MSs.getListObj()[0].getPhaseCentre()
         MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
                 corrbeam.direction=[{orig_center[0]}deg,{orig_center[1]}deg]', log='$nameMS_beam.log',
             commandType='DP3')

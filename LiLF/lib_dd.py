@@ -139,7 +139,7 @@ class Direction(object):
         # Load the regions
         circular_region = Regions.read(self.region_file, format="ds9")[0]
         # Convert the circular region to a Shapely object
-        circle_shapely = create_circle_polygon([circular_region.center.ra.value % 360, circular_region.center.dec.value], circular_region.radius.value)
+        circle_shapely = create_circle_polygon([circular_region.center.ra.value % 360, circular_region.center.dec.value], circular_region.radius.to_value('deg'))
 
         # now work on a series of polygon regions
         region_str = ''
@@ -517,7 +517,7 @@ class Grouper( object ):
         fig.savefig('grouping_clusters.png', bbox_inches='tight')
 
 
-def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
+def make_subfield_region(name, MS, sm, min_flux, pixscale, imgsizepix, debug_dir=None):
     """
     Identify the smallest region of sky model sources that contains a certain flux.
 
@@ -527,6 +527,7 @@ def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
     MS: lib_ms.MS object, MS to find center and size of field of view
     sm: lsmtool.skymodel, apparent skymodel of the field
     min_flux: float, minimum flux in calibration subfield in Jy
+    fwhm: float, FWHM in degrees
     debug_dir: str, default=None. Save debug fits files in this dir.
 
     Returns
@@ -535,7 +536,7 @@ def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
     bestbox_size: float, size of bestbox in deg
     """
     c_ra, c_dec = MS.getPhaseCentre()
-    fwhm = 1.85*max(MS.getFWHM(freq='mid', elliptical=True))
+    fwhm = imgsizepix*pixscale/3600
     cellsize  = 1/60 # 1 arcmin
     # TODO padding?/offset?
     size_pix = int(np.round(1.1*fwhm/cellsize)) # size in pix, 10% pad
@@ -583,8 +584,7 @@ def make_subfield_region(name, MS, sm, min_flux, debug_dir=None):
             #sys.exit()
         for flux, pix in zip(fluxes, pixcrd.T):
             imdata[pix[1],pix[0]] += flux
-
-        hdu[0].data = convolve_fft(imdata,kernel,normalize_kernel=False)
+        hdu[0].data = convolve_fft(imdata, kernel, normalize_kernel=False)
         if debug_dir:
             hdu.writeto(f'{debug_dir}/flux_region_map_{int(np.rint(boxsize*60)):03}amin.fits', overwrite=True)
         max_location[i] = np.unravel_index(np.argmax(hdu[0].data), hdu[0].data.shape)
