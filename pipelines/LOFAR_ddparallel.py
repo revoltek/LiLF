@@ -580,7 +580,7 @@ for c in range(maxIter):
                 for patch in _3c_patches:
                     logger.info(f'Subtracting {patch}...')
                     # Corrupt MODEL_DATA with amplitude, set MODEL_DATA = 0 where data are flagged, then unflag everything
-                    corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
+                    #corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
                         log = f'$nameMS_subtract_{patch}.log', 
