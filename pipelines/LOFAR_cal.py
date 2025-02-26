@@ -258,6 +258,10 @@ with w.if_todo('pre_iono'):
 
     lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
                         [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
+    
+    logger.info('dTEC finder...')
+    s.add("dtec_finder.py cal-preiono.h5", log='dtec_finder.log', commandType='python')
+    s.run()
 
 ### DONE
 ########################################################
@@ -331,8 +335,11 @@ with w.if_todo('cal_fr'):
     logger.info('Iono correction (preliminary)...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
                     cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
-                    cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+    #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
+    #                cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+    logger.info('dTEC correction...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=dtec.h5 \
+                cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
     # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
 
@@ -351,6 +358,12 @@ with w.if_todo('cal_fr'):
         lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_concat_all.getListStr()],
                             [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
                              parset_dir + '/losoto-fr.parset'])
+    
+    logger.info('unflag cal-fr.h5...')
+    s.add("dtec_finder.py cal-fr.h5 rotationmeasure", log='dtec_finder.log', commandType='python')
+    s.run()
+    os.system('mv cal-fr.h5 cal-fr-original.h5')
+    os.system('mv cal-fr-noflag.h5 cal-fr.h5')
 
 ### DONE
 #################################################
@@ -365,6 +378,10 @@ with w.if_todo('cal_iono'):
     logger.info('Beam correction...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False',
                        log='$nameMS_beam.log', commandType="DP3")
+    # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('dTEC correction...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=dtec.h5 \
+                cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
     # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-fr.h5 \
@@ -431,6 +448,9 @@ with w.if_todo('cal_bp'):
     logger.info('Beam correction...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False',
                            log='$nameMS_beam.log', commandType="DP3")
+    logger.info('dTEC correction...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=dtec.h5 \
+                cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
     # FR corruption concat_all.MS:MODEL_DATA -> MODEL_DATA_FRCOR
     logger.info('Faraday rotation corruption (MODEL_DATA - > MODEL_DATA_FRCOR)...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA_FRCOR \

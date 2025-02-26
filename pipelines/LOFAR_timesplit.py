@@ -83,10 +83,11 @@ else:
         cal_dir = subdirs[0]
 
 logger.info('Calibrator directory: %s' % cal_dir)
-h5_pa = cal_dir+'/cal-pa.h5'
-h5_bp = cal_dir+'/cal-bp.h5'
-h5_iono = cal_dir+'/cal-iono.h5'
-h5_iono_cs = cal_dir+'/cal-iono-cs.h5'
+h5_pa = cal_dir + '/cal-pa.h5'
+h5_bp = cal_dir + '/cal-bp.h5'
+h5_dtec = cal_dir + '/cal-dtec.h5'
+h5_iono = cal_dir + '/cal-iono.h5'
+h5_iono_cs = cal_dir + '/cal-iono-cs.h5'
 if not os.path.exists(h5_pa) or not os.path.exists(h5_bp) or not os.path.exists(h5_iono) or not os.path.exists(h5_iono_cs):
     logger.error("Missing solutions in %s" % cal_dir)
     sys.exit()
@@ -103,6 +104,11 @@ with w.if_todo('apply'):
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
     logger.info('Beam correction...')
     MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM.log', commandType='DP3')
+    
+    # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (dtec corrected)
+    logger.info('dTEC correction...')
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_dtec} msin.datacolumn=CORRECTED_DATA \
+                cor.correction=tec000', log='$nameMS_corDTEC.log', commandType='DP3')
 
     # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, calibrator corrected+reweight)
     logger.info('Iono correction...')
