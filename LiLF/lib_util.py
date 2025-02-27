@@ -74,6 +74,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_preprocess', 'demix_field_skymodel', 'gsm')  # Provide a custom target skymodel instead of online gsm model. Set to '' to ignore target.
     add_default('LOFAR_preprocess', 'run_aoflagger', 'False')  # run aoflagger on individual sub-bands, only in cases where this was not one by the observatory!
     add_default('LOFAR_preprocess', 'tar', 'True')  # Tar MS files at the end 
+    add_default('LOFAR_preprocess', 'data_dir', '')
     # cal
     add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
     add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
@@ -100,6 +101,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'max_facets', '')
     add_default('LOFAR_ddparallel', 'min_flux_factor', '1')
     add_default('LOFAR_ddparallel', 'develop', 'False') # if true make more debug images (slower) 
+    add_default('LOFAR_ddparallel', 'data_dir', '')
     # ddserial
     add_default('LOFAR_ddserial', 'maxIter', '2')
     add_default('LOFAR_ddserial', 'minCalFlux60', '0.8')
