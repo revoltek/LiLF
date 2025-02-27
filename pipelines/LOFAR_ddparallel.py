@@ -51,6 +51,7 @@ develop = parset.getboolean('LOFAR_ddparallel', 'develop') # for development, ma
 sf_phaseSolMode = 'phase' #'tec'
 start_sourcedb = parset.get('model','sourcedb')
 userReg = parset.get('model','userReg')
+data_dir = parset.get('LOFAR_ddparallel','data_dir')
 
 #############################################################################
 
@@ -156,8 +157,16 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None,
         # get two solutions per solint (i.e. one per time step) for bright directions
         solutions_per_direction[model_column_fluxes > 4] = 2
         solutions_per_direction[model_column_fluxes > 8] = 4
-    
-    maxThreads = 1 if len(model_columns) > 30 else None
+        # if no direction has a single solution per dir, divide all by two / four
+        solint /= np.min(solutions_per_direction)
+        solutions_per_direction /= np.min(solutions_per_direction)
+
+    if len(model_columns) > 30 and solint > 60:
+        logger.warning('Detected many directions - limit number of parallel DP3 Threads to 1.')
+        maxThreads = 1
+    else:
+        maxThreads = None
+
     if solmode == 'phase':
         MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec{tc}.h5 sol.solint={solint} \
                   sol.mode=scalarphase sol.smoothnessconstraint={smMHz}e6 sol.smoothnessreffrequency=54e6 sol.nchan=1 {antennaconstraint} \
@@ -306,7 +315,7 @@ with w.if_todo('cleaning'):
 sol_dir = 'ddparallel/solutions'
 plot_dir = 'ddparallel/plots'
 
-MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s, check_flags=True)
+MSs = lib_ms.AllMSs( glob.glob(data_dir + 'mss/TC*[0-9].MS'), s, check_flags=True)
 MSs.print_HAcov()
 
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
@@ -335,7 +344,7 @@ if int(np.rint(fullband / nchan < 195.3e3/4)):
     base_nchan = int(np.rint((195.3e3/4)/(fullband/nchan))) # this is 1 for dutch observations, and larger (2,4) for IS observations
 else: base_nchan = 1
 if tint < 4:
-    base_solint = int(np.rint(4/tint)) # this is already 4 for dutch observations
+    base_solint = int(np.rint(4/tint)) # this is already 1 for dutch observations
 else: base_solint = 1
 
 mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
@@ -576,43 +585,10 @@ for c in range(maxIter):
                 MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
                 MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"', log='$nameMS_taql.log', commandType='general')
                 
-                debug_3c_sub = False
-                if debug_3c_sub:
-                    MSs.run('addcol2ms.py -m $pathMS -c DATA_SUB -i CORRECTED_DATA_FR', log='$nameMS_addcol.log', commandType='python')
-                    with open(parset_dir+"/3C_coordinates.json", "r") as file:
-                        import json
-                        all_3c = json.load(file)
-                
                 for patch in _3c_patches:
                     logger.info(f'Subtracting {patch}...')
                     # Corrupt MODEL_DATA with amplitude, set MODEL_DATA = 0 where data are flagged, then unflag everything
-                    if debug_3c_sub:
-                        MSs.run('taql "update $pathMS set DATA_SUB = CORRECTED_DATA_FR"', log='$nameMS_taql.log', commandType='general')
-                        coords = all_3c[patch.replace('source_','').replace("C","C ")]
-                        coords[0] = coords[0].replace(" ", "h", 1).replace(" ", "m", 1) + "s"
-                        coords[1] = coords[1].replace(" ", "d", 1).replace(" ", "m", 1) + "s"
-                        clean_empty(MSs,f'{patch}_data_zoom_pre', 'CORRECTED_DATA_FR', shift=coords, size=2000)
-                        clean_empty(MSs,f'{patch}_model', f'{patch}', shift=coords, size=2000)
-                        
-                        MSs.run(
-                            f"taql 'UPDATE $pathMS SET DATA_SUB = DATA_SUB - {patch}'",
-                            log = f'$nameMS_subtract_{patch}.log',
-                            commandType = 'general'
-                        )
-                        clean_empty(MSs,f'{patch}_data_after_phase', 'DATA_SUB', shift=coords, size=2000)
-
-                        # TEST: comment out amps
-                        corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
-                        MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
-                        clean_empty(MSs,f'{patch}_model_amp', f'{patch}', shift=coords, size=2000)
-                    
-                        MSs.run('taql "update $pathMS set DATA_SUB = CORRECTED_DATA_FR"', log='$nameMS_taql.log', commandType='general')
-                        MSs.run(
-                            f"taql 'UPDATE $pathMS SET DATA_SUB = DATA_SUB - {patch}'",
-                            log = f'$nameMS_subtract_{patch}.log',
-                            commandType = 'general'
-                        )
-                        clean_empty(MSs,f'{patch}_data_after_amp', 'DATA_SUB', shift=coords, size=2000)
+                    #corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
                         log = f'$nameMS_subtract_{patch}.log', 
@@ -625,7 +601,6 @@ for c in range(maxIter):
                         commandType = 'general'
                     )
                     
-                    if debug_3c_sub: MSs.deletecol('DATA_SUB')
                     MSs.deletecol(patch)
                     sm = lsmtool.load(sourcedb, beamMS=beamMS)
                     sm.select(f'Patch != {patch}')
@@ -776,14 +751,14 @@ for c in range(maxIter):
         widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec', weight='briggs -0.5', niter=1000000,
                                 gridder='wgridder',  parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                 join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
-                                multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname)
+                                multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname)#, concat_mss=True)
         # for low-freq data, allow the beam to be fitted, otherwise (survey) force 15"
         if not(np.mean(MSs.getFreqs()) < 50e6):
             widefield_kwargs['beam_size'] = 15
 
         widefield_kwargs['apply_facet_solutions'] = f'{sol_dir}/cal-tec-merged-c{c}.h5 phase000'
 
-        # TODO make this faster - experiment with increased parallel-gridding as well as shared facet reads option
+        # TODO make this faster - experiment with increased parallel-gridding as well as shared facet reads optionkeep_concat=True,
         # c0: make quick initial image to get a mask
         if c==0:
             logger.info('Making wide-field image for clean mask...')
@@ -794,7 +769,7 @@ for c in range(maxIter):
             # safe a bit of time by reusing psf and dirty in first iteration
             reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
         else:
-            current_best_mask = f'img/wideM-{c-1}-mask.fits' # is this already set by the make_current_best_mask() below? (not if we restart)
+            current_best_mask = f'img/wideM-{c-1}-mask.fits' # is this already set by the make_current_best_mask() below? (not if we restart) reuse_concat=True,
             reuse_kwargs = {}
 
         # main wsclean call, with mask now
