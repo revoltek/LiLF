@@ -662,10 +662,11 @@ for c in range(maxIter):
                     cor.parmdb={sol_dir}/cal-amp-di.h5 cor.correction=fulljones cor.soltab=[amplitudeSmooth,phaseSmooth] \
                     cor.updateweights=False',
                     log='$nameMS_diampcor.log', commandType='DP3')
-
+                
+                #sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS406LBA,RS407LBA,RS409LBA,RS310LBA,RS503LB,RS508LBA,RS509LBA]]',
                 logger.info('Solving amp-di for normalisation...')
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.datause=full sol.nchan=0 sol.solint=0 \
-                    sol.modeldatacolumns=[MODEL_DATA] sol.mode=scalaramplitude sol.h5parm=$pathMS/amp-dinorm.h5 sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS406LBA,RS407LBA,RS409LBA,RS310LBA,RS503LB,RS508LBA,RS509LBA]]',
+                        sol.modeldatacolumns=[MODEL_DATA] sol.mode=scalaramplitude sol.h5parm=$pathMS/amp-dinorm.h5',
                         log='$nameMS_diampsol.log', commandType='DP3')
 
                 lib_util.run_losoto(s, f'amp-dinorm', [ms + f'/amp-dinorm.h5' for ms in MSs.getListStr()],
