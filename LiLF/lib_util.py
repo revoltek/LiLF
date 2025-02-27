@@ -99,8 +99,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'fulljones', 'False')
     add_default('LOFAR_ddparallel', 'min_facets', '')
     add_default('LOFAR_ddparallel', 'max_facets', '')
-    add_default('LOFAR_ddparallel', 'min_flux_factor', '1')
-    add_default('LOFAR_ddparallel', 'develop', 'False') # if true make more debug images (slower) 
+    add_default('LOFAR_ddparallel', 'develop', 'False') # if true make more debug images (slower)
     add_default('LOFAR_ddparallel', 'data_dir', '')
     # ddserial
     add_default('LOFAR_ddserial', 'maxIter', '2')

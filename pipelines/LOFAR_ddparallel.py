@@ -46,7 +46,6 @@ remove3c = parset.getboolean('LOFAR_ddparallel', 'remove3c') # get rid of 3c sou
 fulljones = parset.getboolean('LOFAR_ddparallel', 'fulljones') # do fulljones DIE amp correction
 min_facets = parset.get('LOFAR_ddparallel', 'min_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [2,3,6..]
 max_facets = parset.get('LOFAR_ddparallel', 'max_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [5,10,20..]
-min_flux_factor = parset.getfloat('LOFAR_ddparallel', 'min_flux_factor') # min facet flux factor, default = 1. Higher value -> less facets.
 develop = parset.getboolean('LOFAR_ddparallel', 'develop') # for development, make more output/images
 sf_phaseSolMode = 'phase' #'tec'
 start_sourcedb = parset.get('model','sourcedb')
@@ -158,8 +157,8 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None,
         solutions_per_direction[model_column_fluxes > 4] = 2
         solutions_per_direction[model_column_fluxes > 8] = 4
         # if no direction has a single solution per dir, divide all by two / four
-        solint /= np.min(solutions_per_direction)
-        solutions_per_direction /= np.min(solutions_per_direction)
+        solint = int(solint/np.min(solutions_per_direction))
+        solutions_per_direction = (solutions_per_direction/np.min(solutions_per_direction)).astype(int)
 
     if len(model_columns) > 30 and solint > 60:
         logger.warning('Detected many directions - limit number of parallel DP3 Threads to 1.')
@@ -351,9 +350,9 @@ mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in c
 
 # define list of facet fluxes per iteration -> this can go into the config
 if 'OUTER' in MSs.getListObj()[0].getAntennaSet():
-    facet_fluxes = min_flux_factor*np.array([4,2.0, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+    facet_fluxes = np.array([4,2.0, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 elif 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
-    facet_fluxes = min_flux_factor*np.array([4,2.4, 1.3, 1.1, 1.0, 0.9])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+    facet_fluxes = np.array([4,2.4, 1.3, 1.1, 1.0, 0.9])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 
 if min_facets: # if manually provided
     if not isinstance(min_facets, list):
