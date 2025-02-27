@@ -20,9 +20,18 @@ mode = bandpass
 ampRange = [0.3,2.5]
 maxFlaggedFraction = 0.25
 minFlaggedFraction = 0.25
+nsigma = 4
 skipAnts = ['RS210LBA','RS310LBA']
 skipInternational = True
+
+[flagstation2]
+operation = FLAGSTATION
+soltab = sol000/amplitudeSmooth
+mode = relative
 nsigma = 4
+thresholdBaddata = 0.5
+skipAnts = ['RS210LBA','RS310LBA']
+skipInternational = True
 
 [plotAs]
 operation = PLOT
