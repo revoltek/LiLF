@@ -375,18 +375,20 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
         check_rm('plots')
 
 
-def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_concat=False, **kwargs):
+def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_concat=False, reuse_concat=False, **kwargs):
     """
     s : scheduler
     concat_mss : try to concatenate mss files to speed up wsclean
+    keep_concat : keep the concat MSs for re-use either by -cont or by reuse_concat=True
+    reuse_concat : reuse concatenated MS previously kept with keep_concat=True
     args : parameters for wsclean, "_" are replaced with "-", any parms=None is ignored.
            To pass a parameter with no values use e.g. " no_update_model_required='' "
     """
 
     # Check whether we can combine MS files in time, if some (or all) of them have the same antennas.
-    # This speeds up WSClean significantly.
+    # This can speed up WSClean significantly (or slow it down, depending on the number and size of MSs and the clean call).
     if concat_mss:
-        if not 'cont' in kwargs.keys():
+        if not 'cont' in kwargs.keys() and not reuse_concat:
             from LiLF import lib_ms
             from itertools import groupby
 
@@ -407,11 +409,18 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
 
             MSs_files_clean = []
             for g, group in enumerate(groups):
-                # cp is faster than taql, ok for groups of 1
+                # simply make a symlink for groups of 1, faster
                 if len(group) == 1:
-                    os.system(f'cp -r {group[0]} wsclean_concat_{g}.MS')
+                    os.system(f'ln -s {group[0]} wsclean_concat_{g}.MS')
+                    # os.system(f'cp -r {group[0]} wsclean_concat_{g}.MS')
                 else:
-                    s.add(f'taql select from {group} giving wsclean_concat_{g}.MS as plain', log=logfile, commandType='general')
+                    if 'data_column' in kwargs.keys():
+                        data_column = kwargs['data_column']
+                    else:
+                        data_column = 'CORRECTED_DATA'
+                        # as plain
+                    print(f'taql select UVW, FLAG_CATEGORY, WEIGHT, SIGMA, ANTENNA1, ANTENNA2, ARRAY_ID, DATA_DESC_ID, EXPOSURE, FEED1, FEED2, FIELD_ID, FLAG_ROW, INTERVAL, OBSERVATION_ID, PROCESSOR_ID, SCAN_NUMBER, STATE_ID, TIME, TIME_CENTROID, {data_column}, FLAG, WEIGHT_SPECTRUM from {group} giving wsclean_concat_{g}.MS', log=logfile, commandType='general')
+                    s.add(f'taql select UVW, FLAG_CATEGORY, WEIGHT, SIGMA, ANTENNA1, ANTENNA2, ARRAY_ID, DATA_DESC_ID, EXPOSURE, FEED1, FEED2, FIELD_ID, FLAG_ROW, INTERVAL, OBSERVATION_ID, PROCESSOR_ID, SCAN_NUMBER, STATE_ID, TIME, TIME_CENTROID, {data_column}, FLAG, WEIGHT_SPECTRUM from {group} giving wsclean_concat_{g}.MS', log=logfile, commandType='general')
                     s.run(check=True)
                 MSs_files_clean.append(f'wsclean_concat_{g}.MS')
         else:
@@ -433,7 +442,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
             wsc_parms.append( '-mem 10' )
         else:
             wsc_parms.append( '-idg-mode cpu' )
-
+    if s.get_cluster() == 'Spider':
+        wsc_parms.append( '-temp-dir /tmp/' )
     # temp dir
     #if s.get_cluster() == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
     #    wsc_parms.append( '-temp-dir /localwork.ssd' )
@@ -676,7 +686,12 @@ class Scheduler():
         #        sys.exit(1)
 
         if (max_cpucores == None):
-            self.max_cpucores = multiprocessing.cpu_count()
+            # check if running in a slurm environment with a limited number of CPUs (less than cpu_count())
+            slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE', False)
+            if slurm_cpus:
+                self.max_cpucores = int(slurm_cpus)
+            else:
+                self.max_cpucores = multiprocessing.cpu_count()
         else:
             self.max_cpucores = max_cpucores
 
@@ -709,6 +724,8 @@ class Scheduler():
             return "Herts"
         elif ('leidenuniv' in hostname):
             return "Leiden"
+        elif ('spider' in hostname):
+            return "Spider"
         else:
             logger.warning('Hostname %s unknown.' % hostname)
             return "Unknown"

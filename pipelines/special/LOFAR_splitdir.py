@@ -28,6 +28,18 @@ def test_image_dutch(MSs, imgname, data_col='SUBTRACTED_DATA'):
                              deconvolution_channels=3, baseline_averaging='',
                              multiscale='', multiscale_scale_bias=0.7, pol='i')
 
+def test_image_is(MSs, imgname, data_col='DATA'):
+    if False:
+        logger.warning('skip image')
+    else:
+        """ Create a quick debug image..."""
+        lib_util.run_wsclean(s, 'wsclean-test.log', MSs.getStrWsclean(), name=f'img/{imgname}',
+                             data_column=data_col, size=1000, scale=f'0.1arcsec',
+                             weight='briggs -0.3', niter=10000, gridder='wgridder', parallel_gridding=6,
+                             no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=10,
+                             auto_threshold=3.0, auto_mask=5.0,
+                             join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
+                             multiscale='', multiscale_scale_bias=0.7, pol='i')
 #####################################################
 parser = argparse.ArgumentParser(description='Split out a single direction by subtracting the rest field and correcting the stations.')
 ### Options for all modes
@@ -243,7 +255,7 @@ if mode in ['infield', 'ddcal']:
         MSs.run("taql 'update $pathMS set MODEL_DATA=0 WHERE ANTENNA1 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME !~p/[CR]S*/]'", log='$nameMS_resetISmodel.log', commandType='general')
         MSs.run("taql 'update $pathMS set MODEL_DATA=0 WHERE ANTENNA2 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME !~p/[CR]S*/]'", log='$nameMS_resetISmodel.log', commandType='general')
 
-        logger.info('Subtracting external region model (CORRECTED_DATA = SUBTRACTED_DATA + MODEL_DATA)...')
+        logger.info('Add back internal region model (CORRECTED_DATA = SUBTRACTED_DATA + MODEL_DATA)...')
         MSs.addcol('CORRECTED_DATA', 'DATA')
         MSs.run('taql "update $pathMS set CORRECTED_DATA = SUBTRACTED_DATA + MODEL_DATA"',
                 log='$nameMS_taql.log', commandType='general')
@@ -297,7 +309,7 @@ if mode == 'widefield':
         MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
                 corrbeam.direction=[{orig_center[0]}deg,{orig_center[1]}deg]', log='$nameMS_beam.log',
             commandType='DP3')
-        test_image_dutch(MSs, 'dutchsubcorrbeam1isbeam2', data_col='DATA')
+        # test_image_dutch(MSs, 'dutchsubcorrbeam1isbeam2', data_col='DATA')
 
 if mode in ['infield', 'ddcal']:
     # 6. phase shift and average the data -> to 16s,
@@ -306,10 +318,10 @@ if mode in ['infield', 'ddcal']:
         f_avg_factor = int(round(freq_resolution*1e6/MSs.getListObj()[0].getChanband()))
         center = infield_center if mode == 'infield' else dir_center
         logger.info(f'Phase shift and avg to {time_resolution}s, {freq_resolution:.4f}MHz (x{t_avg_factor} in t; x{f_avg_factor} in f)...')
-        MSs.run(f'DP3 {parset_dir}/DP3-shiftavg.parset msin=$pathMS msout=mss-{name}/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA '
+        MSs.run(f'DP3 {parset_dir}/DP3-shiftavg.parset msin=$pathMS msout=mss-{name}/$nameMS.MS msin.datacolumn=CORRECTED_DATA '
                 f'shift.phasecenter=[{center[0]}deg,{center[1]}deg] avg.freqstep={f_avg_factor} avg.timestep={t_avg_factor}',
                 log='$nameMS_shiftavg.log', commandType='DP3')
-        test_image_dutch(MSs, 'dutchsubcorrshift')
+        # test_image_dutch(MSs, 'dutchsubcorrshift')
 
     MSs_extract = lib_ms.AllMSs( glob.glob(f'mss-{name}/*.MS'), s )
 
@@ -317,4 +329,5 @@ if mode in ['infield', 'ddcal']:
         with w.if_todo('beamcorr-ddcal'):
             logger.info('Correcting beam (ddcal)...')
             MSs_extract.run('DP3 ' + parset_dir + '/DP3-beam.parset msin=$pathMS', log='$nameMS_beam.log', commandType='DP3')
-            test_image_dutch(MSs_extract, 'dutchsubcorrshiftbeam', data_col='DATA')
+            # test_image_dutch(MSs_extract, 'dutchsubcorrshiftbeam', data_col='DATA')
+            test_image_is(MSs_extract, 'is_shifted', data_col='DATA')
