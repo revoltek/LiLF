@@ -183,7 +183,7 @@ RUN rm -rf /opt/DP3/
 ENV PYTHONPATH /usr/local/lib/python3.12/site-packages/:$PYTHONPATH
 
 #####################################################################
-## Wsclean master (16/1/25)
+## Wsclean master (11/2/25)
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
     && cd /opt/wsclean && git checkout af847af6b39986b18dd06c8e0846fb01f87f36c3
