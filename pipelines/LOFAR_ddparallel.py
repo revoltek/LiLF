@@ -255,7 +255,7 @@ def add_3c_models(sm, phasecentre, null_mid_freq, beamMask, max_sep=50., thresho
             threshold = a * (sep - hnmf) + 1
         
         if source in ["3C 196", "3C 380", "3C 295"]: # take pre-existing model for calibrators
-            sourcedb = os.path.dirname(__file__) + f'/../models/calib-simple.skymodel'
+            sourcedb = os.path.dirname(__file__) + '/../models/calib-simple.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch=={source.replace(" ","")}')
         else:
@@ -421,7 +421,7 @@ with w.if_todo('solve_fr'):
     logger.info('Solving circ phase difference ...')
     MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint=' + str(30 * base_solint),
             log='$nameMS_solFR.log', commandType="DP3")
-    lib_util.run_losoto(s, f'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
+    lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
     os.system(f'mv cal-fr.h5 {sol_dir}')
     os.system(f'mv plots-fr {plot_dir}')
 
@@ -576,7 +576,7 @@ for c in range(maxIter):
                           sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=60', log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
 
                 losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
-                lib_util.run_losoto(s, f'amp-3C', [ms + f'/amp-3C.h5' for ms in MSs.getListStr()], losoto_parsets,
+                lib_util.run_losoto(s, 'amp-3C', [ms + '/amp-3C.h5' for ms in MSs.getListStr()], losoto_parsets,
                                     plots_dir=f'{plot_dir}/plots-amp-3C', h5_dir=sol_dir)
                 ### DONE
 
@@ -605,7 +605,7 @@ for c in range(maxIter):
                     sm.select(f'Patch != {patch}')
                     sm.write(sourcedb, clobber=True)
                     patches = np.delete(patches, np.where(patches == patch)[0])
-                    MSs.run(f'taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')
+                    MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')
 
                 MSs.deletecol('FLAG_BKP')  
             ### DONE
@@ -626,7 +626,7 @@ for c in range(maxIter):
                      sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
                      log='$nameMS_diampsol.log', commandType='DP3')
 
-                lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
+                lib_util.run_losoto(s, 'amp-di', [ms + '/amp-di.h5' for ms in MSs.getListStr()],
                                 [f'{parset_dir}/losoto-plot-fj.parset', f'{parset_dir}/losoto-amp-difj.parset'],
                                 plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
             
@@ -643,7 +643,7 @@ for c in range(maxIter):
                         sol.modeldatacolumns=[MODEL_DATA] sol.mode=scalaramplitude sol.h5parm=$pathMS/amp-dinorm.h5',
                         log='$nameMS_diampsol.log', commandType='DP3')
 
-                lib_util.run_losoto(s, f'amp-dinorm', [ms + f'/amp-dinorm.h5' for ms in MSs.getListStr()],
+                lib_util.run_losoto(s, 'amp-dinorm', [ms + '/amp-dinorm.h5' for ms in MSs.getListStr()],
                                 [f'{parset_dir}/losoto-plot-amp2d.parset'], plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
 
                 with h5parm(f'{sol_dir}/cal-amp-dinorm.h5') as h5:
@@ -662,7 +662,7 @@ for c in range(maxIter):
                      sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
                      log='$nameMS_diampsol.log', commandType='DP3')
 
-                lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
+                lib_util.run_losoto(s, 'amp-di', [ms + '/amp-di.h5' for ms in MSs.getListStr()],
                                 [f'{parset_dir}/losoto-plot-amp.parset', f'{parset_dir}/losoto-plot-ph.parset', f'{parset_dir}/losoto-amp-di.parset'],
                                 plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
 
@@ -699,7 +699,7 @@ for c in range(maxIter):
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec-RS-c{c}.h5', sourcedb)
 
         # by construction, the 3c sources are always at the last indices
-        filter_directions = f"--filter_directions '["+', '.join([str(i) for i in range(len(patches))])+"]'" if (c == 0 and remove3c) else ''
+        filter_directions = "--filter_directions '["+', '.join([str(i) for i in range(len(patches))])+"]'" if (c == 0 and remove3c) else ''
         # if we have dd-amplitudes, add polarization
         usepol = ' --no_pol ' if c <2 else ''
         # reference, unflag and reset the added stations f'{sol_dir}/cal-tec0-c{c}.h5',
@@ -989,7 +989,7 @@ for c in range(maxIter):
 
         # Do a rough correction of the sidelobe data using the subfield solutions
         # MSs: SUBFIELD_DATA -> SUBFIELD_DATA
-        with w.if_todo(f'correct-sidelobe'): # just for testing/debug
+        with w.if_todo('correct-sidelobe'): # just for testing/debug
             logger.info('Correct sidelobe data with subfield iono solutions...')
             MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
                     cor.parmdb={sol_dir}/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=phase000',
