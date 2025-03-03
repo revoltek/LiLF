@@ -4,7 +4,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 LABEL maintainer="Francesco de Gasperin"
 LABEL version="20250228"
 
-ENV MARCH "generic"
+ENV MARCH "x86-64"
 # AMD v3
 #ENV MARCH "znver3"
 # Intel
@@ -120,16 +120,16 @@ RUN cd /opt/EveryBeam && mkdir build && cd build \
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/astron-idg/idg.git \
     && cd /opt/idg && git checkout tags/1.2.0
-RUN if [ $MARCH == "generic" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=True -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j 6 && make install; fi
-RUN if [ $MARCH != "generic" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j 6 && make install; fi
+RUN if [ $MARCH == "x86-64" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=True -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j 6 && make install; fi
+RUN if [ $MARCH != "x86-64" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j 6 && make install; fi
 
 #####################################################################
 ## AOFlagger v3.4.0
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
     && cd /opt/aoflagger && git checkout tags/v3.4.0
-RUN if [ $MARCH == "generic" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=True .. && make -j 6 && make install; fi
-RUN if [ $MARCH != "generic" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=False .. && make -j 6 && make install; fi
+RUN if [ $MARCH == "x86-64" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=True .. && make -j 6 && make install; fi
+RUN if [ $MARCH != "x86-64" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=False .. && make -j 6 && make install; fi
 
 #####################################################################
 ## Dysco v1.3
@@ -158,7 +158,7 @@ RUN ls /usr/local/lib
 RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
     && cd /opt/DP3 && git checkout f475bc30
 
-RUN if [ $MARCH == "generic" ]; then \
+RUN if [ $MARCH == "x86-64" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
     && cmake .. \
     && make -j 6 && make install; fi
@@ -189,7 +189,7 @@ ENV PYTHONPATH /usr/local/lib/python3.12/site-packages/:$PYTHONPATH
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
     && cd /opt/wsclean && git checkout af847af6b39986b18dd06c8e0846fb01f87f36c3
 
-RUN if [ $MARCH == "generic" ]; then \
+RUN if [ $MARCH == "x86-64" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
     && cmake .. \
     && make -j 6 && make install; fi
