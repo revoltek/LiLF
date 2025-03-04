@@ -320,8 +320,8 @@ for grouped_target in grouped_targets:
 
         with open('quality/quality.pickle', 'rb') as f:
             qdict = pickle.load(f)
-        logger.info(f'Self residual rms noise (cycle 0): %.1f mJy/b' % (qdict["self_c0_rms"] * 1e3))
-        logger.info(f'Self residual rms noise (cycle 1): %.1f mJy/b' % (qdict["self_c1_rms"] * 1e3))
+        logger.info('Self residual rms noise (cycle 0): %.1f mJy/b' % (qdict["self_c0_rms"] * 1e3))
+        logger.info('Self residual rms noise (cycle 1): %.1f mJy/b' % (qdict["self_c1_rms"] * 1e3))
         logger.info('DDcal residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddcal_c0_rms'] * 1e3))
         logger.info('DDcal residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddcal_c1_rms'] * 1e3))
         logger.info('DDcal NVSS ratio (cycle 1): %.1f with %i matches' % (qdict['nvss_ratio'], qdict['nvss_match']))
