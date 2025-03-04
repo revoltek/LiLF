@@ -412,16 +412,14 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
             for g, group in enumerate(groups):
                 # simply make a symlink for groups of 1, faster
                 if len(group) == 1:
-                    os.system(f'ln -s {group[0]} wsclean_concat_{g}.MS')
+                    os.system(f'ln -s {group[0]} wsclean_concat_{g}.MS') # TEST - symlink should be the quickest
                     # os.system(f'cp -r {group[0]} wsclean_concat_{g}.MS')
                 else:
                     if 'data_column' in kwargs.keys():
                         data_column = kwargs['data_column']
                     else:
                         data_column = 'CORRECTED_DATA'
-                        # as plain
-                    print(f'taql select UVW, FLAG_CATEGORY, WEIGHT, SIGMA, ANTENNA1, ANTENNA2, ARRAY_ID, DATA_DESC_ID, EXPOSURE, FEED1, FEED2, FIELD_ID, FLAG_ROW, INTERVAL, OBSERVATION_ID, PROCESSOR_ID, SCAN_NUMBER, STATE_ID, TIME, TIME_CENTROID, {data_column}, FLAG, WEIGHT_SPECTRUM from {group} giving wsclean_concat_{g}.MS', log=logfile, commandType='general')
-                    s.add(f'taql select UVW, FLAG_CATEGORY, WEIGHT, SIGMA, ANTENNA1, ANTENNA2, ARRAY_ID, DATA_DESC_ID, EXPOSURE, FEED1, FEED2, FIELD_ID, FLAG_ROW, INTERVAL, OBSERVATION_ID, PROCESSOR_ID, SCAN_NUMBER, STATE_ID, TIME, TIME_CENTROID, {data_column}, FLAG, WEIGHT_SPECTRUM from {group} giving wsclean_concat_{g}.MS', log=logfile, commandType='general')
+                    s.add(f'taql select UVW, FLAG_CATEGORY, WEIGHT, SIGMA, ANTENNA1, ANTENNA2, ARRAY_ID, DATA_DESC_ID, EXPOSURE, FEED1, FEED2, FIELD_ID, FLAG_ROW, INTERVAL, OBSERVATION_ID, PROCESSOR_ID, SCAN_NUMBER, STATE_ID, TIME, TIME_CENTROID, {data_column}, FLAG, WEIGHT_SPECTRUM from {group} giving wsclean_concat_{g}.MS as plain', log=logfile, commandType='general')
                     s.run(check=True)
                 MSs_files_clean.append(f'wsclean_concat_{g}.MS')
         else:

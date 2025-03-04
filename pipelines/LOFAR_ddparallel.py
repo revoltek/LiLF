@@ -469,8 +469,8 @@ for c in range(maxIter):
             sm = lsmtool.load(wsc_src, beamMS=beamMS)
         
         # if using e.g. LoTSS, adjust for the frequency
-        logger.debug(f'Extrapolating input skymodel fluxes from {sm.getDefaultValues()["ReferenceFrequency"]/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
-        si_factor = (np.mean(MSs.getFreqs())/sm.getDefaultValues()['ReferenceFrequency'])**0.7 # S60 = si_factor * S54
+        logger.debug(f'Extrapolating input skymodel fluxes from {np.mean(sm.getColValues("ReferenceFrequency"))/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
+        si_factor = (np.mean(MSs.getFreqs())/np.mean(sm.getColValues('ReferenceFrequency')))**0.7 # S60 = si_factor * S54
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
         sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
         sm.setPatchPositions(method='wmean', applyBeam=True)
@@ -496,10 +496,10 @@ for c in range(maxIter):
         if c == 0 and remove3c:
             # Add models of bright 3c sources to the sky model. Model will be subtracted from data before imaging.
             sm = add_3c_models(sm, phasecentre=phasecentre, beamMask=beamMask, null_mid_freq=null_mid_freq)
-            sm.setColValues("Q", np.zeros(len(sm.getColValues("I")))) # force non I Stokes to zero
-            sm.setColValues("U", np.zeros(len(sm.getColValues("I"))))
-            sm.setColValues("V", np.zeros(len(sm.getColValues("I"))))
-        
+            for stokes in ['Q','U','V']:
+                sm.setColValues(stokes, np.zeros(len(sm.getColValues("I")))) # force non I Stokes to zero
+                sm.table[stokes].unit = u.Jy
+
         make_source_regions(sm, c)
         sm.write(sourcedb, clobber=True)
         logger.info(f'Using {len(sm.getPatchNames())} patches.')
@@ -750,7 +750,7 @@ for c in range(maxIter):
         widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec', weight='briggs -0.5', niter=1000000,
                                 gridder='wgridder',  parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                 join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
-                                multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname)#, concat_mss=True)
+                                multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname, concat_mss=True)
         # for low-freq data, allow the beam to be fitted, otherwise (survey) force 15"
         if not(np.mean(MSs.getFreqs()) < 50e6):
             widefield_kwargs['beam_size'] = 15
@@ -762,13 +762,13 @@ for c in range(maxIter):
         if c==0:
             logger.info('Making wide-field image for clean mask...')
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename,  no_update_model_required='',
-                                 auto_threshold=5.0, auto_mask=8.0, multiscale_max_scales=3, nmiter=6, **widefield_kwargs)
+                                 auto_threshold=5.0, auto_mask=8.0, multiscale_max_scales=3, nmiter=6, keep_concat=True, **widefield_kwargs)
             # make initial mask
             current_best_mask = make_current_best_mask(imagename, mask_threshold[c], userReg)
             # safe a bit of time by reusing psf and dirty in first iteration
-            reuse_kwargs = {'reuse_psf':imagename, 'reuse_dirty':imagename}
+            reuse_kwargs = {'reuse_concat':True, 'reuse_psf':imagename, 'reuse_dirty':imagename}
         else:
-            current_best_mask = f'img/wideM-{c-1}-mask.fits' # is this already set by the make_current_best_mask() below? (not if we restart) reuse_concat=True,
+            current_best_mask = f'img/wideM-{c-1}-mask.fits' # is this already set by the make_current_best_mask() below? (not if we restart)
             reuse_kwargs = {}
 
         # main wsclean call, with mask now
