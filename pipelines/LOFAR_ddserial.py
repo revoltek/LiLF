@@ -977,13 +977,12 @@ with w.if_todo('output-lres'):
     imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
     logger.info('Cleaning (low res)...')
     lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagenameL, data_column='CORRECTED_DATA',
-                size=imgsizepix/4, scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='60arcsec', niter=1000000, gridder='wgridder',
+                size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='60arcsec', niter=1000000, gridder='wgridder',
                 parallel_gridding=32, minuv_l=20, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                 no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
-                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75,
-                **beam_kwargs)
+                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60)
 
     os.system('mv %s-MFS-image*.fits %s-MFS-model.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameL, imagenameL, imagenameL, cmaj))
 ### DONE
