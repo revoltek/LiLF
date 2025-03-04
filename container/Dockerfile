@@ -220,9 +220,7 @@ RUN if [ $MARCH == "znver3" ]; then \
 ## LTA
 #####################################################################
 RUN apt-get install -y python3-cx-oracle
-#RUN cd /opt && wget https://lta.lofar.eu/software/lofar_lta-2.8.0.tar.gz && tar xf lofar_lta-2.8.0.tar.gz && rm lofar_lta-2.8.0.tar.gz
-# local patched version with correct url for download
-COPY lofar_lta-2.8.0 /opt/lofar_lta-2.8.0
+RUN cd /opt && wget https://lta.lofar.eu/software/lofar_lta-2.8.0.tar.gz && tar xf lofar_lta-2.8.0.tar.gz && rm lofar_lta-2.8.0.tar.gz
 RUN cd /opt/lofar_lta-2.8.0 && python3 setup.py install_oracle
 RUN cd /opt/lofar_lta-2.8.0 && python3 setup.py install
 RUN ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/instantclient_11_2/libaio.so.1
