@@ -255,7 +255,7 @@ def add_3c_models(sm, phasecentre, null_mid_freq, beamMask, max_sep=50., thresho
             threshold = a * (sep - hnmf) + 1
         
         if source in ["3C 196", "3C 380", "3C 295"]: # take pre-existing model for calibrators
-            sourcedb = os.path.dirname(__file__) + f'/../models/calib-simple.skymodel'
+            sourcedb = os.path.dirname(__file__) + '/../models/calib-simple.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch=={source.replace(" ","")}')
         else:
@@ -421,7 +421,7 @@ with w.if_todo('solve_fr'):
     logger.info('Solving circ phase difference ...')
     MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint=' + str(30 * base_solint),
             log='$nameMS_solFR.log', commandType="DP3")
-    lib_util.run_losoto(s, f'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
+    lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
     os.system(f'mv cal-fr.h5 {sol_dir}')
     os.system(f'mv plots-fr {plot_dir}')
 
@@ -452,27 +452,28 @@ for c in range(maxIter):
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
-            # if provided, use manual model
-            if start_sourcedb:
+            if start_sourcedb == '':  # if not provided, use GSM as default
+                start_sourcedb = 'GSM'
+            # case use survey to start
+            if start_sourcedb.upper() in ['GSM','LOTSS','TGSS']:
+                logger.info(f'Get skymodel from {start_sourcedb}...')
+                sm = lsmtool.load(start_sourcedb, VOPosition=phasecentre, VORadius=null_mid_freq/2, beamMS=beamMS)
+                if start_sourcedb.upper() == 'LOTSS':
+                    sm.setColValues('I', sm.getColValues('I')/1000) # convert mJy to Jy TODO fix in LSMtool
+                    sm.select('I>0.05', applyBeam=True)
+            # otherwise if provided, use manual model
+            else:
                 logger.info(f'Using input skymodel {start_sourcedb}')
                 sm = lsmtool.load(start_sourcedb, beamMS=beamMS)
-            else:
-                # Create initial sourcedb from GSM
-                logger.info('Get skymodel from GSM.')
-                s.add(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={null_mid_freq/2}&unit=deg"',
-                      log='wget.log', commandType='general')
-                s.run(check=True)
-                sm = lsmtool.load(sourcedb, beamMS=beamMS)
         else:
-            # get wsclean skymodel of previous iteration
-            wsc_src = f'img/wideM-{c-1}-sources-pb.txt'
-            sm = lsmtool.load(wsc_src, beamMS=beamMS)
-        
+                # get wsclean skymodel of previous iteration
+                wsc_src = f'img/wideM-{c-1}-sources-pb.txt'
+                sm = lsmtool.load(wsc_src, beamMS=beamMS)
         # if using e.g. LoTSS, adjust for the frequency
         logger.debug(f'Extrapolating input skymodel fluxes from {np.mean(sm.getColValues("ReferenceFrequency"))/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
         si_factor = (np.mean(MSs.getFreqs())/np.mean(sm.getColValues('ReferenceFrequency')))**0.7 # S60 = si_factor * S54
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
-        sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
+        sm.group('threshold', FWHM=2/60, root='Src') # group nearby components to single source patch
         sm.setPatchPositions(method='wmean', applyBeam=True)
         sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=True)
         # TODO we need some logic here to avoid picking up very extended sources.
@@ -576,7 +577,7 @@ for c in range(maxIter):
                           sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=60', log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
 
                 losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
-                lib_util.run_losoto(s, f'amp-3C', [ms + f'/amp-3C.h5' for ms in MSs.getListStr()], losoto_parsets,
+                lib_util.run_losoto(s, 'amp-3C', [ms + '/amp-3C.h5' for ms in MSs.getListStr()], losoto_parsets,
                                     plots_dir=f'{plot_dir}/plots-amp-3C', h5_dir=sol_dir)
                 ### DONE
 
@@ -605,7 +606,7 @@ for c in range(maxIter):
                     sm.select(f'Patch != {patch}')
                     sm.write(sourcedb, clobber=True)
                     patches = np.delete(patches, np.where(patches == patch)[0])
-                    MSs.run(f'taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')
+                    MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')
 
                 MSs.deletecol('FLAG_BKP')  
             ### DONE
@@ -626,7 +627,7 @@ for c in range(maxIter):
                      sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
                      log='$nameMS_diampsol.log', commandType='DP3')
 
-                lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
+                lib_util.run_losoto(s, 'amp-di', [ms + '/amp-di.h5' for ms in MSs.getListStr()],
                                 [f'{parset_dir}/losoto-plot-fj.parset', f'{parset_dir}/losoto-amp-difj.parset'],
                                 plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
             
@@ -643,7 +644,7 @@ for c in range(maxIter):
                         sol.modeldatacolumns=[MODEL_DATA] sol.mode=scalaramplitude sol.h5parm=$pathMS/amp-dinorm.h5',
                         log='$nameMS_diampsol.log', commandType='DP3')
 
-                lib_util.run_losoto(s, f'amp-dinorm', [ms + f'/amp-dinorm.h5' for ms in MSs.getListStr()],
+                lib_util.run_losoto(s, 'amp-dinorm', [ms + '/amp-dinorm.h5' for ms in MSs.getListStr()],
                                 [f'{parset_dir}/losoto-plot-amp2d.parset'], plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
 
                 with h5parm(f'{sol_dir}/cal-amp-dinorm.h5') as h5:
@@ -662,7 +663,7 @@ for c in range(maxIter):
                      sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
                      log='$nameMS_diampsol.log', commandType='DP3')
 
-                lib_util.run_losoto(s, f'amp-di', [ms + f'/amp-di.h5' for ms in MSs.getListStr()],
+                lib_util.run_losoto(s, 'amp-di', [ms + '/amp-di.h5' for ms in MSs.getListStr()],
                                 [f'{parset_dir}/losoto-plot-amp.parset', f'{parset_dir}/losoto-plot-ph.parset', f'{parset_dir}/losoto-amp-di.parset'],
                                 plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
 
@@ -699,7 +700,7 @@ for c in range(maxIter):
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec-RS-c{c}.h5', sourcedb)
 
         # by construction, the 3c sources are always at the last indices
-        filter_directions = f"--filter_directions '["+', '.join([str(i) for i in range(len(patches))])+"]'" if (c == 0 and remove3c) else ''
+        filter_directions = "--filter_directions '["+', '.join([str(i) for i in range(len(patches))])+"]'" if (c == 0 and remove3c) else ''
         # if we have dd-amplitudes, add polarization
         usepol = ' --no_pol ' if c <2 else ''
         # reference, unflag and reset the added stations f'{sol_dir}/cal-tec0-c{c}.h5',
@@ -989,7 +990,7 @@ for c in range(maxIter):
 
         # Do a rough correction of the sidelobe data using the subfield solutions
         # MSs: SUBFIELD_DATA -> SUBFIELD_DATA
-        with w.if_todo(f'correct-sidelobe'): # just for testing/debug
+        with w.if_todo('correct-sidelobe'): # just for testing/debug
             logger.info('Correct sidelobe data with subfield iono solutions...')
             MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
                     cor.parmdb={sol_dir}/cal-tec-sf-merged-c' + str(c) + '.h5 cor.correction=phase000',

@@ -150,7 +150,7 @@ if not os.path.exists('mss-avg'):
 MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
 fwhm = max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))
 workingReg = 'ddserial/workingRegion.reg' # sources outside of this region will be ignored (and not peeled)
-MSs.getListObj()[0].makeBeamReg(workingReg, freq='max', to_pbval=0)
+MSs.getListObj()[0].makeBeamReg(workingReg, freq='min', to_pbval=0)
 peelReg = 'ddserial/peelingRegion.reg' # sources outside of this region will be peeled
 MSs.getListObj()[0].makeBeamReg(peelReg, freq='max', to_pbval=0.12) # this is slighly smaller than the null
 freq_min = np.min(MSs.getFreqs())
