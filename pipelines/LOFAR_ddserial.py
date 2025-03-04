@@ -982,8 +982,7 @@ with w.if_todo('output-lres'):
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                 no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
-                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75,
-                **beam_kwargs)
+                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60)
 
     os.system('mv %s-MFS-image*.fits %s-MFS-model.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameL, imagenameL, imagenameL, cmaj))
 ### DONE
