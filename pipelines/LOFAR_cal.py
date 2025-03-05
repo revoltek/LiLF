@@ -5,7 +5,7 @@
 # It isolates various systematic effects and
 # prepare them for the transfer to the target field.
 
-import os, glob, re
+import os, glob, re, sys
 import casacore.tables as pt
 import numpy as np
 
@@ -208,6 +208,10 @@ with w.if_todo('pre_iono'):
                 log='$nameMS_weights.log', commandType='python')
     os.system('mv *png plots-weights/postbeam.png')
     
+    logger.info('pre-correcion TEC from GPS...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-dtec.h5 \
+                cor.correction=tec000', log='$nameMS_cor-gps-dtec.log', commandType="DP3")
+    
     # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
 
@@ -338,7 +342,7 @@ with w.if_todo('cal_fr'):
     #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
     #                cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
     logger.info('dTEC correction...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=dtec.h5 \
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
                 cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
     # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
@@ -360,7 +364,7 @@ with w.if_todo('cal_fr'):
                              parset_dir + '/losoto-fr.parset'])
     
     logger.info('unflag cal-fr.h5...')
-    s.add("dtec_finder.py cal-fr.h5 rotationmeasure", log='dtec_finder.log', commandType='python')
+    s.add("h5_remove_flags.py cal-fr.h5 rotationmeasure", log='h5_remove_flag.log', commandType='python')
     s.run()
     os.system('mv cal-fr.h5 cal-fr-original.h5')
     os.system('mv cal-fr-noflag.h5 cal-fr.h5')
@@ -380,7 +384,7 @@ with w.if_todo('cal_iono'):
                        log='$nameMS_beam.log', commandType="DP3")
     # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
     logger.info('dTEC correction...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=dtec.h5 \
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
                 cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
     # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
@@ -449,7 +453,7 @@ with w.if_todo('cal_bp'):
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False',
                            log='$nameMS_beam.log', commandType="DP3")
     logger.info('dTEC correction...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=dtec.h5 \
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
                 cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
     # FR corruption concat_all.MS:MODEL_DATA -> MODEL_DATA_FRCOR
     logger.info('Faraday rotation corruption (MODEL_DATA - > MODEL_DATA_FRCOR)...')
@@ -692,9 +696,9 @@ if imaging:
 
     ### DONE
 
-if not develop:
-    logger.info('Cleaning up...')
-    lib_util.check_rm('cal-preiono.h5 cal-preiono-cs.h5 cal-bp-sub.h5 cal-bp-theo.h5')
-    os.system('rm -r *MS')
+#if not develop:
+#    logger.info('Cleaning up...')
+#    lib_util.check_rm('cal-preiono.h5 cal-preiono-cs.h5 cal-bp-sub.h5 cal-bp-theo.h5')
+#    os.system('rm -r *MS')
 
 w.alldone()
