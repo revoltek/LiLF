@@ -298,7 +298,7 @@ for cmaj in range(maxIter):
                 if man_cal[0].contains(sc, wcs):
                     logger.info(f'{d.name} containted in manual region, remove auto-found direction.')
                     directions.pop(i)
-            name = f'ddcal-' + manual_dd_cal.split('.')[0]
+            name = 'ddcal-' + manual_dd_cal.split('.')[0]
             d = lib_dd.Direction(name)
             d.fluxes = reg_flux
             d.spidx_coeffs = -0.8
@@ -566,7 +566,7 @@ for cmaj in range(maxIter):
                 s.add('h5_merger.py --h5_out cal-ph-ddserial.h5 --h5_tables cal-ph-fast.h5 cal-ph-slow.h5 --h5_time_freq cal-ph-fast.h5 \
                       --no_antenna_crash %s' % (pol_param), log='h5_merger.log', commandType='python' )
                 s.run(check=True)
-                lib_util.run_losoto(s, f'ph-ddserial', f'cal-ph-ddserial.h5',
+                lib_util.run_losoto(s, 'ph-ddserial', 'cal-ph-ddserial.h5',
                                     [f'{parset_dir}/losoto-plot-ph-ddserial.parset'],
                                     plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                 os.system('mv cal-ph-ddserial.h5 %s' % d.get_h5parm('ph-ddserial'))
@@ -736,7 +736,7 @@ for cmaj in range(maxIter):
                        --no_antenna_crash', log='h5_merger.log', commandType='python')
                 s.run(check=True)
                 # plot the merged h5parm for debug
-                lib_util.run_losoto(s, f'ph1', d.get_h5parm('ph1', -2),
+                lib_util.run_losoto(s, 'ph1', d.get_h5parm('ph1', -2),
                                     [f'{parset_dir}/losoto-plot-ph1.parset'],
                                     plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstring))
 
