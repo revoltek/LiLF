@@ -230,6 +230,7 @@ with w.if_todo('saveproducts_%s' % target):
     os.system(f'cp ddserial/c00/solutions/interp.h5 ddserial/c00/solutions/facets-c00.reg {archive}')
     os.system(f'cp ddserial/c0*/skymodels/all*reg {archive}')
     os.system(f'cp ddserial/primarybeam.fits {archive}')
+    os.system(f'cp quality/quality.pickle {archive}')
     # copy ms
     logger.info(f'Copy mss -> {archive}')
     os.system(f'tar zcf {target}.tgz mss-avg')
@@ -237,7 +238,7 @@ with w.if_todo('saveproducts_%s' % target):
     # copy logs
     logger.info(f'Copy logs -> {archive}')
     os.chdir(working_dir)
-    os.system(f'cp -r Pill_*logger Pill*walker logs_Pill_* \
+    os.system(f'cp -r PiLL_*logger PiLL*walker logs_PiLL \
               *{target[:-1]}*/pipeline-timesplit_*logger *{target[:-1]}*/pipeline-timesplit.walker *{target[:-1]}*/logs_pipeline-timesplit_* \
               {target}/pipeline-ddparallel_*logger {target}/pipeline-ddparallel.walker {target}/logs_pipeline-ddparallel_* \
               {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
