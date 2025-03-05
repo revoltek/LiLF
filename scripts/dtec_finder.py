@@ -68,10 +68,11 @@ def fit_lombscargle(phases, data, tint, ant="CS002LBA", freq_split=0, plot = Tru
     else:
         best_dtec = np.sum(periodogram[dtecs] * lombfreqs[dtecs])/np.sum(periodogram[dtecs])
     
+    unwrapped = np.unwrap(angles) - np.unwrap(angles)[len(angles)//2]
     if best_dtec > 2 and dtec_sign != 0:
+        # sign is determined by the sign of previous timesteps
         sign = dtec_sign
     else:
-        unwrapped = np.unwrap(angles) - np.unwrap(angles)[len(angles)//2]
         minus = np.sum((unwrapped - dTEC(freqs, -best_dtec)/180*np.pi)**2)
         plus = np.sum((unwrapped - dTEC(freqs, best_dtec)/180*np.pi)**2)
         if minus < plus:
