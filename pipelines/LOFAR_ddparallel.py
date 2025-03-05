@@ -47,10 +47,10 @@ fulljones = parset.getboolean('LOFAR_ddparallel', 'fulljones') # do fulljones DI
 min_facets = parset.get('LOFAR_ddparallel', 'min_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [2,3,6..]
 max_facets = parset.get('LOFAR_ddparallel', 'max_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [5,10,20..]
 develop = parset.getboolean('LOFAR_ddparallel', 'develop') # for development, make more output/images
-sf_phaseSolMode = 'phase' #'tec'
+data_dir = parset.get('LOFAR_ddparallel','data_dir')
 start_sourcedb = parset.get('model','sourcedb')
 userReg = parset.get('model','userReg')
-data_dir = parset.get('LOFAR_ddparallel','data_dir')
+sf_phaseSolMode = 'phase' #'tec'
 
 #############################################################################
 
