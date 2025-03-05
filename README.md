@@ -3,8 +3,8 @@ Library for Low Frequencies
 
 LiLF is a set of functions linked together in pipelines for the reduction of low-frequency interferometric data in radio astronomy. It is built upon LOFAR software. LiLF can be used on both LOFAR and uGMRT data.
 
-- LOFAR: https://www.astron.nl/telescopes/lofar/
-- uGMRT: http://www.ncra.tifr.res.in/ncra/gmrt
+- LOFAR: <https://www.astron.nl/telescopes/lofar/>
+- uGMRT: <http://www.ncra.tifr.res.in/ncra/gmrt>
 
 ### Files:
 - ~/.stagingrc >> with the login and pass for LTA archive, for example:
