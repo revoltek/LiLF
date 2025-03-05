@@ -452,27 +452,28 @@ for c in range(maxIter):
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
-            # if provided, use manual model
-            if start_sourcedb:
+            if start_sourcedb == '':  # if not provided, use GSM as default
+                start_sourcedb = 'GSM'
+            # case use survey to start
+            if start_sourcedb.upper() in ['GSM','LOTSS','TGSS']:
+                logger.info(f'Get skymodel from {start_sourcedb}...')
+                sm = lsmtool.load(start_sourcedb, VOPosition=phasecentre, VORadius=null_mid_freq/2, beamMS=beamMS)
+                if start_sourcedb.upper() == 'LOTSS':
+                    sm.setColValues('I', sm.getColValues('I')/1000) # convert mJy to Jy TODO fix in LSMtool
+                    sm.select('I>0.05', applyBeam=True)
+            # otherwise if provided, use manual model
+            else:
                 logger.info(f'Using input skymodel {start_sourcedb}')
                 sm = lsmtool.load(start_sourcedb, beamMS=beamMS)
-            else:
-                # Create initial sourcedb from GSM
-                logger.info('Get skymodel from GSM.')
-                s.add(f'wget -O {sourcedb} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={phasecentre[0]},{phasecentre[1]}&radius={null_mid_freq/2}&unit=deg"',
-                      log='wget.log', commandType='general')
-                s.run(check=True)
-                sm = lsmtool.load(sourcedb, beamMS=beamMS)
         else:
-            # get wsclean skymodel of previous iteration
-            wsc_src = f'img/wideM-{c-1}-sources-pb.txt'
-            sm = lsmtool.load(wsc_src, beamMS=beamMS)
-        
+                # get wsclean skymodel of previous iteration
+                wsc_src = f'img/wideM-{c-1}-sources-pb.txt'
+                sm = lsmtool.load(wsc_src, beamMS=beamMS)
         # if using e.g. LoTSS, adjust for the frequency
         logger.debug(f'Extrapolating input skymodel fluxes from {np.mean(sm.getColValues("ReferenceFrequency"))/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
         si_factor = (np.mean(MSs.getFreqs())/np.mean(sm.getColValues('ReferenceFrequency')))**0.7 # S60 = si_factor * S54
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
-        sm.group('threshold', FWHM=5/60, root='Src') # group nearby components to single source patch
+        sm.group('threshold', FWHM=2/60, root='Src') # group nearby components to single source patch
         sm.setPatchPositions(method='wmean', applyBeam=True)
         sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=True)
         # TODO we need some logic here to avoid picking up very extended sources.
