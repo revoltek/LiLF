@@ -448,7 +448,7 @@ def plot_dtec(dtec: tuple) -> None:
 def process_antenna(solspath, **kwargs):
     return calculate_dtec(solspath, **kwargs, split_band=False)
 
-def dTEC_fitter(solspath: str) -> None:
+def dTEC_fitter(solspath: str, solint_dutch=5, solint_de=40, solint_int=1, nstack_dutch=7) -> None:
     import concurrent.futures as concurrentf
     __, data = open_sols(solspath, soltab="phase000")
     
@@ -456,41 +456,19 @@ def dTEC_fitter(solspath: str) -> None:
         futures = []
         for ant in data['ant']:
             if "CS" in ant or "RS" in ant or "St" in ant:
-                futures.append(executor.submit(process_antenna, solspath, ant, 5, 7, 'curvefit'))
+                futures.append(executor.submit(process_antenna, solspath, ant, solint_dutch, nstack_dutch, 'curvefit'))
             elif "DE" in ant:
-                futures.append(executor.submit(process_antenna, solspath, ant, 40, 1, 'lombscargle'))
+                futures.append(executor.submit(process_antenna, solspath, ant, solint_de, 1, 'lombscargle'))
             else:
-                futures.append(executor.submit(process_antenna, solspath, ant, 1, 1, 'lombscargle'))
+                futures.append(executor.submit(process_antenna, solspath, ant, solint_int, 1, 'lombscargle'))
         results = [future.result() for future in concurrentf.as_completed(futures)]
         
     full_dtec = combine_dtec_tuples(results)
     write_smooth_tec_solutions(solspath, full_dtec)
-    
-    
-    #dutch_dtec = calculate_dtec(solspath, antenna='dutch', solution_interval=5, nstacks=7, mode='curvefit', split_band=False)
-    '''
-    if mode == "tit":
-        # get dtec of german stations at large intervals (every 20 datapoints) average over 1 datapoint
-        #  this run is to assess the quality of the data (what time part is better)
-        german_dtec = calculate_dtec(solspath, antenna='german', solution_interval=solint_de, nstacks=1, mode='curvefit')
-        select_time = quality_check(*german_dtec)
-    elif mode == "tdt":
-        select_time = 'all'
-    '''
-    # get dtec of international stations at large intervals (every 40 datapoints) average over 1 datapoint
-    # use Lomb-Scargle to fit the data
-    #german_dtec = calculate_dtec(solspath, antenna='german', solution_interval=40, nstacks=1, mode='lombscargle')
-    #int_dtec = calculate_dtec(solspath, antenna='international_no_german', solution_interval=1, nstacks=1, mode='lombscargle') #international_no_german
-    #full_dtec = combine_dtec_tuples([dutch_dtec, german_dtec, int_dtec])
-    #write_tec_solutions(solspath, full_dtec)
-    #write_smooth_tec_solutions(solspath, full_dtec)
-    
-
-
 
 if __name__ == "__main__":
     logging.info('Starting dTEC fitter')
     args = argparser()
-    dTEC_fitter(args.solspath, args.mode, args.solint_dutch, args.solint_de, args.solint_int, args.nstack_dutch)
+    dTEC_fitter(args.solspath, args.solint_dutch, args.solint_de, args.solint_int, args.nstack_dutch)
     logging.info('Done')
     
