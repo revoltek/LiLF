@@ -35,7 +35,6 @@ RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 14 && \
 
 RUN curl -O http://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb
 RUN dpkg -i libaio1_0.3.113-4_amd64.deb && rm libaio1_0.3.113-4_amd64.deb
-RUN dpkg -i libaio1_0.3.113-4_amd64.deb && rm libaio1_0.3.113-4_amd64.deb
 
 # Add group. We chose GID 65527 to try avoiding conflicts.
 RUN groupadd -g 65527 lofar
