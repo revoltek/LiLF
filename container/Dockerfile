@@ -83,8 +83,20 @@ ENV PIP_BREAK_SYSTEM_PACKAGES 1
 ##################################################################
 ## Intel specific
 RUN if [ $MARCH == "broadwell" ]; then \
-    apt-get install -y intel-mkl; fi
+    apt-get install -y gpg-agent && \
+    wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null && \
+    echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | tee /etc/apt/sources.list.d/oneAPI.list && \
+    apt-get update && \
+    apt-get install -y intel-oneapi-mkl intel-oneapi-mkl-devel; fi
 
+# Outside if condition, but does no harm if empty.
+ENV PKG_CONFIG_PATH /opt/intel/oneapi/mkl/latest/lib/pkgconfig:$PKG_CONFIG_PATH
+ENV CMAKE_PREFIX_PATH /opt/intel/oneapi/mkl/latest/lib/cmake:$CMAKE_PREFIX_PATH
+ENV LIBRARY_PATH /opt/intel/oneapi/mkl/latest/lib:$LIBRARY_PATH
+ENV LD_LIBRARY_PATH /opt/intel/oneapi/mkl/latest/lib:$LD_LIBRARY_PATH
+ENV MKLROOT /opt/intel/oneapi/mkl/latest
+ENV PATH /opt/intel/oneapi/mkl/latest/bin:$PATH
+ENV CPATH /opt/intel/oneapi/mkl/latest/include:$CPATH
 ## end Intel specific
 
 RUN apt-get clean
