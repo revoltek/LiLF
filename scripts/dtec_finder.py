@@ -445,9 +445,6 @@ def plot_dtec(dtec: tuple) -> None:
 
 
 
-def process_antenna(solspath, **kwargs):
-    return calculate_dtec(solspath, **kwargs, split_band=False)
-
 def dTEC_fitter(solspath: str, solint_dutch=5, solint_de=40, solint_int=1, nstack_dutch=7) -> None:
     import concurrent.futures as concurrentf
     __, data = open_sols(solspath, soltab="phase000")
@@ -456,11 +453,11 @@ def dTEC_fitter(solspath: str, solint_dutch=5, solint_de=40, solint_int=1, nstac
         futures = []
         for ant in data['ant']:
             if "CS" in ant or "RS" in ant or "St" in ant:
-                futures.append(executor.submit(process_antenna, solspath, ant, solint_dutch, nstack_dutch, 'curvefit'))
+                futures.append(executor.submit(calculate_dtec, solspath, ant, solint_dutch, nstack_dutch, 'curvefit', split_band=False))
             elif "DE" in ant:
-                futures.append(executor.submit(process_antenna, solspath, ant, solint_de, 1, 'lombscargle'))
+                futures.append(executor.submit(calculate_dtec, solspath, ant, solint_de, 1, 'lombscargle', split_band=False))
             else:
-                futures.append(executor.submit(process_antenna, solspath, ant, solint_int, 1, 'lombscargle'))
+                futures.append(executor.submit(calculate_dtec, solspath, ant, solint_int, 1, 'lombscargle', split_band=False))
         results = [future.result() for future in concurrentf.as_completed(futures)]
         
     full_dtec = combine_dtec_tuples(results)
