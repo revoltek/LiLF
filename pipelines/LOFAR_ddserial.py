@@ -480,7 +480,7 @@ for cmaj in range(maxIter):
             logger.info('%s (pre): imaging...' % (d.name))
             clean('%s-pre' % logstring, MSs_dir, res='normal', size=[d.size,d.size], masksigma=5, imagereg=userReg)
         ### DONE
-        
+
         # get initial noise and set iterators for timeint solutions
         image = lib_img.Image('img/ddserialM-%s-pre-MFS-image.fits' % logstring, userReg=userReg)
         d.rms_noise_init = image.getNoise(); rms_noise_pre = d.rms_noise_init
@@ -742,17 +742,17 @@ for cmaj in range(maxIter):
 
             # remove the DD-cal from original dataset using new solutions
             with w.if_todo('%s-subtract' % logstring):
-    
+
                 # Predict - ms:MODEL_DATA
                 logger.info('Add best model to MODEL_DATA...')
                 MSs.run('DP3 '+parset_dir+'/DP3-predict.parset msin=$pathMS pre.sourcedb='+model_skymodel,
                     log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
-    
+
                 # Store FLAGS - just for sources to peel as they might be visible only for a fraction of the band
                 if d.peel_off:
                     MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"',
                              log='$nameMS_taql.log', commandType='general')
-        
+
                 # Corrput now model - ms:MODEL_DATA -> MODEL_DATA
                 # note that these are all scalar or diagonal, so they commute
                 logger.info('Corrupt ph...')
@@ -769,7 +769,7 @@ for cmaj in range(maxIter):
                     MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                            cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000',
                            log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
-        
+
                 if not d.peel_off:
                     # Corrupt for the beam
                     logger.info('Corrupting beam...')
@@ -782,7 +782,7 @@ for cmaj in range(maxIter):
                     MSs.run('DP3 '+parset_dir+'/DP3-beam2.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                            corrbeam.direction=['+str(phase_center[0])+'deg,'+str(phase_center[1])+'deg] corrbeam.beammode=element corrbeam.invert=True', \
                            log='$nameMS_beam-'+logstring+'.log', commandType='DP3')
-        
+
                 if d.peel_off:
                     # Set MODEL_DATA = 0 where data are flagged, then unflag everything
                     MSs.run('taql "update $pathMS set MODEL_DATA[FLAG] = 0"',
@@ -790,12 +790,12 @@ for cmaj in range(maxIter):
                     # Restore of FLAGS
                     MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"',
                             log='$nameMS_taql.log', commandType='general')
-    
+
                     # if it's a source to peel, remove it from the data column used for imaging
                     logger.info('Source to peel: set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA')
                     MSs.run('taql "update $pathMS set CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
                         log='$nameMS_taql.log', commandType='general')
-    
+
                 # Remove the ddcal again
                 logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
                 MSs.run('taql "update $pathMS set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA"',
