@@ -90,7 +90,7 @@ if len(MSs.getListStr()) == 0:
     sys.exit(0)
 
 if keep_IS and not MSs.hasIS:
-    logger.debug(f'Keeping IS requested but IS were not recorded - switching to averaging settings for Dutch only.')
+    logger.debug('Keeping IS requested but IS were not recorded - switching to averaging settings for Dutch only.')
     keep_IS = False
 
 ######################################
