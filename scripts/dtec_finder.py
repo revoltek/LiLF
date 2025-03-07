@@ -19,11 +19,12 @@ logging.info('dTEC fitter - Jort Boxelaar')
 def argparser() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='dTEC fitter')
     parser.add_argument('solspath', type=str, help='Path to the solutions file', required=True)
-    parser.add_argument('--mode', type=str, default="tdt", help='Mode of operation: tit (time indipendent tec) or tdt')
+    #parser.add_argument('--mode', type=str, default="tdt", help='Mode of operation: tit (time indipendent tec) or tdt')
     parser.add_argument('--solint_dutch', type=int, default=5, help='solution interval for dutch stations')
     parser.add_argument('--solint_de', type=int, default=40, help='solution interval for german stations (generally these have better solutions than other international)')
     parser.add_argument('--solint_int', type=int, default=1, help='solution interval for int stations')
     parser.add_argument('--nstack_dutch', type=int, default=7, help='number of timesteps to stack for dutch stations')
+    parser.add_argument('--gps_corrected', action='store_true', help='have the phases been pre-corrected using GPS data? (changes slightly the procedure)' )
     return parser.parse_args()
 
 def dTEC(freqs, dtec):
@@ -57,8 +58,12 @@ def fit_lombscargle(phases, data, tint, ant="CS002LBA", freq_split=0, plot=True,
     # find peaks in periodogram with largest dtec (select last five peaks with relative height > 0.1)
     # after that select the two highest peaks
     peaks, __ = find_peaks(periodogram, height=0.1)
-    dtecs = peaks[np.argsort(lombfreqs[peaks])][::-1][:5]
-    dtecs = dtecs[np.argsort(periodogram[dtecs])][::-1][:2]
+    if GPS_CORRECTED:
+        dtecs = peaks[np.argsort(periodogram[peaks])][::-1][:2]
+    else:
+        dtecs = peaks[np.argsort(lombfreqs[peaks])][::-1][:5]
+        dtecs = dtecs[np.argsort(periodogram[dtecs])][::-1][:2]
+        
     if plot:
         plt.cla(); plt.clf()
         print(lombfreqs[dtecs])
@@ -466,6 +471,7 @@ def dTEC_fitter(solspath: str, solint_dutch=5, solint_de=40, solint_int=1, nstac
 if __name__ == "__main__":
     logging.info('Starting dTEC fitter')
     args = argparser()
+    GPS_CORRECTED = args.gps_corrected
     dTEC_fitter(args.solspath, args.solint_dutch, args.solint_de, args.solint_int, args.nstack_dutch)
     logging.info('Done')
     
