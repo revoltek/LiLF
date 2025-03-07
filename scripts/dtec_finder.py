@@ -4,6 +4,8 @@
 __author__ = "J. Boxelaar"
 
 import logging
+import argparse
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import losoto.h5parm as losoto
@@ -14,11 +16,21 @@ from scipy.optimize import curve_fit
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s: %(message)s')
 logging.info('dTEC fitter - Jort Boxelaar')
 
+def argparser() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description='dTEC fitter')
+    parser.add_argument('solspath', type=str, help='Path to the solutions file', required=True)
+    parser.add_argument('--mode', type=str, default="tdt", help='Mode of operation: tit (time indipendent tec) or tdt')
+    parser.add_argument('--solint_dutch', type=int, default=5, help='solution interval for dutch stations')
+    parser.add_argument('--solint_de', type=int, default=40, help='solution interval for german stations (generally these have better solutions than other international)')
+    parser.add_argument('--solint_int', type=int, default=1, help='solution interval for int stations')
+    parser.add_argument('--nstack_dutch', type=int, default=7, help='number of timesteps to stack for dutch stations')
+    return parser.parse_args()
+
 def dTEC(freqs, dtec):
     model_tec = -8067*(freqs/60)**-1 * dtec
     return model_tec - model_tec[len(model_tec)//2]
 
-def fit_lombscargle(phases, data, tint, ant="CS002LBA", freq_split=0, plot = True, dtec_sign=1):
+def fit_lombscargle(phases, data, tint, ant="CS002LBA", freq_split=0, plot=True, dtec_sign=1):
     phases = phases[:,:,data['ant']==ant,0].squeeze().T
     stacked_phase = np.concatenate([phases[freq_split:,time] for time in range(tint[0],tint[1])])
     stacked_freqs = np.concatenate([data['freq'][freq_split:]/1.e6 for __ in range(tint[0],tint[1])])
@@ -207,7 +219,19 @@ def fit_unwrap(phases, data, tint, ant="CS002LBA", freq_split=0, plot = True):
         
     return popt[0], perr[0], freqs, angles
 
-def calculate_dtec(solspath, soltab="phase000", antenna="all", solution_interval=10, nstacks=None, split_band=True, constrain_phases=True, plot=False, t_start=None, select_time='all', mode='lombscargle'):
+def calculate_dtec(
+    solspath, 
+    soltab="phase000", 
+    antenna="all", 
+    solution_interval=10, 
+    nstacks=None, 
+    split_band=True, 
+    constrain_phases=True, 
+    plot=False, 
+    t_start=None, 
+    select_time='all', 
+    mode='lombscargle'
+):
     phases, data = open_sols(solspath, soltab=soltab, constrain=constrain_phases)
     freq_split = int(len(data["freq"])/2) if split_band else 0 # exclude bottom half of band from fit (noisy)
 
@@ -348,7 +372,14 @@ def write_tec_solutions(solspath, dtec, new_solspath: str = ""):
     tec = np.tile(aranged_dtec, (len(data['time']),1))
 
     weights = np.ones_like(tec)
-    solset.makeSoltab(soltype='tec', soltabName='tec000', axesNames=['time', 'ant'], axesVals=[data['time'], data["ant"]], vals=tec, weights=weights)
+    solset.makeSoltab(
+        soltype='tec', 
+        soltabName='tec000', 
+        axesNames=['time', 'ant'], 
+        axesVals=[data['time'], data["ant"]], 
+        vals=tec, 
+        weights=weights
+    )
     sols.close()
     
 
@@ -382,7 +413,14 @@ def write_smooth_tec_solutions(solspath, dtec, new_solspath: str = ""):
         smoothed_dtec[:,i] = get_smoothed_tec(full_dtec[idx], full_timesteps[idx], full_ants[idx], data['time'])
     
     weights = np.ones_like(smoothed_dtec)
-    solset.makeSoltab(soltype='tec', soltabName='tec000', axesNames=['time', 'ant'], axesVals=[data['time'], data["ant"]], vals=smoothed_dtec, weights=weights)
+    solset.makeSoltab(
+        soltype='tec', 
+        soltabName='tec000', 
+        axesNames=['time', 'ant'], 
+        axesVals=[data['time'], data["ant"]], 
+        vals=smoothed_dtec, 
+        weights=weights
+    )
     sols.close()
     
   
@@ -407,34 +445,34 @@ def plot_dtec(dtec: tuple) -> None:
         print(np.nanmedian(full_dtec[i]))
 
 
-def dTEC_fitter(solspath: str, mode: str = "tid") -> None:
+def dTEC_fitter(solspath: str, mode: str = "tdt", solint_dutch=5, solint_de=40, solint_int=1, nstack_dutch=7) -> None:
     # get dtec of dutch stations at small intervals (every 5 datapoints) average over 7 datapoints
-    dutch_dtec = calculate_dtec(solspath, antenna='dutch', solution_interval=5, nstacks=7, mode='curvefit', split_band=False)
+    dutch_dtec = calculate_dtec(solspath, antenna='dutch', solution_interval=solint_dutch, nstacks=nstack_dutch, mode='curvefit', split_band=False)
     
-    if mode == "tdt":
+    if mode == "tit":
         # get dtec of german stations at large intervals (every 20 datapoints) average over 1 datapoint
         #  this run is to assess the quality of the data (what time part is better)
-        german_dtec = calculate_dtec(solspath, antenna='german', solution_interval=20, nstacks=1, mode='curvefit')
+        german_dtec = calculate_dtec(solspath, antenna='german', solution_interval=solint_de, nstacks=1, mode='curvefit')
         select_time = quality_check(*german_dtec)
-    elif mode == "tid":
+    elif mode == "tdt":
         select_time = 'all'
 
     # get dtec of international stations at large intervals (every 40 datapoints) average over 1 datapoint
     # use Lomb-Scargle to fit the data
-    german_dtec = calculate_dtec(solspath, antenna='german', solution_interval=40, nstacks=1, mode='lombscargle')
-    int_dtec = calculate_dtec(solspath, antenna='international_no_german', solution_interval=1, nstacks=1, select_time=select_time, mode='lombscargle') #international_no_german
+    german_dtec = calculate_dtec(solspath, antenna='german', solution_interval=solint_de, nstacks=1, mode='lombscargle')
+    int_dtec = calculate_dtec(solspath, antenna='international_no_german', solution_interval=solint_int, nstacks=1, select_time=select_time, mode='lombscargle') #international_no_german
     full_dtec = combine_dtec_tuples([dutch_dtec, german_dtec, int_dtec])
-    if mode == "tdt":
+    if mode == "tit":
         write_tec_solutions(solspath, full_dtec)
-    elif mode == "tid":
+    elif mode == "tdt":
         write_smooth_tec_solutions(solspath, full_dtec)
     
 
 
 
 if __name__ == "__main__":
-    import sys
     logging.info('Starting dTEC fitter')
-    dTEC_fitter(sys.argv[1])
+    args = argparser()
+    dTEC_fitter(args.solspath, args.mode, args.solint_dutch, args.solint_de, args.solint_int, args.nstack_dutch)
     logging.info('Done')
     
