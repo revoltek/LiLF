@@ -461,6 +461,20 @@ for c in range(maxIter):
                 if start_sourcedb.upper() == 'LOTSS':
                     sm.setColValues('I', sm.getColValues('I')/1000) # convert mJy to Jy TODO fix in LSMtool
                     sm.select('I>0.05', applyBeam=True)
+                    
+            elif start_sourcedb.upper() == 'LOTSS-DR3':
+                # load LoTSS DR3 model and select decrease size in DEC
+                # using components downloaded from https://www.lofar-surveys.org/downloads/DR3/catalogues/LoTSS_DR3_v0.1_gaus.fits
+                # componentlist prepared on 11-03-2025 (total flux in Jy)
+                sm.load(os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', beamMS=beamMS)
+                sm.select(f'Dec >= {phasecentre[1] - null_mid_freq/2}', applyBeam=True)
+                sm.select(f'Dec <= {phasecentre[1] + null_mid_freq/2}', applyBeam=True)
+                
+                phasecentre_sky = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg))
+                skycoords = SkyCoord(sm.getColValues('Ra'), sm.getColValues('Dec'), unit=(u.hourangle, u.deg), frame='icrs')
+                seperations = skycoords.separation(phasecentre_sky).degree
+                sm.select(seperations < null_mid_freq*0.5, applyBeam=True)
+                    
             # otherwise if provided, use manual model
             else:
                 logger.info(f'Using input skymodel {start_sourcedb}')
