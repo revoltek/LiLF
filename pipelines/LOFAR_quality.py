@@ -102,7 +102,7 @@ if os.path.exists(ddserial_dir):
 
     with w.if_todo('process_ddimage'):
         os.chdir(f'{ddserial_dir}/c01/images/') # bdsf raises error if image not in wdir?
-        img = bdsf.process_image('wideDD-c01-MFS-image-pb.fits', detection_image=f'wideDD-c01-MFS-image.fits',
+        img = bdsf.process_image('wideDD-c01-MFS-image-pb.fits', detection_image='wideDD-c01-MFS-image.fits',
                                  thresh_isl=4.0, thresh_pix=5.0, rms_box=(150, 15),
                                  rms_map=True, mean_map='zero', ini_method='intensity', adaptive_rms_box=True,
                                  adaptive_thresh=50, rms_box_bright=(60, 15),group_by_isl=False, group_tol=10.0,
