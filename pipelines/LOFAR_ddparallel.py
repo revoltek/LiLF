@@ -466,14 +466,26 @@ for c in range(maxIter):
                 # load LoTSS DR3 model and select decrease size in DEC
                 # using components downloaded from https://www.lofar-surveys.org/downloads/DR3/catalogues/LoTSS_DR3_v0.1_gaus.fits
                 # componentlist prepared on 11-03-2025 (total flux in Jy)
-                sm.load(os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', beamMS=beamMS)
-                sm.select(f'Dec >= {phasecentre[1] - null_mid_freq/2}', applyBeam=True)
-                sm.select(f'Dec <= {phasecentre[1] + null_mid_freq/2}', applyBeam=True)
-                
-                phasecentre_sky = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg))
-                skycoords = SkyCoord(sm.getColValues('Ra'), sm.getColValues('Dec'), unit=(u.hourangle, u.deg), frame='icrs')
+                import pandas as pd
+                with open(os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 'r') as f:
+                    header = f.readline()
+                    original_colnames = header.replace('\n','').split(",")
+                    colnames = header.replace('\n','').split(" = ")[-1].split(", ")
+                    
+                table = pd.read_csv(
+                    os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 
+                    names=colnames,skiprows=1)
+
+                table = table[table['Dec'] >= phasecentre[1] - null_mid_freq/2]
+                table = table[table['Dec'] <= phasecentre[1] + null_mid_freq/2]
+
+                phasecentre_sky = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg), frame='icrs')
+                skycoords = SkyCoord(table['Ra'], table['Dec'], unit=(u.deg, u.deg), frame='icrs')
                 seperations = skycoords.separation(phasecentre_sky).degree
-                sm.select(seperations < null_mid_freq*0.5, applyBeam=True)
+                table = table[seperations < null_mid_freq/2]
+                
+                table.to_csv('ddparallel/skymodel/starting.skymodel', index=False, header=original_colnames)
+                sm = lsmtool.load('ddparallel/skymodel/starting.skymodel', beamMS=beamMS)
                     
             # otherwise if provided, use manual model
             else:
