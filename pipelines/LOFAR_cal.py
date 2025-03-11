@@ -291,7 +291,7 @@ with w.if_todo('cal_pa'):
 
         # HE: sol.rotationdiagonalmode diagonalphase seemes to give more stable results and surpresses the ~60 MHz bump weirdness
         # Solve concat_pa.MS:DATA (only solve)
-        logger.info(f'Calibrating PA...')
+        logger.info('Calibrating PA...')
         MSs_pa.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 \
                sol.mode=rotation+diagonal sol.rotationdiagonalmode=diagonalphase sol.datause=full \
                sol.solint=1 sol.nchan=1', log='$nameMS_solPA.log', commandType="DP3")
@@ -457,7 +457,7 @@ with w.if_todo('cal_bp'):
                         [parset_dir + flag_parset])
 
     # merge the solution with the bandpass before losoto
-    s.add(f'h5_merger.py --h5_out cal-bp.h5 --h5_tables cal-bp-sub.h5 cal-bp-theo.h5 --propagate_flags'
+    s.add('h5_merger.py --h5_out cal-bp.h5 --h5_tables cal-bp-sub.h5 cal-bp-theo.h5 --propagate_flags'
             , log='h5_merger.log', commandType='python')
     s.run(check=True)
 

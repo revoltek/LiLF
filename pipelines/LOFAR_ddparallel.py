@@ -47,10 +47,10 @@ fulljones = parset.getboolean('LOFAR_ddparallel', 'fulljones') # do fulljones DI
 min_facets = parset.get('LOFAR_ddparallel', 'min_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [2,3,6..]
 max_facets = parset.get('LOFAR_ddparallel', 'max_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [5,10,20..]
 develop = parset.getboolean('LOFAR_ddparallel', 'develop') # for development, make more output/images
-sf_phaseSolMode = 'phase' #'tec'
+data_dir = parset.get('LOFAR_ddparallel','data_dir')
 start_sourcedb = parset.get('model','sourcedb')
 userReg = parset.get('model','userReg')
-data_dir = parset.get('LOFAR_ddparallel','data_dir')
+sf_phaseSolMode = 'phase' #'tec'
 
 #############################################################################
 
@@ -572,6 +572,7 @@ for c in range(maxIter):
             with w.if_todo('3c_solve_amp'):
                 logger.info('Solving amplitude for 3C...')
                 # Solve diagonal amplitude MSs:SMOOTHED_DATA
+                # TODO: try solving only CS and replicate
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true\
                           sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
                           sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=60', log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
@@ -585,10 +586,45 @@ for c in range(maxIter):
                 MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
                 MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"', log='$nameMS_taql.log', commandType='general')
                 
+                debug_3c_sub = False
+                if debug_3c_sub:
+                    MSs.run('addcol2ms.py -m $pathMS -c DATA_SUB -i CORRECTED_DATA_FR', log='$nameMS_addcol.log', commandType='python')
+                    with open(parset_dir+"/3C_coordinates.json", "r") as file:
+                        import json
+                        all_3c = json.load(file)
+                        
                 for patch in _3c_patches:
                     logger.info(f'Subtracting {patch}...')
                     # Corrupt MODEL_DATA with amplitude, set MODEL_DATA = 0 where data are flagged, then unflag everything
                     #corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
+                    if debug_3c_sub:
+                        MSs.run('taql "update $pathMS set DATA_SUB = CORRECTED_DATA_FR"', log='$nameMS_taql.log', commandType='general')
+                        coords = all_3c[patch.replace('source_','').replace("C","C ")]
+                        coords[0] = coords[0].replace(" ", "h", 1).replace(" ", "m", 1) + "s"
+                        coords[1] = coords[1].replace(" ", "d", 1).replace(" ", "m", 1) + "s"
+                        clean_empty(MSs,f'{patch}_data_zoom_pre', 'CORRECTED_DATA_FR', shift=coords, size=2000)
+                        clean_empty(MSs,f'{patch}_model', f'{patch}', shift=coords, size=2000)
+                        
+                        MSs.run(
+                            f"taql 'UPDATE $pathMS SET DATA_SUB = DATA_SUB - {patch}'",
+                            log = f'$nameMS_subtract_{patch}.log',
+                            commandType = 'general'
+                        )
+                        clean_empty(MSs,f'{patch}_data_after_phase', 'DATA_SUB', shift=coords, size=2000)
+
+                        # TEST: comment out amps
+                        corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
+                        MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
+                        clean_empty(MSs,f'{patch}_model_amp', f'{patch}', shift=coords, size=2000)
+                    
+                        MSs.run('taql "update $pathMS set DATA_SUB = CORRECTED_DATA_FR"', log='$nameMS_taql.log', commandType='general')
+                        MSs.run(
+                            f"taql 'UPDATE $pathMS SET DATA_SUB = DATA_SUB - {patch}'",
+                            log = f'$nameMS_subtract_{patch}.log',
+                            commandType = 'general'
+                        )
+                        clean_empty(MSs,f'{patch}_data_after_amp', 'DATA_SUB', shift=coords, size=2000)
+                        
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
                         log = f'$nameMS_subtract_{patch}.log', 
@@ -601,6 +637,7 @@ for c in range(maxIter):
                         commandType = 'general'
                     )
                     
+                    if debug_3c_sub: MSs.deletecol('DATA_SUB')
                     MSs.deletecol(patch)
                     sm = lsmtool.load(sourcedb, beamMS=beamMS)
                     sm.select(f'Patch != {patch}')
@@ -657,7 +694,7 @@ for c in range(maxIter):
                     log='$nameMS_diampcor.log', commandType='DP3')
 
             else:
-                logger.info('Solving amp-di...')
+                logger.info('Solving amp-di (diagonal)...')
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
                      sol.mode=diagonal sol.h5parm=$pathMS/amp-di.h5 sol.solint={150*base_solint} sol.minvisratio=0.5 \
                      sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',

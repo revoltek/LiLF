@@ -219,7 +219,7 @@ def main():
 
     elif args.maskname:
         mask_image, mask_header = get_image(args.maskname)
-        LOGGER.info(f"Input mask loaded")
+        LOGGER.info("Input mask loaded")
 
         out_mask_fits = args.outfile or f"{name}.out.{ext}"
     else:
@@ -270,7 +270,7 @@ def main():
                 remove_regions(mask_image, regs, wcs)
 
     if args.islands:
-        LOGGER.info(f"(Re)numbering islands")
+        LOGGER.info("(Re)numbering islands")
         mask_image = mask_image != 0
         # mask_image = mask_image.byteswap().newbyteorder()
         mask_image, num_features = label(mask_image)
@@ -301,12 +301,12 @@ def main():
         mask_image = min_mask[island_labels.ravel()].reshape(island_labels.shape)
 
     if args.make_binary:
-        LOGGER.info(f"Converting mask to binary")
+        LOGGER.info("Converting mask to binary")
         mask_image = mask_image!=0
         mask_header['BUNIT'] = 'mask'
 
     if args.invert:
-        LOGGER.info(f"Inverting mask")
+        LOGGER.info("Inverting mask")
         mask_image = mask_image==0
 
     if args.dilate:
@@ -322,7 +322,7 @@ def main():
         mask_image = binary_erosion(input=mask_image, iterations=N)
         
     if args.fill_holes:
-        LOGGER.info(f"Filling closed regions")
+        LOGGER.info("Filling closed regions")
         mask_image = binary_fill_holes(mask_image)
 
     if args.sum_peak:
@@ -377,7 +377,7 @@ def main():
         output_file("breizorro.html", title="Mask Editor")
         show(p)
 
-        LOGGER.info(f"Enforcing that mask to binary")
+        LOGGER.info("Enforcing that mask to binary")
         mask_image = mask_image!=0
         mask_header['BUNIT'] = 'mask'
 

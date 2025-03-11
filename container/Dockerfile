@@ -83,8 +83,20 @@ ENV PIP_BREAK_SYSTEM_PACKAGES 1
 ##################################################################
 ## Intel specific
 RUN if [ $MARCH == "broadwell" ]; then \
-    apt-get install -y intel-mkl; fi
+    apt-get install -y gpg-agent && \
+    wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null && \
+    echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | tee /etc/apt/sources.list.d/oneAPI.list && \
+    apt-get update && \
+    apt-get install -y intel-oneapi-mkl intel-oneapi-mkl-devel; fi
 
+# Outside if condition, but does no harm if empty.
+ENV PKG_CONFIG_PATH /opt/intel/oneapi/mkl/latest/lib/pkgconfig:$PKG_CONFIG_PATH
+ENV CMAKE_PREFIX_PATH /opt/intel/oneapi/mkl/latest/lib/cmake:$CMAKE_PREFIX_PATH
+ENV LIBRARY_PATH /opt/intel/oneapi/mkl/latest/lib:$LIBRARY_PATH
+ENV LD_LIBRARY_PATH /opt/intel/oneapi/mkl/latest/lib:$LD_LIBRARY_PATH
+ENV MKLROOT /opt/intel/oneapi/mkl/latest
+ENV PATH /opt/intel/oneapi/mkl/latest/bin:$PATH
+ENV CPATH /opt/intel/oneapi/mkl/latest/include:$CPATH
 ## end Intel specific
 
 RUN apt-get clean
@@ -95,7 +107,7 @@ RUN apt-get clean
 RUN cd /opt && git clone --single-branch --branch master https://github.com/casacore/casacore.git \
     && cd /opt/casacore && git checkout tags/v3.6.1
 RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused ftp://anonymous@ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar && rm WSRT_Measures.ztar
-RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=False -DBUILD_PYTHON3=True -DUSE_OPENMP=True -DUSE_HDF5=True .. && make -j 6 && make install
+RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=False -DBUILD_PYTHON3=True -DUSE_OPENMP=True -DUSE_HDF5=True .. && make -j `nproc` && make install
 #RUN rm -rf /opt/casacore/build
 
 #####################################################################
@@ -220,9 +232,7 @@ RUN if [ $MARCH == "znver3" ]; then \
 ## LTA
 #####################################################################
 RUN apt-get install -y python3-cx-oracle
-#RUN cd /opt && wget https://lta.lofar.eu/software/lofar_lta-2.8.0.tar.gz && tar xf lofar_lta-2.8.0.tar.gz && rm lofar_lta-2.8.0.tar.gz
-# local patched version with correct url for download
-COPY lofar_lta-2.8.0 /opt/lofar_lta-2.8.0
+RUN cd /opt && wget https://lta.lofar.eu/software/lofar_lta-2.8.0.tar.gz && tar xf lofar_lta-2.8.0.tar.gz && rm lofar_lta-2.8.0.tar.gz
 RUN cd /opt/lofar_lta-2.8.0 && python3 setup.py install_oracle
 RUN cd /opt/lofar_lta-2.8.0 && python3 setup.py install
 RUN ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/instantclient_11_2/libaio.so.1
