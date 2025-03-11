@@ -177,10 +177,10 @@ if not os.path.exists(targetname):
     os.system(f'mkdir {targetname}')
 os.chdir(str(targetname))
 
-logger_obj = lib_log.Logger(f'pipeline-extract')
+logger_obj = lib_log.Logger('pipeline-extract')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
-w = lib_util.Walker(f'pipeline-extract.walker')
+w = lib_util.Walker('pipeline-extract.walker')
 warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
 cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
 
@@ -303,8 +303,8 @@ else:
 
 if not len(close_pointings): # raise error if none are found!
     logger.error(f'Did not find any pointing covering coordinates {target_ra}, {target_dec} with primary beam response > {beam_cut} in {pathdir}.')
-    logger.error(f'If this is somehow unexpected, check the path (-p) and coordinates and try again.')
-    logger.error(f'If you wish to force the extraction, you can lower the beam sensitivity threshold (default = 0.3).')
+    logger.error('If this is somehow unexpected, check the path (-p) and coordinates and try again.')
+    logger.error('If you wish to force the extraction, you can lower the beam sensitivity threshold (default = 0.3).')
     sys.exit(1)
 
 print('')
@@ -649,7 +649,7 @@ for c in range(maxniter):
                         f'sol.h5parm=$pathMS/cal-fulljones.h5 sol.mode=fulljones sol.smoothnessconstraint=5e6 sol.nchan=1 sol.solint={solint_amp2}',
                         log=f'$nameMS_solFulljones-c{c}.log', commandType="DP3")
 
-                lib_util.run_losoto(s, f'fulljones', [ms + '/cal-fulljones.h5' for ms in MSs_extract.getListStr()], \
+                lib_util.run_losoto(s, 'fulljones', [ms + '/cal-fulljones.h5' for ms in MSs_extract.getListStr()], \
                                     [parset_dir + '/losoto-fulljones.parset'], plots_dir='extract/plots-%s' % c)
                 os.system('mv cal-fulljones.h5 %s' % h5fj)
 
