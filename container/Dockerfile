@@ -16,18 +16,18 @@ USER root
 RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
-RUN apt-get install -y cmake texinfo git wget flex bison sudo vim hdf5-tools rename python3-magic htop curl g++ gfortran \
+RUN apt-get install -y cmake texinfo git wget flex bison sudo vim hdf5-tools rename python3-magic htop curl \
     python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm \
     libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev libaio1t64 libaio-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
 # GCC 14. Should be removed after upgrading the container base to Ubuntu version with native GCC >= 14.
-#RUN apt-get install -y software-properties-common
-#RUN add-apt-repository -y universe && apt-get update
-#RUN apt-get install -y gcc-14 g++-14 gfortran-14
-#RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 14 && \
-#    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 && \
-#    update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-14 14
+RUN apt-get install -y software-properties-common
+RUN add-apt-repository -y universe && apt-get update
+RUN apt-get install -y gcc-14 g++-14 gfortran-14
+RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 14 && \
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 && \
+    update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-14 14
 
 RUN curl -O http://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb
 RUN dpkg -i libaio1_0.3.113-4_amd64.deb && rm libaio1_0.3.113-4_amd64.deb
@@ -74,9 +74,9 @@ ENV PIP_BREAK_SYSTEM_PACKAGES 1
 #RUN rm -rf $AOCL_ROOT/amd-fftw $AOCL_ROOT/lib/libfftw*.so $AOCL_ROOT/include/fftw3*
 #RUN mkdir /opt/fftw/ && cd /opt/fftw/ && git clone https://github.com/amd/amd-fftw.git
 # Install single precision version
-#RUN cd /opt/fftw/amd-fftw && ./configure --enable-float --enable-threads --enable-sse2 --enable-avx --enable-avx2 --enable-avx512 --enable-openmp --enable-shared --enable-amd-opt --enable-amd-mpifft --prefix=/opt/aocl/4.0 && make -j 6 && make install && make clean
+#RUN cd /opt/fftw/amd-fftw && ./configure --enable-float --enable-threads --enable-sse2 --enable-avx --enable-avx2 --enable-avx512 --enable-openmp --enable-shared --enable-amd-opt --enable-amd-mpifft --prefix=/opt/aocl/4.0 && make -j `nproc --all` && make install && make clean
 # Install double precision version
-#RUN cd /opt/fftw/amd-fftw && ./configure --enable-threads --enable-sse2 --enable-avx --enable-avx2 --enable-avx512 --enable-openmp --enable-shared --enable-amd-opt --enable-amd-mpifft --prefix=/opt/aocl/4.0 && make -j 6 && make install
+#RUN cd /opt/fftw/amd-fftw && ./configure --enable-threads --enable-sse2 --enable-avx --enable-avx2 --enable-avx512 --enable-openmp --enable-shared --enable-amd-opt --enable-amd-mpifft --prefix=/opt/aocl/4.0 && make -j `nproc --all` && make install
 
 ## end AMD specific
 
@@ -107,8 +107,8 @@ RUN apt-get clean
 RUN cd /opt && git clone --single-branch --branch master https://github.com/casacore/casacore.git \
     && cd /opt/casacore && git checkout tags/v3.6.1
 RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused ftp://anonymous@ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar && rm WSRT_Measures.ztar
-RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=False -DBUILD_PYTHON3=True -DUSE_OPENMP=True -DUSE_HDF5=True .. && make -j `nproc` && make install
-#RUN rm -rf /opt/casacore/build
+RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=False -DBUILD_PYTHON3=True -DUSE_OPENMP=True -DUSE_HDF5=True .. && make -j `nproc --all` && make install
+RUN cd /opt/casacore && rm -r $(ls -A | grep -v data)
 
 #####################################################################
 ## CASACORE-python v3.6.1
@@ -124,24 +124,25 @@ RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
     && cd /opt/EveryBeam && git checkout tags/v0.7.0
 RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
-    && make -j 6 && make install
-#RUN rm -rf /opt/EveryBeam/
+    && make -j `nproc --all` && make install
+RUN rm -rf /opt/EveryBeam/
+ENV EVERYBEAM_DATADIR /usr/local/share/everybeam
     
 #####################################################################
 ## idg v1.2.0
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/astron-idg/idg.git \
     && cd /opt/idg && git checkout tags/1.2.0
-RUN if [ $MARCH == "x86-64" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=True -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j 6 && make install; fi
-RUN if [ $MARCH != "x86-64" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j 6 && make install; fi
+RUN if [ $MARCH == "x86-64" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=True -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j `nproc --all` && make install; fi
+RUN if [ $MARCH != "x86-64" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j `nproc --all` && make install; fi
 
 #####################################################################
 ## AOFlagger v3.4.0
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
     && cd /opt/aoflagger && git checkout tags/v3.4.0
-RUN if [ $MARCH == "x86-64" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=True .. && make -j 6 && make install; fi
-RUN if [ $MARCH != "x86-64" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=False .. && make -j 6 && make install; fi
+RUN if [ $MARCH == "x86-64" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=True .. && make -j `nproc --all` && make install; fi
+RUN if [ $MARCH != "x86-64" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=False .. && make -j `nproc --all` && make install; fi
 
 #####################################################################
 ## Dysco v1.3
@@ -151,7 +152,7 @@ RUN if [ $MARCH != "x86-64" ]; then cd /opt/aoflagger && mkdir build && cd build
 #    && cd /opt/dysco && git checkout tags/v1.3
 #RUN cd /opt/dysco && mkdir build && cd build \
 #    && cmake -DPORTABLE=True .. \
-#    && make -j 6 && make install
+#    && make -j `nproc --all` && make install
 
 #####################################################################
 ## LofarStMan
@@ -160,7 +161,7 @@ RUN if [ $MARCH != "x86-64" ]; then cd /opt/aoflagger && mkdir build && cd build
 #RUN cd /opt && git clone https://github.com/lofar-astron/LofarStMan
 #RUN cd /opt/LofarStMan && mkdir build && cd build \
 #    && cmake -DPORTABLE=True .. \
-#    && make -j 6 && make install
+#    && make -j `nproc --all` && make install
 
 ####################################################################
 ## Dp3 master (03/02/25)
@@ -173,17 +174,17 @@ RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
 RUN if [ $MARCH == "x86-64" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
     && cmake .. \
-    && make -j 6 && make install; fi
+    && make -j `nproc --all` && make install; fi
 
 RUN if [ $MARCH == "broadwell" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
     && cmake -DTARGET_CPU=${MARCH} .. \
-    && make -j 6 && make install; fi
+    && make -j `nproc --all` && make install; fi
 
 RUN if [ $MARCH == "znver3" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
     && cmake -DTARGET_CPU=${MARCH} .. \
-    && make -j 6 && make install; fi
+    && make -j `nproc --all` && make install; fi
 
 #        -DBLAS_flexiblas_LIBRARY=${AOCL_ROOT}/lib/libblis.so \
 #        -DFFTW3F_LIB="${AOCL_ROOT}/lib/libfftw3f.so" \
@@ -191,7 +192,7 @@ RUN if [ $MARCH == "znver3" ]; then \
 #        -DFFTW3_INCLUDE_DIR="${AOCL_ROOT}/include/" \
 #        -DLAPACK_flexiblas_LIBRARY=${AOCL_ROOT}/lib/libflame.so \
 
-#RUN rm -rf /opt/DP3/
+RUN rm -rf /opt/DP3/
 # add "import dp3"
 ENV PYTHONPATH /usr/local/lib/python3.12/site-packages/:$PYTHONPATH
 
@@ -204,17 +205,17 @@ RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
 RUN if [ $MARCH == "x86-64" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
     && cmake .. \
-    && make -j 6 && make install; fi
+    && make -j `nproc --all` && make install; fi
 
 RUN if [ $MARCH == "broadwell" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
     && cmake -DTARGET_CPU=${MARCH} .. \
-    && make -j 6 && make install; fi
+    && make -j `nproc --all` && make install; fi
 
 RUN if [ $MARCH == "znver3" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
     && cmake -DTARGET_CPU=${MARCH} .. \
-    && make -j 6 && make install; fi
+    && make -j `nproc --all` && make install; fi
 
 #    -DFFTW3_LIB="${AOCL_ROOT}/lib/libfftw3.so" \
 #    -DFFTW3_THREADS_LIB="${AOCL_ROOT}/lib/libfftw3_threads.so" \
@@ -233,6 +234,8 @@ RUN if [ $MARCH == "znver3" ]; then \
 #####################################################################
 RUN apt-get install -y python3-cx-oracle
 RUN cd /opt && wget https://lta.lofar.eu/software/lofar_lta-2.8.0.tar.gz && tar xf lofar_lta-2.8.0.tar.gz && rm lofar_lta-2.8.0.tar.gz
+# local patched version with correct url for download
+#COPY lofar_lta-2.8.0 /opt/lofar_lta-2.8.0
 RUN cd /opt/lofar_lta-2.8.0 && python3 setup.py install_oracle
 RUN cd /opt/lofar_lta-2.8.0 && python3 setup.py install
 RUN ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/instantclient_11_2/libaio.so.1
@@ -246,11 +249,10 @@ RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
 RUN cd /opt/PyBDSF && pip install .
 
 #####################################################################
-## LSMtool (master fix_query_tempdir)
+## LSMtool (fix_query_tempdir)
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/LSMTool.git \
     && cd /opt/LSMTool; git checkout fix_query_tempdir
-#RUN cd /opt/LSMTool && python3 setup.py install --build_c_extentions
 RUN cd /opt/LSMTool && pip install . --upgrade
 
 ####################################################################
