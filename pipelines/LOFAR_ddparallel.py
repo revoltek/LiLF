@@ -461,6 +461,32 @@ for c in range(maxIter):
                 if start_sourcedb.upper() == 'LOTSS':
                     sm.setColValues('I', sm.getColValues('I')/1000) # convert mJy to Jy TODO fix in LSMtool
                     sm.select('I>0.05', applyBeam=True)
+                    
+            elif start_sourcedb.upper() == 'LOTSS-DR3':
+                # load LoTSS DR3 model and select decrease size in DEC
+                # using components downloaded from https://www.lofar-surveys.org/downloads/DR3/catalogues/LoTSS_DR3_v0.1_gaus.fits
+                # componentlist prepared on 11-03-2025 (total flux in Jy)
+                import pandas as pd
+                with open(os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 'r') as f:
+                    header = f.readline()
+                    original_colnames = header.replace('\n','').split(",")
+                    colnames = header.replace('\n','').split(" = ")[-1].split(", ")
+                    
+                table = pd.read_csv(
+                    os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 
+                    names=colnames,skiprows=1)
+
+                table = table[table['Dec'] >= phasecentre[1] - null_mid_freq/2]
+                table = table[table['Dec'] <= phasecentre[1] + null_mid_freq/2]
+
+                phasecentre_sky = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg), frame='icrs')
+                skycoords = SkyCoord(table['Ra'], table['Dec'], unit=(u.deg, u.deg), frame='icrs')
+                seperations = skycoords.separation(phasecentre_sky).degree
+                table = table[seperations < null_mid_freq/2]
+                
+                table.to_csv('ddparallel/skymodel/starting.skymodel', index=False, header=original_colnames)
+                sm = lsmtool.load('ddparallel/skymodel/starting.skymodel', beamMS=beamMS)
+                    
             # otherwise if provided, use manual model
             else:
                 logger.info(f'Using input skymodel {start_sourcedb}')
