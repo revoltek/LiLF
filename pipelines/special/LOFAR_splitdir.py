@@ -21,7 +21,7 @@ def test_image_dutch(MSs, imgname, data_col='SUBTRACTED_DATA'):
         """ Create a quick debug image..."""
         lib_util.run_wsclean(s, 'wsclean-test.log', MSs.getStrWsclean(), name=f'img/{imgname}',
                              data_column=data_col, size=3000, scale=f'4arcsec',
-                             weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=6,
+                             weight='briggs -0.5', niter=100000, gridder='wgridder', parallel_gridding=6,
                              no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.88, nmiter=10,
                              parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
                              join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
@@ -34,8 +34,8 @@ def test_image_is(MSs, imgname, data_col='DATA'):
     else:
         """ Create a quick debug image..."""
         lib_util.run_wsclean(s, 'wsclean-test.log', MSs.getStrWsclean(), name=f'img/{imgname}',
-                             data_column=data_col, size=1000, scale=f'0.1arcsec',
-                             weight='briggs -0.3', niter=10000, gridder='wgridder', parallel_gridding=6,
+                             data_column=data_col, size=3000, scale=f'0.15arcsec',
+                             weight='briggs -1.1', niter=10000, gridder='wgridder', parallel_gridding=6,
                              no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=10,
                              auto_threshold=3.0, auto_mask=5.0,
                              join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6),
