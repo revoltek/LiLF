@@ -18,7 +18,7 @@ logging.info('dTEC fitter - Jort Boxelaar')
 
 def argparser() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='dTEC fitter')
-    parser.add_argument('solspath', type=str, help='Path to the solutions file', required=True)
+    parser.add_argument('solspath', type=str, help='Path to the solutions file')
     #parser.add_argument('--mode', type=str, default="tdt", help='Mode of operation: tit (time indipendent tec) or tdt')
     parser.add_argument('--solint_dutch', type=int, default=5, help='solution interval for dutch stations')
     parser.add_argument('--solint_de', type=int, default=40, help='solution interval for german stations (generally these have better solutions than other international)')
@@ -225,8 +225,9 @@ def fit_unwrap(phases, data, tint, ant="CS002LBA", freq_split=0, plot = True):
     return popt[0], perr[0], freqs, angles
 
 def calculate_dtec(
-    solspath, 
-    soltab="phase000", 
+    solsdata, 
+    #solspath,
+    #soltab="phase000", 
     antenna="all", 
     solution_interval=10, 
     nstacks=None, 
@@ -237,7 +238,8 @@ def calculate_dtec(
     select_time='all', 
     mode='lombscargle'
 ):
-    phases, data = open_sols(solspath, soltab=soltab, constrain=constrain_phases)
+    phases, data = solsdata
+    #phases, data = open_sols(solspath, soltab=soltab, constrain=constrain_phases)
     freq_split = int(len(data["freq"])/2) if split_band else 0 # exclude bottom half of band from fit (noisy)
 
     full_dtec = list()
@@ -312,7 +314,8 @@ def calculate_dtec(
         full_dtec_err.append(np.asarray(dtec_err_arr))
         full_timesteps.append(np.asarray(time_steps))
         full_ants.append(ant)
-    return full_dtec, full_dtec_err, full_timesteps, full_ants
+    return (full_dtec, full_dtec_err, full_timesteps, full_ants)
+
 
 def combine_dtec_tuples(tecs: list):
     full_dtec = list()
@@ -452,18 +455,19 @@ def plot_dtec(dtec: tuple) -> None:
 
 def dTEC_fitter(solspath: str, solint_dutch=5, solint_de=40, solint_int=1, nstack_dutch=7) -> None:
     import concurrent.futures as concurrentf
-    __, data = open_sols(solspath, soltab="phase000")
+    phases, data = open_sols(solspath, soltab="phase000")
     
     with concurrentf.ProcessPoolExecutor() as executor:
         futures = []
-        for ant in data['ant']:
+        for ant in data['ant'][::-1]:
             if "CS" in ant or "RS" in ant or "St" in ant:
-                futures.append(executor.submit(calculate_dtec, solspath, ant, solint_dutch, nstack_dutch, 'curvefit', split_band=False))
+                futures.append(executor.submit(calculate_dtec, (phases, data), antenna=ant, solution_interval=solint_dutch, nstacks=nstack_dutch, mode='curvefit', split_band=False))
             elif "DE" in ant:
-                futures.append(executor.submit(calculate_dtec, solspath, ant, solint_de, 1, 'lombscargle', split_band=False))
+                futures.append(executor.submit(calculate_dtec, (phases, data), antenna=ant, solution_interval=solint_de, nstacks=1, mode='lombscargle', split_band=False))
             else:
-                futures.append(executor.submit(calculate_dtec, solspath, ant, solint_int, 1, 'lombscargle', split_band=False))
-        results = [future.result() for future in concurrentf.as_completed(futures)]
+                futures.append(executor.submit(calculate_dtec, (phases, data), antenna=ant, solution_interval=solint_int, nstacks=1, mode='lombscargle', split_band=False))
+        results = [future.result() for future in concurrentf.as_completed(futures)].reverse()
+        print('results',results)
         
     full_dtec = combine_dtec_tuples(results)
     write_smooth_tec_solutions(solspath, full_dtec)

@@ -183,7 +183,7 @@ with w.if_todo('predict_all'):
 with w.if_todo('get_gps_tec'):
     # Get tec h5 parm from GPS data using spinifex (https://git.astron.nl/RD/spinifex).
     logger.info('Get TEC from GPS data (spinifex)...')
-    MSs_concat_all.run('get_tec_h5parm_for_ms $pathMS -o cal-gps-tec.h5',
+    MSs_concat_all.run('spinifex get_tec_h5parm_for_ms $pathMS -o cal-gps-tec.h5',
                 log='spinifex_gps_tec.log', commandType='general')
 
 # if develop:
@@ -264,7 +264,7 @@ with w.if_todo('pre_iono'):
     MSs_concat_phaseupIONO.run_Blsmooth(incol='DATA', logstr='smooth')
     # Solve concat_all-phaseupIONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
-    smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.5e6'
+    smoothnessconstraint = '0.05e6' if MSs_concat_all.hasIS else '0.5e6'
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                            sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase  sol.datause=single \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
@@ -274,7 +274,7 @@ with w.if_todo('pre_iono'):
                         [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
     
     logger.info('fit residual dTEC...')
-    s.add("dtec_finder.py cal-preiono.h5", log='dtec_finder.log', commandType='python')
+    s.add("dtec_finder.py --gps_corrected cal-preiono.h5", log='dtec_finder.log', commandType='python')
     s.run()
 
 ### DONE
