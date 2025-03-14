@@ -80,9 +80,9 @@ def smooth_baseline(in_bl, data, weights, std_t, std_f, outQueue=None):
     weights: ndarray
         Weight output.
     """
-    data = np.nan_to_num(data * weights) # set bad data to 0 so nans don't propagate
     if np.isnan(data).all():
         return in_bl, data, weights # flagged ants
+    data = np.nan_to_num(data * weights) # set bad data to 0 so nans don't propagate
     # smear weighted data and weights
     if options.onlyamp: # smooth only amplitudes
         dataAMP, dataPH = np.abs(data), np.angle(data)
