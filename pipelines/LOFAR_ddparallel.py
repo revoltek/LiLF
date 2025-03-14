@@ -462,6 +462,30 @@ for c in range(maxIter):
                     sm.setColValues('I', sm.getColValues('I')/1000) # convert mJy to Jy TODO fix in LSMtool
                     sm.select('I>0.05', applyBeam=True)
                     sm.setColValues('SpectralIndex', ['[-0.7]']*len(sm.getColValues('I')))
+            elif start_sourcedb.upper() == 'LOTSS-DR3':
+                # load LoTSS DR3 model and select decrease size in DEC
+                # using components downloaded from https://www.lofar-surveys.org/downloads/DR3/catalogues/LoTSS_DR3_v0.1_gaus.fits
+                # componentlist prepared on 11-03-2025 (total flux in Jy)
+                import pandas as pd
+                with open(os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 'r') as f:
+                    header = f.readline()
+                    original_colnames = header.replace('\n','').split(",")
+                    colnames = header.replace('\n','').split(" = ")[-1].split(", ")
+                    
+                table = pd.read_csv(
+                    os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 
+                    names=colnames,skiprows=1)
+
+                table = table[table['Dec'] >= phasecentre[1] - null_mid_freq/2]
+                table = table[table['Dec'] <= phasecentre[1] + null_mid_freq/2]
+
+                phasecentre_sky = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg), frame='icrs')
+                skycoords = SkyCoord(table['Ra'], table['Dec'], unit=(u.deg, u.deg), frame='icrs')
+                seperations = skycoords.separation(phasecentre_sky).degree
+                table = table[seperations < null_mid_freq/2]
+                
+                table.to_csv('ddparallel/skymodel/starting.skymodel', index=False, header=original_colnames)
+                sm = lsmtool.load('ddparallel/skymodel/starting.skymodel', beamMS=beamMS)
             # otherwise if provided, use manual model
             else:
                 logger.info(f'Using input skymodel {start_sourcedb}')
@@ -589,10 +613,45 @@ for c in range(maxIter):
                 MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
                 MSs.run('taql "update $pathMS set FLAG_BKP = FLAG"', log='$nameMS_taql.log', commandType='general')
                 
+                debug_3c_sub = False
+                if debug_3c_sub:
+                    MSs.run('addcol2ms.py -m $pathMS -c DATA_SUB -i CORRECTED_DATA_FR', log='$nameMS_addcol.log', commandType='python')
+                    with open(parset_dir+"/3C_coordinates.json", "r") as file:
+                        import json
+                        all_3c = json.load(file)
+                        
                 for patch in _3c_patches:
                     logger.info(f'Subtracting {patch}...')
                     # Corrupt MODEL_DATA with amplitude, set MODEL_DATA = 0 where data are flagged, then unflag everything
                     #corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
+                    if debug_3c_sub:
+                        MSs.run('taql "update $pathMS set DATA_SUB = CORRECTED_DATA_FR"', log='$nameMS_taql.log', commandType='general')
+                        coords = all_3c[patch.replace('source_','').replace("C","C ")]
+                        coords[0] = coords[0].replace(" ", "h", 1).replace(" ", "m", 1) + "s"
+                        coords[1] = coords[1].replace(" ", "d", 1).replace(" ", "m", 1) + "s"
+                        clean_empty(MSs,f'{patch}_data_zoom_pre', 'CORRECTED_DATA_FR', shift=coords, size=2000)
+                        clean_empty(MSs,f'{patch}_model', f'{patch}', shift=coords, size=2000)
+                        
+                        MSs.run(
+                            f"taql 'UPDATE $pathMS SET DATA_SUB = DATA_SUB - {patch}'",
+                            log = f'$nameMS_subtract_{patch}.log',
+                            commandType = 'general'
+                        )
+                        clean_empty(MSs,f'{patch}_data_after_phase', 'DATA_SUB', shift=coords, size=2000)
+
+                        # TEST: comment out amps
+                        corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
+                        MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
+                        clean_empty(MSs,f'{patch}_model_amp', f'{patch}', shift=coords, size=2000)
+                    
+                        MSs.run('taql "update $pathMS set DATA_SUB = CORRECTED_DATA_FR"', log='$nameMS_taql.log', commandType='general')
+                        MSs.run(
+                            f"taql 'UPDATE $pathMS SET DATA_SUB = DATA_SUB - {patch}'",
+                            log = f'$nameMS_subtract_{patch}.log',
+                            commandType = 'general'
+                        )
+                        clean_empty(MSs,f'{patch}_data_after_amp', 'DATA_SUB', shift=coords, size=2000)
+                        
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
                         log = f'$nameMS_subtract_{patch}.log', 
@@ -605,6 +664,7 @@ for c in range(maxIter):
                         commandType = 'general'
                     )
                     
+                    if debug_3c_sub: MSs.deletecol('DATA_SUB')
                     MSs.deletecol(patch)
                     sm = lsmtool.load(sourcedb, beamMS=beamMS)
                     sm.select(f'Patch != {patch}')
@@ -661,7 +721,7 @@ for c in range(maxIter):
                     log='$nameMS_diampcor.log', commandType='DP3')
 
             else:
-                logger.info('Solving amp-di...')
+                logger.info('Solving amp-di (diagonal)...')
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
                      sol.mode=diagonal sol.h5parm=$pathMS/amp-di.h5 sol.solint={150*base_solint} sol.minvisratio=0.5 \
                      sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',

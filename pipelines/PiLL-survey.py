@@ -246,37 +246,6 @@ with w.if_todo('saveproducts_%s' % target):
 
 ### DONE
 
-# on herts
-# with w.if_todo('saveproducts_%s' % target):
-#     archive = '/iranet/groups/ulu/fdg/storagetgts/done/'
-#     # copy images in herts
-#     logger.info('Copy ddcal products -> lofar.herts.ac.uk:/beegfs/lofar/lba/products/%s' % target)
-#     os.system('ssh herts "rm -rf /beegfs/lofar/lba/products/%s"' % target)
-#     os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s"' % target)
-#     os.system('scp -q self/images/wideP*.fits herts:/beegfs/lofar/lba/products/%s' % target)
-#     os.system('scp -q self/images/wideM-1-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % target)
-#     os.system('scp -q self/images/wide-largescale-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % target)
-#     os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/plots"' % target)
-#     os.system('scp -q -r self/plots/* herts:/beegfs/lofar/lba/products/%s/plots' % target)
-#     os.system('scp -q ddcal/c0*/images/wideDD-c*.MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % target)
-#     os.system('scp -q ddcal/c0*/images/wideDD-c*.MFS-image-pb.fits herts:/beegfs/lofar/lba/products/%s' % target)
-#     os.system('scp -q ddcal/c0*/images/wideDD-c*.MFS-residual.fits herts:/beegfs/lofar/lba/products/%s' % target)
-#     os.system('scp -q ddcal/c01/solutions/interp.h5 herts:/beegfs/lofar/lba/products/%s' % target)
-#     os.system('scp -q ddcal/c0*/skymodels/all*reg herts:/beegfs/lofar/lba/products/%s' % target)
-#     os.system('scp -q ddcal/primarybeam.fits herts:/beegfs/lofar/lba/products/%s' % target)
-#     os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/init"' % target)
-#     os.system('scp -q -r ddcal/init/*model.fits ddcal/init/wideM-1-sources.txt herts:/beegfs/lofar/lba/products/%s/init' % target)
-#     # logs
-#     os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/logs"' % target)
-#     os.system('scp -q ../*logger ../*walker ../*%s*/*logger ../*%s*/*walker herts:/beegfs/lofar/lba/products/%s/logs' % (target, target, target))
-#     # copy ms in Bologna
-#     logger.info('Copy mss -> pleiadi:/iranet/lofarfs2/lofar2/fdg/surveytgts/%s' % target)
-#     os.system('tar zcf %s.tgz mss-avg' % target)
-#     os.system('ssh pleiadi "rm -rf /iranet/lofarfs2/lofar2/fdg/surveytgts/%s"' % target)
-#     os.system('ssh pleiadi "mkdir -p /iranet/lofarfs2/lofar2/fdg/surveytgts/%s"' % target)
-#     os.system('scp -q %s.tgz pleiadi:/iranet/lofarfs2/lofar2/fdg/surveytgts/%s' % (target,target))
-# ### DONE
-
 update_status_db(target, 'Done')
 logger.info('### %s: Done. #####################################' % target)
 w.alldone()
