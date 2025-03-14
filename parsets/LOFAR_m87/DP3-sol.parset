@@ -1,0 +1,18 @@
+msin =
+msin.datacolumn = DATA
+msout = .
+
+steps = [sol]
+
+sol.type = ddecal
+sol.solveralgorithm = directioniterative # needed for sol.datause
+sol.uvlambdamin = 100
+
+sol.mode = 
+sol.h5parm =
+sol.maxiter = 200
+sol.tolerance = 1e-5
+sol.propagatesolutions = False
+sol.modeldatacolumns = [MODEL_DATA]
+sol.flagunconverged = False
+sol.flagdivergedonly = Flase
