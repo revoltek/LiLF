@@ -21,7 +21,7 @@ def argparser() -> argparse.Namespace:
     parser.add_argument('solspath', type=str, help='Path to the solutions file')
     #parser.add_argument('--mode', type=str, default="tdt", help='Mode of operation: tit (time indipendent tec) or tdt')
     parser.add_argument('--solint_dutch', type=int, default=5, help='solution interval for dutch stations')
-    parser.add_argument('--solint_de', type=int, default=40, help='solution interval for german stations (generally these have better solutions than other international)')
+    parser.add_argument('--solint_de', type=int, default=20, help='solution interval for german stations (generally these have better solutions than other international)')
     parser.add_argument('--solint_int', type=int, default=1, help='solution interval for int stations')
     parser.add_argument('--nstack_dutch', type=int, default=7, help='number of timesteps to stack for dutch stations')
     parser.add_argument('--gps_corrected', action='store_true', help='have the phases been pre-corrected using GPS data? (changes slightly the procedure)' )
@@ -465,9 +465,13 @@ def dTEC_fitter(solspath: str, solint_dutch=5, solint_de=40, solint_int=1, nstac
             elif "DE" in ant:
                 futures.append(executor.submit(calculate_dtec, (phases, data), antenna=ant, solution_interval=solint_de, nstacks=1, mode='lombscargle', split_band=False))
             else:
-                futures.append(executor.submit(calculate_dtec, (phases, data), antenna=ant, solution_interval=solint_int, nstacks=1, mode='lombscargle', split_band=False))
-        results = [future.result() for future in concurrentf.as_completed(futures)].reverse()
-        print('results',results)
+                futures.append(executor.submit(calculate_dtec, (phases, data), antenna=ant, solution_interval=solint_int, nstacks=1, mode='lombscargle', split_band=True))
+        #results = [future.result() for future in concurrentf.as_completed(futures)].reverse()
+        results = []
+        for future in concurrentf.as_completed(futures):
+            #print(future.result()[-1])
+            results.append(future.result())
+            
         
     full_dtec = combine_dtec_tuples(results)
     write_smooth_tec_solutions(solspath, full_dtec)
