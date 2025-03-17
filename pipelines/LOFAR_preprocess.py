@@ -220,6 +220,31 @@ if renameavg:
                                         ra, dec, fwhm/2))  # ASTRON
                                 lsm = lsmtool.load('demix_tgts.skymodel', beamMS=MS.pathMS)
                                 lsm.remove('I<1')
+                            elif demix_field_skymodel == 'LOTSS-DR3':
+                                logger.info('Include target from LOTSS-DR3...')
+                                ra, dec = MS.getPhaseCentre()
+                                fwhm = MS.getFWHM(freq='min') # for radius of model
+                                import pandas as pd
+                                with open(os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 'r') as f:
+                                    header = f.readline()
+                                    original_colnames = header.replace('\n','').split(",")
+                                    colnames = header.replace('\n','').split(" = ")[-1].split(", ")
+                                    
+                                table = pd.read_csv(
+                                    os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 
+                                    names=colnames,skiprows=1)
+
+                                table = table[table['Dec'] >= dec - fwhm/2]
+                                table = table[table['Dec'] <= dec + fwhm/2]
+
+                                phasecentre_sky = SkyCoord(ra, dec, unit=(u.deg, u.deg), frame='icrs')
+                                skycoords = SkyCoord(table['Ra'], table['Dec'], unit=(u.deg, u.deg), frame='icrs')
+                                seperations = skycoords.separation(phasecentre_sky).degree
+                                table = table[seperations < fwhm/2]
+                                
+                                table.to_csv('starting.skymodel', index=False, header=original_colnames)
+                                lsm = lsmtool.load('starting.skymodel', beamMS=MS.pathMS)
+                                lsm.remove('I<1')
                             else:
                                 lsm = lsmtool.load(demix_field_skymodel, beamMS=MS.pathMS)
                             lsm.group('single', root='target')
