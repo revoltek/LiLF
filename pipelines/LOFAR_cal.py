@@ -465,6 +465,11 @@ with w.if_todo('cal_bp'):
 ### DONE
 
 if develop:
+    # Restore original DATA
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA '
+                       f'cor.parmdb=cal-bp-theo.h5 cor.correction=amplitude000 cor.invert=False',
+                       log="$nameMS_bpscaleTEST.log", commandType="DP3")
+
     # Pol align correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 \
