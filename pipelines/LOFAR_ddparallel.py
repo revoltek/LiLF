@@ -461,11 +461,11 @@ for c in range(maxIter):
                 if start_sourcedb.upper() == 'LOTSS':
                     sm.setColValues('I', sm.getColValues('I')/1000) # convert mJy to Jy TODO fix in LSMtool
                     sm.select('I>0.05', applyBeam=True)
-                    sm.setColValues('SpectralIndex', ['[-0.7]']*len(sm.getColValues('I')))
+                    sm.setColValues('SpectralIndex', ['[-0.7]']*len(sm.getColValues('I'))) # add standard spidx
+            # load LoTSS DR3 model and select decrease size in DEC
+            # using components downloaded from https://www.lofar-surveys.org/downloads/DR3/catalogues/LoTSS_DR3_v0.1_gaus.fits
+            # componentlist prepared on 11-03-2025 (total flux in Jy)
             elif start_sourcedb.upper() == 'LOTSS-DR3':
-                # load LoTSS DR3 model and select decrease size in DEC
-                # using components downloaded from https://www.lofar-surveys.org/downloads/DR3/catalogues/LoTSS_DR3_v0.1_gaus.fits
-                # componentlist prepared on 11-03-2025 (total flux in Jy)
                 import pandas as pd
                 with open(os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 'r') as f:
                     header = f.readline()
@@ -486,6 +486,7 @@ for c in range(maxIter):
                 
                 table.to_csv('ddparallel/skymodel/starting.skymodel', index=False, header=original_colnames)
                 sm = lsmtool.load('ddparallel/skymodel/starting.skymodel', beamMS=beamMS)
+                sm.setColValues('SpectralIndex', ['[-0.7]']*len(sm.getColValues('I'))) # add standard spidx
             # otherwise if provided, use manual model
             else:
                 logger.info(f'Using input skymodel {start_sourcedb}')
