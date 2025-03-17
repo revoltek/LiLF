@@ -195,9 +195,6 @@ for c, idx in enumerate(np.array_split(np.arange(n_bl), options.chunks)):
             continue  # fix for missing antennas
         logging.debug('Working on baseline: {} - {} (dist = {:.2f}km)'.format(ant1, ant2, dist))
 
-        in_bl = slice(i_chunk, -1, len(ants1_chunk))  # All times for 1 BL
-        # data, weights= data_chunk[in_bl], weights_chunk[in_bl]
-
         std_t = options.ionfactor * (25.e3 / dist) ** options.bscalefactor * (freq / 60.e6)  # in sec
         std_t = std_t / timepersample  # in samples
         # TODO: for freq this is hardcoded, it should be thought better
@@ -207,6 +204,7 @@ for c, idx in enumerate(np.array_split(np.arange(n_bl), options.chunks)):
         logging.debug("-Time: sig={:.1f} samples ({:.1f}s) -Freq: sig={:.1f} samples ({:.2f}MHz)".format(
             std_t, timepersample * std_t, std_f, freqpersample * std_f / 1e6))
         if std_t < 0.5: continue  # avoid very small smoothing and flagged ants
+        in_bl = slice(i_chunk, -1, len(ants1_chunk))  # All times for 1 BL
         # fill queue
         mpm.put([in_bl, data_chunk[in_bl], weights_chunk[in_bl], std_t, std_f])
 
