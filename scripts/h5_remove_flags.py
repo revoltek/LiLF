@@ -4,7 +4,7 @@
 __author__ = "J. Boxelaar"
 
 import numpy as np
-import losoto.h5parm as losoto
+import losoto.h5parm as losoto # type: ignore
 
 def open_sols(path, soltab="phase000", constrain=False, apply_flags=False):
     sols = losoto.h5parm(path, readonly = True)
