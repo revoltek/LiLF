@@ -51,7 +51,7 @@ class AllMSs(object):
         self.resolution = self.mssListObj[0].getResolution(check_flags=False)
 
         if len(self.mssListObj) > 500:
-            logger.warning('Many MSs detected, using only the first to determine antenna set and presence of IS.')
+            logger.warning('Many MSs detected, using only the first to determine antenna set (HBA/LBA) and presence of IS.')
             self.isLBA = 'LBA' in self.mssListObj[0].getAntennaSet()
             self.isHBA = 'HBA' in self.mssListObj[0].getAntennaSet()
             self.hasIS = self.mssListObj[0].getMaxBL(check_flags=False) > 150e3

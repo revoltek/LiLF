@@ -43,7 +43,7 @@ subfield = parset.get('LOFAR_ddparallel','subfield') # possible to provide a ds9
 maxIter = parset.getint('LOFAR_ddparallel','maxIter') # default = 2 (try also 3)
 phaseSolMode = parset.get('LOFAR_ddparallel', 'ph_sol_mode') # tecandphase, tec, phase
 remove3c = parset.getboolean('LOFAR_ddparallel', 'remove3c') # get rid of 3c sources in the sidelobes
-fulljones = parset.getboolean('LOFAR_ddparallel', 'fulljones') # do fulljones DIE amp correction
+fulljones = parset.getboolean('LOFAR_ddparallel', 'fulljones') # do fulljones DIE amp correction instead of diagonal (default: False)
 min_facets = parset.get('LOFAR_ddparallel', 'min_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [2,3,6..]
 max_facets = parset.get('LOFAR_ddparallel', 'max_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [5,10,20..]
 develop = parset.getboolean('LOFAR_ddparallel', 'develop') # for development, make more output/images
@@ -268,7 +268,6 @@ def add_3c_models(sm, phasecentre, null_mid_freq, beamMask, max_sep=50., thresho
         sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
         flux_3c =  sm_3c.getColValues("I", aggregate="sum", applyBeam=True)[0]
         if flux_3c > threshold:
-            sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
             logger.info(f'3C source {source} (seperation: {sep:.2f} deg) app. flux {flux_3c:.2f} Jy is above threshold {threshold:.2f} Jy: keep.')
             sm.concatenate(sm_3c)
             sm.setPatchPositions(method='wmean', applyBeam=True)
@@ -461,11 +460,11 @@ for c in range(maxIter):
                 if start_sourcedb.upper() == 'LOTSS':
                     sm.setColValues('I', sm.getColValues('I')/1000) # convert mJy to Jy TODO fix in LSMtool
                     sm.select('I>0.05', applyBeam=True)
-                    
+                    sm.setColValues('SpectralIndex', [[-0.7]]*len(sm.getColValues('I'))) # add standard spidx
+            # load LoTSS DR3 model and select decrease size in DEC
+            # using components downloaded from https://www.lofar-surveys.org/downloads/DR3/catalogues/LoTSS_DR3_v0.1_gaus.fits
+            # componentlist prepared on 11-03-2025 (total flux in Jy)
             elif start_sourcedb.upper() == 'LOTSS-DR3':
-                # load LoTSS DR3 model and select decrease size in DEC
-                # using components downloaded from https://www.lofar-surveys.org/downloads/DR3/catalogues/LoTSS_DR3_v0.1_gaus.fits
-                # componentlist prepared on 11-03-2025 (total flux in Jy)
                 import pandas as pd
                 with open(os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 'r') as f:
                     header = f.readline()
@@ -486,7 +485,8 @@ for c in range(maxIter):
                 
                 table.to_csv('ddparallel/skymodel/starting.skymodel', index=False, header=original_colnames)
                 sm = lsmtool.load('ddparallel/skymodel/starting.skymodel', beamMS=beamMS)
-                    
+                sm.setColValues('SpectralIndex', [[-0.7]]*len(sm.getColValues('I'))) # add standard spidx
+                #sm.write('debug-lotssdr3.skymodel', clobber=True) # DEBUG
             # otherwise if provided, use manual model
             else:
                 logger.info(f'Using input skymodel {start_sourcedb}')
@@ -598,10 +598,12 @@ for c in range(maxIter):
             with w.if_todo('3c_solve_amp'):
                 logger.info('Solving amplitude for 3C...')
                 # Solve diagonal amplitude MSs:SMOOTHED_DATA
+                # 225*base_solint is 15 minutes
                 # TODO: try solving only CS and replicate
+                # sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]]',
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true\
                           sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
-                          sol.modeldatacolumns="[{",".join(patches)}]" sol.solint=60', log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
+                          sol.modeldatacolumns="[{",".join(patches)}]" sol.solint='+str(225*base_solint), log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
 
                 losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
                 lib_util.run_losoto(s, 'amp-3C', [ms + '/amp-3C.h5' for ms in MSs.getListStr()], losoto_parsets,

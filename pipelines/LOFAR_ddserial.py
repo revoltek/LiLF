@@ -525,6 +525,8 @@ for cmaj in range(maxIter):
    
             with w.if_todo('%s-calibrate' % logstringcal):
                 
+                # TODO: if to peel add sol.model_weighted_constraints=true
+
                 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
                 MSs_dir.run_Blsmooth(logstr=f'smooth-{logstringcal}')
 

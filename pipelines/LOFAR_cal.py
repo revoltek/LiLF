@@ -143,6 +143,7 @@ with w.if_todo('scale_bp'):
     MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (MSs_concat_all.getListObj()[0].getAntennas()[0]),
                 log='$nameMS_weights.log', commandType='python')
     os.system('mkdir plots-weights; mv *png plots-weights/prebptheo.png')
+    
     logger.info("Scale data to expected bandpass...")
     # Solve concat_all.MS:DATA
     # dummy call to create template
@@ -465,6 +466,11 @@ with w.if_todo('cal_bp'):
 ### DONE
 
 if develop:
+    # Restore original DATA
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA '
+                       f'cor.parmdb=cal-bp-theo.h5 cor.correction=amplitude000 cor.invert=False',
+                       log="$nameMS_bpscaleTEST.log", commandType="DP3")
+
     # Pol align correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa.h5 \
