@@ -461,7 +461,7 @@ for c in range(maxIter):
                 if start_sourcedb.upper() == 'LOTSS':
                     sm.setColValues('I', sm.getColValues('I')/1000) # convert mJy to Jy TODO fix in LSMtool
                     sm.select('I>0.05', applyBeam=True)
-                    sm.setColValues('SpectralIndex', ['[-0.7]']*len(sm.getColValues('I'))) # add standard spidx
+                    sm.setColValues('SpectralIndex', [[-0.7]]*len(sm.getColValues('I'))) # add standard spidx
             # load LoTSS DR3 model and select decrease size in DEC
             # using components downloaded from https://www.lofar-surveys.org/downloads/DR3/catalogues/LoTSS_DR3_v0.1_gaus.fits
             # componentlist prepared on 11-03-2025 (total flux in Jy)
@@ -486,7 +486,8 @@ for c in range(maxIter):
                 
                 table.to_csv('ddparallel/skymodel/starting.skymodel', index=False, header=original_colnames)
                 sm = lsmtool.load('ddparallel/skymodel/starting.skymodel', beamMS=beamMS)
-                sm.setColValues('SpectralIndex', ['[-0.7]']*len(sm.getColValues('I'))) # add standard spidx
+                sm.setColValues('SpectralIndex', [[-0.7]]*len(sm.getColValues('I'))) # add standard spidx
+                #sm.write('test.skymodel', clobber=True) # DEBUG
             # otherwise if provided, use manual model
             else:
                 logger.info(f'Using input skymodel {start_sourcedb}')

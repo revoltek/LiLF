@@ -143,6 +143,7 @@ with w.if_todo('scale_bp'):
     MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (MSs_concat_all.getListObj()[0].getAntennas()[0]),
                 log='$nameMS_weights.log', commandType='python')
     os.system('mkdir plots-weights; mv *png plots-weights/prebptheo.png')
+    
     logger.info("Scale data to expected bandpass...")
     # Solve concat_all.MS:DATA
     # dummy call to create template
