@@ -268,7 +268,6 @@ def add_3c_models(sm, phasecentre, null_mid_freq, beamMask, max_sep=50., thresho
         sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
         flux_3c =  sm_3c.getColValues("I", aggregate="sum", applyBeam=True)[0]
         if flux_3c > threshold:
-            sm_3c.setColValues("Patch", ["source_"+source.replace(" ","")]*len(sm_3c.getColValues("I")))
             logger.info(f'3C source {source} (seperation: {sep:.2f} deg) app. flux {flux_3c:.2f} Jy is above threshold {threshold:.2f} Jy: keep.')
             sm.concatenate(sm_3c)
             sm.setPatchPositions(method='wmean', applyBeam=True)
