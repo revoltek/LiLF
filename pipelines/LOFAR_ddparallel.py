@@ -487,7 +487,7 @@ for c in range(maxIter):
                 table.to_csv('ddparallel/skymodel/starting.skymodel', index=False, header=original_colnames)
                 sm = lsmtool.load('ddparallel/skymodel/starting.skymodel', beamMS=beamMS)
                 sm.setColValues('SpectralIndex', [[-0.7]]*len(sm.getColValues('I'))) # add standard spidx
-                #sm.write('test.skymodel', clobber=True) # DEBUG
+                #sm.write('debug-lotssdr3.skymodel', clobber=True) # DEBUG
             # otherwise if provided, use manual model
             else:
                 logger.info(f'Using input skymodel {start_sourcedb}')
