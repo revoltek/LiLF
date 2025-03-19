@@ -10,7 +10,7 @@ from astropy.coordinates import SkyCoord
 import astropy.units as u
 
 ##########################################
-from LiLF import lib_ms, lib_util, lib_log
+from LiLF import lib_ms, lib_util, lib_log, lib_dd_parallel
 logger_obj = lib_log.Logger('pipeline-preprocess')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
@@ -211,19 +211,19 @@ if renameavg:
                         # check target field skymodel
                         # if not provided, use GSM
                         if demix_field_skymodel:
+                            ra, dec = MS.getPhaseCentre()
+                            fwhm = MS.getFWHM(freq='min')  # for radius of model
                             if demix_field_skymodel == 'gsm':
                                 logger.info('Include target from GSM...')
-                                ra, dec = MS.getPhaseCentre()
-                                fwhm = MS.getFWHM(freq='min') # for radius of model
                                 # get model the size of the image (radius=fwhm/2)
                                 os.system('wget -O demix_tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (
                                         ra, dec, fwhm/2))  # ASTRON
                                 lsm = lsmtool.load('demix_tgts.skymodel', beamMS=MS.pathMS)
                                 lsm.remove('I<1')
                             elif demix_field_skymodel == 'LOTSS-DR3':
+                                if not lib_dd_parallel.check_lotss_coverage([ra,dec], fwhm/2):
+                                    raise ValueError('Asked for demixing field skymodel from LoTSS DR3 but the field is not fully covered! Resort to GSM.')
                                 logger.info('Include target from LOTSS-DR3...')
-                                ra, dec = MS.getPhaseCentre()
-                                fwhm = MS.getFWHM(freq='min') # for radius of model
                                 import pandas as pd
                                 with open(os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 'r') as f:
                                     header = f.readline()
