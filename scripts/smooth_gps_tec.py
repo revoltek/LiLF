@@ -34,7 +34,8 @@ def smooth_phases_in_time(phases, data, window=5):
     
     smooth_phases = np.zeros_like(phases)
     for i, ant in enumerate(data["ant"]):
-        dtec = (phases[data['ant']==ant,:]-phases[data['ant']=="CS002LBA",:]).squeeze()
+        #dtec = (phases[data['ant']==ant,:]-phases[data['ant']=="CS002LBA",:]).squeeze()
+        dtec = phases[data['ant']==ant,:].squeeze()
         spl = make_smoothing_spline(data['time'], dtec, lam=1e8)
         smooth_phases[data['ant']==ant,:] = spl(data['time'])
         
@@ -73,4 +74,4 @@ def write_solutions(solspath, soltype="phase"):
 if __name__ == "__main__":
     import sys, os
     write_solutions(sys.argv[1], soltype=sys.argv[2])
-    #os.system(f"mv {sys.argv[1][:-3]}-smooth.h5 {sys.argv[1]}") # overwrite original file
+    os.system(f"mv {sys.argv[1][:-3]}-smooth.h5 {sys.argv[1]}") # overwrite original file

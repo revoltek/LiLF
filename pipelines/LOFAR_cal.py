@@ -60,7 +60,7 @@ with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('plots-preiono plots-preiono-cs plots-fr plots-bp plots-bp-sub plots-fj plots-iono plots-iono-cs plots-pa plots-amp plots-weights plots-test*}')
     lib_util.check_rm('cal*.h5')
-    lib_util.check_rm('ionex_data') # spinifex iono data
+    lib_util.check_rm('ionex*') # spinifex iono data
 ### DONE
 
 # unpack tar files if present
@@ -182,9 +182,9 @@ with w.if_todo('predict_all'):
     
 with w.if_todo('get_gps_tec_rm'):
     # Get tec h5 parm from GPS data using spinifex (https://git.astron.nl/RD/spinifex).
-    #logger.info('Get RM from GPS data (spinifex)...')
-    #MSs_concat_all.run('spinifex get_rm_h5parm_from_ms $pathMS -o cal-gps-rm.h5',
-    #                   log='spinifex_gps_rm.log', commandType='general')
+    logger.info('Get RM from GPS data (spinifex)...')
+    MSs_concat_all.run('spinifex get_rm_h5parm_from_ms $pathMS -o cal-gps-rm.h5',
+                       log='spinifex_gps_rm.log', commandType='general')
     logger.info('Get TEC from GPS data (spinifex)...')
     MSs_concat_all.run('spinifex get_tec_h5parm_from_ms $pathMS -o cal-gps-tec.h5',
                 log='spinifex_gps_tec.log', commandType='general')
@@ -223,9 +223,9 @@ with w.if_todo('pre_iono'):
     os.system('mv *png plots-weights/postbeam.png')
 
     # Preliminary rm correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
-    #logger.info('pre-correcion RM from GPS...')
-    #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-rm.h5 \
-    #            cor.correction=rotationmeasure000', log='$nameMS_cor-gps-rm.log', commandType="DP3")
+    logger.info('pre-correcion RM from GPS...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-rm.h5 \
+                cor.correction=rotationmeasure000', log='$nameMS_cor-gps-rm.log', commandType="DP3")
     # Preliminary tec correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
     logger.info('pre-correcion TEC from GPS...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-tec.h5 \
@@ -273,7 +273,7 @@ with w.if_todo('pre_iono'):
     MSs_concat_phaseupIONO.run_Blsmooth(incol='DATA', logstr='smooth')
     # Solve concat_all-phaseupIONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
-    smoothnessconstraint = '0.25e6' if MSs_concat_all.hasIS else '0.5e6'
+    smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.5e6'
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
                            sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase  sol.datause=single \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
@@ -368,8 +368,8 @@ with w.if_todo('cal_fr'):
                        log='$nameMS_beam.log', commandType="DP3")
     # Preliminary RM correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
     #logger.info('FR pre-correction (GPS)...')
-    #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-rm.h5 \
-    #            cor.correction=rotationmeasure000', log='$nameMS_cor-gps-rm.log', commandType="DP3")
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-rm.h5 \
+                cor.correction=rotationmeasure000', log='$nameMS_cor-gps-rm.log', commandType="DP3")
     # Correct gps-tec concat_all:CORRECTED_DATA -> CORRECTED_DATA
     logger.info('TEC pre-correction (GPS)...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-tec.h5 \
@@ -432,8 +432,8 @@ with w.if_todo('cal_iono'):
                 cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
     # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
     #logger.info('Faraday rotation pre-correction (GPS)...')
-    #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-gps-rm.h5 \
-    #               cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-gps-rm.h5 \
+                   cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
     # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-fr.h5 \
@@ -474,7 +474,7 @@ with w.if_todo('cal_iono'):
     MSs_concat_phaseupIONO.run_Blsmooth(incol='DATA', nofreq=True, logstr='smooth')
     # Solve concat_all-phaseup-IONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
-    smoothnessconstraint = '0.75e6'
+    smoothnessconstraint = '0.2e6'
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS \
                            sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
@@ -509,9 +509,9 @@ with w.if_todo('cal_bp'):
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
                 cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
     # FR -repcorruption concat_all.MS:MODEL_DATA -> MODEL_DATA_FRCOR
-    #logger.info('Faraday rotation pre-corruption (GPS) (MODEL_DATA - > MODEL_DATA_FRCOR)...')
-    #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA_FRCOR \
-    #                    cor.parmdb=cal-gps-rm.h5 cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
+    logger.info('Faraday rotation pre-corruption (GPS) (MODEL_DATA - > MODEL_DATA_FRCOR)...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA_FRCOR \
+                        cor.parmdb=cal-gps-rm.h5 cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
     # FR corruption concat_all.MS:MODEL_DATA_FRCOR -> MODEL_DATA_FRCOR
     logger.info('Faraday rotation corruption (MODEL_DATA_FRCOR - > MODEL_DATA_FRCOR)...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA_FRCOR msout.datacolumn=MODEL_DATA_FRCOR \
