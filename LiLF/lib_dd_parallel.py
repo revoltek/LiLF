@@ -3,6 +3,8 @@ import numpy as np
 from astropy.io import fits as pyfits
 from astropy import wcs as pywcs
 import pyregion
+import mocpy
+import astropy.units as u
 from pyregion.parser_helper import Shape
 from matplotlib.path import Path
 from scipy.ndimage import binary_dilation, generate_binary_structure
@@ -15,6 +17,38 @@ except:
 
 from LiLF.lib_log import logger
 from LiLF import lib_img
+
+
+def check_lotss_coverage(center, size):
+    """ check if is in LoTSS DR3, this is mostly borrowed from RAPTHOR / D. Rafferty
+
+    Parameters
+    ----------
+    center: [ra,deg] in degrees
+    size: float, square size in degrees
+
+    Returns
+    -------
+    is_covered: bool,
+    """
+    ra, dec = center
+    logger.debug('Checking LoTSS coverage for the requested centre and radius.')
+
+    moc = mocpy.MOC.from_fits(os.path.dirname(__file__) + '/../models/lotss_dr3_moc.fits')
+    covers_centre = moc.contains(ra * u.deg, dec * u.deg)
+
+    # Checking single coordinates, so get rid of the array
+    covers_left = moc.contains(ra * u.deg - size * u.deg, dec * u.deg)[0]
+    covers_right = moc.contains(ra * u.deg + size * u.deg, dec * u.deg)[0]
+    covers_bottom = moc.contains(ra * u.deg, dec * u.deg - size * u.deg)[0]
+    covers_top = moc.contains(ra * u.deg, dec * u.deg + size * u.deg)[0]
+
+    fully_covered = False
+    if covers_left and covers_right and covers_bottom and covers_top and covers_centre:
+        fully_covered = True
+    return fully_covered
+
+
 
 def merge_faintest_patch(skymodel, applyBeam):
     fluxes = skymodel.getColValues('I', aggregate='sum', applyBeam=applyBeam)

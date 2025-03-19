@@ -109,7 +109,7 @@ if run_aoflagger:
         # Flag in an identical way to the observatory flagging
         logger.info('Flagging...')
         MSs.run('DP3 ' + parset_dir + '/DP3-flag.parset msin=$pathMS aoflagger.strategy=' + parset_dir + '/LBAdefaultwideband.lua',
-            log='$nameMS_flag.log', commandType='DP3', maxProcs=16) # there might be a better way of parallelizing
+            log='$nameMS_flag.log', commandType='DP3') # there might be a better way of parallelizing as this might be I/O or memory limited
 
 if fix_table:
     with w.if_todo('fix_table'):

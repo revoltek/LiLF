@@ -451,8 +451,13 @@ for c in range(maxIter):
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
-            if start_sourcedb == '':  # if not provided, use GSM as default
-                start_sourcedb = 'GSM'
+            if start_sourcedb == '':  # if not provided, use LOTSS as default, if the field is not fully covered, resort to GSM
+                if lib_dd_parallel.check_lotss_coverage(phasecentre, null_mid_freq/2):
+                    logger.info('Target fully in LoTSS-DR3 - start from LoTSS.')
+                    start_sourcedb = 'LOTSS-DR3'
+                else:
+                    logger.info('Target not fully in LoTSS-DR3 - start from GSM.')
+                    start_sourcedb = 'GSM'
             # case use survey to start
             if start_sourcedb.upper() in ['GSM','LOTSS','TGSS','VLSSR','NVSS','WENSS']:
                 logger.info(f'Get skymodel from {start_sourcedb}...')
