@@ -213,7 +213,6 @@ if renameavg:
 
                         if demix_field_skymodel:
                             phasecentre = MS.getPhaseCentre()
-                            ra, dec = phasecentre
                             fwhm = MS.getFWHM(freq='min')  # for radius of model
                             if lib_dd_parallel.check_lotss_coverage(phasecentre, fwhm/2):
                                 logger.info('Target fully in LoTSS-DR3 - start from LoTSS.')
