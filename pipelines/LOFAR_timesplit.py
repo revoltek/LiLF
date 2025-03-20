@@ -82,20 +82,33 @@ else:
         logger.warning('Multiple cal dirs found (using the first):', subdirs)
         cal_dir = subdirs[0]
 
+
 logger.info('Calibrator directory: %s' % cal_dir)
+# choose whether to include target GPS TEC solutions or transfer tec solutions from the target field. 
+# cal-tec has also been fitted (refined). target-tec only relies on gps data.
+# TODO: test which approach gives better results.
+correct_target_gps_tec = False
+if correct_target_gps_tec:
+    logger.info('Including target GPS TEC solutions (spinifex)...')
+    MSs.run('spinifex get_tec_h5parm_from_ms $pathMS -o target-gps-tec.h5',
+                log='spinifex_gps_tec.log', commandType='general')
+    h5_tec = 'target-gps-tec.h5'
+else:
+    # assuming tec has been properly combined
+    h5_tec = cal_dir + '/cal-tec.h5'
+    
 h5_pa = cal_dir + '/cal-pa.h5'
 h5_bp = cal_dir + '/cal-bp.h5'
-h5_dtec = cal_dir + '/cal-dtec.h5'
+#h5_tec = cal_dir + '/cal-tec.h5'
 h5_iono = cal_dir + '/cal-iono.h5'
 h5_iono_cs = cal_dir + '/cal-iono-cs.h5'
-if not os.path.exists(h5_pa) or not os.path.exists(h5_bp) or not os.path.exists(h5_iono) or not os.path.exists(h5_iono_cs):
+if not os.path.exists(h5_pa) or not os.path.exists(h5_bp) or not os.path.exists(h5_iono) or not os.path.exists(h5_iono_cs) or not os.path.exists(h5_tec):
     logger.error("Missing solutions in %s" % cal_dir)
     sys.exit()
 
 ####################################################
 # Correct fist for PA+beam+BP(diag)+TEC+Clock and then for beam
 with w.if_todo('apply'):
-
     # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign corrected)
     logger.info('Apply solutions (pa)...')
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
@@ -105,12 +118,12 @@ with w.if_todo('apply'):
     logger.info('Beam correction...')
     MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM.log', commandType='DP3')
     
-    # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (dtec corrected)
-    logger.info('dTEC correction...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_dtec} msin.datacolumn=CORRECTED_DATA \
+    # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, tec corrected)
+    logger.info('TEC correction...')
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_tec} msin.datacolumn=CORRECTED_DATA \
                 cor.correction=tec000', log='$nameMS_corDTEC.log', commandType='DP3')
 
-    # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, calibrator corrected+reweight)
+    # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight,tec corrected, calibrator corrected+reweight)
     logger.info('Iono correction...')
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_iono_cs} msin.datacolumn=CORRECTED_DATA \
                 cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")

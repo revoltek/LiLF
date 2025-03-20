@@ -661,6 +661,9 @@ if not develop:
         os.system('h5repack cal-bp.h5 cal-bp-compressed.h5; mv cal-bp-compressed.h5 cal-bp.h5')
         os.system('h5repack cal-iono-cs.h5 cal-iono-cs-compressed.h5; mv cal-iono-cs-compressed.h5 cal-iono-cs.h5')
         os.system('h5repack cal-iono.h5 cal-iono-compressed.h5; mv cal-iono-compressed.h5 cal-iono.h5')
+        
+        s.add("merge_tec_h5.py --mode add --paht_out cal-tec.h5 cal-dtec.h5 cal-gps-tec.h5", log='merge_tec.log', commandType='python')
+        s.run()
 ### DONE
 
 # a debug image
