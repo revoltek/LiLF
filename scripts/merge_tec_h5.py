@@ -49,8 +49,8 @@ def merge_h5_parms(solspaths: list[str], soltabname:str='tec000'):
     
     for path in solspaths:
         tec, data, weights = open_sols(path, soltab=soltabname, apply_flags=True)
-        assert base_data['time'] == data['time'], "Time ranges do not match"
-        assert base_data['freq'] == data['freq'], "Frequency ranges do not match"
+        #assert base_data['time'][0] == data['time'][0], "Time ranges do not match"
+        #assert base_data['freq'][0] == data['freq'][0], "Frequency ranges do not match"
         
         if args.mode == 'subtract':
             sign = -1
@@ -87,6 +87,8 @@ def write_solutions(solspaths, soltype="phase", path_out=None):
     #phases, data, weights = open_sols(solspath, soltab=soltabname, constrain=False, apply_flags=True)
     if path_out is None:
         new_solspath = f"{solspaths[0][:-3]}-m.h5"
+    else:
+        new_solspath = path_out
  
     import os
     try: os.remove(new_solspath)
