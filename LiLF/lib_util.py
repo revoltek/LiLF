@@ -410,6 +410,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
 
             MSs_files_clean = []
             for g, group in enumerate(groups):
+                check_rm(f'wsclean_concat_{g}.MS')
                 # simply make a symlink for groups of 1, faster
                 if len(group) == 1:
                     os.system(f'ln -s {group[0]} wsclean_concat_{g}.MS') # TEST - symlink should be the quickest

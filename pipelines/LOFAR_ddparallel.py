@@ -451,10 +451,15 @@ for c in range(maxIter):
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
-            if start_sourcedb == '':  # if not provided, use GSM as default
-                start_sourcedb = 'GSM'
+            if start_sourcedb == '':  # if not provided, use LOTSS as default, if the field is not fully covered, resort to GSM
+                if lib_dd_parallel.check_lotss_coverage(phasecentre, null_mid_freq/2):
+                    logger.info('Target fully in LoTSS-DR3 - start from LoTSS.')
+                    start_sourcedb = 'LOTSS-DR3'
+                else:
+                    logger.info('Target not fully in LoTSS-DR3 - start from GSM.')
+                    start_sourcedb = 'GSM'
             # case use survey to start
-            if start_sourcedb.upper() in ['GSM','LOTSS','TGSS']:
+            if start_sourcedb.upper() in ['GSM','LOTSS','TGSS','VLSSR','NVSS','WENSS']:
                 logger.info(f'Get skymodel from {start_sourcedb}...')
                 sm = lsmtool.load(start_sourcedb, VOPosition=phasecentre, VORadius=null_mid_freq/2, beamMS=beamMS)
                 if start_sourcedb.upper() == 'LOTSS':
@@ -840,7 +845,7 @@ for c in range(maxIter):
         # main wsclean call, with mask now
         logger.info('Making wide field image ...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask,
-                             save_source_list='', update_model_required='',  nmiter=12,  auto_threshold=2.0, auto_mask=4.0,
+                             save_source_list='', no_update_model_required='',  nmiter=12,  auto_threshold=2.0, auto_mask=4.0,
                              apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
                              local_rms='', local_rms_window=50, local_rms_strength=0.5, **widefield_kwargs, **reuse_kwargs)
 
