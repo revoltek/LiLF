@@ -10,7 +10,7 @@ from astropy.coordinates import SkyCoord
 import astropy.units as u
 
 ##########################################
-from LiLF import lib_ms, lib_util, lib_log, lib_dd_parallel
+from LiLF import lib_ms, lib_util, lib_log, lib_dd_parallel, lib_cat
 logger_obj = lib_log.Logger('pipeline-preprocess')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
@@ -209,54 +209,39 @@ if renameavg:
                         demix_sm = lsmtool.load(demix_sm_file, beamMS=MS.pathMS) # load demix sm
                         ra, dec = MS.getPhaseCentre()  # to calculate distance
                         # check target field skymodel
-                        # if not provided, use GSM
+                        # if not provided, use LOTSS DR3. If this is not available, use GSM
+
                         if demix_field_skymodel:
-                            ra, dec = MS.getPhaseCentre()
+                            phasecentre = MS.getPhaseCentre()
                             fwhm = MS.getFWHM(freq='min')  # for radius of model
-                            if demix_field_skymodel == 'gsm':
-                                logger.info('Include target from GSM...')
-                                # get model the size of the image (radius=fwhm/2)
-                                os.system('wget -O demix_tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (
-                                        ra, dec, fwhm/2))  # ASTRON
-                                lsm = lsmtool.load('demix_tgts.skymodel', beamMS=MS.pathMS)
-                                lsm.remove('I<1')
-                            elif demix_field_skymodel == 'LOTSS-DR3':
-                                if not lib_dd_parallel.check_lotss_coverage([ra,dec], fwhm/2):
-                                    raise ValueError('Asked for demixing field skymodel from LoTSS DR3 but the field is not fully covered! Resort to GSM.')
-                                logger.info('Include target from LOTSS-DR3...')
-                                import pandas as pd
-                                with open(os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 'r') as f:
-                                    header = f.readline()
-                                    original_colnames = header.replace('\n','').split(",")
-                                    colnames = header.replace('\n','').split(" = ")[-1].split(", ")
-                                    
-                                table = pd.read_csv(
-                                    os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 
-                                    names=colnames,skiprows=1)
-
-                                table = table[table['Dec'] >= dec - fwhm/2]
-                                table = table[table['Dec'] <= dec + fwhm/2]
-
-                                phasecentre_sky = SkyCoord(ra, dec, unit=(u.deg, u.deg), frame='icrs')
-                                skycoords = SkyCoord(table['Ra'], table['Dec'], unit=(u.deg, u.deg), frame='icrs')
-                                seperations = skycoords.separation(phasecentre_sky).degree
-                                table = table[seperations < fwhm/2]
-                                
-                                table.to_csv('starting.skymodel', index=False, header=original_colnames)
-                                lsm = lsmtool.load('starting.skymodel', beamMS=MS.pathMS)
-                                lsm.remove('I<1')
+                            if demix_field_skymodel.upper() not in ['GSM','LOTSS','TGSS','VLSSR','NVSS','WENSS','LOTSS-DR3']:
+                                sm = lsmtool.load(demix_field_skymodel, beamMS=MS.pathMS)
                             else:
-                                lsm = lsmtool.load(demix_field_skymodel, beamMS=MS.pathMS)
-                            lsm.group('single', root='target')
-                            lsm.setColValues('LogarithmicSI', ['true'] * len(lsm))
+                                if demix_field_skymodel.upper() == 'LOTSS-DR3':
+                                    if lib_dd_parallel.check_lotss_coverage(phasecentre, fwhm/2):
+                                        logger.info('Target fully in LoTSS-DR3 - start from LoTSS.')
+                                        sm = lib_cat.get_LOTSS_DR3_cone_as_skymodel(phasecentre, fwhm / 2,
+                                                                                'demixfield_lotss.skymodel', MS.pathMS)
+                                    else:
+                                        logger.info('Target not fully in LoTSS-DR3 - start from GSM.')
+                                        demix_field_skymodel = 'GSM'
+                                if demix_field_skymodel.upper() in ['GSM','LOTSS','TGSS','VLSSR','NVSS','WENSS']:
+                                    logger.info(f'Include target from {demix_field_skymodel}...')
+                                    # get model the size of the image (radius=fwhm/2)
+                                    sm = lsmtool.load(demix_field_skymodel, VOPosition=phasecentre, VORadius=fwhm/2, beamMS=MS.pathMS)
+                                    sm.remove('I<1')
+                                    if demix_field_skymodel.upper() == 'LOTSS':
+                                        sm.setColValues('I', sm.getColValues('I')/1000) # convert mJy to Jy TODO fix in LSMtool
+                                        sm.setColValues('SpectralIndex', [[-0.7]]*len(sm.getColValues('I'))) # add standard spidx
+                            sm.group('single', root='target')
+                            sm.setColValues('LogarithmicSI', ['true'] * len(sm))
                             # apply beam to the target-field
-                            lsm.setColValues('I', lsm.getColValues('I', applyBeam=True))
+                            sm.setColValues('I', sm.getColValues('I', applyBeam=True))
                             # join with ateam skymodel
-                            lsm.concatenate(demix_sm)
+                            sm.concatenate(demix_sm)
                             # DO NOT USE APPARENT MODEL FOR DEMIX SOURCES! THIS GIVES WORSE RESULTS IN SOME CASES!
-                            lsm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)
+                            sm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)
                             # lsm.write(f'{MS.pathMS}/demix_combined_apparent.skymodel', clobber=True, applyBeam=True)
-
                         else: # ignore target
                             logger.info('Ignoring target...')
                             demix_sm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)
