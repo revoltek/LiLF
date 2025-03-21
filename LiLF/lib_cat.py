@@ -14,9 +14,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+import os
 import numpy as np
+import pandas as pd
 import copy
 import logging
+import lsmtool
 from astropy.table import Table, Column
 import astropy.units as u
 from astropy.units import UnitConversionError
@@ -365,3 +368,31 @@ class RadioCat(Cat):
         return median
 
 
+def get_LOTSS_DR3_cone_as_skymodel(centre, radius, filename, beamMS=None):
+    """Do a cone search on LoTSS DR-3 and return the result as skymodel
+    center: [ra,dec] in degree
+    radius: radius in degree
+    filename: skymodel path
+    beamMS: path to beamMS
+    """
+    with open(os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 'r') as f:
+        header = f.readline()
+        original_colnames = header.replace('\n', '').split(",")
+        colnames = header.replace('\n', '').split(" = ")[-1].split(", ")
+
+    table = pd.read_csv(
+        os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel',
+        names=colnames, skiprows=1)
+
+    table = table[table['Dec'] >= centre[1] - radius ]
+    table = table[table['Dec'] <= centre[1] + radius]
+
+    phasecentre_sky = SkyCoord(centre[0], centre[1], unit=(u.deg, u.deg), frame='icrs')
+    skycoords = SkyCoord(table['Ra'], table['Dec'], unit=(u.deg, u.deg), frame='icrs')
+    seperations = skycoords.separation(phasecentre_sky).degree
+    table = table[seperations < radius]
+
+    table.to_csv(filename, index=False, header=original_colnames)
+    sm = lsmtool.load(filename, beamMS=beamMS)
+    sm.setColValues('SpectralIndex', [[-0.7]] * len(sm.getColValues('I')))  # add standard spidx
+    return sm

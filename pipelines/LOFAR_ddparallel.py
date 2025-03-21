@@ -29,7 +29,7 @@ from losoto.h5parm import h5parm
 import lsmtool
 
 ########################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd, lib_h5, lib_dd_parallel
+from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd, lib_h5, lib_dd_parallel, lib_cat
 logger_obj = lib_log.Logger('pipeline-ddparallel')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
@@ -470,28 +470,7 @@ for c in range(maxIter):
             # using components downloaded from https://www.lofar-surveys.org/downloads/DR3/catalogues/LoTSS_DR3_v0.1_gaus.fits
             # componentlist prepared on 11-03-2025 (total flux in Jy)
             elif start_sourcedb.upper() == 'LOTSS-DR3':
-                import pandas as pd
-                with open(os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 'r') as f:
-                    header = f.readline()
-                    original_colnames = header.replace('\n','').split(",")
-                    colnames = header.replace('\n','').split(" = ")[-1].split(", ")
-                    
-                table = pd.read_csv(
-                    os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 
-                    names=colnames,skiprows=1)
-
-                table = table[table['Dec'] >= phasecentre[1] - null_mid_freq/2]
-                table = table[table['Dec'] <= phasecentre[1] + null_mid_freq/2]
-
-                phasecentre_sky = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg), frame='icrs')
-                skycoords = SkyCoord(table['Ra'], table['Dec'], unit=(u.deg, u.deg), frame='icrs')
-                seperations = skycoords.separation(phasecentre_sky).degree
-                table = table[seperations < null_mid_freq/2]
-                
-                table.to_csv('ddparallel/skymodel/starting.skymodel', index=False, header=original_colnames)
-                sm = lsmtool.load('ddparallel/skymodel/starting.skymodel', beamMS=beamMS)
-                sm.setColValues('SpectralIndex', [[-0.7]]*len(sm.getColValues('I'))) # add standard spidx
-                #sm.write('debug-lotssdr3.skymodel', clobber=True) # DEBUG
+                sm = lib_cat.get_LOTSS_DR3_cone_as_skymodel(phasecentre, null_mid_freq/2, 'ddparallel/skymodel/starting.skymodel', beamMS=beamMS)
             # otherwise if provided, use manual model
             else:
                 logger.info(f'Using input skymodel {start_sourcedb}')

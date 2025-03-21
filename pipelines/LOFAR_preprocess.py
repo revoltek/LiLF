@@ -10,7 +10,7 @@ from astropy.coordinates import SkyCoord
 import astropy.units as u
 
 ##########################################
-from LiLF import lib_ms, lib_util, lib_log, lib_dd_parallel
+from LiLF import lib_ms, lib_util, lib_log, lib_dd_parallel, lib_cat
 logger_obj = lib_log.Logger('pipeline-preprocess')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
@@ -214,13 +214,15 @@ if renameavg:
                         if demix_field_skymodel:
                             phasecentre = MS.getPhaseCentre()
                             fwhm = MS.getFWHM(freq='min')  # for radius of model
-                            if lib_dd_parallel.check_lotss_coverage(phasecentre, fwhm/2):
-                                logger.info('Target fully in LoTSS-DR3 - start from LoTSS.')
-                                demix_field_skymodel = 'LOTSS-DR3'
-                            else:
-                                logger.info('Target not fully in LoTSS-DR3 - start from GSM.')
-                                demix_field_skymodel = 'GSM'
-
+                            if demix_field_skymodel.upper() == 'LOTSS-DR3':
+                                if lib_dd_parallel.check_lotss_coverage(phasecentre, fwhm/2):
+                                    logger.info('Target fully in LoTSS-DR3 - start from LoTSS.')
+                                    sm = lib_cat.get_LOTSS_DR3_cone_as_skymodel(phasecentre, fwhm / 2,
+                                                                                'demixfield_lotss.skymodel', MS.pathMS)
+                                    # sm.write('debug-lotssdr3.skymodel', clobber=True) # DEBUG
+                                else:
+                                    logger.info('Target not fully in LoTSS-DR3 - start from GSM.')
+                                    demix_field_skymodel = 'GSM'
                             if demix_field_skymodel.upper() in ['GSM','LOTSS','TGSS','VLSSR','NVSS','WENSS']:
                                 logger.info(f'Include target from {demix_field_skymodel}...')
                                 # get model the size of the image (radius=fwhm/2)
@@ -229,30 +231,6 @@ if renameavg:
                                 if demix_field_skymodel.upper() == 'LOTSS':
                                     sm.setColValues('I', sm.getColValues('I')/1000) # convert mJy to Jy TODO fix in LSMtool
                                     sm.setColValues('SpectralIndex', [[-0.7]]*len(sm.getColValues('I'))) # add standard spidx
-                            elif demix_field_skymodel.upper() == 'LOTSS-DR3':
-                                import pandas as pd
-                                with open(os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 'r') as f:
-                                    header = f.readline()
-                                    original_colnames = header.replace('\n','').split(",")
-                                    colnames = header.replace('\n','').split(" = ")[-1].split(", ")
-                                    
-                                table = pd.read_csv(
-                                    os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 
-                                    names=colnames,skiprows=1)
-
-                                table = table[table['Dec'] >= phasecentre[1] - fwhm/2]
-                                table = table[table['Dec'] <= phasecentre[1] + fwhm/2]
-
-                                phasecentre_sky = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg), frame='icrs')
-                                skycoords = SkyCoord(table['Ra'], table['Dec'], unit=(u.deg, u.deg), frame='icrs')
-                                seperations = skycoords.separation(phasecentre_sky).degree
-                                table = table[seperations < fwhm/2]
-                                
-                                table.to_csv('starting.skymodel', index=False, header=original_colnames)
-                                sm = lsmtool.load('starting.skymodel', beamMS=MS.pathMS)
-                                sm.setColValues('SpectralIndex', [[-0.7]]*len(sm.getColValues('I'))) # add standard spidx
-                                sm.remove('I<1')
-                                #sm.write('debug-lotssdr3.skymodel', clobber=True) # DEBUG
                             else:
                                 sm = lsmtool.load(demix_field_skymodel, beamMS=MS.pathMS)
                             sm.group('single', root='target')
