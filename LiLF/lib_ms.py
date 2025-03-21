@@ -53,7 +53,7 @@ class AllMSs(object):
             if len(set(antenna_modes)) > 1:
                 logger.error('Mixed antenna modes in AllMSs:', antenna_modes)
                 sys.exit()
-            time_ints = [ms.getTimeInt() for ms in self.mssListObj]
+            time_ints = [round(ms.getTimeInt()) for ms in self.mssListObj]
             if len(set(time_ints)) > 1:
                 logger.error('Mixed time intervals in AllMSs:', time_ints)
                 sys.exit()
