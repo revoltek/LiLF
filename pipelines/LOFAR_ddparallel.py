@@ -313,7 +313,7 @@ with w.if_todo('cleaning'):
 sol_dir = 'ddparallel/solutions'
 plot_dir = 'ddparallel/plots'
 
-MSs = lib_ms.AllMSs( glob.glob(data_dir + 'mss/TC*[0-9].MS'), s, check_flags=True)
+MSs = lib_ms.AllMSs( glob.glob(data_dir + 'mss/TC*[0-9].MS'), s, check_flags=True, check_consistency=True)
 MSs.print_HAcov()
 
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration

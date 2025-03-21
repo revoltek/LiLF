@@ -127,7 +127,7 @@ with w.if_todo('cleaning'):
 ### DONE
 
 # use unaveraged MSs to be sure to get the same pixscale and imgsizepix of ddparallel
-MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s)
+MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s, check_consistency=True)
 pixscale = MSs.getListObj()[0].getPixelScale() 
 imgsizepix = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='max', elliptical=True)) * 3600 / pixscale) # roughly to smallest null
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable

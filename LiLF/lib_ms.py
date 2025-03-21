@@ -18,13 +18,14 @@ iers.conf.auto_download = False
 
 class AllMSs(object):
 
-    def __init__(self, pathsMS, scheduler, check_flags=True, check_sun=False, min_sun_dist=10):
+    def __init__(self, pathsMS, scheduler, check_flags=True, check_sun=False, min_sun_dist=10, check_consistency=False):
         """
         pathsMS:    list of MS paths
         scheduler:  scheduler object
         check_flag: if true ignore fully flagged ms
         check_sun: if true check sun distance
         min_sun_dist: if check_sun and distance from the sun < than this deg, skip
+        check_consistency: it quits if the MSs are not all of the same antenna_mode and time/freq resolution
         """
         self.scheduler = scheduler
 
@@ -42,10 +43,24 @@ class AllMSs(object):
                 logger.warning('Skip too close to sun (%.0f deg) ms: %s' % (ms.get_sun_dist(), pathMS))
             else:
                 self.mssListObj.append(ms)
-
-
+        
         if len(self.mssListObj) == 0:
             raise('ALL MS files flagged.')
+
+        # check that antenna mode and resolution is the same for all datasets
+        if check_consistency:
+            antenna_modes = [ms.getAntennaSet() for ms in self.mssListObj]
+            if len(set(antenna_modes)) > 1:
+                logger.error('Mixed antenna modes in AllMSs:', antenna_modes)
+                sys.exit()
+            time_ints = [ms.getTimeInt() for ms in self.mssListObj]
+            if len(set(time_ints)) > 1:
+                logger.error('Mixed time intervals in AllMSs:', time_ints)
+                sys.exit()
+            freq_chan = [ms.getNchan() for ms in self.mssListObj]
+            if len(set(freq_chan)) > 1:
+                logger.error('Mixed nchan in AllMSs:', freq_chan)
+                sys.exit()
 
         self.mssListStr = [ms.pathMS for ms in self.mssListObj]
         self.resolution = self.mssListObj[0].getResolution(check_flags=False)
