@@ -47,7 +47,7 @@ class AllMSs(object):
         if len(self.mssListObj) == 0:
             raise('ALL MS files flagged.')
 
-        # check that antenna mode and resolution is the same for all datasets
+        # check that antenna mode and time/freq resolutions are the same for all datasets
         if check_consistency:
             antenna_modes = [ms.getAntennaSet() for ms in self.mssListObj]
             if len(set(antenna_modes)) > 1:
