@@ -214,25 +214,25 @@ if renameavg:
                         if demix_field_skymodel:
                             phasecentre = MS.getPhaseCentre()
                             fwhm = MS.getFWHM(freq='min')  # for radius of model
-                            if demix_field_skymodel.upper() == 'LOTSS-DR3':
-                                if lib_dd_parallel.check_lotss_coverage(phasecentre, fwhm/2):
-                                    logger.info('Target fully in LoTSS-DR3 - start from LoTSS.')
-                                    sm = lib_cat.get_LOTSS_DR3_cone_as_skymodel(phasecentre, fwhm / 2,
-                                                                                'demixfield_lotss.skymodel', MS.pathMS)
-                                    # sm.write('debug-lotssdr3.skymodel', clobber=True) # DEBUG
-                                else:
-                                    logger.info('Target not fully in LoTSS-DR3 - start from GSM.')
-                                    demix_field_skymodel = 'GSM'
-                            if demix_field_skymodel.upper() in ['GSM','LOTSS','TGSS','VLSSR','NVSS','WENSS']:
-                                logger.info(f'Include target from {demix_field_skymodel}...')
-                                # get model the size of the image (radius=fwhm/2)
-                                sm = lsmtool.load(demix_field_skymodel, VOPosition=phasecentre, VORadius=fwhm/2, beamMS=MS.pathMS)
-                                sm.remove('I<1')
-                                if demix_field_skymodel.upper() == 'LOTSS':
-                                    sm.setColValues('I', sm.getColValues('I')/1000) # convert mJy to Jy TODO fix in LSMtool
-                                    sm.setColValues('SpectralIndex', [[-0.7]]*len(sm.getColValues('I'))) # add standard spidx
-                            else:
+                            if demix_field_skymodel.upper() not in ['GSM','LOTSS','TGSS','VLSSR','NVSS','WENSS','LOTSS-DR3']:
                                 sm = lsmtool.load(demix_field_skymodel, beamMS=MS.pathMS)
+                            else:
+                                if demix_field_skymodel.upper() == 'LOTSS-DR3':
+                                    if lib_dd_parallel.check_lotss_coverage(phasecentre, fwhm/2):
+                                        logger.info('Target fully in LoTSS-DR3 - start from LoTSS.')
+                                        sm = lib_cat.get_LOTSS_DR3_cone_as_skymodel(phasecentre, fwhm / 2,
+                                                                                'demixfield_lotss.skymodel', MS.pathMS)
+                                    else:
+                                        logger.info('Target not fully in LoTSS-DR3 - start from GSM.')
+                                        demix_field_skymodel = 'GSM'
+                                if demix_field_skymodel.upper() in ['GSM','LOTSS','TGSS','VLSSR','NVSS','WENSS']:
+                                    logger.info(f'Include target from {demix_field_skymodel}...')
+                                    # get model the size of the image (radius=fwhm/2)
+                                    sm = lsmtool.load(demix_field_skymodel, VOPosition=phasecentre, VORadius=fwhm/2, beamMS=MS.pathMS)
+                                    sm.remove('I<1')
+                                    if demix_field_skymodel.upper() == 'LOTSS':
+                                        sm.setColValues('I', sm.getColValues('I')/1000) # convert mJy to Jy TODO fix in LSMtool
+                                        sm.setColValues('SpectralIndex', [[-0.7]]*len(sm.getColValues('I'))) # add standard spidx
                             sm.group('single', root='target')
                             sm.setColValues('LogarithmicSI', ['true'] * len(sm))
                             # apply beam to the target-field
