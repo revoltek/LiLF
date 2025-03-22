@@ -317,6 +317,8 @@ RUN cd /opt/losoto && pip install .
    
 #####################################################################
 
+RUN pip install mocpy
+
 RUN mkdir /usr/share/casacore/
 RUN ln -s /usr/share/casacore/data/ /opt/casacore/data
 
