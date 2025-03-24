@@ -101,7 +101,7 @@ class AllMSs(object):
             else:
                 Nprocs = NumMSs
 
-            NThreads = int(np.rint( self.scheduler.max_cpucores/Nprocs ))
+            NThreads = round( self.scheduler.max_cpucores/Nprocs )
 
         return NThreads
 
@@ -278,7 +278,7 @@ class AllMSs(object):
         if chunks < 1: chunks = 1
         chunks = int(np.round(chunks))
 
-        ncpu = int(np.rint(self.scheduler.max_cpucores / maxProcs))  # cpu max_proc / threads
+        ncpu = round(self.scheduler.max_cpucores / maxProcs)  # cpu max_proc / threads
 
         extra_flags = ''
         if notime: extra_flags += ' -t'
@@ -787,7 +787,7 @@ class MS(object):
         Return a reasonable pixel scale
         """
         res = self.getResolution(check_flags)
-        return int(np.rint(res*2/4)) # reasonable value (4" for Dutch LBA)
+        return round(res*2/4) # reasonable value (4" for Dutch LBA)
 
     def getAntennas(self):
         """

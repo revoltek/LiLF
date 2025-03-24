@@ -338,11 +338,11 @@ else: cc_fit_order = 3
 fullband = MSs.getBandwidth()
 nchan = MSs.mssListObj[0].getNchan()
 tint = MSs.mssListObj[0].getTimeInt()
-if int(np.rint(fullband / nchan < 195.3e3/4)):
-    base_nchan = int(np.rint((195.3e3/4)/(fullband/nchan))) # this is 1 for dutch observations, and larger (2,4) for IS observations
+if (fullband / nchan) < (195.3e3/4):
+    base_nchan = round((195.3e3/4)/(fullband/nchan)) # this is 1 for dutch observations, and larger (2,4) for IS observations
 else: base_nchan = 1
 if tint < 4:
-    base_solint = int(np.rint(4/tint)) # this is already 1 for dutch observations
+    base_solint = round(4/tint) # this is already 1 for dutch observations
 else: base_solint = 1
 
 mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
