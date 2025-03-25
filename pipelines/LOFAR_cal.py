@@ -106,7 +106,7 @@ logger.info(f"Initial time res: {tint:.1f}, nchan: {nchan}")
 
 with w.if_todo('concat_all'):
     freqstep = 1  # keep all channels
-    timestep = int(np.rint(4 / tint))  # brings down to 4s
+    timestep = round(4 / tint)  # brings down to 4s
     # concat all SBs
     # SB.MS:DATA -> concat_all.MS:DATA
     logger.info('Concatenating data all (avg time %i)...' % timestep)
@@ -121,7 +121,7 @@ MSs_concat_all = lib_ms.AllMSs(['concat_all.MS'], s, check_flags=False)
 MSs_concat_all.print_HAcov()
 # for averaged data data set - the only purpose is to speed up the PA and FR solves
 # small_freqres = 781248 # four SB - 390624 # two SB - 195312 # one SB
-small_freqstep = int(np.rint(781248/freqres))
+small_freqstep = round(781248/freqres)
 small_timestep = 8 # to 32 s
 
 # relax in case of IS or decamenter
@@ -148,7 +148,7 @@ with w.if_todo('scale_bp'):
     # Solve concat_all.MS:DATA
     # dummy call to create template
     MSs_concat_all.run(
-        f'DP3 {parset_dir}/DP3-sol.parset msin=concat_all.MS msin.datacolumn=DATA sol.h5parm=cal-bp-theo.h5 sol.solint={int(np.rint(20 / tint))} sol.nchan=1 \
+        f'DP3 {parset_dir}/DP3-sol.parset msin=concat_all.MS msin.datacolumn=DATA sol.h5parm=cal-bp-theo.h5 sol.solint={round(20 / tint)} sol.nchan=1 \
             sol.maxiter=0 sol.mode=diagonalamplitude sol.modeldatacolumns="[DATA]" sol.datause=dual',
             log='$nameMS_bptemplate.log', commandType='DP3')
     lib_h5.create_h5bandpass(MSs_concat_all.getListObj()[0], 'cal-bp-theo.h5')
@@ -448,7 +448,7 @@ with w.if_todo('cal_bp'):
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve) against FR-corrupted MODEL_DATA
     # do not use datause=dual since the cross-hands are NOT trivial (FR-corrupted)
     logger.info('Calibrating BP...')
-    timestep = int(np.rint(20 / tint))  # brings down to 20s
+    timestep = round(20 / tint)  # brings down to 20s
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/bp-sub.h5 sol.mode=diagonal sol.datause=full \
                         sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.nchan=1',
                        log='$nameMS_solBP.log', commandType="DP3")
@@ -653,7 +653,7 @@ if imaging:
 
         # Solve concat_all.MS:CORRECTED_DATA (only solve)
         logger.info('Calibrating slow leakage...')
-        timestep = int(20*np.rint(120 / tint))  # brings down to 20min
+        timestep = 20*round(120 / tint)  # brings down to 20min
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
                            sol.h5parm=$pathMS/fj.h5 sol.mode=fulljones sol.minvisratio=0 \
                            sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.smoothnessconstraint=5e6',

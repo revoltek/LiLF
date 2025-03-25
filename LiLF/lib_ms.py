@@ -47,13 +47,13 @@ class AllMSs(object):
         if len(self.mssListObj) == 0:
             raise('ALL MS files flagged.')
 
-        # check that antenna mode and resolution is the same for all datasets
+        # check that antenna mode and time/freq resolutions are the same for all datasets
         if check_consistency:
             antenna_modes = [ms.getAntennaSet() for ms in self.mssListObj]
             if len(set(antenna_modes)) > 1:
                 logger.error('Mixed antenna modes in AllMSs:', antenna_modes)
                 sys.exit()
-            time_ints = [ms.getTimeInt() for ms in self.mssListObj]
+            time_ints = [round(ms.getTimeInt()) for ms in self.mssListObj]
             if len(set(time_ints)) > 1:
                 logger.error('Mixed time intervals in AllMSs:', time_ints)
                 sys.exit()
@@ -101,7 +101,7 @@ class AllMSs(object):
             else:
                 Nprocs = NumMSs
 
-            NThreads = int(np.rint( self.scheduler.max_cpucores/Nprocs ))
+            NThreads = round( self.scheduler.max_cpucores/Nprocs )
 
         return NThreads
 
@@ -278,7 +278,7 @@ class AllMSs(object):
         if chunks < 1: chunks = 1
         chunks = int(np.round(chunks))
 
-        ncpu = int(np.rint(self.scheduler.max_cpucores / maxProcs))  # cpu max_proc / threads
+        ncpu = round(self.scheduler.max_cpucores / maxProcs)  # cpu max_proc / threads
 
         extra_flags = ''
         if notime: extra_flags += ' -t'
@@ -787,7 +787,7 @@ class MS(object):
         Return a reasonable pixel scale
         """
         res = self.getResolution(check_flags)
-        return int(np.rint(res*2/4)) # reasonable value (4" for Dutch LBA)
+        return round(res*2/4) # reasonable value (4" for Dutch LBA)
 
     def getAntennas(self):
         """

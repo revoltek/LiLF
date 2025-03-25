@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM ubuntu:24.10
 SHELL ["/bin/bash", "-c"]
 ARG DEBIAN_FRONTEND=noninteractive
 LABEL maintainer="Francesco de Gasperin"
@@ -16,18 +16,18 @@ USER root
 RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
-RUN apt-get install -y cmake texinfo git wget flex bison sudo vim hdf5-tools rename python3-magic htop curl \
+RUN apt-get install -y cmake texinfo git wget flex bison sudo vim hdf5-tools rename python3-magic htop curl rust-all g++ gfortran \
     python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm \
     libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev libaio1t64 libaio-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
 
 # GCC 14. Should be removed after upgrading the container base to Ubuntu version with native GCC >= 14.
-RUN apt-get install -y software-properties-common
-RUN add-apt-repository -y universe && apt-get update
-RUN apt-get install -y gcc-14 g++-14 gfortran-14
-RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 14 && \
-    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 && \
-    update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-14 14
+#RUN apt-get install -y software-properties-common
+#RUN add-apt-repository -y universe && apt-get update
+#RUN apt-get install -y gcc-14 g++-14 gfortran-14
+#RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 14 && \
+#    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 && \
+#    update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-14 14
 
 RUN curl -O http://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb
 RUN dpkg -i libaio1_0.3.113-4_amd64.deb && rm libaio1_0.3.113-4_amd64.deb
@@ -257,10 +257,24 @@ RUN cd /opt/LSMTool && pip install . --upgrade
 
 ####################################################################
 ## LoSoTo (master 28/2/25)
-###################################################################
+####################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
     && cd /opt/losoto && git checkout da8d88a3d42a72a0e91e6f36ced072c73a34e6ee
 RUN cd /opt/losoto && pip install .
+
+####################################################################
+## spinifex (master 14/3/25)
+####################################################################
+RUN cd /opt && git clone https://git.astron.nl/RD/spinifex \
+    && cd /opt/spinifex && git checkout 1616fe1ed0ef1d70f1e1944914e26eec1dbbebfa
+RUN cd /opt/spinifex && pip install .
+
+####################################################################
+## mocpy (v0.16.2)
+####################################################################
+RUN cd /opt && git clone https://github.com/cds-astro/mocpy \
+    && cd /opt/mocpy && git checkout v0.16.2
+RUN cd /opt/mocpy && pip install .
 
 #####################################################################
 # msoverview
