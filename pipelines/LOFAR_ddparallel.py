@@ -348,6 +348,7 @@ else: base_solint = 1
 mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in cycle c
 
 # define list of facet fluxes per iteration -> this can go into the config
+# if we have LOTSS-DR3 or a custom sky model, we will start from 3Jy not 4Jy sources!
 if 'OUTER' in MSs.getListObj()[0].getAntennaSet():
     facet_fluxes = np.array([4,2.0, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 elif 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
@@ -453,8 +454,9 @@ for c in range(maxIter):
         if c == 0:
             if start_sourcedb == '':  # if not provided, use LOTSS as default, if the field is not fully covered, resort to GSM
                 if lib_dd_parallel.check_lotss_coverage(phasecentre, null_mid_freq/2):
-                    logger.info('Target fully in LoTSS-DR3 - start from LoTSS.')
+                    logger.info('Target fully in LoTSS-DR3 - start from LoTSS + use more initial facets.')
                     start_sourcedb = 'LOTSS-DR3'
+                    facet_fluxes[0] = 3.5
                 else:
                     logger.info('Target not fully in LoTSS-DR3 - start from GSM.')
                     start_sourcedb = 'GSM'
@@ -574,6 +576,11 @@ for c in range(maxIter):
         corrupt_model_dirs(MSs, c, '-CS', patches, 'phase')
     ### DONE
 
+    with w.if_todo('c%02i_add_patches' % c):
+        logger.info('Setting MODEL_DATA to sum of corrupted patch models...')
+        MSs.addcol('MODEL_DATA', 'DATA', usedysco=False)
+        MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(patches)}"', log='$nameMS_taql_addmodel.log',
+                commandType='general')
     ########################### 3C-subtract PART ####################################
     ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
     if c == 0 and remove3c:
@@ -584,10 +591,11 @@ for c in range(maxIter):
                 # Solve diagonal amplitude MSs:SMOOTHED_DATA
                 # 225*base_solint is 15 minutes
                 # TODO: try solving only CS and replicate
+                # TODO: this is very memory hungry due to the long solint, we might want to limit the parallel threads.
                 # sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]]',
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true\
                           sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
-                          sol.modeldatacolumns="[{",".join(patches)}]" sol.solint='+str(225*base_solint), log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
+                          sol.modeldatacolumns="[MODEL_DATA,{",".join(_3c_patches)}]" sol.solint='+str(225*base_solint), log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
 
                 losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
                 lib_util.run_losoto(s, 'amp-3C', [ms + '/amp-3C.h5' for ms in MSs.getListStr()], losoto_parsets,
@@ -665,10 +673,7 @@ for c in range(maxIter):
     # TODO add updateweights in production
     if c == 1:
         with w.if_todo('amp_di_solve'):
-            # no smoothing, CORRECTED_DATA is smoothed above
-            logger.info('Setting MODEL_DATA to sum of corrupted patch models...')
-            MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(patches)}"', log='$nameMS_taql_phdiff.log', commandType='general')
-            
+
             if fulljones:
                 logger.info('Solving amp-di (fulljones)...')
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \

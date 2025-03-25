@@ -18,7 +18,7 @@ DP3name = shutil.which('DP3')
 if not DP3name:
     DP3name = shutil.which('DPPP')
 try:
-    rgx = '[0-9]+(\.[0-9]+)+'
+    rgx = r'[0-9]+(\.[0-9]+)+'
     grep_version_string = str(check_output(DP3name+' --version', shell=True), 'utf-8')
     DP3_VERSION = float(re.search(rgx, grep_version_string).group()[0:3])
 except AttributeError:

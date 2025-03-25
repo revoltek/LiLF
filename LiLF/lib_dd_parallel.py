@@ -107,7 +107,7 @@ def closest_distance_between_patches(skymodel):
         nearby_name = names[distances == closest_patch[i]]
         # Case multiple patches at distance = 0
         if len(nearby_name) > 1:
-            logger.debug(f'Possible issue, multiple patches with same distance {nearby_name}!')
+            # logger.debug(f'Possible issue, multiple patches with same distance {nearby_name}!')
             if nearby_name[0] == name:
                 nearby_name = nearby_name[1]
             else:
