@@ -252,7 +252,7 @@ RUN cd /opt/PyBDSF && pip install .
 ## LSMtool (fix_query_tempdir)
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/LSMTool.git \
-    && cd /opt/LSMTool; git checkout fix_query_tempdir
+    && cd /opt/LSMTool; git checkout 367dfd3e
 RUN cd /opt/LSMTool && pip install . --upgrade
 
 ####################################################################
