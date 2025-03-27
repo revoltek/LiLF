@@ -485,6 +485,7 @@ for cmaj in range(maxIter):
         image = lib_img.Image('img/ddserialM-%s-pre-MFS-image.fits' % logstring, userReg=userReg)
         d.rms_noise_init = image.getNoise(); rms_noise_pre = d.rms_noise_init
         d.mm_ratio_init = image.getMaxMinRatio(); mm_ratio_pre = d.mm_ratio_init
+        d.set_model(image.root, typ='pre', apply_region=False)  # current best model
 
         doamp = False
         # usually there are 3600/32=112 or 3600/16=225 or 3600/8=450 timesteps and \
@@ -653,7 +654,10 @@ for cmaj in range(maxIter):
 
             # TODO what about the case that the first iteration is already worse than ddparallel image?
             if (cdd == 0 ) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
-                logger.warning('Image quality decreased after cdd00! What should we do in this case?')
+                logger.warning('Image quality decreased at cdd00! Possibly problematic ddcal.')
+                # Predict - ms:MODEL_DATA (could also use wsclean but this seems easier)
+                MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("pre")}-sources.txt',   log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
+                continue
             # if in cdd01 and cdd02 (before using amps) noise and mm ratio are worse or noise is a lot higher -> go back to previous ph_solint and restore current best model...
             # TODO technically if the cycle after we continue is converged, we would use the skipped cycle solutions since those are the "-2" ones... Fix that somehow.
             elif (cdd in [1,2,3]) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):

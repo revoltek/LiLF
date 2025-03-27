@@ -579,7 +579,8 @@ for c in range(maxIter):
     with w.if_todo('c%02i_add_patches' % c):
         logger.info('Setting MODEL_DATA to sum of corrupted patch models...')
         MSs.addcol('MODEL_DATA', 'DATA', usedysco=False)
-        MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(patches)}"', log='$nameMS_taql_addmodel.log',
+        non_3c_patches = [p for p in patches if p.startswith('patch_')]
+        MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(non_3c_patches)}"', log='$nameMS_taql_addmodel.log',
                 commandType='general')
     ########################### 3C-subtract PART ####################################
     ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
