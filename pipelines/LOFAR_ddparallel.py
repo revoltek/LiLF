@@ -579,8 +579,8 @@ for c in range(maxIter):
     with w.if_todo('c%02i_add_patches' % c):
         logger.info('Setting MODEL_DATA to sum of corrupted patch models...')
         MSs.addcol('MODEL_DATA', 'DATA', usedysco=False)
-        MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(patches)}"', log='$nameMS_taql_addmodel.log',
-                commandType='general')
+        MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(patches)}"', log='$nameMS_taql_addmodel.log', commandType='general')
+        
     ########################### 3C-subtract PART ####################################
     ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
     if c == 0 and remove3c:
@@ -595,7 +595,8 @@ for c in range(maxIter):
                 # sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]]',
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true\
                           sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
-                          sol.modeldatacolumns="[MODEL_DATA,{",".join(_3c_patches)}]" sol.solint='+str(225*base_solint), log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
+                          sol.modeldatacolumns="[MODEL_DATA,{",".join(_3c_patches)}]" sol.solint='+str(225*base_solint), 
+                          log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
 
                 losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
                 lib_util.run_losoto(s, 'amp-3C', [ms + '/amp-3C.h5' for ms in MSs.getListStr()], losoto_parsets,
@@ -632,7 +633,6 @@ for c in range(maxIter):
                         )
                         clean_empty(MSs,f'{patch}_data_after_phase', 'DATA_SUB', shift=coords, size=2000)
 
-                        # TEST: comment out amps
                         corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
                         MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
                         clean_empty(MSs,f'{patch}_model_amp', f'{patch}', shift=coords, size=2000)
