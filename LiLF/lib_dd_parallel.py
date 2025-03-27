@@ -104,17 +104,19 @@ def closest_distance_between_patches(skymodel):
     for i, (name, pos) in enumerate(skymodel.getPatchPositions().items()):
         distances = skymodel.getDistance(*pos, byPatch=True)
         closest_patch[i] = np.sort(distances)[1] # [0] is the patch itself if there is only ONE patch with that distance
-        nearby_name = names[distances == closest_patch[i]] # select all patches with this distance in case multiple have SAME distance
+        nearby_name = names[distances <= closest_patch[i]] # select all patches with this distance in case multiple have SAME distance
         # Case multiple patches at same distance
         if len(nearby_name) > 1:
             if nearby_name[0] == name:
                 nearby_name = nearby_name[1]
             else:
                 nearby_name = nearby_name[0]
+            if name == nearby_name:  # sanity check, it should not be identical.
+                raise ValueError(f'A: patch {name} is identical to closest patch {nearby_name} at distance {closest_patch[i]}!')
         else:
             nearby_name = nearby_name[0]
-
-        assert name != nearby_name  # sanity check, it should not be identical.
+            if name == nearby_name:  # sanity check, it should not be identical.
+                raise ValueError(f'B: patch {name} is identical to closest patch {nearby_name} at distance {closest_patch[i]}!')
         closest_name.append([name,nearby_name])
 
     name_closest, dist_closest = closest_name[np.argmin(closest_patch)], np.min(closest_patch)
