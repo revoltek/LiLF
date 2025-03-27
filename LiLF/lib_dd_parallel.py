@@ -103,19 +103,22 @@ def closest_distance_between_patches(skymodel):
     names = skymodel.getPatchNames()
     for i, (name, pos) in enumerate(skymodel.getPatchPositions().items()):
         distances = skymodel.getDistance(*pos, byPatch=True)
-        closest_patch[i] = np.sort(distances)[1]
-        nearby_name = names[distances == closest_patch[i]]
-        # Case multiple patches at distance = 0
+        closest_patch[i] = np.sort(distances)[1] # [0] is the patch itself if there is only ONE patch with that distance
+        nearby_name = names[distances == closest_patch[i]] # select all patches with this distance in case multiple have SAME distance
+        # Case multiple patches at same distance
         if len(nearby_name) > 1:
-            # logger.debug(f'Possible issue, multiple patches with same distance {nearby_name}!')
             if nearby_name[0] == name:
                 nearby_name = nearby_name[1]
             else:
                 nearby_name = nearby_name[0]
-        else: nearby_name = nearby_name[0]
+        else:
+            nearby_name = nearby_name[0]
 
+        assert name != nearby_name  # sanity check, it should not be identical.
         closest_name.append([name,nearby_name])
-    return closest_name[np.argmin(closest_patch)], np.min(closest_patch)
+
+    name_closest, dist_closest = closest_name[np.argmin(closest_patch)], np.min(closest_patch)
+    return name_closest, dist_closest
 
 
 def merge_nearby_bright_facets(skymodel, max_distance, min_flux, applyBeam=False):
@@ -137,6 +140,7 @@ def merge_nearby_bright_facets(skymodel, max_distance, min_flux, applyBeam=False
     skymodel_bright = skymodel.copy()
     skymodel_bright.select(f'I>{min_flux}', aggregate='sum', applyBeam=applyBeam)
     if len(skymodel_bright) > 1:
+        # loop over the bright patches as long as the distance between the two closest patches is less than max_distance
         while closest_distance_between_patches(skymodel_bright)[1] < max_distance:
             closest_patches, closest_distance = closest_distance_between_patches(skymodel_bright)
             logger.info(f'Merging nearby bright patches {closest_patches[0]} {closest_patches[1]} (distance={closest_distance*3600:.2f}arcsec')
