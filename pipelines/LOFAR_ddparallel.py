@@ -280,7 +280,7 @@ def add_3c_models(sm, phasecentre, null_mid_freq, beamMask, max_sep=50., thresho
 
 def make_source_regions(sm, c):
     lib_util.check_rm(f'ddparallel/skymodel/regions_c{c}')
-    lib_util.check_rm(f'ddparallel/skymodel/sources_c{c}.reg')
+    lib_util.check_rm(f'ddparallel/skymodel/patches_c{c}.reg')
     os.makedirs(f'ddparallel/skymodel/regions_c{c}')
     for p in sm.getPatchNames():
         sm_p = sm.copy()
@@ -292,7 +292,8 @@ def make_source_regions(sm, c):
             reg.visual['facecolor'] = col
             reg.visual['edgecolor'] = col
         regs.write(f'ddparallel/skymodel/regions_c{c}/{p}.reg',overwrite=True)
-        os.system(f'cat ddparallel/skymodel/regions_c{c}/*.reg >> ddparallel/skymodel/sources_c{c}.reg')
+        os.system(f'cat ddparallel/skymodel/regions_c{c}/*.reg >> ddparallel/skymodel/patches_c{c}.reg')
+    lib_util.check_rm(f'ddparallel/skymodel/regions_c{c}')
     
 
 #############################################################################
@@ -580,8 +581,8 @@ for c in range(maxIter):
         logger.info('Setting MODEL_DATA to sum of corrupted patch models...')
         MSs.addcol('MODEL_DATA', 'DATA', usedysco=False)
         non_3c_patches = [p for p in patches if p.startswith('patch_')]
-        MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(non_3c_patches)}"', log='$nameMS_taql_addmodel.log',
-                commandType='general')
+        MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(non_3c_patches)}"', log='$nameMS_taql_addmodel.log', commandType='general')
+
     ########################### 3C-subtract PART ####################################
     ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
     if c == 0 and remove3c:
@@ -599,7 +600,8 @@ for c in range(maxIter):
                           sol.modeldatacolumns="[MODEL_DATA,{",".join(_3c_patches)}]" sol.solint='+str(225*base_solint), 
                           log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
 
-                losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
+                #losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
+                losoto_parsets = [parset_dir + '/losoto-plot-amp.parset']
                 lib_util.run_losoto(s, 'amp-3C', [ms + '/amp-3C.h5' for ms in MSs.getListStr()], losoto_parsets,
                                     plots_dir=f'{plot_dir}/plots-amp-3C', h5_dir=sol_dir)
                 ### DONE
