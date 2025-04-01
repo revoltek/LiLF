@@ -74,11 +74,14 @@ def fit_lombscargle(phases, data, tint, ant="CS002LBA", freq_split=0, plot=True,
     
     if len(dtecs) == 0:
         # if highest dtec peaks are not found, default to old method
-        print("no peaks found at  ", ant, tint)
+        logging.info(f'no peaks found at {ant}, [{tint[0]},{tint[1]}]')
         peaks, __ = find_peaks(periodogram)
         dtecs = peaks[np.argsort(periodogram[peaks])][::-1][:2]
 
-    if len(dtecs) == 1:
+    if len(dtecs) == 0:
+        logging.warning(f'fit failed for {ant}, [{tint[0]},{tint[1]}]')
+        return np.nan, np.nan, np.array([]), np.array([])
+    elif len(dtecs) == 1:
         best_dtec = lombfreqs[dtecs[0]]
     elif periodogram[dtecs[0]]/periodogram[dtecs[1]] > 2:
         best_dtec = lombfreqs[dtecs[0]]
@@ -334,11 +337,13 @@ def get_smoothed_tec(dtec, timesteps, ant, new_time_axis):
     t = timesteps[np.isnan(dtec) == False]
     lam = len(nonan_dtec)//20 
     if len(nonan_dtec) < 15:
-        print("too few data points")
+        logging.warning(f"Too few data points to smooth {ant}")
+        filtered = nonan_dtec.copy()
     elif lam%2 == 0:
         lam += 1
-
-    filtered = medfilt(nonan_dtec, lam)
+        filtered = medfilt(nonan_dtec, lam)
+    else:
+        filtered = medfilt(nonan_dtec, lam)
 
     if "PL" in ant or "LV" in ant or "IE" in ant:
         spl = make_smoothing_spline(t, filtered, lam=1e6)

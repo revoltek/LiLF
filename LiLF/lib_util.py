@@ -82,6 +82,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_cal', 'fillmissingedges', 'True')
     add_default('LOFAR_cal', 'less_aggressive_flag', 'False') # change flagging so that we can handle data with alternating SBs only or many flagged points
     add_default('LOFAR_cal', 'develop', 'False') # if true prevents the deletion of files
+    add_default('LOFAR_cal', 'do_gps_rm', 'False') # skip the model step
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
