@@ -14,4 +14,3 @@ axesInPlot = [time,freq]
 axisInTable = ant
 prefix = plots/pha1_
 refAnt = auto
-minmax = [-1,1]

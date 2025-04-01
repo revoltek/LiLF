@@ -5,12 +5,14 @@ operation = CLIP
 soltab = sol000/amplitude000
 mode = below
 clipLevel = 0.2
+pol=[XX,YY]
 
 [clip2]
 operation = CLIP
 soltab = sol000/amplitude000
 mode = above
 clipLevel = 5.0
+pol=[XX,YY]
 
 # use [time,freq] instead of just time: it's much faster
 [flagextendT]
