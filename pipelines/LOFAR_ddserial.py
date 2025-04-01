@@ -180,8 +180,7 @@ for cmaj in range(maxIter):
 
     # cycle specific variables
     picklefile = 'ddserial/directions-c%02i.pickle' % cmaj
-    #mask_ddcal = full_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
-    mask_ddcal = 'ddserial/c%02i/skymodels/mask-ddcal-c%02i.fits' % (cmaj, cmaj)  # this is used to find calibrators
+    mask_ddcal = 'ddserial/c%02i/skymodels/mask-ddcal-c%02i.fits' % (cmaj, cmaj)
 
     if not os.path.exists('ddserial/c%02i' % cmaj): os.makedirs('ddserial/c%02i' % cmaj)
     for subdir in ['plots','images','solutions','skymodels']:
@@ -191,7 +190,7 @@ for cmaj in range(maxIter):
         directions = []
 
         if not os.path.exists(mask_ddcal.replace('fits', 'cat.fits')): # re-use if exists
-            # making skymodel from image
+            # making skymodel from image, used to find calibrators (mask-ddcal-c0x.cat.fits)
             full_image.makeMask(threshpix=4, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
         global_rms = full_image.getNoise()
         
@@ -356,18 +355,6 @@ for cmaj in range(maxIter):
                       cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True', log='$nameMS_sf-correct.log', commandType='DP3')
 
     ### DONE
-
-    # just for debug, to be removed
-    #if cmaj == 1:
-    #    with w.if_todo('c%02i-fulljsol' % cmaj):
-    #        logger.info('Solving slow G (full jones)...')
-    #        MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/g.h5 sol.solint=10 sol.nchan=16',
-    #                log='$nameMS_solG-c%02i.log' % cmaj, commandType='DP3')
-    #        lib_util.run_losoto(s, 'g-c%02i' % cmaj, [MS+'/g.h5' for MS in MSs.getListStr()],
-    #                [parset_dir+'/losoto-plot-fullj.parset', parset_dir+'/losoto-bp.parset'])
-    #        os.system('mv plots-g-c%02i ddserial/c%02i/plots/' % (cmaj, cmaj))
-    #        os.system('mv cal-g-c%02i.h5 ddserial/c%02i/solutions/' % (cmaj, cmaj))
-    #    ### DONE
 
     with w.if_todo('c%02i-fullsub' % cmaj):
         if cmaj == 0:
