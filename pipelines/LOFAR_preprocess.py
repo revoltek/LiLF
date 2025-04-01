@@ -179,6 +179,7 @@ if renameavg:
                     sys.exit(1)
 
                 if keep_IS:
+                    # TODO HE - I think we want 2s 32ch/SB for IS here!
                      avg_factor_f = int(nchan / 16) # to have the full FoV in LBA we need 16 ch/SB
                 if avg_factor_f < 1: avg_factor_f = 1
 

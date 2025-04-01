@@ -473,6 +473,7 @@ for cmaj in range(maxIter):
         image = lib_img.Image('img/ddserialM-%s-pre-MFS-image.fits' % logstring, userReg=userReg)
         d.rms_noise_init = image.getNoise(); rms_noise_pre = d.rms_noise_init
         d.mm_ratio_init = image.getMaxMinRatio(); mm_ratio_pre = d.mm_ratio_init
+        d.set_model(image.root, typ='pre', apply_region=False)  # current best model
 
         doamp = False
         # usually there are 3600/32=112 or 3600/16=225 or 3600/8=450 timesteps and \
@@ -591,7 +592,7 @@ for cmaj in range(maxIter):
                     logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
                     # Calibration - ms:CORRECTED_DATA
                     MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.minvisratio=0.3',
+                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.minvisratio=0.3 sol.model_weighted_constraints=true',
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DP3')
 
                     if d.peel_off:
@@ -638,15 +639,22 @@ for cmaj in range(maxIter):
             logger.info('MM ratio (cdd:%02i): %f' % (cdd,mm_ratio))
 
             # TODO what about the case that the first iteration is already worse than ddparallel image?
-            if (cdd == 0) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
-                logger.warning('Image quality decreased after cdd00! What should we do in this case?')
+            if (cdd == 0 ) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
+                logger.warning('Image quality decreased at cdd00! Possibly problematic ddcal.')
+                # Predict - ms:MODEL_DATA (could also use wsclean but this seems easier)
+                MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("pre")}-sources.txt',   log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
+                continue
             # if in cdd01 and cdd02 (before using amps) noise and mm ratio are worse or noise is a lot higher -> go back to previous ph_solint and restore current best model...
             # TODO technically if the cycle after we continue is converged, we would use the skipped cycle solutions since those are the "-2" ones... Fix that somehow.
             elif (cdd in [1,2,3]) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
                 logger.warning(f'Image quality decreased after cdd{cdd}. Restore previous iteration ph_solint and model...')
                 iter_ph_solint = lib_util.Sol_iterator([2*solint_ph]) # go from 1 to 2 or 2 to 4 and don't decrease further.
                 # Predict - ms:MODEL_DATA (could also use wsclean but this seems easier)
-                MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("best")}-sources.txt',   log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
+                try:
+                    MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("best")}-sources.txt',   log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
+                except:
+                    # this happens if both ddcycle 0 and ddcycle 1 didn't improve
+                    MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("pre")}-sources.txt',   log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
                 continue
             # if noise incresed and mm ratio decreased - or noise increased a lot!
             elif (cdd >= 4) and ((rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre) or rms_noise > 1.2*rms_noise_pre):
@@ -963,7 +971,7 @@ with w.if_todo('output-timedep'):
                 apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75,
                 beam_size=15)
 
-        os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameT, imagenameT, imagenameT, cmaj))
+        os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameT, imagenameT, cmaj))
 ### DONE
 
 with w.if_todo('output-vstokes'):
@@ -974,7 +982,7 @@ with w.if_todo('output-vstokes'):
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
                 pol='v')
 
-    os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, imagenameV, cmaj))
+    os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, cmaj))
 ### DONE
 
 with w.if_todo('output-lres'):
@@ -988,7 +996,7 @@ with w.if_todo('output-lres'):
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
                 apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60)
 
-    os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameL, imagenameL, imagenameL, cmaj))
+    os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameL, imagenameL, cmaj))
 ### DONE
 
 # TODO: the model to subtract should be done from a high-res image to remove only point sources
@@ -1016,7 +1024,7 @@ with w.if_todo('output-lressub'):
                 multiscale='', multiscale_scale_bias=0.65, pol='i', taper_gaussian='60arcsec',
                 apply_facet_beam='', use_differential_lofar_beam='', facet_beam_update=120, facet_regions=facetregname, apply_facet_solutions=f'{interp_h5parm} {correct_for}')
  
-    os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameLS, imagenameLS, imagenameLS, cmaj))
+    os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameLS, imagenameLS, cmaj))
 ### DONE
 
 with w.if_todo('output_PB'):
