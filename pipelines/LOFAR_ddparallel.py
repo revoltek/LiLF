@@ -225,7 +225,7 @@ def add_3c_models(sm, phasecentre, null_mid_freq, beamMask, max_sep=50., thresho
     phasecentre = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg))
     beam_hdu = fits.open(beamMask)[0]
     beam_wcs = wcs.WCS(beam_hdu.header)
-        
+
     logger.info('Adding 3C models...')
     for source, coord in all_3c.items():
         

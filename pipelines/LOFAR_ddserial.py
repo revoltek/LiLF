@@ -357,18 +357,6 @@ for cmaj in range(maxIter):
 
     ### DONE
 
-    # just for debug, to be removed
-    #if cmaj == 1:
-    #    with w.if_todo('c%02i-fulljsol' % cmaj):
-    #        logger.info('Solving slow G (full jones)...')
-    #        MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/g.h5 sol.solint=10 sol.nchan=16',
-    #                log='$nameMS_solG-c%02i.log' % cmaj, commandType='DP3')
-    #        lib_util.run_losoto(s, 'g-c%02i' % cmaj, [MS+'/g.h5' for MS in MSs.getListStr()],
-    #                [parset_dir+'/losoto-plot-fullj.parset', parset_dir+'/losoto-bp.parset'])
-    #        os.system('mv plots-g-c%02i ddserial/c%02i/plots/' % (cmaj, cmaj))
-    #        os.system('mv cal-g-c%02i.h5 ddserial/c%02i/solutions/' % (cmaj, cmaj))
-    #    ### DONE
-
     with w.if_todo('c%02i-fullsub' % cmaj):
         if cmaj == 0:
             # first cycle no corrections - ms:CORRECTED_DATA = DATA
@@ -576,17 +564,15 @@ for cmaj in range(maxIter):
                 if doamp:
                    # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
                     MSs_dir.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-{logstringcal}')
-
                     logger.info('Gain amp calibration 1 (solint: %i, solch: %i)...' % (solint_amp1, solch_amp1))
                     # Calibration - ms:CORRECTED_DATA
-                    # possible to put nchan=6 if less channels are needed in the h5parm (e.g. for IDG)
                     MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
                         sol.mode=diagonal sol.solint='+str(solint_amp1)+' sol.nchan='+str(solch_amp1)+' sol.minvisratio=0.3 \
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DP3')
 
                     if d.peel_off:
-                        losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
+                        losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-plot-amp1.parset']
                     else:
                         losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
                     lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
@@ -609,7 +595,7 @@ for cmaj in range(maxIter):
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DP3')
 
                     if d.peel_off:
-                        losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
+                        losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-plot-amp2.parset']
                     else:
                         losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
                     lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
@@ -652,7 +638,7 @@ for cmaj in range(maxIter):
             logger.info('MM ratio (cdd:%02i): %f' % (cdd,mm_ratio))
 
             # TODO what about the case that the first iteration is already worse than ddparallel image?
-            if (cdd == 0 ) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
+            if (cdd == 0) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
                 logger.warning('Image quality decreased after cdd00! What should we do in this case?')
             # if in cdd01 and cdd02 (before using amps) noise and mm ratio are worse or noise is a lot higher -> go back to previous ph_solint and restore current best model...
             # TODO technically if the cycle after we continue is converged, we would use the skipped cycle solutions since those are the "-2" ones... Fix that somehow.
@@ -769,8 +755,8 @@ for cmaj in range(maxIter):
                            log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
                 if not d.get_h5parm('amp2',-2) is None:
                     MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                           cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000',
-                           log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
+                            cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000',
+                            log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
 
                 if not d.peel_off:
                     # Corrupt for the beam
