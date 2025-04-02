@@ -15,19 +15,19 @@ pol = XX,YY
 axesToFlag = [time,freq]
 order = [100,40]
 maxCycles = 1
-maxRms = 4
+maxRms = 5
 replace = False
 preFlagZeros = False
 mode = smooth
 
-[flagextend]
-operation = FLAGEXTEND
-soltab = sol000/amplitude000
-pol = XX,YY
-axesToExt = [time,freq]
-size = [100,80]
-percent = 50
-maxCycles = 2
+#[flagextend]
+#operation = FLAGEXTEND
+#soltab = sol000/amplitude000
+#pol = XX,YY
+#axesToExt = [time,freq]
+#size = [100,80]
+#percent = 50
+#maxCycles = 2
 
 # use [time,freq] instead of just freq: it's much faster
 [flagextendF]
