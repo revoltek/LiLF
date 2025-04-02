@@ -180,8 +180,7 @@ for cmaj in range(maxIter):
 
     # cycle specific variables
     picklefile = 'ddserial/directions-c%02i.pickle' % cmaj
-    #mask_ddcal = full_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
-    mask_ddcal = 'ddserial/c%02i/skymodels/mask-ddcal-c%02i.fits' % (cmaj, cmaj)  # this is used to find calibrators
+    mask_ddcal = 'ddserial/c%02i/skymodels/mask-ddcal-c%02i.fits' % (cmaj, cmaj)
 
     if not os.path.exists('ddserial/c%02i' % cmaj): os.makedirs('ddserial/c%02i' % cmaj)
     for subdir in ['plots','images','solutions','skymodels']:
@@ -191,7 +190,7 @@ for cmaj in range(maxIter):
         directions = []
 
         if not os.path.exists(mask_ddcal.replace('fits', 'cat.fits')): # re-use if exists
-            # making skymodel from image
+            # making skymodel from image, used to find calibrators (mask-ddcal-c0x.cat.fits)
             full_image.makeMask(threshpix=4, atrous_do=False, maskname=mask_ddcal, write_srl=True, write_ds9=True)
         global_rms = full_image.getNoise()
         

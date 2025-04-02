@@ -593,7 +593,6 @@ for c in range(maxIter):
                 # Solve diagonal amplitude MSs:SMOOTHED_DATA
                 # 225*base_solint is 15 minutes
                 # TODO: try solving only CS and replicate
-                # TODO: this is very memory hungry due to the long solint, we might want to limit the parallel threads.
                 # sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]]',
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true\
                           sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
@@ -618,9 +617,7 @@ for c in range(maxIter):
                         all_3c = json.load(file)
                         
                 for patch in _3c_patches:
-                    logger.info(f'Subtracting {patch}...')
-                    # Corrupt MODEL_DATA with amplitude, set MODEL_DATA = 0 where data are flagged, then unflag everything
-                    #corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
+                    
                     if debug_3c_sub:
                         MSs.run('taql "update $pathMS set DATA_SUB = CORRECTED_DATA_FR"', log='$nameMS_taql.log', commandType='general')
                         coords = all_3c[patch.replace('source_','').replace("C","C ")]
@@ -628,7 +625,6 @@ for c in range(maxIter):
                         coords[1] = coords[1].replace(" ", "d", 1).replace(" ", "m", 1) + "s"
                         clean_empty(MSs,f'{patch}_data_zoom_pre', 'CORRECTED_DATA_FR', shift=coords, size=2000)
                         clean_empty(MSs,f'{patch}_model', f'{patch}', shift=coords, size=2000)
-                        
                         MSs.run(
                             f"taql 'UPDATE $pathMS SET DATA_SUB = DATA_SUB - {patch}'",
                             log = f'$nameMS_subtract_{patch}.log',
@@ -636,10 +632,13 @@ for c in range(maxIter):
                         )
                         clean_empty(MSs,f'{patch}_data_after_phase', 'DATA_SUB', shift=coords, size=2000)
 
-                        corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
-                        MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
-                        clean_empty(MSs,f'{patch}_model_amp', f'{patch}', shift=coords, size=2000)
+                    logger.info(f'Subtracting {patch}...')
+                    # Corrupt MODEL_DATA with amplitude, set MODEL_DATA = 0 where data are flagged, then unflag everything
+                    corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
+                    MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
                     
+                    if debug_3c_sub:
+                        clean_empty(MSs,f'{patch}_model_amp', f'{patch}', shift=coords, size=2000)
                         MSs.run('taql "update $pathMS set DATA_SUB = CORRECTED_DATA_FR"', log='$nameMS_taql.log', commandType='general')
                         MSs.run(
                             f"taql 'UPDATE $pathMS SET DATA_SUB = DATA_SUB - {patch}'",
@@ -666,8 +665,8 @@ for c in range(maxIter):
                     sm.select(f'Patch != {patch}')
                     sm.write(sourcedb, clobber=True)
                     patches = np.delete(patches, np.where(patches == patch)[0])
-                    MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')
-
+                
+                MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')
                 MSs.deletecol('FLAG_BKP')  
             ### DONE
 
