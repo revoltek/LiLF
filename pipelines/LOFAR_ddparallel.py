@@ -225,7 +225,7 @@ def add_3c_models(sm, phasecentre, null_mid_freq, beamMask, max_sep=50., thresho
     phasecentre = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg))
     beam_hdu = fits.open(beamMask)[0]
     beam_wcs = wcs.WCS(beam_hdu.header)
-        
+
     logger.info('Adding 3C models...')
     for source, coord in all_3c.items():
         
@@ -280,7 +280,7 @@ def add_3c_models(sm, phasecentre, null_mid_freq, beamMask, max_sep=50., thresho
 
 def make_source_regions(sm, c):
     lib_util.check_rm(f'ddparallel/skymodel/regions_c{c}')
-    lib_util.check_rm(f'ddparallel/skymodel/sources_c{c}.reg')
+    lib_util.check_rm(f'ddparallel/skymodel/patches_c{c}.reg')
     os.makedirs(f'ddparallel/skymodel/regions_c{c}')
     for p in sm.getPatchNames():
         sm_p = sm.copy()
@@ -292,7 +292,8 @@ def make_source_regions(sm, c):
             reg.visual['facecolor'] = col
             reg.visual['edgecolor'] = col
         regs.write(f'ddparallel/skymodel/regions_c{c}/{p}.reg',overwrite=True)
-        os.system(f'cat ddparallel/skymodel/regions_c{c}/*.reg >> ddparallel/skymodel/sources_c{c}.reg')
+        os.system(f'cat ddparallel/skymodel/regions_c{c}/*.reg >> ddparallel/skymodel/patches_c{c}.reg')
+    lib_util.check_rm(f'ddparallel/skymodel/regions_c{c}')
     
 
 #############################################################################
@@ -584,8 +585,8 @@ for c in range(maxIter):
         logger.info('Setting MODEL_DATA to sum of corrupted patch models...')
         MSs.addcol('MODEL_DATA', 'DATA', usedysco=False)
         non_3c_patches = [p for p in patches if p.startswith('patch_')]
-        MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(non_3c_patches)}"', log='$nameMS_taql_addmodel.log',
-                commandType='general')
+        MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(non_3c_patches)}"', log='$nameMS_taql_addmodel.log', commandType='general')
+
     ########################### 3C-subtract PART ####################################
     ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
     if c == 0 and remove3c:
@@ -596,13 +597,14 @@ for c in range(maxIter):
                 # Solve diagonal amplitude MSs:SMOOTHED_DATA
                 # 225*base_solint is 15 minutes
                 # TODO: try solving only CS and replicate
-                # TODO: this is very memory hungry due to the long solint, we might want to limit the parallel threads.
                 # sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]]',
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true\
                           sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
-                          sol.modeldatacolumns="[MODEL_DATA,{",".join(_3c_patches)}]" sol.solint='+str(225*base_solint), log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
+                          sol.modeldatacolumns="[MODEL_DATA,{",".join(_3c_patches)}]" sol.solint='+str(225*base_solint), 
+                          log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
 
-                losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
+                #losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
+                losoto_parsets = [parset_dir + '/losoto-plot-amp.parset']
                 lib_util.run_losoto(s, 'amp-3C', [ms + '/amp-3C.h5' for ms in MSs.getListStr()], losoto_parsets,
                                     plots_dir=f'{plot_dir}/plots-amp-3C', h5_dir=sol_dir)
                 ### DONE
@@ -619,9 +621,7 @@ for c in range(maxIter):
                         all_3c = json.load(file)
                         
                 for patch in _3c_patches:
-                    logger.info(f'Subtracting {patch}...')
-                    # Corrupt MODEL_DATA with amplitude, set MODEL_DATA = 0 where data are flagged, then unflag everything
-                    #corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
+                    
                     if debug_3c_sub:
                         MSs.run('taql "update $pathMS set DATA_SUB = CORRECTED_DATA_FR"', log='$nameMS_taql.log', commandType='general')
                         coords = all_3c[patch.replace('source_','').replace("C","C ")]
@@ -629,7 +629,6 @@ for c in range(maxIter):
                         coords[1] = coords[1].replace(" ", "d", 1).replace(" ", "m", 1) + "s"
                         clean_empty(MSs,f'{patch}_data_zoom_pre', 'CORRECTED_DATA_FR', shift=coords, size=2000)
                         clean_empty(MSs,f'{patch}_model', f'{patch}', shift=coords, size=2000)
-                        
                         MSs.run(
                             f"taql 'UPDATE $pathMS SET DATA_SUB = DATA_SUB - {patch}'",
                             log = f'$nameMS_subtract_{patch}.log',
@@ -637,11 +636,13 @@ for c in range(maxIter):
                         )
                         clean_empty(MSs,f'{patch}_data_after_phase', 'DATA_SUB', shift=coords, size=2000)
 
-                        # TEST: comment out amps
-                        corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
-                        MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
-                        clean_empty(MSs,f'{patch}_model_amp', f'{patch}', shift=coords, size=2000)
+                    logger.info(f'Subtracting {patch}...')
+                    # Corrupt MODEL_DATA with amplitude, set MODEL_DATA = 0 where data are flagged, then unflag everything
+                    corrupt_model_dirs(MSs, c, 1, [patch], solmode='amplitude')
+                    MSs.run(f'taql "update $pathMS set {patch}[FLAG] = 0"', log='$nameMS_taql.log', commandType='general')
                     
+                    if debug_3c_sub:
+                        clean_empty(MSs,f'{patch}_model_amp', f'{patch}', shift=coords, size=2000)
                         MSs.run('taql "update $pathMS set DATA_SUB = CORRECTED_DATA_FR"', log='$nameMS_taql.log', commandType='general')
                         MSs.run(
                             f"taql 'UPDATE $pathMS SET DATA_SUB = DATA_SUB - {patch}'",
@@ -668,8 +669,8 @@ for c in range(maxIter):
                     sm.select(f'Patch != {patch}')
                     sm.write(sourcedb, clobber=True)
                     patches = np.delete(patches, np.where(patches == patch)[0])
-                    MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')
-
+                
+                MSs.run('taql "update $pathMS set FLAG = FLAG_BKP"', log='$nameMS_taql.log', commandType='general')
                 MSs.deletecol('FLAG_BKP')  
             ### DONE
 

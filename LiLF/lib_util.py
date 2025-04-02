@@ -437,15 +437,15 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
     # basic parms
     wsc_parms.append( '-j '+str(s.maxProcs)+' -reorder -parallel-reordering 4 ' )
     if 'use_idg' in kwargs.keys():
-        if s.get_cluster() == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
+        if s.cluster == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
             wsc_parms.append( '-idg-mode hybrid' )
             wsc_parms.append( '-mem 10' )
         else:
             wsc_parms.append( '-idg-mode cpu' )
-    if s.get_cluster() == 'Spider':
+    if s.cluster == 'Spider':
         wsc_parms.append( '-temp-dir /tmp/' )
     # temp dir
-    #if s.get_cluster() == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
+    #if s.cluster == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
     #    wsc_parms.append( '-temp-dir /localwork.ssd' )
     # user defined parms
     for parm, value in list(kwargs.items()):
@@ -727,7 +727,7 @@ class Scheduler():
         elif ('spider' in hostname):
             return "Spider"
         else:
-            logger.warning('Hostname %s unknown.' % hostname)
+            logger.debug('Hostname %s unknown.' % hostname)
             return "Unknown"
 
 

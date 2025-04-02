@@ -74,7 +74,7 @@ with SurveysDB(survey='lba',readonly=True) as sdb:
          with open("target.txt", "r") as file:
             target, target_ra, target_dec = file.readline()[:-1].split(',')
     else:
-        sdb.execute('SELECT * FROM fields WHERE status="Downloaded" order by priority asc')
+        sdb.execute('SELECT * FROM fields WHERE status="Downloaded" order by priority desc')
         r = sdb.cur.fetchall()
         if len(r) == 0:
             logger.warning('No field left in the db...')
@@ -229,6 +229,8 @@ with w.if_todo('saveproducts_%s' % target):
     os.system(f'cp ddserial/c00/images/wideDD*model*fpb.fits {archive}')
     os.system(f'cp ddserial/c00/solutions/interp.h5 ddserial/c00/solutions/facets-c00.reg {archive}')
     os.system(f'cp ddserial/c0*/skymodels/all*reg {archive}')
+    os.system(f'cp ddserial/c0*/skymodels/mask-ddcal-c*.cat.fits {archive}')
+    os.system(f'cp ddserial/c0*/skymodels/mask-ddcal-c*.reg {archive}')
     os.system(f'cp ddserial/primarybeam.fits {archive}')
     os.system(f'cp quality/quality.pickle {archive}')
     # copy ms
