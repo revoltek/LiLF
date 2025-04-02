@@ -525,8 +525,7 @@ class MergeH5:
                                 antennas2 = solset2.antenna[:]
                                 if len(antennas_ref['name']) != len(antennas2['name']) or not array_equal(
                                         antennas_ref['name'], antennas2['name']):
-                                    self._print_antenna_mismatch_between_files(h5_name1, h5_name2, antennas_ref['name'],
-                                                                               antennas2['name'])
+                                    self._print_antenna_mismatch_between_files(h5_name1, h5_name2, antennas_ref['name'], antennas2['name'])
                                     return False
         return True
 
@@ -543,7 +542,7 @@ class MergeH5:
         print(message)
 
     @staticmethod
-    def _print_antenna_mismatch_between_files(self, h5_name1, h5_name2, antennas_ref, antennas):
+    def _print_antenna_mismatch_between_files(h5_name1, h5_name2, antennas_ref, antennas):
         """
         Print a message for antenna mismatch between two H5 files.
         """
