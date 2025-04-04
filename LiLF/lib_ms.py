@@ -238,7 +238,7 @@ class AllMSs(object):
                     logger.debug(f'Deleting column {col} from {ms_file}....')
                     t.removecols(col)
 
-    def run_Blsmooth(self, incol='DATA', outcol='SMOOTHED_DATA', ionf='auto',  notime=False, nofreq=False, logstr='smooth'):
+    def run_Blsmooth(self, incol='DATA', outcol='SMOOTHED_DATA', ionf='auto',  notime=False, nofreq=False, logstr='smooth', nchunk_factor=1):
         """
         Execute BLsmooth incol-> outcol on a group of MSs in a way that tries to maximise resource efficiency.
 
@@ -251,6 +251,7 @@ class AllMSs(object):
         notime: bool, do not smooth in time?
         nofreq: bool, do not smooth in freq?
         logstr: str, logfile name suffix. Default: 'smooth'.
+        nchunk_factor: int, factor by which to scale the number of chunks (larger - more chunks less ram). Default: 1.
         """
 
         if ionf == 'auto': ionf = .2e-3 if self.hasIS else 1e-3
@@ -271,7 +272,7 @@ class AllMSs(object):
         reference_size = 900 * 976 * 38*37/2
         # of such a ref MS, we can run 8 threads / 4 chunks in parallel
         # TODO: If this runs out of memory, we need to increase the prefactor (4) below
-        chunks = 4 * ms_size / reference_size
+        chunks = nchunk_factor * ms_size / reference_size
         # if we have less than 8 threads, we can also reduce the number of chunks
         chunks *= maxProcs/8
         # make sure chunks >= 1 and integer

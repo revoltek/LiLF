@@ -98,9 +98,9 @@ if skymodel == '':  # default case
     if MSs.hasIS:
         logger.warning('Sub-arcsecond models for LBA only partially tested! '
                        '3C196 is usable but on the wrong scale. 3C380 is usable and scales between 40 and 70 MHz.')
-        skymodel = os.path.dirname(__file__) + '/../models/calib-highres.skymodel'
+        skymodel = os.path.dirname(__file__) + '/../../models/calib-highres.skymodel'
     else:
-        skymodel = os.path.dirname(__file__) + '/../models/calib-simple.skymodel'
+        skymodel = os.path.dirname(__file__) + '/../../models/calib-simple.skymodel'
 
 calname = MSs.getListObj()[0].getNameField(checkCalName=True)
 nchan = MSs.mssListObj[0].getNchan()
@@ -215,27 +215,27 @@ with w.if_todo('get_gps_tec_rm'):
 # too noisy for international stations. Do this on FR-corrected data to reduce glitches from FR+PA interplay.
 with w.if_todo('pre_iono'):
     # Correct beam concat_all.MS:DATA -> CORRECTED_DATA
-    logger.info('Beam correction...')
-    MSs_concat_all.run(
-        f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.updateweights=True',
-        log='$nameMS_beam.log', commandType="DP3")
-
-    # check weights
-    MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (MSs_concat_all.getListObj()[0].getAntennas()[0]),
-                       log='$nameMS_weights.log', commandType='python')
-    os.system('mv *png plots-weights/postbeam.png')
-
-    # Preliminary rm correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('pre-correcion RM from GPS...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-rm.h5 \
-                cor.correction=rotationmeasure000', log='$nameMS_cor-gps-rm.log', commandType="DP3")
-    # Preliminary tec correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('pre-correcion TEC from GPS...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-tec.h5 \
-                cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
-
-    # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
+    # logger.info('Beam correction...')
+    # MSs_concat_all.run(
+    #     f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.updateweights=True',
+    #     log='$nameMS_beam.log', commandType="DP3")
+    #
+    # # check weights
+    # MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (MSs_concat_all.getListObj()[0].getAntennas()[0]),
+    #                    log='$nameMS_weights.log', commandType='python')
+    # os.system('mv *png plots-weights/postbeam.png')
+    #
+    # # Preliminary rm correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
+    # logger.info('pre-correcion RM from GPS...')
+    # MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-rm.h5 \
+    #             cor.correction=rotationmeasure000', log='$nameMS_cor-gps-rm.log', commandType="DP3")
+    # # Preliminary tec correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
+    # logger.info('pre-correcion TEC from GPS...')
+    # MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-tec.h5 \
+    #             cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
+    #
+    # # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA
+    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth', nchunk_factor=2)
 
     # Solve concat_all.MS:SMOOTHED_DATA (only solve on CS-CS BL)
     # not more smoothing since in rare case some CS have strong delay!
@@ -306,7 +306,7 @@ with w.if_todo('cal_pa'):
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
                 cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
     # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
+    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth', nchunk_factor=4)
 
     if MSs_concat_all.hasIS:
         # For IS data speedup: Concat+avg SMOOTHED_DATA -> concat_pa.MS:DATA
@@ -391,7 +391,7 @@ with w.if_todo('cal_fr'):
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
                 cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
     # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
+    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth', nchunk_factor=4)
 
     # Solve concat_all.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating FR...')
@@ -447,7 +447,7 @@ with w.if_todo('cal_iono'):
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-fr.h5 \
                    cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
     # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
+    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth', nchunk_factor=4)
 
     # Solve concat_all.MS:DATA (only solve on CS-CS BL)
     # not more smoothing since in rare case some CS have strong delay!
@@ -536,7 +536,7 @@ with w.if_todo('cal_bp'):
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
                 cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
     # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth')
+    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth', nchunk_factor=4)
 
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve) against FR-corrupted MODEL_DATA
     # do not use datause=dual since the cross-hands are NOT trivial (FR-corrupted)
