@@ -480,7 +480,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
         for parm, value in list(kwargs.items()):
             if value is None: continue
             #if 'min' in parm or 'max' in parm or parm == 'name' or parm == 'channels_out':
-            if parm == 'name' or parm == 'channels_out' or parm == 'wgridder_accuracy':
+            if parm == 'name' or parm == 'channels_out' or parm == 'wgridder_accuracy' or parm == 'shift':
                 wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
 
         # files (the original, not the concatenated)
