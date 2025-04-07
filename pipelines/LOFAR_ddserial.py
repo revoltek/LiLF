@@ -26,7 +26,7 @@ parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_ddserial'])))
 parset_dir = parset.get('LOFAR_ddserial','parset_dir')
 maxIter = parset.getint('LOFAR_ddserial','maxIter')
-min_cal_flux60 = parset.getfloat('LOFAR_ddserial','minCalFlux60')
+min_cal_flux60 = parset.getfloat('LOFAR_ddserial','minCalFlux60') # default: 0.8
 solve_amp = parset.getboolean('LOFAR_ddserial','solve_amp')
 manual_dd_cal = parset.get('LOFAR_ddserial','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
 develop = parset.getboolean('LOFAR_ddserial', 'develop') # for development, make more output/images
