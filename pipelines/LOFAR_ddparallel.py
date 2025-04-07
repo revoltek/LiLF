@@ -381,6 +381,9 @@ else: #default settings
     else:
         raise ValueError(f'{MSs.getListObj()[0].getAntennaSet()} not recognized.')
 
+if (min_facets[0] > max_facets[0]) or (min_facets[1] > max_facets[1]):
+    raise ValueError(f'min_facets {min_facets} and max_facets {max_facets} are not compatible.')
+
 smMHz2 = [2.0,5.0,5.0,5.0,5.0,5.0]
 smMHz1 = [8.0,12.0,12.0,12.0,12.0,12.0]
 # smMHz0 = [6.0,10.0,10.0,10.0,10.0,10.0]
@@ -503,6 +506,7 @@ for c in range(maxIter):
             bright_sources_flux = facet_fluxes[c]
         bright_names = sm.getPatchNames()[patch_fluxes >= bright_sources_flux*si_factor]
         bright_pos = sm.getPatchPositions(bright_names)
+        # TODO check if voronoi works for single patch
         sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=True, root='', byPatch=True)
         sm.setPatchPositions(bright_pos)
         lib_dd_parallel.rename_skymodel_patches(sm, applyBeam=True)
