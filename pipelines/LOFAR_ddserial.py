@@ -236,7 +236,9 @@ for cmaj in range(maxIter):
                 for subcal in cal[cluster_idxs]:
                     if (subcal['Flux_ratio'] < 5):
                         good_flux += subcal['Total_flux'] 
-                
+                    elif (subcal['Peak_flux'] > 1):
+                        good_flux += subcal['Peak_flux'] 
+
                 # if compact flux is present for less than 2 Jy then consider excluding it
                 if (good_flux < 2) and (good_flux < 0.7*fluxes):
                     logger.debug("%s: found extended source; compact flux: %.0f%% (skip)" % (name,100*good_flux/fluxes))
@@ -682,7 +684,7 @@ for cmaj in range(maxIter):
         ##################################
 
         # if died the first cycle or diverged
-        if cdd == 0 or ((rms_noise_pre > d.rms_noise_init) and (mm_ratio_pre/2 < d.mm_ratio_init)):
+        if cdd == 0 or ((rms_noise_pre >= d.rms_noise_init) and (mm_ratio_pre/2 < d.mm_ratio_init)):
             
             d.converged = False
             logger.warning('%s: something went wrong during the first self-cal cycle or noise did not decrease.' % (d.name))
