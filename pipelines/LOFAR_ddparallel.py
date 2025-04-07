@@ -316,6 +316,10 @@ plot_dir = 'ddparallel/plots'
 
 MSs = lib_ms.AllMSs( glob.glob(data_dir + 'mss/TC*[0-9].MS'), s, check_flags=True, check_consistency=True)
 MSs.print_HAcov()
+[MS.print_ateam_demix() for MS in MSs.getListObj()]
+for ateam in ['CasA', 'CygA', 'TauA', 'VirA']:
+    dist = MSs.getListObj()[0].distBrightSource(ateam)
+    logger.info('Distance from %s: %.0f deg' % (ateam, dist))
 
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
