@@ -335,7 +335,8 @@ def get_smoothed_tec(dtec, timesteps, ant, new_time_axis):
     lam = len(nonan_dtec)//20 
     if len(nonan_dtec) < 15:
         print("too few data points")
-    elif lam%2 == 0:
+        # TODO @Jort what to do in this case?
+    if lam%2 == 0:
         lam += 1
 
     filtered = medfilt(nonan_dtec, lam)

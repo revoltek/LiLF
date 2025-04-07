@@ -288,7 +288,7 @@ with w.if_todo('pre_iono'):
 
     logger.info('fit residual dTEC...')
     s.add("dtec_finder.py --gps_corrected cal-preiono.h5", log='dtec_finder.log', commandType='python')
-    s.run()
+    s.run(check=True)
 
 ### DONE
 ########################################################
