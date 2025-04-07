@@ -430,9 +430,9 @@ for cmaj in range(maxIter):
             elif d.get_flux(freq_mid) > 1: avgtimeint = int(round(32/timeint))
             else: avgtimeint = int(round(64/timeint))
             if d.size > 0.1/3600: # region larger than 0.1 deg -> average less to avoid smearing
-                avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=2*0.192e6))) # avg to 1 ch every 2 SBs
+                avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=2*0.195312e6))) # avg to 1 ch every 2 SBs
             else:
-                avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=4*0.192e6)))  # avg to 1 ch every 4 SBs
+                avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=4*0.195312e6)))  # avg to 1 ch every 4 SBs
             if not (avgfreqint == 8 or avgfreqint == 16 or avgfreqint == 32):
                 logger.warning('Strange averaging of channels (%i): %i -> %i' % (avgfreqint,MSs.getListObj()[0].getNchan(),int(MSs.getListObj()[0].getNchan()/avgfreqint)))
             MSs.run(f'DP3 {parset_dir}/DP3-shiftcorravg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=DATA \
