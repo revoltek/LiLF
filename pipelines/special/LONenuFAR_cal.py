@@ -117,7 +117,7 @@ with w.if_todo('concat_all'):
     logger.info('Concatenating data all (avg time %i)...' % timestep)
     lib_util.check_rm('concat_all.MS')
     s.add('DP3 ' + parset_dir + '/DP3-concat.parset msin="[' + ','.join(msg) + ']" msout=concat_all.MS \
-              msin.baseline=!CS003LBA avg.freqstep=' + str(freqstep) + ' avg.timestep=' + str(timestep),
+              avg.freqstep=' + str(freqstep) + ' avg.timestep=' + str(timestep),
           log='concat.log', commandType='DP3')
     s.run(check=True)
 ### DONE
@@ -168,11 +168,17 @@ with w.if_todo('scale_bp'):
 
 # flag bad stations, flags will propagate
 with w.if_todo('flag'):
+    logger.info("Backup NenuFAR flags...")
+    MSs_concat_all.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
     logger.info("Flagging...")
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-flag.parset msin=$pathMS ant.baseline=\"{bl2flag}\" \
             aoflagger.strategy={parset_dir}/LBAdefaultwideband.lua',
                        log='$nameMS_flag.log', commandType='DP3')
-
+    logger.info("Restore NenuFAR flags...")
+    MSs_concat_all.run("taql 'update $pathMS set FLAG=FLAG_BKP WHERE ANTENNA1 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME ~ p/FR606LBA/]'",
+                       log='$nameMS_resetISmodel.log', commandType='general')
+    MSs_concat_all.run("taql 'update $pathMS set FLAG=FLAG_BKP WHERE ANTENNA2 IN [SELECT ROWID() FROM ::ANTENNA WHERE NAME ~ p/FR606LBA/]'",
+                       log='$nameMS_resetISmodel.log', commandType='general')
     # extend flags on bad time/freq slots
     # logger.info('Remove bad time/freq stamps...')
     # MSs_concat_all.run('flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
