@@ -323,13 +323,13 @@ for ateam in ['CasA', 'CygA', 'TauA', 'VirA']:
     logger.info('Distance from %s: %.0f deg' % (ateam, dist))
 
 # check if cyg a was not demixed and do clipping
-with w.if_todo('clipping'):
-    if ateam_clip != '':
+if ateam_clip != '':
+    with w.if_todo('clipping'):
         ateam_clip = ateam_clip.replace('[', '').replace(']', '').split(',')
         ateam_model = os.path.dirname(__file__) + '/../models/demix_all.skymodel'
         for MS in MSs.getListObj():
             demixed = MS.get_ateam_demix()
-            print(MS.pathMS, demixed, ateam_clip)
+            #print(MS.pathMS, demixed, ateam_clip)
             for a in ateam_clip:
                 if a not in ['CasA', 'CygA', 'VirA', 'TauA']:
                     logger.warning(f'Can clip only Ateam (Cas, Cyg, Vir, Tau), not {a} -> skip.')
@@ -339,7 +339,7 @@ with w.if_todo('clipping'):
                         clipper.sources=[{a}] clipper.usebeammodel=True clipper.correctfreqsmearing=True'
                     s.add(cmd, log=MS.nameMS+'_clipper.log', commandType='DP3')
                     s.run(check=True)
-### DONE
+    ### DONE
 
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
