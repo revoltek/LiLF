@@ -46,6 +46,7 @@ remove3c = parset.getboolean('LOFAR_ddparallel', 'remove3c') # get rid of 3c sou
 fulljones = parset.getboolean('LOFAR_ddparallel', 'fulljones') # do fulljones DIE amp correction instead of diagonal (default: False)
 min_facets = parset.get('LOFAR_ddparallel', 'min_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [2,3,6..]
 max_facets = parset.get('LOFAR_ddparallel', 'max_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [5,10,20..]
+ateam_clip = parset.get('LOFAR_ddparallel', 'ateam_clip') # '' no clip
 develop = parset.getboolean('LOFAR_ddparallel', 'develop') # for development, make more output/images
 data_dir = parset.get('LOFAR_ddparallel','data_dir')
 start_sourcedb = parset.get('model','sourcedb')
@@ -321,6 +322,25 @@ for ateam in ['CasA', 'CygA', 'TauA', 'VirA']:
     dist = MSs.getListObj()[0].distBrightSource(ateam)
     logger.info('Distance from %s: %.0f deg' % (ateam, dist))
 
+# check if cyg a was not demixed and do clipping
+with w.if_todo('clipping'):
+    if ateam_clip != '':
+        ateam_clip = ateam_clip.replace('[', '').replace(']', '').split(',')
+        ateam_model = os.path.dirname(__file__) + '/../models/demix_all.skymodel'
+        for MS in MSs.getListObj():
+            demixed = MS.get_ateam_demix()
+            print(MS.pathMS, demixed, ateam_clip)
+            for a in ateam_clip:
+                if a not in ['CasA', 'CygA', 'VirA', 'TauA']:
+                    logger.warning(f'Can clip only Ateam (Cas, Cyg, Vir, Tau), not {a} -> skip.')
+                elif (a not in demixed) and (MSs.getListObj()[0].distBrightSource(a) > 15):
+                    logger.info(f'{MS.nameMS}: Clipping {a} that was not demixed.')
+                    cmd = f'DP3 msin={MS.pathMS} msout=. steps=[count,clipper,count] clipper.type=CLIPPER clipper.sourcedb={ateam_model} \
+                        clipper.sources=[{a}] clipper.usebeammodel=True clipper.correctfreqsmearing=True'
+                    s.add(cmd, log=MS.nameMS+'_clipper.log', commandType='DP3')
+                    s.run(check=True)
+### DONE
+
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
 null_mid_freq = max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True)) * 1.8 # FWHM to null
@@ -398,7 +418,8 @@ beamReg = 'ddparallel/beam.reg'
 MSs.getListObj()[0].makeBeamReg(beamReg, freq='min', to_pbval=0)
 if not os.path.exists(beamMask):
     logger.info('Making mask of primary beam...')
-    lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), size=imgsizepix_lr, scale='30arcsec')
+    lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), data_column='DATA', \
+                         size=imgsizepix_lr, scale='30arcsec')
     os.system(f'mv {beamMask.replace(".fits","-image.fits")} {beamMask}') # beam-image.fits -> beam.fits
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 1.)
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 0., inverse=True)

@@ -99,6 +99,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'fulljones', 'False')
     add_default('LOFAR_ddparallel', 'min_facets', '')
     add_default('LOFAR_ddparallel', 'max_facets', '')
+    add_default('LOFAR_ddparallel', 'ateam_clip', '') # [CygA, CasA] or [CasA] or [CygA] or '' - the code clips the specified ateams (if not demixed from the observatory)
     add_default('LOFAR_ddparallel', 'develop', 'False') # if true make more debug images (slower)
     add_default('LOFAR_ddparallel', 'data_dir', '')
     # ddserial

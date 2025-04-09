@@ -404,6 +404,20 @@ class MS(object):
                 logger.debug(f'{self.nameMS}: DEMIX - Ignoretarget = {h.split('=')[1]}')
 
 
+    def get_ateam_demix(self):
+        """
+        Return a list of the demixed ateam sources
+        """
+        hist = self.get_hist()
+        demixed = None
+        for h in hist:
+            if 'demixer.subtractsources' in h:
+                demixed = h.split('=')[1].replace('\'','').replace(' ','')
+        try:
+            return demixed[1:-1].split(',')
+        except:
+            return []
+
     def distBrightSource(self, name):
         """
         Get the distance in deg from some bright sources
