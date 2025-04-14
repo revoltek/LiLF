@@ -99,6 +99,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'fulljones', 'False')
     add_default('LOFAR_ddparallel', 'min_facets', '')
     add_default('LOFAR_ddparallel', 'max_facets', '')
+    add_default('LOFAR_ddparallel', 'ateam_clip', '') # [CygA, CasA] or [CasA] or [CygA] or '' - the code clips the specified ateams (if not demixed from the observatory)
     add_default('LOFAR_ddparallel', 'develop', 'False') # if true make more debug images (slower)
     add_default('LOFAR_ddparallel', 'data_dir', '')
     # ddserial
@@ -480,7 +481,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
         for parm, value in list(kwargs.items()):
             if value is None: continue
             #if 'min' in parm or 'max' in parm or parm == 'name' or parm == 'channels_out':
-            if parm == 'name' or parm == 'channels_out' or parm == 'wgridder_accuracy':
+            if parm == 'name' or parm == 'channels_out' or parm == 'wgridder_accuracy' or parm == 'shift':
                 wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
 
         # files (the original, not the concatenated)

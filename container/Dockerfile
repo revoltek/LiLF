@@ -197,10 +197,10 @@ RUN rm -rf /opt/DP3/
 ENV PYTHONPATH /usr/local/lib/python3.12/site-packages/:$PYTHONPATH
 
 #####################################################################
-## Wsclean master (11/2/25)
+## Wsclean master (9/4/25)
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-    && cd /opt/wsclean && git checkout af847af6b39986b18dd06c8e0846fb01f87f36c3
+    && cd /opt/wsclean && git checkout f38e3bfee178ecc28e19842f18dd63adc80c9112
 
 RUN if [ $MARCH == "x86-64" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
@@ -249,17 +249,17 @@ RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
 RUN cd /opt/PyBDSF && pip install .
 
 #####################################################################
-## LSMtool (fix_query_tempdir)
+## LSMtool (master 27/3/25)
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/LSMTool.git \
     && cd /opt/LSMTool; git checkout 367dfd3e
 RUN cd /opt/LSMTool && pip install . --upgrade
 
 ####################################################################
-## LoSoTo (master 28/2/25)
+## LoSoTo (master 31/3/25)
 ####################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto && git checkout da8d88a3d42a72a0e91e6f36ced072c73a34e6ee
+    && cd /opt/losoto && git checkout d5590a868bee8c8af6fb4ece3088d777b25326b2
 RUN cd /opt/losoto && pip install .
 
 ####################################################################

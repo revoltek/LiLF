@@ -308,6 +308,7 @@ if mode in ['infield', 'ddcal']:
 if mode == 'widefield':
     # 5. apply closest direction solutions for dutch baselines
     # TODO for now we correct DUTCH stations for the INFIELD CALIBRATOR direction. Test also using the ddcal direction for the case of splitting off ddcals.
+    correct_col = 'CORRECTED_DATA'
     with w.if_todo('correct_dutch_dd'):
         # apply init - closest DDE sol
         # TODO: this assumes phase000 and optionally, amplitude000
@@ -337,20 +338,19 @@ if mode == 'widefield':
                 corrbeam.direction=[{infield_center[0]}deg,{infield_center[1]}deg]', log='$nameMS_beam.log', commandType='DP3')
         # test_image_dutch(MSs, 'dutchsubcorrbeam1', data_col=correct_col)
 
-    if mode in ['ddcal', 'widefield']:
-        # apply infield delay calibrator solutions to full data
-        with w.if_todo('correct_IS_di'):
-            logger.info('Correcting delay cal full solutions (IS)...')
-            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={infield_h5}  \
-                    cor.correction=fulljones cor.soltab=[amplitude000,phase000] msin.datacolumn={correct_col} msout.datacolumn={correct_col} ', log='$nameMS_corIS.log', commandType='DP3')
-            test_image_dutch(MSs, 'dutchsubcorrbeam1is',data_col=correct_col)
+    # apply infield delay calibrator solutions to full data
+    with w.if_todo('correct_IS_di'):
+        logger.info('Correcting delay cal full solutions (IS)...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={infield_h5}  \
+                cor.correction=fulljones cor.soltab=[amplitude000,phase000] msin.datacolumn={correct_col} msout.datacolumn={correct_col} ', log='$nameMS_corIS.log', commandType='DP3')
+        test_image_dutch(MSs, 'dutchsubcorrbeam1is',data_col=correct_col)
     ### DONE
 
     # wide-field imaging - apply the beam again to the phase center...
-    if mode == 'widefield':
-        with w.if_todo('beamcorr-widefield'):
-            logger.info('Correcting beam (original phase center for widefield)...')
-            MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-                    corrbeam.direction=[{orig_center[0]}deg,{orig_center[1]}deg]', log='$nameMS_beam.log',
-                    commandType='DP3')
-            # test_image_dutch(MSs, 'dutchsubcorrbeam1isbeam2', data_col='DATA')
+    with w.if_todo('beamcorr-widefield'):
+        logger.info('Correcting beam (original phase center for widefield)...')
+        MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
+                corrbeam.direction=[{orig_center[0]}deg,{orig_center[1]}deg]', log='$nameMS_beam.log',
+                commandType='DP3')
+        # test_image_dutch(MSs, 'dutchsubcorrbeam1isbeam2', data_col='DATA')
+        test_image_is(MSs, 'is_widefield', data_col='DATA')

@@ -14,7 +14,6 @@
 # they need to be in "./mss/"
 
 # Waiting for bug fixes in other software
-# TODO add LoTSS query for statring model once bug is fixed! (Don't use for now, it crashes the VO server)
 # TODO add BDA
 # TODO add timesmearing in dp3 predict
 
@@ -46,6 +45,7 @@ remove3c = parset.getboolean('LOFAR_ddparallel', 'remove3c') # get rid of 3c sou
 fulljones = parset.getboolean('LOFAR_ddparallel', 'fulljones') # do fulljones DIE amp correction instead of diagonal (default: False)
 min_facets = parset.get('LOFAR_ddparallel', 'min_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [2,3,6..]
 max_facets = parset.get('LOFAR_ddparallel', 'max_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [5,10,20..]
+ateam_clip = parset.get('LOFAR_ddparallel', 'ateam_clip') # '' no clip
 develop = parset.getboolean('LOFAR_ddparallel', 'develop') # for development, make more output/images
 data_dir = parset.get('LOFAR_ddparallel','data_dir')
 start_sourcedb = parset.get('model','sourcedb')
@@ -151,30 +151,33 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None,
     solutions_per_direction = np.ones(len(model_columns), dtype=int)
     if variable_solint and solmode == 'tec':
         raise ValueError
-    elif variable_solint: # if actived, use twice the solint for fainter directions
+    elif variable_solint: # if actived, use twice/four times the solint for fainter directions
         solint *= 4 # use twice as long solint
-        # get two solutions per solint (i.e. one per time step) for bright directions
+        # get two/four solutions per solint (i.e. one per time step) for bright directions
         solutions_per_direction[model_column_fluxes > 4] = 2
         solutions_per_direction[model_column_fluxes > 8] = 4
         # if no direction has a single solution per dir, divide all by two / four
         solint = int(solint/np.min(solutions_per_direction))
         solutions_per_direction = (solutions_per_direction/np.min(solutions_per_direction)).astype(int)
 
-    if len(model_columns) > 30 and solint > 60:
-        logger.warning('Detected many directions - limit number of parallel DP3 Threads to 1.')
-        maxThreads = 1
+    if len(model_columns) >= 30 and solint > 60:
+        logger.warning('Detected many directions - limit number of parallel DP3 processes to 1.')
+        maxProcs = 1
+    elif len(model_columns) >= 18 and solint > 60:
+        logger.warning('Detected many directions - limit number of parallel DP3 processes to 4.')
+        maxProcs = 4
     else:
-        maxThreads = None
+        maxProcs = None
 
     if solmode == 'phase':
         MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec{tc}.h5 sol.solint={solint} \
                   sol.mode=scalarphase sol.smoothnessconstraint={smMHz}e6 sol.smoothnessreffrequency=54e6 sol.nchan=1 {antennaconstraint} \
                   sol.modeldatacolumns="[{",".join(model_columns)}]" sol.solutions_per_direction="{np.array2string(solutions_per_direction, separator=",")}"',
-                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3', maxProcs=maxThreads)
+                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3', maxProcs=maxProcs)
     else:
         MSs.run(f'DP3 {parset_dir}/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec{tc}.h5 sol.solint={solint} {antennaconstraint} \
                   sol.modeldatacolumns="[{",".join(model_columns)}]" sol.mode={solmode}',
-                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3', maxProcs=maxThreads)
+                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3', maxProcs=maxProcs)
 
     lib_util.run_losoto(s, f'tec{tc}-c{c}', [ms+f'/tec{tc}.h5' for ms in MSs.getListStr()], losoto_parsets, 
                         plots_dir=f'{plot_dir}/plots-tec{tc}-c{c}', h5_dir=sol_dir)
@@ -225,7 +228,7 @@ def add_3c_models(sm, phasecentre, null_mid_freq, beamMask, max_sep=50., thresho
     phasecentre = SkyCoord(phasecentre[0], phasecentre[1], unit=(u.deg, u.deg))
     beam_hdu = fits.open(beamMask)[0]
     beam_wcs = wcs.WCS(beam_hdu.header)
-
+        
     logger.info('Adding 3C models...')
     for source, coord in all_3c.items():
         
@@ -316,6 +319,29 @@ plot_dir = 'ddparallel/plots'
 
 MSs = lib_ms.AllMSs( glob.glob(data_dir + 'mss/TC*[0-9].MS'), s, check_flags=True, check_consistency=True)
 MSs.print_HAcov()
+[MS.print_ateam_demix() for MS in MSs.getListObj()]
+for ateam in ['CasA', 'CygA', 'TauA', 'VirA']:
+    dist = MSs.getListObj()[0].distBrightSource(ateam)
+    logger.info('Distance from %s: %.0f deg' % (ateam, dist))
+
+# check if cyg a was not demixed and do clipping
+if ateam_clip != '':
+    with w.if_todo('clipping'):
+        ateam_clip = ateam_clip.replace('[', '').replace(']', '').split(',')
+        ateam_model = os.path.dirname(__file__) + '/../models/demix_all.skymodel'
+        for MS in MSs.getListObj():
+            demixed = MS.get_ateam_demix()
+            #print(MS.pathMS, demixed, ateam_clip)
+            for a in ateam_clip:
+                if a not in ['CasA', 'CygA', 'VirA', 'TauA']:
+                    logger.warning(f'Can clip only Ateam (Cas, Cyg, Vir, Tau), not {a} -> skip.')
+                elif (a not in demixed) and (MSs.getListObj()[0].distBrightSource(a) > 15):
+                    logger.info(f'{MS.nameMS}: Clipping {a} that was not demixed.')
+                    cmd = f'DP3 msin={MS.pathMS} msout=. steps=[count,clipper,count] clipper.type=CLIPPER clipper.sourcedb={ateam_model} \
+                        clipper.sources=[{a}] clipper.usebeammodel=True clipper.correctfreqsmearing=True'
+                    s.add(cmd, log=MS.nameMS+'_clipper.log', commandType='DP3')
+                    s.run(check=True)
+    ### DONE
 
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
@@ -375,11 +401,14 @@ if max_facets: # if manually provided
 else: #default settings
     # use more facets for SPARSE (larger FoV)
     if 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
-        max_facets = [12, 30, 35, 35, 35, 35]
+        max_facets = [12, 24, 35, 35, 35, 35]
     elif 'OUTER' in MSs.getListObj()[0].getAntennaSet():
-        max_facets = [8, 20, 25, 25, 25, 25]
+        max_facets = [8, 18, 25, 25, 25, 25]
     else:
         raise ValueError(f'{MSs.getListObj()[0].getAntennaSet()} not recognized.')
+
+if (min_facets[0] > max_facets[0]) or (min_facets[1] > max_facets[1]):
+    raise ValueError(f'min_facets {min_facets} and max_facets {max_facets} are not compatible.')
 
 smMHz2 = [2.0,5.0,5.0,5.0,5.0,5.0]
 smMHz1 = [8.0,12.0,12.0,12.0,12.0,12.0]
@@ -391,7 +420,8 @@ beamReg = 'ddparallel/beam.reg'
 MSs.getListObj()[0].makeBeamReg(beamReg, freq='min', to_pbval=0)
 if not os.path.exists(beamMask):
     logger.info('Making mask of primary beam...')
-    lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), size=imgsizepix_lr, scale='30arcsec')
+    lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), data_column='DATA', \
+                         size=imgsizepix_lr, scale='30arcsec')
     os.system(f'mv {beamMask.replace(".fits","-image.fits")} {beamMask}') # beam-image.fits -> beam.fits
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 1.)
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 0., inverse=True)
@@ -503,6 +533,7 @@ for c in range(maxIter):
             bright_sources_flux = facet_fluxes[c]
         bright_names = sm.getPatchNames()[patch_fluxes >= bright_sources_flux*si_factor]
         bright_pos = sm.getPatchPositions(bright_names)
+        # TODO check if voronoi works for single patch
         sm.group('voronoi', targetFlux=bright_sources_flux*si_factor, applyBeam=True, root='', byPatch=True)
         sm.setPatchPositions(bright_pos)
         lib_dd_parallel.rename_skymodel_patches(sm, applyBeam=True)
@@ -764,13 +795,13 @@ for c in range(maxIter):
         s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-RSm-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RS-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 \
               --no_antenna_crash {usepol} --propagate_flags {filter_directions}' , log='h5_merger.log', commandType='python')
         s.run(check=True)
-        lib_util.run_losoto(s, f'tec-RSm-c{c}', f'{sol_dir}/cal-tec-RSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalarph.parset'],
-                            plots_dir=f'{plot_dir}/plots-tec-RSm-c{c}', h5_dir=sol_dir)
+        #lib_util.run_losoto(s, f'tec-RSm-c{c}', f'{sol_dir}/cal-tec-RSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalarph.parset'],
+        #                    plots_dir=f'{plot_dir}/plots-tec-RSm-c{c}', h5_dir=sol_dir)
         s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-CSm-c{c}.h5 --h5_tables {sol_dir}/cal-tec-CS-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 \
               --no_antenna_crash {usepol} --propagate_flags {filter_directions}' , log='h5_merger.log', commandType='python')
         s.run(check=True)
-        lib_util.run_losoto(s, f'tec-CSm-c{c}', f'{sol_dir}/cal-tec-CSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalarph.parset'],
-                            plots_dir=f'{plot_dir}/plots-tec-CSm-c{c}', h5_dir=sol_dir)
+        #lib_util.run_losoto(s, f'tec-CSm-c{c}', f'{sol_dir}/cal-tec-CSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalarph.parset'],
+        #                    plots_dir=f'{plot_dir}/plots-tec-CSm-c{c}', h5_dir=sol_dir)
         # if c > 1:
         #     lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-amp-dd-c{c}.h5', sourcedb)
         #     s.add(f'h5_merger.py --h5_out {sol_dir}/cal-amp-dd-merged-c{c}.h5 --h5_tables {sol_dir}/cal-amp-dd-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 \
@@ -808,8 +839,8 @@ for c in range(maxIter):
                                 gridder='wgridder',  parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                 join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
                                 multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname, concat_mss=True)
-        # for low-freq data, allow the beam to be fitted, otherwise (survey) force 15"
-        if not(np.mean(MSs.getFreqs()) < 50e6):
+        # for low-freq or low-dec data, allow the beam to be fitted, otherwise (survey) force 15"
+        if not(np.mean(MSs.getFreqs()) < 50e6) and not (phasecentre[1] < 23):
             widefield_kwargs['beam_size'] = 15
 
         widefield_kwargs['apply_facet_solutions'] = f'{sol_dir}/cal-tec-merged-c{c}.h5 phase000'
@@ -858,7 +889,7 @@ for c in range(maxIter):
             raise ValueError(f'Manual subfield region {subfield} contains more than one region.')
         os.system(f'cp {subfield} {subfield_path}')
 
-    # Generate a subdiels
+    # Generate a subfield
     if not os.path.exists(subfield_path):
         sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
         # sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted

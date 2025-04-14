@@ -377,6 +377,47 @@ class MS(object):
         ha = lst - coord.ra # hour angle
         return ha.deg/15.
 
+
+    def get_hist(self):
+        """
+        Return the Hystory subtable cell 1 (containing preprocessin ginfo) as a list
+        """
+
+        with tables.table(self.pathMS + "/HISTORY", ack=False) as table:
+            col = table.col('APP_PARAMS')
+            try:
+                return col.getcell(1)
+            except:
+                return []
+
+
+    def print_ateam_demix(self):
+        """
+        Some debug logs on the ateam
+        """
+        hist = self.get_hist()
+        for h in hist:
+            #print(h)
+            if 'demixer.subtractsources' in h:
+                logger.debug(f'{self.nameMS}: DEMIX - Sources = {h.split('=')[1]}')
+            if 'demixer.ignoretarget' in h:
+                logger.debug(f'{self.nameMS}: DEMIX - Ignoretarget = {h.split('=')[1]}')
+
+
+    def get_ateam_demix(self):
+        """
+        Return a list of the demixed ateam sources
+        """
+        hist = self.get_hist()
+        demixed = None
+        for h in hist:
+            if 'demixer.subtractsources' in h:
+                demixed = h.split('=')[1].replace('\'','').replace(' ','')
+        try:
+            return demixed[1:-1].split(',')
+        except:
+            return []
+
     def distBrightSource(self, name):
         """
         Get the distance in deg from some bright sources
@@ -815,6 +856,7 @@ class MS(object):
         with tables.table(self.pathMS, ack = False) as t:
             f = t.getcol('FLAG')
             return np.sum(f)/f.size
+        
 
 
 #    def delBeamInfo(self, col=None):

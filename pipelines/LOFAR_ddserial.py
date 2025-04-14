@@ -26,7 +26,7 @@ parset = lib_util.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_ddserial'])))
 parset_dir = parset.get('LOFAR_ddserial','parset_dir')
 maxIter = parset.getint('LOFAR_ddserial','maxIter')
-min_cal_flux60 = parset.getfloat('LOFAR_ddserial','minCalFlux60')
+min_cal_flux60 = parset.getfloat('LOFAR_ddserial','minCalFlux60') # default: 0.8
 solve_amp = parset.getboolean('LOFAR_ddserial','solve_amp')
 manual_dd_cal = parset.get('LOFAR_ddserial','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
 develop = parset.getboolean('LOFAR_ddserial', 'develop') # for development, make more output/images
@@ -236,7 +236,9 @@ for cmaj in range(maxIter):
                 for subcal in cal[cluster_idxs]:
                     if (subcal['Flux_ratio'] < 5):
                         good_flux += subcal['Total_flux'] 
-                
+                    elif (subcal['Peak_flux'] > 1):
+                        good_flux += subcal['Peak_flux'] 
+
                 # if compact flux is present for less than 2 Jy then consider excluding it
                 if (good_flux < 2) and (good_flux < 0.7*fluxes):
                     logger.debug("%s: found extended source; compact flux: %.0f%% (skip)" % (name,100*good_flux/fluxes))
@@ -430,9 +432,9 @@ for cmaj in range(maxIter):
             elif d.get_flux(freq_mid) > 1: avgtimeint = int(round(32/timeint))
             else: avgtimeint = int(round(64/timeint))
             if d.size > 0.1/3600: # region larger than 0.1 deg -> average less to avoid smearing
-                avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=2*0.192e6))) # avg to 1 ch every 2 SBs
+                avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=2*0.195312e6))) # avg to 1 ch every 2 SBs
             else:
-                avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=4*0.192e6)))  # avg to 1 ch every 4 SBs
+                avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=4*0.195312e6)))  # avg to 1 ch every 4 SBs
             if not (avgfreqint == 8 or avgfreqint == 16 or avgfreqint == 32):
                 logger.warning('Strange averaging of channels (%i): %i -> %i' % (avgfreqint,MSs.getListObj()[0].getNchan(),int(MSs.getListObj()[0].getNchan()/avgfreqint)))
             MSs.run(f'DP3 {parset_dir}/DP3-shiftcorravg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=DATA \
@@ -682,7 +684,7 @@ for cmaj in range(maxIter):
         ##################################
 
         # if died the first cycle or diverged
-        if cdd == 0 or ((rms_noise_pre > d.rms_noise_init) and (mm_ratio_pre/2 < d.mm_ratio_init)):
+        if cdd == 0 or ((rms_noise_pre >= d.rms_noise_init) and (mm_ratio_pre/2 < d.mm_ratio_init)):
             
             d.converged = False
             logger.warning('%s: something went wrong during the first self-cal cycle or noise did not decrease.' % (d.name))
