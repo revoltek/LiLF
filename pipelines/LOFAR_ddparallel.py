@@ -167,7 +167,7 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None,
         logger.warning('Detected many directions - limit number of parallel DP3 processes to 4.')
         maxProcs = 4
     else:
-        maxProcs = None
+        maxProcs = 8
 
     if solmode == 'phase':
         MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec{tc}.h5 sol.solint={solint} \
