@@ -14,7 +14,6 @@
 # they need to be in "./mss/"
 
 # Waiting for bug fixes in other software
-# TODO add LoTSS query for statring model once bug is fixed! (Don't use for now, it crashes the VO server)
 # TODO add BDA
 # TODO add timesmearing in dp3 predict
 
@@ -152,30 +151,33 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None,
     solutions_per_direction = np.ones(len(model_columns), dtype=int)
     if variable_solint and solmode == 'tec':
         raise ValueError
-    elif variable_solint: # if actived, use twice the solint for fainter directions
+    elif variable_solint: # if actived, use twice/four times the solint for fainter directions
         solint *= 4 # use twice as long solint
-        # get two solutions per solint (i.e. one per time step) for bright directions
+        # get two/four solutions per solint (i.e. one per time step) for bright directions
         solutions_per_direction[model_column_fluxes > 4] = 2
         solutions_per_direction[model_column_fluxes > 8] = 4
         # if no direction has a single solution per dir, divide all by two / four
         solint = int(solint/np.min(solutions_per_direction))
         solutions_per_direction = (solutions_per_direction/np.min(solutions_per_direction)).astype(int)
 
-    if len(model_columns) > 30 and solint > 60:
-        logger.warning('Detected many directions - limit number of parallel DP3 Threads to 1.')
-        maxThreads = 1
+    if len(model_columns) >= 30 and solint > 60:
+        logger.warning('Detected many directions - limit number of parallel DP3 processes to 1.')
+        maxProcs = 1
+    elif len(model_columns) >= 18 and solint > 60:
+        logger.warning('Detected many directions - limit number of parallel DP3 processes to 4.')
+        maxProcs = 4
     else:
-        maxThreads = None
+        maxProcs = None
 
     if solmode == 'phase':
         MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec{tc}.h5 sol.solint={solint} \
                   sol.mode=scalarphase sol.smoothnessconstraint={smMHz}e6 sol.smoothnessreffrequency=54e6 sol.nchan=1 {antennaconstraint} \
                   sol.modeldatacolumns="[{",".join(model_columns)}]" sol.solutions_per_direction="{np.array2string(solutions_per_direction, separator=",")}"',
-                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3', maxProcs=maxThreads)
+                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3', maxProcs=maxProcs)
     else:
         MSs.run(f'DP3 {parset_dir}/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec{tc}.h5 sol.solint={solint} {antennaconstraint} \
                   sol.modeldatacolumns="[{",".join(model_columns)}]" sol.mode={solmode}',
-                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3', maxProcs=maxThreads)
+                log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3', maxProcs=maxProcs)
 
     lib_util.run_losoto(s, f'tec{tc}-c{c}', [ms+f'/tec{tc}.h5' for ms in MSs.getListStr()], losoto_parsets, 
                         plots_dir=f'{plot_dir}/plots-tec{tc}-c{c}', h5_dir=sol_dir)
@@ -399,9 +401,9 @@ if max_facets: # if manually provided
 else: #default settings
     # use more facets for SPARSE (larger FoV)
     if 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
-        max_facets = [12, 30, 35, 35, 35, 35]
+        max_facets = [12, 24, 35, 35, 35, 35]
     elif 'OUTER' in MSs.getListObj()[0].getAntennaSet():
-        max_facets = [8, 20, 25, 25, 25, 25]
+        max_facets = [8, 18, 25, 25, 25, 25]
     else:
         raise ValueError(f'{MSs.getListObj()[0].getAntennaSet()} not recognized.')
 
@@ -837,8 +839,8 @@ for c in range(maxIter):
                                 gridder='wgridder',  parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                 join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
                                 multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname, concat_mss=True)
-        # for low-freq data, allow the beam to be fitted, otherwise (survey) force 15"
-        if not(np.mean(MSs.getFreqs()) < 50e6):
+        # for low-freq or low-dec data, allow the beam to be fitted, otherwise (survey) force 15"
+        if not(np.mean(MSs.getFreqs()) < 50e6) and not (phasecentre[1] < 23):
             widefield_kwargs['beam_size'] = 15
 
         widefield_kwargs['apply_facet_solutions'] = f'{sol_dir}/cal-tec-merged-c{c}.h5 phase000'
