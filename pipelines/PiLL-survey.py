@@ -9,6 +9,7 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('PiLL.walker')
 
 LiLF_dir = os.path.dirname(os.path.dirname(lib_util.__file__))
+
 parset = lib_util.getParset(parsetFile='lilf.config')
 
 # get parameters
@@ -21,33 +22,6 @@ download_file = parset.get('PiLL','download_file')
 
 caldirroot = ('/iranet/groups/ulu/fdg/surveycals/done/')
 tgtdirroot = ('/iranet/groups/ulu/fdg/surveytgts/download*/mss/')
-
-#def calibrator_tables_available(obsid):
-#    """
-#    check if calibrator data exist in the database
-#    """
-#    with SurveysDB(survey='lba',readonly=True) as sdb:
-#        sdb.execute('SELECT * FROM observations WHERE id=%f' % obsid)
-#        r = sdb.cur.fetchall()
-#        if len(r) != 0 and r[0]['location'] != '': return True
-#        else: return False
-
-
-#def local_calibrator_dirs(searchdir='', obsid=None):
-#    """
-#    Return the dirname of the calibrators
-#    """
-#    if searchdir != '': searchdir += '/'
-#    if obsid is None:
-#        calibrators = glob.glob(searchdir+'id*_-_*3[C|c]196*') + \
-#                  glob.glob(searchdir+'id*_-_*3[C|c]295*') + \
-#                  glob.glob(searchdir+'id*_-_*3[C|c]380*')
-#    else:
-#        calibrators = glob.glob(searchdir+'/id%i_-_*3[C|c]196*' % obsid) + \
-#                  glob.glob(searchdir+'id%i_-_*3[C|c]295*' % obsid) + \
-#                  glob.glob(searchdir+'id%i_-_*3[C|c]380*' % obsid)
-#    if len(calibrators) == 0: return []
-#    else: return calibrators
 
 
 def update_status_db(field, status):
