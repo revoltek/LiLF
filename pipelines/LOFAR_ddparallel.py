@@ -793,13 +793,13 @@ for c in range(maxIter):
         s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-RSm-c{c}.h5 --h5_tables {sol_dir}/cal-tec-RS-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 \
               --no_antenna_crash {usepol} --propagate_flags {filter_directions}' , log='h5_merger.log', commandType='python')
         s.run(check=True)
-        lib_util.run_losoto(s, f'tec-RSm-c{c}', f'{sol_dir}/cal-tec-RSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalarph.parset'],
-                            plots_dir=f'{plot_dir}/plots-tec-RSm-c{c}', h5_dir=sol_dir)
+        #lib_util.run_losoto(s, f'tec-RSm-c{c}', f'{sol_dir}/cal-tec-RSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalarph.parset'],
+        #                    plots_dir=f'{plot_dir}/plots-tec-RSm-c{c}', h5_dir=sol_dir)
         s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-CSm-c{c}.h5 --h5_tables {sol_dir}/cal-tec-CS-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 \
               --no_antenna_crash {usepol} --propagate_flags {filter_directions}' , log='h5_merger.log', commandType='python')
         s.run(check=True)
-        lib_util.run_losoto(s, f'tec-CSm-c{c}', f'{sol_dir}/cal-tec-CSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalarph.parset'],
-                            plots_dir=f'{plot_dir}/plots-tec-CSm-c{c}', h5_dir=sol_dir)
+        #lib_util.run_losoto(s, f'tec-CSm-c{c}', f'{sol_dir}/cal-tec-CSm-c{c}.h5', [f'{parset_dir}/losoto-plot-scalarph.parset'],
+        #                    plots_dir=f'{plot_dir}/plots-tec-CSm-c{c}', h5_dir=sol_dir)
         # if c > 1:
         #     lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-amp-dd-c{c}.h5', sourcedb)
         #     s.add(f'h5_merger.py --h5_out {sol_dir}/cal-amp-dd-merged-c{c}.h5 --h5_tables {sol_dir}/cal-amp-dd-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-RS-c{c}.h5 \

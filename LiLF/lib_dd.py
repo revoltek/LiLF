@@ -641,6 +641,3 @@ def make_subfield_region(name, MS, sm, min_flux, pixscale, imgsizepix, debug_dir
     region = pyregion.parse(region_string)
     region.write(name)
     return bestbox_coord, bestbox_size
-
-
-
