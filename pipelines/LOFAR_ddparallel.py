@@ -612,7 +612,7 @@ for c in range(maxIter):
         logger.info('Setting MODEL_DATA to sum of corrupted patch models...')
         MSs.addcol('MODEL_DATA', 'DATA', usedysco=False)
         non_3c_patches = [p for p in patches if p.startswith('patch_')]
-        MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(non_3c_patches)}"', log='$nameMS_taql_addmodel.log', commandType='general')
+        MSs.run(f'taql "UPDATE $pathMS SET MODEL_DATA={"+".join(non_3c_patches)}"', log='$nameMS_taql.log', commandType='general')
 
     ########################### 3C-subtract PART ####################################
     ### CORRUPT the Amplitude of MODEL_DATA columns for all 3CRR patches
@@ -658,7 +658,7 @@ for c in range(maxIter):
                         clean_empty(MSs,f'{patch}_model', f'{patch}', shift=coords, size=2000)
                         MSs.run(
                             f"taql 'UPDATE $pathMS SET DATA_SUB = DATA_SUB - {patch}'",
-                            log = f'$nameMS_subtract_{patch}.log',
+                            log = f'$nameMS_taql.log',
                             commandType = 'general'
                         )
                         clean_empty(MSs,f'{patch}_data_after_phase', 'DATA_SUB', shift=coords, size=2000)
@@ -680,13 +680,13 @@ for c in range(maxIter):
                         
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA_FR = CORRECTED_DATA_FR - {patch}'",
-                        log = f'$nameMS_subtract_{patch}.log', 
+                        log = f'$nameMS_taql.log', 
                         commandType = 'general'
                     )
 
                     MSs.run(
                         f"taql 'UPDATE $pathMS SET CORRECTED_DATA = CORRECTED_DATA - {patch}'",
-                        log = f'$nameMS_subtract_{patch}.log', 
+                        log = f'$nameMS_taql.log', 
                         commandType = 'general'
                     )
                     
@@ -944,7 +944,7 @@ for c in range(maxIter):
         # subtract external region MSs: CORRECTED_DATA_FR - MODEL_DATA -> SUBFIELD_DATA
         MSs.addcol('SUBFIELD_DATA','CORRECTED_DATA_FR')
         logger.info('Subtracting external region model (SUBFIELD_DATA = CORRECTED_DATA_FR - MODEL_DATA)...')
-        MSs.run('taql "update $pathMS set SUBFIELD_DATA = CORRECTED_DATA_FR - MODEL_DATA"', log='$nameMS_taql-c'+str(c)+'.log', commandType='general')
+        MSs.run('taql "update $pathMS set SUBFIELD_DATA = CORRECTED_DATA_FR - MODEL_DATA"', log='$nameMS_taql.log', commandType='general')
     ### DONE
 
     with w.if_todo('c%02i_intreg_predict' % c):
@@ -1071,7 +1071,7 @@ for c in range(maxIter):
             # subtract internal region from MSs: CORRECTED_DATA_FR - MODEL_DATA -> SUBFIELD_DATA
             logger.info('Subtract main-lobe (SUBFIELD_DATA = CORRECTED_DATA_FR - MODEL_DATA)...')
             MSs.run('taql "update $pathMS set SUBFIELD_DATA = CORRECTED_DATA_FR - MODEL_DATA"',
-                    log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
+                    log='$nameMS_taql.log', commandType='general')
             if develop: clean_empty(MSs, 'only_sidelobe', 'SUBFIELD_DATA', size=10000)
         ### DONE
 
@@ -1103,7 +1103,7 @@ for c in range(maxIter):
         with w.if_todo('subtract_lr'):
             logger.info('Subtract low-resolution to get empty data set (SUBFIELD_DATA = SUBFIELD_DATA - MODEL_DATA)...')
             MSs.run('taql "update $pathMS set SUBFIELD_DATA = SUBFIELD_DATA - MODEL_DATA"',
-                log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
+                log='$nameMS_taql.log', commandType='general')
             if develop: clean_empty(MSs, 'empty', 'SUBFIELD_DATA')
         ### DONE
 
@@ -1143,7 +1143,7 @@ for c in range(maxIter):
                     log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
 
             logger.info('Subtract corrupted sidelobe model (CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA)...')
-            MSs.run('taql "update $pathMS set CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA"', log='$nameMS_taql-c' + str(c) + '.log', commandType='general')
+            MSs.run('taql "update $pathMS set CORRECTED_DATA_FR = CORRECTED_DATA_FR - MODEL_DATA"', log='$nameMS_taql.log', commandType='general')
         ### DONE
 
     # apply the subfield solutions to the data.
