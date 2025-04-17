@@ -276,6 +276,8 @@ RUN cd /opt && git clone https://github.com/cds-astro/mocpy \
     && cd /opt/mocpy && git checkout v0.16.2
 RUN cd /opt/mocpy && pip install .
 
+RUN pip install spherical-geometry
+
 #####################################################################
 # msoverview
 #####################################################################
