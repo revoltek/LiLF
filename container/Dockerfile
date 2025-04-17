@@ -276,6 +276,13 @@ RUN cd /opt && git clone https://github.com/cds-astro/mocpy \
     && cd /opt/mocpy && git checkout v0.16.2
 RUN cd /opt/mocpy && pip install .
 
+####################################################################
+## spherical-geometry (v1.3.3)
+####################################################################
+RUN cd /opt && git clone https://github.com/spacetelescope/spherical_geometry/ \
+    && cd /opt/spherical_geometry && git checkout 1.3.3
+RUN cd /opt/spherical_geometry && pip install .
+
 #####################################################################
 # msoverview
 #####################################################################

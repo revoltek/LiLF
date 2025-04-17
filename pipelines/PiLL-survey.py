@@ -37,6 +37,32 @@ def check_done(pipename):
         last_line = f.readlines()[-1]
     if not "Done" in last_line:
         update_status_db(target, 'Error') 
+
+        # save everything possible for debug
+        with w.if_todo('saveproduct_error_%s' % target):
+            archive = '/iranet/groups/ulu/fdg/surveytgts/done/'+target+'.error'
+            # copy images in herts
+            logger.info(f'Copy products -> {archive}')
+            lib_util.check_rm(f'{archive}')
+            os.system(f'mkdir {archive}; mkdir {archive}/plots {archive}/logs')
+            os.system(f'cp ddparallel/images/wideM-*-MFS-image.fits {archive}')
+            os.system(f'cp -r ddparallel/plots/* {archive}/plots')
+            os.system(f'cp ddserial/c0*/images/*image-MFS.fits {archive}')
+            os.system(f'cp ddserial/c0*/images/wideDD-*MFS-residual.fits {archive}')
+            os.system(f'cp ddserial/c0*/solutions/facets-c*.reg {archive}')
+            os.system(f'cp ddserial/c0*/skymodels/all*reg {archive}')
+            os.system(f'cp ddserial/c0*/skymodels/mask-ddcal-c*.cat.fits {archive}')
+            os.system(f'cp ddserial/c0*/skymodels/mask-ddcal-c*.reg {archive}')
+            os.system(f'cp quality/quality.pickle {archive}')
+            # copy logs
+            logger.info(f'Copy logs -> {archive}')
+            os.chdir(working_dir)
+            os.system(f'cp -r PiLL_*logger PiLL*walker logs_PiLL \
+              *{target[:-1]}*/pipeline-timesplit_*logger *{target[:-1]}*/pipeline-timesplit.walker *{target[:-1]}*/logs_pipeline-timesplit_* \
+              {target}/pipeline-ddparallel_*logger {target}/pipeline-ddparallel.walker {target}/logs_pipeline-ddparallel_* \
+              {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
+              {archive}/logs')
+
         logger.error('Something went wrong in the last pipeline call.')
         sys.exit()
 
@@ -167,22 +193,22 @@ with w.if_todo('dd-serial_%s' % target):
 update_status_db(target, 'QualityCheck')
 
 with w.if_todo('quality_%s' % target):
-        logger.info('### %s: Starting quality check #####################################' % target)
-        os.system(LiLF_dir+'/pipelines/LOFAR_quality.py')
-        check_done('pipeline-quality')
+    logger.info('### %s: Starting quality check #####################################' % target)
+    os.system(LiLF_dir+'/pipelines/LOFAR_quality.py')
+    check_done('pipeline-quality')
 
-        with open('quality/quality.pickle', 'rb') as f:
-            qdict = pickle.load(f)
-        logger.info('DDparallel residual rms noise (cycle 0): %.1f mJy/b' % (qdict["ddparallel_c0_rms"] * 1e3))
-        logger.info('DDparallel residual rms noise (cycle 1): %.1f mJy/b' % (qdict["ddparallel_c1_rms"] * 1e3))
-        logger.info('DDserial residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddserial_c0_rms'] * 1e3))
-        logger.info('DDserial residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddserial_c1_rms'] * 1e3))
-        logger.info('DDserial NVSS ratio (cycle 1): %.1f with %i matches' % (qdict['nvss_ratio'], qdict['nvss_match']))
-        logger.info('DDserial total flags: %.1f%%' % (qdict['flag_frac']*100))
+    with open('quality/quality.pickle', 'rb') as f:
+        qdict = pickle.load(f)
+    logger.info('DDparallel residual rms noise (cycle 0): %.1f mJy/b' % (qdict["ddparallel_c0_rms"] * 1e3))
+    logger.info('DDparallel residual rms noise (cycle 1): %.1f mJy/b' % (qdict["ddparallel_c1_rms"] * 1e3))
+    logger.info('DDserial residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddserial_c0_rms'] * 1e3))
+    #logger.info('DDserial residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddserial_c1_rms'] * 1e3))
+    logger.info('DDserial NVSS ratio (cycle 1): %.1f with %i matches' % (qdict['nvss_ratio'], qdict['nvss_match']))
+    logger.info('DDserial total flags: %.1f%%' % (qdict['flag_frac']*100))
 
-        with SurveysDB(survey='lba', readonly=False) as sdb:
-            r = sdb.execute('UPDATE fields SET noise="%s", nvss_ratio="%s", nvss_match="%s", flag_frac="%s" WHERE id="%s"' \
-                    % (qdict['ddserial_c1_rms'],qdict['nvss_ratio'], qdict['nvss_match'], qdict['flag_frac'],  target))
+    with SurveysDB(survey='lba', readonly=False) as sdb:
+        r = sdb.execute('UPDATE fields SET noise="%s", nvss_ratio="%s", nvss_match="%s", flag_frac="%s" WHERE id="%s"' \
+            % (qdict['ddserial_c0_rms'],qdict['nvss_ratio'], qdict['nvss_match'], qdict['flag_frac'],  target))
 ### DONE
 
 ################################################################################
@@ -197,6 +223,7 @@ with w.if_todo('saveproducts_%s' % target):
     lib_util.check_rm(f'{archive}')
     os.system(f'mkdir {archive}; mkdir {archive}/plots {archive}/logs')
     os.system(f'cp ddparallel/images/wideM-*-MFS-image.fits {archive}')
+    os.system(f'cp ddparallel/images/wide-lr-MFS-image.fits {archive}')
     os.system(f'cp -r ddparallel/plots/* {archive}/plots')
     os.system(f'cp ddserial/c0*/images/*image*.fits {archive}')
     os.system(f'cp ddserial/c0*/images/wideDD-*MFS-residual.fits {archive}')
@@ -214,12 +241,11 @@ with w.if_todo('saveproducts_%s' % target):
     # copy logs
     logger.info(f'Copy logs -> {archive}')
     os.chdir(working_dir)
-    os.system(f'cp -r PiLL_*logger PiLL*walker logs_PiLL \
+    os.system(f'cp -r PiLL_*logger PiLL*walker \
               *{target[:-1]}*/pipeline-timesplit_*logger *{target[:-1]}*/pipeline-timesplit.walker *{target[:-1]}*/logs_pipeline-timesplit_* \
               {target}/pipeline-ddparallel_*logger {target}/pipeline-ddparallel.walker {target}/logs_pipeline-ddparallel_* \
               {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
               {archive}/logs')
-
 ### DONE
 
 update_status_db(target, 'Done')

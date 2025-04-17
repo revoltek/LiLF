@@ -710,7 +710,7 @@ for c in range(maxIter):
             if fulljones:
                 logger.info('Solving amp-di (fulljones)...')
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
-                     sol.mode=fulljones sol.h5parm=$pathMS/amp-di.h5 sol.solint={150*base_solint} sol.minvisratio=0.5 \
+                     sol.mode=fulljones sol.h5parm=$pathMS/amp-di.h5 sol.solint={150*base_solint} \
                      sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
                      log='$nameMS_diampsol.log', commandType='DP3')
 
@@ -746,7 +746,7 @@ for c in range(maxIter):
             else:
                 logger.info('Solving amp-di (diagonal)...')
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
-                     sol.mode=diagonal sol.h5parm=$pathMS/amp-di.h5 sol.solint={150*base_solint} sol.minvisratio=0.5 \
+                     sol.mode=diagonal sol.h5parm=$pathMS/amp-di.h5 sol.solint={150*base_solint} \
                      sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
                      log='$nameMS_diampsol.log', commandType='DP3')
 
@@ -1166,6 +1166,7 @@ for c in range(maxIter):
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits ddparallel/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt ddparallel/images') for c in range(maxIter) ]
+os.system('mv img/wide-lr-MFS-image.fits ddparallel/images')
 
 # debug images
 if develop:
