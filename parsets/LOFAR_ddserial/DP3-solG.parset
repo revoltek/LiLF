@@ -10,7 +10,7 @@ sol.datause = dual
 
 sol.mode = scalarcomplexgain # diagonal, scalarcomplexgain, tec
 sol.uvlambdamin = 100
-sol.minvisratio = 0.3
+sol.minvisratio = 0.25
 sol.h5parm = 
 sol.maxiter = 100
 sol.tolerance = 1e-5

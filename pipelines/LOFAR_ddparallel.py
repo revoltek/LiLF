@@ -239,6 +239,8 @@ def add_3c_models(sm, phasecentre, null_mid_freq, beamMask, max_sep=50., thresho
             pix_pos = np.round(np.asarray(wcs.utils.skycoord_to_pixel(pos, beam_wcs, origin=1))).astype(int)
             if (0 <= pix_pos[0] < beam_hdu.data.shape[-2]) and (0 <= pix_pos[1] < beam_hdu.data.shape[-1]):
                 within_beam = bool(beam_hdu.data[0,0,pix_pos[1], pix_pos[0]])
+            else:
+                within_beam = False
         elif sep > 20 and source == "3C 274":
             logger.info(f'3C source {source} (seperation: {sep:.2f} deg) too far from center to reliably subtract: ignore.')
             continue

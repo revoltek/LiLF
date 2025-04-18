@@ -1031,12 +1031,11 @@ with w.if_todo('output-lressub'):
 with w.if_todo('output-debugempty'):
     imagenameEMPTY = 'img/wideDebug-empty-c%02i' % (cmaj)
     logger.info('Cleaning (empty with no sols image for debug)...')
-    lib_util.run_wsclean(s, 'wscleanEMPTY-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA',
+    lib_util.run_wsclean(s, 'wscleanEMPTY-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagenameEMPTY, data_column='SUBTRACTED_DATA',
                 size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1, gridder='wgridder',
-                parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
+                parallel_gridding=str(ch_out), minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3, pol='i',
                 no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
-                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
                 local_rms='', local_rms_window=50, local_rms_strength=0.75,
                 concat_mss=True)
     os.system('mv %s-MFS-image.fits ddserial/c%02i/images' % (imagenameEMPTY, cmaj))
