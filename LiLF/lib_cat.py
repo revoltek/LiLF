@@ -395,4 +395,5 @@ def get_LOTSS_DR3_cone_as_skymodel(centre, radius, filename, beamMS=None):
     table.to_csv(filename, index=False, header=original_colnames)
     sm = lsmtool.load(filename, beamMS=beamMS)
     sm.setColValues('SpectralIndex', [[-0.7]] * len(sm.getColValues('I')))  # add standard spidx
+    sm.setColValues('LogarithmicSI', ['True']*len(sm.getColValues('I'))) # add standard spidx
     return sm

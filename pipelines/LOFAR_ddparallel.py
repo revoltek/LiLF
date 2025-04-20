@@ -485,7 +485,7 @@ for c in range(maxIter):
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
         if c == 0:
-            if start_sourcedb == '':  # if not provided, use LOTSS as default, if the field is not fully covered, resort to GSM
+            if start_sourcedb == '':  # if not provided, use LOTSS-DR3 as default, if the field is not fully covered, resort to GSM
                 if lib_dd_parallel.check_lotss_coverage(phasecentre, null_mid_freq/2):
                     logger.info('Target fully in LoTSS-DR3 - start from LoTSS + use more initial facets.')
                     start_sourcedb = 'LOTSS-DR3'
@@ -501,6 +501,7 @@ for c in range(maxIter):
                     sm.setColValues('I', sm.getColValues('I')/1000) # convert mJy to Jy TODO fix in LSMtool
                     sm.select('I>0.05', applyBeam=True)
                     sm.setColValues('SpectralIndex', [[-0.7]]*len(sm.getColValues('I'))) # add standard spidx
+                    sm.setColValues('LogarithmicSI', ['True']*len(sm.getColValues('I'))) # add standard spidx
             # load LoTSS DR3 model and select decrease size in DEC
             # using components downloaded from https://www.lofar-surveys.org/downloads/DR3/catalogues/LoTSS_DR3_v0.1_gaus.fits
             # componentlist prepared on 11-03-2025 (total flux in Jy)

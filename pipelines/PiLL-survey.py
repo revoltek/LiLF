@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys, glob, getpass, socket, pickle
+import os, sys, glob, getpass, socket, pickle, random
 from LiLF.surveys_db import SurveysDB
 from LiLF import lib_util, lib_log
 logger_obj = lib_log.Logger('PiLL')
@@ -45,6 +45,7 @@ def check_done(pipename):
             logger.info(f'Copy products -> {archive}')
             lib_util.check_rm(f'{archive}')
             os.system(f'mkdir {archive}; mkdir {archive}/plots {archive}/logs')
+            os.chdir(working_dir+'/'+target)
             os.system(f'cp ddparallel/images/wideM-*-MFS-image.fits {archive}')
             os.system(f'cp -r ddparallel/plots/* {archive}/plots')
             os.system(f'cp ddserial/c0*/images/*image-MFS.fits {archive}')
@@ -74,14 +75,17 @@ with SurveysDB(survey='lba',readonly=True) as sdb:
          with open("target.txt", "r") as file:
             target, target_ra, target_dec = file.readline()[:-1].split(',')
     else:
-        sdb.execute('SELECT * FROM fields WHERE status="Downloaded" order by priority desc')
+        # get all fields with max priority
+        sdb.execute('SELECT * FROM fields WHERE status = "Downloaded" AND priority = (SELECT MAX(priority) FROM fields WHERE status = "Downloaded")')
         r = sdb.cur.fetchall()
         if len(r) == 0:
             logger.warning('No field left in the db...')
             sys.exit()
-        target = r[0]['id'] # here we set $target
-        target_ra = r[0]['ra']
-        target_dec = r[0]['decl']
+        
+        rndidx = random.randint(0, len(r)-1) # select a random field
+        target = r[rndidx]['id'] # here we set $target
+        target_ra = r[rndidx]['ra']
+        target_dec = r[rndidx]['decl']
         # save target name
         with open("target.txt", "w") as file:
             print('%s,%f,%f' % (target,target_ra,target_dec), file=file)
@@ -105,6 +109,7 @@ with SurveysDB(survey='lba',readonly=False) as sdb:
 
 update_status_db(target, 'Copy') 
 
+# pipelines search for lilf.config also in the ../ dir
 if not os.path.exists(working_dir):
     os.makedirs(working_dir)
 if os.path.exists('lilf.config') and os.getcwd() != working_dir: 
