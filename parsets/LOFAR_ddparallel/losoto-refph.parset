@@ -3,4 +3,4 @@ Ncpu = 0
 [reference]
 operation = REFERENCE
 soltab = sol000/phase000
-refAnt = CS002LBA
+refAnt = auto
