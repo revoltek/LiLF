@@ -438,7 +438,7 @@ for p in close_pointings:
         facet_path = f'extract/init/{p}/facets-{highest_ddcal}.reg'
         #TODO apply beam here when bug is fixed...
         s.add(f'wsclean -predict -padding 1.8 -name extract/init/{p}/wideDDext-{highest_ddcal} -j ' + str(s.max_cpucores) + ' -channels-out ' + str(
-            ch_out) + ' -facet-regions ' + facet_path + ' -diagonal-solutions -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
+            ch_out) + ' -facet-regions ' + facet_path + ' -diagonal-visibilities -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
             -apply-facet-solutions ' + dde_h5parm + ' ' + correct_for + ' \
             -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
             log='wscleanPRE.log', commandType='wsclean')
