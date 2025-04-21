@@ -1,0 +1,17 @@
+
+Ncpu = 0
+[reference]
+operation = REFERENCE
+soltab = sol000/tec000
+refAnt = SuperSt
+
+[reset]
+operation = RESET
+ant=[FR606LBA]
+soltab = sol000/tec000
+
+[reweight]
+operation = REWEIGHT
+ant=[FR606LBA]
+soltab = sol000/tec000
+weightVal = 1.

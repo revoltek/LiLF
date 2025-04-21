@@ -12,6 +12,7 @@ sol.mode =
 # sol.datause = full/dual/single
 # sol.rotationdiagonalmode = diagonal, diagonalphase, scalar, scalarphase
 sol.solveralgorithm = directioniterative # required for datause
+sol.smoothnessreffrequency = 54e6
 sol.maxiter = 300
 sol.tolerance = 1e-3
 sol.propagatesolutions = True

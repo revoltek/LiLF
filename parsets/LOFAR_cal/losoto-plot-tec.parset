@@ -10,12 +10,12 @@ plotFlag = True
 prefix = plots/tec_
 refAnt = auto
 
-[plotPh]
-operation = PLOT
-soltab = sol000/phase000
-axesInPlot = time
-axisInTable = ant
-plotFlag = True
-#minmax = [-3.14,3.14]
-prefix = plots/ph_
-refAnt = auto
+#[plotPh]
+#operation = PLOT
+#soltab = sol000/phase000
+#axesInPlot = time
+#axisInTable = ant
+#plotFlag = True
+##minmax = [-3.14,3.14]
+#prefix = plots/ph_
+#refAnt = auto

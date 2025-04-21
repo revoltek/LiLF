@@ -1,0 +1,10 @@
+msin =
+msin.datacolumn = MODEL_DATA
+msout = .
+msout.datacolumn = MODEL_DATA
+
+steps = [setbeam]
+
+setbeam.type = setbeam
+setbeam.beammode = default
+setbeam.direction =
