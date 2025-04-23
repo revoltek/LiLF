@@ -358,15 +358,14 @@ with w.if_todo('cal_pa'):
         # Beam corruption concat_pa.MS:MODEL_DATA -> MODEL_DATA
         logger.info(f'Beam model corruption (MODEL_DATA - > MODEL_DATA)...')
         phase_center = MSs_pa.getListObj()[0].getPhaseCentre()
-        MSs_pa.run(f'DP3 {parset_dir}/DP3-setbeam.parset msin=$pathMS setbeam.direction=[{phase_center[0]}deg,{phase_center[1]}deg]',
-                   log='$nameMS_setbeam.log', commandType="DP3")
-        MSs_pa.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA corrbeam.updateweights=False corrbeam.invert=False',
+        MSs_pa.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA setbeam.beammode=Element corrbeam.updateweights=False corrbeam.invert=False',
             log='$nameMS_beam.log', commandType="DP3")
         # HE: sol.rotationdiagonalmode diagonalphase seemes to give more stable results and surpresses the ~60 MHz bump weirdness
+        # HE: do not use smoothnessconstraint, gives quite bad results here, at least at 1-2 MHz kernel and above!
         # Solve concat_pa.MS:DATA (only solve)
         logger.info(f'Calibrating PA...')
         MSs_pa.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 \
-               sol.mode=rotation+diagonal sol.rotationdiagonalmode=diagonalphase sol.datause=full sol.smoothnessconstraint=2e6 sol.smoothnessspectralexponent=-2.0 \
+               sol.mode=rotation+diagonal sol.rotationdiagonalmode=diagonalphase sol.datause=full \
                sol.solint=1 sol.nchan=1', log='$nameMS_solPA.log', commandType="DP3")
 
         lib_util.run_losoto(s, 'pa', [ms + '/pa.h5' for ms in MSs_pa.getListStr()],
@@ -431,8 +430,9 @@ with w.if_todo('cal_fr'):
     # Solve concat_all.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating FR...')
     # We solve for rot+diag or rot+scalar here and not just rot since we can have phase offsets from the preliminary iono!!
+    # HE: do not use smoothnessconstraint, gives quite bad results here, at least at 1-2 MHz kernel and above!
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 \
-               sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase sol.datause=full sol.smoothnessconstraint=2e6 sol.smoothnessspectralexponent=-2.0 \
+               sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase sol.datause=full \
                sol.solint={small_timestep} sol.nchan={int(small_freqstep / 2)}', log='$nameMS_solFR.log',
                        commandType="DP3")
 
