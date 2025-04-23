@@ -373,7 +373,7 @@ for cmaj in range(maxIter):
         ### TESTTESTTEST: empty image
         if develop and not os.path.exists('img/empty-init-c%02i-image.fits' % (cmaj)):
             clean('init-c%02i' % (cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
-        imagenameEMPTY = 'img/wideDebug-empty-init' % (cmaj)
+        imagenameEMPTY = 'img/wideDebug-empty-init'
         logger.info('Cleaning (empty with no sols image for debug)...')
         lib_util.run_wsclean(s, 'wscleanEMPTY-c' + str(cmaj) + '.log', MSs.getStrWsclean(), name=imagenameEMPTY,
                              data_column='SUBTRACTED_DATA',
