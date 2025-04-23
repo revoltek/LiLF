@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os, sys, glob, getpass, socket, pickle, random
+from datetime import datetime
 from LiLF.surveys_db import SurveysDB
 from LiLF import lib_util, lib_log
 logger_obj = lib_log.Logger('PiLL')
@@ -47,6 +48,8 @@ def check_done(pipename):
             os.system(f'mkdir {archive}; mkdir {archive}/plots {archive}/logs')
             os.chdir(working_dir+'/'+target)
             os.system(f'cp ddparallel/images/wideM-*-MFS-image.fits {archive}')
+            os.system(f'cp ddparallel/images/wide-lr-MFS-image.fits {archive}')
+            os.system(f'cp ddparallel/solutions/faceets*reg {archive}')
             os.system(f'cp -r ddparallel/plots/* {archive}/plots')
             os.system(f'cp ddserial/c0*/images/*image-MFS.fits {archive}')
             os.system(f'cp ddserial/c0*/images/wideDD-*MFS-residual.fits {archive}')
@@ -100,9 +103,8 @@ username = getpass.getuser()
 clustername = s.cluster
 nodename = socket.gethostname()
 with SurveysDB(survey='lba',readonly=False) as sdb:
-    r = sdb.execute('UPDATE fields SET username="%s" WHERE id="%s"' % (username, target))
-    r = sdb.execute('UPDATE fields SET clustername="%s" WHERE id="%s"' % (clustername, target))
-    r = sdb.execute('UPDATE fields SET nodename="%s" WHERE id="%s"' % (nodename, target))
+    r = sdb.execute('UPDATE fields SET username="%s", clustername="%s", nodename="%s" WHERE id="%s"' % \
+                    (username, clustername, nodename, target))
 
 ###################################################################################
 # setup and copy
@@ -229,11 +231,13 @@ with w.if_todo('saveproducts_%s' % target):
     os.system(f'mkdir {archive}; mkdir {archive}/plots {archive}/logs')
     os.system(f'cp ddparallel/images/wideM-*-MFS-image.fits {archive}')
     os.system(f'cp ddparallel/images/wide-lr-MFS-image.fits {archive}')
+    os.system(f'cp ddparallel/solutions/faceets*reg {archive}')
     os.system(f'cp -r ddparallel/plots/* {archive}/plots')
     os.system(f'cp ddserial/c0*/images/*image*.fits {archive}')
     os.system(f'cp ddserial/c0*/images/wideDD-*MFS-residual.fits {archive}')
     os.system(f'cp ddserial/c00/images/wideDD*model*fpb.fits {archive}')
-    os.system(f'cp ddserial/c00/solutions/interp.h5 ddserial/c00/solutions/facets-c00.reg {archive}')
+    os.system(f'gzip ddserial/c00/solutions/interp.h5; cp ddserial/c00/solutions/interp.h5.gz {archive}')
+    os.system(f'cp ddserial/c00/solutions/facets-c00.reg {archive}')
     os.system(f'cp ddserial/c0*/skymodels/all*reg {archive}')
     os.system(f'cp ddserial/c0*/skymodels/mask-ddcal-c*.cat.fits {archive}')
     os.system(f'cp ddserial/c0*/skymodels/mask-ddcal-c*.reg {archive}')
@@ -252,6 +256,11 @@ with w.if_todo('saveproducts_%s' % target):
               {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
               {archive}/logs')
 ### DONE
+
+# add final timestamp
+timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+with SurveysDB(survey='lba', readonly=False) as sdb:
+    r = sdb.execute('UPDATE fields SET end_date="%s" WHERE id="%s"' % (timestamp,target))
 
 update_status_db(target, 'Done')
 logger.info('### %s: Done. #####################################' % target)

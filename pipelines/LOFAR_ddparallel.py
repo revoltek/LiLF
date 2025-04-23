@@ -164,8 +164,8 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None,
         logger.warning('Detected many directions - limit number of parallel DP3 processes to 1.')
         maxProcs = 1
     elif len(model_columns) >= 18 and solint > 60:
-        logger.warning('Detected many directions - limit number of parallel DP3 processes to 4.')
-        maxProcs = 4
+        logger.warning('Detected many directions - limit number of parallel DP3 processes to 3.')
+        maxProcs = 3
     else:
         maxProcs = 8
 
