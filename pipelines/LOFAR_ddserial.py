@@ -373,20 +373,21 @@ for cmaj in range(maxIter):
         ### TESTTESTTEST: empty image
         if develop and not os.path.exists('img/empty-init-c%02i-image.fits' % (cmaj)):
             clean('init-c%02i' % (cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
-        imagenameEMPTY = 'img/wideDebug-empty-init'
-        logger.info('Cleaning (empty with no sols image for debug)...')
-        lib_util.run_wsclean(s, 'wscleanEMPTY-c' + str(cmaj) + '.log', MSs.getStrWsclean(), name=imagenameEMPTY,
-                             data_column='SUBTRACTED_DATA',
-                             size=imgsizepix, scale=str(pixscale) + 'arcsec', weight='briggs -0.5', niter=1,
-                             gridder='wgridder',
-                             parallel_gridding=str(ch_out), minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
-                             join_channels='', fit_spectral_pol=3,
-                             channels_out=str(ch_out), deconvolution_channels=3, pol='i',
-                             no_update_model_required='', nmiter=12, auto_threshold=2.0, auto_mask=3.0,
-                             local_rms='', local_rms_window=50, local_rms_strength=0.75,
-                             concat_mss=True)
-        os.system('mv %s-MFS-image.fits ddserial/c%02i/images' % (imagenameEMPTY, cmaj))
-        ### DONE
+        if cmaj == 0:
+            imagenameEMPTY = 'img/wideDebug-empty-init'
+            logger.info('Cleaning (empty with no sols image for debug)...')
+            lib_util.run_wsclean(s, 'wscleanEMPTY-c' + str(cmaj) + '.log', MSs.getStrWsclean(), name=imagenameEMPTY,
+                                 data_column='SUBTRACTED_DATA',
+                                 size=imgsizepix, scale=str(pixscale) + 'arcsec', weight='briggs -0.5', niter=1,
+                                 gridder='wgridder',
+                                 parallel_gridding=str(ch_out), minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
+                                 join_channels='', fit_spectral_pol=3,
+                                 channels_out=str(ch_out), deconvolution_channels=3, pol='i',
+                                 no_update_model_required='', nmiter=12, auto_threshold=2.0, auto_mask=3.0,
+                                 local_rms='', local_rms_window=50, local_rms_strength=0.75,
+                                 concat_mss=True)
+            os.system('mv %s-MFS-image.fits ddserial/c%02i/images' % (imagenameEMPTY, cmaj))
+            ### DONE
         ###
     ### DONE
 
