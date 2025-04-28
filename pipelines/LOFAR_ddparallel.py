@@ -572,9 +572,9 @@ for c in range(maxIter):
     with w.if_todo('c%02i_init_model' % c):
         for patch in patches:
             # Add model to MODEL_DATA
-            # TODO: add time smearing in the predict parset
             logger.info(f'Add model to {patch}...')
-            MSs.run(f'DP3 {parset_dir}/DP3-predict-beam.parset msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch}',
+            correctfreqsmearing = c == 0 # only in cycle zero correct freq smearing
+            MSs.run(f'DP3 {parset_dir}/DP3-predict-beam.parset msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch} pre.correctfreqsmearing={correctfreqsmearing}',
                     log='$nameMS_pre.log', commandType='DP3')
             # pos = sm.getPatchPositions()[patch]
             # size = int((1.1*sm.getPatchSizes()[np.argwhere(sm.getPatchNames()==patch)]) // 4)
@@ -869,6 +869,28 @@ for c in range(maxIter):
                              apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
                              local_rms='', local_rms_window=50, local_rms_strength=0.5, **widefield_kwargs, **reuse_kwargs)
 
+        # s.add(f'wsclean -predict -padding 1.8 -name img/wideM-{c} -j {s.max_cpucores} -channels-out {channels_out} \
+        #         -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
+        #         -apply-facet-solutions {sol_dir}/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
+        #       log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
+        # s.run(check=True)
+        # MSs.addcol('SUBTRACTED_DATA','CORRECTED_DATA')
+        # # subtract - ms:SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA
+        # logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
+        # MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
+        #         log='$nameMS_taql.log', commandType='general')
+        # imagenameEMPTY = f'img/wideM-empty-{c}'
+        # logger.info('Cleaning (empty with no sols image for debug)...')
+        # lib_util.run_wsclean(s, 'wscleanEMPTY-c' + str(c) + '.log', MSs.getStrWsclean(), name=imagenameEMPTY,
+        #                      data_column='SUBTRACTED_DATA',
+        #                      size=imgsizepix_wide, scale=str(pixscale) + 'arcsec', weight='briggs -0.5', niter=1,
+        #                      gridder='wgridder',
+        #                      parallel_gridding=channels_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
+        #                      join_channels='', fit_spectral_pol=3,
+        #                      channels_out=channels_out, deconvolution_channels=3, pol='i',
+        #                      no_update_model_required='', nmiter=12, auto_threshold=2.0, auto_mask=3.0,
+        #                      local_rms='', local_rms_window=50, local_rms_strength=0.75,
+        #                      concat_mss=True)
         # # Test: quick stokesV
         # logger.info('Making wide field image (pol) ...')
         # lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM+'-v',

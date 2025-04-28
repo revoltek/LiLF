@@ -476,6 +476,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
 
     # Predict in case update_model_required cannot be used
     if do_predict == True:
+        if 'apply_facet_solutions' in kwargs.keys():
+            raise NotImplementedError('do_predict in combination with apply_facet_solutions is not implemented.')
         wsc_parms = []
         # keep imagename and channel number
         for parm, value in list(kwargs.items()):
