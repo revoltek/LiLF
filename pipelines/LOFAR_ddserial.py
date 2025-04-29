@@ -172,6 +172,10 @@ with w.if_todo('add_columns'):
     MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
     MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
 
+# print fractional flags
+for MS in MSs.getListObj():
+    logger.info(f'{MS.nameMS}: Fractional flags: {MS.fractionalFlag()*100}%.')
+
 ##############################################################
 full_image = lib_img.Image('ddserial/init/wideM-1-MFS-image.fits', userReg=userReg)
 
@@ -281,6 +285,11 @@ for cmaj in range(maxIter):
                 if not d.is_in_region(peelReg, wcs=full_image.getWCS()): d.peel_off = True
                 directions.append(d)
 
+            # cap at 40 directions
+            if len(directions) == 40:
+                logger.warning('Too many directions found: stopping at 40.')
+                break
+
         # take care of manually provided region to include in cal
         if manual_dd_cal != '':
             man_cal = regions.regions.Regions.read(manual_dd_cal)
@@ -373,7 +382,7 @@ for cmaj in range(maxIter):
         ### TESTTESTTEST: empty image
         if develop and not os.path.exists('img/empty-init-c%02i-image.fits' % (cmaj)):
             clean('init-c%02i' % (cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
-        imagenameEMPTY = 'img/wideDebug-empty-init' % (cmaj)
+        imagenameEMPTY = 'img/wideDebug-empty-init'
         logger.info('Cleaning (empty with no sols image for debug)...')
         lib_util.run_wsclean(s, 'wscleanEMPTY-c' + str(cmaj) + '.log', MSs.getStrWsclean(), name=imagenameEMPTY,
                              data_column='SUBTRACTED_DATA',
@@ -385,9 +394,7 @@ for cmaj in range(maxIter):
                              no_update_model_required='', nmiter=12, auto_threshold=2.0, auto_mask=3.0,
                              local_rms='', local_rms_window=50, local_rms_strength=0.75,
                              concat_mss=True)
-        os.system('mv %s-MFS-image.fits ddserial/c%02i/images' % (imagenameEMPTY, cmaj))
-        ### DONE
-        ###
+        os.system('mv %s-MFS-image.fits ddserial/c%02i/images' % (imagenameEMPTY, cmaj))        
     ### DONE
 
     for dnum, d in enumerate(directions):
@@ -494,7 +501,7 @@ for cmaj in range(maxIter):
         # usually there are 3600/32=112 or 3600/16=225 or 3600/8=450 timesteps and \
         # 60 (halfband)/120 (fullband) chans, try to use multiple numbers
         iter_ph_solint = lib_util.Sol_iterator([4, 2, 1])  # 32 or 16 or 8 * [4,2,1] s
-        iter_amp_solint = lib_util.Sol_iterator([30, 20, 10])  # 32 or 16 or 8 * [30,20,10] s
+        iter_amp1_solint = lib_util.Sol_iterator([30, 20, 10])  # 32 or 16 or 8 * [30,20,10] s
         iter_amp2_solint = lib_util.Sol_iterator([120, 60])
         iter_ph_soltype = 'diagonalphase' if (d.get_flux(freq_mid) > 5 and cmaj > 0) else 'scalarphase'
         datause = 'dual' if iter_ph_soltype == 'diagonalphase' else 'single'
@@ -517,7 +524,7 @@ for cmaj in range(maxIter):
             d.add_h5parm('ph-ddserial', 'ddserial/c%02i/solutions/cal-ph-ddserial%s.h5' % (cmaj,logstringcal) )
             d.add_h5parm('ph1', 'ddserial/c%02i/solutions/cal-ph1-%s.h5' % (cmaj,logstringcal) )
             if doamp:
-                solint_amp1 = next(iter_amp_solint)
+                solint_amp1 = next(iter_amp1_solint)
                 solch_amp1 = int(round(MSs_dir.getListObj()[0].getNchan() / ch_out / 4)) # TEST /4
                 d.add_h5parm('amp1', 'ddserial/c%02i/solutions/cal-amp1-%s.h5' % (cmaj,logstringcal) )
                 solint_amp2 = next(iter_amp2_solint)
@@ -583,7 +590,7 @@ for cmaj in range(maxIter):
                     logger.info('Gain amp calibration 1 (solint: %i, solch: %i)...' % (solint_amp1, solch_amp1))
                     # Calibration - ms:CORRECTED_DATA
                     MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-amp1.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp1)+' sol.nchan='+str(solch_amp1)+' sol.minvisratio=0.3 \
+                        sol.mode=diagonal sol.solint='+str(solint_amp1)+' sol.nchan='+str(solch_amp1)+' \
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DP3')
 
@@ -607,13 +614,17 @@ for cmaj in range(maxIter):
                     logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
                     # Calibration - ms:CORRECTED_DATA
                     MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.minvisratio=0.3 sol.model_weighted_constraints=true',
+                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.model_weighted_constraints=true',
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DP3')
 
                     if d.peel_off:
                         losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-plot-amp2.parset']
                     else:
                         losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
+                    
+                    # ugly workaround to remove broken losoto plots in case of only 1 solution in time is present
+                    if ((len(MSs_dir.getListObj()) == 1) and (solint_amp2 >= MSs_dir.getListObj()[0].getNtime())): losoto_parsets.pop()
+
                     lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
                         plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp2.h5 %s' % d.get_h5parm('amp2'))
@@ -743,7 +754,7 @@ for cmaj in range(maxIter):
                 # change the direction of the closest facet to be exactly identical with the ddcal
                 lib_h5.repoint_h5dir(split_h5, 'Dir00', d.position)
                 logger.info(f'Merge final solutions for {d.name} with {closest}...')
-                s.add(f'h5_merger.py --h5_out {d.get_h5parm("ph1", -2)} --h5_tables {d.get_h5parm("ph-ddserial", -2)} {split_h5} \
+                s.add(f'h5_merger.py --h5_out {d.get_h5parm("ph1", -2)} --h5_tables {d.get_h5parm("ph-ddserial", -2)} {split_h5} --h5_time_freq {split_h5} \
                        --no_antenna_crash', log='h5_merger.log', commandType='python')
                 s.run(check=True)
                 # plot the merged h5parm for debug

@@ -231,7 +231,7 @@ with w.if_todo('saveproducts_%s' % target):
     os.system(f'mkdir {archive}; mkdir {archive}/plots {archive}/logs')
     os.system(f'cp ddparallel/images/wideM-*-MFS-image.fits {archive}')
     os.system(f'cp ddparallel/images/wide-lr-MFS-image.fits {archive}')
-    os.system(f'cp ddparallel/solutions/faceets*reg {archive}')
+    os.system(f'cp ddparallel/solutions/facets*reg {archive}')
     os.system(f'cp -r ddparallel/plots/* {archive}/plots')
     os.system(f'cp ddserial/c0*/images/*image*.fits {archive}')
     os.system(f'cp ddserial/c0*/images/wideDD-*MFS-residual.fits {archive}')

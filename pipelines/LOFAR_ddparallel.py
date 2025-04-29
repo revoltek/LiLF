@@ -169,13 +169,15 @@ def solve_iono(MSs, c, tc, model_columns, smMHz, solint, solmode, resetant=None,
     else:
         maxProcs = 8
 
+    nchan_ph = round(0.192e6 / MSs.getListObj()[0].getChanband()) # number of channels in 1 SBs
+
     if solmode == 'phase':
         MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec{tc}.h5 sol.solint={solint} \
-                  sol.mode=scalarphase sol.smoothnessconstraint={smMHz}e6 sol.smoothnessreffrequency=54e6 sol.nchan=1 {antennaconstraint} \
+                  sol.mode=scalarphase sol.smoothnessconstraint={smMHz}e6 sol.smoothnessreffrequency=54e6 sol.nchan={nchan_ph} {antennaconstraint} \
                   sol.modeldatacolumns="[{",".join(model_columns)}]" sol.solutions_per_direction="{np.array2string(solutions_per_direction, separator=",")}"',
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3', maxProcs=maxProcs)
     else:
-        MSs.run(f'DP3 {parset_dir}/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec{tc}.h5 sol.solint={solint} {antennaconstraint} \
+        MSs.run(f'DP3 {parset_dir}/DP3-solTEC.parset msin=$pathMS sol.h5parm=$pathMS/tec{tc}.h5 sol.nchan={nchan_ph} sol.solint={solint} {antennaconstraint} \
                   sol.modeldatacolumns="[{",".join(model_columns)}]" sol.mode={solmode}',
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3', maxProcs=maxProcs)
 
@@ -344,6 +346,10 @@ if ateam_clip != '':
                     s.add(cmd, log=MS.nameMS+'_clipper.log', commandType='DP3')
                     s.run(check=True)
     ### DONE
+
+# print fractional flags
+for MS in MSs.getListObj():
+    logger.info(f'{MS.nameMS}: Fractional flags: {MS.fractionalFlag()*100}%.')
 
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
@@ -709,10 +715,12 @@ for c in range(maxIter):
     # TODO add updateweights in production
     if c == 1:
         with w.if_todo('amp_di_solve'):
+            
+            nchan_amp = 2* round(0.192e6 / MSs.getListObj()[0].getChanband()) # number of channels in 2 SBs
 
             if fulljones:
                 logger.info('Solving amp-di (fulljones)...')
-                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
+                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan={nchan_amp} sol.modeldatacolumns=[MODEL_DATA] \
                      sol.mode=fulljones sol.h5parm=$pathMS/amp-di.h5 sol.solint={150*base_solint} \
                      sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
                      log='$nameMS_diampsol.log', commandType='DP3')
@@ -748,7 +756,7 @@ for c in range(maxIter):
 
             else:
                 logger.info('Solving amp-di (diagonal)...')
-                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan=12 sol.modeldatacolumns=[MODEL_DATA] \
+                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan={nchan_amp} sol.modeldatacolumns=[MODEL_DATA] \
                      sol.mode=diagonal sol.h5parm=$pathMS/amp-di.h5 sol.solint={150*base_solint} \
                      sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
                      log='$nameMS_diampsol.log', commandType='DP3')
