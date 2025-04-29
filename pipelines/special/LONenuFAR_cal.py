@@ -291,12 +291,13 @@ with w.if_todo('pre_iono'):
     logger.info('Calibrating IONO (distant stations)...')
     smoothnessconstraint = '0.25e6' if MSs_concat_all.hasIS else '0.5e6'
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
-                           sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase  sol.datause=single \
+                           sol.h5parm=$pathMS/preiono.h5 sol.mode=faraday sol.faradaydiagonalmode=diagonal  sol.datause=full \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
                                log='$nameMS_sol.log', commandType="DP3")
 
     lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
+                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rm.parset', parset_dir + '/losoto-plot-amp.parset'])
+    sys.exit()
     if use_spinifex:
         logger.info('fit residual dTEC...')
         s.add("dtec_finder.py --gps_corrected cal-preiono.h5", log='dtec_finder.log', commandType='python')
@@ -387,7 +388,7 @@ with w.if_todo('cal_pa'):
         # Solve concat_all.MS:SMOOTHED_DATA (only solve)
         logger.info('Calibrating PA...')
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/pa.h5 sol.modeldatacolumns=[MODEL_DATA_COR] \
-                   sol.mode=rotation+diagonal sol.rotationdiagonalmode=diagonalphase sol.datause=full sol.smoothnessconstraint=2e6 sol.smoothnessspectralexponent=-2.0 \
+                   sol.mode=rotation+diagonal sol.rotationdiagonalmode=diagonalphase sol.datause=full \
                    sol.solint={small_timestep} sol.nchan={small_freqstep}', log='$nameMS_solPA.log', commandType="DP3")
 
         lib_util.run_losoto(s, 'pa', [ms + '/pa.h5' for ms in MSs_concat_all.getListStr()],
