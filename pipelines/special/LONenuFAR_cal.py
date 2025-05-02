@@ -286,11 +286,10 @@ with w.if_todo('pre_iono'):
     # For RS: Expect up to 0.5 TECU, kernel should be ~0.6 MHz (smaller since we also have clock)
     # AFTER pre-iono: Expect up to 2 TECU, kernel should be ~0.25 MHz
     # Smooth data concat_all.MS:DATA -> SMOOTHED_DATA
-    MSs_concat_phaseupIONO.run_Blsmooth(incol='DATA', logstr='smooth')
     # Solve concat_all-phaseupIONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
     smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.5e6'
-    MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
+    MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA \
                            sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase  sol.datause=single \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
                                log='$nameMS_sol.log', commandType="DP3")
