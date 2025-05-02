@@ -379,15 +379,15 @@ def write_tec_solutions(solspath, dtec, new_solspath: str = ""):
         aranged_dtec[i] = dtec_dict[ant]
     
     tec = np.tile(aranged_dtec, (len(data['time']),1))
-
+    print(tec[:,:,np.newaxis].shape)
     weights = np.ones_like(tec)
     solset.makeSoltab(
         soltype='tec', 
         soltabName='tec000', 
-        axesNames=['time', 'ant'], 
-        axesVals=[data['time'], data["ant"]], 
-        vals=tec, 
-        weights=weights
+        axesNames=['time', 'ant', 'dir'],
+        axesVals=[data['time'], data["ant"], data["dir"]],
+        vals=tec[:,:,np.newaxis],
+        weights=weights[:,:,np.newaxis]
     )
     sols.close()
     
@@ -419,15 +419,16 @@ def write_smooth_tec_solutions(solspath, dtec, new_solspath: str = ""):
     for i, ant in enumerate(data['ant']):
         idx = np.where(np.asarray(full_ants) == ant)[0][0]
         smoothed_dtec[:,i] = get_smoothed_tec(full_dtec[idx], full_timesteps[idx], full_ants[idx], data['time'])
-    
+
+    print(smoothed_dtec[:,:,np.newaxis].shape)
     weights = np.ones_like(smoothed_dtec)
     solset.makeSoltab(
         soltype='tec', 
         soltabName='tec000', 
-        axesNames=['time', 'ant'], 
-        axesVals=[data['time'], data["ant"]], 
-        vals=smoothed_dtec, 
-        weights=weights
+        axesNames=['time', 'ant', 'dir'],
+        axesVals=[data['time'], data["ant"], data["dir"]],
+        vals=smoothed_dtec[:,:,np.newaxis],
+        weights=weights[:,:,np.newaxis]
     )
     sols.close()
     
