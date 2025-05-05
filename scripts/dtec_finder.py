@@ -335,7 +335,10 @@ def combine_dtec_tuples(tecs: list):
 def get_smoothed_tec(dtec, timesteps, ant, new_time_axis):
     nonan_dtec = dtec.copy()[np.isnan(dtec) == False]
     t = timesteps[np.isnan(dtec) == False]
-    lam = len(nonan_dtec)//20 
+    lam = len(nonan_dtec)//20
+    if len(nonan_dtec) <= 3:
+        return np.zeros(len(new_time_axis))
+
     if len(nonan_dtec) < 15:
         logging.warning(f"Too few data points to smooth {ant}")
         filtered = nonan_dtec.copy()
