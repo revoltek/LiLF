@@ -279,7 +279,6 @@ with w.if_todo('pre_iono'):
     MSs_concat_phaseupIONO.run(
         f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname}",
         log="$nameMS_pre.log", commandType="DP3")
-
     # TODO RS and IS need very different smoothing - could do an extra iteration for the IS?
     # Equation for allowed smoothing, assuming ONLY TEC and kernel is one sixth of the bandwidth it takes for one wrap at 54 MHz
     # kernelsize_smoothnessconstraint [MHz] = 0.3 / dTEC [TECU]
@@ -289,27 +288,27 @@ with w.if_todo('pre_iono'):
     # Solve concat_all-phaseupIONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
     smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.5e6'
-    MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA \
-                           sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase  sol.datause=single \
+    # MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA \
+    #                        sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase  sol.datause=single \
+    #                        sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
+    #                            log='$nameMS_sol.log', commandType="DP3")
+
+    lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
+                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
+    MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
+                           sol.h5parm=$pathMS/preiono.h5 sol.mode=faradayrotation sol.faradaylimit=1.5 sol.faradaydiagonalmode=diagonal  sol.datause=full \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
                                log='$nameMS_sol.log', commandType="DP3")
 
     lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
-    # MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
-    #                        sol.h5parm=$pathMS/preiono.h5 sol.mode=faraday sol.faradaydiagonalmode=diagonal  sol.datause=full \
-    #                        sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
-    #                            log='$nameMS_sol.log', commandType="DP3")
-    #
-    # lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-    #                     [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rm.parset', parset_dir + '/losoto-plot-amp.parset'])
-    # sys.exit()
+                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rm.parset', parset_dir + '/losoto-plot-amp.parset'])
     if use_spinifex:
         logger.info('fit residual dTEC...')
         s.add("dtec_finder.py --gps_corrected cal-preiono.h5", log='dtec_finder.log', commandType='python')
         s.run(check=True)
         lib_util.run_losoto(s, 'cal-dtec.h5', ['cal-dtec.h5'], [parset_dir + '/losoto-resettec-Nenu.parset', parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-dtec-finder')
 
+sys.exit()
 ### DONE
 ########################################################
 
