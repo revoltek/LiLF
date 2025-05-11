@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#0!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # Pipeline to run on the calibrator observation .
@@ -225,60 +225,60 @@ if use_spinifex:
 # This is necessary to increase the solution intervals/channels for the PA rot+diag step, that otherwise becomes
 # too noisy for international stations. Do this on FR-corrected data to reduce glitches from FR+PA interplay.
 with w.if_todo('pre_iono'):
-    # # Correct beam concat_all.MS:DATA -> CORRECTED_DATA
-    # logger.info('Beam correction...')
-    # MSs_concat_all.run(
-    #     f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.updateweights=True',
-    #     log='$nameMS_beam.log', commandType="DP3")
-    #
-    # # check weights
-    # MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (MSs_concat_all.getListObj()[0].getAntennas()[0]),
-    #                    log='$nameMS_weights.log', commandType='python')
-    # os.system('mv *png plots-weights/postbeam.png')
-    #
-    # if use_spinifex:
-    #     # Preliminary rm correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
-    #     logger.info('pre-correcion RM from GPS...')
-    #     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-rm.h5 \
-    #                 cor.correction=rotationmeasure000', log='$nameMS_cor-gps-rm.log', commandType="DP3")
-    #     # Preliminary tec correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
-    #     logger.info('pre-correcion TEC from GPS...')
-    #     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-tec.h5 \
-    #                 cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
-    #
-    # # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA
-    # MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth', nchunk_factor=2)
-    #
-    # # Solve concat_all.MS:SMOOTHED_DATA (only solve on CS-CS BL)
-    # # not more smoothing since in rare case some CS have strong delay!
-    # # solint = 8 * 4s = 32s
-    # logger.info('Calibrating IONO (Core Stations)...')
-    # MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
-    #                     sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase sol.datause=single sol.solint=8 sol.nchan=1 msin.baseline="CS*&CS*" \
-    #                     sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin}', log='$nameMS-preIONO_sol.log',
-    #                    commandType="DP3")
-    #
-    # lib_util.run_losoto(s, 'preiono-cs', [ms + '/preiono.h5' for ms in MSs_concat_all.getListStr()],
-    #                     [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-ionoCS.parset'])
-    #
-    # # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA (unit correction for RS)
-    # logger.info('Iono correction (Core Stations)...')
-    # MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
-    #             cor.correction=phase000', log='$nameMS-preIONO_cor.log', commandType="DP3")
-    #
-    # # Phasing up the cose stations concat_all.MS:SMOOTHED_DATA -> concat_all-phaseup-preIONO.MS:DATA
-    # logger.info('Phasing up Core Stations...')
-    # lib_util.check_rm('concat_all-phaseup-preIONO.MS')
-    # MSs_concat_all.run(f'DP3 {parset_dir}/DP3-phaseup.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-    #                     msout=concat_all-phaseup-preIONO.MS', log='$nameMS_phaseup.log', commandType="DP3")
+    # Correct beam concat_all.MS:DATA -> CORRECTED_DATA
+    logger.info('Beam correction...')
+    MSs_concat_all.run(
+        f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=DATA corrbeam.updateweights=True',
+        log='$nameMS_beam.log', commandType="DP3")
+
+    # check weights
+    MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (MSs_concat_all.getListObj()[0].getAntennas()[0]),
+                       log='$nameMS_weights.log', commandType='python')
+    os.system('mv *png plots-weights/postbeam.png')
+
+    if use_spinifex:
+        # Preliminary rm correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('pre-correcion RM from GPS...')
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-rm.h5 \
+                    cor.correction=rotationmeasure000', log='$nameMS_cor-gps-rm.log', commandType="DP3")
+        # Preliminary tec correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('pre-correcion TEC from GPS...')
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-tec.h5 \
+                    cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
+
+    # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA
+    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth', nchunk_factor=2)
+
+    # Solve concat_all.MS:SMOOTHED_DATA (only solve on CS-CS BL)
+    # not more smoothing since in rare case some CS have strong delay!
+    # solint = 8 * 4s = 32s
+    logger.info('Calibrating IONO (Core Stations)...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
+                        sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase sol.datause=single sol.solint=8 sol.nchan=1 msin.baseline="CS*&CS*" \
+                        sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin}', log='$nameMS-preIONO_sol.log',
+                       commandType="DP3")
+
+    lib_util.run_losoto(s, 'preiono-cs', [ms + '/preiono.h5' for ms in MSs_concat_all.getListStr()],
+                        [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-ionoCS.parset'])
+
+    # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA (unit correction for RS)
+    logger.info('Iono correction (Core Stations)...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
+                cor.correction=phase000', log='$nameMS-preIONO_cor.log', commandType="DP3")
+
+    # Phasing up the cose stations concat_all.MS:SMOOTHED_DATA -> concat_all-phaseup-preIONO.MS:DATA
+    logger.info('Phasing up Core Stations...')
+    lib_util.check_rm('concat_all-phaseup-preIONO.MS')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-phaseup.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+                        msout=concat_all-phaseup-preIONO.MS', log='$nameMS_phaseup.log', commandType="DP3")
 
     MSs_concat_phaseupIONO = lib_ms.AllMSs(['concat_all-phaseup-preIONO.MS'], s, check_flags=False)
-    #
-    # # Predict cal concat_all.MS:MODEL_DATA
-    # logger.info(f'Add model of {calname} from {os.path.basename(skymodel)} to MODEL_DATA...')
-    # MSs_concat_phaseupIONO.run(
-    #     f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname}",
-    #     log="$nameMS_pre.log", commandType="DP3")
+
+    # Predict cal concat_all.MS:MODEL_DATA
+    logger.info(f'Add model of {calname} from {os.path.basename(skymodel)} to MODEL_DATA...')
+    MSs_concat_phaseupIONO.run(
+        f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname}",
+        log="$nameMS_pre.log", commandType="DP3")
     # TODO RS and IS need very different smoothing - could do an extra iteration for the IS?
     # Equation for allowed smoothing, assuming ONLY TEC and kernel is one sixth of the bandwidth it takes for one wrap at 54 MHz
     # kernelsize_smoothnessconstraint [MHz] = 0.3 / dTEC [TECU]
@@ -288,27 +288,26 @@ with w.if_todo('pre_iono'):
     # Solve concat_all-phaseupIONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
     smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.5e6'
-    # MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA \
-    #                        sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase  sol.datause=single \
-    #                        sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
-    #                            log='$nameMS_sol.log', commandType="DP3")
-
-    # lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-    #                     [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA \
-                           sol.h5parm=$pathMS/preiono.h5 sol.mode=faradayrotation sol.faradaylimit=1.5 sol.faradaydiagonalmode=diagonal  sol.datause=full \
+                           sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase  sol.datause=single \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
                                log='$nameMS_sol.log', commandType="DP3")
 
     lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rm.parset', parset_dir + '/losoto-plot-amp.parset'])
+                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
+    # MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA \
+    #                        sol.h5parm=$pathMS/preiono.h5 sol.mode=faradayrotation sol.faradaylimit=1.5 sol.faradaydiagonalmode=diagonal  sol.datause=full \
+    #                        sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
+    #                            log='$nameMS_sol.log', commandType="DP3")
+    #
+    # lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
+    #                     [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rm.parset', parset_dir + '/losoto-plot-amp.parset'])
     if use_spinifex:
         logger.info('fit residual dTEC...')
         s.add("dtec_finder.py --gps_corrected cal-preiono.h5", log='dtec_finder.log', commandType='python')
         s.run(check=True)
         lib_util.run_losoto(s, 'cal-dtec.h5', ['cal-dtec.h5'], [parset_dir + '/losoto-resettec-Nenu.parset', parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-dtec-finder')
 
-sys.exit()
 ### DONE
 ########################################################
 
@@ -377,6 +376,12 @@ with w.if_todo('cal_pa'):
         lib_util.run_losoto(s, 'pa', [ms + '/pa.h5' for ms in MSs_pa.getListStr()],
                             [parset_dir + '/losoto-plot-ph.parset', parset_dir + '/losoto-plot-rot.parset',
                              parset_dir + '/losoto-pa.parset'])
+        # MSs_pa.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA \
+        #                        sol.h5parm=$pathMS/pa.h5 sol.mode=faradayrotation sol.faradaylimit=1.5 sol.faradaydiagonalmode=diagonalphase  sol.datause=full \
+        #                        sol.solint=1 sol.nchan=1', log='$nameMS_solPA.log', commandType="DP3")
+        #
+        # lib_util.run_losoto(s, 'pa', [ms + '/pa.h5' for ms in MSs_pa.getListStr()],
+        #                     [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-ph.parset', parset_dir + '/losoto-plot-rm.parset', parset_dir + '/losoto-pa.parset'])
 
     else:
         # predict the element-corrupted model
@@ -442,7 +447,7 @@ with w.if_todo('cal_fr'):
                sol.solint={small_timestep} sol.nchan={int(small_freqstep / 2)}', log='$nameMS_solFR.log',
                        commandType="DP3")
 
-    if (min(MSs_concat_all.getFreqs()) < 30.e6):
+    if (min(MSs_concat_all.getFreqs()) < 28.e6):
         lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_concat_all.getListStr()],
                             [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
                              parset_dir + '/losoto-fr-low.parset'])
@@ -540,7 +545,7 @@ with w.if_todo('cal_iono'):
                             [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset',
                              parset_dir + '/losoto-iono.parset'])
 ### DONE
-
+sys.exit()
 ######################################################
 
 # 5: find BP

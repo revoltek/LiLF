@@ -10,7 +10,7 @@ operation = FARADAY
 soltab = sol000/rotation000
 refAnt = auto
 maxResidual = 1.
-freq.minmaxstep = [30e6,1e9]
+freq.minmaxstep = [40e6,1e9]
 
 [plotFR]
 operation = PLOT
