@@ -657,7 +657,7 @@ def make_subfield_region(name, MS, sm, min_flux, pixscale, imgsizepix, debug_dir
     region_string = f"""# Region file format: DS9 version 4.1
                         global color=green dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1
                         fk5
-                        box({bestbox_coord[0]},{bestbox_coord[1]},{1.02*bestbox_size},{1.02*bestbox_size},0.0)"""
+                        box({bestbox_coord[0]},{bestbox_coord[1]},{bestbox_size+2/60},{bestbox_size+2/60},0.0)"""
     region = pyregion.parse(region_string)
     region.write(name)
     return bestbox_coord, bestbox_size
