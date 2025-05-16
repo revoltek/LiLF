@@ -106,7 +106,12 @@ with w.if_todo('correct_dutch_di'):
     logger.info('Correcting FR (Dutch stations) DATA -> DATA...')
     # Correct FR- MSs-orig/TC.MS:DATA -> MSs/TC.MS:DATA
     # TODO this uses hard-coded 1920 channels
-    MSs_orig.run(f'DP3 {parset_dir}/DP3-cor.parset msin.nchan=1920 msin=$pathMS msout=mss-IS/$nameMS.MS msout.datacolumn=DATA cor.parmdb={dutchdir}/ddparallel/solutions/cal-fr.h5 \
+    MSs_avg = lib_ms.AllMSs(glob.glob(dutchdir + '/mss-avg/*MS'), s, check_flags=False, check_sun=False)
+    # we cut some channels from Dutch MSs in ddserial - make sure to cut the same amount of channels here
+    freqres_dutch = MSs_avg.getListObj()[0].getChanband()
+    freqres_is = MSs_orig.getListObj()[0].getChanband()
+    msin_nchan = int(MSs_avg.getListObj()[0].getNumChan()*freqres_is/freqres_dutch)
+    MSs_orig.run(f'DP3 {parset_dir}/DP3-cor.parset msin.nchan={msin_nchan} msin=$pathMS msout=mss-IS/$nameMS.MS msout.datacolumn=DATA cor.parmdb={dutchdir}/ddparallel/solutions/cal-fr.h5 \
             cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType='DP3')
     MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s, check_flags=False, check_sun=False)
     logger.info('Correcting subfield phase (Dutch stations) DATA -> DATA...')
