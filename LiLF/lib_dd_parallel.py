@@ -40,8 +40,12 @@ def check_lotss_coverage(center, size):
     # Checking single coordinates, so get rid of the array
     covers_left = moc.contains(ra * u.deg - size * u.deg, dec * u.deg)[0]
     covers_right = moc.contains(ra * u.deg + size * u.deg, dec * u.deg)[0]
-    covers_bottom = moc.contains(ra * u.deg, dec * u.deg - size * u.deg)[0]
-    covers_top = moc.contains(ra * u.deg, dec * u.deg + size * u.deg)[0]
+    # Ensure dec-size does not exceed -90 deg (south celestial pole)
+    dec_bottom = max(dec - size, -90.0)
+    covers_bottom = moc.contains(ra * u.deg, dec_bottom * u.deg)[0]
+    # Ensure dec+size does not exceed 90 deg (north celestial pole)
+    dec_top = min(dec + size, 90.0)
+    covers_top = moc.contains(ra * u.deg, dec_top * u.deg)[0]
 
     fully_covered = False
     if covers_left and covers_right and covers_bottom and covers_top and covers_centre:

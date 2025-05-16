@@ -89,7 +89,7 @@ def make_noise_map(restored_image, boxsize):
     return noise
 
 def resolve_island(isl_spec, mask_image, wcs, ignore_missing=False):
-    if re.match("^\d+$", isl_spec):
+    if re.match(r"^\d+$", isl_spec):
         return int(isl_spec)
     elif ',' not in isl_spec:
         raise ValueError(f"invalid island specification: {isl_spec}")

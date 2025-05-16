@@ -718,6 +718,6 @@ if imaging:
 if not develop:
     logger.info('Cleaning up...')
     lib_util.check_rm('cal-preiono.h5 cal-preiono-cs.h5 cal-bp-sub.h5 cal-bp-theo.h5')
-    #os.system('rm -r *MS')
+    os.system('rm -r *MS')
 
 w.alldone()

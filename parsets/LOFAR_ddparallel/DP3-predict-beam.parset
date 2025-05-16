@@ -5,14 +5,19 @@ msout = .
 msout.datacolumn = MODEL_DATA
 #msout.storagemanager = dysco # by default uncompressed
 
-steps = [pre]
+steps = [pre, corrbeam]
 
 pre.type = predict
 pre.sourcedb = 
 pre.usebeammodel = True
 pre.usechannelfreq = True
 pre.beam_interval = 120
-pre.beammode = array_factor
+pre.beammode = full # predicts array+element, then we correct for element at phase centre to have array+differential element
 pre.correctfreqsmearing = True
 # pre.correcttimesmearing = 2 # upsampling factor - set it to 2 when dp3 bug is solved
 
+corrbeam.type = applybeam
+corrbeam.beammode = element
+corrbeam.invert = True # True=correct
+corrbeam.usechannelfreq = True
+corrbeam.updateweights = False

@@ -17,7 +17,7 @@
 # TODO add BDA
 # TODO add timesmearing in dp3 predict
 
-import os, glob, random, json
+import os, sys, glob, random, json
 import numpy as np
 from regions import Regions
 import astropy.units as u
@@ -385,9 +385,9 @@ mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in c
 # define list of facet fluxes per iteration -> this can go into the config
 # if we have LOTSS-DR3 or a custom sky model, we will start from 3Jy not 4Jy sources!
 if 'OUTER' in MSs.getListObj()[0].getAntennaSet():
-    facet_fluxes = np.array([4,2.0, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+    facet_fluxes = np.array([4, 2.0, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 elif 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
-    facet_fluxes = np.array([4,2.4, 1.3, 1.1, 1.0, 0.9])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+    facet_fluxes = np.array([4, 2.4, 1.3, 1.1, 1.0, 0.9])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 
 if min_facets: # if manually provided
     if not isinstance(min_facets, list):
@@ -521,6 +521,12 @@ for c in range(maxIter):
         sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=True)
         # TODO we need some logic here to avoid picking up very extended sources.
         patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=True)
+        # disbale 3cremoval if bright source in the field and set max_facets to 1
+        if c==0 and (patch_fluxes/si_factor > 100).any():
+            logger.warning(f'Found patch with flux > 100 Jy: {patch_fluxes[patch_fluxes > 100]}, turning off 3c removal and forcing max_facets=1.')
+            remove3c = False
+            min_facets[0] = 1
+            max_facets[0] = 1
         # check if there are less than the minimum requested bright sources to form the facets
         if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]: # convert skymodel fluxes to MS central freq
             bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor # bright sources flux is at MSs central freq
@@ -569,6 +575,8 @@ for c in range(maxIter):
         for patch in patches:
             # Add model to MODEL_DATA and do FR corruption
             # TODO add time smearing in the predict parset
+            # note: beammode=full applies array_beam and element_beam, but the element_beam at the centre is already corrected, so MODEL_DATA needs to be
+            # corrected for element_beam at the phase centre
             logger.info(f'Add model to {patch}...')
             MSs.run(f'DP3 {parset_dir}/DP3-predict-beam.parset msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch}',
                     log='$nameMS_pre.log', commandType='DP3')
@@ -809,7 +817,7 @@ for c in range(maxIter):
         imagenameM = 'img/wideM-' + str(c)
         # common imaging arguments used by all of the following wsclean calls
         widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec', weight='briggs -0.5', niter=1000000,
-                                gridder='wgridder',  parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
+                                gridder='wgridder',  parallel_gridding=len(sm.getPatchNames()), minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                 join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
                                 multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname, concat_mss=True)
         # for low-freq or low-dec data, allow the beam to be fitted, otherwise (survey) force 15"
@@ -1027,7 +1035,7 @@ for c in range(maxIter):
                        cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
         logger.info('Test image subfield...')
         lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=int(1.2*subfield_size*3600/pixscale), scale=f'{pixscale}arcsec',
-                             weight='briggs -0.5', niter=100000, gridder='wgridder',  parallel_gridding=6, shift=f'{subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}',
+                             weight='briggs -0.5', niter=100000, gridder='wgridder',  parallel_gridding=MSs.getChout(4.e6), shift=f'{subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}',
                              no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
                              join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
                              multiscale='',  multiscale_scale_bias=0.7, pol='i')
@@ -1085,7 +1093,7 @@ for c in range(maxIter):
         with w.if_todo('image_lr'):
             logger.info('Cleaning sidelobe low-res...')
             lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
-                                size=imgsizepix_lr, scale='30arcsec', save_source_list='',  parallel_gridding=4, baseline_averaging='',
+                                size=imgsizepix_lr, scale='30arcsec', save_source_list='',  parallel_gridding=channels_out_lr, baseline_averaging='',
                                 weight='briggs -0.5', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                                 taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512,
                                 local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5)
