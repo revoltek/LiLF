@@ -101,16 +101,17 @@ infield_center = infield_reg.get_center()  # center of the infield cal region
 #####################################################
 # 1. Get MSs with IS from LiLF/LOFAR_timesplit output and apply dutch direction-independent solutions (FR, amp and phase) to column DATA
 with w.if_todo('correct_dutch_di'):
+    # TODO change order of FR and di-amp for newer data
+    # TODO rename mss-IS -> mss-splitdir
     # load original MSs - those will NOT be manipulated
     MSs_orig = lib_ms.AllMSs(glob.glob(mss_path + '/*MS'), s, check_flags=False, check_sun=False)
     logger.info('Correcting FR (Dutch stations) DATA -> DATA...')
     # Correct FR- MSs-orig/TC.MS:DATA -> MSs/TC.MS:DATA
-    # TODO this uses hard-coded 1920 channels
     MSs_avg = lib_ms.AllMSs(glob.glob(dutchdir + '/mss-avg/*MS'), s, check_flags=False, check_sun=False)
     # we cut some channels from Dutch MSs in ddserial - make sure to cut the same amount of channels here
     freqres_dutch = MSs_avg.getListObj()[0].getChanband()
     freqres_is = MSs_orig.getListObj()[0].getChanband()
-    msin_nchan = int(MSs_avg.getListObj()[0].getNumChan()*freqres_is/freqres_dutch)
+    msin_nchan = int(MSs_avg.getListObj()[0].getNumChan()*freqres_is/freqres_dutch) # 1920 for A2255 data
     MSs_orig.run(f'DP3 {parset_dir}/DP3-cor.parset msin.nchan={msin_nchan} msin=$pathMS msout=mss-IS/$nameMS.MS msout.datacolumn=DATA cor.parmdb={dutchdir}/ddparallel/solutions/cal-fr.h5 \
             cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType='DP3')
     MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s, check_flags=False, check_sun=False)
