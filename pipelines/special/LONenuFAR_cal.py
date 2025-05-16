@@ -288,20 +288,20 @@ with w.if_todo('pre_iono'):
     # Solve concat_all-phaseupIONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
     smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.5e6'
-    # MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA \
-    #                        sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase  sol.datause=single \
-    #                        sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
-    #                            log='$nameMS_sol.log', commandType="DP3")
-    #
-    # lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-    #                     [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA \
-                           sol.h5parm=$pathMS/preiono.h5 sol.mode=faradayrotation sol.faradaylimit=1.5 sol.faradaydiagonalmode=diagonal  sol.datause=full \
+                           sol.h5parm=$pathMS/preiono.h5 sol.mode=scalarphase  sol.datause=single \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
                                log='$nameMS_sol.log', commandType="DP3")
 
     lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rm.parset', parset_dir + '/losoto-plot-amp.parset'])
+                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
+    # MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA \
+    #                        sol.h5parm=$pathMS/preiono.h5 sol.mode=faradayrotation sol.faradaylimit=1.5 sol.faradaydiagonalmode=diagonal  sol.datause=full \
+    #                        sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
+    #                            log='$nameMS_sol.log', commandType="DP3")
+    #
+    # lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
+    #                     [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rm.parset', parset_dir + '/losoto-plot-amp.parset'])
     if use_spinifex:
         logger.info('fit residual dTEC...')
         s.add("dtec_finder.py --gps_corrected cal-preiono.h5", log='dtec_finder.log', commandType='python')
@@ -368,20 +368,20 @@ with w.if_todo('cal_pa'):
         # HE: sol.rotationdiagonalmode diagonalphase seemes to give more stable results and surpresses the ~60 MHz bump weirdness
         # HE: do not use smoothnessconstraint, gives quite bad results here, at least at 1-2 MHz kernel and above!
         # Solve concat_pa.MS:DATA (only solve)
-        # logger.info(f'Calibrating PA...')
-        # MSs_pa.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 \
-        #        sol.mode=rotation+diagonal sol.rotationdiagonalmode=diagonalphase sol.datause=full \
-        #        sol.solint=1 sol.nchan=1', log='$nameMS_solPA.log', commandType="DP3")
-        #
-        # lib_util.run_losoto(s, 'pa', [ms + '/pa.h5' for ms in MSs_pa.getListStr()],
-        #                     [parset_dir + '/losoto-plot-ph.parset', parset_dir + '/losoto-plot-rot.parset',
-        #                      parset_dir + '/losoto-pa.parset'])
-        MSs_pa.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA \
-                               sol.h5parm=$pathMS/pa.h5 sol.mode=faradayrotation sol.faradaylimit=1.5 sol.faradaydiagonalmode=diagonalphase  sol.datause=full \
-                               sol.solint=1 sol.nchan=1', log='$nameMS_solPA.log', commandType="DP3")
+        logger.info(f'Calibrating PA...')
+        MSs_pa.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 \
+               sol.mode=rotation+diagonal sol.rotationdiagonalmode=diagonalphase sol.datause=full \
+               sol.solint=1 sol.nchan=1', log='$nameMS_solPA.log', commandType="DP3")
 
         lib_util.run_losoto(s, 'pa', [ms + '/pa.h5' for ms in MSs_pa.getListStr()],
-                            [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-ph.parset', parset_dir + '/losoto-plot-rm.parset', parset_dir + '/losoto-pa.parset'])
+                            [parset_dir + '/losoto-plot-ph.parset', parset_dir + '/losoto-plot-rot.parset',
+                             parset_dir + '/losoto-pa.parset'])
+        # MSs_pa.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA \
+        #                        sol.h5parm=$pathMS/pa.h5 sol.mode=faradayrotation sol.faradaylimit=1.5 sol.faradaydiagonalmode=diagonalphase  sol.datause=full \
+        #                        sol.solint=1 sol.nchan=1', log='$nameMS_solPA.log', commandType="DP3")
+        #
+        # lib_util.run_losoto(s, 'pa', [ms + '/pa.h5' for ms in MSs_pa.getListStr()],
+        #                     [parset_dir + '/losoto-plot-ph.parset', parset_dir + '/losoto-plot-rm.parset', parset_dir + '/losoto-pa.parset'])
 
     else:
         # predict the element-corrupted model
@@ -406,7 +406,6 @@ with w.if_todo('cal_pa'):
                              parset_dir + '/losoto-pa.parset'])
 
 ### DONE
-sys.exit()
 ########################################################
 # 3: find FR
 with w.if_todo('cal_fr'):
