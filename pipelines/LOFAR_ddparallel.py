@@ -578,7 +578,8 @@ for c in range(maxIter):
             # note: beammode=full applies array_beam and element_beam, but the element_beam at the centre is already corrected, so MODEL_DATA needs to be
             # corrected for element_beam at the phase centre
             logger.info(f'Add model to {patch}...')
-            MSs.run(f'DP3 {parset_dir}/DP3-predict-beam.parset msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch}',
+            correctfreqsmearing = c == 0 # only in cycle zero correct freq smearing
+            MSs.run(f'DP3 {parset_dir}/DP3-predict-beam.parset msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch} pre.correctfreqsmearing={correctfreqsmearing}',
                     log='$nameMS_pre.log', commandType='DP3')
             MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/cal-fr.h5 msin.datacolumn={patch} msout.datacolumn={patch}\
                        cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
@@ -715,7 +716,7 @@ for c in range(maxIter):
     # TODO add updateweights in production
     if c == 1:
         with w.if_todo('amp_di_solve'):
-            
+
             nchan_amp = 2* round(0.192e6 / MSs.getListObj()[0].getChanband()) # number of channels in 2 SBs
 
             if fulljones:
@@ -846,6 +847,28 @@ for c in range(maxIter):
                              apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
                              local_rms='', local_rms_window=50, local_rms_strength=0.5, **widefield_kwargs, **reuse_kwargs)
 
+        # s.add(f'wsclean -predict -padding 1.8 -name img/wideM-{c} -j {s.max_cpucores} -channels-out {channels_out} \
+        #         -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
+        #         -apply-facet-solutions {sol_dir}/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
+        #       log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
+        # s.run(check=True)
+        # MSs.addcol('SUBTRACTED_DATA','CORRECTED_DATA')
+        # # subtract - ms:SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA
+        # logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
+        # MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
+        #         log='$nameMS_taql.log', commandType='general')
+        # imagenameEMPTY = f'img/wideM-empty-{c}'
+        # logger.info('Cleaning (empty with no sols image for debug)...')
+        # lib_util.run_wsclean(s, 'wscleanEMPTY-c' + str(c) + '.log', MSs.getStrWsclean(), name=imagenameEMPTY,
+        #                      data_column='SUBTRACTED_DATA',
+        #                      size=imgsizepix_wide, scale=str(pixscale) + 'arcsec', weight='briggs -0.5', niter=1,
+        #                      gridder='wgridder',
+        #                      parallel_gridding=channels_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
+        #                      join_channels='', fit_spectral_pol=3,
+        #                      channels_out=channels_out, deconvolution_channels=3, pol='i',
+        #                      no_update_model_required='', nmiter=12, auto_threshold=2.0, auto_mask=3.0,
+        #                      local_rms='', local_rms_window=50, local_rms_strength=0.75,
+        #                      concat_mss=True)
         # # Test: quick stokesV
         # logger.info('Making wide field image (pol) ...')
         # lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM+'-v',
@@ -862,7 +885,7 @@ for c in range(maxIter):
 
     #####################################################################################################
     # Find calibration solutions for subfield - recreate SUBFIELD_DATA
-    
+
     # User provided subfield
     if subfield:
         if len(Regions.read(subfield)) > 1:
@@ -927,7 +950,7 @@ for c in range(maxIter):
                     log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
             # Corrupt MSs:MODEL_DATA -> MODEL_DATA (sf corr, dieamp corr)
             corr_die_amp(MSs, col='MODEL_DATA', fulljones=fulljones, invert=False)
-        
+
         # subtract external region MSs: PREPARED_DATA - MODEL_DATA -> SUBFIELD_DATA
         logger.info('Subtracting external region model (SUBFIELD_DATA = PREPARED_DATA - MODEL_DATA)...')
         MSs.run('taql "update $pathMS set SUBFIELD_DATA = PREPARED_DATA - MODEL_DATA"', log='$nameMS_taql.log', commandType='general')

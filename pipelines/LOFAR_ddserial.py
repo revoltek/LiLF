@@ -621,7 +621,7 @@ for cmaj in range(maxIter):
                         losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-plot-amp2.parset']
                     else:
                         losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
-                    
+
                     # ugly workaround to remove broken losoto plots in case of only 1 solution in time is present
                     if ((len(MSs_dir.getListObj()) == 1) and (solint_amp2 >= MSs_dir.getListObj()[0].getNtime())): losoto_parsets.pop()
 
