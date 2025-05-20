@@ -529,7 +529,7 @@ with w.if_todo('cal_iono'):
     MSs_concat_phaseupIONO.run_Blsmooth(incol='DATA', nofreq=True, logstr='smooth')
     # Solve concat_all-phaseup-IONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
-    smoothnessconstraint = '0.2e6' if MSs_concat_all.hasIS and use_spinifex else '0.5e6'
+    smoothnessconstraint = '0.4e6' if MSs_concat_all.hasIS and use_spinifex else '0.5e6'
 
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS \
                            sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single \
@@ -545,7 +545,6 @@ with w.if_todo('cal_iono'):
                             [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset',
                              parset_dir + '/losoto-iono.parset'])
 ### DONE
-sys.exit()
 ######################################################
 
 # 5: find BP
@@ -605,7 +604,7 @@ with w.if_todo('cal_bp'):
 
     lib_util.run_losoto(s, 'cal-bp.h5', 'cal-bp.h5', [parset_dir + '/losoto-bp.parset'], plots_dir='plots-bp')
 ### DONE
-
+sys.exit()
 # if develop:
 #     # Pol align correction DATA -> CORRECTED_DATA
 #     logger.info('Polalign correction...')
