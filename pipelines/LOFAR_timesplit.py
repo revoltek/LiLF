@@ -97,6 +97,10 @@ else:
     # assuming tec has been properly combined
     h5_tec = cal_dir + '/cal-tec.h5'
     
+    
+h5_tec_gps = cal_dir + '/cal-gps-tec.h5'
+h5_dtec = cal_dir + '/cal-dtec.h5'
+    
 h5_pa = cal_dir + '/cal-pa.h5'
 h5_bp = cal_dir + '/cal-bp.h5'
 #h5_tec = cal_dir + '/cal-tec.h5'
@@ -109,9 +113,14 @@ if not os.path.exists(h5_pa) or not os.path.exists(h5_bp) or not os.path.exists(
 ####################################################
 # Correct fist for PA+beam+BP(diag)+TEC+Clock and then for beam
 with w.if_todo('apply'):
+    # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, tec corrected)
+    logger.info('GPS TEC correction...')
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_tec_gps} msin.datacolumn=DATA \
+                cor.correction=tec000', log='$nameMS_corDTEC.log', commandType='DP3')
+    
     # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign corrected)
     logger.info('Apply solutions (pa)...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
             cor.parmdb={h5_pa} cor.correction=polalign', log='$nameMS_corPA.log', commandType='DP3')
     
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
@@ -119,8 +128,8 @@ with w.if_todo('apply'):
     MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM.log', commandType='DP3')
     
     # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, tec corrected)
-    logger.info('TEC correction...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_tec} msin.datacolumn=CORRECTED_DATA \
+    logger.info('dTEC correction...')
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_dtec} msin.datacolumn=CORRECTED_DATA \
                 cor.correction=tec000', log='$nameMS_corDTEC.log', commandType='DP3')
 
     # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight,tec corrected, calibrator corrected+reweight)
@@ -251,9 +260,10 @@ if MSs.hasIS:
         with w.if_todo('avgdutch'):
             if not os.path.exists(groupname_dutch):
                 os.system(f'mkdir {groupname_dutch}')
+            MS = lib_ms.AllMSs( glob.glob('*MS'), s ).getListObj()[-1]
             avg_factor_t, avg_factor_f = MS.getAvgFactors(keep_IS=False)
             MSs.run(f'DP3 {parset_dir}/DP3-avgdutch.parset msin=$pathMS msout={groupname_dutch}/$nameMS.MS avg.freqstep={avg_factor_f} avg.timestep={avg_factor_t}',
-                              log=MS.nameMS+'_avg.log', commandType='DP3')
+                              log='dutch_avg.log', commandType='DP3')
 
 logger.info('Cleaning up...')
 os.system('rm -r *MS')
