@@ -133,7 +133,8 @@ imgsizepix = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='max', elliptical=Tru
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
 
-# goes down to 8 seconds and multiple of 48 chans (this should be already the case as it's done in timesplit)
+# goes down to 8 seconds and multiple of 48 chans
+# data should be at multiple of 48 channels already from timesplit, check is redundant and can be removed late 2025.
 if not os.path.exists('mss-avg'):
     timeint = MSs.getListObj()[0].getTimeInt()
     avgtimeint = int(round(8/timeint))  # to 8 seconds
