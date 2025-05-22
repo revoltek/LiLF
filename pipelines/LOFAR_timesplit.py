@@ -158,9 +158,12 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
                msout='+groupname+'/'+groupname+'-temp.MS', log=groupname+'_DP3_concat.log', commandType='DP3')
         s.run(check=True)
 
-        # check that nchan is divisible by 48 - necessary in dd pipeline; discard high freq unused channels
+        # We need a number of channels that is - after averaging to the final dutch wide-field resolution - divisable by 48.check that nchan is divisible by 48 - necessary in dd pipeline; discard high freq unused channels
         nchan_init = MSs.getListObj()[0].getNchan()*len(msg)
-        nchan = nchan_init - nchan_init % 48
+        final_freqres_dutch = 0.048828e6 if 'OUTER' in MSs.getListObj()[0].getAntennaSet() else 0.024414e6
+        freqres = MSs.getListObj()[0].getChanband()
+        averaging_factor = int(round(final_freqres_dutch / freqres))
+        nchan = nchan_init - nchan_init % 48*averaging_factor
         logger.info('Reducing total channels: %ich -> %ich)' % (nchan_init, nchan))
         s.add(f'DP3 {parset_dir}/DP3-concat.parset msin={groupname}/{groupname}-temp.MS msin.datacolumn=DATA msin.nchan={nchan} msout={groupname}/{groupname}.MS',
               log=groupname+'_DP3_concat.log', commandType='DP3')
