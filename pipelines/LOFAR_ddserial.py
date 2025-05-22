@@ -349,7 +349,7 @@ for cmaj in range(maxIter):
         logger.info('Predict full model...')
         s.add(f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_cpucores} -channels-out {ch_out} \
                 -facet-regions {facetregname} -apply-facet-solutions {interp_h5parm} {correct_for} \
-                -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
+                -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 -no-solution-directions-check \
                 -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
               log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean')
         s.run(check=True)
@@ -922,15 +922,15 @@ for cmaj in range(maxIter):
                     lib_h5.reorder_axes(h5parmFile, ['time', 'ant', 'dir', 'freq', 'pol'], 'amplitude000')
                     #lib_h5.addpol(h5parmFile, 'amplitude000')
                     s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-refph.parset ', log='h5parm_collector.log', commandType='python' )
-                    s.run()
+                    s.run(check=True)
                     # reset high-res amplitudes in ph-solve
                     #s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetamp.parset ', log='h5parm_collector.log', commandType='python' )
-                    #s.run()
+                    #s.run(check=True)
                 if typ == 'amp1' or typ == 'amp2':
                     lib_h5.reorder_axes(h5parmFile, ['time', 'ant', 'dir', 'freq', 'pol'], 'phase000')
                     lib_h5.reorder_axes(h5parmFile, ['time', 'ant', 'dir', 'freq', 'pol'], 'amplitude000')
                     s.add('losoto -v '+h5parmFile+' '+parset_dir+'/losoto-resetph.parset ', log='h5parm_collector.log', commandType='python' )
-                    s.run()
+                    s.run(check=True)
     
         lib_util.check_rm(interp_h5parm)
         logger.info('Interpolating solutions...')

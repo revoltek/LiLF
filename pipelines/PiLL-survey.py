@@ -26,8 +26,10 @@ tgtdirroot = ('/iranet/groups/ulu/fdg/surveytgts/download*/mss/')
 
 
 def update_status_db(field, status):
+
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     with SurveysDB(survey='lba',readonly=False) as sdb:
-        r = sdb.execute('UPDATE fields SET status="%s" WHERE id="%s"' % (status,field))
+        r = sdb.execute('UPDATE fields SET end_date="%s", status="%s" WHERE id="%s"' % (timestamp, status, field))
 
 def check_done(pipename):
     """
@@ -50,6 +52,7 @@ def check_done(pipename):
             os.system(f'cp ddparallel/images/wideM-*-MFS-image.fits {archive}')
             os.system(f'cp ddparallel/images/wide-lr-MFS-image.fits {archive}')
             os.system(f'cp ddparallel/solutions/faceets*reg {archive}')
+            os.system(f'cp ddparallel/skymodel/subfield.reg {archive}')
             os.system(f'cp -r ddparallel/plots/* {archive}/plots')
             os.system(f'cp ddserial/c0*/images/*image-MFS.fits {archive}')
             os.system(f'cp ddserial/c0*/images/wideDD-*MFS-residual.fits {archive}')
@@ -76,7 +79,7 @@ logger.info('### Quering database...')
 with SurveysDB(survey='lba',readonly=True) as sdb:
     if os.path.exists('target.txt'):
          with open("target.txt", "r") as file:
-            target, target_ra, target_dec = file.readline()[:-1].split(',')
+            target = file.readline()[:-1]
     else:
         # get all fields with max priority
         sdb.execute('SELECT * FROM fields WHERE status = "Downloaded" AND priority = (SELECT MAX(priority) FROM fields WHERE status = "Downloaded")')
@@ -91,7 +94,7 @@ with SurveysDB(survey='lba',readonly=True) as sdb:
         target_dec = r[rndidx]['decl']
         # save target name
         with open("target.txt", "w") as file:
-            print('%s,%f,%f' % (target,target_ra,target_dec), file=file)
+            print(target, file=file)
 
     sdb.execute('SELECT * FROM field_obs WHERE field_id="%s"' % target)
     r = sdb.cur.fetchall()
@@ -232,6 +235,7 @@ with w.if_todo('saveproducts_%s' % target):
     os.system(f'cp ddparallel/images/wideM-*-MFS-image.fits {archive}')
     os.system(f'cp ddparallel/images/wide-lr-MFS-image.fits {archive}')
     os.system(f'cp ddparallel/solutions/facets*reg {archive}')
+    os.system(f'cp ddparallel/skymodel/subfield.reg {archive}')
     os.system(f'cp -r ddparallel/plots/* {archive}/plots')
     os.system(f'cp ddserial/c0*/images/*image*.fits {archive}')
     os.system(f'cp ddserial/c0*/images/wideDD-*MFS-residual.fits {archive}')
@@ -256,11 +260,6 @@ with w.if_todo('saveproducts_%s' % target):
               {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
               {archive}/logs')
 ### DONE
-
-# add final timestamp
-timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-with SurveysDB(survey='lba', readonly=False) as sdb:
-    r = sdb.execute('UPDATE fields SET end_date="%s" WHERE id="%s"' % (timestamp,target))
 
 update_status_db(target, 'Done')
 logger.info('### %s: Done. #####################################' % target)
