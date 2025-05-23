@@ -175,7 +175,7 @@ with w.if_todo('add_columns'):
 
 # print fractional flags
 for MS in MSs.getListObj():
-    logger.info(f'{MS.nameMS}: Fractional flags: {MS.fractionalFlag()*100}%.')
+    logger.info(f'{MS.nameMS}: Fractional flags: {MS.fractionalFlag()*100:.1f}%.')
 
 ##############################################################
 full_image = lib_img.Image('ddserial/init/wideM-1-MFS-image.fits', userReg=userReg)
@@ -230,7 +230,9 @@ for cmaj in range(maxIter):
             cal['Cluster_id'][cluster_idxs] = name  # just for debug
             fluxes = np.sum(cal['Total_flux'][cluster_idxs])
             spidx_coeffs = -0.8
+            to_60_MHz = (60e6/freq_mid)**spidx_coeffs
             localrms = np.max(cal['Isl_rms'][cluster_idxs])
+
 
             # remove clusters with diffuse calibrators
             class ContinueI(Exception):
@@ -238,14 +240,19 @@ for cmaj in range(maxIter):
             continue_i = ContinueI()
             try:
                 good_flux = 0
+                # TODO the hard flux cuts here should scale with obs frequency
                 for subcal in cal[cluster_idxs]:
+                    # if compact - use all flux
                     if (subcal['Flux_ratio'] < 5):
-                        good_flux += subcal['Total_flux'] 
-                    elif (subcal['Peak_flux'] > 1):
+                        good_flux += subcal['Total_flux']
+                    # if not compact - two possibilities: 1. actually extended (low rms, discard). 2. iono smeared (high rms, calibrate)
+                    elif (subcal['Peak_flux'] > 0.1*to_60_MHz) and (subcal['Isl_rms'] > 3 * global_rms):
+                        good_flux += subcal['Total_flux']
+                    else: # otherwise, only consider peak flux ( << total flux for true extended sources)
                         good_flux += subcal['Peak_flux'] 
 
                 # if compact flux is present for less than 2 Jy then consider excluding it
-                if (good_flux < 2) and (good_flux < 0.7*fluxes):
+                if (good_flux*to_60_MHz < 2) and (good_flux < 0.5*fluxes):
                     logger.debug("%s: found extended source; compact flux: %.0f%% (skip)" % (name,100*good_flux/fluxes))
                     cal['Cluster_id'][cluster_idxs] = '_'+name  # identify unused sources for debug
                     raise continue_i
