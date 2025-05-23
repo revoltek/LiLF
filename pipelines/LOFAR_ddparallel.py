@@ -813,7 +813,7 @@ for c in range(maxIter):
         logger.info('Preparing region file...')
         s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+f' --h5 {sol_dir}/cal-tec-merged-c{c}.h5 --imsize {int(1.1*imgsizepix_wide)} \
             --pixelscale {pixscale} --writevoronoipoints --output {facetregname}', log='facet_generator.log', commandType='python')
-        s.run()
+        s.run(check = True)
 
         imagename = 'img/wide-' + str(c)
         imagenameM = 'img/wideM-' + str(c)

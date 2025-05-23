@@ -8,4 +8,3 @@ steps = [pre]
 pre.type = predict
 pre.operation = replace
 pre.sourcedb =
-pre.sources =  

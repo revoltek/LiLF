@@ -19,17 +19,20 @@ def main(ms, skymodel, h5parm):
     MSs.run('taql "UPDATE $pathMS SET DATA=0"', log='$nameMS_taql.log', commandType='general')
     phase_center = MSs.getListObj()[0].getPhaseCentre()
     # load skymodel and fill the model_column
+    sm = lsmtool.load(skymodel, beamMS=ms[0])
+    patches = sm.getPatchNames()
+    sm.write(skymodel+'-beam.skymodel', applyBeam=True, clobber=True)
+    skymodel = skymodel+'-beam.skymodel'
     skymodel_basename = skymodel.split('/')[-1]
     for MS in MSs.getListStr():
         lib_util.check_rm(MS + '/' + skymodel_basename)
         logger.debug('Copy: ' + skymodel + ' -> ' + MS)
         os.system('cp -r ' + skymodel + ' ' + MS)
-    sm = lsmtool.load(skymodel, beamMS=ms[0])
-    patches = sm.getPatchNames()
+    
     for patch in patches:
         logger.info(f"Processing patch: {patch}")
         MSs.run(f'DP3 {parset_dir_para}/DP3-predict-beam.parset msin=$pathMS pre.sourcedb=$pathMS/{skymodel_basename} pre.sources={patch} \
-                msout.datacolumn=MODEL_DATA pre.beammode=array_factor', log='$nameMS_pre.log', commandType='DP3')
+                msout.datacolumn=MODEL_DATA pre.beammode=element', log='$nameMS_pre.log', commandType='DP3')
         MSs.run(f'DP3 {parset_dir_para}/DP3-cor.parset msin=$pathMS cor.parmdb={h5parm} msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                        cor.correction=phase000 cor.invert=False cor.direction=Dir{patch[-2:]}', log='$nameMS_cor.log', commandType="DP3")     
         MSs.run('taql "UPDATE $pathMS SET DATA=DATA+MODEL_DATA"', log='$nameMS_taql.log', commandType='general')

@@ -161,14 +161,13 @@ def tessellate(x_pix, y_pix, w, dist_pix, bbox, nouter=64, plot_tessellation=Tru
         xy.append((RAvert, Decvert))
 
     # Generate array of outer points used to constrain the facets
-    means = np.ones((nouter, 2)) * np.array(xy).mean(axis=0)
-    offsets = []
-    angles = [np.pi / (nouter / 2.0) * i for i in range(0, nouter)]
-    for ang in angles:
-        offsets.append([np.cos(ang), np.sin(ang)])
-    scale_offsets = dist_pix * np.array(offsets)
-    outer_box = means + scale_offsets
-
+    center_x, center_y = bbox.centroid.x, bbox.centroid.y
+    angles = np.linspace(0, 2 * np.pi, nouter, endpoint=False)
+    outer_box = np.stack([
+        center_x + 2 * dist_pix * np.cos(angles),
+        center_y + 2 * dist_pix * np.sin(angles)
+        ], axis=-1) # the factor of 2 is to make sure the outer points are outside the image
+    
     # Tessellate and clip
     points_all = np.vstack([xy, outer_box])
     vor = Voronoi(points_all)
