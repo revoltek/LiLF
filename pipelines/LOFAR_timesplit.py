@@ -10,6 +10,8 @@ import casacore.tables as pt
 
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log
+from pipelines.special.LONenuFAR_cal import use_spinifex
+
 logger_obj = lib_log.Logger('pipeline-timesplit')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
@@ -27,13 +29,13 @@ initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for mu
 apply_fr = parset.getboolean('LOFAR_timesplit','apply_fr') # also transfer the FR solutions (possibly useful if calibrator and target are close, especially for IS data.)
 no_aoflagger = parset.getboolean('LOFAR_timesplit','no_aoflagger')
 bl2flag = parset.get('flag','stations')
-
+use_spinifex = True
 #################################################
 
 # Clean
 with w.if_todo('clean'):
     logger.info('Cleaning...')
-    mss_list = glob.glob('mss*')
+    mss_list = glob.glob('mss*/*MS')
     if len(mss_list) > 0:
         raise ValueError(f'mss folders exist already {mss_list}! If this is the output of a previous LOFAR_timesplit.py run and you want to re-run LOFAR_timesplit.py, then delete them manually.')
     # lib_util.check_rm('mss*')
@@ -103,7 +105,19 @@ with w.if_todo('apply'):
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
     logger.info('Beam correction...')
     MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM.log', commandType='DP3')
-
+    if use_spinifex:
+        # Correct gps-tec concat_all:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('TEC correction (GPS)...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=target-tec.h5 \
+                      cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
+        # Correct TEC concat_all:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('dTEC correction (fitted)...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
+                      cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
+        # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('Faraday rotation pre-correction (GPS)...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=target-rm.h5 \
+                        cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
     # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, calibrator corrected+reweight)
     logger.info('Iono correction...')
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_iono_cs} msin.datacolumn=CORRECTED_DATA \
@@ -158,9 +172,12 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
                msout='+groupname+'/'+groupname+'-temp.MS', log=groupname+'_DP3_concat.log', commandType='DP3')
         s.run(check=True)
 
-        # check that nchan is divisible by 48 - necessary in dd pipeline; discard high freq unused channels
+        # We need a number of channels that is - after averaging to the final dutch wide-field resolution - divisable by 48.check that nchan is divisible by 48 - necessary in dd pipeline; discard high freq unused channels
         nchan_init = MSs.getListObj()[0].getNchan()*len(msg)
-        nchan = nchan_init - nchan_init % 48
+        final_freqres_dutch = 0.048828e6 if 'OUTER' in MSs.getListObj()[0].getAntennaSet() else 0.024414e6
+        freqres = MSs.getListObj()[0].getChanband()
+        averaging_factor = int(round(final_freqres_dutch / freqres))
+        nchan = nchan_init - nchan_init % 48*averaging_factor
         logger.info('Reducing total channels: %ich -> %ich)' % (nchan_init, nchan))
         s.add(f'DP3 {parset_dir}/DP3-concat.parset msin={groupname}/{groupname}-temp.MS msin.datacolumn=DATA msin.nchan={nchan} msout={groupname}/{groupname}.MS',
               log=groupname+'_DP3_concat.log', commandType='DP3')
