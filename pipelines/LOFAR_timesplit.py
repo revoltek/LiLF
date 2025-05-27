@@ -10,7 +10,7 @@ import casacore.tables as pt
 
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log
-from pipelines.special.LONenuFAR_cal import use_spinifex
+#from pipelines.special.LONenuFAR_cal import use_spinifex
 
 logger_obj = lib_log.Logger('pipeline-timesplit')
 logger = lib_log.logger
@@ -88,6 +88,7 @@ logger.info('Calibrator directory: %s' % cal_dir)
 h5_pa = cal_dir+'/cal-pa.h5'
 h5_bp = cal_dir+'/cal-bp.h5'
 h5_iono = cal_dir+'/cal-iono.h5'
+h5_iono_dtec = cal_dir+'/cal-dtec.h5'
 h5_iono_cs = cal_dir+'/cal-iono-cs.h5'
 if not os.path.exists(h5_pa) or not os.path.exists(h5_bp) or not os.path.exists(h5_iono) or not os.path.exists(h5_iono_cs):
     logger.error("Missing solutions in %s" % cal_dir)
@@ -108,11 +109,11 @@ with w.if_todo('apply'):
     if use_spinifex:
         # Correct gps-tec concat_all:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('TEC correction (GPS)...')
-        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=target-tec.h5 \
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=target-tec.h5 \
                       cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
         # Correct TEC concat_all:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('dTEC correction (fitted)...')
-        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-dtec.h5 \
                       cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
         # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Faraday rotation pre-correction (GPS)...')
@@ -244,12 +245,14 @@ with w.if_todo('timesplit'):
 # If we have IS present, also split out the averaged dutch baselines for DDparallel processing
 if MSs.hasIS:
     for groupname in groupnames:
-        MSs = lib_ms.AllMSs( glob.glob(groupname+'/*MS'), s )
+        MSs = lib_ms.AllMSs( glob.glob(groupname+'/TC*MS'), s )
         groupname_dutch = groupname.replace("-IS","")
-        with w.if_todo('avgdutch'):
+        with w.if_todo(f'avgdutch-{groupname}'):
             if not os.path.exists(groupname_dutch):
                 os.system(f'mkdir {groupname_dutch}')
-            avg_factor_t, avg_factor_f = MS.getAvgFactors(keep_IS=False)
+            avg_factor_t, avg_factor_f = MSs.getAvgFactors(keep_IS=False)
+            print(f'avg factors t:{avg_factor_t}, f:{avg_factor_f}')
+            print(MSs.getListStr())
             MSs.run(f'DP3 {parset_dir}/DP3-avgdutch.parset msin=$pathMS msout={groupname_dutch}/$nameMS.MS avg.freqstep={avg_factor_f} avg.timestep={avg_factor_t}',
                               log=MS.nameMS+'_avg.log', commandType='DP3')
 
