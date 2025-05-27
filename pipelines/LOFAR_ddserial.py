@@ -432,10 +432,10 @@ for cmaj in range(maxIter):
                 # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
                 MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
                       cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False',
-                    log='$nameMS_sf-correct.log', commandType='DP3')
+                    log='$nameMS_sf-correct.log', commandType='DP3') # corrupt
                 MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
                       cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True',
-                    log='$nameMS_sf-correct.log', commandType='DP3')
+                    log='$nameMS_sf-correct.log', commandType='DP3') # correct
 
             # Add back the model previously subtracted for this dd-cal
             logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA + MODEL_DATA...')

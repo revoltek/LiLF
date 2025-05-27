@@ -436,8 +436,9 @@ if not os.path.exists(beamMask):
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 0., inverse=True)
 subfield_path = 'ddparallel/skymodel/subfield.reg'
 
-MSs.addcol('CORRECTED_DATA', 'DATA') # carries on varies correction
-MSs.addcol('PREPARED_DATA', 'DATA') # used to store data with annoying sources (3c, sidelobe) subtracted
+with w.if_todo('addcol'):
+    MSs.addcol('CORRECTED_DATA', 'DATA') # carries on varies correction
+    MSs.addcol('PREPARED_DATA', 'DATA') # used to store data with annoying sources (3c, sidelobe) subtracted
 
 #################################################################################################
 # Find FR, all it does is creating the cal-fr.h5
@@ -955,6 +956,7 @@ for c in range(maxIter):
         # subtract external region MSs: PREPARED_DATA - MODEL_DATA -> SUBFIELD_DATA
         logger.info('Subtracting external region model (SUBFIELD_DATA = PREPARED_DATA - MODEL_DATA)...')
         MSs.run('taql "update $pathMS set SUBFIELD_DATA = PREPARED_DATA - MODEL_DATA"', log='$nameMS_taql.log', commandType='general')
+        if develop: clean_empty(MSs, 'empty_sf', 'SUBFIELD_DATA', size=10000)
     ### DONE
 
     with w.if_todo('c%02i_intreg_predict' % c):
