@@ -171,7 +171,6 @@ with w.if_todo('add_columns'):
     MSs.addcol('CORRECTED_DATA', 'DATA', log='$nameMS_addcol.log')
     MSs.addcol('SUBTRACTED_DATA', 'DATA', log='$nameMS_addcol.log')
     MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
-    MSs.run('addcol2ms.py -m $pathMS -c FLAG_PREDD -i FLAG', log='$nameMS_addcol.log', commandType='python')
 
 # print fractional flags
 for MS in MSs.getListObj():
@@ -1083,7 +1082,8 @@ with w.if_todo('output_PB'):
 # remove unwanted columns
 with w.if_todo('remove_col'):
     logger.info('Removing unwanted columns...')
-    MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN FLAG_BKP,SUBTRACTED_DATA,MODEL_DATA"', log='$nameMS_delcol.log', commandType='python')
+    MSs.run('taql "update $pathMS set DATA = CORRECTED_DATA"', log='$nameMS_taql.log', commandType='general')
+    MSs.run('taql "ALTER TABLE $pathMS DELETE COLUMN CORRECTED_DATA,FLAG_BKP,MODEL_DATA"', log='$nameMS_delcol.log', commandType='python')
 ### DONE
 
 w.alldone()
