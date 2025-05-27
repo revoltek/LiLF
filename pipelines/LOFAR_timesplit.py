@@ -10,8 +10,6 @@ import casacore.tables as pt
 
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log
-#from pipelines.special.LONenuFAR_cal import use_spinifex
-
 logger_obj = lib_log.Logger('pipeline-timesplit')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
@@ -245,16 +243,15 @@ with w.if_todo('timesplit'):
 # If we have IS present, also split out the averaged dutch baselines for DDparallel processing
 if MSs.hasIS:
     for groupname in groupnames:
-        MSs = lib_ms.AllMSs( glob.glob(groupname+'/TC*MS'), s )
+        MSs = lib_ms.AllMSs( glob.glob(groupname+'/*MS'), s )
         groupname_dutch = groupname.replace("-IS","")
-        with w.if_todo(f'avgdutch-{groupname}'):
+        with w.if_todo('avgdutch'):
             if not os.path.exists(groupname_dutch):
                 os.system(f'mkdir {groupname_dutch}')
-            avg_factor_t, avg_factor_f = MSs.getAvgFactors(keep_IS=False)
-            print(f'avg factors t:{avg_factor_t}, f:{avg_factor_f}')
-            print(MSs.getListStr())
+            avg_factor_t, avg_factor_f = MSs.getListObj()[0].getAvgFactors(keep_IS=False)
+            print(avg_factor_t, avg_factor_f)
             MSs.run(f'DP3 {parset_dir}/DP3-avgdutch.parset msin=$pathMS msout={groupname_dutch}/$nameMS.MS avg.freqstep={avg_factor_f} avg.timestep={avg_factor_t}',
-                              log=MS.nameMS+'_avg.log', commandType='DP3')
+                              log='$nameMS_avg.log', commandType='DP3')
 
 logger.info('Cleaning up...')
 os.system('rm -r *MS')
