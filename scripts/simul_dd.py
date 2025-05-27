@@ -33,8 +33,8 @@ def main(ms, skymodel, h5parm):
         logger.info(f"Processing patch: {patch}")
         MSs.run(f'DP3 {parset_dir_para}/DP3-predict-beam.parset msin=$pathMS pre.sourcedb=$pathMS/{skymodel_basename} pre.sources={patch} \
                 msout.datacolumn=MODEL_DATA pre.beammode=element', log='$nameMS_pre.log', commandType='DP3')
-        MSs.run(f'DP3 {parset_dir_para}/DP3-cor.parset msin=$pathMS cor.parmdb={h5parm} msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                       cor.correction=phase000 cor.invert=False cor.direction=Dir{patch[-2:]}', log='$nameMS_cor.log', commandType="DP3")     
+        #MSs.run(f'DP3 {parset_dir_para}/DP3-cor.parset msin=$pathMS cor.parmdb={h5parm} msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+        #               cor.correction=phase000 cor.invert=False cor.direction=Dir{patch[-2:]}', log='$nameMS_cor.log', commandType="DP3")     
         MSs.run('taql "UPDATE $pathMS SET DATA=DATA+MODEL_DATA"', log='$nameMS_taql.log', commandType='general')
 
     logger.info("Set CORRECTED_DATA = DATA")    
