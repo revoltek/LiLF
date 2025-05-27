@@ -111,7 +111,7 @@ with w.if_todo('correct_dutch_di'):
     # we cut some channels from Dutch MSs in ddserial - make sure to cut the same amount of channels here
     freqres_dutch = MSs_avg.getListObj()[0].getChanband()
     freqres_is = MSs_orig.getListObj()[0].getChanband()
-    msin_nchan = int(MSs_avg.getListObj()[0].getNumChan()*freqres_is/freqres_dutch) # 1920 for A2255 data
+    msin_nchan = int(MSs_avg.getListObj()[0].getNChan()*freqres_dutch/freqres_is) # 1920 for A2255 data
     MSs_orig.run(f'DP3 {parset_dir}/DP3-cor.parset msin.nchan={msin_nchan} msin=$pathMS msout=mss-IS/$nameMS.MS msout.datacolumn=DATA cor.parmdb={dutchdir}/ddparallel/solutions/cal-fr.h5 \
             cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType='DP3')
     MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s, check_flags=False, check_sun=False)

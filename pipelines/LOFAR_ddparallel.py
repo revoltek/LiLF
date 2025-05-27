@@ -16,6 +16,7 @@
 # Waiting for bug fixes in other software
 # TODO add BDA
 # TODO add timesmearing in dp3 predict
+# TODO model_weighted_constraint
 
 import os, sys, glob, random, json
 import numpy as np
@@ -349,7 +350,7 @@ if ateam_clip != '':
 
 # print fractional flags
 for MS in MSs.getListObj():
-    logger.info(f'{MS.nameMS}: Fractional flags: {MS.fractionalFlag()*100}%.')
+    logger.info(f'{MS.nameMS}: Fractional flags: {MS.fractionalFlag()*100:.1f}%.')
 
 # make beam to the first mid null - outside of that do a rough subtraction and/or 3C peeling. Use sources inside for calibration
 phasecentre = MSs.getListObj()[0].getPhaseCentre()
@@ -419,7 +420,7 @@ if (min_facets[0] > max_facets[0]) or (min_facets[1] > max_facets[1]):
     raise ValueError(f'min_facets {min_facets} and max_facets {max_facets} are not compatible.')
 
 smMHz2 = [2.0,5.0,5.0,5.0,5.0,5.0]
-smMHz1 = [8.0,12.0,12.0,12.0,12.0,12.0]
+smMHz1 = [8.0,16.0,16.0,16.0,16.0,16.0]
 # smMHz0 = [6.0,10.0,10.0,10.0,10.0,10.0]
 
 # Make beam mask/reg
@@ -982,7 +983,7 @@ for c in range(maxIter):
         MSs.run_Blsmooth('SUBFIELD_DATA', logstr=f'smooth-c{c}')
         # solve ionosphere phase - ms:SMOOTHED_DATA
         logger.info(f'Solving {sf_phaseSolMode} (fast RS)...')
-        solve_iono(MSs, c, '2-sf', ['MODEL_DATA'], 1.5, base_solint, sf_phaseSolMode, resetant='intermediate')
+        solve_iono(MSs, c, '2-sf', ['MODEL_DATA'], 2.5, base_solint, sf_phaseSolMode, resetant='intermediate')
     ### DONE
 
     with w.if_todo('c%02i_subfield_corr_tecRS' % c):
@@ -1003,7 +1004,7 @@ for c in range(maxIter):
         MSs.run_Blsmooth('SUBFIELD_DATA', logstr=f'smooth-c{c}')
         # solve ionosphere phase - ms:SMOOTHED_DATA
         logger.info(f'Solving {sf_phaseSolMode} (mid RS)...')
-        solve_iono(MSs, c, '1-sf', ['MODEL_DATA'], 5.0, 4*base_solint, sf_phaseSolMode, resetant='inner')
+        solve_iono(MSs, c, '1-sf', ['MODEL_DATA'], 8.0, 4*base_solint, sf_phaseSolMode, resetant='inner')
     ### DONE
 
     with w.if_todo('c%02i_subfield_corr_tecCS' % c):
@@ -1024,7 +1025,7 @@ for c in range(maxIter):
         MSs.run_Blsmooth('SUBFIELD_DATA', logstr=f'smooth-c{c}')
         # solve ionosphere phase - ms:SMOOTHED_DATA
         logger.info(f'Solving {sf_phaseSolMode} (slowCS)...')
-        solve_iono(MSs, c, '0-sf', ['MODEL_DATA'], 10.0, 16*base_solint, sf_phaseSolMode)
+        solve_iono(MSs, c, '0-sf', ['MODEL_DATA'], 14.0, 16*base_solint, sf_phaseSolMode)
     ### DONE
 
     with w.if_todo('c%02i_subfield_corr_tecCS0' % c):
