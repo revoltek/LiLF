@@ -717,31 +717,32 @@ class MS(object):
 
     def getAvgFactors(self, keep_IS):
         """
-        Get the time and frequency averaging factor to arrive at the standard LiLF processing resolution
+        Get the time and frequency averaging factor to arrive at the standard LiLF widefield processing resolution
         depending on SPARSE/OUTER, frequency coverage and Dutch/IS.
         keep_IS: compute resolution for IS data
         """
-        nchan = self.getNchan()
+        nchan_per_sb = round(0.195312e6/self.getChanband())
+        logger.debug(f'nchan_per_sb: {nchan_per_sb}')
         timeint = self.getTimeInt()
         minfreq = np.min(self.getFreqs())
-        if nchan == 1:
+        if nchan_per_sb == 1:
             avg_factor_f = 1
         # elif nchan % 2 == 0 and MSs.isHBA: # case HBA
         #    avg_factor_f = int(nchan / 4)  # to 2 ch/SB
-        elif nchan % 8 == 0 and minfreq < 40e6:
-            avg_factor_f = int(nchan / 8)  # to 8 ch/SB
-        elif nchan % 8 == 0 and 'SPARSE' in self.getAntennaSet():
-            avg_factor_f = int(nchan / 8)  # to 8 ch/SB
-        elif nchan % 4 == 0:
-            avg_factor_f = int(nchan / 4)  # to 4 ch/SB
-        elif nchan % 5 == 0:
-            avg_factor_f = int(nchan / 5)  # to 5 ch/SB
+        elif nchan_per_sb % 8 == 0 and minfreq < 40e6:
+            avg_factor_f = int(nchan_per_sb / 8)  # to 8 ch/SB
+        elif nchan_per_sb % 8 == 0 and 'SPARSE' in self.getAntennaSet():
+            avg_factor_f = int(nchan_per_sb / 8)  # to 8 ch/SB
+        elif nchan_per_sb % 4 == 0:
+            avg_factor_f = int(nchan_per_sb / 4)  # to 4 ch/SB
+        elif nchan_per_sb % 5 == 0:
+            avg_factor_f = int(nchan_per_sb / 5)  # to 5 ch/SB
         else:
             logger.error('Channels should be a multiple of 4 or 5.')
             sys.exit(1)
 
         if keep_IS:
-            avg_factor_f = int(nchan / 16)  # to have the full FoV in LBA we need 16 ch/SB
+            avg_factor_f = int(nchan_per_sb / 32)  # to have the full FoV in LBA we need 32 ch/SB
         if avg_factor_f < 1: avg_factor_f = 1
 
         avg_factor_t = int(np.round(2 / timeint)) if keep_IS else int(np.round(4 / timeint))  # to 4 sec (2 for IS)
