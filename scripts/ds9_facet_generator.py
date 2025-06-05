@@ -316,11 +316,11 @@ def write_ds9(fname, polygons, points=None, names=None):
             poly_string = "polygon("
             xv, yv = polygon.exterior.xy
             for (x, y) in zip(xv[:-1], yv[:-1]):
-                poly_string = f"{poly_string}{x:.5f},{y:.5f},"
+                poly_string = f"{poly_string}{x:.8f},{y:.8f},"
             # Strip trailing comma
             poly_string = poly_string[:-1] + ")"
             if points is not None:
-                poly_string += f"\npoint({points[i, 0]:.5f}, {points[i, 1]:.5f})"
+                poly_string += f"\npoint({points[i, 0]:.8f}, {points[i, 1]:.8f})"
                 if names is not None:
                     poly_string += f" # text=\"{names[i]}\""
             polygon_strings.append(poly_string)
