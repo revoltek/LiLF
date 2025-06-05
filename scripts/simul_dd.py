@@ -16,7 +16,7 @@ def main(ms, skymodel, h5parm):
     logger.info("Simulation script initialized.")
     logger.info(f"Input ms: {ms}, skymodel: {skymodel}, h5parm: {h5parm}")
     MSs = lib_ms.AllMSs( ms, s, check_flags=True, check_consistency=True)
-    MSs.run('taql "UPDATE $pathMS SET DATA=0"', log='$nameMS_taql.log', commandType='general')
+    MSs.run('taql "UPDATE $pathMS SET DATA=DATA_NOISE"', log='$nameMS_taql.log', commandType='general')
     phase_center = MSs.getListObj()[0].getPhaseCentre()
     # load skymodel and fill the model_column
     sm = lsmtool.load(skymodel, beamMS=ms[0])
