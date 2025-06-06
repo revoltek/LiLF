@@ -266,6 +266,7 @@ def add_3c_models(sm, phasecentre, null_mid_freq, beamMask, max_sep=50., thresho
             sourcedb = os.path.dirname(__file__) + '/../models/calib-simple.skymodel'
             sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
             sm_3c.select(f'patch=={source.replace(" ","")}')
+            sm_3c.setColValues('LogarithmicSI', ['True']*len(sm_3c.getColValues('I'))) # add standard spidx
         else:
             sourcedb = os.path.dirname(__file__) + f'/../models/3CRR/{source.replace(" ","")}.txt'
             if not os.path.exists(sourcedb):
