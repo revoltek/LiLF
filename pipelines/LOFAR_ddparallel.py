@@ -641,7 +641,7 @@ for c in range(maxIter):
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true\
                           sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
                           sol.modeldatacolumns="[MODEL_DATA,{",".join(_3c_patches)}]" sol.solint='+str(225*base_solint), 
-                          log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
+                          log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3", maxProcs=4) # lots of data, limit maxProcs
 
                 #losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
                 losoto_parsets = [parset_dir + '/losoto-plot-amp.parset']
@@ -850,36 +850,6 @@ for c in range(maxIter):
                              apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
                              local_rms='', local_rms_window=50, local_rms_strength=0.5, **widefield_kwargs, **reuse_kwargs)
 
-        # s.add(f'wsclean -predict -padding 1.8 -name img/wideM-{c} -j {s.max_cpucores} -channels-out {channels_out} \
-        #         -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
-        #         -apply-facet-solutions {sol_dir}/cal-tec-merged-c{c}.h5 phase000 {MSs.getStrWsclean()}',
-        #       log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
-        # s.run(check=True)
-        # MSs.addcol('SUBTRACTED_DATA','CORRECTED_DATA')
-        # # subtract - ms:SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA
-        # logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
-        # MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
-        #         log='$nameMS_taql.log', commandType='general')
-        # imagenameEMPTY = f'img/wideM-empty-{c}'
-        # logger.info('Cleaning (empty with no sols image for debug)...')
-        # lib_util.run_wsclean(s, 'wscleanEMPTY-c' + str(c) + '.log', MSs.getStrWsclean(), name=imagenameEMPTY,
-        #                      data_column='SUBTRACTED_DATA',
-        #                      size=imgsizepix_wide, scale=str(pixscale) + 'arcsec', weight='briggs -0.5', niter=1,
-        #                      gridder='wgridder',
-        #                      parallel_gridding=channels_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
-        #                      join_channels='', fit_spectral_pol=3,
-        #                      channels_out=channels_out, deconvolution_channels=3, pol='i',
-        #                      no_update_model_required='', nmiter=12, auto_threshold=2.0, auto_mask=3.0,
-        #                      local_rms='', local_rms_window=50, local_rms_strength=0.75,
-        #                      concat_mss=True)
-        # # Test: quick stokesV
-        # logger.info('Making wide field image (pol) ...')
-        # lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM+'-v',
-        #                      no_update_model_required='',  nmiter=0,  niter=0,
-        #                      data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec',
-        #                      weight='briggs -0.5', gridder='wgridder', parallel_gridding=32, minuv_l=30, parallel_deconvolution=1024,
-        #                      channels_out=channels_out, pol='iquv', join_polarizations='', facet_regions=facetregname, apply_facet_solutions=f'{sol_dir}/cal-tec-merged-c{c}.h5 phase000')
-
         current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
 
         # reset NaNs if present
@@ -962,6 +932,7 @@ for c in range(maxIter):
 
     with w.if_todo('c%02i_intreg_predict' % c):
         # Predict internal region - MSs: MODEL_DATA
+        # TODO CHECK: here should we predict with beam?
         logger.info('Predict model of internal region...')
         s.add(f'wsclean -predict -padding 1.8 -name img/wideMint-{c} -j {s.max_cpucores} -channels-out {channels_out} \
                 {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
@@ -1117,6 +1088,7 @@ for c in range(maxIter):
         channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
         # Image the sidelobe data and predict model
         # MSs: create MODEL_DATA (with just the sidelobe flux)
+        # TODO CHECK: should we do the clean + predict with beam?
         with w.if_todo('image_lr'):
             logger.info('Cleaning sidelobe low-res...')
             lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
@@ -1156,6 +1128,7 @@ for c in range(maxIter):
                     lib_img.blank_image_reg(wideLRext, beamReg , blankval=0.)
 
                 logger.info('Predict model of sidelobe region (wsclean)...')
+                #TODO CHECK: should we predict with beam?
                 s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} \
                     -channels-out {channels_out_lr} {MSs.getStrWsclean()}',
                     log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')

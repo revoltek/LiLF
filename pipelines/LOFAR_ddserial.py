@@ -101,6 +101,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=
 
         # clean 2
         # TODO: add deconvolution_channels when bug fixed
+        # No beam correction as it is already applied when splitting the mss-dir
         logger.info('Cleaning w/ mask ('+str(p)+')...')
         imagenameM = 'img/ddserialM-'+str(p)
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
@@ -671,7 +672,6 @@ for cmaj in range(maxIter):
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
             logger.info('MM ratio (cdd:%02i): %f' % (cdd,mm_ratio))
 
-            # TODO what about the case that the first iteration is already worse than ddparallel image?
             if (cdd == 0 ) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
                 logger.warning('Image quality decreased at cdd00! Possibly problematic ddcal.')
                 # Predict - ms:MODEL_DATA (could also use wsclean but this seems easier)
@@ -720,7 +720,6 @@ for cmaj in range(maxIter):
             
             d.converged = False
             logger.warning('%s: something went wrong during the first self-cal cycle or noise did not decrease.' % (d.name))
-            #d.clean() # keep tables to print debug table TODO: maybe move this later on?
             with w.if_todo('%s-subtract' % logstring):
                 # Remove the ddcal to clean up the SUBTRACTED_DATA
                 logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
@@ -799,6 +798,7 @@ for cmaj in range(maxIter):
                             cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000',
                             log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
 
+                # sources to peel were not beam corrected when splitting
                 if not d.peel_off:
                     # Corrupt for the beam
                     logger.info('Corrupting beam...')
@@ -947,7 +947,7 @@ for cmaj in range(maxIter):
     with w.if_todo('c%02i-imaging' % cmaj):
 
         logger.info('Preparing region file...')
-        s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+' --h5 '+interp_h5parm+' --imsize '+str(imgsizepix)+' \
+        s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+' --h5 '+interp_h5parm+' --imsize '+str(int(1.1*imgsizepix))+' \
                 --pixelscale '+str(pixscale)+' --writevoronoipoints --output '+facetregname,
                 log='facet_generator.log', commandType='python')
         s.run(check=True)
@@ -1032,7 +1032,6 @@ with w.if_todo('output-lres'):
     os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameL, imagenameL, cmaj))
 ### DONE
 
-# TODO: the model to subtract should be done from a high-res image to remove only point sources
 with w.if_todo('output-lressub'):
 
     # now make a low res and source subtracted map for masking extended sources
