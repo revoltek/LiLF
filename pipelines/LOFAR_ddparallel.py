@@ -213,7 +213,7 @@ def make_source_regions(sm, c):
         regs.write(f'ddparallel/skymodel/regions_c{c}/{p}.reg',overwrite=True)
         os.system(f'cat ddparallel/skymodel/regions_c{c}/*.reg >> ddparallel/skymodel/patches_c{c}.reg')
     lib_util.check_rm(f'ddparallel/skymodel/regions_c{c}')
-    
+
 #############################################################################
 # Clear
 with w.if_todo('cleaning'):
@@ -571,7 +571,7 @@ for c in range(maxIter):
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true\
                           sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
                           sol.modeldatacolumns="[MODEL_DATA,{",".join(_3c_patches)}]" sol.solint='+str(225),
-                          log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3")
+                          log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3", maxProcs=4)
 
                 #losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
                 losoto_parsets = [parset_dir + '/losoto-plot-amp.parset']
@@ -880,6 +880,7 @@ for c in range(maxIter):
 
     with w.if_todo('c%02i_intreg_predict' % c):
         # Predict internal region - MSs: MODEL_DATA
+        # TODO CHECK: here should we predict with beam?
         logger.info('Predict model of internal region...')
         s.add(f'wsclean -predict -padding 1.8 -name img/wideMint-{c} -j {s.max_cpucores} -channels-out {channels_out} \
                 {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
@@ -993,6 +994,7 @@ for c in range(maxIter):
         channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
         # Image the sidelobe data and predict model
         # MSs: create MODEL_DATA (with just the sidelobe flux)
+        # TODO CHECK: should we do the clean + predict with beam?
         with w.if_todo('image_lr'):
             logger.info('Cleaning sidelobe low-res...')
             lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
@@ -1032,6 +1034,7 @@ for c in range(maxIter):
                     lib_img.blank_image_reg(wideLRext, beamReg , blankval=0.)
 
                 logger.info('Predict model of sidelobe region (wsclean)...')
+                #TODO CHECK: should we predict with beam?
                 s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} \
                     -channels-out {channels_out_lr} {MSs.getStrWsclean()}',
                     log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')

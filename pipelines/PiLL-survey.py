@@ -54,7 +54,7 @@ def check_done(pipename):
             os.system(f'cp ddparallel/solutions/faceets*reg {archive}')
             os.system(f'cp ddparallel/skymodel/subfield.reg {archive}')
             os.system(f'cp -r ddparallel/plots/* {archive}/plots')
-            os.system(f'cp ddserial/c0*/images/*image-MFS.fits {archive}')
+            os.system(f'cp ddserial/c0*/images/*MFS-image.fits {archive}')
             os.system(f'cp ddserial/c0*/images/wideDD-*MFS-residual.fits {archive}')
             os.system(f'cp ddserial/c0*/solutions/facets-c*.reg {archive}')
             os.system(f'cp ddserial/c0*/skymodels/all*reg {archive}')
@@ -64,7 +64,7 @@ def check_done(pipename):
             # copy logs
             logger.info(f'Copy logs -> {archive}')
             os.chdir(working_dir)
-            os.system(f'cp -r PiLL_*logger PiLL*walker logs_PiLL \
+            os.system(f'cp -r PiLL_*logger PiLL*walker \
               *{target[:-1]}*/pipeline-timesplit_*logger *{target[:-1]}*/pipeline-timesplit.walker *{target[:-1]}*/logs_pipeline-timesplit_* \
               {target}/pipeline-ddparallel_*logger {target}/pipeline-ddparallel.walker {target}/logs_pipeline-ddparallel_* \
               {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \

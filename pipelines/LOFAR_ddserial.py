@@ -101,6 +101,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=
 
         # clean 2
         # TODO: add deconvolution_channels when bug fixed
+        # No beam correction as it is already applied when splitting the mss-dir
         logger.info('Cleaning w/ mask ('+str(p)+')...')
         imagenameM = 'img/ddserialM-'+str(p)
         lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
@@ -654,7 +655,6 @@ for cmaj in range(maxIter):
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
             logger.info('MM ratio (cdd:%02i): %f' % (cdd,mm_ratio))
 
-            # TODO what about the case that the first iteration is already worse than ddparallel image?
             if (cdd == 0 ) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
                 logger.warning('Image quality decreased at cdd00! Possibly problematic ddcal.')
                 # Predict - ms:MODEL_DATA (could also use wsclean but this seems easier)
@@ -703,7 +703,6 @@ for cmaj in range(maxIter):
             
             d.converged = False
             logger.warning('%s: something went wrong during the first self-cal cycle or noise did not decrease.' % (d.name))
-            #d.clean() # keep tables to print debug table TODO: maybe move this later on?
             with w.if_todo('%s-subtract' % logstring):
                 # Remove the ddcal to clean up the SUBTRACTED_DATA
                 logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
@@ -782,6 +781,7 @@ for cmaj in range(maxIter):
                             cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000',
                             log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
 
+                # sources to peel were not beam corrected when splitting
                 if not d.peel_off:
                     # Corrupt for the beam
                     logger.info('Corrupting beam...')
@@ -930,7 +930,7 @@ for cmaj in range(maxIter):
     with w.if_todo('c%02i-imaging' % cmaj):
 
         logger.info('Preparing region file...')
-        s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+' --h5 '+interp_h5parm+' --imsize '+str(imgsizepix)+' \
+        s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+' --h5 '+interp_h5parm+' --imsize '+str(int(1.1*imgsizepix))+' \
                 --pixelscale '+str(pixscale)+' --writevoronoipoints --output '+facetregname,
                 log='facet_generator.log', commandType='python')
         s.run(check=True)
@@ -974,13 +974,14 @@ for cmaj in range(maxIter):
 ##############################################################################################################
 ### Calibration finished - additional images with scientific value
 
+# Low res as this is relevant only for transient detection
 with w.if_todo('output-timedep'):
     logger.info('Cleaning (time dep images)...')
     for tc, msfile in enumerate(MSs.getListStr()):
         imagenameT = 'img/wideDD-TC%02i-c%02i' % (tc, cmaj)
         lib_util.run_wsclean(s, 'wscleanTC'+str(tc)+'-c'+str(cmaj)+'.log', msfile, concat_mss=True, name=imagenameT, data_column='CORRECTED_DATA',
-                size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
-                parallel_gridding=len(h5parms['ph']), minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
+                size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder',
+                parallel_gridding=len(h5parms['ph']), minuv_l=30, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                 no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
@@ -993,8 +994,8 @@ with w.if_todo('output-timedep'):
 with w.if_todo('output-vstokes'):
     imagenameV = 'img/wideDD-v-c%02i' % (cmaj)
     logger.info('Cleaning (V-stokes)...')
-    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=imgsizepix, scale=str(pixscale)+'arcsec',
-                weight='briggs -0.5', niter=1000000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
+    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
+                taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
                 pol='v')
 
@@ -1015,7 +1016,6 @@ with w.if_todo('output-lres'):
     os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameL, imagenameL, cmaj))
 ### DONE
 
-# TODO: the model to subtract should be done from a high-res image to remove only point sources
 with w.if_todo('output-lressub'):
 
     # now make a low res and source subtracted map for masking extended sources
