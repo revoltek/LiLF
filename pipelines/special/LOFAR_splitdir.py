@@ -86,8 +86,6 @@ if mode in ['widefield','ddcal']:
 if mode == 'ddcal':
     if not dirregfile_list: raise ValueError('No ddcal direction region file provided (--dirreg.')
 
-if not os.path.exists(f'mss-IS'):
-    os.makedirs(f'mss-IS')
 
 if not os.path.exists(f'img'):
     os.makedirs(f'img')
@@ -101,33 +99,34 @@ infield_center = infield_reg.get_center()  # center of the infield cal region
 #####################################################
 # 1. Get MSs with IS from LiLF/LOFAR_timesplit output and apply dutch direction-independent solutions (FR, amp and phase) to column DATA
 with w.if_todo('correct_dutch_di'):
+    lib_util.check_rm('mss-hires')
+    os.makedirs(f'mss-hires')
     # TODO change order of FR and di-amp for newer data
-    # TODO rename mss-IS -> mss-splitdir
     # load original MSs - those will NOT be manipulated
     MSs_orig = lib_ms.AllMSs(glob.glob(mss_path + '/*MS'), s, check_flags=False, check_sun=False)
-    logger.info('Correcting FR (Dutch stations) DATA -> DATA...')
+    logger.info('Correcting DI amplitude (Dutch stations) DATA -> DATA...')
     # Correct FR- MSs-orig/TC.MS:DATA -> MSs/TC.MS:DATA
     MSs_avg = lib_ms.AllMSs(glob.glob(dutchdir + '/mss-avg/*MS'), s, check_flags=False, check_sun=False)
     # we cut some channels from Dutch MSs in ddserial - make sure to cut the same amount of channels here
     freqres_dutch = MSs_avg.getListObj()[0].getChanband()
     freqres_is = MSs_orig.getListObj()[0].getChanband()
     msin_nchan = int(MSs_avg.getListObj()[0].getNchan()*freqres_dutch/freqres_is) # 1920 for A2255 data
-    MSs_orig.run(f'DP3 {parset_dir}/DP3-cor.parset msin.nchan={msin_nchan} msin=$pathMS msout=mss-IS/$nameMS.MS msout.datacolumn=DATA cor.parmdb={dutchdir}/ddparallel/solutions/cal-fr.h5 \
-            cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType='DP3')
-    MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s, check_flags=False, check_sun=False)
+    MSs_orig.run(f'DP3 {parset_dir}/DP3-cor.parset msin.nchan={msin_nchan} msin=$pathMS msout=mss-hires/$nameMS.MS msout.datacolumn=DATA cor.parmdb={dutchdir}/ddparallel/solutions/cal-amp-di.h5 \
+            cor.correction=amplitudeSmooth', log='$nameMS_corFR.log', commandType='DP3')
+    MSs = lib_ms.AllMSs(glob.glob('mss-hires/*MS'), s, check_flags=False, check_sun=False)
     logger.info('Correcting subfield phase (Dutch stations) DATA -> DATA...')
     # Correct MSs>DATA -> DATA
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
             cor.parmdb={dutchdir}/ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000',
             log='$nameMS_sf-correct.log', commandType='DP3')
     # Correct MSs:DATA -> DATA
-    logger.info('Correcting DI amplitude (Dutch stations) DATA -> DATA...')
+    logger.info('Correcting FR (Dutch stations) DATA -> DATA...')
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
-                cor.parmdb={dutchdir}/ddparallel/solutions/cal-amp-di.h5 cor.correction=amplitudeSmooth ',
+                cor.parmdb={dutchdir}/ddparallel/solutions/cal-fr.h5 cor.correction=rotationmeasure000 ',
             log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
 
 
-MSs = lib_ms.AllMSs(glob.glob('mss-IS/*MS'), s, check_flags=False, check_sun=False)
+MSs = lib_ms.AllMSs(glob.glob('mss-hires/*MS'), s, check_flags=False, check_sun=False)
 orig_center = MSs.getListObj()[0].getPhaseCentre()
 max_uvw_m_dutch = 1.05*MSs.getMaxBL(check_flags=True, dutch_only=True) # this is important, it is the maximum uvw value in meters of any dutch-dutch baseline. Everything above this value is certainly IS data
 
@@ -158,7 +157,7 @@ with w.if_todo('interph5'):
         h5.getSolset('sol000').getSoltab('phase000').setAxisValues('dir', list(sou.keys()))
         h5.getSolset('sol000').getSoltab('amplitude000').setValues(soltab_amp.getValues()[0][order_amp])
         h5.getSolset('sol000').getSoltab('amplitude000').setAxisValues('dir', list(sou.keys()))
-    s.add(f'h5_merger.py --h5_out interp_merged.h5 --h5_tables interp.h5 -ms "mss-IS/TC*.MS" --freq_av {nchan} --time_av {solint} --add_ms_stations --no_antenna_crash --propagate_flags')
+    s.add(f'h5_merger.py --h5_out interp_merged.h5 --h5_tables interp.h5 -ms "mss-hires/TC*.MS" --freq_av {nchan} --time_av {solint} --add_ms_stations --no_antenna_crash --propagate_flags')
     s.run(check=True)
     # logger.info('Test image (dd-corrected)...')
     # lib_util.run_wsclean(s, 'wsclean-c.log', MSs.getStrWsclean(), name='img/dutchddcorrmerged',

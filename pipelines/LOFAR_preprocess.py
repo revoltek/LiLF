@@ -139,8 +139,7 @@ with w.if_todo('rescale_flux'):
     s.run(check=True)
 
 ######################################
-# Avg to 4 chan and 2 sec
-# Remove internationals
+# Averaging/demixing/removing IS (if requested)
 if renameavg:
     with w.if_todo('renameavg'):
         logger.info('Renaming/averaging...')

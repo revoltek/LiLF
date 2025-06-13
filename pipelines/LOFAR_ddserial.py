@@ -162,7 +162,7 @@ timeint = MSs.getListObj()[0].getTimeInt()
 ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 
 facetregname = 'ddparallel/solutions/facets-c1.reg'
-ddparallel_h5parm = 'ddparallel/solutions/cal-tec-merged-c1.h5'
+ddparallel_h5parm = 'ddparallel/solutions/cal-tec-c1.h5'
 interp_h5parm = ddparallel_h5parm # this variable points to the most recent dd-solutions and will be updated before each imaging step
 correct_for = 'phase000'  # if needed add amplitudes000 before imaging
 
@@ -368,10 +368,10 @@ for cmaj in range(maxIter):
             # Take this into account!
             # corrupt:
             MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                      cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False', log='$nameMS_sf-correct.log', commandType='DP3')
+                      cor.parmdb=ddparallel/solutions/cal-tec-sf-c0.h5 cor.correction=phase000 cor.invert=False', log='$nameMS_sf-correct.log', commandType='DP3')
             # correct:
             MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                      cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True', log='$nameMS_sf-correct.log', commandType='DP3')
+                      cor.parmdb=ddparallel/solutions/cal-tec-sf-c1.h5 cor.correction=phase000 cor.invert=True', log='$nameMS_sf-correct.log', commandType='DP3')
 
     ### DONE
 
@@ -431,10 +431,10 @@ for cmaj in range(maxIter):
                 logger.info('Corrupt MODEL_DATA with correct subfield solutions...')
                 # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
                 MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                      cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c0.h5 cor.correction=phase000 cor.invert=False',
+                      cor.parmdb=ddparallel/solutions/cal-tec-sf-c0.h5 cor.correction=phase000 cor.invert=False',
                     log='$nameMS_sf-correct.log', commandType='DP3') # corrupt
                 MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                      cor.parmdb=ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000 cor.invert=True',
+                      cor.parmdb=ddparallel/solutions/cal-tec-sf-c1.h5 cor.correction=phase000 cor.invert=True',
                     log='$nameMS_sf-correct.log', commandType='DP3') # correct
 
             # Add back the model previously subtracted for this dd-cal
@@ -542,54 +542,37 @@ for cmaj in range(maxIter):
                 d.add_h5parm('amp1', None )
                 d.add_h5parm('amp2', None )
    
-            with w.if_todo('%s-calibrate' % logstringcal):
+            with (w.if_todo('%s-calibrate' % logstringcal)):
                 
                 # TODO: if to peel add sol.model_weighted_constraints=true
 
                 # Smoothing - ms:DATA -> ms:SMOOTHED_DATA
                 MSs_dir.run_Blsmooth(logstr=f'smooth-{logstringcal}')
 
+                sm_MHz = 30 # this is the smoothness in MHz for the inner RS - distant RS will get a fraction of that
+                # less smoothing for brighter dirs
+                if d.get_flux(freq_mid) > 3:
+                    sm_MHz *= 0.5
+                elif d.get_flux(freq_mid) > 1.5:
+                    sm_MHz *= 0.75
+                ant_avg_factors = f"[CS*:1,[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:1,[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{np.round(0.5 * solint_ph_intermediate / solint_ph)},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{np.round(solint_ph_intermediate / solint_ph)}]"
+                ant_smooth_factors = f"[CS*:1,[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:1,[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:0.5,[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:0.3]"
+
                 # Calibration - ms:SMOOTHED_DATA
-                # Fast phase solutions
-                logger.info('Distant RS phase calibration (solint: %i)...' % solint_ph)
-                MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph-fast.h5 \
-                            sol.mode='+iter_ph_soltype+' sol.datause='+datause+' sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=6e6 sol.smoothnessreffrequency=54e6 \
-                            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]]',
+                logger.info('Phase calibration (solint: %i)...' % solint_ph)
+                MSs_dir.run(f'DP3 {parset_dir}/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph-ddserial.h5 \
+                            sol.mode={iter_ph_soltype} sol.datause={datause} sol.solint={solint_ph_intermediate} sol.smoothnessconstraint={sm_MHz}e6 sol.smoothnessreffrequency=54e6 \
+                            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]] \
+                            sol.solutions_per_direction=[{np.round(solint_ph_intermediate/solint_ph)}] sol.antenna_averaging_factors={ant_avg_factors} sol.antenna_smoothness_factors={ant_smooth_factors}',
                             log='$nameMS_solGphslow-'+logstringcal+'.log', commandType='DP3')
-                # reset solutions for CS (anyways zero) and inner RS
-                lib_util.run_losoto(s, 'ph-fast', [ms+'/cal-ph-fast.h5' for ms in MSs_dir.getListStr()],
-                                    [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-resetph-close+mid.parset', parset_dir+'/losoto-plot-ph-fast.parset'], plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                lib_util.run_losoto(s, 'ph-ddserial', [ms+'/cal-ph-ddserial.h5' for ms in MSs_dir.getListStr()],
+                                    [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-ph.parset'], plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                 # correct ph - ms:DATA -> ms:CORRECTED_DATA
-                logger.info('Correct ph-fast...')
+                logger.info('Correct ph...')
                 MSs_dir.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
-                             cor.parmdb=cal-ph-fast.h5 cor.correction=phase000',
+                             cor.parmdb=cal-ph-ddserial.h5 cor.correction=phase000',
                             log='$nameMS_correct-'+logstringcal+'.log', commandType='DP3')
 
-                # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
-                MSs_dir.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-{logstringcal}')
-                logger.info('Inner RS phase calibration (solint: %i)...' % (solint_ph_intermediate))
-                MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph-slow.h5 \
-                            sol.mode='+iter_ph_soltype+' sol.datause='+datause+' sol.solint='+str(solint_ph_intermediate)+' sol.smoothnessconstraint=10e6 sol.smoothnessreffrequency=54e6 \
-                            sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]]',
-                            log='$nameMS_solGphslow-'+logstringcal+'.log', commandType='DP3')
-                # reset solutions for inner CS
-                lib_util.run_losoto(s, 'ph-slow', [ms+'/cal-ph-slow.h5' for ms in MSs_dir.getListStr()],
-                    [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-ph-slow.parset'], plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
-                # correct ph - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
-                logger.info('Correct ph-slow...')
-                MSs_dir.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA \
-                             cor.parmdb=cal-ph-slow.h5 cor.correction=phase000',
-                            log='$nameMS_correct-'+logstringcal+'.log', commandType='DP3')
-
-                # merge the individual h5parms.
-                logger.info('Merge solutions (ph-fast + ph-slow -> ph-ddserial...')
-                pol_param = '--no_pol' if iter_ph_soltype == 'scalarphase' else ''
-                s.add('h5_merger.py --h5_out cal-ph-ddserial.h5 --h5_tables cal-ph-fast.h5 cal-ph-slow.h5 --h5_time_freq cal-ph-fast.h5 \
-                      --no_antenna_crash %s' % (pol_param), log='h5_merger.log', commandType='python' )
-                s.run(check=True)
-                lib_util.run_losoto(s, 'ph-ddserial', 'cal-ph-ddserial.h5',
-                                    [f'{parset_dir}/losoto-plot-ph-ddserial.parset'],
-                                    plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                 os.system('mv cal-ph-ddserial.h5 %s' % d.get_h5parm('ph-ddserial'))
 
                 if doamp:
