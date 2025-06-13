@@ -105,9 +105,10 @@ logger.info(f"### Working on target: {target} (obsids: {obsids})")
 username = getpass.getuser()
 clustername = s.cluster
 nodename = socket.gethostname()
+timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 with SurveysDB(survey='lba',readonly=False) as sdb:
-    r = sdb.execute('UPDATE fields SET username="%s", clustername="%s", nodename="%s" WHERE id="%s"' % \
-                    (username, clustername, nodename, target))
+    r = sdb.execute('UPDATE fields SET username="%s", clustername="%s", nodename="%s", start_date="%s" WHERE id="%s"' % \
+                    (username, clustername, nodename, target, timestamp))
 
 ###################################################################################
 # setup and copy

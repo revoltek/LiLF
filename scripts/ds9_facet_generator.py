@@ -13,7 +13,6 @@ import casacore.tables as pt
 
 from shapely.geometry import Polygon
 import shapely.geometry
-import shapely.ops
 import tables
 
 
@@ -380,9 +379,18 @@ def main(args):
         )
         x = np.hstack((x_background, xy[:, 0]))
         y = np.hstack((y_background, xy[:, 1]))
+    elif args.grid:
+        # Generate a regular grid of points
+        deltax = (xmax - xmin) / args.grid
+        deltay = (ymax - ymin) / args.grid
+        x = np.linspace(xmin + int(deltax/2), xmax - int(deltax/2), args.grid)
+        y = np.linspace(ymin + int(deltay/2), ymax - int(deltay/2), args.grid)
+        x, y = np.meshgrid(x, y)
+        x = x.flatten()
+        y = y.flatten()
     else:
         raise Exception(
-            "Use either --h5 or --sourcecatalog, to generate facets from an h5 file or a source catalogue, respectively."
+            "Use either --h5 or --sourcecatalog or --grid, to generate facets from an h5 file or a source catalogue or a regular grid, respectively."
         )
 
     bbox = Polygon([(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)])
@@ -425,6 +433,12 @@ if __name__ == "__main__":
         "--sourcecatalog",
         help="Path to source catalogue, followed by the number of brightest points that should be used.",
         nargs=2,
+    )
+    parser.add_argument(
+        "--grid",
+        help="Generate a regular grid of points for the Voronoi tessellation. Use this if you want to generate facets from a regular grid.",
+        type=int,
+        default=None,
     )
     parser.add_argument(
         "--backgroundfacets",
