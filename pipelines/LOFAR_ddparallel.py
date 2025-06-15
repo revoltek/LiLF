@@ -484,7 +484,7 @@ for c in range(maxIter):
     with w.if_todo('c%02i_init_model' % c):
         for patch in patches:
             # Add model to MODEL_DATA and do FR corruption
-            # TODO add time smearing in the predict parset
+            # TODO add time smearing in the predict parset?
             # note: beammode=full applies array_beam and element_beam, but the element_beam at the centre is already corrected, so MODEL_DATA needs to be
             # corrected for element_beam at the phase centre
             logger.info(f'Add model to {patch}...')
@@ -656,7 +656,9 @@ for c in range(maxIter):
                                     [f'{parset_dir}/losoto-plot-scalarph.parset'],
                                     plots_dir=f'{plot_dir}/plots-tec-no3c-c{c}',
                                     h5_dir=sol_dir)
-            ### DONE
+        else:
+            remove3c = False
+        ### DONE
 
     ########################### AMP-CAL PART ####################################
     # Only once in cycle 1: do di amp to capture element beam 2nd order effect
@@ -905,12 +907,12 @@ for c in range(maxIter):
         logger.info('Solving ionosphere (subfield)...')
         smMHz_sf = np.array([2.5,7.0,10.0,15.0])
         smMHz_factors_sf = smMHz_sf/np.max(smMHz_sf) # factors should be <1 otherwise trimming of kernel is off, so normalize
-        ant_avg_factors = f'"[CS*:30,[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:5,[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:2,[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:1]"'
+        ant_avg_factors = f'"[CS*:15,[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:4,[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:2,[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:1]"'
         ant_smooth_factors = f'"[CS*:{smMHz_factors_sf[3]},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{smMHz_factors_sf[2]},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{smMHz_factors_sf[1]},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{smMHz_factors_sf[0]}]"'
 
-        MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec-sf.h5 sol.solint=30 \
+        MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec-sf.h5 sol.solint=15 \
                   sol.mode=scalarphase sol.smoothnessconstraint={max(smMHz_sf)}e6 sol.smoothnessreffrequency=54e6 sol.nchan=1  \
-                  sol.modeldatacolumns="[MODEL_DATA]" sol.solutions_per_direction="[30]" \
+                  sol.modeldatacolumns="[MODEL_DATA]" sol.solutions_per_direction="[15]" \
                   sol.antenna_averaging_factors={ant_avg_factors} sol.antenna_smoothness_factors={ant_smooth_factors}',
                 log='$nameMS_solTEC-sf-c' + str(c) + '.log', commandType='DP3', maxProcs=8)
 

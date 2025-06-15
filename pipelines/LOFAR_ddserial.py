@@ -555,15 +555,16 @@ for cmaj in range(maxIter):
                     sm_MHz *= 0.5
                 elif d.get_flux(freq_mid) > 1.5:
                     sm_MHz *= 0.75
-                ant_avg_factors = f"[CS*:1,[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:1,[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{np.round(0.5 * solint_ph_intermediate / solint_ph)},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{np.round(solint_ph_intermediate / solint_ph)}]"
+                ant_avg_factors = f"[CS*:1,[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:1,[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{int(np.round(0.5 * solint_ph_intermediate / solint_ph))},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{int(np.round(solint_ph_intermediate / solint_ph))}]"
                 ant_smooth_factors = f"[CS*:1,[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:1,[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:0.5,[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:0.3]"
 
                 # Calibration - ms:SMOOTHED_DATA
+                # TODO needs to be integer divisable
                 logger.info('Phase calibration (solint: %i)...' % solint_ph)
                 MSs_dir.run(f'DP3 {parset_dir}/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph-ddserial.h5 \
                             sol.mode={iter_ph_soltype} sol.datause={datause} sol.solint={solint_ph_intermediate} sol.smoothnessconstraint={sm_MHz}e6 sol.smoothnessreffrequency=54e6 \
                             sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]] \
-                            sol.solutions_per_direction=[{np.round(solint_ph_intermediate/solint_ph)}] sol.antenna_averaging_factors={ant_avg_factors} sol.antenna_smoothness_factors={ant_smooth_factors}',
+                            sol.solutions_per_direction=[{int(np.round(solint_ph_intermediate/solint_ph))}] sol.antenna_averaging_factors={ant_avg_factors} sol.antenna_smoothness_factors={ant_smooth_factors}',
                             log='$nameMS_solGphslow-'+logstringcal+'.log', commandType='DP3')
                 lib_util.run_losoto(s, 'ph-ddserial', [ms+'/cal-ph-ddserial.h5' for ms in MSs_dir.getListStr()],
                                     [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-ph.parset'], plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
