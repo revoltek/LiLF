@@ -932,9 +932,9 @@ for c in range(maxIter):
 
     with w.if_todo('c%02i_intreg_predict' % c):
         # Predict internal region - MSs: MODEL_DATA
-        # TODO CHECK: here should we predict with beam?
         logger.info('Predict model of internal region...')
         s.add(f'wsclean -predict -padding 1.8 -name img/wideMint-{c} -j {s.max_cpucores} -channels-out {channels_out} \
+                -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                 {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
         s.run(check=True)
 
@@ -1088,7 +1088,7 @@ for c in range(maxIter):
         channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
         # Image the sidelobe data and predict model
         # MSs: create MODEL_DATA (with just the sidelobe flux)
-        # TODO CHECK: should we do the clean + predict with beam?
+        # TODO: we should do the clean + predict with beam, but it's too computationally expansive
         with w.if_todo('image_lr'):
             logger.info('Cleaning sidelobe low-res...')
             lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
