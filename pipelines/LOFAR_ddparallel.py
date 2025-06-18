@@ -999,18 +999,20 @@ for c in range(maxIter):
         facetregname_lr = f'{sol_dir}/facets-lr-c{c}.reg'
         with w.if_todo('image_lr'):
             logger.info('Preparing region file...')
-            s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+f' --grid 10 --imsize {int(1.1*imgsizepix_lr)} \
-            --pixelscale 30 --writevoronoipoints --output {facetregname_lr}', log='facet_generator.log', commandType='python')
-            s.run(check = True)
+            # this is too slow
+            #s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+f' --grid 10 --imsize {int(1.1*imgsizepix_lr)} \
+            #--pixelscale 30 --writevoronoipoints --output {facetregname_lr}', log='facet_generator.log', commandType='python')
+            #s.run(check = True)
+            #facet_regions=facetregname_lr, apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', 
+            # --facet-regions {facetregname_lr} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam
             logger.info('Cleaning sidelobe low-res...')
             lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, data_column='SUBFIELD_DATA',
                                 size=imgsizepix_lr, scale='30arcsec', save_source_list='',  parallel_gridding=channels_out_lr, baseline_averaging='',
                                 weight='briggs -0.5', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                                 taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512,
                                 local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5,
-                                facet_regions=facetregname_lr, apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', mss_concat=True)
+                                mss_concat=True)
             s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr} -j {s.max_cpucores} -channels-out {channels_out_lr} \
-                      --facet-regions {facetregname_lr} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                       {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
             s.run(check=True)
         ### DONE
@@ -1046,8 +1048,8 @@ for c in range(maxIter):
 
                 logger.info('Predict model of sidelobe region (wsclean)...')
                 #TODO CHECK: predict with beam ok?
+                # --facet-regions {facetregname_lr} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                 s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} -channels-out {channels_out_lr} \
-                      --facet-regions {facetregname_lr} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                       {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
                 s.run(check=True)
 
