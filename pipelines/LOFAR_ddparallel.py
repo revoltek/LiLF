@@ -744,7 +744,7 @@ for c in range(maxIter):
         widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec', weight='briggs -0.5', niter=1000000,
                                 gridder='wgridder',  parallel_gridding=4, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                 join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
-                                multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname, apply_facet_solutions=f'{wide_h5} phase000', concat_mss=True)
+                                multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname, apply_facet_solutions=f'{wide_h5} phase000', concat_mss=False)
 
         # for low-freq or low-dec data, allow the beam to be fitted, otherwise (survey) force 15"
         if not(np.mean(MSs.getFreqs()) < 50e6) and not (phasecentre[1] < 23):
