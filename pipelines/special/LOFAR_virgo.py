@@ -5,11 +5,10 @@
 # pipeline for a bright a-team source in LOFAR HBA
 # they need to be in "./mss/"
 
-import sys, os, glob, re
-from shutil import copy2, copytree, move
+import sys, os, glob
+from shutil import copy2, move
 import numpy as np
 import casacore.tables as pt
-import lsmtool as lsm
 
 ########################################################
 from LiLF import lib_ms, lib_img, lib_util, lib_log
@@ -191,8 +190,8 @@ with w.if_todo('init_model'):
     model = m87_model_hires if is_IS else m87_model
     n = len(glob.glob(f'{model}-[0-9]*-model.fits'))
     logger.info('Predict (wsclean: %s - chan: %i)...' % (model, n))
-    s.add(f'wsclean -predict -no-reorder -name {model} -j {s.max_processors} -use-wgridder -channels-out {n} {MSs.getStrWsclean()}',
-          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
+    s.add(f'wsclean -predict -no-reorder -name {model} -j {s.max_cpucores} -use-wgridder -channels-out {n} {MSs.getStrWsclean()}',
+          log='wscleanPRE-init.log', commandType='wsclean')
     s.run(check=True)
     # else:
     #     copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
@@ -359,8 +358,8 @@ for c in range(100):
             #     logger.info('Predict rest-field...')
             #     n = len(glob.glob(field_model + 'm87-field-[0-9]*-model.fits'))
             #     logger.info('Predict (wsclean: %s - chan: %i)...' % ('model-field', n))
-            #     s.add(f'wsclean -predict -name {field_model}m87-field -j {s.max_processors} -channels-out {n} {MSs.getStrWsclean()}',
-            #           log='wscleanPRE-field.log', commandType='wsclean', processors='max')
+            #     s.add(f'wsclean -predict -name {field_model}m87-field -j {s.max_cpucores} -channels-out {n} {MSs.getStrWsclean()}',
+            #           log='wscleanPRE-field.log', commandType='wsclean')
             #     s.run(check=True)
             #
             # logger.info('TEST EMPTY')
@@ -386,11 +385,11 @@ for c in range(100):
             #
             # logger.info('BL-smooth...')
             # MSs.run('BLsmooth.py -r -c 4 -n 8 -f 5e-3 -i FR_CORRECTED_DATA -o FR_SMOOTHED_DATA $pathMS',
-            #         log='$nameMS_smooth.log', commandType='python', maxThreads=8)
+            #         log='$nameMS_smooth.log', commandType='python', maxProcs=8)
             #
             # logger.info('Get back Virgo A MODEL_DATA...')
-            # s.add(f'wsclean -predict -name {imagename} -j {s.max_processors} -channels-out {wsclean_params["channels_out"]} {MSs.getStrWsclean()}',
-            #       log='wscleanPRE-field.log', commandType='wsclean', processors='max')
+            # s.add(f'wsclean -predict -name {imagename} -j {s.max_cpucores} -channels-out {wsclean_params["channels_out"]} {MSs.getStrWsclean()}',
+            #       log='wscleanPRE-field.log', commandType='wsclean')
             # s.run(check=True)
 logger.info("Done.")
 

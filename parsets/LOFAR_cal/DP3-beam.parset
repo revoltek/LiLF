@@ -3,8 +3,12 @@ msin.datacolumn = CORRECTED_DATA
 msout = .
 msout.datacolumn = CORRECTED_DATA
 
-steps = [corrbeam]
+steps = [setbeam, corrbeam]
+
+setbeam.type = setbeam
+setbeam.beammode = none
 
 corrbeam.type = applybeam
-corrbeam.usechannelfreq = False
+corrbeam.usechannelfreq = True
 corrbeam.beammode = element
+#corrbeam.elementmodel = lobes

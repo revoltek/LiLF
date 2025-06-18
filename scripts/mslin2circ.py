@@ -72,7 +72,7 @@ def mslin2circ(incol, outcol, outms, skipmetadata):
   tc = pt.table(outms, readonly=False, ack=False)
   for row in range(0, tc.nrows(), stepsize):
     dataXY = tc.getcol(incol, startrow=row, nrow=stepsize, rowincr=1)
-    I = numpy.complex(0.0,1.0)
+    I = complex(0.0,1.0)
     dataRL = 0.5* numpy.transpose(numpy.array([
            +dataXY[:,:,0]-I*dataXY[:,:,1]+I*dataXY[:,:,2]+dataXY[:,:,3],
            +dataXY[:,:,0]+I*dataXY[:,:,1]+I*dataXY[:,:,2]-dataXY[:,:,3],
@@ -96,7 +96,7 @@ def mscirc2lin(incol, outcol, outms, skipmetadata):
   tc = pt.table(outms,readonly=False, ack=False)
   for row in range(0, tc.nrows(), stepsize):
     dataRL = tc.getcol(incol, startrow=row, nrow=stepsize, rowincr=1)
-    I = numpy.complex(0.0,1.0)
+    I = complex(0.0,1.0)
     dataXY = 0.5* numpy.transpose(numpy.array([
               +dataRL[:,:,0]+dataRL[:,:,1]+dataRL[:,:,2]+dataRL[:,:,3],
            I*(+dataRL[:,:,0]-dataRL[:,:,1]+dataRL[:,:,2]-dataRL[:,:,3]),

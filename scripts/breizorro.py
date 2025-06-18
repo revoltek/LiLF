@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 # code from: https://github.com/ratt-ru/breizorro
 
@@ -6,8 +6,6 @@ import sys
 import numpy
 import shutil
 import logging
-import argparse
-import os.path
 import re
 import numpy as np
 from astropy.io import fits
@@ -91,7 +89,7 @@ def make_noise_map(restored_image, boxsize):
     return noise
 
 def resolve_island(isl_spec, mask_image, wcs, ignore_missing=False):
-    if re.match("^\d+$", isl_spec):
+    if re.match(r"^\d+$", isl_spec):
         return int(isl_spec)
     elif ',' not in isl_spec:
         raise ValueError(f"invalid island specification: {isl_spec}")
@@ -109,10 +107,13 @@ def resolve_island(isl_spec, mask_image, wcs, ignore_missing=False):
     return value
 
 def add_regions(mask_image, regs, wcs):
-    for reg in regs:
+    for i, reg in enumerate(regs):
         if hasattr(reg, 'to_pixel'):
             reg = reg.to_pixel(wcs)
-        mask_image += reg.to_mask().to_image(mask_image.shape)
+        if reg.to_mask().to_image(mask_image.shape) is not None:
+            mask_image += reg.to_mask().to_image(mask_image.shape)
+        else:
+            LOGGER.warning(f"No overlap for a component {i} in the region file.")
 
 def remove_regions(mask_image, regs, wcs):
     for reg in regs:
@@ -218,7 +219,7 @@ def main():
 
     elif args.maskname:
         mask_image, mask_header = get_image(args.maskname)
-        LOGGER.info(f"Input mask loaded")
+        LOGGER.info("Input mask loaded")
 
         out_mask_fits = args.outfile or f"{name}.out.{ext}"
     else:
@@ -269,7 +270,7 @@ def main():
                 remove_regions(mask_image, regs, wcs)
 
     if args.islands:
-        LOGGER.info(f"(Re)numbering islands")
+        LOGGER.info("(Re)numbering islands")
         mask_image = mask_image != 0
         # mask_image = mask_image.byteswap().newbyteorder()
         mask_image, num_features = label(mask_image)
@@ -300,12 +301,12 @@ def main():
         mask_image = min_mask[island_labels.ravel()].reshape(island_labels.shape)
 
     if args.make_binary:
-        LOGGER.info(f"Converting mask to binary")
+        LOGGER.info("Converting mask to binary")
         mask_image = mask_image!=0
         mask_header['BUNIT'] = 'mask'
 
     if args.invert:
-        LOGGER.info(f"Inverting mask")
+        LOGGER.info("Inverting mask")
         mask_image = mask_image==0
 
     if args.dilate:
@@ -321,7 +322,7 @@ def main():
         mask_image = binary_erosion(input=mask_image, iterations=N)
         
     if args.fill_holes:
-        LOGGER.info(f"Filling closed regions")
+        LOGGER.info("Filling closed regions")
         mask_image = binary_fill_holes(mask_image)
 
     if args.sum_peak:
@@ -376,7 +377,7 @@ def main():
         output_file("breizorro.html", title="Mask Editor")
         show(p)
 
-        LOGGER.info(f"Enforcing that mask to binary")
+        LOGGER.info("Enforcing that mask to binary")
         mask_image = mask_image!=0
         mask_header['BUNIT'] = 'mask'
 

@@ -1,0 +1,13 @@
+Ncpu = 0
+
+[plotA1]
+operation = PLOT
+Soltab = sol000/amplitude000
+freq.minmaxstep = [0,300e6,100]
+axesInPlot = time
+axisInTable = ant
+plotFlag = True
+prefix = plots/amp_
+NColFig = 4
+figSize = [20,20]
+#minmax = [0.9,1.2]

@@ -1,0 +1,10 @@
+msin = 
+msin.datacolumn = DATA
+msout = .
+msout.datacolumn = MODEL_DATA
+
+steps = [pre]
+
+pre.type = predict
+pre.operation = replace
+pre.sourcedb =

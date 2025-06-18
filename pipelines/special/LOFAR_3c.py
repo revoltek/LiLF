@@ -62,7 +62,7 @@ with w.if_todo('setup'):
             logger.info('Making %s...' % MS_concat)
             s.add('DP3 '+parset_dir+'/DP3-avg.parset msin=\"'+str(mss_toconcat)+'\" msout='+MS_concat,\
                 log=MS_concat+'_avg.log', commandType='DP3')
-            s.run(check=True, maxThreads=1)
+            s.run(check=True, maxProcs=1)
     
             MSs = lib_ms.AllMSs( [MS_concat], s )
             
@@ -99,7 +99,7 @@ with w.if_todo('setup'):
     
             # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
             #logger.info('Converting to circular...')
-            #MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=10)
+            #MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxProcs=10)
     
             # Move CORRECTED_DATA -> DATA
             logger.info('Move CORRECTED_DATA -> DATA...')
@@ -305,9 +305,9 @@ for c in range(100):
 
                 # predict the source to peel
                 logger.info('Peel - Predict init...')
-                s.add('wsclean -predict -name ' + imagename_peel + ' -j ' + str(s.max_processors) + ' -channels-out 2 \
+                s.add('wsclean -predict -name ' + imagename_peel + ' -j ' + str(s.max_cpucores) + ' -channels-out 2 \
                       -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
-                      log='wsclean-pre.log', commandType='wsclean', processors='max')
+                      log='wsclean-pre.log', commandType='wsclean')
                 s.run(check=True)
 
                 # add the source to peel back
@@ -351,9 +351,9 @@ for c in range(100):
                 logger.info('Peel - Predict final...')
                 for model_file in glob.glob(imagename_peel + '*model.fits'):
                     lib_img.blank_image_reg(model_file, peel_region_file, blankval=0., inverse=True)
-                s.add('wsclean -predict -name ' + imagename_peel + ' -j ' + str(s.max_processors) + ' -channels-out 2 \
+                s.add('wsclean -predict -name ' + imagename_peel + ' -j ' + str(s.max_cpucores) + ' -channels-out 2 \
                       -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
-                      log='wsclean-pre.log', commandType='wsclean', processors='max')
+                      log='wsclean-pre.log', commandType='wsclean')
                 s.run(check=True)
 
                 # corrupt
@@ -375,9 +375,9 @@ for c in range(100):
                 lib_img.blank_image_reg(model_file, beam07reg, blankval=0., inverse=True)
 
             # ft models
-            s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 2 \
+            s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_cpucores)+' -channels-out 2 \
                   -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                  log='wsclean-pre.log', commandType='wsclean', processors='max')
+                  log='wsclean-pre.log', commandType='wsclean')
             s.run(check=True)
 
             # prepare new data

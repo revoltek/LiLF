@@ -2,13 +2,13 @@ msin =
 msin.datacolumn = DATA
 msout = .
 msout.datacolumn = MODEL_DATA
-#msout.storagemanager = dysco
+#msout.storagemanager = dysco # by default uncompressed
 
 steps = [pre]
 
 pre.type = predict
 pre.sourcedb = 
 pre.sources = 
-pre.usebeammodel = False # TODO: put to true for large sky
+pre.usebeammodel = False
 #pre.usechannelfreq = False
 #pre.beammode = array_factor

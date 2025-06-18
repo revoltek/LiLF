@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-# To do a second run, rename the uris.pickle
-
-# To download survey's calibrators: ~/storage/LiLF/scripts/LOFAR_stager.py --projects LT16_004,LT14_002,LC12_017,LC9_016,LC8_031,LC18_020,LC18_007 -c
+# To download survey's calibrators: ~/storage/LiLF/scripts/LOFAR_stager.py --projects LT16_004,LT14_002,LC12_017,LC9_016,LC8_031,LC15_011,LC18_007,LC18_020,LC20_011,LC20_025,LC20_039 -c
 
 # Need: .wgetrc .stagingrc and .awe/Environment.cfg
 # see https://www.astron.nl/lofarwiki/doku.php?id=public:lta_tricks
@@ -15,22 +13,18 @@
 # password=<your password>
 
 import os, sys, time, glob, pickle, argparse, re
-import subprocess, multiprocessing
-from awlofar.database.Context import context
+import multiprocessing
+#from awlofar.database.Context import context
 from awlofar.main.aweimports import CorrelatedDataProduct, \
     FileObject, \
     Observation
-from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
+#from awlofar.toolbox.LtaStager import LtaStager, LtaStagerError
 import stager_access as stager
 from casacore import tables
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from download_file import download_file
 from itertools import chain
-
-#project = 'LC9_017' # 3c first part
-#project = 'LC10_020' # 3c second part
-#project = 'LC13_011' # cluster
 
 parser = argparse.ArgumentParser(description='Stage and download MS from the LOFAR LTA.')
 parser.add_argument('--projects', '-p', dest='projects', help='Comma separated list of project names.')
@@ -40,6 +34,7 @@ parser.add_argument('--radecdist', '-r', dest='radecdist', help='ra,dec,dist in 
 parser.add_argument('--calonly', '-c', dest='calonly', action='store_true', help='Get only calibrator data.')
 parser.add_argument('--nocal', '-n', dest='nocal', action='store_true', help='Do not download calibrator data.')
 parser.add_argument('--nobug', '-b', dest='nobug', action='store_true', help='Remove observations taken turing the correlator bug in 2021.')
+parser.add_argument('--antennaset', '-a', dest='antennaset', default='LBA', help='AntennaSet must contain this string (default: LBA).')
 parser.add_argument('--quiet', '-q', dest='quiet', action='store_true', help='Limit the output.')
 args = parser.parse_args()
 
@@ -113,6 +108,12 @@ for project in projects:
             timeobs = observation.as_dict()['Observation.startTime']
             if timeobs.year == 2021 and ( (timeobs.month==2 and timeobs.day>=8) or (timeobs.month>2 and timeobs.month<8) or ( timeobs.month==8 and timeobs.day<=3) ):
                 continue
+
+        obsAntennaSet = observation.as_dict()['Observation.antennaSet']
+        if not args.antennaset in obsAntennaSet:
+            print(f'WARNING: skip {obsID} with antennaSet: {obsAntennaSet}.')
+            continue
+
         print("Querying ObservationID %i" % obsID, end='')
 
         # Instead of querying on the Observations of the DataProduct, all DataProducts could have been queried
@@ -206,9 +207,9 @@ class Worker_stager(Worker):
     def run(self):
         import time
         while not self.exit.is_set():
-            # if there's space add a block of 200
+            # if there's space add a block of 300
             if len(self.L_inStage) < 5 and len(self.L_toStage) > 0:
-                uris = self.L_toStage[:200]
+                uris = self.L_toStage[:300]
                 #uris = [self.L_toStage[0]] # debug to stage 1 uri at a time
                 print("%s: Stager -- Staging %i uris" % (time.ctime(), len(uris)))
                 try:
@@ -219,7 +220,7 @@ class Worker_stager(Worker):
                 except Exception as e:
                     print("Error at staging...", e)
     
-            time.sleep(600)
+            time.sleep(60)
     
     
 class Worker_checker(Worker):
@@ -271,7 +272,11 @@ class Worker_downloader(Worker):
         import os
         while not self.exit.is_set():
             if len(self.L_toDownload) > 0:
-                surl = self.L_toDownload.pop()
+                try:
+                    surl = self.L_toDownload.pop()
+                except:
+                    # sometimes there are simultaneous pop() that crashes one of the worker
+                    continue
                 self.L_inDownload.append(surl)
 
                 tar_file = surl.split('/')[-1]  # e.g. .../L769079_SB020_uv.MS_daf24388.tar
@@ -294,19 +299,25 @@ class Worker_downloader(Worker):
 
                 # loop until the sanity check on the downloaded MS is ok
                 while True:
-                    download_file(url, tar_file, login, password)
+                    downlaoded = download_file(url, tar_file, login, password)
+                    if not downlaoded:
+                        print('ERROR downloading %s. Giving up.' % url)
+                        break
+
                     os.system('tar xf %s' % tar_file)
-                    print(tar_file)
+                    #print(tar_file)
                     try:
                         t = tables.table(ms_file, ack=False)
                         break
                     except:
                         print('ERROR opening %s, probably corrupted - redownload it' % ms_file)
                         #os.system('rm -r %s %s' % (tar_file, ms_file))
-                os.system('rm -r %s' % tar_file)
 
                 self.L_inDownload.remove(surl)
-                self.L_Downloaded.append(surl)
+
+                if downlaoded: 
+                    os.system('rm -r %s' % tar_file)
+                    self.L_Downloaded.append(surl)
 
             time.sleep(2)
 

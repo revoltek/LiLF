@@ -3,12 +3,12 @@ Ncpu = 0
 [plotP1]
 operation = PLOT
 soltab = sol000/phase000
-freq.minmaxstep = [0,300e6,100]
+freq.minmaxstep = [0,300e6,200]
 axesInPlot = time
 axisInTable = ant
 plotFlag = True
 prefix = plots/ph_
-refAnt = auto
+refAnt = SuperSt
 minmax = [-3.14,3.14]
 NColFig = 4
 figSize = [20,20]
@@ -21,7 +21,7 @@ axesInPlot = freq
 axisInTable = ant
 plotFlag = True
 prefix = plots/ph_
-refAnt = auto
+refAnt = SuperSt
 minmax = [-3.14,3.14]
 
 [plotP3]
@@ -31,5 +31,5 @@ axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True
 prefix = plots/ph_
-refAnt = auto
+refAnt = SuperSt
 minmax = [-3.14,3.14]

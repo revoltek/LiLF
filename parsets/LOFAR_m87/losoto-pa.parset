@@ -9,11 +9,7 @@ soltabOut = phaseOrig000
 soltab = sol000/phase000
 operation = POLALIGN
 soltabOut = polalign
-average = True
-replace = True
-fitOffset = True
-refAnt = CS002HBA0
-maxResidual = 1.5
+refAnt = auto
 
 [plotAlign]
 operation = PLOT
@@ -23,7 +19,7 @@ axisInTable = ant
 axisDiff = pol
 plotFlag = True
 prefix = plots/ph-align
-refAnt = CS002HBA0
+refAnt = auto
 minmax = [-1,+1]
 
 [residual]
@@ -39,7 +35,7 @@ axisInTable = ant
 axisDiff = pol
 plotFlag = True
 prefix = plots/ph-res
-refAnt = CS002HBA0
+refAnt = auto
 minmax = [-1,+1]
 
 [plotPr2]
@@ -51,5 +47,5 @@ axisInTable = ant
 axisInCol = pol
 plotFlag = True
 prefix = plots/ph-res_
-refAnt = CS002HBA0
+refAnt = auto
 minmax = [-3.14,+3.14]

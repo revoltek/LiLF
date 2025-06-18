@@ -3,13 +3,12 @@
 # This script was written by Jakob Maljaars and
 # Reinout van Weeren.
 
-from scipy.spatial import Voronoi, voronoi_plot_2d
+from scipy.spatial import Voronoi
 from astropy.wcs import WCS
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 import numpy as np
 import argparse
-import sys
 import casacore.tables as pt
 
 from shapely.geometry import Polygon
@@ -20,7 +19,7 @@ import tables
 
 def read_dir_fromh5(h5):
     """
-    Read in the direction info from a H5 file
+    Read in the direction info from an H5 file
     Parameters
     ----------
     h5 : str
@@ -34,11 +33,12 @@ def read_dir_fromh5(h5):
 
     H5 = tables.open_file(h5, mode="r")
     sourcedir = H5.root.sol000.source[:]["dir"]
-    if len(sourcedir) < 2:
-        print("Error: H5 seems to contain only one direction")
-        sys.exit(1)
+    sourcename = H5.root.sol000.source[:]["name"].astype('str')
+    # if len(sourcedir) < 2:
+        # print("Error: H5 seems to contain only one direction")
+        # sys.exit(1)
     H5.close()
-    return sourcedir
+    return sourcedir, sourcename
 
 
 def makeWCS(centreX, centreY, refRA, refDec, crdelt=0.066667):
@@ -161,14 +161,13 @@ def tessellate(x_pix, y_pix, w, dist_pix, bbox, nouter=64, plot_tessellation=Tru
         xy.append((RAvert, Decvert))
 
     # Generate array of outer points used to constrain the facets
-    means = np.ones((nouter, 2)) * np.array(xy).mean(axis=0)
-    offsets = []
-    angles = [np.pi / (nouter / 2.0) * i for i in range(0, nouter)]
-    for ang in angles:
-        offsets.append([np.cos(ang), np.sin(ang)])
-    scale_offsets = dist_pix * np.array(offsets)
-    outer_box = means + scale_offsets
-
+    center_x, center_y = bbox.centroid.x, bbox.centroid.y
+    angles = np.linspace(0, 2 * np.pi, nouter, endpoint=False)
+    outer_box = np.stack([
+        center_x + 2 * dist_pix * np.cos(angles),
+        center_y + 2 * dist_pix * np.sin(angles)
+        ], axis=-1) # the factor of 2 is to make sure the outer points are outside the image
+    
     # Tessellate and clip
     points_all = np.vstack([xy, outer_box])
     vor = Voronoi(points_all)
@@ -204,7 +203,7 @@ def tessellate(x_pix, y_pix, w, dist_pix, bbox, nouter=64, plot_tessellation=Tru
         verts_xy = poly.exterior.xy
         verts_deg = []
         for x, y in zip(verts_xy[0], verts_xy[1]):
-            x_y = np.array([[y, x, 0.0, 0.0]])
+            # x_y = np.array([[y, x, 0.0, 0.0]])
             ra_deg, dec_deg = w.wcs_pix2world(x, y, 1)
             verts_deg.append((ra_deg, dec_deg))
         verts.append(verts_deg)
@@ -282,7 +281,7 @@ def polygon_intersect(poly1, poly2):
     return clip
 
 
-def write_ds9(fname, polygons, points=None):
+def write_ds9(fname, polygons, points=None, names=None):
     """
     Write ds9 regions file, given a list of polygons
     and (optionally) a set of points attached to
@@ -317,11 +316,13 @@ def write_ds9(fname, polygons, points=None):
             poly_string = "polygon("
             xv, yv = polygon.exterior.xy
             for (x, y) in zip(xv[:-1], yv[:-1]):
-                poly_string = f"{poly_string}{x:.5f},{y:.5f},"
+                poly_string = f"{poly_string}{x:.8f},{y:.8f},"
             # Strip trailing comma
             poly_string = poly_string[:-1] + ")"
             if points is not None:
-                poly_string += f"\npoint({points[i, 0]:.5f}, {points[i, 1]:.5f})"
+                poly_string += f"\npoint({points[i, 0]:.8f}, {points[i, 1]:.8f})"
+                if names is not None:
+                    poly_string += f" # text=\"{names[i]}\""
             polygon_strings.append(poly_string)
         f.write("\n".join(polygon_strings))
 
@@ -354,9 +355,13 @@ def main(args):
     # Make World Coord Stystem transform object
     w = makeWCS(centreX, centreY, phaseCentreRa, phaseCentreDec, dl_dm)
 
+    single_dir = False # If there is only one direction in the h5 file, we should return rectangle over the full image
+
     if args.h5:
         # load in the directions from the H5
-        sourcedir = read_dir_fromh5(args.h5)
+        sourcedir, sourcename = read_dir_fromh5(args.h5)
+        if len(sourcedir) < 2:
+            single_dir = True
 
         # make ra and dec arrays and coordinates c
         ralist = sourcedir[:, 0]
@@ -381,13 +386,29 @@ def main(args):
         )
 
     bbox = Polygon([(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)])
-    facets, points = tessellate(
-        x, y, w, dist_pix, bbox, plot_tessellation=args.plottessellation
-    )
+    if single_dir:
+        pointsarr = [(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)]
+        skyarr = []
+        for x,y in pointsarr:
+            xsky,ysky = w.wcs_pix2world(x, y, 1)
+            skyarr.append((xsky,ysky))
+        skybox = Polygon(skyarr)
 
-    write_ds9(
-        args.outputfile, facets, points=points if args.writevoronoipoints else None
-    )
+        write_ds9(
+            args.outputfile, np.array([skybox]), points=np.array([[phaseCentreRa,phaseCentreDec]]) if args.writevoronoipoints else None, names=sourcename if args.h5 else None
+        )
+
+    else:
+        facets, points = tessellate(
+            x, y, w, dist_pix, bbox, plot_tessellation=args.plottessellation
+        )
+        print("facets: ", facets)
+        print("points: ", points)
+
+        write_ds9(
+            args.outputfile, facets, points=points if args.writevoronoipoints else None, names=sourcename if args.h5 else None
+        )
+
 
 
 if __name__ == "__main__":

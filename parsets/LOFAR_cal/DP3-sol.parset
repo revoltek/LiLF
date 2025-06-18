@@ -1,0 +1,19 @@
+msin =
+msin.datacolumn = SMOOTHED_DATA
+msout = .
+
+steps = [sol]
+
+sol.type = ddecal
+sol.solveralgorithm = directioniterative # needed for sol.datause
+sol.uvlambdamin = 100
+sol.minvisratio = 0.3
+sol.mode =
+# sol.datause = full/dual/single
+# sol.rotationdiagonalmode = diagonal, diagonalphase, scalar, scalarphase
+sol.solveralgorithm = directioniterative # required for datause
+sol.maxiter = 300
+sol.tolerance = 1e-3
+sol.propagatesolutions = True
+sol.propagateconvergedonly = True
+sol.modeldatacolumns = [MODEL_DATA]

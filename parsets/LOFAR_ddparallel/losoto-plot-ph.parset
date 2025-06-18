@@ -1,0 +1,22 @@
+Ncpu = 0
+
+[plotP]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ph_
+refAnt = auto
+minmax = [-3.14,3.14]
+
+[plotPd]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+axisDiff = pol
+plotFlag = True
+prefix = plots/ph-dif
+refAnt = auto
+minmax = [-1,+1]

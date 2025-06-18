@@ -1,0 +1,29 @@
+msin = 
+msin.datacolumn = DATA
+msin.baseline =
+msout =
+msout.storagemanager = dysco
+
+# numthreads = ?? what is the best way to run this?
+
+steps = [demix, filter]
+
+demix.type = demixer
+demix.baseline = [CR]S*& # only demix Dutch
+#demix.demixfreqresolution =
+demix.demixfreqstep = 8 # 16 if possible # averaging during demix-solve
+#demix.demixtimeresolution = 10 #s, can be used instead
+demix.demixtimestep = 10  # averaging during demix-solve
+#demix.elevationcutoff = 0.0deg # not-working
+demix.ignoretarget = False
+demix.targetsource =
+demix.subtractsources =
+demix.ntimechunk = 0
+demix.skymodel =
+demix.freqstep =
+demix.timestep =
+demix.instrumentmodel =
+
+# should remove stations not used in any baseline (international)
+filter.type = filter
+filter.remove = True

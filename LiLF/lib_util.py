@@ -1,5 +1,6 @@
 import os, sys, glob
 import socket
+import datetime
 
 from casacore import tables
 import numpy as np
@@ -7,7 +8,13 @@ import multiprocessing, subprocess
 from threading import Thread
 from queue import Queue
 import pyregion
+from astropy.io import fits
 import gc
+
+# remove some annoying warnings from astropy
+import warnings
+from astropy.io.fits.verify import VerifyWarning
+warnings.simplefilter('ignore', category=VerifyWarning)
 
 if (sys.version_info > (3, 0)):
     from configparser import ConfigParser
@@ -18,6 +25,7 @@ else:
 import matplotlib as mpl
 mpl.use("Agg")
 
+from LiLF import lib_img
 from LiLF.lib_log import logger
 
 def getParset(parsetFile=''):
@@ -27,8 +35,11 @@ def getParset(parsetFile=''):
     def add_default(section, option, val):
         if not config.has_option(section, option): config.set(section, option, val)
     
-    if parsetFile == '' and os.path.exists('lilf.config'): parsetFile='lilf.config'
-    if parsetFile == '' and os.path.exists('../lilf.config'): parsetFile='../lilf.config'
+    if parsetFile == '':
+        matched_conf_files = glob.glob('[Ll][Ii][Ll][Ff].conf*') + glob.glob('../[Ll][Ii][Ll][Ff].conf*')
+        if len(matched_conf_files) > 0:
+            parsetFile = matched_conf_files[0]
+            logger.info(f'Found config file: {parsetFile}')
 
     config = ConfigParser(defaults=None)
     config.read(parsetFile)
@@ -56,35 +67,50 @@ def getParset(parsetFile=''):
     # preprocess
     add_default('LOFAR_preprocess', 'fix_table', 'True') # fix bug in some old observations
     add_default('LOFAR_preprocess', 'renameavg', 'True')
-    add_default('LOFAR_preprocess', 'keep_IS', 'False')
+    add_default('LOFAR_preprocess', 'keep_IS', 'True')
     add_default('LOFAR_preprocess', 'backup_full_res', 'False')
-    # demix
-    add_default('LOFAR_demix', 'data_dir', 'data-bkp/')
-    add_default('LOFAR_demix', 'include_target', 'False')
-    add_default('LOFAR_demix', 'demix_model', os.path.dirname(__file__)+'/../models/demix_all.skymodel')
+    add_default('LOFAR_preprocess', 'demix_sources', '')  # Demix  sources in these patches (e.g. [VirA,TauA], default: No demix
+    add_default('LOFAR_preprocess', 'demix_skymodel', '')  # Use non-default demix skymodel.
+    add_default('LOFAR_preprocess', 'demix_field_skymodel', 'LOTSS-DR3')  # Provide a custom target skymodel instead of online gsm model. Set to '' to ignore target.
+    add_default('LOFAR_preprocess', 'run_aoflagger', 'False')  # run aoflagger on individual sub-bands, only in cases where this was not one by the observatory!
+    add_default('LOFAR_preprocess', 'tar', 'True')  # Tar MS files at the end
+    add_default('LOFAR_preprocess', 'data_dir', '')
     # cal
     add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
     add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
     add_default('LOFAR_cal', 'imaging', 'False')
-    # cal2
-    add_default('LOFAR_cal2', 'data_dir', 'data-bkp/')
-    add_default('LOFAR_cal2', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
-    add_default('LOFAR_cal2', 'imaging', 'False')
+    add_default('LOFAR_cal', 'fillmissingedges', 'True')
+    add_default('LOFAR_cal', 'less_aggressive_flag', 'False') # change flagging so that we can handle data with alternating SBs only or many flagged points
+    add_default('LOFAR_cal', 'develop', 'False') # if true prevents the deletion of files
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
     add_default('LOFAR_timesplit', 'ngroups', '1')
     add_default('LOFAR_timesplit', 'initc', '0')
-    # quick-self
-    add_default('LOFAR_quick-self', 'data_dir', 'data-bkp/')
-    # dd-parallel - deprecated
-    #add_default('LOFAR_dd-parallel', 'maxniter', '10')
-    #add_default('LOFAR_dd-parallel', 'calFlux', '1.5')
-    # dd
-    add_default('LOFAR_dd', 'maxIter', '2')
-    add_default('LOFAR_dd', 'minCalFlux60', '1')
-    add_default('LOFAR_dd', 'removeExtendedCutoff', '0.0005')
-    add_default('LOFAR_dd', 'target_dir', '') # ra,dec
+    add_default('LOFAR_timesplit', 'fillmissingedges', 'True')
+    add_default('LOFAR_timesplit', 'apply_fr', 'False') # Also transfer rotationmeasure sols? (E.g. for nearby calibrator and target)
+    add_default('LOFAR_timesplit', 'no_aoflagger', 'False') # TEST: Skip aoflagger (e.g. for observations of A-Team sources)
+    # ddparallel
+    add_default('LOFAR_ddparallel', 'maxIter', '2')
+    add_default('LOFAR_ddparallel', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
+    add_default('LOFAR_ddparallel', 'subfield_min_flux', '20') # min flux within calibration subfield
+    add_default('LOFAR_ddparallel', 'ph_sol_mode', 'phase') # phase or tecandphase
+    add_default('LOFAR_ddparallel', 'remove3c', 'True')
+    add_default('LOFAR_ddparallel', 'fulljones', 'False')
+    add_default('LOFAR_ddparallel', 'min_facets', '')
+    add_default('LOFAR_ddparallel', 'max_facets', '')
+    add_default('LOFAR_ddparallel', 'ateam_clip', '') # [CygA, CasA] or [CasA] or [CygA] or '' - the code clips the specified ateams (if not demixed from the observatory)
+    add_default('LOFAR_ddparallel', 'develop', 'False') # if true make more debug images (slower)
+    add_default('LOFAR_ddparallel', 'data_dir', '')
+    # ddserial
+    add_default('LOFAR_ddserial', 'maxIter', '1')
+    add_default('LOFAR_ddserial', 'minCalFlux60', '0.8')
+    add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
+    # add_default('LOFAR_ddserial', 'removeExtendedCutoff', '0.0005')
+    add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec
+    add_default('LOFAR_ddserial', 'manual_dd_cal', '')
+    add_default('LOFAR_ddserial', 'develop', 'False') # if true make more debug images (slower)
+    # add_default('LOFAR_ddserial', 'solve_tec', 'False') # per default, solve each dd for scalarphase. if solve_tec==True, solve for TEC instead.
     # extract
     add_default('LOFAR_extract', 'max_niter', '10')
     add_default('LOFAR_extract', 'subtract_region', '') # Sources inside extract-reg that should still be subtracted! Use this e.g. for individual problematic sources in a large extractReg
@@ -95,8 +121,8 @@ def getParset(parsetFile=''):
     add_default('LOFAR_extract', 'ampcal', 'auto')
     add_default('LOFAR_extract', 'extractRegion', 'target.reg')
     # quality
-    add_default('LOFAR_quality', 'self_dir', 'self')
-    add_default('LOFAR_quality', 'ddcal_dir', 'ddcal')
+    add_default('LOFAR_quality', 'ddparallel_dir', 'ddparallel')
+    add_default('LOFAR_quality', 'ddserial_dir', 'ddserial')
     # virgo
     add_default('LOFAR_virgo', 'cal_dir', '')
     add_default('LOFAR_virgo', 'data_dir', './')
@@ -106,11 +132,6 @@ def getParset(parsetFile=''):
     add_default('LOFAR_m87', 'skipmodel', 'False')
     add_default('LOFAR_m87', 'model_dir', '')
     # peel
-    #add_default('LOFAR_peel', 'peelReg', 'peel.reg')
-    #add_default('LOFAR_peel', 'predictReg', '')
-    #add_default('LOFAR_peel', 'cal_dir', '')
-    #add_default('LOFAR_peel', 'data_dir', './')
-
     ### uGMRT ###
     # init - deprecated
     #add_default('uGMRT_init', 'data_dir', './datadir')
@@ -299,19 +320,23 @@ def lofar_nu2num(nu):
     elif nu_clk == 160:
         SBband = 156250.0/1e6
 
-    return np.int(np.floor((1024./nu_clk) * (nu - (n-1) * nu_clk/2.)))
+    return int(np.floor((1024./nu_clk) * (nu - (n-1) * nu_clk/2.)))
 
-def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
+def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
     """
     s : scheduler
-    c : cycle name, e.g. "final"
+    c : cycle name, e.g. "final" (or h5 output in a format filename.h5)
     h5s : lists of H5parm files or string of 1 h5parm
     parsets : lists of parsets to execute
+    plots_dir : rename the "plots" dir to this name at the end
+    h5_dir : dir where to move the new h5parm
     """
 
     logger.info("Running LoSoTo...")
-
-    h5out = 'cal-'+c+'.h5'
+    if c[-3:] == '.h5':
+        h5out = c
+    else:
+        h5out = 'cal-'+c+'.h5'
 
     if type(h5s) is str: h5s = [h5s]
 
@@ -319,24 +344,28 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
     for i, h5 in enumerate(h5s):
         if h5[-3:] == 'npz':
             newh5 = h5.replace('.npz','.h5')
-            s.add('killMS2H5parm.py -V --nofulljones %s %s ' % (newh5, h5), log='losoto-'+c+'.log', commandType="python", processors='max')
+            s.add('killMS2H5parm.py -V --nofulljones %s %s ' % (newh5, h5), log='losoto-'+c+'.log', commandType="python")
             s.run(check = True)
             h5s[i] = newh5
 
     # concat/move
     if len(h5s) > 1:
         check_rm(h5out)
-        s.add('H5parm_collector.py -V -s sol000 -o '+h5out+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python", processors='max')
+        s.add('H5parm_collector.py -V -s sol000 -o '+h5out+' '+' '.join(h5s), log='losoto-'+c+'.log', commandType="python")
         s.run(check = True)
-    else:
+    elif h5s[0] != h5out:
         os.system('cp -r %s %s' % (h5s[0], h5out) )
+
+    if h5_dir:
+        os.system(f'mv {h5out} {h5_dir}/{h5out}')
+        h5out = f'{h5_dir}/{h5out}'
 
     check_rm('plots')
     os.makedirs('plots')
 
     for parset in parsets:
         logger.debug('-- executing '+parset+'...')
-        s.add('losoto -V '+h5out+' '+parset, log='losoto-'+c+'.log', logAppend=True, commandType="python", processors='max')
+        s.add('losoto -V '+h5out+' '+parset, log='losoto-'+c+'.log', logAppend=True, commandType="python")
         s.run(check = True)
 
     if plots_dir is None:
@@ -348,29 +377,76 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None) -> object:
         check_rm('plots')
 
 
-def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
+def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_concat=False, reuse_concat=False, **kwargs):
     """
     s : scheduler
+    concat_mss : try to concatenate mss files to speed up wsclean
+    keep_concat : keep the concat MSs for re-use either by -cont or by reuse_concat=True
+    reuse_concat : reuse concatenated MS previously kept with keep_concat=True
     args : parameters for wsclean, "_" are replaced with "-", any parms=None is ignored.
            To pass a parameter with no values use e.g. " no_update_model_required='' "
     """
-    
+
+    # Check whether we can combine MS files in time, if some (or all) of them have the same antennas.
+    # This can speed up WSClean significantly (or slow it down, depending on the number and size of MSs and the clean call).
+    if concat_mss:
+        if not 'cont' in kwargs.keys() and not reuse_concat:
+            from LiLF import lib_ms
+            from itertools import groupby
+
+            keyfunct = lambda x: ' '.join(sorted(lib_ms.MS(x).getAntennas()))
+            MSs_list = sorted(MSs_files.split(), key=keyfunct) # needs to be sorted
+            groups = []
+            for k, g in groupby(MSs_list, keyfunct):
+                g = list(g)
+                # reorder in time to prevent wsclean bug
+                times = [lib_ms.MS(MS).getTimeRange()[0] for MS in g]
+                g = [MS for _, MS in sorted(zip(times, g))]
+                groups.append(g)
+            logger.info(f"Found {len(groups)} groups of datasets with same antennas.")
+            for i, group in enumerate(groups, start=1):
+                antennas = ', '.join(lib_ms.MS(group[0]).getAntennas())
+                logger.info(f"WSClean MS group {i}: {group}")
+                logger.debug(f"List of antennas: {antennas}")
+
+            MSs_files_clean = []
+            for g, group in enumerate(groups):
+                check_rm(f'wsclean_concat_{g}.MS')
+                # simply make a symlink for groups of 1, faster
+                if len(group) == 1:
+                    os.system(f'ln -s {group[0]} wsclean_concat_{g}.MS') # TEST - symlink should be the quickest
+                    # os.system(f'cp -r {group[0]} wsclean_concat_{g}.MS')
+                else:
+                    if 'data_column' in kwargs.keys():
+                        data_column = kwargs['data_column']
+                    else:
+                        data_column = 'CORRECTED_DATA'
+                    s.add(f'taql select UVW, FLAG_CATEGORY, WEIGHT, SIGMA, ANTENNA1, ANTENNA2, ARRAY_ID, DATA_DESC_ID, EXPOSURE, FEED1, FEED2, FIELD_ID, FLAG_ROW, INTERVAL, OBSERVATION_ID, PROCESSOR_ID, SCAN_NUMBER, STATE_ID, TIME, TIME_CENTROID, {data_column}, FLAG, WEIGHT_SPECTRUM from {group} giving wsclean_concat_{g}.MS as plain', log=logfile, commandType='general')
+                    s.run(check=True)
+                MSs_files_clean.append(f'wsclean_concat_{g}.MS')
+        else:
+            # continue clean
+            MSs_files_clean = glob.glob('wsclean_concat_*.MS')
+            logger.info(f'Continue clean on concat MSs {MSs_files_clean}')
+        MSs_files_clean = ' '.join(MSs_files_clean)
+    else:
+        MSs_files_clean = MSs_files
+
     wsc_parms = []
-    reordering_processors = np.min([len(MSs_files),s.max_processors])
+    #reordering_processors = np.min([len(MSs_files_clean),s.maxProcs])
 
     # basic parms
-    wsc_parms.append( '-j '+str(s.max_processors)+' -reorder -parallel-reordering 4 ' )
+    wsc_parms.append( '-j '+str(s.maxProcs)+' -reorder -parallel-reordering 4 ' )
     if 'use_idg' in kwargs.keys():
-        if s.get_cluster() == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
+        if s.cluster == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
             wsc_parms.append( '-idg-mode hybrid' )
             wsc_parms.append( '-mem 10' )
         else:
             wsc_parms.append( '-idg-mode cpu' )
-
-    # other stanrdard parms
-    wsc_parms.append( '-clean-border 1' )
+    if s.cluster == 'Spider':
+        wsc_parms.append( '-temp-dir /tmp/' )
     # temp dir
-    #if s.get_cluster() == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
+    #if s.cluster == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
     #    wsc_parms.append( '-temp-dir /localwork.ssd' )
     # user defined parms
     for parm, value in list(kwargs.items()):
@@ -383,36 +459,45 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, **kwargs):
         if parm == 'cont': 
             parm = 'continue'
             value = ''
+            # if continue, remove nans from previous models
+            lib_img.Image(kwargs['name']).nantozeroModel()
         if parm == 'size' and type(value) is int: value = '%i %i' % (value, value)
         if parm == 'size' and type(value) is list: value = '%i %i' % (value[0], value[1])
         wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
 
     # files
-    wsc_parms.append( MSs_files )
+    wsc_parms.append( MSs_files_clean )
 
     # create command string
     command_string = 'wsclean '+' '.join(wsc_parms)
-    s.add(command_string, log=logfile, commandType='wsclean', processors='max')
+    s.add(command_string, log=logfile, commandType='wsclean')
+    logger.info('Running WSClean...')
     s.run(check=True)
 
     # Predict in case update_model_required cannot be used
     if do_predict == True:
+        if 'apply_facet_solutions' in kwargs.keys():
+            raise NotImplementedError('do_predict in combination with apply_facet_solutions is not implemented.')
         wsc_parms = []
         # keep imagename and channel number
         for parm, value in list(kwargs.items()):
             if value is None: continue
             #if 'min' in parm or 'max' in parm or parm == 'name' or parm == 'channels_out':
-            if parm == 'name' or parm == 'channels_out' or parm == 'use_wgridder' or parm == 'wgridder_accuracy':
+            if parm == 'name' or parm == 'channels_out' or parm == 'wgridder_accuracy' or parm == 'shift':
                 wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
 
-        # files
+        # files (the original, not the concatenated)
         wsc_parms.append( MSs_files )
+        lib_img.Image(kwargs['name']).nantozeroModel() # If we have fully flagged channel, set to zero so we don't get error
+
         # Test without reorder as it apperas to be faster
         # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
         command_string = 'wsclean -predict -padding 1.8 ' \
-                         '-j '+str(s.max_processors)+' '+' '.join(wsc_parms)
-        s.add(command_string, log=logfile, commandType='wsclean', processors='max')
+                         '-j '+str(s.maxProcs)+' '+' '.join(wsc_parms)
+        s.add(command_string, log=logfile, commandType='wsclean')
         s.run(check=True)
+    if not keep_concat:
+        check_rm('wsclean_concat_*.MS')
 
 def run_DDF(s, logfile, **kwargs):
     """
@@ -424,7 +509,7 @@ def run_DDF(s, logfile, **kwargs):
     ddf_parms = []
 
     # basic parms
-    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i --Misc-IgnoreDeprecationMarking=1 ' % (s.max_processors) )
+    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i --Misc-IgnoreDeprecationMarking=1 ' % (s.maxProcs) )
 
     # cache dir
     if not 'Cache_Dir' in list(kwargs.keys()):
@@ -443,7 +528,7 @@ def run_DDF(s, logfile, **kwargs):
 
     # create command string
     command_string = 'DDF.py '+' '.join(ddf_parms)
-    s.add(command_string, log=logfile, commandType='DDFacet', processors='max')
+    s.add(command_string, log=logfile, commandType='DDFacet')
     s.run(check=True)
 
 
@@ -528,6 +613,8 @@ class Walker():
         self.filename = os.path.abspath(filename)
         self.__skip__ = False
         self.__step__ = None
+        self.__inittime__ = None
+        self.__globaltimeinit__ = datetime.datetime.now()
 
     def if_todo(self, stepname):
         """
@@ -538,7 +625,7 @@ class Walker():
         self.__step__ = stepname
         with open(self.filename, "r") as f:
             for stepname_done in f:
-                if stepname == stepname_done.rstrip():
+                if stepname == stepname_done.split('#')[0].rstrip():
                     self.__skip__ = True
         return self
 
@@ -553,7 +640,7 @@ class Walker():
             frame.f_trace = self.trace
         else:
             logger.log(20, '>> start >> {}'.format(self.__step__))
-
+            self.__timeinit__ = datetime.datetime.now()
 
     def trace(self, frame, event, arg):
         raise Skip()
@@ -564,7 +651,8 @@ class Walker():
         """
         if type is None:
             with open(self.filename, "a") as f:
-                f.write(self.__step__ + '\n')
+                delta = 'h '.join(str(datetime.datetime.now() - self.__timeinit__).split(':')[:-1])+'m'
+                f.write(self.__step__ + ' # '+delta+' ' +'\n')
             logger.info('<< done << {}'.format(self.__step__))
             return  # No exception
         if issubclass(type, Skip):
@@ -574,54 +662,51 @@ class Walker():
             logger.error('<< exit << {}'.format(self.__step__))
             return True
 
+    def alldone(self):
+        delta = 'h '.join(str(datetime.datetime.now() - self.__globaltimeinit__).split(':')[:-1])+'m'
+        logger.info('Done. Total time: '+delta)
+
 class Scheduler():
-    def __init__(self, qsub = None, maxThreads = None, max_processors = None, log_dir = 'logs', dry = False):
+    def __init__(self, maxProcs = None, max_cpucores = None, log_dir = 'logs', dry = False):
         """
-        qsub:           if true call a shell script which call qsub and then wait
-                        for the process to finish before returning
-        maxThreads:    max number of parallel processes
+        maxProcs:       max number of parallel processes
+        max_cpucores:   max number of cpu cores usable in a node
         dry:            don't schedule job
-        max_processors: max number of processors in a node (ignored if qsub=False)
         """
         self.hostname = socket.gethostname()
         self.cluster = self.get_cluster()
         self.log_dir = log_dir
-        self.qsub    = qsub
-        # if qsub/max_thread/max_processors not set, guess from the cluster
+        #self.qsub    = qsub
+        # if qsub/max_thread/max_cpucores not set, guess from the cluster
         # if they are set, double check number are reasonable
-        if (self.qsub == None):
-            if (self.cluster == "Hamburg"):
-                self.qsub = True
-            else:
-                self.qsub = False
-        else:
-            if ((self.qsub is False and self.cluster == "Hamburg") or
-               (self.qsub is True and (self.cluster == "Leiden" or self.cluster == "CEP3" or
-                                       self.cluster == "Hamburg_fat" or self.cluster == "Pleiadi" or self.cluster == "Herts"))):
-                logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
-                sys.exit(1)
+        #if (self.qsub == None):
+        #    self.qsub = False
+        #else:
+        #    if ((self.qsub is False and self.cluster == "Hamburg") or
+        #       (self.qsub is True and (self.cluster == "Leiden" or self.cluster == "CEP3" or
+        #                               self.cluster == "Hamburg_fat" or self.cluster == "Pleiadi" or self.cluster == "Herts"))):
+        #        logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
+        #        sys.exit(1)
 
-        if (maxThreads is None):
-            if (self.cluster == "Hamburg"):
-                self.maxThreads = 32
+        if (max_cpucores == None):
+            # check if running in a slurm environment with a limited number of CPUs (less than cpu_count())
+            slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE', False)
+            if slurm_cpus:
+                self.max_cpucores = int(slurm_cpus)
             else:
-                self.maxThreads = multiprocessing.cpu_count()
+                self.max_cpucores = multiprocessing.cpu_count()
         else:
-            self.maxThreads = maxThreads
+            self.max_cpucores = max_cpucores
 
-        if (max_processors == None):
-            if   (self.cluster == "Hamburg"):
-                self.max_processors = 6
-            else:
-                self.max_processors = multiprocessing.cpu_count()
+        if (maxProcs is None) or (maxProcs > self.max_cpucores):
+            self.maxProcs = self.max_cpucores
         else:
-            self.max_processors = max_processors
+            self.maxProcs = maxProcs
 
         self.dry = dry
 
-        logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname + " (maxThreads: " + str(self.maxThreads) + ", qsub (multinode): " +
-                     str(self.qsub) + ", max_processors: " + str(self.max_processors) + ").")
-
+        logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname +
+                    " (maxProcs: " + str(self.maxProcs) + ", max_cpucores: " + str(self.max_cpucores) + ").")
 
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
@@ -642,21 +727,20 @@ class Scheduler():
             return "Herts"
         elif ('leidenuniv' in hostname):
             return "Leiden"
-        elif (hostname[0 : 3] == 'lof'):
-            return "CEP3"
+        elif ('spider' in hostname):
+            return "Spider"
         else:
-            logger.warning('Hostname %s unknown.' % hostname)
+            logger.debug('Hostname %s unknown.' % hostname)
             return "Unknown"
 
 
-    def add(self, cmd = '', log = '', logAppend = True, commandType = '', processors = None):
+    def add(self, cmd = '', log = '', logAppend = True, commandType = ''):
         """
         Add a command to the scheduler list
         cmd:         the command to run
         log:         log file name that can be checked at the end
-        logAppend:  if True append, otherwise replace
+        logAppend:   if True append, otherwise replace
         commandType: can be a list of known command types as "wsclean", "DP3", ...
-        processors:  number of processors to use, can be "max" to automatically use max number of processors per node
         """
 
         if (log != ''):
@@ -668,7 +752,6 @@ class Scheduler():
                 cmd += " > "
             cmd += log + " 2>&1"
 
-        # if running wsclean add the string
         if commandType == 'wsclean':
             logger.debug('Running wsclean: %s' % cmd)
         elif commandType == 'DP3':
@@ -680,30 +763,30 @@ class Scheduler():
             logger.debug('Running DDFacet: %s' % cmd)
         elif commandType == 'python':
             logger.debug('Running python: %s' % cmd)
-
-        if (processors != None and processors == 'max'):
-            processors = self.max_processors
-
-        if self.qsub:
-            # if number of processors not specified, try to find automatically
-            if (processors == None):
-                processors = 1 # default use single CPU
-                if ("DP3" == cmd[ : 4]):
-                    processors = 1
-                if ("wsclean" == cmd[ : 7]):
-                    processors = self.max_processors
-            if (processors > self.max_processors):
-                processors = self.max_processors
-
-            self.action_list.append([str(processors), '\'' + cmd + '\''])
         else:
-            self.action_list.append(cmd)
+            logger.debug('Running general: %s' % cmd)
+
+        #if self.qsub:
+        #    if qsub_cpucores == 'max':
+        #        qsub_cpucores = self.max_cpucores
+        #    # if number of cores not specified, try to find automatically
+        #    elif qsub_cpucores == None:
+        #        qsub_cpucores = 1 # default use single CPU
+        #        if ("DP3" == cmd[ : 4]):
+        #            qsub_cpucores = 1
+        #        if ("wsclean" == cmd[ : 7]):
+        #            qsub_cpucores = self.max_cpucores
+        #    if (qsub_cpucores > self.max_cpucores):
+        #        qsub_cpucores = self.max_cpucores
+        #    self.action_list.append([str(qsub_cpucores), '\'' + cmd + '\''])
+        #else:
+        self.action_list.append(cmd)
 
         if (log != ""):
             self.log_list.append((log, commandType))
 
 
-    def run(self, check = False, maxThreads = None):
+    def run(self, check = False, maxProcs = None):
         """
         If 'check' is True, a check is done on every log in 'self.log_list'.
         If max_thread != None, then it overrides the global values, useful for special commands that need a lower number of threads.
@@ -711,20 +794,20 @@ class Scheduler():
 
         def worker(queue):
             for cmd in iter(queue.get, None):
-                if self.qsub and self.cluster == "Hamburg":
-                    cmd = 'salloc --job-name LBApipe --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
-                            ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
+                #if self.qsub and self.cluster == "Hamburg":
+                #    cmd = 'salloc --job-name LBApipe --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
+                #            ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
                 gc.collect()
                 subprocess.call(cmd, shell = True)
 
-        # limit threads only when qsub doesn't do it
-        if (maxThreads == None):
-            maxThreads_run = self.maxThreads
+        # limit number of processes
+        if (maxProcs == None):
+            maxProcs_run = self.maxProcs
         else:
-            maxThreads_run = min(maxThreads, self.maxThreads)
+            maxProcs_run = min(maxProcs, self.maxProcs)
 
         q       = Queue()
-        threads = [Thread(target = worker, args=(q,)) for _ in range(maxThreads_run)]
+        threads = [Thread(target = worker, args=(q,)) for _ in range(maxProcs_run)]
 
         for i, t in enumerate(threads): # start workers
             t.daemon = True
@@ -760,44 +843,45 @@ class Scheduler():
             return 1
 
         if (commandType == "DP3"):
-            out = subprocess.check_output('grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            # TODO: This needs to be uncommented once the malloc_consolidate stuff is fixed
-            # out += subprocess.check_output('grep -l "Aborted (core dumped)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -i -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "**** uncaught exception ****" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(r'grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Aborted (core dumped)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -i -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            #out += subprocess.check_output(r'grep -i -l "already a beam correction applied" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             # this interferes with the missingantennabehaviour=error option...
             # out += subprocess.check_output('grep -l "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "misspelled" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "misspelled" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "CASA"):
-            out = subprocess.check_output('grep -l "[a-z]Error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "An error occurred running" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "\*\*\* Error \*\*\*" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(r'grep -l "[a-z]Error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "An error occurred running" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "\*\*\* Error \*\*\*" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "wsclean"):
-            out = subprocess.check_output('grep -l "exception occur" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Aborted" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(r'grep -l "exception occur" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Aborted" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             # out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
-            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "exception occur" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Segmentation fault\|Killed" ' + log + ' ; exit 0', shell=True,
+            out = subprocess.check_output(r'grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "exception occur" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" ' + log + ' ; exit 0', shell=True,
                                            stderr=subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "killed by signal" ' + log + ' ; exit 0', shell=True,
+            out += subprocess.check_output(r'grep -l "killed by signal" ' + log + ' ; exit 0', shell=True,
                                            stderr=subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Aborted" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Aborted" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
 
         elif (commandType == "python"):
-            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "ERROR" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output('grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(r'grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            # out += subprocess.check_output(r'grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "ERROR" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "ImportError" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Traceback (most recent call last)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Permission denied" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
 #        elif (commandType == "singularity"):
 #            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
@@ -814,7 +898,58 @@ class Scheduler():
         if out != b'':
             out = out.split(b'\n')[0].decode()
             logger.error(commandType+' run problem on:\n'+out)
-            raise RuntimeError(commandType+' run problem on:\n'+out)
+            errlines = subprocess.check_output('tail -n 10 '+log, shell = True, stderr = subprocess.STDOUT).decode()
+            raise RuntimeError(commandType+' run problem on:\n'+out+'\n'+errlines)
 
         return 0
 
+def get_template_image(reference_ra_deg, reference_dec_deg, ximsize=512, yimsize=512, cellsize_deg=0.000417, fill_val=0):
+    """
+    Make a blank image and return
+    adapted from https://github.com/darafferty/LSMTool/blob/master/lsmtool/operations_lib.py#L619
+
+    Parameters
+    ----------
+    reference_ra_deg : float
+        RA for center of output image
+    reference_dec_deg : float
+        Dec for center of output image
+    ximsize : int, optional
+        Size of output image
+    yimsize : int, optional
+        Size of output image
+    cellsize_deg : float, optional
+        Size of a pixel in degrees
+    fill_val : int, optional
+        Value with which to fill the image
+    """
+
+    # Make fits hdu
+    # Axis order is [STOKES, FREQ, DEC, RA]
+    shape_out = [yimsize, ximsize]
+    hdu = fits.PrimaryHDU(np.ones(shape_out, dtype=np.float32)*fill_val)
+    hdulist = fits.HDUList([hdu])
+    header = hdulist[0].header
+
+    # Add RA, Dec info
+    i = 1
+    header['CRVAL{}'.format(i)] = reference_ra_deg
+    header['CDELT{}'.format(i)] = -cellsize_deg
+    header['CRPIX{}'.format(i)] = ximsize / 2.0
+    header['CUNIT{}'.format(i)] = 'deg'
+    header['CTYPE{}'.format(i)] = 'RA---SIN'
+    i += 1
+    header['CRVAL{}'.format(i)] = reference_dec_deg
+    header['CDELT{}'.format(i)] = cellsize_deg
+    header['CRPIX{}'.format(i)] = yimsize / 2.0
+    header['CUNIT{}'.format(i)] = 'deg'
+    header['CTYPE{}'.format(i)] = 'DEC--SIN'
+
+    # Add equinox
+    header['EQUINOX'] = 2000.0
+
+    # Add telescope
+    header['TELESCOP'] = 'LOFAR'
+
+    hdulist[0].header = header
+    return hdulist

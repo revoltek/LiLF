@@ -17,7 +17,20 @@ log = True
 operation = FLAGSTATION
 soltab = sol000/amplitudeSmooth
 mode = bandpass
-ampRange = [0.3,2.0]
+ampRange = [0.3,2.5]
+maxFlaggedFraction = 0.25
+minFlaggedFraction = 0.25
+nsigma = 4
+skipAnts = ['RS210LBA','RS310LBA']
+skipInternational = True
+
+[flagstation2]
+operation = FLAGSTATION
+soltab = sol000/amplitudeSmooth
+mode = relative
+nsigma = 4
+thresholdBaddata = 0.5
+skipAnts = ['RS210LBA','RS310LBA']
 skipInternational = True
 
 [plotAs]
@@ -53,7 +66,8 @@ ratio = True
 [plotAr1]
 operation = PLOT
 soltab = sol000/amplitudeRes
-freq.minmaxstep = [0,300e6,100]
+pol = XX,YY
+freq.minmaxstep = [0,300e6,200]
 axesInPlot = time
 axisInTable = ant
 axisInCol = pol
@@ -66,6 +80,7 @@ minmax = [-1,1]
 [plotAr2]
 operation = PLOT
 soltab = sol000/amplitudeRes
+pol = XX,YY
 time.minmaxstep = [0,1e20,500]
 axesInPlot = freq
 axisInTable = ant
@@ -77,6 +92,7 @@ minmax = [-1,1]
 [plotAr3]
 operation = PLOT
 soltab = sol000/amplitudeRes
+pol = XX,YY
 axesInPlot = [time,freq]
 axisInTable = ant
 plotFlag = True

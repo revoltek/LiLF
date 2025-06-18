@@ -1,0 +1,18 @@
+msin = 
+msin.datacolumn = SMOOTHED_DATA
+
+msout = .
+
+steps=[sol]
+
+sol.type = ddecal
+sol.solveralgorithm = directioniterative # much faster, needed for sol.datause
+sol.uvlambdamin = 100
+#sol.uvmmax = 80e3 
+sol.h5parm = 
+sol.maxiter = 300
+sol.tolerance = 5e-4
+sol.solint = 1
+sol.mode = tecandphase  # tec
+sol.propagatesolutions = True
+sol.modeldatacolumns=[MODEL_DATA]

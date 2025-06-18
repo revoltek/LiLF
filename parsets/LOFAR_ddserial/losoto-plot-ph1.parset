@@ -1,0 +1,10 @@
+Ncpu = 0
+
+[plotP]
+operation = PLOT
+soltab = sol000/phase000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/ph1_
+refAnt = auto
+minmax = [-3.14,3.14]

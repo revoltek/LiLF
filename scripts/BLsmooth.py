@@ -126,7 +126,7 @@ opt.add_option('-a', '--onlyamp', help='Smooth only amplitudes [default: smooth 
 opt.add_option('-t', '--notime', help='Do not do smoothing in time [default: False]', action="store_true", default=False)
 opt.add_option('-q', '--nofreq', help='Do not do smoothing in frequency [default: False]', action="store_true", default=False)
 opt.add_option('-c', '--chunks', help='Split the I/O in n chunks. If you run out of memory, set this to a value > 2.', default=8, type='int')
-opt.add_option('-n', '--ncpu', help='Number of cores', default=4, type='int')
+opt.add_option('-n', '--ncores', help='Number of cores', default=4, type='int')
 (options, msfile) = opt.parse_args()
 
 if msfile == []:
@@ -187,7 +187,7 @@ for c, idx in enumerate(np.array_split(np.arange(n_bl), options.chunks)):
         new_weights = np.zeros_like(weights_chunk)
 
     # Iterate on each baseline in this chunk
-    mpm = multiprocManager(options.ncpu, smooth_baseline)
+    mpm = multiprocManager(options.ncores, smooth_baseline)
     for i_chunk, (ant1, ant2, dist) in enumerate(zip(ants1_chunk, ants2_chunk, dists[idx])):
         if ant1 == ant2:
             continue  # skip autocorrelations

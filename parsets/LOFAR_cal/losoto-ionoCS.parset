@@ -1,0 +1,48 @@
+Ncpu = 0
+[duplicatePbkp]
+operation = DUPLICATE
+soltab = sol000/phase000
+soltabOut = phaseResid000
+
+[ct]
+operation = CLOCKTEC
+soltab = sol000/phase000
+CombinePol = False
+FlagBadChannels = False
+Fit3rdOrder = False
+Circular = False
+
+[plotClock]
+operation = PLOT
+soltab = sol000/clock000
+axesInPlot = [time]
+axisInTable = ant
+prefix = plots/clock
+#minmax = [-2e-7,2e-7]
+plotFlag = False
+refAnt = SuperSt
+
+[plotTEC]
+operation = PLOT
+soltab = sol000/tec000
+axesInPlot = [time]
+axisInTable = ant
+prefix = plots/tec
+minmax = [-0.1,0.1]
+plotFlag = False
+refAnt = SuperSt
+
+[residuals]
+operation = RESIDUALS
+soltab = sol000/phaseResid000
+soltabsToSub = [tec000,clock000]
+
+[PlotPr1]
+operation = PLOT
+soltab = sol000/phaseResid000
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/phRes_
+refAnt = SuperSt
+minmax = [-3.14,3.14]

@@ -14,18 +14,21 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+import os
 import numpy as np
+import pandas as pd
 import copy
 import logging
+import lsmtool
 from astropy.table import Table, Column
-from astropy.wcs import WCS
 import astropy.units as u
 from astropy.units import UnitConversionError
 from astropy.coordinates import SkyCoord
 
 def separation(c_ra,c_dec,ra,dec):
     # all values in degrees
-    return np.sqrt((np.cos(c_dec.to_value('rad'))*(ra-c_ra))**2.0+(dec-c_dec)**2.0)
+    return SkyCoord(c_ra,c_dec).separation(SkyCoord(ra,dec)).value
+    #return np.sqrt((np.cos(c_dec.to_value('rad'))*(ra-c_ra))**2.0+(dec-c_dec)**2.0)
 
 class Cat():
     """ Wrapper class to include filtering and cross-matching utilities for astropy tables"""
@@ -59,6 +62,9 @@ class Cat():
                         break
                 except KeyError:
                     pass
+        # be sure it's between 0 and 360
+        cat['RA'] = cat['RA'] % 360
+        
         if dec:
             try:
                 cat['DEC'] = cat[dec].to('degree')
@@ -194,10 +200,10 @@ class Cat():
         cat2 = cat2[(cat2['RA'] > minra) & (cat2['RA'] < maxra) & (cat2['DEC'] > mindec) & (cat2['DEC'] < maxdec)]
         matches = 0
         for r in cat:
-            dist = separation(r['RA']*cat['RA'].unit, r['DEC']*cat['DEC'].unit, cat2['RA'], cat2['DEC'])
+            dist = separation(r['RA']*cat['RA'].unit, r['DEC']*cat['DEC'].unit, cat2['RA'], cat2['DEC'])*u.deg
             stab = cat2[dist < radius*u.arcsec]
-            df = dist[dist < radius*u.arcsec]
             if len(stab) > 0:
+                df = dist[dist < radius*u.arcsec]
                 # got at least one match
                 if not unique and len(stab) > 1:
                     print(f"Non-unique match {len(stab)} - using closest match.")
@@ -299,6 +305,7 @@ class RadioCat(Cat):
             logstr += f'->rectangle:{len(cat)}'
         if circle: # filter in circle
             r = separation(circle[0]*u.deg, circle[1]*u.deg, cat['RA'], cat['DEC'])
+            print(circle)
             cat['center_dist'] = r
             cat = cat[cat['center_dist'] < circle[2]]
             logstr += f'->circle:{len(cat)}'
@@ -314,10 +321,10 @@ class RadioCat(Cat):
         if isolation:
             cat['NN_dist']=np.nan*u.deg
             for row in cat:
-                dist=3600.0*separation(row['RA']*u.deg,row['DEC']*u.deg,cat['RA'],cat['DEC'])
+                dist=separation(row['RA']*u.deg,row['DEC']*u.deg,cat['RA'],cat['DEC'])
                 dist.sort()
-                row['NN_dist']=dist[1].to_value('degree')
-            cat=cat[cat['NN_dist']> isolation]
+                row['NN_dist']=dist[1]
+            cat=cat[cat['NN_dist'] > isolation/3600.] # deg and arcsec->deg
             logstr += f'->isolation:{len(cat)}'
         if size:
             cat = cat[cat['Maj'] < size*u.arcsec]
@@ -361,3 +368,32 @@ class RadioCat(Cat):
         return median
 
 
+def get_LOTSS_DR3_cone_as_skymodel(centre, radius, filename, beamMS=None):
+    """Do a cone search on LoTSS DR-3 and return the result as skymodel
+    center: [ra,dec] in degree
+    radius: radius in degree
+    filename: skymodel path
+    beamMS: path to beamMS
+    """
+    with open(os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel', 'r') as f:
+        header = f.readline()
+        original_colnames = header.replace('\n', '').split(",")
+        colnames = header.replace('\n', '').split(" = ")[-1].split(", ")
+
+    table = pd.read_csv(
+        os.path.dirname(__file__) + '/../models/lotss_dr3_gaus_110325.skymodel',
+        names=colnames, skiprows=1)
+
+    table = table[table['Dec'] >= centre[1] - radius ]
+    table = table[table['Dec'] <= centre[1] + radius]
+
+    phasecentre_sky = SkyCoord(centre[0], centre[1], unit=(u.deg, u.deg), frame='icrs')
+    skycoords = SkyCoord(table['Ra'], table['Dec'], unit=(u.deg, u.deg), frame='icrs')
+    seperations = skycoords.separation(phasecentre_sky).degree
+    table = table[seperations < radius]
+
+    table.to_csv(filename, index=False, header=original_colnames)
+    sm = lsmtool.load(filename, beamMS=beamMS)
+    sm.setColValues('SpectralIndex', [[-0.7]] * len(sm.getColValues('I')))  # add standard spidx
+    sm.setColValues('LogarithmicSI', ['True']*len(sm.getColValues('I'))) # add standard spidx
+    return sm

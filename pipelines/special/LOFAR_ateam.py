@@ -100,7 +100,7 @@ for obs in set([ os.path.basename(ms).split('_')[0] for ms in MSs.getListStr() ]
     else:
         s.add('DP3 '+parset_dir+'/DP3-avg.parset msin=\"'+str(mss_toconcat)+'\" msout='+MS_concat+' avg.freqstep=%i avg.timestep=%i' % (nchan, avg_time),\
             log=obs+'_avg.log', commandType='DP3')
-s.run(check=True, maxThreads=2)
+s.run(check=True, maxProcs=2)
 
 ################################################################
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
@@ -134,8 +134,8 @@ if os.path.exists(model_dir+'/img-MFS-model.fits'):
     im.rescaleModel(f)
     n = len(glob.glob(model_dir+'/img-[0-9]*-model.fits'))
     logger.info('Predict (wsclean: %s - chan: %i)...' % (model_dir, n))
-    s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_processors)+' -channels-out '+str(n)+' '+MSs.getStrWsclean(), \
-          log='wscleanPRE-init.log', commandType='wsclean', processors='max')
+    s.add('wsclean -predict -name '+model_dir+'/img -j '+str(s.max_cpucores)+' -channels-out '+str(n)+' '+MSs.getStrWsclean(), \
+          log='wscleanPRE-init.log', commandType='wsclean')
     s.run(check=True)
 else:
     logger.info('Predict (DP3)...')
@@ -180,7 +180,7 @@ for c in range(100):
     
     # Convert to circular CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Converting to circular...')
-    MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxThreads=5)
+    MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxProcs=5)
     
     # Solve cal_SB.MS:CORRECTED_DATA (only solve)
     logger.info('Solving FR...')
@@ -310,8 +310,8 @@ for c in range(100):
     #im.rescaleModel(f)
 
     logger.info('Predict (wsclean: %s)...' % imagename)
-    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channels-out 10 '+MSs.getStrWsclean(), \
-          log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+    s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_cpucores)+' -channels-out 10 '+MSs.getStrWsclean(), \
+          log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean')
     s.run(check=True)
 
     #logger.info('Reweight...')
@@ -332,8 +332,8 @@ for c in range(100):
 #                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16)
 # 
 #        #logger.info('Predict wide (wsclean)...')
-#        #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_processors)+' -channelsout 32 '+MSs.getStrWsclean(), \
-#        #      log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean', processors='max')
+#        #s.add('wsclean -predict -name '+imagename+' -j '+str(s.max_cpucores)+' -channelsout 32 '+MSs.getStrWsclean(), \
+#        #      log='wscleanPRE-c'+str(c)+'.log', commandType='wsclean')
 #        #s.run(check = True)
 #
 #        #logger.info('Sub low-res model...')

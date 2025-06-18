@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-import os, sys, glob, getpass, socket, re, pickle
+import os, sys, glob, getpass, socket, pickle
 from LiLF.surveys_db import SurveysDB
-from LiLF import lib_ms, lib_img, lib_util, lib_log
+from LiLF import lib_util, lib_log
 logger_obj = lib_log.Logger('PiLL')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
@@ -210,7 +210,7 @@ for target_dir in target_dirs:
                 logger.info('Copy: cal*h5 -> herts:/beegfs/lofar/lba/calibration_solutions/%s' % cal_dir)
                 os.system('ssh herts "rm -rf /beegfs/lofar/lba/calibration_solutions/%s"' % cal_dir)
                 os.system('ssh herts "mkdir /beegfs/lofar/lba/calibration_solutions/%s"' % cal_dir)
-                os.system('scp -q cal-pa.h5 cal-amp.h5 cal-iono.h5 herts:/beegfs/lofar/lba/calibration_solutions/%s' % cal_dir)
+                os.system('scp -q cal-pa.h5 cal-bp.h5 cal-iono.h5 cal-iono-cs.h5 herts:/beegfs/lofar/lba/calibration_solutions/%s' % cal_dir)
                 os.system('scp -q -r plots* herts:/beegfs/lofar/lba/calibration_solutions/%s' % cal_dir)
 
                 # update the db
@@ -292,12 +292,9 @@ for grouped_target in grouped_targets:
             os.system('scp -q self/images/wide-largescale-MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('ssh herts "mkdir /beegfs/lofar/lba/products/%s/plots"' % grouped_target)
             os.system('scp -q -r self/plots/* herts:/beegfs/lofar/lba/products/%s/plots' % grouped_target)
-            os.system('scp -q ddcal/c0*/images/wideDD-c*.app.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
-            os.system('scp -q ddcal/c0*/images/wideDD-c*.int.restored.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
-            os.system('scp -q '+sorted(glob.glob('ddcal/c00/images/wideDD-c00.residual*.fits'))[-1]+' herts:/beegfs/lofar/lba/products/%s' % grouped_target)
-            os.system('scp -q '+sorted(glob.glob('ddcal/c01/images/wideDD-c01.residual*.fits'))[-1]+' herts:/beegfs/lofar/lba/products/%s' % grouped_target)
-            os.system('scp -q ddcal/c01/images/wideDD-c01.DicoModel herts:/beegfs/lofar/lba/products/%s' % grouped_target)
-            os.system('scp -q ddcal/c00/images/wideDD-c00.app.restored.fits.ddfmask.fits herts:/beegfs/lofar/lba/products/%s/wideDD-c01.mask.fits' % grouped_target)
+            os.system('scp -q ddcal/c0*/images/wideDD-c*.MFS-image.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q ddcal/c0*/images/wideDD-c*.MFS-image-pb.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
+            os.system('scp -q ddcal/c0*/images/wideDD-c*.MFS-residual.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/c01/solutions/interp.h5 herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/c0*/skymodels/all*reg herts:/beegfs/lofar/lba/products/%s' % grouped_target)
             os.system('scp -q ddcal/primarybeam.fits herts:/beegfs/lofar/lba/products/%s' % grouped_target)
@@ -323,8 +320,8 @@ for grouped_target in grouped_targets:
 
         with open('quality/quality.pickle', 'rb') as f:
             qdict = pickle.load(f)
-        logger.info(f'Self residual rms noise (cycle 0): %.1f mJy/b' % (qdict["self_c0_rms"] * 1e3))
-        logger.info(f'Self residual rms noise (cycle 1): %.1f mJy/b' % (qdict["self_c1_rms"] * 1e3))
+        logger.info('Self residual rms noise (cycle 0): %.1f mJy/b' % (qdict["self_c0_rms"] * 1e3))
+        logger.info('Self residual rms noise (cycle 1): %.1f mJy/b' % (qdict["self_c1_rms"] * 1e3))
         logger.info('DDcal residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddcal_c0_rms'] * 1e3))
         logger.info('DDcal residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddcal_c1_rms'] * 1e3))
         logger.info('DDcal NVSS ratio (cycle 1): %.1f with %i matches' % (qdict['nvss_ratio'], qdict['nvss_match']))

@@ -5,8 +5,7 @@
 def make_mask(image_name, mask_name=None, threshpix=5, atrous_do=False, rmsbox=(100,10), adaptive_thresh=50,
               write_srl=False, write_gaul=False, write_ds9=False, mask_combine=None):
 
-    import sys, os
-    import numpy as np
+    import os
     from astropy.io import fits as pyfits
     import bdsf
 

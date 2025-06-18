@@ -1,0 +1,6 @@
+Ncpu = 0
+
+[reference]
+operation = REFERENCE
+soltab = sol000/tec000
+refAnt = auto

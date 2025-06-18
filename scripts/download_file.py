@@ -10,6 +10,7 @@ def download_file(url, filename, login=None, password=None):
     downloaded=False
     while not downloaded:
         connected=False
+        tries=1
         while not connected:
             try:
                 #print('Opening connection')
@@ -26,15 +27,20 @@ def download_file(url, filename, login=None, password=None):
                     esize = int(response.headers['Content-Length'])
                 else: esize = None
             except requests.exceptions.ConnectionError:
-                print('Downloader -- Connection error! sleeping 30 seconds before retry...')
+                print('Downloader -- Connection error! sleeping 30 seconds before retry (%i/10)...' % tries)
                 sleep(30)
             except (requests.exceptions.Timeout,requests.exceptions.ReadTimeout):
-                print('Downloader -- Timeout! sleeping 30 seconds before retry...')
+                print('Downloader -- Timeout! sleeping 30 seconds before retry (%i/10)...' % tries)
                 sleep(30)
             except RuntimeError:
+                print('Downloader -- Download error (%i/10)...' % tries)
                 sleep(30)
             else:
                 connected=True
+            if tries > 10:
+                print('Downloader -- Giving up downlaoding the file...')
+                return False # false
+            tries += 1
         try:
             #print('Downloading %i bytes' % esize)
             with open(filename, 'wb') as fd:
@@ -43,9 +49,9 @@ def download_file(url, filename, login=None, password=None):
                         fd.write(chunk)
             fsize=os.path.getsize(filename)
             if esize!=fsize and esize is not None:
-                print('Downloader -- Download incomplete (expected %i, got %i)! Retrying' % (esize, fsize))
+                print('Downloader -- Download incomplete (expected %i, got %i)! Retrying...' % (esize, fsize))
             elif esize is not None:
-                print('Downloader -- Download successful, %i of %i bytes received' % (fsize, esize))
+                print('Downloader -- Download successful, all %i bytes received' % (fsize))
                 downloaded=True
             else:
                 print('Downloader -- Download successful, %i bytes (unknown size)' % (fsize))

@@ -1,4 +1,4 @@
-import os, sys, glob
+import os, glob
 import numpy as np
 import astropy.io.fits as pyfits
 import casacore.images as pim
@@ -10,6 +10,7 @@ from LiLF import make_mask, lib_util
 from LiLF.lib_log import logger
 import astropy.io.fits as fits
 import astropy.wcs as wcs
+from astropy.coordinates import SkyCoord
 
 class Image(object):
     def __init__(self, imagename, userReg = None, beamReg= None ):
@@ -33,51 +34,49 @@ class Image(object):
         self.userReg      = userReg
         self.beamReg      = beamReg
 
-    def calc_flux(self, img, mask):
+    def calc_flux(self, mask):
         """
         Get flux inside given region. Adapted from Martin Hardcastle's radiomap class
         """
-
-        fitsfile = img
         extract = mask
 
-        phdu = fits.open(fitsfile)
-        head, lhdu = flatten(phdu)
-        gfactor = 2.0 * np.sqrt(2.0 * np.log(2.0))
-        f = phdu[0]
-        prhd = phdu[0].header
-        units = prhd.get('BUNIT')
-        if units is None:
-            units = prhd.get('UNIT')
-        if units != 'JY/BEAM' and units != 'Jy/beam':
-            print('Warning: units are', units, 'but code expects JY/BEAM')
-        bmaj = prhd.get('BMAJ')
-        bmin = prhd.get('BMIN')
+        with fits.open(self.imagename) as phdu:
+            head, lhdu = flatten(phdu)
+            gfactor = 2.0 * np.sqrt(2.0 * np.log(2.0))
+            f = phdu[0]
+            prhd = phdu[0].header
+            units = prhd.get('BUNIT')
+            if units is None:
+                units = prhd.get('UNIT')
+            if units != 'JY/BEAM' and units != 'Jy/beam':
+                print('Warning: units are', units, 'but code expects JY/BEAM')
+            bmaj = prhd.get('BMAJ')
+            bmin = prhd.get('BMIN')
 
-        bmaj = np.abs(bmaj)
-        bmin = np.abs(bmin)
+            bmaj = np.abs(bmaj)
+            bmin = np.abs(bmin)
 
-        w = wcs.WCS(prhd)
-        cd1 = -w.wcs.cdelt[0]
-        cd2 = w.wcs.cdelt[1]
-        if ((cd1 - cd2) / cd1) > 1.0001 and ((bmaj - bmin) / bmin) > 1.0001:
-            print('Pixels are not square (%g, %g) and beam is elliptical' % (cd1, cd2))
+            w = self.getWCS()
+            cd1 = -w.wcs.cdelt[0]
+            cd2 = w.wcs.cdelt[1]
+            if ((cd1 - cd2) / cd1) > 1.0001 and ((bmaj - bmin) / bmin) > 1.0001:
+                print('Pixels are not square (%g, %g) and beam is elliptical' % (cd1, cd2))
 
-        bmaj /= cd1
-        bmin /= cd2
-        area = 2.0 * np.pi * (bmaj * bmin) / (gfactor * gfactor)
+            bmaj /= cd1
+            bmin /= cd2
+            area = 2.0 * np.pi * (bmaj * bmin) / (gfactor * gfactor)
 
-        d = [lhdu]
+            d = [lhdu]
 
-        region = pyregion.open(extract).as_imagecoord(prhd)
+            region = pyregion.open(extract).as_imagecoord(prhd)
 
-        for i, n in enumerate(d):
-            mask = region.get_mask(hdu=f, shape=np.shape(n))
-            data = np.extract(mask, d)
-            nndata = data[~np.isnan(data)]
-            flux = np.sum(nndata) / area
+            for i, n in enumerate(d):
+                mask = region.get_mask(hdu=f, shape=np.shape(n))
+                data = np.extract(mask, d)
+                nndata = data[~np.isnan(data)]
+                flux = np.sum(nndata) / area
 
-        return flux
+            return flux
 
     def rescaleModel(self, funct_flux):
         """
@@ -105,12 +104,14 @@ class Image(object):
 
     def nantozeroModel(self):
         """
-        Set nan to 0 in all model images
+        Set nan/inf to 0 in all model images
         """
-        for modelimage in sorted(glob.glob(self.root+'*model*.fits')):
+        for modelimage in sorted(glob.glob(self.root + '*model*.fits')):
             with pyfits.open(modelimage, mode='update') as fits:
                 for hdu in fits:
-                    hdu.data[hdu.data != hdu.data] = 0
+                    if not np.isfinite(hdu.data).all():
+                        logger.info(f"Model image '{modelimage}' has '{np.sum(~np.isfinite(hdu.data))}' NaN/inf values (NaN/inf -> zeros)")
+                    hdu.data[~np.isfinite(hdu.data)] = 0
 
     # TODO: separate makemask (using breizorro) and makecat (using bdsf)
     def makeMask(self, threshpix=5, atrous_do=False, rmsbox=(100,10), remove_extended_cutoff=0., only_beam=False, maskname=None,
@@ -248,12 +249,25 @@ class Image(object):
             else:
                 raise RuntimeError('Cannot find frequency in image %s' % self.imagename)
 
+    def getWCS(self, flat=True):
+        """
+        get the WCS from the fits image header
+        Returns
+        -------
+        WCS
+        """
+        with fits.open(self.imagename) as phdu:
+            if flat:
+                hdr, data_res = flatten(phdu)
+                return wcs.WCS(hdr)
+            else:
+                return wcs.WCS(phdu[0].header)
+
 
 def flatten(f, channel = 0, freqaxis = 0):
     """
     Flatten a fits file so that it becomes a 2D image. Return new header and data
     """
-    from astropy import wcs
 
     naxis=f[0].header['NAXIS']
     if (naxis < 2):
@@ -294,6 +308,35 @@ def flatten(f, channel = 0, freqaxis = 0):
     return header, f[0].data[tuple(slicing)]
 
 
+def select_connected_island(filename, coords, outfile=None):
+    """
+    Select only connected pixels starting from coords on a mask file.
+    All other pixels will be set to 0.
+    coords: SkyCoord with units
+    """
+    from scipy.ndimage import label
+
+    if (outfile == None):
+        outfile = filename
+    
+    with pyfits.open(filename) as fits:
+        mask = fits[0].data
+        w = wcs.WCS(fits[0].header).celestial
+        selected_pixel = w.world_to_pixel(SkyCoord(coords[0], coords[1]))
+
+        # Label connected components in the array
+        labeled_array, __num_features = label(mask.byteswap().newbyteorder())
+        # Get the label of the starting pixel
+        #print(labeled_array.shape, selected_pixel)
+        selected_label = labeled_array[0,0,int(selected_pixel[1]),int(selected_pixel[0])]
+        # Extract only the pixels belonging to the same island as the starting pixel
+        mask[:] = 0
+        mask[labeled_array == selected_label] = 1
+
+        fits[0].data = mask
+        fits.writeto(outfile, overwrite=True)
+
+
 def blank_image_fits(filename, maskname, outfile = None, inverse = False, blankval = 0.):
     """
     Set to "blankval" all the pixels inside the given region
@@ -310,9 +353,9 @@ def blank_image_fits(filename, maskname, outfile = None, inverse = False, blankv
         outfile = filename
 
     with pyfits.open(maskname) as fits:
-        mask = fits[0].data
+        mask = fits[0].data.astype(bool)
     
-    if (inverse): mask = ~(mask.astype(bool))
+    if (inverse): mask = ~(mask)
 
     with pyfits.open(filename) as fits:
         data = fits[0].data

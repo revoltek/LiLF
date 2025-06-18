@@ -1,0 +1,9 @@
+msin=
+msin.datacolumn = CORRECTED_DATA
+msin.baseline="[CR]S*&"
+
+msout=.
+
+steps=[aoflagger, count]
+aoflagger.strategy=
+aoflagger.memoryperc=6

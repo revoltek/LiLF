@@ -1,0 +1,41 @@
+Ncpu = 0
+
+[bkpA]
+operation = DUPLICATE
+soltab = sol000/amplitude000
+soltabOut = amplitudeSmooth
+
+[replicateA]
+operation = REPLICATEONAXIS
+soltab = sol000/amplitudeSmooth
+axisReplicate = ant
+fromCell = nonflaggedCS
+
+[plotAsmooth]
+operation = PLOT
+soltab = sol000/amplitudeSmooth
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ampSmooth_
+
+[bkpP]
+operation = DUPLICATE
+soltab = sol000/phase000
+soltabOut = phaseSmooth
+
+[replicateP]
+operation = REPLICATEONAXIS
+soltab = sol000/phaseSmooth
+axisReplicate = ant
+fromCell = nonflaggedCS
+
+[plotPsmooth]
+operation = PLOT
+soltab = sol000/phaseSmooth
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+refAnt = auto
+minmax = [-3.14,3.14]
+prefix = plots/phSmooth_

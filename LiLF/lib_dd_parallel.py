@@ -1,10 +1,10 @@
 import os, sys
 import numpy as np
-from astropy.coordinates import SkyCoord
 from astropy.io import fits as pyfits
 from astropy import wcs as pywcs
-import astropy.units as u
 import pyregion
+import mocpy
+import astropy.units as u
 from pyregion.parser_helper import Shape
 from matplotlib.path import Path
 from scipy.ndimage import binary_dilation, generate_binary_structure
@@ -18,96 +18,266 @@ except:
 from LiLF.lib_log import logger
 from LiLF import lib_img
 
-class Direction(object):
 
-    def __init__(self, name):
-        self.name = name 
-        self.isl_num = int(name.split('_')[-1])
-        self.mask_voro = None
-        self.position_facet = None # [deg, deg]
-        self.position_cal = None # [deg, deg]
-        self.flux_cal = None # Jy
-        self.flux_facet = None # Jy
-        self.region_facet = None
-        self.size_cal = None # [deg, deg]
-        self.size_facet = None # [deg, deg]
-        self.cal_has_facet = None # Bool that tells if the cal is within the mask_voro
-        # lib_img.Image objects:
-        self.image = None
-        self.image_res = None
-        self.image_low = None
-        self.image_high = None
+def check_lotss_coverage(center, size):
+    """ check if is in LoTSS DR3, this is mostly borrowed from RAPTHOR / D. Rafferty
 
-        self.h5parms = {}
-        self.skymodel = None
-        self.skydb = None
+    Parameters
+    ----------
+    center: [ra,deg] in degrees
+    size: float, square size in degrees
 
-    def is_in_beam(self):
-        """
-        Return true if the direction is in the beam or an outsider
-        """
-        pass
+    Returns
+    -------
+    is_covered: bool,
+    """
+    ra, dec = center
+    logger.debug('Checking LoTSS coverage for the requested centre and radius.')
 
-    def set_position(self, position, cal=True):
-        """
-        cal: if Tue is position of the central calibrator otherwise central position of the facet.
-        """
-        if cal:
-            self.position_cal = position
+    moc = mocpy.MOC.from_fits(os.path.dirname(__file__) + '/../models/lotss_dr3_moc.fits')
+    covers_centre = moc.contains(ra * u.deg, dec * u.deg)
+
+    # Checking single coordinates, so get rid of the array
+    covers_left = moc.contains(ra * u.deg - size * u.deg, dec * u.deg)[0]
+    covers_right = moc.contains(ra * u.deg + size * u.deg, dec * u.deg)[0]
+    # Ensure dec-size does not exceed -90 deg (south celestial pole)
+    dec_bottom = max(dec - size, -90.0)
+    covers_bottom = moc.contains(ra * u.deg, dec_bottom * u.deg)[0]
+    # Ensure dec+size does not exceed 90 deg (north celestial pole)
+    dec_top = min(dec + size, 90.0)
+    covers_top = moc.contains(ra * u.deg, dec_top * u.deg)[0]
+
+    fully_covered = False
+    if covers_left and covers_right and covers_bottom and covers_top and covers_centre:
+        fully_covered = True
+    return fully_covered
+
+
+
+def merge_faintest_patch(skymodel, applyBeam):
+    fluxes = skymodel.getColValues('I', aggregate='sum', applyBeam=applyBeam)
+    names =skymodel.getPatchNames()
+    faintest = names[np.argmin(fluxes)]
+    pos = skymodel.getPatchPositions()[faintest]
+    distances = skymodel.getDistance(*pos, byPatch=True)
+    closest = names[np.argsort(distances)[1]] # 0 would be the faintest patch itself
+    skymodel.merge([closest, faintest])
+    skymodel.setPatchPositions(method='wmean', applyBeam=applyBeam)
+    return skymodel
+
+
+def merge_faint_facets(skymodel, min_flux, applyBeam=False):
+    """
+    Merge all patches of a skymodel with a flux density below a threshold with the closest patch.
+
+    Parameters
+    ----------
+    skymodel
+    min_flux
+    applyBeam
+
+    Returns
+    -------
+    merged skymodel
+    """
+    skymodel = skymodel.copy()
+    i = 0
+    while min(skymodel.getColValues('I', aggregate='sum', applyBeam=applyBeam)) < min_flux:
+        print(i)
+        merge_faintest_patch(skymodel, applyBeam=applyBeam)
+        i += 1
+    return skymodel
+
+def closest_distance_between_patches(skymodel):
+    """
+    Return the name of the two patches which are closes and their distance
+
+    Parameters
+    ----------
+    skymodel
+
+    Returns
+    -------
+    closest_name: (str, str) - names of the two closest patches
+    closest_distance: float - distance
+    """
+
+    closest_patch = np.zeros(len(skymodel.getPatchNames()))
+    closest_name = []
+    names = skymodel.getPatchNames()
+    for i, (name, pos) in enumerate(skymodel.getPatchPositions().items()):
+        distances = skymodel.getDistance(*pos, byPatch=True)
+        closest_patch[i] = np.sort(distances)[1] # [0] is the patch itself if there is only ONE patch with that distance
+        nearby_name = names[distances <= closest_patch[i]] # select all patches with this distance in case multiple have SAME distance
+        # Case multiple patches at same distance
+        if len(nearby_name) > 1:
+            if nearby_name[0] == name:
+                nearby_name = nearby_name[1]
+            else:
+                nearby_name = nearby_name[0]
+            if name == nearby_name:  # sanity check, it should not be identical.
+                raise ValueError(f'A: patch {name} is identical to closest patch {nearby_name} at distance {closest_patch[i]}!')
         else:
-            self.position_facet = position
+            nearby_name = nearby_name[0]
+            if name == nearby_name:  # sanity check, it should not be identical.
+                raise ValueError(f'B: patch {name} is identical to closest patch {nearby_name} at distance {closest_patch[i]}!')
+        closest_name.append([name,nearby_name])
 
-    def set_flux(self, flux, cal=True, freq='mid'):
-        """
-        cal: if Tue is flux of the central calibrator otherwise of the whole facet.
-        freq: 'mid' frequency or 'min' frequency
-        """
-        if cal:
-            if freq == 'mid':
-                self.flux_cal = flux
-            elif freq == 'min':
-                self.flux_cal_minfreq = flux
-        else:
-            self.flux_facet = flux
-
-    def set_size(self, size, cal=True):
-        """
-        size: [deg,deg]
-        """
-        if cal:
-            self.size_cal = size
-        else:
-            self.size_facet = size
-
-    def add_mask_voro(self, mask_voro):
-        """
-        """
-        # read mask
-        fits = pyfits.open(mask_voro)
-        hdr, data = lib_img.flatten(fits)
-        w = pywcs.WCS(hdr)
-        pixsize_ra = -1*hdr['CDELT1']
-        pixsize_dec = hdr['CDELT2']
-
-        coord = np.where(data.T == self.isl_num)
-        if len(coord[0]) == 0:
-            self.cal_has_facet = False
-            self.size = [0.1,0.1]
-            self.position_facet = self.position_cal
-        else:
-            self.cal_has_facet = True
-            # calculate size
-            size_ra = (np.max(coord[0])-np.min(coord[0]))*pixsize_ra
-            size_dec = (np.max(coord[1])-np.min(coord[1]))*pixsize_dec
-            self.size_facet = [size_ra, size_dec]
-            # calculate position 
-            dir_x = np.mean([ np.max(coord[0]), np.min(coord[0]) ])
-            dir_y = np.mean([ np.max(coord[1]), np.min(coord[1]) ])
-            ra, dec =  w.all_pix2world(dir_x, dir_y, 0, ra_dec_order=True)
-            self.position_facet = [float(ra), float(dec)]
+    name_closest, dist_closest = closest_name[np.argmin(closest_patch)], np.min(closest_patch)
+    return name_closest, dist_closest
 
 
-def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet.fits', png=None):
+def merge_nearby_bright_facets(skymodel, max_distance, min_flux, applyBeam=False):
+    """
+    Merge all bright patches of a skymodel that are within min_distance of another patch
+
+    Parameters
+    ----------
+    skymodel
+    max_distance: max distance to merge
+    min_flux: min flux of facets to be considered bright
+    applyBeam
+
+    Returns
+    -------
+    merged skymodel
+    """
+    skymodel = skymodel.copy()
+    skymodel_bright = skymodel.copy()
+    skymodel_bright.select(f'I>{min_flux}', aggregate='sum', applyBeam=applyBeam)
+    if len(skymodel_bright) > 1:
+        # loop over the bright patches as long as the distance between the two closest patches is less than max_distance
+        while closest_distance_between_patches(skymodel_bright)[1] < max_distance:
+            closest_patches, closest_distance = closest_distance_between_patches(skymodel_bright)
+            logger.info(f'Merging nearby bright patches {closest_patches[0]} {closest_patches[1]} (distance={closest_distance*3600:.2f}arcsec')
+            skymodel_bright.merge(closest_patches)
+            skymodel.merge(closest_patches)
+    else:
+        logger.warning(f'Only one bright source - nothing to merge.')
+    skymodel.setPatchPositions(method='wmean', applyBeam=applyBeam)
+    return skymodel
+
+
+def rename_skymodel_patches(skymodel, applyBeam=False):
+    """
+    Rename the patches in the input sky model according to flux
+
+    Parameters
+    ----------
+    skymodel : LSMTool skymodel.SkyModel object
+        Input sky model
+    applyBeam : bool, intrinsic/apparent
+    """
+    if not skymodel.hasPatches:
+        raise ValueError('Cannot rename patches since the input skymodel is not grouped '
+                         'into patches.')
+    patch_names = skymodel.getPatchNames()
+    patch_fluxes = skymodel.getColValues('I', aggregate='sum', applyBeam=applyBeam)
+    patch_pos = skymodel.getPatchPositions()
+
+    old_new_dict = {}
+    for i, id in enumerate(np.argsort(patch_fluxes)[::-1]):
+        old_new_dict[patch_names[id]] = f'patch_{i:02.0f}'
+
+    patch_col = skymodel.getColValues('Patch')
+    for old_name, new_name in old_new_dict.items():
+        patch_col[patch_col == old_name] = new_name
+        patch_pos[new_name] = patch_pos.pop(old_name)
+
+    skymodel.setColValues('Patch', patch_col)
+    skymodel.setPatchPositions(patch_pos)
+
+
+# class Direction(object):
+
+#     def __init__(self, name):
+#         self.name = name 
+#         self.isl_num = int(name.split('_')[-1])
+#         self.mask_voro = None
+#         self.position_facet = None # [deg, deg]
+#         self.position_cal = None # [deg, deg]
+#         self.flux_cal = None # Jy
+#         self.flux_facet = None # Jy
+#         self.region_facet = None
+#         self.size_cal = None # [deg, deg]
+#         self.size_facet = None # [deg, deg]
+#         self.cal_has_facet = None # Bool that tells if the cal is within the mask_voro
+#         # lib_img.Image objects:
+#         self.image = None
+#         self.image_res = None
+#         self.image_low = None
+#         self.image_high = None
+
+#         self.h5parms = {}
+#         self.skymodel = None
+#         self.skydb = None
+
+#     def is_in_beam(self):
+#         """
+#         Return true if the direction is in the beam or an outsider
+#         """
+#         pass
+
+#     def set_position(self, position, cal=True):
+#         """
+#         cal: if Tue is position of the central calibrator otherwise central position of the facet.
+#         """
+#         if cal:
+#             self.position_cal = position
+#         else:
+#             self.position_facet = position
+
+#     def set_flux(self, flux, cal=True, freq='mid'):
+#         """
+#         cal: if Tue is flux of the central calibrator otherwise of the whole facet.
+#         freq: 'mid' frequency or 'min' frequency
+#         """
+#         if cal:
+#             if freq == 'mid':
+#                 self.flux_cal = flux
+#             elif freq == 'min':
+#                 self.flux_cal_minfreq = flux
+#         else:
+#             self.flux_facet = flux
+
+#     def set_size(self, size, cal=True):
+#         """
+#         size: [deg,deg]
+#         """
+#         if cal:
+#             self.size_cal = size
+#         else:
+#             self.size_facet = size
+
+#     def add_mask_voro(self, mask_voro):
+#         """
+#         """
+#         # read mask
+#         fits = pyfits.open(mask_voro)
+#         hdr, data = lib_img.flatten(fits)
+#         w = pywcs.WCS(hdr)
+#         pixsize_ra = -1*hdr['CDELT1']
+#         pixsize_dec = hdr['CDELT2']
+
+#         coord = np.where(data.T == self.isl_num)
+#         if len(coord[0]) == 0:
+#             self.cal_has_facet = False
+#             self.size = [0.1,0.1]
+#             self.position_facet = self.position_cal
+#         else:
+#             self.cal_has_facet = True
+#             # calculate size
+#             size_ra = (np.max(coord[0])-np.min(coord[0]))*pixsize_ra
+#             size_dec = (np.max(coord[1])-np.min(coord[1]))*pixsize_dec
+#             self.size_facet = [size_ra, size_dec]
+#             # calculate position 
+#             dir_x = np.mean([ np.max(coord[0]), np.min(coord[0]) ])
+#             dir_y = np.mean([ np.max(coord[1]), np.min(coord[1]) ])
+#             ra, dec =  w.all_pix2world(dir_x, dir_y, 0, ra_dec_order=True)
+#             self.position_facet = [float(ra), float(dec)]
+
+
+def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask=None, png=None):
     """
     Take a list of coordinates and an image and voronoi tesselate the sky.
     It saves ds9 regions + fits mask of the facets
@@ -149,7 +319,7 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     for i, direction in enumerate(directions):
         x, y = w.all_world2pix(ras[i], decs[i], 0, ra_dec_order=True)
         if x < 0 or x > data.shape[0] or y < 0 or y > data.shape[1]:
-            logger.info('Direction %s is outside the primary beam and will not have a facet (it will still be a calibrator).' % direction.name)
+            logger.info('Direction %s is outside the fitsfile and will not have a facet.' % direction.name)
         else:
             idx_for_facet.append(i)
 
@@ -184,9 +354,6 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
         facet_num = closest_node(center_of_masses[blob], np.array([y_fs[idx_for_facet],x_fs[idx_for_facet]]).T)
         # put all pixel of that mask to that facet value
         data_facet[ blobs == blob ] = nums[facet_num]
-
-    # save fits mask
-    pyfits.writeto(out_mask, data_facet, hdr, overwrite=True)
 
     # save regions
     if not os.path.isdir(outdir_reg): os.makedirs(outdir_reg)
@@ -224,6 +391,10 @@ def make_voronoi_reg(directions, fitsfile, outdir_reg='regions', out_mask='facet
     regionfile = outdir_reg+'/all.reg'
     regions.write(regionfile)
     logger.debug('There are %i regions within the PB and %i outside (no facet).' % (len(idx_for_facet), len(directions) - len(idx_for_facet)))
+
+    # save fits mask
+    if out_mask is not None:
+        pyfits.writeto(out_mask, data_facet, hdr, overwrite=True)
 
     # plot tesselization
     if png is not None:
@@ -367,146 +538,146 @@ def voronoi_finite_polygons_2d_box(vor, box):
 
     return np.asarray(newpoly)
 
-class Grouper( object ):
-    """
-    Based on: http://www.chioka.in/meanshift-algorithm-for-the-rest-of-us-python/
-    """
+# class Grouper( object ):
+#     """
+#     Based on: http://www.chioka.in/meanshift-algorithm-for-the-rest-of-us-python/
+#     """
 
-    def __init__(self, coords, fluxes, kernel_size=0.2, look_distance=0.3, grouping_distance=0.03):
-        """
-        coords: x,y coordinates for source positions
-        fluxes: total flux for each source
-        kernel_size: attenuate attraction, it this the flux times a gaussian of the distance with this as sigma [deg]
-        look_distance: max distance to look for nearby sources [deg]
-        grouping_distance: [deg]
-        """
-        self.coords = np.array(coords)
-        self.fluxes = fluxes
-        self.kernel_size = kernel_size # deg
-        self.look_distance = look_distance # deg
-        self.grouping_distance = grouping_distance # deg orig: 0.01
-        self.past_coords = [np.copy(self.coords)]
-        self.n_iterations = 100
-        self.clusters = []
-        logger.debug("Grouper: kernel_size=%.1f; look_distance=%.1f; grouping_distance=%.2f" % (kernel_size,look_distance,grouping_distance) )
+#     def __init__(self, coords, fluxes, kernel_size=0.2, look_distance=0.3, grouping_distance=0.03):
+#         """
+#         coords: x,y coordinates for source positions
+#         fluxes: total flux for each source
+#         kernel_size: attenuate attraction, it this the flux times a gaussian of the distance with this as sigma [deg]
+#         look_distance: max distance to look for nearby sources [deg]
+#         grouping_distance: [deg]
+#         """
+#         self.coords = np.array(coords)
+#         self.fluxes = fluxes
+#         self.kernel_size = kernel_size # deg
+#         self.look_distance = look_distance # deg
+#         self.grouping_distance = grouping_distance # deg orig: 0.01
+#         self.past_coords = [np.copy(self.coords)]
+#         self.n_iterations = 100
+#         self.clusters = []
+#         logger.debug("Grouper: kernel_size=%.1f; look_distance=%.1f; grouping_distance=%.2f" % (kernel_size,look_distance,grouping_distance) )
 
-    def euclid_distance(self, coord, coords):
-        """
-        Simple ditance from coord to all coords
-        """
-        return np.sqrt(np.sum((coord - coords)**2, axis=1))
+#     def euclid_distance(self, coord, coords):
+#         """
+#         Simple ditance from coord to all coords
+#         """
+#         return np.sqrt(np.sum((coord - coords)**2, axis=1))
     
-    def neighbourhood_points(self, centroid, coords, max_distance):
-        """
-        Find close points, this reduces the load
-        """
-        distances = self.euclid_distance(centroid, coords)
-        #print('Evaluating: [%s vs %s] yield dist=%.2f' % (x, x_centroid, distance_between))
-        return np.where(distances < max_distance)
+#     def neighbourhood_points(self, centroid, coords, max_distance):
+#         """
+#         Find close points, this reduces the load
+#         """
+#         distances = self.euclid_distance(centroid, coords)
+#         #print('Evaluating: [%s vs %s] yield dist=%.2f' % (x, x_centroid, distance_between))
+#         return np.where(distances < max_distance)
     
-    def gaussian_kernel(self, distance):
-        """
-        """
-        return (1/(self.kernel_size*np.sqrt(2*np.pi))) * np.exp(-0.5*((distance / self.kernel_size))**2)
+#     def gaussian_kernel(self, distance):
+#         """
+#         """
+#         return (1/(self.kernel_size*np.sqrt(2*np.pi))) * np.exp(-0.5*((distance / self.kernel_size))**2)
     
-    def run(self):
-        """
-        Run the algorithm
-        """
+#     def run(self):
+#         """
+#         Run the algorithm
+#         """
 
-        for it in range(self.n_iterations):
-            logger.info("Grouper: Starting iteration %i" % it)
-            for i, x in enumerate(self.coords):
-                ### Step 1. For each datapoint x in X, find the neighbouring points N(x) of x.
-                idx_neighbours = self.neighbourhood_points(x, self.coords, max_distance = self.look_distance)
+#         for it in range(self.n_iterations):
+#             logger.info("Grouper: Starting iteration %i" % it)
+#             for i, x in enumerate(self.coords):
+#                 ### Step 1. For each datapoint x in X, find the neighbouring points N(x) of x.
+#                 idx_neighbours = self.neighbourhood_points(x, self.coords, max_distance = self.look_distance)
                 
-                ### Step 2. For each datapoint x in X, calculate the mean shift m(x).
-                distances = self.euclid_distance(self.coords[idx_neighbours], x)
-                weights = self.gaussian_kernel(distances)
-                weights *= self.fluxes[idx_neighbours]**2 # multiply by flux**1.5 to make bright sources more important
-                numerator = np.sum(weights[:,np.newaxis] * self.coords[idx_neighbours], axis=0)
-                denominator = np.sum(weights)
-                new_x = numerator / denominator
+#                 ### Step 2. For each datapoint x in X, calculate the mean shift m(x).
+#                 distances = self.euclid_distance(self.coords[idx_neighbours], x)
+#                 weights = self.gaussian_kernel(distances)
+#                 weights *= self.fluxes[idx_neighbours]**2 # multiply by flux**1.5 to make bright sources more important
+#                 numerator = np.sum(weights[:,np.newaxis] * self.coords[idx_neighbours], axis=0)
+#                 denominator = np.sum(weights)
+#                 new_x = numerator / denominator
                 
-                ### Step 3. For each datapoint x in X, update x <- m(x).
-                self.coords[i] = new_x
+#                 ### Step 3. For each datapoint x in X, update x <- m(x).
+#                 self.coords[i] = new_x
 
-            self.past_coords.append(np.copy(self.coords))
+#             self.past_coords.append(np.copy(self.coords))
 
-            #if it>1: 
-            #    print (np.max(self.euclid_distance(self.coords,self.past_coords[-2])))
+#             #if it>1: 
+#             #    print (np.max(self.euclid_distance(self.coords,self.past_coords[-2])))
 
-            # if things changes little, brak
-            if it>1 and np.max(self.euclid_distance(self.coords, self.past_coords[-2])) < self.grouping_distance/2.: 
-                break
+#             # if things changes little, brak
+#             if it>1 and np.max(self.euclid_distance(self.coords, self.past_coords[-2])) < self.grouping_distance/2.: 
+#                 break
             
 
-    def grouping(self):
-        """
-        Take the last coords set and group sources nearby, then return a list of lists. 
-        Each list has the index of one cluster.
-        """
-        coords_to_check = np.copy(self.coords)
-        while len(coords_to_check) > 0:
-            idx_cluster = self.neighbourhood_points(coords_to_check[0], self.coords, max_distance = self.grouping_distance)
-            idx_cluster_to_remove = self.neighbourhood_points(coords_to_check[0], coords_to_check, max_distance = self.grouping_distance)
+#     def grouping(self):
+#         """
+#         Take the last coords set and group sources nearby, then return a list of lists. 
+#         Each list has the index of one cluster.
+#         """
+#         coords_to_check = np.copy(self.coords)
+#         while len(coords_to_check) > 0:
+#             idx_cluster = self.neighbourhood_points(coords_to_check[0], self.coords, max_distance = self.grouping_distance)
+#             idx_cluster_to_remove = self.neighbourhood_points(coords_to_check[0], coords_to_check, max_distance = self.grouping_distance)
 
-            # remove all coords of this clusters from the global list
-            mask = np.ones(coords_to_check.shape[0], dtype=bool)
-            mask[idx_cluster_to_remove] = False
-            coords_to_check = coords_to_check[mask]
+#             # remove all coords of this clusters from the global list
+#             mask = np.ones(coords_to_check.shape[0], dtype=bool)
+#             mask[idx_cluster_to_remove] = False
+#             coords_to_check = coords_to_check[mask]
 
-            # save this cluster indexes
-            self.clusters.append(idx_cluster)
+#             # save this cluster indexes
+#             self.clusters.append(idx_cluster)
 
-        logger.info('Grouper: Creating %i groups.' % len(self.clusters))
-        return self.clusters
+#         logger.info('Grouper: Creating %i groups.' % len(self.clusters))
+#         return self.clusters
 
 
-    def plot(self):
-        """
-        Plot the status of the distribution
-        """
-        import matplotlib as mpl
-        mpl.use("Agg")
-        import matplotlib.pyplot as plt
+#     def plot(self):
+#         """
+#         Plot the status of the distribution
+#         """
+#         import matplotlib as mpl
+#         mpl.use("Agg")
+#         import matplotlib.pyplot as plt
        
-        # decent colors
-        import cycler, random
-        color_idx = np.linspace(0, 1, len(self.clusters))
-        random.shuffle(color_idx)
-        color = plt.cm.rainbow(color_idx)
-        mpl.rcParams['axes.prop_cycle'] = cycler.cycler('color', color)
+#         # decent colors
+#         import cycler, random
+#         color_idx = np.linspace(0, 1, len(self.clusters))
+#         random.shuffle(color_idx)
+#         color = plt.cm.rainbow(color_idx)
+#         mpl.rcParams['axes.prop_cycle'] = cycler.cycler('color', color)
 
-        logger.info('Plotting grouped sources: grouping_xxx.png')
-        for i, X in enumerate(self.past_coords):
-            fig = plt.figure(figsize=(8, 8))
-            fig.subplots_adjust(wspace=0)
-            ax = fig.add_subplot(111)
+#         logger.info('Plotting grouped sources: grouping_xxx.png')
+#         for i, X in enumerate(self.past_coords):
+#             fig = plt.figure(figsize=(8, 8))
+#             fig.subplots_adjust(wspace=0)
+#             ax = fig.add_subplot(111)
 
-            initial_x = self.past_coords[0][:,0]
-            initial_y = self.past_coords[0][:,1]
+#             initial_x = self.past_coords[0][:,0]
+#             initial_y = self.past_coords[0][:,1]
 
-            ax.plot(initial_x,initial_y,'k.')
-            ax.plot(X[:,0],X[:,1],'ro')
+#             ax.plot(initial_x,initial_y,'k.')
+#             ax.plot(X[:,0],X[:,1],'ro')
 
-            ax.set_xlim( np.min(initial_x), np.max(initial_x) )
-            ax.set_ylim( np.min(initial_y), np.max(initial_y) )
+#             ax.set_xlim( np.min(initial_x), np.max(initial_x) )
+#             ax.set_ylim( np.min(initial_y), np.max(initial_y) )
 
-            #print ('Saving plot_%i.png' % i)
-            ax.set_xlim(ax.get_xlim()[::-1]) # reverse RA
-            fig.savefig('grouping_%00i.png' % i, bbox_inches='tight')
+#             #print ('Saving plot_%i.png' % i)
+#             ax.set_xlim(ax.get_xlim()[::-1]) # reverse RA
+#             fig.savefig('grouping_%00i.png' % i, bbox_inches='tight')
 
-        # plot clustering
-        fig = plt.figure(figsize=(8, 8))
-        fig.subplots_adjust(wspace=0)
-        ax = fig.add_subplot(111)
-        for cluster in self.clusters:
-            ax.plot(initial_x[cluster],initial_y[cluster], marker='.', linestyle='')
+#         # plot clustering
+#         fig = plt.figure(figsize=(8, 8))
+#         fig.subplots_adjust(wspace=0)
+#         ax = fig.add_subplot(111)
+#         for cluster in self.clusters:
+#             ax.plot(initial_x[cluster],initial_y[cluster], marker='.', linestyle='')
 
-        ax.set_xlim( np.min(initial_x), np.max(initial_x) )
-        ax.set_ylim( np.min(initial_y), np.max(initial_y) )
-        ax.set_xlim(ax.get_xlim()[::-1]) # reverse RA
+#         ax.set_xlim( np.min(initial_x), np.max(initial_x) )
+#         ax.set_ylim( np.min(initial_y), np.max(initial_y) )
+#         ax.set_xlim(ax.get_xlim()[::-1]) # reverse RA
 
-        logger.info('Plotting: grouping_clusters.png')
-        fig.savefig('grouping_clusters.png', bbox_inches='tight')
+#         logger.info('Plotting: grouping_clusters.png')
+#         fig.savefig('grouping_clusters.png', bbox_inches='tight')
