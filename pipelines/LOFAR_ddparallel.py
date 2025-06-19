@@ -728,7 +728,7 @@ for c in range(maxIter):
                 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
 
     facetregname = f'{sol_dir}/facets-c{c}.reg'
-    wide_h5 = f'{sol_dir}/cal-tec-no3c-c{c}.h5' if c == 0 and remove3c else f'{sol_dir}/cal-tec-c{c}.h5'
+    wide_h5 = f'{sol_dir}/cal-tec-no3c-c{c}.h5' if os.path.exists(f'{sol_dir}/cal-tec-no3c-c{c}.h5') else f'{sol_dir}/cal-tec-c{c}.h5'
 
     channels_out = MSs.getChout(4.e6) if MSs.getChout(4.e6) > 1 else 2
     with w.if_todo('c%02i-imaging' % c):
@@ -741,7 +741,7 @@ for c in range(maxIter):
         imagenameM = 'img/wideM-' + str(c)
         # common imaging arguments used by all of the following wsclean calls
         widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec', weight='briggs -0.5', niter=1000000,
-                                gridder='wgridder',  parallel_gridding=4, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
+                                gridder='wgridder',  parallel_gridding=len(sm.getPatchNames()), minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                 join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
                                 multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname, apply_facet_solutions=f'{wide_h5} phase000', concat_mss=False)
 
@@ -881,9 +881,9 @@ for c in range(maxIter):
 
     with w.if_todo('c%02i_intreg_predict' % c):
         # Predict internal region - MSs: MODEL_DATA
-        # TODO CHECK: here should we predict with beam?
         logger.info('Predict model of internal region...')
         s.add(f'wsclean -predict -padding 1.8 -name img/wideMint-{c} -j {s.max_cpucores} -channels-out {channels_out} \
+                -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                 {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
         s.run(check=True)
 
@@ -939,8 +939,9 @@ for c in range(maxIter):
         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/cal-fr.h5 msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA\
                        cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
         logger.info('Test image subfield...')
+        # Note that here the beam is not applied, so the image is suboptimal
         lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=int(1.2*subfield_size*3600/pixscale), scale=f'{pixscale}arcsec',
-                             weight='briggs -0.5', niter=100000, gridder='wgridder',  parallel_gridding=4, shift=f'{subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}',
+                             weight='briggs -0.5', niter=100000, gridder='wgridder',  parallel_gridding=MSs.getChout(4.e6), shift=f'{subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}',
                              no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
                              join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
                              multiscale='',  multiscale_scale_bias=0.7, pol='i')
@@ -996,13 +997,25 @@ for c in range(maxIter):
         # Image the sidelobe data and predict model
         # MSs: create MODEL_DATA (with just the sidelobe flux)
         # TODO CHECK: should we do the clean + predict with beam?
+        facetregname_lr = f'{sol_dir}/facets-lr-c{c}.reg'
         with w.if_todo('image_lr'):
+            logger.info('Preparing region file...')
+            # this is too slow
+            #s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+f' --grid 10 --imsize {int(1.1*imgsizepix_lr)} \
+            #--pixelscale 30 --writevoronoipoints --output {facetregname_lr}', log='facet_generator.log', commandType='python')
+            #s.run(check = True)
+            #facet_regions=facetregname_lr, apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', 
+            # --facet-regions {facetregname_lr} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam
             logger.info('Cleaning sidelobe low-res...')
-            lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=True, data_column='SUBFIELD_DATA',
-                                size=imgsizepix_lr, scale='30arcsec', save_source_list='',  parallel_gridding=4, baseline_averaging='',
+            lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, data_column='SUBFIELD_DATA',
+                                size=imgsizepix_lr, scale='30arcsec', save_source_list='',  parallel_gridding=channels_out_lr, baseline_averaging='',
                                 weight='briggs -0.5', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                                 taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512,
-                                local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5)
+                                local_rms='', auto_mask=3, auto_threshold=1.5, join_channels='', fit_spectral_pol=5,
+                                do_predict=True)
+            #s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr} -j {s.max_cpucores} -channels-out {channels_out_lr} \
+            #          {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
+            #s.run(check=True)
         ### DONE
 
         # Subtract full low-resolution field (including possible large-scale emission within primary beam)
@@ -1035,10 +1048,9 @@ for c in range(maxIter):
                     lib_img.blank_image_reg(wideLRext, beamReg , blankval=0.)
 
                 logger.info('Predict model of sidelobe region (wsclean)...')
-                #TODO CHECK: should we predict with beam?
-                s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} \
-                    -channels-out {channels_out_lr} {MSs.getStrWsclean()}',
-                    log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
+                # --facet-regions {facetregname_lr} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
+                s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} -channels-out {channels_out_lr} \
+                      {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
                 s.run(check=True)
 
             elif sidelobe_predict_mode=='DP3':

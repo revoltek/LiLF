@@ -995,7 +995,7 @@ with w.if_todo('output-vstokes'):
     imagenameV = 'img/wideDD-v-c%02i' % (cmaj)
     logger.info('Cleaning (V-stokes)...')
     lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
-                taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
+                taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
                 pol='v')
 
