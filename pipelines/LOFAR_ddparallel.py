@@ -526,7 +526,6 @@ for c in range(maxIter):
         # else:
         #     maxProcs = 8
         # TODO use smoothness_dd_factors
-
         nchan_ph = round(0.195312e6 / MSs.getListObj()[0].getChanband())  # number of channels in 1 SBs
         avg_factors = [30,10,4,2]
         ant_avg_factors = f"[CS*:{avg_factors[0]},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{avg_factors[1]},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{avg_factors[2]},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{avg_factors[3]}]"
