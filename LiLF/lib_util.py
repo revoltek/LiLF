@@ -377,12 +377,13 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
         check_rm('plots')
 
 
-def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_concat=False, reuse_concat=False, **kwargs):
+def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_concat=False, reuse_concat=False, use_shm=False, **kwargs):
     """
     s : scheduler
     concat_mss : try to concatenate mss files to speed up wsclean
     keep_concat : keep the concat MSs for re-use either by -cont or by reuse_concat=True
     reuse_concat : reuse concatenated MS previously kept with keep_concat=True
+    temp_dir : if true try to store temp file in /dev/shm to speed up wsclean
     args : parameters for wsclean, "_" are replaced with "-", any parms=None is ignored.
            To pass a parameter with no values use e.g. " no_update_model_required='' "
     """
@@ -443,11 +444,16 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
             wsc_parms.append( '-mem 10' )
         else:
             wsc_parms.append( '-idg-mode cpu' )
-    if s.cluster == 'Spider':
+
+    # set the tmp dir to speed up
+    if use_shm and os.access('/dev/shm/', os.W_OK) and not 'temp_dir' in list(kwargs.keys()):
+        check_rm('/dev/shm/*') # remove possible leftovers
+        wsc_parms.append( '-temp-dir /dev/shm/' )
+    elif s.cluster == 'Spider':
         wsc_parms.append( '-temp-dir /tmp/' )
-    # temp dir
-    #if s.cluster == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
+    #elif s.cluster == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
     #    wsc_parms.append( '-temp-dir /localwork.ssd' )
+
     # user defined parms
     for parm, value in list(kwargs.items()):
         if value is None: continue
