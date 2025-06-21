@@ -526,7 +526,6 @@ for c in range(maxIter):
         # else:
         #     maxProcs = 8
         # TODO use smoothness_dd_factors
-
         nchan_ph = round(0.195312e6 / MSs.getListObj()[0].getChanband())  # number of channels in 1 SBs
         avg_factors = [30,10,4,2]
         ant_avg_factors = f"[CS*:{avg_factors[0]},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{avg_factors[1]},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{avg_factors[2]},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{avg_factors[3]}]"
@@ -570,7 +569,7 @@ for c in range(maxIter):
                 # sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]]',
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true\
                           sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
-                          sol.modeldatacolumns="[MODEL_DATA,{",".join(_3c_patches)}]" sol.solint='+str(225),
+                          sol.modeldatacolumns="[MODEL_DATA,{",".join(_3c_patches)}]" sol.solint='+str(224),
                           log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3", maxProcs=4)
 
                 #losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
@@ -744,7 +743,7 @@ for c in range(maxIter):
         widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec', weight='briggs -0.5', niter=1000000,
                                 gridder='wgridder',  parallel_gridding=len(sm.getPatchNames()), minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                 join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
-                                multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname, apply_facet_solutions=f'{wide_h5} phase000', concat_mss=True)
+                                multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname, apply_facet_solutions=f'{wide_h5} phase000', concat_mss=False)
 
         # for low-freq or low-dec data, allow the beam to be fitted, otherwise (survey) force 15"
         if not(np.mean(MSs.getFreqs()) < 50e6) and not (phasecentre[1] < 23):

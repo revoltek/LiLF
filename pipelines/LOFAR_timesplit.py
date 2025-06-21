@@ -55,11 +55,10 @@ with w.if_todo('copy'):
 
     logger.info('Copy data...')
     for MS in MSs.getListObj():
-        # if min(MS.getFreqs()) > 30.e6:
         # overwrite=True to prevent updating the weights twice
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=True)
 ### DONE
-
+print(os.system('ls ../'))
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 ##################################################
@@ -216,7 +215,8 @@ with w.if_todo('timesplit'):
 
         for timerange in np.array_split(sorted(set(t.getcol('TIME'))), round(hours)):
             logger.info('%02i - Splitting timerange %f %f' % (tc, timerange[0], timerange[-1]))
-            t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[-1]), sortlist='TIME,ANTENNA1,ANTENNA2')
+            logger.info(f'Splitting timerange {timerange[-1]-timerange[0]} -> 3584s.')
+            t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[0]+3584), sortlist='TIME,ANTENNA1,ANTENNA2')
             splitms = groupname+'/TC%02i.MS' % tc
             lib_util.check_rm(splitms)
             t1.copy(splitms, True)
