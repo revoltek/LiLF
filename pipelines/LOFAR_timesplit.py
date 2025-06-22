@@ -58,7 +58,6 @@ with w.if_todo('copy'):
         # overwrite=True to prevent updating the weights twice
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=True)
 ### DONE
-print(os.system('ls ../'))
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 ##################################################
@@ -157,7 +156,7 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
                msout='+groupname+'/'+groupname+'-temp.MS', log=groupname+'_DP3_concat.log', commandType='DP3')
         s.run(check=True)
 
-        # We need a number of channels that is - after averaging to the final dutch wide-field resolution - divisable by 48.check that nchan is divisible by 48 - necessary in dd pipeline; discard high freq unused channels
+        # We need a number of channels that is - after averaging to the final dutch wide-field resolution - divisable by 48; discard high freq unused channels
         nchan_init = MSs.getListObj()[0].getNchan()*len(msg)
         final_freqres_dutch = 0.048828e6 if 'OUTER' in MSs.getListObj()[0].getAntennaSet() else 0.024414e6
         freqres = MSs.getListObj()[0].getChanband()
