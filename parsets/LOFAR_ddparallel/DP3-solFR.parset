@@ -22,7 +22,7 @@ sol.smoothnessconstraint = 50e6
 sol.smoothness_kernel_truncation = True
 sol.smoothnessreffrequency = 54e6
 sol.smoothnessspectralexponent=-2.0
-sol.coreconstraint =[2700.0]
+sol.coreconstraint =2700.0
 sol.solutions_per_direction=[50]
 # these below set the smoothness and solints for the groups of stations
 sol.antenna_averaging_factors = [CS*:50,[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:50,[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:20,[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:10]
