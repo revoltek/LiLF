@@ -91,6 +91,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_timesplit', 'fillmissingedges', 'True')
     add_default('LOFAR_timesplit', 'apply_fr', 'False') # Also transfer rotationmeasure sols? (E.g. for nearby calibrator and target)
     add_default('LOFAR_timesplit', 'no_aoflagger', 'False') # TEST: Skip aoflagger (e.g. for observations of A-Team sources)
+    add_default('LOFAR_timesplit', 'ateam_clip', '') # [CygA, CasA] or [CasA] or [CygA] or '' - the code clips the specified ateams (if not demixed from the observatory)
     # ddparallel
     add_default('LOFAR_ddparallel', 'maxIter', '2')
     add_default('LOFAR_ddparallel', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
@@ -100,7 +101,6 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'fulljones', 'False')
     add_default('LOFAR_ddparallel', 'min_facets', '')
     add_default('LOFAR_ddparallel', 'max_facets', '')
-    add_default('LOFAR_ddparallel', 'ateam_clip', '') # [CygA, CasA] or [CasA] or [CygA] or '' - the code clips the specified ateams (if not demixed from the observatory)
     add_default('LOFAR_ddparallel', 'develop', 'False') # if true make more debug images (slower)
     add_default('LOFAR_ddparallel', 'data_dir', '')
     add_default('LOFAR_ddparallel', 'use_shm', 'True') # use /dev/shm for temporary files, if available

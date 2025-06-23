@@ -26,6 +26,7 @@ ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
 apply_fr = parset.getboolean('LOFAR_timesplit','apply_fr') # also transfer the FR solutions (possibly useful if calibrator and target are close, especially for IS data.)
 no_aoflagger = parset.getboolean('LOFAR_timesplit','no_aoflagger')
+ateam_clip = parset.get('LOFAR_timesplit', 'ateam_clip') # '' no clip
 bl2flag = parset.get('flag','stations')
 
 #################################################
@@ -196,6 +197,26 @@ with w.if_todo('flag'):
     except RuntimeError:
         logger.warning('Plotting weights failed... continue.')
 ### DONE
+
+#####################################
+# check if cyg a was not demixed and do clipping
+if ateam_clip != '':
+    with w.if_todo('clipping'):
+        ateam_clip = ateam_clip.replace('[', '').replace(']', '').split(',')
+        ateam_model = os.path.dirname(__file__) + '/../models/demix_all.skymodel'
+        for MS in MSs.getListObj():
+            demixed = MS.get_ateam_demix()
+            #print(MS.pathMS, demixed, ateam_clip)
+            for a in ateam_clip:
+                if a not in ['CasA', 'CygA', 'VirA', 'TauA']:
+                    logger.warning(f'Can clip only Ateam (Cas, Cyg, Vir, Tau), not {a} -> skip.')
+                elif (a not in demixed) and (MSs.getListObj()[0].distBrightSource(a) > 15):
+                    logger.info(f'{MS.nameMS}: Clipping {a} that was not demixed.')
+                    cmd = f'DP3 msin={MS.pathMS} msout=. steps=[count,clipper,count] clipper.type=CLIPPER clipper.sourcedb={ateam_model} \
+                        clipper.sources=[{a}] clipper.usebeammodel=True clipper.correctfreqsmearing=True'
+                    s.add(cmd, log=MS.nameMS+'_clipper.log', commandType='DP3')
+                    s.run(check=True)
+    ### DONE
 
 #####################################
 # Create time-chunks
