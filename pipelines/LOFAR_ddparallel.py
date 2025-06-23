@@ -48,6 +48,7 @@ min_facets = parset.get('LOFAR_ddparallel', 'min_facets') # ''=default (differs 
 max_facets = parset.get('LOFAR_ddparallel', 'max_facets') # ''=default (differs for SPARSE and OUTER), otherwise provide comma seperated list [5,10,20..]
 ateam_clip = parset.get('LOFAR_ddparallel', 'ateam_clip') # '' no clip
 develop = parset.getboolean('LOFAR_ddparallel', 'develop') # for development, make more output/images
+use_shm = parset.getboolean('LOFAR_ddparallel', 'use_shm') # use shared memory for wsclean
 data_dir = parset.get('LOFAR_ddparallel','data_dir')
 start_sourcedb = parset.get('model','sourcedb')
 userReg = parset.get('model','userReg')
@@ -740,7 +741,7 @@ for c in range(maxIter):
         imagename = 'img/wide-' + str(c)
         imagenameM = 'img/wideM-' + str(c)
         # common imaging arguments used by all of the following wsclean calls
-        widefield_kwargs = dict(data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec', weight='briggs -0.5', niter=1000000,
+        widefield_kwargs = dict(data_column='CORRECTED_DATA', use_shm=use_shm, size=imgsizepix_wide, scale=f'{pixscale}arcsec', weight='briggs -0.5', niter=1000000,
                                 gridder='wgridder',  parallel_gridding=len(sm.getPatchNames()), minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                 join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
                                 multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname, apply_facet_solutions=f'{wide_h5} phase000', concat_mss=False)
