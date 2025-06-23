@@ -158,9 +158,9 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
 
         # We need a number of channels that is - after averaging to the final dutch wide-field resolution - divisable by 48; discard high freq unused channels
         nchan_init = MSs.getListObj()[0].getNchan()*len(msg)
-        final_freqres_dutch = 0.048828e6 if 'OUTER' in MSs.getListObj()[0].getAntennaSet() else 0.024414e6
+        final_freqres_dutch = 0.048828125e6 if 'OUTER' in MSs.getListObj()[0].getAntennaSet() else 0.0244140625e6
         freqres = MSs.getListObj()[0].getChanband()
-        averaging_factor = int(round(final_freqres_dutch / freqres))
+        averaging_factor = max([1,int(round(final_freqres_dutch / freqres))])
         nchan = nchan_init - nchan_init % (48*averaging_factor)
         logger.info('Reducing total channels: %ich -> %ich)' % (nchan_init, nchan))
         s.add(f'DP3 {parset_dir}/DP3-concat.parset msin={groupname}/{groupname}-temp.MS msin.datacolumn=DATA msin.nchan={nchan} msout={groupname}/{groupname}.MS',
