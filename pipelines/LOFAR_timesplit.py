@@ -163,7 +163,7 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
         final_freqres_dutch = 0.048828e6 if 'OUTER' in MSs.getListObj()[0].getAntennaSet() else 0.024414e6
         freqres = MSs.getListObj()[0].getChanband()
         averaging_factor = int(round(final_freqres_dutch / freqres))
-        nchan = nchan_init - nchan_init % 48*averaging_factor
+        nchan = nchan_init - nchan_init % (48*averaging_factor)
         logger.info('Reducing total channels: %ich -> %ich)' % (nchan_init, nchan))
         s.add(f'DP3 {parset_dir}/DP3-concat.parset msin={groupname}/{groupname}-temp.MS msin.datacolumn=DATA msin.nchan={nchan} msout={groupname}/{groupname}.MS',
               log=groupname+'_DP3_concat.log', commandType='DP3')
