@@ -30,6 +30,7 @@ min_cal_flux60 = parset.getfloat('LOFAR_ddserial','minCalFlux60') # default: 0.8
 solve_amp = parset.getboolean('LOFAR_ddserial','solve_amp')
 manual_dd_cal = parset.get('LOFAR_ddserial','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
 develop = parset.getboolean('LOFAR_ddserial', 'develop') # for development, make more output/images
+use_shm = parset.getboolean('LOFAR_ddserial', 'use_shm') # use shared memory for wsclean
 userReg = parset.get('model','userReg')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=6.5):
@@ -960,7 +961,7 @@ for cmaj in range(maxIter):
                 save_source_list='', no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
                 apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75,
-                concat_mss=True, **beam_kwargs)
+                concat_mss=True, use_shm=use_shm, **beam_kwargs)
  
         os.system(f'mv {imagename}*MFS-image*fits {imagename}*MFS-model*fits {imagename}*MFS-residual*fits \
                   {imagename}-0*image*fits {imagename}-0*model*fits ddserial/c{cmaj:02}/images')
@@ -979,7 +980,7 @@ with w.if_todo('output-timedep'):
     logger.info('Cleaning (time dep images)...')
     for tc, msfile in enumerate(MSs.getListStr()):
         imagenameT = 'img/wideDD-TC%02i-c%02i' % (tc, cmaj)
-        lib_util.run_wsclean(s, 'wscleanTC'+str(tc)+'-c'+str(cmaj)+'.log', msfile, concat_mss=True, name=imagenameT, data_column='CORRECTED_DATA',
+        lib_util.run_wsclean(s, 'wscleanTC'+str(tc)+'-c'+str(cmaj)+'.log', msfile, concat_mss=False, use_shm=use_shm, name=imagenameT, data_column='CORRECTED_DATA',
                 size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder',
                 parallel_gridding=len(h5parms['ph']), minuv_l=30, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
@@ -1005,7 +1006,7 @@ with w.if_todo('output-vstokes'):
 with w.if_todo('output-lres'):
     imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
     logger.info('Cleaning (low res)...')
-    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameL, data_column='CORRECTED_DATA',
+    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameL, data_column='CORRECTED_DATA',
                 size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='60arcsec', niter=1000000, gridder='wgridder',
                 parallel_gridding=len(h5parms['ph']), minuv_l=20, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
@@ -1034,7 +1035,7 @@ with w.if_todo('output-lressub'):
 
     imagenameLS = 'img/wideDD-lressub-c%02i' % (cmaj)
     logger.info('Cleaning (low res sub)...')
-    lib_util.run_wsclean(s, 'wscleanLRS-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameLS, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
+    lib_util.run_wsclean(s, 'wscleanLRS-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameLS, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
                 weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=len(h5parms['ph']), no_update_model_required='', minuv_l=20, mgain=0.85, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.65, pol='i', taper_gaussian='60arcsec',

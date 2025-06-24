@@ -82,6 +82,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_cal', 'fillmissingedges', 'True')
     add_default('LOFAR_cal', 'less_aggressive_flag', 'False') # change flagging so that we can handle data with alternating SBs only or many flagged points
     add_default('LOFAR_cal', 'develop', 'False') # if true prevents the deletion of files
+    add_default('LOFAR_cal', 'use_shm', 'False') # use /dev/shm for temporary files, if available
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
@@ -90,6 +91,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_timesplit', 'fillmissingedges', 'True')
     add_default('LOFAR_timesplit', 'apply_fr', 'False') # Also transfer rotationmeasure sols? (E.g. for nearby calibrator and target)
     add_default('LOFAR_timesplit', 'no_aoflagger', 'False') # TEST: Skip aoflagger (e.g. for observations of A-Team sources)
+    add_default('LOFAR_timesplit', 'ateam_clip', '') # [CygA, CasA] or [CasA] or [CygA] or '' - the code clips the specified ateams (if not demixed from the observatory)
     # ddparallel
     add_default('LOFAR_ddparallel', 'maxIter', '2')
     add_default('LOFAR_ddparallel', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
@@ -99,14 +101,14 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'fulljones', 'False')
     add_default('LOFAR_ddparallel', 'min_facets', '')
     add_default('LOFAR_ddparallel', 'max_facets', '')
-    add_default('LOFAR_ddparallel', 'ateam_clip', '') # [CygA, CasA] or [CasA] or [CygA] or '' - the code clips the specified ateams (if not demixed from the observatory)
     add_default('LOFAR_ddparallel', 'develop', 'False') # if true make more debug images (slower)
     add_default('LOFAR_ddparallel', 'data_dir', '')
+    add_default('LOFAR_ddparallel', 'use_shm', 'True') # use /dev/shm for temporary files, if available
     # ddserial
     add_default('LOFAR_ddserial', 'maxIter', '1')
     add_default('LOFAR_ddserial', 'minCalFlux60', '0.8')
     add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
-    # add_default('LOFAR_ddserial', 'removeExtendedCutoff', '0.0005')
+    add_default('LOFAR_ddparallel', 'use_shm', 'True') # use /dev/shm for temporary files, if available
     add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec
     add_default('LOFAR_ddserial', 'manual_dd_cal', '')
     add_default('LOFAR_ddserial', 'develop', 'False') # if true make more debug images (slower) 

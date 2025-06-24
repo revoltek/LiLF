@@ -27,6 +27,7 @@ imaging = parset.getboolean('LOFAR_cal', 'imaging')
 fillmissingedges = parset.getboolean('LOFAR_cal', 'fillmissingedges')
 less_aggressive_flag = parset.getboolean('LOFAR_cal', 'less_aggressive_flag') # change flagging to hande data that uses only alternating sb
 develop = parset.getboolean('LOFAR_cal', 'develop') # for development, don't delete files
+use_shm = parset.getboolean('LOFAR_cal', 'use_shm') # use shared memory for wsclean
 bl2flag = parset.get('flag', 'stations')
 
 #############################################################
@@ -51,7 +52,7 @@ def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
                          scale=scale, pol='I,V', auto_mask=5, # local_rms='', local_rms_method='rms-with-min',
                          weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.6,
                          baseline_averaging='', auto_threshold=2, join_channels='', fit_spectral_pol=3,
-                         channels_out=MSs.getChout(4e6))
+                         channels_out=MSs.getChout(4e6), use_shm=use_shm)
 
 #############################################################
 

@@ -26,6 +26,7 @@ ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
 apply_fr = parset.getboolean('LOFAR_timesplit','apply_fr') # also transfer the FR solutions (possibly useful if calibrator and target are close, especially for IS data.)
 no_aoflagger = parset.getboolean('LOFAR_timesplit','no_aoflagger')
+ateam_clip = parset.get('LOFAR_timesplit', 'ateam_clip') # '' no clip
 bl2flag = parset.get('flag','stations')
 
 #################################################
@@ -58,7 +59,6 @@ with w.if_todo('copy'):
         # overwrite=True to prevent updating the weights twice
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=True)
 ### DONE
-print(os.system('ls ../'))
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 ##################################################
@@ -157,11 +157,11 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
                msout='+groupname+'/'+groupname+'-temp.MS', log=groupname+'_DP3_concat.log', commandType='DP3')
         s.run(check=True)
 
-        # We need a number of channels that is - after averaging to the final dutch wide-field resolution - divisable by 48.check that nchan is divisible by 48 - necessary in dd pipeline; discard high freq unused channels
+        # We need a number of channels that is - after averaging to the final dutch wide-field resolution - divisable by 48; discard high freq unused channels
         nchan_init = MSs.getListObj()[0].getNchan()*len(msg)
-        final_freqres_dutch = 0.048828e6 if 'OUTER' in MSs.getListObj()[0].getAntennaSet() else 0.024414e6
+        final_freqres_dutch = 0.048828125e6 if 'OUTER' in MSs.getListObj()[0].getAntennaSet() else 0.0244140625e6
         freqres = MSs.getListObj()[0].getChanband()
-        averaging_factor = int(round(final_freqres_dutch / freqres))
+        averaging_factor = max([1,int(round(final_freqres_dutch / freqres))])
         nchan = nchan_init - nchan_init % (48*averaging_factor)
         logger.info('Reducing total channels: %ich -> %ich)' % (nchan_init, nchan))
         s.add(f'DP3 {parset_dir}/DP3-concat.parset msin={groupname}/{groupname}-temp.MS msin.datacolumn=DATA msin.nchan={nchan} msout={groupname}/{groupname}.MS',
@@ -197,6 +197,26 @@ with w.if_todo('flag'):
     except RuntimeError:
         logger.warning('Plotting weights failed... continue.')
 ### DONE
+
+#####################################
+# check if cyg a was not demixed and do clipping
+if ateam_clip != '':
+    with w.if_todo('clipping'):
+        ateam_clip = ateam_clip.replace('[', '').replace(']', '').split(',')
+        ateam_model = os.path.dirname(__file__) + '/../models/demix_all.skymodel'
+        for MS in MSs.getListObj():
+            demixed = MS.get_ateam_demix()
+            #print(MS.pathMS, demixed, ateam_clip)
+            for a in ateam_clip:
+                if a not in ['CasA', 'CygA', 'VirA', 'TauA']:
+                    logger.warning(f'Can clip only Ateam (Cas, Cyg, Vir, Tau), not {a} -> skip.')
+                elif (a not in demixed) and (MSs.getListObj()[0].distBrightSource(a) > 15):
+                    logger.info(f'{MS.nameMS}: Clipping {a} that was not demixed.')
+                    cmd = f'DP3 msin={MS.pathMS} msout=. steps=[count,clipper,count] clipper.type=CLIPPER clipper.sourcedb={ateam_model} \
+                        clipper.sources=[{a}] clipper.usebeammodel=True clipper.correctfreqsmearing=True'
+                    s.add(cmd, log=MS.nameMS+'_clipper.log', commandType='DP3')
+                    s.run(check=True)
+    ### DONE
 
 #####################################
 # Create time-chunks

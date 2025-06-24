@@ -160,6 +160,7 @@ if renameavg:
                 # get avg time/freq values
                 nchan = MS.getNchan()
                 timeint = MS.getTimeInt()
+                logger.info(f'{MS.nameMS}: nchan={nchan}, timeint={timeint:.2f}s, antennaset={antennaset}')
                 # TODO change these lines to use MS.getAvgFactors() after running survey
                 if nchan == 1:
                     avg_factor_f = 1
