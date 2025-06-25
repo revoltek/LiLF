@@ -479,7 +479,7 @@ for c in range(maxIter):
             # logger.info(f'Test image MODEL_DATA...')
             # lib_util.run_wsclean(s, 'wscleanMODEL-c' + str(c) + '.log', MSs.getStrWsclean(), name=f'ddparallel/skymodel/{patch}',
             #                      data_column=patch, size=size, scale='8arcsec', shift=f'{pos[0].to(u.hourangle).to_string()} {pos[1].to_string()}',
-            #                      weight='briggs -0.5', niter=10000, gridder='wgridder', parallel_gridding=4, no_update_model_required='', minuv_l=30, mgain=0.9,
+            #                      weight='briggs -0.5', niter=10000, gridder='wgridder', parallel_gridding=MSs.getChout(4.e6), no_update_model_required='', minuv_l=30, mgain=0.9,
             #                      parallel_deconvolution=512, beam_size=15, join_channels='', fit_spectral_pol=3,
             #                      channels_out=MSs.getChout(4.e6), deconvolution_channels=3, pol='i', nmiter=5 )
         #MSs = lib_ms.AllMSs(glob.glob("*-smearing.MS"), s, check_flags=True)
@@ -722,7 +722,7 @@ for c in range(maxIter):
         imagenameM = 'img/wideM-' + str(c)
         # common imaging arguments used by all of the following wsclean calls
         widefield_kwargs = dict(data_column='CORRECTED_DATA', use_shm=use_shm, size=imgsizepix_wide, scale=f'{pixscale}arcsec', weight='briggs -0.5', niter=1000000,
-                                gridder='wgridder',  parallel_gridding=len(sm.getPatchNames()), minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
+                                gridder='wgridder',  parallel_gridding=len(sm.getPatchNames())*channels_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                 join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
                                 multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname, apply_facet_solutions=f'{wide_h5} phase000', concat_mss=False)
 
@@ -766,7 +766,7 @@ for c in range(maxIter):
         #                      data_column='SUBTRACTED_DATA',
         #                      size=imgsizepix_wide, scale=str(pixscale) + 'arcsec', weight='briggs -0.5', niter=1,
         #                      gridder='wgridder',
-        #                      parallel_gridding=4, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
+        #                      parallel_gridding=channels_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
         #                      join_channels='', fit_spectral_pol=3,
         #                      channels_out=channels_out, deconvolution_channels=3, pol='i',
         #                      no_update_model_required='', nmiter=12, auto_threshold=2.0, auto_mask=3.0,
@@ -777,7 +777,7 @@ for c in range(maxIter):
         # lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM+'-v',
         #                      no_update_model_required='',  nmiter=0,  niter=0,
         #                      data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec',
-        #                      weight='briggs -0.5', gridder='wgridder', parallel_gridding=4, minuv_l=30, parallel_deconvolution=1024,
+        #                      weight='briggs -0.5', gridder='wgridder', parallel_gridding=channels_out, minuv_l=30, parallel_deconvolution=1024,
         #                      channels_out=channels_out, pol='iquv', join_polarizations='', facet_regions=facetregname, apply_facet_solutions=f'{wide_h5} phase000')
 
         current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)

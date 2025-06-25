@@ -446,6 +446,10 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
             wsc_parms.append( '-mem 10' )
         else:
             wsc_parms.append( '-idg-mode cpu' )
+            
+    # limit parallel gridding to maxProcs
+    if 'parallel_gridding' in kwargs.keys() and kwargs['parallel_gridding'] > s.maxProcs:
+            kwargs['parallel_gridding'] = s.maxProcs
 
     # set the tmp dir to speed up
     if use_shm and os.access('/dev/shm/', os.W_OK) and not 'temp_dir' in list(kwargs.keys()):

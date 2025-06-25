@@ -397,7 +397,7 @@ for cmaj in range(maxIter):
                              data_column='SUBTRACTED_DATA',
                              size=imgsizepix, scale=str(pixscale) + 'arcsec', weight='briggs -0.5', niter=1,
                              gridder='wgridder',
-                             parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
+                             parallel_gridding=ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                              join_channels='', fit_spectral_pol=3,
                              channels_out=str(ch_out), deconvolution_channels=3, pol='i',
                              no_update_model_required='', nmiter=12, auto_threshold=2.0, auto_mask=3.0,
@@ -956,7 +956,7 @@ for cmaj in range(maxIter):
         logger.info('Cleaning...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA',
                 size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
-                parallel_gridding=len(h5parms['ph']), minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
+                parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                 save_source_list='', no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
@@ -982,12 +982,11 @@ with w.if_todo('output-timedep'):
         imagenameT = 'img/wideDD-TC%02i-c%02i' % (tc, cmaj)
         lib_util.run_wsclean(s, 'wscleanTC'+str(tc)+'-c'+str(cmaj)+'.log', msfile, concat_mss=False, use_shm=use_shm, name=imagenameT, data_column='CORRECTED_DATA',
                 size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder',
-                parallel_gridding=len(h5parms['ph']), minuv_l=30, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
+                parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                 no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
-                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75,
-                beam_size=15)
+                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60)
 
         os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameT, imagenameT, cmaj))
 ### DONE
@@ -996,7 +995,7 @@ with w.if_todo('output-vstokes'):
     imagenameV = 'img/wideDD-v-c%02i' % (cmaj)
     logger.info('Cleaning (V-stokes)...')
     lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
-                taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
+                taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
                 pol='v')
 
@@ -1008,7 +1007,7 @@ with w.if_todo('output-lres'):
     logger.info('Cleaning (low res)...')
     lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameL, data_column='CORRECTED_DATA',
                 size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='60arcsec', niter=1000000, gridder='wgridder',
-                parallel_gridding=len(h5parms['ph']), minuv_l=20, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
+                parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=20, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                 no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
@@ -1036,7 +1035,7 @@ with w.if_todo('output-lressub'):
     imagenameLS = 'img/wideDD-lressub-c%02i' % (cmaj)
     logger.info('Cleaning (low res sub)...')
     lib_util.run_wsclean(s, 'wscleanLRS-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameLS, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
-                weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=len(h5parms['ph']), no_update_model_required='', minuv_l=20, mgain=0.85, parallel_deconvolution=512,
+                weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=len(h5parms['ph'])*ch_out, no_update_model_required='', minuv_l=20, mgain=0.85, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.65, pol='i', taper_gaussian='60arcsec',
                 apply_facet_beam='', use_differential_lofar_beam='', facet_beam_update=120, facet_regions=facetregname, apply_facet_solutions=f'{interp_h5parm} {correct_for}')
@@ -1049,7 +1048,7 @@ with w.if_todo('output-debugempty'):
     logger.info('Cleaning (empty with no sols image for debug)...')
     lib_util.run_wsclean(s, 'wscleanEMPTY-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagenameEMPTY, data_column='SUBTRACTED_DATA',
                 size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1, gridder='wgridder',
-                parallel_gridding=32, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
+                parallel_gridding=ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3, pol='i',
                 no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
                 local_rms='', local_rms_window=50, local_rms_strength=0.75,
