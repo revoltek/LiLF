@@ -274,9 +274,9 @@ mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in c
 # define list of facet fluxes per iteration -> this can go into the config
 # if we have LOTSS-DR3 or a custom sky model, we will start from 3Jy not 4Jy sources!
 if 'OUTER' in MSs.getListObj()[0].getAntennaSet():
-    facet_fluxes = np.array([4, 2.0, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+    facet_fluxes = np.array([4, 2.2, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 elif 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
-    facet_fluxes = np.array([4, 2.4, 1.3, 1.1, 1.0, 0.9])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+    facet_fluxes = np.array([4, 2.6, 1.3, 1.1, 1.0, 0.9])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 
 if min_facets: # if manually provided
     if not isinstance(min_facets, list):
@@ -298,9 +298,9 @@ if max_facets: # if manually provided
 else: #default settings
     # use more facets for SPARSE (larger FoV)
     if 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
-        max_facets = [12, 24, 35, 35, 35, 35]
+        max_facets = [10, 22, 35, 35, 35, 35]
     elif 'OUTER' in MSs.getListObj()[0].getAntennaSet():
-        max_facets = [8, 18, 25, 25, 25, 25]
+        max_facets = [8, 16, 25, 25, 25, 25]
     else:
         raise ValueError(f'{MSs.getListObj()[0].getAntennaSet()} not recognized.')
 
@@ -489,7 +489,7 @@ for c in range(maxIter):
         logger.info('Solving ionosphere (DD)...')
         smMHz = np.array([[2.5,7.0,10.0,15.0],[6.0,10.0,15.0,25.0]]) # [cycle0, cycle1]
         smMHz_factors = [smMHz[0]/np.max(smMHz[0]), smMHz[1]/np.max(smMHz[1])] # factors should be <1 otherwise trimming of kernel is off
-        solutions_per_direction = 30*np.ones(len(patches), dtype=int)
+        solutions_per_direction = 15*np.ones(len(patches), dtype=int)
         # get twice as many solutions for brighter directions solint (i.e. one per time step) for bright directions
         solutions_per_direction[patch_fluxes > 4] *= 2
         # solint = int(solint / np.min(solutions_per_direction))
@@ -504,7 +504,8 @@ for c in range(maxIter):
         # else:
         #     maxProcs = 8
         # TODO use smoothness_dd_factors
-        avg_factors = [30,10,4,2]
+        nchan_ph = round(0.195312e6 / MSs.getListObj()[0].getChanband())  # number of channels in 1 SBs
+        avg_factors = [15,5,2,1]
         ant_avg_factors = f"[CS*:{avg_factors[0]},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{avg_factors[1]},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{avg_factors[2]},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{avg_factors[3]}]"
         ant_smooth_factors = f"[CS*:{smMHz_factors[c][3]},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{smMHz_factors[c][2]},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{smMHz_factors[c][1]},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{smMHz_factors[c][0]}]"
 
