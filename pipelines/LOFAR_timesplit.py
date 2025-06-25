@@ -152,9 +152,17 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
         for j in range(num_init, num_fin+1):
             msg.append(prefix+'SB%03i.MS' % j)
 
+        # Dutch obs should be at 4s
+        if not MSs.hasIS and MSs.mssListObj[0].getTimeInt() < 4:
+            avgtimestep = int(round(4./MSs.mssListObj[0].getTimeInt()))
+            DP3str = f'steps=[avg] avg.type=averager avg.timestep={avgtimestep}'
+            logger.warning(f'Using averaging factor {avgtimestep} to get to 4s time resolution.')
+        else:
+            DP3str = ''
+
         # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected)
         s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(msg)+']" msin.missingdata=True msin.orderms=False \
-               msout='+groupname+'/'+groupname+'-temp.MS', log=groupname+'_DP3_concat.log', commandType='DP3')
+               msout='+groupname+'/'+groupname+'-temp.MS '+DP3str, log=groupname+'_DP3_concat.log', commandType='DP3')
         s.run(check=True)
 
         # We need a number of channels that is - after averaging to the final dutch wide-field resolution - divisable by 48; discard high freq unused channels
@@ -199,7 +207,7 @@ with w.if_todo('flag'):
 ### DONE
 
 #####################################
-# check if cyg a was not demixed and do clipping
+# check if an ateam was not demixed and do clipping
 if ateam_clip != '':
     with w.if_todo('clipping'):
         ateam_clip = ateam_clip.replace('[', '').replace(']', '').split(',')
