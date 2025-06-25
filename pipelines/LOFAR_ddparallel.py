@@ -263,11 +263,9 @@ if MSs.getChout(4.e6) >= 7:  # Bandwidth of 28 MHz or more
 else: cc_fit_order = 3
 
 fullband = MSs.getBandwidth()
-nchan = MSs.mssListObj[0].getNchan()
 tint = MSs.mssListObj[0].getTimeInt()
-if (fullband / nchan) < (195.3e3/4):
-    base_nchan = round((195.3e3/4)/(fullband/nchan)) # this is 1 for dutch observations, and larger (2,4) for IS observations
-else: base_nchan = 1
+nchan_ph = round(0.195312e6 / MSs.getListObj()[0].getChanband())  # number of channels in 1 SBs
+nchan_amp = 2* round(0.192e6 / MSs.getListObj()[0].getChanband()) # number of channels in 2 SBs
 
 if np.round(tint) != 4:
     raise ValueError('Input data should be at 4s time resolution.')
@@ -507,7 +505,6 @@ for c in range(maxIter):
         # else:
         #     maxProcs = 8
         # TODO use smoothness_dd_factors
-        nchan_ph = round(0.195312e6 / MSs.getListObj()[0].getChanband())  # number of channels in 1 SBs
         avg_factors = [30,10,4,2]
         ant_avg_factors = f"[CS*:{avg_factors[0]},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{avg_factors[1]},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{avg_factors[2]},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{avg_factors[3]}]"
         ant_smooth_factors = f"[CS*:{smMHz_factors[c][3]},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{smMHz_factors[c][2]},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{smMHz_factors[c][1]},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{smMHz_factors[c][0]}]"
@@ -549,7 +546,7 @@ for c in range(maxIter):
                 # 225 is 15 minutes
                 # sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]]',
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.model_weighted_constraints=true\
-                          sol.mode=diagonalamplitude sol.nchan=1 sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
+                          sol.mode=diagonalamplitude sol.nchan={nchan_amp} sol.smoothnessconstraint=4e6 sol.smoothnessreffrequency=54e6 sol.h5parm=$pathMS/amp-3C.h5 sol.datause=full \
                           sol.modeldatacolumns="[MODEL_DATA,{",".join(_3c_patches)}]" sol.solint='+str(224),
                           log=f'$nameMS_solamp_3c_c{c}.log', commandType="DP3", maxProcs=4)
 
@@ -645,8 +642,6 @@ for c in range(maxIter):
     # TODO add updateweights in production
     if c == 1:
         with w.if_todo('amp_di_solve'):
-
-            nchan_amp = 2* round(0.192e6 / MSs.getListObj()[0].getChanband()) # number of channels in 2 SBs
 
             if fulljones:
                 logger.info('Solving amp-di (fulljones)...')
