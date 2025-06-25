@@ -263,10 +263,9 @@ if MSs.getChout(4.e6) >= 7:  # Bandwidth of 28 MHz or more
 else: cc_fit_order = 3
 
 fullband = MSs.getBandwidth()
-tint = MSs.mssListObj[0].getTimeInt()
 nchan_ph = round(0.195312e6 / MSs.getListObj()[0].getChanband())  # number of channels in 1 SBs
 nchan_amp = 2* round(0.192e6 / MSs.getListObj()[0].getChanband()) # number of channels in 2 SBs
-
+tint = MSs.mssListObj[0].getTimeInt()
 if np.round(tint) != 4:
     raise ValueError('Input data should be at 4s time resolution.')
 
