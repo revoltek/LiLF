@@ -464,7 +464,8 @@ for c in range(maxIter):
             # Add model to MODEL_DATA and do FR corruption
             # TODO add time smearing in the predict parset?
             # note: beammode=full applies array_beam and element_beam, but the element_beam at the centre is already corrected, so MODEL_DATA needs to be
-            # corrected for element_beam at the phase centre
+            # corrected for element_beam at the phase centre. However, this is very slow, so we just corrupt for the array_beam and assume the element beam
+            # correction at the phase centre is ok everywhere.
             logger.info(f'Add model to {patch}...')
             correctfreqsmearing = c == 0 # only in cycle zero correct freq smearing
             MSs.run(f'DP3 {parset_dir}/DP3-predict-beam.parset msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch} pre.correctfreqsmearing={correctfreqsmearing}',

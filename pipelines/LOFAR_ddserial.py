@@ -87,7 +87,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=
         lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename,
                 size=imsize, scale=str(localpixscale)+'arcsec',
                 weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
-                baseline_averaging='', parallel_deconvolution=512, auto_threshold=5,
+                baseline_averaging='', parallel_deconvolution=512, auto_threshold=5, parallel_gridding=ch_out,
                 join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
     
         # make mask
@@ -105,7 +105,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=
         # No beam correction as it is already applied when splitting the mss-dir
         logger.info('Cleaning w/ mask ('+str(p)+')...')
         imagenameM = 'img/ddserialM-'+str(p)
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
+        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True, parallel_gridding=ch_out,
                 size=imsize, save_source_list='', scale=str(localpixscale)+'arcsec', reuse_psf=imagename, reuse_dirty=imagename,
                 weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', 
@@ -454,7 +454,14 @@ for cmaj in range(maxIter):
 
             logger.info(f'Phase shift, apply phase of closest facet ({closest}) and avg...')
             lib_util.check_rm('mss-dir')
-            os.makedirs('mss-dir')
+            if use_shm:
+                # use shared memory for direction
+                lib_util.check_rm('/dev/shm/mss-dir')
+                os.makedirs('/dev/shm/mss-dir')
+                os.system('ln -s /dev/shm/mss-dir mss-dir')
+            else:
+                os.makedirs('mss-dir')
+
 
             # Determine parameters for averaging - ms:SUBTRACTED_DATA -> ms-dir:DATA (->8/16/32 s and 1 chan every 2 SBs: tot of 60 or 120 chan)
             if d.get_flux(freq_mid) > 10: avgtimeint = int(round(8/timeint))
@@ -698,6 +705,10 @@ for cmaj in range(maxIter):
 
         # End calibration cycle
         ##################################
+
+        if use_shm:
+            # use shared memory for DP3
+            lib_util.check_rm('/dev/shm/mss-dir')
 
         # if died the first cycle or diverged
         if cdd == 0 or ((rms_noise_pre >= d.rms_noise_init) and (mm_ratio_pre/2 < d.mm_ratio_init)):

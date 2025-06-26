@@ -108,7 +108,7 @@ nodename = socket.gethostname()
 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 with SurveysDB(survey='lba',readonly=False) as sdb:
     r = sdb.execute('UPDATE fields SET username="%s", clustername="%s", nodename="%s", start_date="%s" WHERE id="%s"' % \
-                    (username, clustername, nodename, target, timestamp))
+                    (username, clustername, nodename, timestamp, target))
 
 ###################################################################################
 # setup and copy
