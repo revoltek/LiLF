@@ -16,15 +16,12 @@ parset = lib_util.getParset(parsetFile='lilf.config')
 # get parameters
 # use lilf.config (this is also used by all other scripits)
 working_dir = os.path.abspath(parset.get('PiLL','working_dir'))
-project = parset.get('PiLL','project')
-target = parset.get('PiLL','target')
-obsid = parset.get('PiLL','obsid')
-download_file = parset.get('PiLL','download_file')
+minmaxhrs = parset.get('PiLL','minmaxhrs').split(',')
 
 caldirroot = ('/iranet/groups/ulu/fdg/surveycals/done/')
 tgtdirroot = ('/iranet/groups/ulu/fdg/surveytgts/download*/mss/')
-
-
+print(minmaxhrs)
+sys.exit()
 def update_status_db(field, status):
 
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -82,7 +79,20 @@ with SurveysDB(survey='lba',readonly=True) as sdb:
             target = file.readline()[:-1]
     else:
         # get all fields with max priority
-        sdb.execute('SELECT * FROM fields WHERE status = "Downloaded" AND priority = (SELECT MAX(priority) FROM fields WHERE status = "Downloaded")')
+        #sdb.execute('SELECT * FROM fields WHERE status = "Downloaded" AND priority = (SELECT MAX(priority) FROM fields WHERE status = "Downloaded")')
+        sdb.execute(f'''
+                    SELECT f.id
+                    FROM fields f
+                    JOIN field_obs fo ON f.id = fo.field_id
+                    WHERE f.status = "Downloaded"
+                        AND f.priority = (
+                            SELECT MAX(priority)
+                            FROM fields
+                            WHERE status = "Downloaded"
+                        )
+                    GROUP BY f.id
+                    HAVING COUNT(fo.field_id) BETWEEN {minmaxhrs[0]} AND {minmaxhrs[1]}
+                    ''')
         r = sdb.cur.fetchall()
         if len(r) == 0:
             logger.warning('No field left in the db...')
@@ -90,8 +100,6 @@ with SurveysDB(survey='lba',readonly=True) as sdb:
         
         rndidx = random.randint(0, len(r)-1) # select a random field
         target = r[rndidx]['id'] # here we set $target
-        target_ra = r[rndidx]['ra']
-        target_dec = r[rndidx]['decl']
         # save target name
         with open("target.txt", "w") as file:
             print(target, file=file)
