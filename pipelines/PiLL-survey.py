@@ -20,8 +20,7 @@ minmaxhrs = parset.get('PiLL','minmaxhrs').split(',')
 
 caldirroot = ('/iranet/groups/ulu/fdg/surveycals/done/')
 tgtdirroot = ('/iranet/groups/ulu/fdg/surveytgts/download*/mss/')
-print(minmaxhrs)
-sys.exit()
+
 def update_status_db(field, status):
 
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
