@@ -295,8 +295,8 @@ for cmaj in range(maxIter):
                 directions.append(d)
 
             # cap at 40 directions
-            if len(directions) == 40:
-                logger.warning('Too many directions found: stopping at 40.')
+            if len(directions) == 50:
+                logger.warning('Too many directions found: stopping at 50.')
                 break
 
         # take care of manually provided region to include in cal
@@ -752,11 +752,11 @@ for cmaj in range(maxIter):
                 s.add(f'h5_merger.py --h5_out {split_h5} --h5_tables {ddparallel_h5parm} --filter_directions [{p_idx}] --no_pol --no_antenna_crash --no_weight_prop',
                     log='h5_merger.log', commandType='python')
                 s.run(check=True)
-                # change the direction of the closest facet to be exactly identical with the ddcal
+                # change the direction of the closest facet to be exactly identical with the ddcal (keep --min_distance for rounding errors in losoto)
                 lib_h5.repoint_h5dir(split_h5, 'Dir00', d.position)
                 logger.info(f'Merge final solutions for {d.name} with {closest}...')
                 s.add(f'h5_merger.py --h5_out {d.get_h5parm("ph1", -2)} --h5_tables {d.get_h5parm("ph-ddserial", -2)} {split_h5} --h5_time_freq {split_h5} \
-                       --no_antenna_crash', log='h5_merger.log', commandType='python')
+                       --no_antenna_crash --min_distance 0.00027', log='h5_merger.log', commandType='python')
                 s.run(check=True)
                 # plot the merged h5parm for debug
                 lib_util.run_losoto(s, 'ph1', d.get_h5parm('ph1', -2),
