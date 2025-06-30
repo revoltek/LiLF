@@ -514,7 +514,7 @@ for c in range(maxIter):
                   sol.mode=scalarphase sol.smoothnessconstraint={max(smMHz[c])}e6 sol.smoothnessreffrequency=54e6 sol.nchan={nchan_ph}  \
                   sol.modeldatacolumns="[{",".join(patches)}]" sol.solutions_per_direction="{np.array2string(solutions_per_direction, separator=",")}" \
                   sol.antenna_averaging_factors={ant_avg_factors} sol.antenna_smoothness_factors={ant_smooth_factors} ',
-                log='$nameMS_solTEC-c' + str(c) + '.log', commandType='DP3', maxProcs=8)
+                  log='$nameMS_solTEC-c' + str(c) + '.log', commandType='DP3', maxProcs=8)
 
         lib_util.run_losoto(s, f'tec-c{c}', [ms + f'/tec.h5' for ms in MSs.getListStr()],
                             [parset_dir + '/losoto-refph.parset', parset_dir + '/losoto-plot-scalarph.parset'],
