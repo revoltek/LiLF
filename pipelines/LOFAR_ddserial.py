@@ -987,10 +987,62 @@ for cmaj in range(maxIter):
     full_image = lib_img.Image('ddserial/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
     full_image.nantozeroModel()
     # min_cal_flux60 *= 0.8  # go deeper
+##############################################################################################################
+#Leakage calibration
+with w.if_todo('predict-final'):
+        # wsclean predict - from ddparallel in cycle 0, otherwise from previous iteration
+        logger.info('Predict full model...')
+        s.add(f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_cpucores} -channels-out {ch_out} \
+                -facet-regions {facetregname} -apply-facet-solutions {interp_h5parm} {correct_for} \
+                -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 -no-solution-directions-check \
+                -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
+              log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean')
+        s.run(check=True)
 
+with w.if_todo('cal-leakage'):
+	logger.info('Leakage calibration (solint: %i)...' % solint_amp2)
+	# Calibration - ms:CORRECTED_DATA
+	MSs.run('DP3 '+parset_dir+'/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/cal-leak.h5 \
+		sol.solint=224 sol.nchan=1 sol.smoothnessconstraint=1e6',
+		log='$nameMS_sol_leak-'+logstringcal+'.log', commandType='DP3')
+	lib_util.run_losoto(s, 'leak', [ms+'/cal-leak.h5' for ms in MSs.getListStr()],
+                    [parset_dir+'/losoto-plot-fullj.parset'], plots_dir='ddserial/c%02i/plots/plots-leak', h5_dir = 'ddserial/c00/solutions')
+
+with w.if_todo('corr-leakage'):
+        logger.info('Correct amp-di (fulljones)...') if invert else logger.info('Corrupt amp-di (fulljones)...')
+        MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=LEAK_DATA \
+                cor.parmdb=ddserial/c00/solutions/cal-leak.h5 cor.correction=fulljones cor.soltab=[amplitude000,phaseSmooth000] \
+                cor.updateweights=False',
+                log='$nameMS_leakcorr.log', commandType='DP3')	
+		
 ##############################################################################################################
 ### Calibration finished - additional images with scientific value
 
+with w.if_todo('output-lres-leak'):
+    imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
+    logger.info('Cleaning (low res)...')
+    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameL, data_column='LEAK_DATA',
+                size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='60arcsec', niter=1000000, gridder='wgridder',
+                parallel_gridding=len(h5parms['ph']), minuv_l=20, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
+                channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
+                no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
+                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
+                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60)
+
+    os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameL, imagenameL, cmaj))
+### DONE
+
+with w.if_todo('output-vstokes'):
+    imagenameV = 'img/wideDD-v-c%02i' % (cmaj)
+    logger.info('Cleaning (V-stokes)...')
+    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='LEAK_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
+                taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
+                auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
+                pol='v')
+
+    os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, cmaj))
+### DONE
+sys.exit()
 # Low res as this is relevant only for transient detection
 with w.if_todo('output-timedep'):
     logger.info('Cleaning (time dep images)...')
@@ -1006,31 +1058,6 @@ with w.if_todo('output-timedep'):
                 beam_size=15)
 
         os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameT, imagenameT, cmaj))
-### DONE
-
-with w.if_todo('output-vstokes'):
-    imagenameV = 'img/wideDD-v-c%02i' % (cmaj)
-    logger.info('Cleaning (V-stokes)...')
-    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
-                taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
-                auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
-                pol='v')
-
-    os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, cmaj))
-### DONE
-
-with w.if_todo('output-lres'):
-    imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
-    logger.info('Cleaning (low res)...')
-    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameL, data_column='CORRECTED_DATA',
-                size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='60arcsec', niter=1000000, gridder='wgridder',
-                parallel_gridding=len(h5parms['ph']), minuv_l=20, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
-                channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
-                no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
-                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
-                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60)
-
-    os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameL, imagenameL, cmaj))
 ### DONE
 
 with w.if_todo('output-lressub'):

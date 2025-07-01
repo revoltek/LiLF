@@ -1,5 +1,5 @@
 msin =
-msin.datacolumn = SMOOTHED_DATA
+msin.datacolumn = CORRECTED_DATA
 msout = .
 
 steps = [sol]
@@ -10,8 +10,8 @@ sol.solveralgorithm = directioniterative # needed for sol.datause
 sol.mode = fulljones
 sol.uvlambdamin = 100
 sol.minvisratio = 0.25
-sol.tolerance = 1e-5
-sol.maxiter = 100
+sol.tolerance = 1e-4
+sol.maxiter = 200
 sol.nchan = 1
 sol.solint = 
 sol.propagatesolutions = True
