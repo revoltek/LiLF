@@ -874,6 +874,8 @@ class Scheduler():
             out = subprocess.check_output(r'grep -l "exception occur" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -l "Aborted" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Bus error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "(core dumped)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             # out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
