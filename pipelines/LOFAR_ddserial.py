@@ -514,11 +514,11 @@ for cmaj in range(maxIter):
         d.set_model(image.root, typ='pre', apply_region=False)  # current best model
 
         doamp = False
-        # usually there are 3600/32=112 or 3600/16=225 or 3600/8=450 timesteps and \
+        # usually there are 3584/32=112 or 3584/16=224 or 3584/8=448 timesteps and \
         # 60 (halfband)/120 (fullband) chans, try to use multiple numbers
         iter_ph_solint = lib_util.Sol_iterator([4, 2, 1])  # 32 or 16 or 8 * [4,2,1] s
-        iter_amp1_solint = lib_util.Sol_iterator([30, 20, 10])  # 32 or 16 or 8 * [30,20,10] s
-        iter_amp2_solint = lib_util.Sol_iterator([120, 60])
+        iter_amp1_solint = lib_util.Sol_iterator([28, 14, 7])  # 32 or 16 or 8 * [28,14,7] s
+        iter_amp2_solint = lib_util.Sol_iterator([112, 56])
         iter_ph_soltype = 'diagonalphase' if (d.get_flux(freq_mid) > 5 and cmaj > 0) else 'scalarphase'
         datause = 'dual' if iter_ph_soltype == 'diagonalphase' else 'single'
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
