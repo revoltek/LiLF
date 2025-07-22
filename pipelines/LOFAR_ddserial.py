@@ -125,6 +125,7 @@ with w.if_todo('cleaning'):
     lib_util.check_rm('img')
     os.makedirs('img')
     lib_util.check_rm('mss-avg')
+    lib_util.check_rm('mss-lres')
 ### DONE
 
 # use unaveraged MSs to be sure to get the same pixscale and imgsizepix of ddparallel
@@ -1001,7 +1002,7 @@ with w.if_todo('predict-final'):
 
 #Leakage calibration
 with w.if_todo('cal-leakage'):
-	logger.info('Leakage calibration (solint: %i)...' % solint_amp2)
+	logger.info('Leakage calibration (fulljones, solint: 30 min)...')
 	# Calibration - ms:CORRECTED_DATA
 	MSs.run('DP3 '+ parset_dir + f'/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/cal-leak.h5 \
 		sol.solint={int(MSs.getListObj()[0].getNtime()/2)} sol.nchan=1 sol.smoothnessconstraint=3e6',
@@ -1009,21 +1010,51 @@ with w.if_todo('cal-leakage'):
 	lib_util.run_losoto(s, 'leak', [ms+'/cal-leak.h5' for ms in MSs.getListStr()],
                     [parset_dir+'/losoto-plot-fullj.parset'], plots_dir='ddserial/c00/plots/plots-leak', h5_dir = 'ddserial/c00/solutions')
 
-#with w.if_todo('corr-leakage'):
-#        logger.info('Correct amp-di (fulljones)...')
-#        MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=LEAK_DATA \
-#                cor.parmdb=ddserial/c00/solutions/cal-leak.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] \
-#                cor.updateweights=False',
-#                log='$nameMS_leakcorr.log', commandType='DP3')	
+
+if not os.path.exists('mss-lres'):
+    timeint = MSs.getListObj()[0].getTimeInt()
+    avgtimeint = int(round(16/timeint))  # to 8 seconds
+    nchan_init = MSs.getListObj()[0].getNchan()
+    # chan: avg (x8) sol (x6) - we need a multiple of 8x6=48, the largest that is <nchan
+    # survey after avg (x8): 60, final number of sol 10
+    # pointed after avg (x8): 120, final number of sol 20
+    os.makedirs('mss-avg')
+    logger.info('Averaging in time (%is -> %is), channels: %ich -> %ich)' % (timeint,timeint*avgtimeint,nchan_init,nchan_init/4))
+    MSs.run('DP3 '+parset_dir+'/DP3-avg.parset msin=$pathMS msout=mss-lres/$nameMS.MS msin.datacolumn=CORRECTED_DATA msin.nchan='+str(nchan)+' \
+            avg.timestep='+str(avgtimeint)+' avg.freqstep=4', log='$nameMS_lresavg.log', commandType='DP3')
+
+MSs_lres = lib_ms.AllMSs( glob.glob('mss-lres/TC*[0-9].MS'), s)
+
+with w.if_todo('corr-leakage'):
+       logger.info('Correct amp-di (fulljones)...')
+       MSs_lres.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
+               cor.parmdb=ddserial/c00/solutions/cal-leak.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] \
+               cor.updateweights=False', log='$nameMS_leakcorr.log', commandType='DP3')
 		
 ##############################################################################################################
 ### Calibration finished - additional images with scientific value
 
-#LOW RES ouput (already in the Vstoke clean)
-with w.if_todo('output-lres-leak'):
+# Low res as this is relevant only for transient detection
+with w.if_todo('output-timedep'):
+    logger.info('Cleaning (time dep images)...')
+    for tc, msfile in enumerate(MSs.getListStr()):
+        imagenameT = 'img/wideDD-TC%02i-c%02i' % (tc, cmaj)
+        lib_util.run_wsclean(s, 'wscleanTC'+str(tc)+'-c'+str(cmaj)+'.log', msfile, concat_mss=True, name=imagenameT, data_column='CORRECTED_DATA',
+                             size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder',
+                             parallel_gridding=len(h5parms['ph']), minuv_l=30, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
+                             channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
+                             no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
+                             apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
+                             apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75,
+                             beam_size=15)
+        os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameT, imagenameT, cmaj))
+### DONE
+
+# LOW RES ouput
+with w.if_todo('output-lres'):
     imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
     logger.info('Cleaning (low res)...')
-    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameL, data_column='CORRECTED_DATA',
+    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, name=imagenameL, data_column='DATA',
                 size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='60arcsec', niter=1000000, gridder='wgridder',
                 parallel_gridding=len(h5parms['ph']), minuv_l=20, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
@@ -1033,64 +1064,20 @@ with w.if_todo('output-lres-leak'):
     os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameL, imagenameL, cmaj))
 ### DONE
 
-### StokeV before leakage Calbiration
-# REMOVE LATER
-#with w.if_todo('output-vstokes'):
-#    imagenameV = 'img/wideDD-c%02i' % (cmaj)
-#    logger.info('Cleaning (V-stokes)...')
-#    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
-#                taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
-#                auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
-#                pol='IQUV', join_polarizations = '',apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
-#                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60 )
-#    os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, cmaj))
-    
-### StokeV after leakage Calbiration
-#with w.if_todo('output-vstokes-leakcal'):
-#    imagenameT = 'img/wideDD-c%02i-calleak' % (cmaj)
-#    logger.info('Cleaning (V-stokes-leak)...')
-#    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameT, data_column='LEAK_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
-#                taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
-#                auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
-#                pol='IQUV', join_polarizations = '',apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
-#                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60 )
-#    os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameT, imagenameT, cmaj))
+### Stokes V after leakage Calibration
+with w.if_todo('output-vstokes-leakcal'):
+   imagenameL = 'img/wideDD-c%02i-leak' % (cmaj)
+   logger.info('Cleaning (lres I+V leakage-corrected)...')
+   lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, name=imagenameL, data_column='CORRECTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
+               taper_gaussian='60arcsec', weight='briggs 0', niter=100000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=20, mgain=0.85, parallel_deconvolution=512,
+               auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
+               pol='IQUV', join_polarizations = '', apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
+               apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60 )
+   os.system('mv %s-MFS-{I,V}-image*.fits %s-MFS-{I,V}-residual.fits ddserial/c%02i/images' % (imagenameL, imagenameL, cmaj))
 
-
-#with w.if_todo('output-vstokes-leakcal_no_dd'):
-#    imagenameT = 'img/wideDD-c%02i-calleak-V-nodd' % (cmaj)
-#    logger.info('Cleaning (V-stokes-leak-nodd)...')
-#    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameT, data_column='LEAK_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
-#                taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
-#                auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
-#                pol='V', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60 )
-#    os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameT, imagenameT, cmaj))
-
-#with w.if_todo('subtract-leak-data'):
-#    logger.info('Set LEAK_SUBTRACTED_DATA = LEAK_DATA - MODEL_DATA...')
-#    MSs.run('taql "update $pathMS set LEAK_SUBTRACTED_DATA = LEAK_DATA - MODEL_DATA"',
-#        log='$nameMS_taql.log', commandType='general')
-
-### dynspec part
-        
-# Low res as this is relevant only for transient detection
-with w.if_todo('output-timedep'):
-    logger.info('Cleaning (time dep images)...')
-    for tc, msfile in enumerate(MSs.getListStr()):
-        imagenameT = 'img/wideDD-TC%02i-c%02i' % (tc, cmaj)
-        lib_util.run_wsclean(s, 'wscleanTC'+str(tc)+'-c'+str(cmaj)+'.log', msfile, concat_mss=True, name=imagenameT, data_column='CORRECTED_DATA',
-                size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder',
-                parallel_gridding=len(h5parms['ph']), minuv_l=30, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
-                channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
-                no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
-                apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
-                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75,
-                beam_size=15)
-        os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameT, imagenameT, cmaj))
-### DONE
+### TODO dynspec part
 
 with w.if_todo('output-lressub'):
-
     logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED - MODEL_DATA"',
         log='$nameMS_taql.log', commandType='general')
@@ -1102,7 +1089,7 @@ with w.if_todo('output-lressub'):
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                 multiscale='', multiscale_scale_bias=0.65, pol='i', taper_gaussian='60arcsec',
                 apply_facet_beam='', use_differential_lofar_beam='', facet_beam_update=120, facet_regions=facetregname, apply_facet_solutions=f'{interp_h5parm} {correct_for}')
- 
+
     os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameLS, imagenameLS, cmaj))
 ### DONES
 
