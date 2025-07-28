@@ -247,6 +247,7 @@ with w.if_todo('saveproducts_%s' % target):
     os.system(f'cp -r ddparallel/plots/* {archive}/plots')
     os.system(f'cp ddserial/c0*/images/*image*.fits {archive}')
     os.system(f'cp ddserial/c0*/images/wideDD-*MFS-residual.fits {archive}')
+    os.system(f'cp ddserial/c0*/images/wideDD-*MFS-psf.fits {archive}')
     os.system(f'cp ddserial/c00/images/wideDD*model*fpb.fits {archive}')
     os.system(f'gzip ddserial/c00/solutions/interp.h5; cp ddserial/c00/solutions/interp.h5.gz {archive}')
     os.system(f'cp ddserial/c00/solutions/facets-c00.reg {archive}')

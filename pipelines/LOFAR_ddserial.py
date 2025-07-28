@@ -975,7 +975,7 @@ for cmaj in range(maxIter):
                 apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75,
                 concat_mss=True, use_shm=use_shm, **beam_kwargs)
  
-        os.system(f'mv {imagename}*MFS-image*fits {imagename}*MFS-model*fits {imagename}*MFS-residual*fits \
+        os.system(f'mv {imagename}*MFS-image*fits {imagename}*MFS-model*fits {imagename}*MFS-residual*fits {imagename}*MFS-psf*fits \
                   {imagename}-0*image*fits {imagename}-0*model*fits ddserial/c{cmaj:02}/images')
 
     ### DONE
