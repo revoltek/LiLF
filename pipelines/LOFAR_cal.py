@@ -199,6 +199,7 @@ with w.if_todo('predict_all'):
 # 1: PRE-calibration: remove the fast-wrapping scalarphase (clock+disp. delay + 3rd order).
 # This is necessary to increase the solution intervals/channels for the PA rot+diag step, that otherwise becomes
 # too noisy for international stations. Do this on FR-corrected data to reduce glitches from FR+PA interplay.
+# order is correct
 with w.if_todo('pre_iono'):
     # Correct beam concat_all.MS:DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
@@ -265,15 +266,20 @@ with w.if_todo('pre_iono'):
 ########################################################
 
 # 2: find PA
+# correct order:
+# corrupt pre-iono, corrupt beam
 with w.if_todo('cal_pa'):
     # Correct pre-iono concat_all:DATA -> CORRECTED_DATA
     logger.info('Iono correction (preliminary)...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 msin.datacolumn=DATA \
-                cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
-                cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 msin.datacolumn=MODEL_DATA  \
+                cor.correction=phase000 msout.datacolumn=MODEL_DATA_PREIONO cor.invert=False', log='$nameMS_cor-preIONO.log', commandType="DP3")
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 msin.datacolumn=MODEL_DATA_PREIONO \
+                cor.invert=False msout.datacolumn=MODEL_DATA_PREIONO cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+    #Corrupt beam 
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA_PREIONO msout.datacolumn=MODEL_DATA_BEAMCOR \
+                       corrbeam.invert=False setbeam.beammode=element', log='$nameMS_cor-preIONO.log', commandType='DP3')
     # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
+    MSs_concat_all.run_Blsmooth(incol='DATA', logstr='smooth')
 
     if MSs_concat_all.hasIS:
         # For IS data speedup: Concat+avg SMOOTHED_DATA -> concat_pa.MS:DATA
@@ -304,9 +310,9 @@ with w.if_todo('cal_pa'):
     else:
         # predict the element-corrupted model
         logger.info(f'Add beam-corrupted model of {calname} from {os.path.basename(skymodel)} to MODEL_DATA_BEAMCOR...')
-        MSs_concat_all.run(f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_BEAMCOR \
-                           pre.sourcedb={skymodel} pre.sources={calname} pre.beam_interval=120 \
-                           pre.usebeammodel=True, pre.beammode=element", log="$nameMS_pre.log", commandType="DP3")
+        # MSs_concat_all.run(f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_BEAMCOR \
+                        #    pre.sourcedb={skymodel} pre.sources={calname} pre.beam_interval=120 \
+                        #    pre.usebeammodel=True, pre.beammode=element", log="$nameMS_pre.log", commandType="DP3")
 
         # Solve concat_all.MS:SMOOTHED_DATA (only solve)
         logger.info('Calibrating PA...')
@@ -320,6 +326,7 @@ with w.if_todo('cal_pa'):
 ### DONE
 ########################################################
 # 3: find FR
+# Correct order.
 with w.if_todo('cal_fr'):
     # Pol align correction concat_all.MS:DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
@@ -359,6 +366,8 @@ with w.if_todo('cal_fr'):
 
 # 4: calibrate iono + clock
 with w.if_todo('cal_iono'):
+    # Correct sequence:
+    # apply PA, apply beam, corrupt FR
     # Pol align correction concat_all.MS:DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
@@ -367,17 +376,18 @@ with w.if_todo('cal_iono'):
     logger.info('Beam correction...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False',
                        log='$nameMS_beam.log', commandType="DP3")
-    # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
+    # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA 
+    # Corrupt FR
     logger.info('Faraday rotation correction...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-fr.h5 \
-                   cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA cor.parmdb=cal-fr.h5 \
+                   cor.correction=rotationmeasure000 cor.invert=False msout.datacolumn=MODEL_DATA_FR', log='$nameMS_corFR.log', commandType="DP3")
     # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
 
     # Solve concat_all.MS:DATA (only solve on CS-CS BL)
     # not more smoothing since in rare case some CS have strong delay!
     logger.info('Calibrating IONO (Core Stations)...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.modeldatacolumn=[MODEL_DATA_FR] \
                         sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single sol.solint=8 sol.nchan=1 msin.baseline="CS*&CS*" \
                         sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin}', log='$nameMS_solIONO.log',
                        commandType="DP3")
@@ -387,8 +397,8 @@ with w.if_todo('cal_iono'):
 
     # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA (unit correction for others)
     logger.info('Iono correction (Core Stations)...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 \
-                cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.modeldatacolumns=[MODEL_DATA_FR] cor.parmdb=cal-iono-cs.h5 \
+                         cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
 
     # Phasing up the cose stations CORRECTED_DATA -> concat_all-phaseup-IONO.MS:DATA
     logger.info('Phasing up Core Stations...')
@@ -402,13 +412,15 @@ with w.if_todo('cal_iono'):
     os.system('cp -r %s %s' % (skymodel, MSs_concat_phaseupIONO.getListObj()[0].pathMS))
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname}',
                                log="$nameMS_pre.log", commandType="DP3")
+    MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA_FR \
+                                cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000 cor.invert=False',log='$nameMS_pre.log', commandType="DP3")
 
     # Smooth data concat_all-phaseup-IONO.MS:DATA -> SMOOTHED_DATA
     MSs_concat_phaseupIONO.run_Blsmooth(incol='DATA', nofreq=True, logstr='smooth')
     # Solve concat_all-phaseup-IONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
     smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.5e6'
-    MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS \
+    MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.modeldatacolumns=[MODEL_DATA_FR]\
                            sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
                            log='$nameMS_sol.log', commandType="DP3")
@@ -424,34 +436,47 @@ with w.if_todo('cal_iono'):
 ######################################################
 
 # 5: find BP
+# EVERYTHING IS A CORRUPT
 with w.if_todo('cal_bp'):
     ## Pol align correction concat_all.MS:DATA -> CORRECTED_DATA
-    logger.info('Polalign correction...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
-                   cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DP3")
+    # logger.info('Polalign correction...')
+    # MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
+                #    cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DP3")
     # Correct beam concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Beam correction...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False',
-                           log='$nameMS_beam.log', commandType="DP3")
+    # logger.info('Beam correction...')
+    # MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False',
+                        #    log='$nameMS_beam.log', commandType="DP3")
     # FR corruption concat_all.MS:MODEL_DATA -> MODEL_DATA_FRCOR
     logger.info('Faraday rotation corruption (MODEL_DATA - > MODEL_DATA_FRCOR)...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA_FRCOR \
                         cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
     # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Iono correction...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 \
-                cor.correction=phase000', log='$nameMS_corIONO_CS.log', commandType="DP3")
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
-                cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
+    logger.info('Iono corruption...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 msin.datacolumn=MODEL_DATA_FRCOR \
+                msout.datacolumn=MODEL_DATA_IONO cor.invert=False cor.correction=phase000', log='$nameMS_corIONO_CS.log', commandType="DP3")
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 msin.datacolumn=MODEL_DATA_IONO \
+                msoutdatacolumn=MODEL_DATA_IONO cor.invert=False cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
+    
+    logger.info("Beam corruption")
+    # Corrupt beam concat_all.MS:MODEL_DATA_IONO -> MODEL_DATA_BEAMCOR
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA_IONO \
+                       msout.datacolumn=MODEL_DATA_BEAMCOR corrbeam.invert=False', log='$nameMS_corIONO.log', commandType='DP3')
+    
+    logger.info("Polalign corruption")
+    # Corrupt polalign concat_all.MS:MODEL_DATA_BEAMCOR -> MODEL_DATA_PA
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA_BEAMCOR \
+                       msout.datacolumn=MODEL_DATA_PA cor.parmdb=cal-pa.h5 cor.correction=polalign cor.invert=False',
+                       log='$nameMS_corPA.log', commandType="DP3")
+        
     # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA
-    MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', nofreq=True, logstr='smooth')
+    MSs_concat_all.run_Blsmooth(incol='DATA', nofreq=True, logstr='smooth')
 
     # Solve cal_SB.MS:SMOOTHED_DATA (only solve) against FR-corrupted MODEL_DATA
     # do not use datause=dual since the cross-hands are NOT trivial (FR-corrupted)
     logger.info('Calibrating BP...')
     timestep = round(20 / tint)  # brings down to 20s
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/bp-sub.h5 sol.mode=diagonal sol.datause=full \
-                        sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.nchan=1',
+                       sol.modeldatacolumns=[MODEL_DATA_PA] sol.solint={str(timestep)} sol.nchan=1',
                        log='$nameMS_solBP.log', commandType="DP3")
 
     flag_parset = '/losoto-flag-lessaggressive.parset' if less_aggressive_flag else '/losoto-flag.parset'
