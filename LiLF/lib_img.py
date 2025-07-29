@@ -11,6 +11,7 @@ from LiLF.lib_log import logger
 import astropy.io.fits as fits
 import astropy.wcs as wcs
 from astropy.coordinates import SkyCoord
+import matplotlib.pyplot as plt
 
 class Image(object):
     def __init__(self, imagename, userReg = None, beamReg= None ):
@@ -262,6 +263,59 @@ class Image(object):
                 return wcs.WCS(hdr)
             else:
                 return wcs.WCS(phdu[0].header)
+
+    def plotimage(self, outplotname, regionfile=None, \
+                      cmap='bone', regioncolor='yellow', minmax=None, regionalpha=0.6):
+        
+        # image noise info
+        head, data = flatten(self.imagename)
+        imagenoiseinfo = self.getNoise()
+    
+        if minmax is None:
+            logger.debug(self.imagename + ' Max image: ' + str(np.max(data)))
+            logger.debug(self.imagename + ' Min image: ' + str(np.min(data)))
+            logger.debug(self.imagename + ' RMS noise: ' + str(imagenoiseinfo))
+    
+        f = plt.figure()
+        ax = f.add_subplot(111, projection=self.getWCS() ) #, slices=('x', 'y', 0, 0))
+        if minmax is None:
+            img = ax.imshow(data[0, 0, :, :], cmap=cmap, vmax=16 * imagenoiseinfo, vmin=-6 * imagenoiseinfo)
+        else:
+            img = ax.imshow(data[0, 0, :, :], cmap=cmap, vmax=minmax[1], vmin=minmax[0])
+        
+        ax.set_title(self.imagename + ' (noise = {} mJy/beam)'.format(round(imagenoiseinfo * 1e3, 3)),fontsize=6)
+    
+        ax.grid(True)
+        ax.coords[0].set_axislabel_position('b') # for some reason this needs to be hardcoded, otherwise RA gets on top axis
+        ax.coords[0].set_ticks_position('bt')
+        ax.coords[0].set_ticklabel_position('b') # for some reason this needs to be hardcoded, otherwise RA gets on top axis
+    
+        ax.set_xlabel('Right Ascension (J2000)')
+        ax.set_ylabel('Declination (J2000)')
+        try:
+            from astropy.visualization.wcsaxes import add_beam
+            add_beam(ax, header=head,  frame=True) 
+        except Exception as e:
+            print(f"Cannot plot beam on image, failed with error: {e}. Skipping.")
+
+        cbar = plt.colorbar(img)
+        cbar.set_label('Flux (mJy beam$^{-1}$)')
+        #ax.add_artist(_add_astropy_beam(fitsimagename))
+ 
+        try: 
+            if regionfile is not None:
+                import regions
+                ds9regions = regions.Regions.read(regionfile, format='ds9')
+                for ds9region in ds9regions:
+                    reg = ds9region.to_pixel(self.getWCS())
+                    reg.plot(ax=ax, color=regioncolor, alpha=regionalpha)
+        except Exception as e:
+            print(f"Cannot overplot facets, failed with error: {e}. Skipping.")
+        
+        #if os.path.isfile(outplotname + '.png'):
+        #    os.system('rm -f ' + outplotname + '.png')
+        plt.savefig(outplotname, dpi=450, format='png')
+        plt.close()
 
 
 def flatten(f, channel = 0, freqaxis = 0):
