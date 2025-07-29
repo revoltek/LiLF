@@ -1069,7 +1069,8 @@ with w.if_todo('output-vstokes-leakcal'):
                auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                pol='IQUV', join_polarizations = '', apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60 )
-   os.system('mv %s-MFS-{I,V}-image*.fits %s-MFS-{I,V}-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, cmaj))
+   os.system('mv %s-MFS-I-image*.fits %s-MFS-I-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, cmaj))
+   os.system('mv %s-MFS-V-image*.fits %s-MFS-V-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, cmaj))
 
 ### TODO dynspec part
 
