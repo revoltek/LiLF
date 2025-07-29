@@ -295,8 +295,8 @@ for cmaj in range(maxIter):
                 directions.append(d)
 
             # cap at 40 directions
-            if len(directions) == 40:
-                logger.warning('Too many directions found: stopping at 40.')
+            if len(directions) == 50:
+                logger.warning('Too many directions found: stopping at 50.')
                 break
 
         # take care of manually provided region to include in cal
@@ -514,11 +514,11 @@ for cmaj in range(maxIter):
         d.set_model(image.root, typ='pre', apply_region=False)  # current best model
 
         doamp = False
-        # usually there are 3600/32=112 or 3600/16=225 or 3600/8=450 timesteps and \
+        # usually there are 3584/32=112 or 3584/16=224 or 3584/8=448 timesteps and \
         # 60 (halfband)/120 (fullband) chans, try to use multiple numbers
         iter_ph_solint = lib_util.Sol_iterator([4, 2, 1])  # 32 or 16 or 8 * [4,2,1] s
-        iter_amp1_solint = lib_util.Sol_iterator([30, 20, 10])  # 32 or 16 or 8 * [30,20,10] s
-        iter_amp2_solint = lib_util.Sol_iterator([120, 60])
+        iter_amp1_solint = lib_util.Sol_iterator([28, 14, 7])  # 32 or 16 or 8 * [28,14,7] s
+        iter_amp2_solint = lib_util.Sol_iterator([112, 56])
         iter_ph_soltype = 'diagonalphase' if (d.get_flux(freq_mid) > 5 and cmaj > 0) else 'scalarphase'
         datause = 'dual' if iter_ph_soltype == 'diagonalphase' else 'single'
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
@@ -536,7 +536,7 @@ for cmaj in range(maxIter):
             # Calibrate
             solint_ph = next(iter_ph_solint)
             dir_timeint = MSs_dir.getListObj()[0].getTimeInt()
-            solint_ph_intermediate = int(min(8*solint_ph, 512/dir_timeint)) # no more than 8 minutes
+            solint_ph_short = int(min(8*solint_ph, 512/dir_timeint)) # no more than 8 minutes
             d.add_h5parm('ph-ddserial', 'ddserial/c%02i/solutions/cal-ph-ddserial%s.h5' % (cmaj,logstringcal) )
             d.add_h5parm('ph1', 'ddserial/c%02i/solutions/cal-ph1-%s.h5' % (cmaj,logstringcal) )
             if doamp:
@@ -563,16 +563,17 @@ for cmaj in range(maxIter):
                     sm_MHz *= 0.5
                 elif d.get_flux(freq_mid) > 1.5:
                     sm_MHz *= 0.75
-                ant_avg_factors = f"[CS*:{solint_ph_intermediate},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{solint_ph_intermediate},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{int(np.round(solint_ph*2))},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{solint_ph}]"
+                solint_group3 = int(np.round(solint_ph*2)) if int(np.round(solint_ph*2)) < solint_ph_short else solint_ph_short # make sure this group is always < sols_per_direction
+                ant_avg_factors = f"[CS*:{solint_ph_short},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{solint_ph_short},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{solint_group3},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{solint_ph}]"
                 ant_smooth_factors = f"[CS*:1,[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:1,[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:0.5,[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:0.3]"
 
                 # Calibration - ms:SMOOTHED_DATA
                 logger.info('Phase calibration (solint: %i)...' % solint_ph)
                 MSs_dir.run(f'DP3 {parset_dir}/DP3-solG.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/cal-ph-ddserial.h5 \
-                            sol.mode={iter_ph_soltype} sol.datause={datause} sol.solint={solint_ph_intermediate} sol.smoothnessconstraint={sm_MHz}e6 sol.smoothnessreffrequency=54e6 \
+                            sol.mode={iter_ph_soltype} sol.datause={datause} sol.solint={solint_ph_short} sol.smoothnessconstraint={sm_MHz}e6 sol.smoothnessreffrequency=54e6 \
                             sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]] \
-                            sol.solutions_per_direction=[{solint_ph_intermediate}] sol.antenna_averaging_factors={ant_avg_factors} sol.antenna_smoothness_factors={ant_smooth_factors}',
-                            log='$nameMS_solGphslow-'+logstringcal+'.log', commandType='DP3')
+                            sol.solutions_per_direction=[{solint_ph_short}] sol.antenna_averaging_factors={ant_avg_factors} sol.antenna_smoothness_factors={ant_smooth_factors}',
+                            log='$nameMS_solGph-'+logstringcal+'.log', commandType='DP3')
                 lib_util.run_losoto(s, 'ph-ddserial', [ms+'/cal-ph-ddserial.h5' for ms in MSs_dir.getListStr()],
                                     [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-ph.parset'], plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                 # correct ph - ms:DATA -> ms:CORRECTED_DATA
@@ -752,11 +753,11 @@ for cmaj in range(maxIter):
                 s.add(f'h5_merger.py --h5_out {split_h5} --h5_tables {ddparallel_h5parm} --filter_directions [{p_idx}] --no_pol --no_antenna_crash --no_weight_prop',
                     log='h5_merger.log', commandType='python')
                 s.run(check=True)
-                # change the direction of the closest facet to be exactly identical with the ddcal
+                # change the direction of the closest facet to be exactly identical with the ddcal (keep --min_distance for rounding errors in losoto)
                 lib_h5.repoint_h5dir(split_h5, 'Dir00', d.position)
                 logger.info(f'Merge final solutions for {d.name} with {closest}...')
                 s.add(f'h5_merger.py --h5_out {d.get_h5parm("ph1", -2)} --h5_tables {d.get_h5parm("ph-ddserial", -2)} {split_h5} --h5_time_freq {split_h5} \
-                       --no_antenna_crash', log='h5_merger.log', commandType='python')
+                       --no_antenna_crash --min_distance 0.00027', log='h5_merger.log', commandType='python')
                 s.run(check=True)
                 # plot the merged h5parm for debug
                 lib_util.run_losoto(s, 'ph1', d.get_h5parm('ph1', -2),
@@ -974,7 +975,7 @@ for cmaj in range(maxIter):
                 apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75,
                 concat_mss=True, use_shm=use_shm, **beam_kwargs)
  
-        os.system(f'mv {imagename}*MFS-image*fits {imagename}*MFS-model*fits {imagename}*MFS-residual*fits \
+        os.system(f'mv {imagename}*MFS-image*fits {imagename}*MFS-model*fits {imagename}*MFS-residual*fits {imagename}*MFS-psf*fits \
                   {imagename}-0*image*fits {imagename}-0*model*fits ddserial/c{cmaj:02}/images')
 
     ### DONE
@@ -982,6 +983,48 @@ for cmaj in range(maxIter):
     full_image = lib_img.Image('ddserial/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
     full_image.nantozeroModel()
     # min_cal_flux60 *= 0.8  # go deeper
+##############################################################################################################
+
+with w.if_todo('predict-final'):
+        # wsclean predict - from ddparallel in cycle 0, otherwise from previous iteration
+        logger.info('Predict full model...')
+        s.add(f'wsclean -predict -padding 1.8 -name {full_image.root} -j {s.max_cpucores} -channels-out {ch_out} \
+                -facet-regions {facetregname} -apply-facet-solutions {interp_h5parm} {correct_for} \
+                -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 -no-solution-directions-check \
+                -reorder -parallel-reordering 4 {MSs.getStrWsclean()}',
+              log='wscleanPRE-c' + str(cmaj) + '.log', commandType='wsclean')
+        s.run(check=True)
+
+#Leakage calibration
+with w.if_todo('cal-leakage'):
+	logger.info('Leakage calibration (fulljones, solint: 30 min)...')
+	# Calibration - ms:CORRECTED_DATA
+	MSs.run('DP3 '+ parset_dir + f'/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/cal-leak.h5 \
+		sol.solint={int(MSs.getListObj()[0].getNtime()/2)} sol.nchan=1 sol.smoothnessconstraint=3e6',
+		log='$nameMS_sol_leak.log', commandType='DP3')
+	lib_util.run_losoto(s, 'leak', [ms+'/cal-leak.h5' for ms in MSs.getListStr()],
+                    [parset_dir+'/losoto-plot-fullj.parset'], plots_dir='ddserial/c00/plots/plots-leak', h5_dir = 'ddserial/c00/solutions')
+
+
+if not os.path.exists('mss-lres'):
+    timeint = MSs.getListObj()[0].getTimeInt()
+    avgtimeint = int(round(16/timeint))  # to 16 seconds
+    nchan_init = MSs.getListObj()[0].getNchan()
+    # chan: avg (x8) sol (x6) - we need a multiple of 8x6=48, the largest that is <nchan
+    # survey after avg (x8): 60, final number of sol 10
+    # pointed after avg (x8): 120, final number of sol 20
+    os.makedirs('mss-lres')
+    logger.info('Averaging in time (%is -> %is), channels: %ich -> %ich)' % (timeint,timeint*avgtimeint,nchan_init,nchan_init/4))
+    MSs.run('DP3 '+parset_dir+'/DP3-avg.parset msin=$pathMS msout=mss-lres/$nameMS.MS msin.datacolumn=CORRECTED_DATA  \
+            avg.timestep='+str(avgtimeint)+' avg.freqstep=4', log='$nameMS_lresavg.log', commandType='DP3')
+
+MSs_lres = lib_ms.AllMSs( glob.glob('mss-lres/TC*[0-9].MS'), s)
+
+with w.if_todo('corr-leakage'):
+       logger.info('Correct amp-di (fulljones)...')
+       MSs_lres.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
+               cor.parmdb=ddserial/c00/solutions/cal-leak.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] \
+               cor.updateweights=False', log='$nameMS_leakcorr.log', commandType='DP3')
 
 ##############################################################################################################
 ### Calibration finished - additional images with scientific value
@@ -989,7 +1032,7 @@ for cmaj in range(maxIter):
 # Low res as this is relevant only for transient detection
 with w.if_todo('output-timedep'):
     logger.info('Cleaning (time dep images)...')
-    for tc, msfile in enumerate(MSs.getListStr()):
+    for tc, msfile in enumerate(MSs_lres.getListStr()):
         imagenameT = 'img/wideDD-TC%02i-c%02i' % (tc, cmaj)
         lib_util.run_wsclean(s, 'wscleanTC'+str(tc)+'-c'+str(cmaj)+'.log', msfile, concat_mss=False, use_shm=use_shm, name=imagenameT, data_column='CORRECTED_DATA',
                 size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder',
@@ -1002,21 +1045,11 @@ with w.if_todo('output-timedep'):
         os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameT, imagenameT, cmaj))
 ### DONE
 
-with w.if_todo('output-vstokes'):
-    imagenameV = 'img/wideDD-v-c%02i' % (cmaj)
-    logger.info('Cleaning (V-stokes)...')
-    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
-                taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=6, no_update_model_required='', minuv_l=30, mgain=0.85, parallel_deconvolution=512,
-                auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=6, deconvolution_channels=3,
-                pol='v')
-
-    os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, cmaj))
-### DONE
-
+# LOW RES ouput
 with w.if_todo('output-lres'):
     imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
     logger.info('Cleaning (low res)...')
-    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameL, data_column='CORRECTED_DATA',
+    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameL, data_column='CORRECTED_DATA',
                 size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='60arcsec', niter=1000000, gridder='wgridder',
                 parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=20, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
@@ -1027,18 +1060,21 @@ with w.if_todo('output-lres'):
     os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameL, imagenameL, cmaj))
 ### DONE
 
+### Stokes V after leakage Calibration
+with w.if_todo('output-vstokes-leakcal'):
+   imagenameV = 'img/wideDD-c%02i-leak' % (cmaj)
+   logger.info('Cleaning (lres I+V leakage-corrected)...')
+   lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
+               taper_gaussian='60arcsec', weight='briggs 0', niter=100000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=20, mgain=0.85, parallel_deconvolution=512,
+               auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
+               pol='IQUV', join_polarizations = '', apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
+               apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60 )
+   os.system('mv %s-MFS-I-image*.fits %s-MFS-I-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, cmaj))
+   os.system('mv %s-MFS-V-image*.fits %s-MFS-V-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, cmaj))
+
+### TODO dynspec part
+
 with w.if_todo('output-lressub'):
-
-    # now make a low res and source subtracted map for masking extended sources
-    logger.info('Predicting DD-corrupted...')
-    s.add('wsclean -predict -padding 1.8 -name '+full_image.root+' -j '+str(s.max_cpucores)+' -channels-out '+str(ch_out)+' \
-                    -apply-facet-beam -use-differential-lofar-beam -facet-beam-update 120 \
-                    -facet-regions '+facetregname+' \
-                    -apply-facet-solutions '+interp_h5parm+' amplitude000,phase000 \
-                    -reorder -parallel-reordering 4 '+MSs.getStrWsclean(),
-                    log='wscleanPRE4LR-c'+str(cmaj)+'.log', commandType='wsclean')
-    s.run(check=True)
-
     logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
         log='$nameMS_taql.log', commandType='general')

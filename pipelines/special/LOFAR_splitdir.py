@@ -46,7 +46,7 @@ parser = argparse.ArgumentParser(description='Split out a single direction by su
 parser.add_argument('--mode', type=str, help='Either infield, ddcal or widefield.')
 parser.add_argument('--infieldreg', default=None, type=str, help='Provide a region for the infield calibrator (ds9 circle or square).')
 parser.add_argument('--dutchdir', type=str, default=None, help='Directory of the dutch processing.')
-parser.add_argument('--ddserialcycle', type=int, default=1, help='cycle to use.')
+parser.add_argument('--ddserialcycle', type=int, default=0, help='cycle to use.')
 parser.add_argument('--mss', type=str, default=None, help='Directory containing the IS MSs (after timesplit).')
 ### Options for splitting of infield or ddcal
 parser.add_argument('--freqres', type=float, default=0.195312, help='Freq. resolution of the split-off MSs in Mhz. Default=0.195312MHz (1 subband)')
@@ -117,7 +117,7 @@ with w.if_todo('correct_dutch_di'):
     logger.info('Correcting subfield phase (Dutch stations) DATA -> DATA...')
     # Correct MSs>DATA -> DATA
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
-            cor.parmdb={dutchdir}/ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000',
+            cor.parmdb={dutchdir}/ddparallel/solutions/cal-tec-sf-c1.h5 cor.correction=phase000',
             log='$nameMS_sf-correct.log', commandType='DP3')
     # Correct MSs:DATA -> DATA
     logger.info('Correcting FR (Dutch stations) DATA -> DATA...')
