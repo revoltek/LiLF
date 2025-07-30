@@ -90,18 +90,22 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob(data_dir+'/*MS')), 1)):
 
 #msg = sorted(glob.glob(data_dir+'/*MS')) # does not fill gaps
 
-if skymodel == '':  # default case
-    if MSs.hasIS:
-        logger.warning('Sub-arcsecond models for LBA only partially tested! '
-                       '3C196 is usable but on the wrong scale. 3C380 is usable and scales between 40 and 70 MHz.')
-        skymodel = os.path.dirname(__file__) + '/../models/calib-highres.skymodel'
-    else:
-        skymodel = os.path.dirname(__file__) + '/../models/calib-simple.skymodel'
-
 calname = MSs.getListObj()[0].getNameField(checkCalName=True)
 nchan = MSs.mssListObj[0].getNchan()
 tint = MSs.mssListObj[0].getTimeInt()
 freqres = MSs.mssListObj[0].getChanband()
+
+if skymodel == '':  # default case
+    if MSs.hasIS:
+        logger.warning('Sub-arcsecond models for LBA only partially tested! '
+                       '3C196 is usable but not optimal and on the wrong scale. 3C380 is usable and scales between 40 and 70 MHz.'
+                       'For 3C48 and 3C147, using S&H point sources which may give reasonable results.')
+        if calname.lower() in ['3c196', '3c380']:
+            skymodel = os.path.dirname(__file__) + '/../models/calib-highres.skymodel'
+        elif calname.lower() in ['3c48', '3c147']:
+            skymodel = os.path.dirname(__file__) + '/../models/calib-simple.skymodel'
+    else:
+        skymodel = os.path.dirname(__file__) + '/../models/calib-simple.skymodel'
 
 logger.info(f"Initial time res: {tint:.1f}, nchan: {nchan}")
 
