@@ -378,7 +378,7 @@ with w.if_todo('cal_iono'):
                        log='$nameMS_beam.log', commandType="DP3")
     # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA 
     # Corrupt FR
-    logger.info('Faraday rotation correction...')
+    logger.info('Faraday rotation corruption...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA cor.parmdb=cal-fr.h5 \
                    cor.correction=rotationmeasure000 cor.invert=False msout.datacolumn=MODEL_DATA_FR', log='$nameMS_corFR.log', commandType="DP3")
     # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA
@@ -387,7 +387,7 @@ with w.if_todo('cal_iono'):
     # Solve concat_all.MS:DATA (only solve on CS-CS BL)
     # not more smoothing since in rare case some CS have strong delay!
     logger.info('Calibrating IONO (Core Stations)...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.modeldatacolumn=[MODEL_DATA_FR] \
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.modeldatacolumns=[MODEL_DATA_FR] \
                         sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single sol.solint=8 sol.nchan=1 msin.baseline="CS*&CS*" \
                         sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin}', log='$nameMS_solIONO.log',
                        commandType="DP3")
@@ -397,7 +397,7 @@ with w.if_todo('cal_iono'):
 
     # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA (unit correction for others)
     logger.info('Iono correction (Core Stations)...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.modeldatacolumns=[MODEL_DATA_FR] cor.parmdb=cal-iono-cs.h5 \
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 \
                          cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
 
     # Phasing up the cose stations CORRECTED_DATA -> concat_all-phaseup-IONO.MS:DATA
@@ -455,12 +455,12 @@ with w.if_todo('cal_bp'):
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 msin.datacolumn=MODEL_DATA_FRCOR \
                 msout.datacolumn=MODEL_DATA_IONO cor.invert=False cor.correction=phase000', log='$nameMS_corIONO_CS.log', commandType="DP3")
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 msin.datacolumn=MODEL_DATA_IONO \
-                msoutdatacolumn=MODEL_DATA_IONO cor.invert=False cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
+                msout.datacolumn=MODEL_DATA_IONO cor.invert=False cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
     
     logger.info("Beam corruption")
     # Corrupt beam concat_all.MS:MODEL_DATA_IONO -> MODEL_DATA_BEAMCOR
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA_IONO \
-                       msout.datacolumn=MODEL_DATA_BEAMCOR corrbeam.invert=False', log='$nameMS_corIONO.log', commandType='DP3')
+                       msout.datacolumn=MODEL_DATA_BEAMCOR setbeam.beammode=element corrbeam.invert=False', log='$nameMS_corIONO.log', commandType='DP3')
     
     logger.info("Polalign corruption")
     # Corrupt polalign concat_all.MS:MODEL_DATA_BEAMCOR -> MODEL_DATA_PA
@@ -476,7 +476,7 @@ with w.if_todo('cal_bp'):
     logger.info('Calibrating BP...')
     timestep = round(20 / tint)  # brings down to 20s
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/bp-sub.h5 sol.mode=diagonal sol.datause=full \
-                       sol.modeldatacolumns=[MODEL_DATA_PA] sol.solint={str(timestep)} sol.nchan=1',
+                       sol.modeldatacolumns=[MODEL_DATA_PA] sol.solint={str(timestep)} sol.nchan=1 sol.smoothnessconstraint=8e6 sol.smoothnessreffrequency=20e6' ,
                        log='$nameMS_solBP.log', commandType="DP3")
 
     flag_parset = '/losoto-flag-lessaggressive.parset' if less_aggressive_flag else '/losoto-flag.parset'
