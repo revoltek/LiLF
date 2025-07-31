@@ -78,6 +78,9 @@ if os.path.exists(ddserial_dir):
     logger.info('ddserial residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddserial_c0_rms']*1e3))
     img = lib_img.Image(ddserial_dir+'/c00/images/wideDD-c00-MFS-image.fits')
     img.plotimage('quality/wideDD-c00-MFS-image.png', regionfile=ddserial_dir+'/peelingRegion.reg', minmax=(-5, 100))
+    img.plotimage('quality/wideDD-c00-MFS-image-reg.png', regionfile=ddserial_dir+'/c00/solutions/facets-c00.reg', minmax=(-5, 100))
+    img = lib_img.Image(ddserial_dir+'/c00/images/wideDD-lres-c00-MFS-image.fits')
+    img.plotimage('quality/wideDD-lres-c00-MFS-image.png', regionfile=ddserial_dir+'/peelingRegion.reg', minmax=(-5, 100))
 
     with w.if_todo('process_ddimage'):
         os.chdir(f'{ddserial_dir}/c00/images/') # bdsf raises error if image not in wdir?
@@ -95,8 +98,8 @@ if os.path.exists(ddserial_dir):
     from astropy.wcs import WCS
     with fits.open(f'{ddserial_dir}/c00/images/wideDD-c00-MFS-image-pb.fits') as hdul:
         wcs = WCS(hdul[0].header)
-        wcs = wcs.dropaxis(2)
-        wcs = wcs.dropaxis(2)
+        wcs = wcs.dropaxis(2); wcs = wcs.dropaxis(2) # remove 3rd and 4th axis
+
     nvss = lib_cat.RadioCat(f'{parset_dir}/NVSS_small.fits', 'NVSS', log=logger, col_pflux=None, col_maj=None, wcs=wcs)
     nvss.filter(sigma=5, ellipse=[ra, dec, fwhm[0]/2, fwhm[1]/2, 0], isolation=120)
     nvss.write('quality/debug_nvss.fits', overwrite=True, format='fits')

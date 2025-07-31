@@ -342,7 +342,7 @@ class Image(object):
                 ds9regions = regions.Regions.read(regionfile, format='ds9')
                 for ds9region in ds9regions:
                     reg = ds9region.to_pixel(self.getWCS())
-                    reg.plot(ax=ax, alpha=1)
+                    reg.plot(ax=ax, alpha=0.5, lw=0.2)
         except Exception as e:
             print(f"Cannot overplot facets, failed with error: {e}. Skipping.")
         

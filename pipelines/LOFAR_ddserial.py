@@ -536,7 +536,7 @@ for cmaj in range(maxIter):
             # Calibrate
             solint_ph = next(iter_ph_solint)
             dir_timeint = MSs_dir.getListObj()[0].getTimeInt()
-            solint_ph_short = int(min(8*solint_ph, 512/dir_timeint)) # no more than 8 minutes
+            solint_ph_short = int(min(8*solint_ph, 512/dir_timeint)) # no more than ~8 minutes
             d.add_h5parm('ph-ddserial', 'ddserial/c%02i/solutions/cal-ph-ddserial%s.h5' % (cmaj,logstringcal) )
             d.add_h5parm('ph1', 'ddserial/c%02i/solutions/cal-ph1-%s.h5' % (cmaj,logstringcal) )
             if doamp:
