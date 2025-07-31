@@ -999,7 +999,7 @@ with w.if_todo('predict-final'):
 with w.if_todo('cal-leakage'):
 	logger.info('Leakage calibration (fulljones, solint: 30 min)...')
 	# Calibration - ms:CORRECTED_DATA
-	MSs.run('DP3 '+ parset_dir + f'/DP3-solGfj.parset msin=$pathMS sol.h5parm=$pathMS/cal-leak.h5 \
+	MSs.run('DP3 '+ parset_dir + f'/DP3-solGfj.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-leak.h5 \
 		sol.solint={int(MSs.getListObj()[0].getNtime()/2)} sol.nchan=1 sol.smoothnessconstraint=3e6',
 		log='$nameMS_sol_leak.log', commandType='DP3')
 	lib_util.run_losoto(s, 'leak', [ms+'/cal-leak.h5' for ms in MSs.getListStr()],
@@ -1033,7 +1033,7 @@ with w.if_todo('output-timedep'):
     logger.info('Cleaning (time dep images)...')
     for tc, msfile in enumerate(MSs_lres.getListStr()):
         imagenameT = 'img/wideDD-TC%02i-c%02i' % (tc, cmaj)
-        lib_util.run_wsclean(s, 'wscleanTC'+str(tc)+'-c'+str(cmaj)+'.log', msfile, concat_mss=False, use_shm=use_shm, name=imagenameT, data_column='CORRECTED_DATA',
+        lib_util.run_wsclean(s, 'wscleanTC'+str(tc)+'-c'+str(cmaj)+'.log', msfile, concat_mss=False, use_shm=use_shm, name=imagenameT, data_column='DATA',
                 size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder',
                 parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
@@ -1048,7 +1048,7 @@ with w.if_todo('output-timedep'):
 with w.if_todo('output-lres'):
     imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
     logger.info('Cleaning (low res)...')
-    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameL, data_column='CORRECTED_DATA',
+    lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameL, data_column='DATA',
                 size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='60arcsec', niter=1000000, gridder='wgridder',
                 parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=20, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
