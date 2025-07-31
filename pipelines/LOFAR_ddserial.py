@@ -1005,7 +1005,6 @@ with w.if_todo('cal-leakage'):
 	lib_util.run_losoto(s, 'leak', [ms+'/cal-leak.h5' for ms in MSs.getListStr()],
                     [parset_dir+'/losoto-plot-fullj.parset'], plots_dir='ddserial/c00/plots/plots-leak', h5_dir = 'ddserial/c00/solutions')
 
-
 if not os.path.exists('mss-lres'):
     timeint = MSs.getListObj()[0].getTimeInt()
     avgtimeint = int(round(16/timeint))  # to 16 seconds
