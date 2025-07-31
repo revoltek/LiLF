@@ -9,7 +9,7 @@ from astropy.stats import median_absolute_deviation
 import bdsf
 
 ########################################################
-from LiLF import lib_ms, lib_util, lib_log, lib_cat
+from LiLF import lib_ms, lib_util, lib_log, lib_cat, lib_img
 logger_obj = lib_log.Logger('pipeline-quality')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
@@ -20,26 +20,6 @@ parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_quality','parset_dir')
 ddparallel_dir = parset.get('LOFAR_quality','ddparallel_dir')
 ddserial_dir = parset.get('LOFAR_quality','ddserial_dir')
-
-def get_noise(fitsfile):
-    eps = 1e-3; niter = 100; sigma = 5
-    img_data = getdata(fitsfile)
-    data = img_data[ ~np.isnan(img_data) & (img_data != 0) ] # remove nans and 0s
-    initial_len = len(data)
-    if initial_len == 0: return 0
-    mad_old = 0.
-    for i in range(niter):
-         mad = median_absolute_deviation(data)
-         logger.debug('%s: MAD noise: %.1f mJy on %f%% data' % (fitsfile, mad*1e3, 100*len(data)/initial_len))
-         if np.isnan(mad): return 0
-         if np.abs(mad_old-mad)/mad < eps:
-             rms = np.nanstd( data )
-             logger.debug('%s: Noise: %.1f mJy/b (data len: %i -> %i - %.2f%%)' % (fitsfile, rms*1e3, initial_len, len(data), 100*len(data)/initial_len))
-             return rms
-
-         data = data[np.abs(data) < (sigma*mad)]
-         mad_old = mad
-
 
 #############################################################
 with w.if_todo('cleaning'):
@@ -58,11 +38,11 @@ qdict = {'ddparallel_c0_rms': None, 'ddparallel_c1_rms': None, 'ddserial_c0_rms'
 
 # ddparallel images [noise per cycle]
 if os.path.exists(ddparallel_dir):
-    img_ddparallel_c0 = ddparallel_dir+'/images/wideM-0-MFS-residual.fits'
-    qdict['ddparallel_c0_rms'] = get_noise(img_ddparallel_c0)
+    img = lib_img.Image(ddparallel_dir+'/images/wideM-0-MFS-residual.fits')
+    qdict['ddparallel_c0_rms'] = img.getNoise(useMask=False)
     logger.info('ddparallel residual rms noise (cycle 0): %.1f mJy/b' % (qdict["ddparallel_c0_rms"]*1e3))
-    img_ddparallel_c1 = ddparallel_dir+'/images/wideM-1-MFS-residual.fits'
-    qdict['ddparallel_c1_rms'] = get_noise(img_ddparallel_c1)
+    img = lib_img.Image(ddparallel_dir+'/images/wideM-1-MFS-residual.fits')
+    qdict['ddparallel_c1_rms'] = img.getNoise(useMask=False)
     logger.info('ddparallel residual rms noise (cycle 1): %.1f mJy/b' % (qdict["ddparallel_c1_rms"]*1e3))
 else:
     logger.warning('Skip "ddparallel" tests, missing dir.')
@@ -93,12 +73,11 @@ qdict['flag_frac'] = flag_frac
 
 # ddserial images [noise per cycle, astrometry, fluxscale]
 if os.path.exists(ddserial_dir):
-    img_ddserial_c0 = ddserial_dir+'/c00/images/wideDD-c00-MFS-residual.fits'
-    qdict['ddserial_c0_rms'] = get_noise(img_ddserial_c0)
+    img = lib_img.Image(ddserial_dir+'/c00/images/wideDD-c00-MFS-residual.fits')
+    qdict['ddserial_c0_rms'] = img.getNoise(useMask=False)
     logger.info('ddserial residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddserial_c0_rms']*1e3))
-    #img_ddserial_c1 = ddserial_dir+'/c01/images/wideDD-c01-MFS-residual.fits'
-    #qdict['ddserial_c1_rms'] = get_noise(img_ddserial_c1)
-    #logger.info('ddserial residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddserial_c1_rms']*1e3))
+    img = lib_img.Image(ddserial_dir+'/c00/images/wideDD-c00-MFS-image.fits')
+    img.plotimage('quality/wideDD-c00-MFS-image.png', regionfile=ddserial_dir+'/peelingRegion.reg', minmax=(-5, 100))
 
     with w.if_todo('process_ddimage'):
         os.chdir(f'{ddserial_dir}/c00/images/') # bdsf raises error if image not in wdir?
