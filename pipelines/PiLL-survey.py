@@ -260,6 +260,7 @@ with w.if_todo('saveproducts_%s' % target):
     os.system(f'cp ddserial/c0*/skymodels/mask-ddcal-c*.reg {archive}')
     os.system(f'cp ddserial/primarybeam.fits {archive}')
     os.system(f'cp quality/quality.pickle {archive}')
+    os.system(f'cp quality/*png {archive}')
     # copy ms
     logger.info(f'Copy mss -> {archive}')
     os.system(f'tar zcf {target}.tgz mss-avg')
