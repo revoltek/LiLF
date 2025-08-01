@@ -454,9 +454,15 @@ with w.if_todo('cal_bp'):
     # do not use datause=dual since the cross-hands are NOT trivial (FR-corrupted)
     logger.info('Calibrating BP...')
     timestep = round(20 / tint)  # brings down to 20s
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/bp-sub.h5 sol.mode=diagonal sol.datause=full \
-                        sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.nchan=1',
-                       log='$nameMS_solBP.log', commandType="DP3")
+    if min(MSs_concat_all.getFreqs()) < 20.e6:
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/bp-sub.h5 sol.mode=diagonal sol.datause=full \
+                            sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.nchan=1 sol.smoothnessconstraint=1e6 \
+                            sol.smoothnessreffrequency=0. ',
+                           log='$nameMS_solBP.log', commandType="DP3")
+    else:
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/bp-sub.h5 sol.mode=diagonal sol.datause=full \
+                            sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.nchan=1',
+                           log='$nameMS_solBP.log', commandType="DP3")
 
     flag_parset = '/losoto-flag-lessaggressive.parset' if less_aggressive_flag else '/losoto-flag.parset'
     lib_util.run_losoto(s, 'bp-sub', [ms + '/bp-sub.h5' for ms in MSs_concat_all.getListStr()],
@@ -467,7 +473,11 @@ with w.if_todo('cal_bp'):
             , log='h5_merger.log', commandType='python')
     s.run(check=True)
 
-    lib_util.run_losoto(s, 'cal-bp.h5', 'cal-bp.h5', [parset_dir + '/losoto-bp.parset'], plots_dir='plots-bp')
+    # Custom losoto script for decameter
+    if min(MSs_concat_all.getFreqs()) < 20.e6:
+        lib_util.run_losoto(s, 'cal-bp.h5', 'cal-bp.h5', [parset_dir + '/losoto-bp-decameter.parset'], plots_dir='plots-bp')
+    else:
+        lib_util.run_losoto(s, 'cal-bp.h5', 'cal-bp.h5', [parset_dir + '/losoto-bp.parset'], plots_dir='plots-bp')
 ### DONE
 
 if develop:
