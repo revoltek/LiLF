@@ -415,6 +415,7 @@ for c in range(maxIter):
             remove3c = False
             min_facets[0] = 1
             max_facets[0] = 1
+            mask_threshold = [7.0,6.5,6.0,6.0,6.0,6.0] # sigma values for beizorro mask in cycle c           
         # check if there are less than the minimum requested bright sources to form the facets
         if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]: # convert skymodel fluxes to MS central freq
             bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor # bright sources flux is at MSs central freq
@@ -746,36 +747,6 @@ for c in range(maxIter):
                              apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
                              local_rms='', local_rms_window=50, local_rms_strength=0.5, **widefield_kwargs, **reuse_kwargs)
 
-        # s.add(f'wsclean -predict -padding 1.8 -name img/wideM-{c} -j {s.max_cpucores} -channels-out {channels_out} \
-        #         -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
-        #         -apply-facet-solutions {wide_h5} phase000 {MSs.getStrWsclean()}',
-        #       log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
-        # s.run(check=True)
-        # MSs.addcol('SUBTRACTED_DATA','CORRECTED_DATA')
-        # # subtract - ms:SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA
-        # logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
-        # MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
-        #         log='$nameMS_taql.log', commandType='general')
-        # imagenameEMPTY = f'img/wideM-empty-{c}'
-        # logger.info('Cleaning (empty with no sols image for debug)...')
-        # lib_util.run_wsclean(s, 'wscleanEMPTY-c' + str(c) + '.log', MSs.getStrWsclean(), name=imagenameEMPTY,
-        #                      data_column='SUBTRACTED_DATA',
-        #                      size=imgsizepix_wide, scale=str(pixscale) + 'arcsec', weight='briggs -0.5', niter=1,
-        #                      gridder='wgridder',
-        #                      parallel_gridding=channels_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
-        #                      join_channels='', fit_spectral_pol=3,
-        #                      channels_out=channels_out, deconvolution_channels=3, pol='i',
-        #                      no_update_model_required='', nmiter=12, auto_threshold=2.0, auto_mask=3.0,
-        #                      local_rms='', local_rms_window=50, local_rms_strength=0.75,
-        #                      concat_mss=True)
-        # # Test: quick stokesV
-        # logger.info('Making wide field image (pol) ...')
-        # lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM+'-v',
-        #                      no_update_model_required='',  nmiter=0,  niter=0,
-        #                      data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec',
-        #                      weight='briggs -0.5', gridder='wgridder', parallel_gridding=channels_out, minuv_l=30, parallel_deconvolution=1024,
-        #                      channels_out=channels_out, pol='iquv', join_polarizations='', facet_regions=facetregname, apply_facet_solutions=f'{wide_h5} phase000')
-
         current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
 
         # reset NaNs if present
@@ -1075,11 +1046,11 @@ with w.if_todo('final_fr_corr'):
 [ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits ddparallel/images') for c in range(maxIter) ]
 [ os.system('mv img/wideM-'+str(c)+'-sources*.txt ddparallel/images') for c in range(maxIter) ]
+[ os.system('mv img/subfield-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
 os.system('mv img/wide-lr-MFS-image.fits ddparallel/images')
 
 # debug images
 if develop:
-    [ os.system('mv img/subfield-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
     os.system('mv img/only*image.fits ddparallel/images')
     os.system('mv img/empty*image.fits ddparallel/images')
 else:

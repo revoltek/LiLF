@@ -244,10 +244,11 @@ with w.if_todo('saveproducts_%s' % target):
     os.system(f'cp ddparallel/images/wide-lr-MFS-image.fits {archive}')
     os.system(f'cp ddparallel/solutions/facets*reg {archive}')
     os.system(f'gzip ddparallel/solutions/cal-amp-di.h5; cp ddparallel/solutions/cal-amp-di.h5.gz {archive}')
-    os.system(f'gzip ddparallel/solutions//cal-tec-sf-c1.h5; cp ddparallel/solutions/cal-tec-sf-c1.h5.gz {archive}')
-    os.system(f'cp ddparallel/solutions/cal-fr.h5 {archive}')
+    os.system(f'gzip ddparallel/solutions/cal-tec-sf-c1.h5; cp ddparallel/solutions/cal-tec-sf-c1.h5.gz {archive}')
+    os.system(f'gzip ddparallel/solutions/cal-fr.h5; cp ddparallel/solutions/cal-fr.h5.gz {archive}')
     os.system(f'cp ddparallel/skymodel/subfield.reg {archive}')
     os.system(f'cp -r ddparallel/plots/* {archive}/plots')
+
     os.system(f'cp ddserial/c0*/images/*image*.fits {archive}')
     os.system(f'cp ddserial/c0*/images/wideDD-*MFS-residual.fits {archive}')
     os.system(f'cp ddserial/c0*/images/wideDD-*MFS-psf.fits {archive}')

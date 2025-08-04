@@ -667,13 +667,17 @@ for cmaj in range(maxIter):
             if (cdd == 0 ) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
                 logger.warning('Image quality decreased at cdd00! Possibly problematic ddcal.')
                 # Predict - ms:MODEL_DATA (could also use wsclean but this seems easier)
-                MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("pre")}-sources.txt',   log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
+                MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("pre")}-sources.txt', log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
                 continue
             # if in cdd01 and cdd02 (before using amps) noise and mm ratio are worse or noise is a lot higher -> go back to previous ph_solint and restore current best model...
             # TODO technically if the cycle after we continue is converged, we would use the skipped cycle solutions since those are the "-2" ones... Fix that somehow.
             elif (cdd in [1,2,3]) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
+                if (512/dir_timeint) < (2*solint_ph): 
+                    logger.warning(f'Too many failed attempt, solint_ph too long, giving up this direction.')
+                    break
                 logger.warning(f'Image quality decreased after cdd{cdd}. Restore previous iteration ph_solint and model...')
                 iter_ph_solint = lib_util.Sol_iterator([2*solint_ph]) # go from 1 to 2 or 2 to 4 and don't decrease further.
+                # avoid super long solint_ph
                 # Predict - ms:MODEL_DATA (could also use wsclean but this seems easier)
                 try:
                     MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("best")}-sources.txt',   log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
@@ -1029,12 +1033,13 @@ with w.if_todo('corr-leakage'):
 ### Calibration finished - additional images with scientific value
 
 # Low res as this is relevant only for transient detection
+# TODO: add uv lambda min cut
 with w.if_todo('output-timedep'):
     logger.info('Cleaning (time dep images)...')
     for tc, msfile in enumerate(MSs_lres.getListStr()):
         imagenameT = 'img/wideDD-TC%02i-c%02i' % (tc, cmaj)
         lib_util.run_wsclean(s, 'wscleanTC'+str(tc)+'-c'+str(cmaj)+'.log', msfile, concat_mss=False, use_shm=use_shm, name=imagenameT, data_column='DATA',
-                size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', taper_gaussian='60arcsec', weight='briggs 0', niter=1000000, gridder='wgridder',
+                size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', taper_gaussian='60arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
                 parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                 no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
@@ -1044,7 +1049,8 @@ with w.if_todo('output-timedep'):
         os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameT, imagenameT, cmaj))
 ### DONE
 
-# LOW RES ouput
+# LOW RES ouput - clean deeper
+# TODO: add multiscale
 with w.if_todo('output-lres'):
     imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
     logger.info('Cleaning (low res)...')
@@ -1052,7 +1058,7 @@ with w.if_todo('output-lres'):
                 size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='60arcsec', niter=1000000, gridder='wgridder',
                 parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=20, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
-                no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
+                no_update_model_required='',  nmiter=12, auto_threshold=1.0, auto_mask=2.0,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
                 apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60)
 
