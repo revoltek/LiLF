@@ -456,6 +456,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
     if use_shm and os.access('/dev/shm/', os.W_OK) and not 'temp_dir' in list(kwargs.keys()):
         check_rm('/dev/shm/*') # remove possible leftovers
         wsc_parms.append( '-temp-dir /dev/shm/' )
+        wsc_parms.append( '-mem 90' ) # use 90% of memory
     elif s.cluster == 'Spider':
         wsc_parms.append( '-temp-dir /tmp/' )
     #elif s.cluster == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
