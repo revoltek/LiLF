@@ -254,7 +254,7 @@ with w.if_todo('saveproducts_%s' % target):
     os.system(f'cp ddserial/c0*/images/wideDDS-*MFS-psf.fits {archive}')
     os.system(f'cp ddserial/c00/images/wideDDS*model*fpb.fits {archive}')
     os.system(f'gzip ddserial/c00/solutions/interp.h5; cp ddserial/c00/solutions/interp.h5.gz {archive}')
-    os.system(f'cp ddserial/c00/solutions/facetsS-c00.reg {archive}')
+    os.system(f'cp ddserial/c00/solutions/facetsS-c0.reg {archive}')
     os.system(f'gzip ddserial/c00/solutions/cal-leak.h5; cp ddserial/c00/solutions/cal-leak.h5.gz {archive}')
     os.system(f'cp ddserial/c0*/skymodels/ddcals*reg {archive}')
     os.system(f'cp ddserial/c0*/skymodels/mask-ddcal-c*.cat.fits {archive}')
