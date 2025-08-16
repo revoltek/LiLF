@@ -119,10 +119,10 @@ with w.if_todo('cleaning'):
     logger.info('Cleaning...')
     lib_util.check_rm('ddserial')
     os.makedirs('ddserial/init')
-    os.system('cp ddparallel/skymodel/wideM-*model*.fits ddserial/init/')
-    os.system('cp '+sorted(glob.glob("ddparallel/images/wideM-*image.fits"))[-1]+' ddserial/init/')
+    os.system('cp ddparallel/skymodel/wideDDP-*model*.fits ddserial/init/')
+    os.system('cp '+sorted(glob.glob("ddparallel/images/wideDDP-*image.fits"))[-1]+' ddserial/init/')
     if manual_dd_cal != '':
-        os.system('cp '+sorted(glob.glob("ddparallel/images/wideM-*residual.fits"))[-1]+' ddserial/init/')
+        os.system('cp '+sorted(glob.glob("ddparallel/images/wideDDP-*residual.fits"))[-1]+' ddserial/init/')
     lib_util.check_rm('img')
     os.makedirs('img')
     lib_util.check_rm('mss-avg')
@@ -162,7 +162,7 @@ phase_center = MSs.getListObj()[0].getPhaseCentre()
 timeint = MSs.getListObj()[0].getTimeInt()
 ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 
-facetregname = 'ddparallel/solutions/facets-c1.reg'
+facetregname = 'ddparallel/solutions/facetsP-c1.reg'
 ddparallel_h5parm = 'ddparallel/solutions/cal-tec-c1.h5'
 interp_h5parm = ddparallel_h5parm # this variable points to the most recent dd-solutions and will be updated before each imaging step
 correct_for = 'phase000'  # if needed add amplitudes000 before imaging
@@ -179,7 +179,7 @@ for MS in MSs.getListObj():
     logger.info(f'{MS.nameMS}: Fractional flags: {MS.fractionalFlag()*100:.1f}%.')
 
 ##############################################################
-full_image = lib_img.Image('ddserial/init/wideM-1-MFS-image.fits', userReg=userReg)
+full_image = lib_img.Image('ddserial/init/wideDDP-c1-MFS-image.fits', userReg=userReg)
 
 for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
@@ -333,9 +333,9 @@ for cmaj in range(maxIter):
             directions.insert(0, d)
             
         # create a concat region for debugging
-        os.system('cat ddserial/c%02i/skymodels/ddcal[0-9][0-9][0-9][0-9].reg > ddserial/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj,cmaj))
+        os.system('cat ddserial/c%02i/skymodels/ddcal[0-9][0-9][0-9][0-9].reg > ddserial/c%02i/skymodels/ddcals-c%01i.reg' % (cmaj,cmaj,cmaj))
         # save catalogue for debugging
-        cal.write('ddserial/c%02i/skymodels/cat-c%02i.fits' % (cmaj,cmaj), format='fits', overwrite=True)
+        cal.write('ddserial/c%02i/skymodels/initcat-c%01i.fits' % (cmaj,cmaj), format='fits', overwrite=True)
 
         # order directions from the fluxiest one
         directions = [x for _, x in sorted(zip([d.get_flux(freq_mid) for d in directions],directions))][::-1]
@@ -389,8 +389,8 @@ for cmaj in range(maxIter):
                     log='$nameMS_taql.log', commandType='general')
 
         ### TESTTESTTEST: empty image
-        if develop and not os.path.exists('img/empty-init-c%02i-image.fits' % (cmaj)):
-            clean('init-c%02i' % (cmaj), MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
+        if develop and not os.path.exists(f'img/empty-init-c{cmaj}-image.fits'):
+            clean(f'init-{cmaj}', MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
         imagenameEMPTY = 'img/wideDebug-empty-init'
         logger.info('Cleaning (empty with no sols image for debug)...')
         lib_util.run_wsclean(s, 'wscleanEMPTY-c' + str(cmaj) + '.log', MSs.getStrWsclean(), name=imagenameEMPTY,
@@ -767,6 +767,7 @@ for cmaj in range(maxIter):
                 lib_util.run_losoto(s, 'ph1', d.get_h5parm('ph1', -2),
                                     [f'{parset_dir}/losoto-plot-ph1.parset'],
                                     plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstring))
+                lib_util.check_rm('cal-ph1.h5') # remove the h5parm copied by losoto
 
             # remove the DD-cal from original dataset using new solutions
             with w.if_todo('%s-subtract' % logstring):
@@ -865,7 +866,7 @@ for cmaj in range(maxIter):
 
         # replace color in the region file to distinguish region that converged from those that didn't
         if d.converged:
-            for line in fileinput.input('ddserial/c%02i/skymodels/all-c%02i.reg' % (cmaj,cmaj), inplace=True):
+            for line in fileinput.input('ddserial/c%02i/skymodels/ddcals-c%01i.reg' % (cmaj,cmaj), inplace=True):
                 if d.name in line:
                     if d.get_h5parm('amp1',-2) is not None:
                         print(line.replace('color=red','color=green'), end='')
@@ -882,9 +883,9 @@ for cmaj in range(maxIter):
     # be sure not to use flagged MS as ddf doesn't like them
     MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
     
-    imagename = 'img/wideDD-c%02i' % (cmaj)
+    imagename = f'img/wideDDS-c{cmaj}'
     maskname = imagename+'_mask.fits'
-    facetregname = 'ddserial/c%02i/solutions/facets-c%02i.reg' % (cmaj, cmaj)
+    facetregname = 'ddserial/c%02i/solutions/facetsS-c%01i.reg' % (cmaj, cmaj)
 
     # combine the h5parms
     h5parms = {'ph':[], 'amp1':[], 'amp2':[]}
@@ -968,7 +969,6 @@ for cmaj in range(maxIter):
         #if userReg != '': lib_img.blank_image_reg(maskname, userReg, blankval = 1.)
 
         # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
-        # TODO: remove fits mask and use only automasking (fits_mask=maskname)
         logger.info('Cleaning...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA',
                 size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
@@ -1037,9 +1037,9 @@ with w.if_todo('corr-leakage'):
 with w.if_todo('output-timedep'):
     logger.info('Cleaning (time dep images)...')
     for tc, msfile in enumerate(MSs_lres.getListStr()):
-        imagenameT = 'img/wideDD-TC%02i-c%02i' % (tc, cmaj)
+        imagenameT = 'img/wideDDS-TC%02i-c%01i' % (tc, cmaj)
         lib_util.run_wsclean(s, 'wscleanTC'+str(tc)+'-c'+str(cmaj)+'.log', msfile, concat_mss=False, use_shm=use_shm, name=imagenameT, data_column='DATA',
-                size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', taper_gaussian='60arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
+                size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', taper_gaussian='40arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
                 parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                 no_update_model_required='',  nmiter=12, auto_threshold=1.0, auto_mask=3.0,
@@ -1050,15 +1050,14 @@ with w.if_todo('output-timedep'):
 ### DONE
 
 # LOW RES ouput - clean deeper
-# TODO: add multiscale
 with w.if_todo('output-lres'):
-    imagenameL = 'img/wideDD-lres-c%02i' % (cmaj)
+    imagenameL = f'img/wideDDS-lres-c{cmaj}'
     logger.info('Cleaning (low res)...')
     lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameL, data_column='DATA',
-                size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='60arcsec', niter=1000000, gridder='wgridder',
+                size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='40arcsec', niter=1000000, gridder='wgridder',
                 parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=20, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
-                no_update_model_required='',  nmiter=12, auto_threshold=1.0, auto_mask=2.0,
+                no_update_model_required='',  nmiter=12, auto_threshold=1.0, auto_mask=3.0,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
                 apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60)
 
@@ -1067,10 +1066,10 @@ with w.if_todo('output-lres'):
 
 ### Stokes V after leakage Calibration
 with w.if_todo('output-vstokes-leakcal'):
-   imagenameV = 'img/wideDD-c%02i-leak' % (cmaj)
+   imagenameV = f'img/wideDDS-leak-c{cmaj}'
    logger.info('Cleaning (lres I+V leakage-corrected)...')
    lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
-               taper_gaussian='60arcsec', weight='briggs 0', niter=100000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=20, mgain=0.85, parallel_deconvolution=512,
+               taper_gaussian='40arcsec', weight='briggs 0', niter=100000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=20, mgain=0.85, parallel_deconvolution=512,
                auto_threshold=2.0, auto_mask=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                pol='IQUV', join_polarizations = '', apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60 )
@@ -1084,19 +1083,19 @@ with w.if_todo('output-lressub'):
     MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
         log='$nameMS_taql.log', commandType='general')
 
-    imagenameLS = 'img/wideDD-lressub-c%02i' % (cmaj)
+    imagenameLS = f'img/wideDDS-lressub-c{cmaj}'
     logger.info('Cleaning (low res sub)...')
     lib_util.run_wsclean(s, 'wscleanLRS-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameLS, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
                 weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=len(h5parms['ph'])*ch_out, no_update_model_required='', minuv_l=20, mgain=0.85, parallel_deconvolution=512,
                 auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
-                multiscale='', multiscale_scale_bias=0.65, pol='i', taper_gaussian='60arcsec',
+                multiscale='', multiscale_scale_bias=0.65, pol='i', taper_gaussian='40arcsec',
                 apply_facet_beam='', use_differential_lofar_beam='', facet_beam_update=120, facet_regions=facetregname, apply_facet_solutions=f'{interp_h5parm} {correct_for}')
  
     os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameLS, imagenameLS, cmaj))
 ### DONE
 
 with w.if_todo('output-debugempty'):
-    imagenameEMPTY = 'img/wideDebug-empty-c%02i' % (cmaj)
+    imagenameEMPTY = f'img/wideDebug-empty-c{cmaj}'
     logger.info('Cleaning (empty with no sols image for debug)...')
     lib_util.run_wsclean(s, 'wscleanEMPTY-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagenameEMPTY, data_column='SUBTRACTED_DATA',
                 size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1, gridder='wgridder',
