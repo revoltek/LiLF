@@ -290,11 +290,13 @@ class Image(object):
             else:
                 return wcs.WCS(phdu[0].header)
 
-    def plotimage(self, outplotname, regionfile=None, minmax=None, \
-                      cmap='gist_heat', regioncolor='yellow', stretch_type='sqrt', regionalpha=0.6):
+    def plotimage(self, outplotname, regionfile=None, minmax=None, title=None, \
+                      cmap='gist_heat', stretch_type='sqrt', regionalpha=0.5):
         """
         minmax: in mJy/beam, if None then use 20-99.99 percentile
         """
+        if title is None:
+            title = self.imagename
 
         # image noise info
         head, data = flatten(self.imagename)
@@ -317,7 +319,7 @@ class Image(object):
         img = ax.imshow(data, origin='lower', interpolation='nearest', cmap=cmap, norm=norm)
         #img = ax.imshow(data, cmap=cmap, vmax=minmax[1], vmin=minmax[0])
         
-        ax.set_title(self.imagename + ' (noise = {} mJy/beam)'.format(round(imagenoiseinfo * 1e3, 3)),fontsize=6)
+        ax.set_title(title + ' (noise = {} mJy/beam)'.format(round(imagenoiseinfo * 1e3, 3)), fontsize=6)
     
         ax.grid(False)
         ax.coords[0].set_axislabel_position('b') # for some reason this needs to be hardcoded, otherwise RA gets on top axis
@@ -342,7 +344,7 @@ class Image(object):
                 ds9regions = regions.Regions.read(regionfile, format='ds9')
                 for ds9region in ds9regions:
                     reg = ds9region.to_pixel(self.getWCS())
-                    reg.plot(ax=ax, alpha=0.5, lw=0.2)
+                    reg.plot(ax=ax, alpha=regionalpha, lw=0.2)
         except Exception as e:
             print(f"Cannot overplot facets, failed with error: {e}. Skipping.")
         

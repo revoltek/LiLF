@@ -29,6 +29,13 @@ with w.if_todo('cleaning'):
 
 ### DONE
 
+# get the target name if available
+if os.path.exists('../target.txt'):
+    with open("../target.txt", "r") as file:
+        target = file.readline()[:-1]
+else:
+    target = None
+
 MSs = lib_ms.AllMSs( glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False)
 ra, dec = MSs.getListObj()[0].getPhaseCentre()
 fwhm = MSs.getListObj()[0].getFWHM(elliptical=True)
@@ -77,10 +84,10 @@ if os.path.exists(ddserial_dir):
     qdict['ddserial_c0_rms'] = img.getNoise(useMask=False)
     logger.info('ddserial residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddserial_c0_rms']*1e3))
     img = lib_img.Image(ddserial_dir+'/c00/images/wideDDS-c0-MFS-image.fits')
-    img.plotimage('quality/wideDDS-c0-MFS-image.png', regionfile=ddserial_dir+'/peelingRegion.reg', minmax=(-5, 100))
-    img.plotimage('quality/wideDDS-c0-MFS-image-reg.png', regionfile=ddserial_dir+'/c00/solutions/facetsS-c0.reg', minmax=(-5, 100))
+    img.plotimage('quality/wideDDS-c0-MFS-image.png', regionfile=ddserial_dir+'/peelingRegion.reg', minmax=(-5, 100), title=target)
+    img.plotimage('quality/wideDDS-c0-MFS-image-reg.png', regionfile=ddserial_dir+'/c00/solutions/facetsS-c0.reg', minmax=(-5, 100), title=target)
     img = lib_img.Image(ddserial_dir+'/c00/images/wideDDS-lres-c0-MFS-image.fits')
-    img.plotimage('quality/wideDDS-lres-c0-MFS-image.png', regionfile=ddserial_dir+'/peelingRegion.reg', minmax=(-5, 100))
+    img.plotimage('quality/wideDDS-lres-c0-MFS-image.png', regionfile=ddserial_dir+'/peelingRegion.reg', minmax=(-5, 100), title=target+ ' (lres)')
 
     with w.if_todo('process_ddimage'):
         os.chdir(f'{ddserial_dir}/c00/images/') # bdsf raises error if image not in wdir?
