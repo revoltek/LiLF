@@ -254,6 +254,9 @@ if imgsizepix_wide > 10000: imgsizepix_wide = 10000
 if imgsizepix_wide % 2 != 0: imgsizepix_wide += 1  # prevent odd img sizes
 imgsizepix_lr = int(5*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/(pixscale*8))
 if imgsizepix_lr % 2 != 0: imgsizepix_lr += 1  # prevent odd img sizes
+if len(MSs.getListObj()) > 5 and use_shm: 
+    logger.warning('Disable shared memory for wsclean, this is only recommended for small number of MSs.')
+    use_shm = False # use shared memory only for small number of MSs
 
 logger.info(f'Setting wide-field image size: {imgsizepix_wide}pix; scale:  {pixscale:.2f}arcsec.')
 
