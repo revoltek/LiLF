@@ -41,18 +41,6 @@ ra, dec = MSs.getListObj()[0].getPhaseCentre()
 fwhm = MSs.getListObj()[0].getFWHM(elliptical=True)
 qdict = {'ddparallel_c0_rms': None, 'ddparallel_c1_rms': None, 'ddserial_c0_rms': None,
                 'ddserial_c1_rms': None, 'nvss_ratio': None, 'nvss_match': None, 'flag_frac':None}
-# MS flags, count all flags and print %
-
-# ddparallel images [noise per cycle]
-if os.path.exists(ddparallel_dir):
-    img = lib_img.Image(ddparallel_dir+'/images/wideDDP-c0-MFS-residual.fits')
-    qdict['ddparallel_c0_rms'] = img.getNoise(useMask=False)
-    logger.info('ddparallel residual rms noise (cycle 0): %.1f mJy/b' % (qdict["ddparallel_c0_rms"]*1e3))
-    img = lib_img.Image(ddparallel_dir+'/images/wideDDP-c1-MFS-residual.fits')
-    qdict['ddparallel_c1_rms'] = img.getNoise(useMask=False)
-    logger.info('ddparallel residual rms noise (cycle 1): %.1f mJy/b' % (qdict["ddparallel_c1_rms"]*1e3))
-else:
-    logger.warning('Skip "ddparallel" tests, missing dir.')
 
 # flag fraction in blocks of 10 min
 flags = []
@@ -78,6 +66,17 @@ else:
     logger.warning(f'Total flagged: {flag_frac:.1%}')
 qdict['flag_frac'] = flag_frac
 
+# ddparallel images [noise per cycle]
+if os.path.exists(ddparallel_dir):
+    img = lib_img.Image(ddparallel_dir+'/images/wideDDP-c0-MFS-residual.fits')
+    qdict['ddparallel_c0_rms'] = img.getNoise(useMask=False)
+    logger.info('ddparallel residual rms noise (cycle 0): %.1f mJy/b' % (qdict["ddparallel_c0_rms"]*1e3))
+    img = lib_img.Image(ddparallel_dir+'/images/wideDDP-c1-MFS-residual.fits')
+    qdict['ddparallel_c1_rms'] = img.getNoise(useMask=False)
+    logger.info('ddparallel residual rms noise (cycle 1): %.1f mJy/b' % (qdict["ddparallel_c1_rms"]*1e3))
+else:
+    logger.warning('Skip "ddparallel" tests, missing dir.')
+
 # ddserial images [noise per cycle, astrometry, fluxscale]
 if os.path.exists(ddserial_dir):
     img = lib_img.Image(ddserial_dir+'/c00/images/wideDDS-c0-MFS-residual.fits')
@@ -87,7 +86,7 @@ if os.path.exists(ddserial_dir):
     img.plotimage('quality/wideDDS-c0-MFS-image.png', regionfile=ddserial_dir+'/peelingRegion.reg', minmax=(-5, 100), title=target)
     img.plotimage('quality/wideDDS-c0-MFS-image-reg.png', regionfile=ddserial_dir+'/c00/solutions/facetsS-c0.reg', minmax=(-5, 100), title=target)
     img = lib_img.Image(ddserial_dir+'/c00/images/wideDDS-lres-c0-MFS-image.fits')
-    img.plotimage('quality/wideDDS-lres-c0-MFS-image.png', regionfile=ddserial_dir+'/peelingRegion.reg', minmax=(-5, 100), title=target+ ' (lres)')
+    img.plotimage('quality/wideDDS-lres-c0-MFS-image.png', regionfile=ddserial_dir+'/peelingRegion.reg', minmax=(-5, 100), title=target+ ' - lres')
 
     with w.if_todo('process_ddimage'):
         os.chdir(f'{ddserial_dir}/c00/images/') # bdsf raises error if image not in wdir?
