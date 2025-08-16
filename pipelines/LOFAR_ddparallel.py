@@ -254,6 +254,9 @@ if imgsizepix_wide > 10000: imgsizepix_wide = 10000
 if imgsizepix_wide % 2 != 0: imgsizepix_wide += 1  # prevent odd img sizes
 imgsizepix_lr = int(5*max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))*3600/(pixscale*8))
 if imgsizepix_lr % 2 != 0: imgsizepix_lr += 1  # prevent odd img sizes
+if len(MSs.getListObj()) > 5 and use_shm: 
+    logger.warning('Disable shared memory for wsclean, this is only recommended for small number of MSs.')
+    use_shm = False # use shared memory only for small number of MSs
 
 logger.info(f'Setting wide-field image size: {imgsizepix_wide}pix; scale:  {pixscale:.2f}arcsec.')
 
@@ -398,7 +401,7 @@ for c in range(maxIter):
                 sm = lsmtool.load(start_sourcedb, beamMS=beamMS)
         else:
                 # get wsclean skymodel of previous iteration
-                wsc_src = f'img/wideM-{c-1}-sources-pb.txt'
+                wsc_src = f'img/wideDDP-c{c-1}-sources-pb.txt'
                 sm = lsmtool.load(wsc_src, beamMS=beamMS)
         # if using e.g. LoTSS, adjust for the frequency
         logger.debug(f'Extrapolating input skymodel fluxes from {np.mean(sm.getColValues("ReferenceFrequency"))/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
@@ -415,6 +418,7 @@ for c in range(maxIter):
             remove3c = False
             min_facets[0] = 1
             max_facets[0] = 1
+            mask_threshold = [7.0,6.5,6.0,6.0,6.0,6.0] # sigma values for beizorro mask in cycle c           
         # check if there are less than the minimum requested bright sources to form the facets
         if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]: # convert skymodel fluxes to MS central freq
             bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor # bright sources flux is at MSs central freq
@@ -488,7 +492,7 @@ for c in range(maxIter):
         # Smooth MSs:CORRECTED_DATA -> SMOOTHED_DATA
         MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
         logger.info('Solving ionosphere (DD)...')
-        smMHz = np.array([[2.5,7.0,10.0,15.0],[6.0,10.0,15.0,25.0]]) # [cycle0, cycle1]
+        smMHz = np.array([[2.5,4.0,10.0,15.0],[6.0,10.0,15.0,25.0]]) # [cycle0, cycle1]
         smMHz_factors = [smMHz[0]/np.max(smMHz[0]), smMHz[1]/np.max(smMHz[1])] # factors should be <1 otherwise trimming of kernel is off
         solutions_per_direction = 15*np.ones(len(patches), dtype=int)
         # get twice as many solutions for brighter directions solint (i.e. one per time step) for bright directions
@@ -704,7 +708,7 @@ for c in range(maxIter):
         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/cal-fr.h5 msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA\
                 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
 
-    facetregname = f'{sol_dir}/facets-c{c}.reg'
+    facetregname = f'{sol_dir}/facetsP-c{c}.reg'
     wide_h5 = f'{sol_dir}/cal-tec-no3c-c{c}.h5' if os.path.exists(f'{sol_dir}/cal-tec-no3c-c{c}.h5') else f'{sol_dir}/cal-tec-c{c}.h5'
 
     channels_out = MSs.getChout(4.e6) if MSs.getChout(4.e6) > 1 else 2
@@ -714,13 +718,13 @@ for c in range(maxIter):
             --pixelscale {pixscale} --writevoronoipoints --output {facetregname}', log='facet_generator.log', commandType='python')
         s.run(check = True)
 
-        imagename = 'img/wide-' + str(c)
-        imagenameM = 'img/wideM-' + str(c)
+        imagename = 'img/wideDDPnomask-c' + str(c)
+        imagenameM = 'img/wideDDP-c' + str(c)
         # common imaging arguments used by all of the following wsclean calls
         widefield_kwargs = dict(data_column='CORRECTED_DATA', use_shm=use_shm, size=imgsizepix_wide, scale=f'{pixscale}arcsec', weight='briggs -0.5', niter=1000000,
                                 gridder='wgridder',  parallel_gridding=len(sm.getPatchNames())*channels_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                 join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
-                                multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname, apply_facet_solutions=f'{wide_h5} phase000', concat_mss=False)
+                                multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname, apply_facet_solutions=f'{wide_h5} phase000', concat_mss=True)
 
         # for low-freq or low-dec data, allow the beam to be fitted, otherwise (survey) force 15"
         if not(np.mean(MSs.getFreqs()) < 50e6) and not (phasecentre[1] < 23):
@@ -736,7 +740,7 @@ for c in range(maxIter):
             # safe a bit of time by reusing psf and dirty in first iteration
             reuse_kwargs = {'reuse_concat':True, 'reuse_psf':imagename, 'reuse_dirty':imagename}
         else:
-            current_best_mask = f'img/wideM-{c-1}-mask.fits' # is this already set by the make_current_best_mask() below? (not if we restart)
+            current_best_mask = f'img/wideDDP-c{c-1}-mask.fits' # is this already set by the make_current_best_mask() below? Nsot if we restart
             reuse_kwargs = {}
 
         # main wsclean call, with mask now
@@ -745,36 +749,6 @@ for c in range(maxIter):
                              save_source_list='', no_update_model_required='',  nmiter=12,  auto_threshold=2.0, auto_mask=4.0,
                              apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
                              local_rms='', local_rms_window=50, local_rms_strength=0.5, **widefield_kwargs, **reuse_kwargs)
-
-        # s.add(f'wsclean -predict -padding 1.8 -name img/wideM-{c} -j {s.max_cpucores} -channels-out {channels_out} \
-        #         -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
-        #         -apply-facet-solutions {wide_h5} phase000 {MSs.getStrWsclean()}',
-        #       log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
-        # s.run(check=True)
-        # MSs.addcol('SUBTRACTED_DATA','CORRECTED_DATA')
-        # # subtract - ms:SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA
-        # logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
-        # MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
-        #         log='$nameMS_taql.log', commandType='general')
-        # imagenameEMPTY = f'img/wideM-empty-{c}'
-        # logger.info('Cleaning (empty with no sols image for debug)...')
-        # lib_util.run_wsclean(s, 'wscleanEMPTY-c' + str(c) + '.log', MSs.getStrWsclean(), name=imagenameEMPTY,
-        #                      data_column='SUBTRACTED_DATA',
-        #                      size=imgsizepix_wide, scale=str(pixscale) + 'arcsec', weight='briggs -0.5', niter=1,
-        #                      gridder='wgridder',
-        #                      parallel_gridding=channels_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
-        #                      join_channels='', fit_spectral_pol=3,
-        #                      channels_out=channels_out, deconvolution_channels=3, pol='i',
-        #                      no_update_model_required='', nmiter=12, auto_threshold=2.0, auto_mask=3.0,
-        #                      local_rms='', local_rms_window=50, local_rms_strength=0.75,
-        #                      concat_mss=True)
-        # # Test: quick stokesV
-        # logger.info('Making wide field image (pol) ...')
-        # lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM+'-v',
-        #                      no_update_model_required='',  nmiter=0,  niter=0,
-        #                      data_column='CORRECTED_DATA', size=imgsizepix_wide, scale=f'{pixscale}arcsec',
-        #                      weight='briggs -0.5', gridder='wgridder', parallel_gridding=channels_out, minuv_l=30, parallel_deconvolution=1024,
-        #                      channels_out=channels_out, pol='iquv', join_polarizations='', facet_regions=facetregname, apply_facet_solutions=f'{wide_h5} phase000')
 
         current_best_mask = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
 
@@ -793,8 +767,8 @@ for c in range(maxIter):
 
     # Generate a subfield
     if not os.path.exists(subfield_path):
-        sm = lsmtool.load(f'img/wideM-{c}-sources.txt')
-        # sm.remove('img/wide-lr-mask.fits=1')  # remove sidelobe sources that were subtracted
+        sm = lsmtool.load(f'img/wideDDP-c{c}-sources.txt')
+        # sm.remove('img/wide-sidelobe-mask.fits=1')  # remove sidelobe sources that were subtracted
         sm.remove('MajorAxis > 80')  # remove largest scales
         field_center1, field_size1 = lib_dd.make_subfield_region(subfield_path, MSs.getListObj()[0], sm,
                                                                      subfield_min_flux, pixscale, imgsizepix_wide, debug_dir='img/')
@@ -807,7 +781,7 @@ for c in range(maxIter):
         # prepare model of central/external regions combining the subfield_reg and the mask of
         # sources so not to cut anything at the edges
         logger.info('Blanking central region of model files and reverse...')
-        current_best_mask = f'img/wideM-{c}-mask.fits'
+        current_best_mask = f'img/wideDDP-c{c}-mask.fits'
         subfield_intmask='ddparallel/images/subfieldint-mask.fits'
         os.system(f'cp {current_best_mask} {subfield_intmask}')
         lib_img.blank_image_reg(subfield_intmask, subfield_path, blankval = 1.)
@@ -816,19 +790,19 @@ for c in range(maxIter):
         os.system(f'cp {current_best_mask} {subfield_extmask}')
         lib_img.blank_image_fits(subfield_extmask, subfield_intmask, blankval = 0.)
 
-        for im in glob.glob(f'img/wideM-{c}*model*.fits'):
-            wideMint = im.replace('wideM','wideMint')
-            os.system('cp %s %s' % (im, wideMint))
-            lib_img.blank_image_fits(wideMint, subfield_intmask, blankval = 0., inverse=True)
-            wideMext = im.replace('wideM','wideMext')
-            os.system('cp %s %s' % (im, wideMext))
-            lib_img.blank_image_fits(wideMext, subfield_extmask, blankval = 0., inverse=True)
+        for im in glob.glob(f'img/wideDDP-c{c}*model*.fits'):
+            wideDDPint = im.replace('wideDDP','wideDDPint')
+            os.system('cp %s %s' % (im, wideDDPint))
+            lib_img.blank_image_fits(wideDDPint, subfield_intmask, blankval = 0., inverse=True)
+            wideDDPext = im.replace('wideDDP','wideDDPext')
+            os.system('cp %s %s' % (im, wideDDPext))
+            lib_img.blank_image_fits(wideDDPext, subfield_extmask, blankval = 0., inverse=True)
     # DONE
 
     with w.if_todo('c%02i_xtreg_subtract' % c):
         # Predict (with dd-sol) external region for subtraction - MSs: MODEL_DATA
         logger.info('Predict corrupted model of external region (wsclean)...')
-        s.add(f'wsclean -predict -padding 1.8 -name img/wideMext-{c} -j {s.max_cpucores} -channels-out {channels_out} \
+        s.add(f'wsclean -predict -padding 1.8 -name img/wideDDPext-c{c} -j {s.max_cpucores} -channels-out {channels_out} \
                 -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                 -apply-facet-solutions {wide_h5} phase000 {MSs.getStrWsclean()}',
             log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
@@ -859,7 +833,7 @@ for c in range(maxIter):
     with w.if_todo('c%02i_intreg_predict' % c):
         # Predict internal region - MSs: MODEL_DATA
         logger.info('Predict model of internal region...')
-        s.add(f'wsclean -predict -padding 1.8 -name img/wideMint-{c} -j {s.max_cpucores} -channels-out {channels_out} \
+        s.add(f'wsclean -predict -padding 1.8 -name img/wideDDPint-c{c} -j {s.max_cpucores} -channels-out {channels_out} \
                 -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                 {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
         s.run(check=True)
@@ -881,7 +855,7 @@ for c in range(maxIter):
         MSs.run_Blsmooth('SUBFIELD_DATA', logstr=f'smooth-c{c}')
         # solve ionosphere phase - ms:SMOOTHED_DATA
         logger.info('Solving ionosphere (subfield)...')
-        smMHz_sf = np.array([2.5,7.0,10.0,15.0])
+        smMHz_sf = np.array([2.5,4.0,10.0,15.0])
         smMHz_factors_sf = smMHz_sf/np.max(smMHz_sf) # factors should be <1 otherwise trimming of kernel is off, so normalize
         ant_avg_factors = f'"[CS*:15,[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:4,[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:2,[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:1]"'
         ant_smooth_factors = f'"[CS*:{smMHz_factors_sf[3]},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{smMHz_factors_sf[2]},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{smMHz_factors_sf[1]},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{smMHz_factors_sf[0]}]"'
@@ -930,16 +904,16 @@ for c in range(maxIter):
         # Predict the main-lobe with DD-sols and subtract it
         with w.if_todo('subtract_mainlobe'):
             logger.info('Blanking central region of model files and reverse...')
-            for im in glob.glob('img/wideM-0*model*.fits'):
-                wideMintpb = im.replace('wideM', 'wideMintpb')
-                os.system('cp %s %s' % (im, wideMintpb))
-                lib_img.blank_image_reg(wideMintpb, beamReg , blankval=0., inverse=True)
-                wideMextpb = im.replace('wideM', 'wideMextpb')
-                os.system('cp %s %s' % (im, wideMextpb))
-                lib_img.blank_image_reg(wideMextpb, beamReg, blankval=0.)
+            for im in glob.glob('img/wideDDP-c0*model*.fits'):
+                wideDDPintpb = im.replace('wideDDP', 'wideDDPintpb')
+                os.system('cp %s %s' % (im, wideDDPintpb))
+                lib_img.blank_image_reg(wideDDPintpb, beamReg , blankval=0., inverse=True)
+                wideDDPextpb = im.replace('wideDDP', 'wideDDPextpb')
+                os.system('cp %s %s' % (im, wideDDPextpb))
+                lib_img.blank_image_reg(wideDDPextpb, beamReg, blankval=0.)
             # Recreate MODEL_DATA of internal region for subtraction
             logger.info('Predict corrupted model of internal region...')
-            s.add(f'wsclean -predict -padding 1.8 -name img/wideMintpb-0 -j {s.max_cpucores} -channels-out {channels_out} \
+            s.add(f'wsclean -predict -padding 1.8 -name img/wideDDPintpb-c0 -j {s.max_cpucores} -channels-out {channels_out} \
                    -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam -facet-regions {facetregname} \
                    -apply-facet-solutions {wide_h5} phase000 {MSs.getStrWsclean()}',
                 log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
@@ -969,14 +943,14 @@ for c in range(maxIter):
                        cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
         ### DONE
 
-        imagename_lr = 'img/wide-lr'
+        imagename_lr = 'img/wide-sidelobe'
         channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
         # Image the sidelobe data and predict model
         # MSs: create MODEL_DATA (with just the sidelobe flux)
         # TODO CHECK: should we do the clean + predict with beam?
-        facetregname_lr = f'{sol_dir}/facets-lr-c{c}.reg'
+        #facetregname_lr = f'{sol_dir}/facets-lr-c{c}.reg'
         with w.if_todo('image_lr'):
-            logger.info('Preparing region file...')
+            #logger.info('Preparing region file...')
             # this is too slow
             #s.add('ds9_facet_generator.py --ms '+MSs.getListStr()[0]+f' --grid 10 --imsize {int(1.1*imgsizepix_lr)} \
             #--pixelscale 30 --writevoronoipoints --output {facetregname_lr}', log='facet_generator.log', commandType='python')
@@ -1072,14 +1046,14 @@ with w.if_todo('final_fr_corr'):
             cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
 
 # Copy images
-[ os.system('mv img/wideM-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
-[ os.system('mv img/wideM-'+str(c)+'-MFS-residual*.fits ddparallel/images') for c in range(maxIter) ]
-[ os.system('mv img/wideM-'+str(c)+'-sources*.txt ddparallel/images') for c in range(maxIter) ]
-os.system('mv img/wide-lr-MFS-image.fits ddparallel/images')
+[ os.system('mv img/wideDDP-c'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
+[ os.system('mv img/wideDDP-c'+str(c)+'-MFS-residual*.fits ddparallel/images') for c in range(maxIter) ]
+[ os.system('mv img/wideDDP-c'+str(c)+'-sources*.txt ddparallel/images') for c in range(maxIter) ]
+[ os.system('mv img/subfield-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
+os.system('mv img/wide-sidelobe-MFS-image.fits ddparallel/images')
 
 # debug images
 if develop:
-    [ os.system('mv img/subfield-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
     os.system('mv img/only*image.fits ddparallel/images')
     os.system('mv img/empty*image.fits ddparallel/images')
 else:
@@ -1089,8 +1063,8 @@ else:
         MSs.deletecol(patch)
 
 # Copy model
-os.system(f'mv img/wideM-{maxIter-1}-*-model.fits ddparallel/skymodel')
-os.system(f'mv img/wideM-{maxIter-1}-*-model-fpb.fits ddparallel/skymodel')
-os.system(f'mv img/wideM-{maxIter-1}-*-model-pb.fits ddparallel/skymodel')
+os.system(f'mv img/wideDDP-c{maxIter-1}-*-model.fits ddparallel/skymodel')
+os.system(f'mv img/wideDDP-c{maxIter-1}-*-model-fpb.fits ddparallel/skymodel')
+os.system(f'mv img/wideDDP-c{maxIter-1}-*-model-pb.fits ddparallel/skymodel')
 
 w.alldone()
