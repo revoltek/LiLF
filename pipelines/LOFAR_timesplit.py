@@ -26,9 +26,8 @@ ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
 apply_fr = parset.getboolean('LOFAR_timesplit','apply_fr') # also transfer the FR solutions (possibly useful if calibrator and target are close, especially for IS data.)
 no_aoflagger = parset.getboolean('LOFAR_timesplit','no_aoflagger')
-ateam_clip = parset.get('LOFAR_timesplit', 'ateam_clip') # '' no clip
 bl2flag = parset.get('flag','stations')
-
+use_GNSS = parset.getboolean('LOFAR_timesplit', 'use_GNSS')
 #################################################
 
 # Clean
@@ -56,9 +55,11 @@ with w.if_todo('copy'):
 
     logger.info('Copy data...')
     for MS in MSs.getListObj():
+        # if min(MS.getFreqs()) > 30.e6:
         # overwrite=True to prevent updating the weights twice
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=True)
 ### DONE
+
 MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
 
 ##################################################
@@ -81,57 +82,42 @@ else:
         logger.warning('Multiple cal dirs found (using the first):', subdirs)
         cal_dir = subdirs[0]
 
-
 logger.info('Calibrator directory: %s' % cal_dir)
-# choose whether to include target GPS TEC solutions or transfer tec solutions from the target field. 
-# cal-tec has also been fitted (refined). target-tec only relies on gps data.
-# TODO: test which approach gives better results.
-correct_target_gps_tec = False
-if correct_target_gps_tec:
-    logger.info('Including target GPS TEC solutions (spinifex)...')
-    MSs.run('spinifex get_tec_h5parm_from_ms $pathMS -o target-gps-tec.h5',
-                log='spinifex_gps_tec.log', commandType='general')
-    h5_tec = 'target-gps-tec.h5'
-else:
-    # assuming tec has been properly combined
-    h5_tec = cal_dir + '/cal-tec.h5'
-    
-    
-h5_tec_gps = cal_dir + '/cal-gps-tec.h5'
-h5_dtec = cal_dir + '/cal-dtec.h5'
-    
-h5_pa = cal_dir + '/cal-pa.h5'
-h5_bp = cal_dir + '/cal-bp.h5'
-#h5_tec = cal_dir + '/cal-tec.h5'
-h5_iono = cal_dir + '/cal-iono.h5'
-h5_iono_cs = cal_dir + '/cal-iono-cs.h5'
-if not os.path.exists(h5_pa) or not os.path.exists(h5_bp) or not os.path.exists(h5_iono) or not os.path.exists(h5_iono_cs) or not os.path.exists(h5_tec):
+h5_pa = cal_dir+'/cal-pa.h5'
+h5_bp = cal_dir+'/cal-bp.h5'
+h5_iono = cal_dir+'/cal-iono.h5'
+#h5_iono_dtec = cal_dir+'/cal-dtec.h5'
+h5_iono_cs = cal_dir+'/cal-iono-cs.h5'
+if not os.path.exists(h5_pa) or not os.path.exists(h5_bp) or not os.path.exists(h5_iono) or not os.path.exists(h5_iono_cs):
     logger.error("Missing solutions in %s" % cal_dir)
     sys.exit()
 
 ####################################################
 # Correct fist for PA+beam+BP(diag)+TEC+Clock and then for beam
 with w.if_todo('apply'):
-    # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, tec corrected)
-    logger.info('GPS TEC correction...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_tec_gps} msin.datacolumn=DATA \
-                cor.correction=tec000', log='$nameMS_corDTEC.log', commandType='DP3')
-    
+
     # Apply cal sol - SB.MS:DATA -> SB.MS:CORRECTED_DATA (polalign corrected)
     logger.info('Apply solutions (pa)...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
             cor.parmdb={h5_pa} cor.correction=polalign', log='$nameMS_corPA.log', commandType='DP3')
     
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
     logger.info('Beam correction...')
     MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM.log', commandType='DP3')
-    
-    # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, tec corrected)
-    logger.info('dTEC correction...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_dtec} msin.datacolumn=CORRECTED_DATA \
-                cor.correction=tec000', log='$nameMS_corDTEC.log', commandType='DP3')
-
-    # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight,tec corrected, calibrator corrected+reweight)
+    if use_GNSS:
+        # Correct gps-tec concat_all:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('TEC correction (GPS)...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb={cal_dir}/cal-gps-tec.h5 \
+                      cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
+        # Correct TEC concat_all:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('dTEC correction (fitted)...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb={cal_dir}/cal-dtec.h5 \
+                      cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
+        # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('Faraday rotation pre-correction (GPS)...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb={cal_dir}/cal-gps-rm.h5 \
+                        cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+    # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, calibrator corrected+reweight)
     logger.info('Iono correction...')
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_iono_cs} msin.datacolumn=CORRECTED_DATA \
                 cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
@@ -180,25 +166,17 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
         for j in range(num_init, num_fin+1):
             msg.append(prefix+'SB%03i.MS' % j)
 
-        # Dutch obs should be at 4s
-        if not MSs.hasIS and MSs.mssListObj[0].getTimeInt() < 4:
-            avgtimestep = int(round(4./MSs.mssListObj[0].getTimeInt()))
-            DP3str = f'steps=[avg] avg.type=averager avg.timestep={avgtimestep}'
-            logger.warning(f'Using averaging factor {avgtimestep} to get to 4s time resolution.')
-        else:
-            DP3str = ''
-
         # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected)
         s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(msg)+']" msin.missingdata=True msin.orderms=False \
-               msout='+groupname+'/'+groupname+'-temp.MS '+DP3str, log=groupname+'_DP3_concat.log', commandType='DP3')
+               msout='+groupname+'/'+groupname+'-temp.MS', log=groupname+'_DP3_concat.log', commandType='DP3')
         s.run(check=True)
 
-        # We need a number of channels that is - after averaging to the final dutch wide-field resolution - divisable by 48; discard high freq unused channels
+        # We need a number of channels that is - after averaging to the final dutch wide-field resolution - divisable by 48.check that nchan is divisible by 48 - necessary in dd pipeline; discard high freq unused channels
         nchan_init = MSs.getListObj()[0].getNchan()*len(msg)
-        final_freqres_dutch = 0.048828125e6 if 'OUTER' in MSs.getListObj()[0].getAntennaSet() else 0.0244140625e6
+        final_freqres_dutch = 0.048828e6 if 'OUTER' in MSs.getListObj()[0].getAntennaSet() else 0.024414e6
         freqres = MSs.getListObj()[0].getChanband()
-        averaging_factor = max([1,int(round(final_freqres_dutch / freqres))])
-        nchan = nchan_init - nchan_init % (48*averaging_factor)
+        averaging_factor = int(round(final_freqres_dutch / freqres))
+        nchan = nchan_init - nchan_init % 48*averaging_factor
         logger.info('Reducing total channels: %ich -> %ich)' % (nchan_init, nchan))
         s.add(f'DP3 {parset_dir}/DP3-concat.parset msin={groupname}/{groupname}-temp.MS msin.datacolumn=DATA msin.nchan={nchan} msout={groupname}/{groupname}.MS',
               log=groupname+'_DP3_concat.log', commandType='DP3')
@@ -235,26 +213,6 @@ with w.if_todo('flag'):
 ### DONE
 
 #####################################
-# check if an ateam was not demixed and do clipping
-if ateam_clip != '':
-    with w.if_todo('clipping'):
-        ateam_clip = ateam_clip.replace('[', '').replace(']', '').split(',')
-        ateam_model = os.path.dirname(__file__) + '/../models/demix_all.skymodel'
-        for MS in MSs.getListObj():
-            demixed = MS.get_ateam_demix()
-            #print(MS.pathMS, demixed, ateam_clip)
-            for a in ateam_clip:
-                if a not in ['CasA', 'CygA', 'VirA', 'TauA']:
-                    logger.warning(f'Can clip only Ateam (Cas, Cyg, Vir, Tau), not {a} -> skip.')
-                elif (a not in demixed) and (MSs.getListObj()[0].distBrightSource(a) > 15):
-                    logger.info(f'{MS.nameMS}: Clipping {a} that was not demixed.')
-                    cmd = f'DP3 msin={MS.pathMS} msout=. steps=[count,clipper,count] clipper.type=CLIPPER clipper.sourcedb={ateam_model} \
-                        clipper.sources=[{a}] clipper.usebeammodel=True clipper.correctfreqsmearing=True'
-                    s.add(cmd, log=MS.nameMS+'_clipper.log', commandType='DP3')
-                    s.run(check=True)
-    ### DONE
-
-#####################################
 # Create time-chunks
 with w.if_todo('timesplit'):
 
@@ -271,8 +229,7 @@ with w.if_todo('timesplit'):
 
         for timerange in np.array_split(sorted(set(t.getcol('TIME'))), round(hours)):
             logger.info('%02i - Splitting timerange %f %f' % (tc, timerange[0], timerange[-1]))
-            logger.info(f'Splitting timerange {timerange[-1]-timerange[0]} -> 3584s.')
-            t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[0]+3584), sortlist='TIME,ANTENNA1,ANTENNA2')
+            t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[-1]), sortlist='TIME,ANTENNA1,ANTENNA2')
             splitms = groupname+'/TC%02i.MS' % tc
             lib_util.check_rm(splitms)
             t1.copy(splitms, True)
@@ -291,11 +248,10 @@ if MSs.hasIS:
         with w.if_todo('avgdutch'):
             if not os.path.exists(groupname_dutch):
                 os.system(f'mkdir {groupname_dutch}')
-                
-            avg_factor_t, avg_factor_f = MSs.getListObj()[0].getAvgFactors(keep_IS=False)
-            logger.info(f'Averaging Dutch MSs: x{avg_factor_t} time; x{avg_factor_f} freq')
+            MS = lib_ms.AllMSs([glob.glob(data_dir+'/*MS')[0]], s).getListObj()[0]
+            avg_factor_t, avg_factor_f = MS.getAvgFactors(keep_IS=False)
             MSs.run(f'DP3 {parset_dir}/DP3-avgdutch.parset msin=$pathMS msout={groupname_dutch}/$nameMS.MS avg.freqstep={avg_factor_f} avg.timestep={avg_factor_t}',
-                              log='$nameMS_avg.log', commandType='DP3')
+                              log=MS.nameMS+'_avg.log', commandType='DP3')
 
 logger.info('Cleaning up...')
 os.system('rm -r *MS')
