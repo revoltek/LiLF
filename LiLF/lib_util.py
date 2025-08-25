@@ -83,6 +83,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_cal', 'fillmissingedges', 'True')
     add_default('LOFAR_cal', 'less_aggressive_flag', 'False') # change flagging so that we can handle data with alternating SBs only or many flagged points
     add_default('LOFAR_cal', 'develop', 'False') # if true prevents the deletion of files
+    add_default('LOFAR_cal', 'use_GNSS', 'False') # skip the model step
     add_default('LOFAR_cal', 'use_shm', 'False') # use /dev/shm for temporary files, if available
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
