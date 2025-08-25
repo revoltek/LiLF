@@ -3,8 +3,8 @@ Library for Low Frequencies
 
 LiLF is a set of functions linked together in pipelines for the reduction of low-frequency interferometric data in radio astronomy. It is built upon LOFAR software. LiLF can be used on both LOFAR and uGMRT data.
 
-- LOFAR: https://www.astron.nl/telescopes/lofar/
-- uGMRT: http://www.ncra.tifr.res.in/ncra/gmrt
+- LOFAR: <https://www.astron.nl/telescopes/lofar/>
+- uGMRT: <http://www.ncra.tifr.res.in/ncra/gmrt>
 
 ### Files:
 - ~/.stagingrc >> with the login and pass for LTA archive, for example:
@@ -72,38 +72,24 @@ as the pipeline requires to open many files at the same time.
 
 # Extraction of LBA data:
 
-Usage: `python LiLF/pipelines/target_extraction.py -p [/path/to/observation] --radec [RA and DEC in deg]`
+Usage: `python LiLF/pipelines/LOFAR_extract.py -p [/path/to/observation] --radec [RA and DEC in deg]`
 
-You can extract a target of interest to improve selfcalibration and try to fix ionospheric effects.
-If you wish to extract only one target, simply run the command above indicating the path to the directory of
-the observation [-p], which must contain the subdirectories /ddcal and /mss-avg obtained from the calibration pipeline (e.g. if one
-has /example1/example2/myobs/ddcal, it will be [-p /example1/example2], and RA and DEC where to center the extraction (--radec). 
+You can extract a target of interest to improve self-calibration and try to further fix ionospheric effects.
+To use it, run the command above indicating the path to the directory of
+the observation [-p], which must contain the subdirectories /ddserial and /mss-avg obtained from the calibration pipeline (e.g. if one
+has /dir1/dir2/myobs/ddserial, it will be [-p /dir1/dir2], and RA and DEC where to center the extraction (--radec). 
 Optionally one can add redshift [--z] and target name [--name].
-The pipeline is able to process multiple pointings of the same target altogether: it will look in the path specified with -p for directories
-calibrated with LiLF (see previous steps), check if the input coordinates are covered by a specific observation, and move on to the next ones.
-All observations for which the beam sensitivity is above 30% at the coordinates position will be used for the extraction. 
-The code will then create an extraction region based on the flux density within a given area (larger if low flux and vice-versa), 
-run the selfcalibration and produce images. Outputs will be stored in the /img subdirectory within the target directory, while extracted .MS files 
-can be found in the /mss-extract subdirectory. A final, nominal-resolution image will be produced ('extractM-final-MFS-image.fits'), as well as high-resolution, 
-low-resolution and source-subtracted images. The source subtraction is still on beta version, please check it carefully before using the relative image.
+The pipeline is able to process multiple pointings of the same target altogether. Simply put all the directories containing /ddserial and /mss-avg within the same path given through [-p].   
+The code will look in the path specified with -p for directories calibrated with LiLF (see previous steps), check if the input coordinates are covered in each of the observations found in the given path, and pick up those
+for which the beam sensitivity is above 30% at the coordinates position (this can be changed through the `--beamcut` parameter). 
+The code will then create an extraction region based on the flux density within a given area (larger if low flux and vice-versa), run self-calibration and produce images. Extracted .MS files can be found in the /mss-extract subdirectory. 
+A final, standard resolution image will be produced (`extractM-final-MFS-image.fits`), as well as high-resolution, low-resolution and source-subtracted images if a redshift was provided. Those can be found in /extract-images.
+The source subtraction is still on beta version, please check it carefully before using the relative image.
 Multiple default parameters can be changed through the command line - see below for a brief description.
 
-If you wish to extract more than one target, prepare a .fits file with a minimum of 4 columns: Name, RA, DEC, z (the column names must exactly match these ones, 
-but the order can be different). Run the extraction script through:
+### Extraction command line parameters
 
-python LiLF/pipelines/target_extraction.py -p [/path/to/observation] --l [/path/to/fits/file]
-
-Coordinates must be in degrees, while the purpose of the name is just to create a subdirectory 
-in which all the results will be stored. Redshift is mandatory only if one wants to perform the subtraction of compact sources, otherwise just put -99.
-An optional column can also be added with the name EXTREG. This must be a .reg file that the pipeline uses as extraction region. The script is usually able to create a good one by itself, 
-use this option only if needed - always try a run without it first. 
-Another optional .reg file can be provided in a column named 'MASKREG'; the script will use it as cleaning mask.
-Finally, one can specify a subtraction region under the column 'SUBREG'; every source within this region will be subtracted.
-The extraction will be run for each object in a different directory named after the 'Name' column.  
-
-### Command line parameters
-
-`-p`, `--path`: Path where to look for observations. It must lead to a directory where subdirectories contain /ddcal and /mss-avg derived from calibration.
+`-p`, `--path`: Path where to look for observations. It must lead to a directory where subdirectories contain /ddserial and /mss-avg derived from standard LiLF calibration.
 
 `--radec`: RA/DEC where to center the extraction in deg. Use if you wish to extract only one target.
 
@@ -111,9 +97,9 @@ The extraction will be run for each object in a different directory named after 
 
 `--name`: Name of the target. Will be used to create the directory containing the extracted data.
 
-`-l`,`--list`: Name of .fits file which lists Name, RA, DEC and z. Optionally an extraction region and a mask region can be added. Use only for multiple extractions.
-
 `--beamcut`: Beam sensitivity threshold. Default is 0.3.
+
+`--ddcycle`: DDcycle of LOFAR_ddserial from which to start the extraction. Default is c01. Change it to '1' (as in first cycle) if you wish to use c00.
 
 `--noselfcal`: Do not perform selfcalibration.
 
@@ -130,6 +116,8 @@ The extraction will be run for each object in a different directory named after 
 `--maxniter`: Maximum number of selfcalibration cycles to perform. Default is 10.
 
 `--subreg`: Provide an optional mask for sources one wishes to completely subtract
+
+`--idg`: Use image domain gridding for beam correction. Default is True. Set this to False only in case of memory issues.
 
 
 # lilf.config specifications:

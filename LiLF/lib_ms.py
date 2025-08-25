@@ -18,13 +18,14 @@ iers.conf.auto_download = False
 
 class AllMSs(object):
 
-    def __init__(self, pathsMS, scheduler, check_flags=True, check_sun=False, min_sun_dist=10):
+    def __init__(self, pathsMS, scheduler, check_flags=True, check_sun=False, min_sun_dist=10, check_consistency=False):
         """
         pathsMS:    list of MS paths
         scheduler:  scheduler object
         check_flag: if true ignore fully flagged ms
         check_sun: if true check sun distance
         min_sun_dist: if check_sun and distance from the sun < than this deg, skip
+        check_consistency: it quits if the MSs are not all of the same antenna_mode and time/freq resolution
         """
         self.scheduler = scheduler
 
@@ -42,16 +43,30 @@ class AllMSs(object):
                 logger.warning('Skip too close to sun (%.0f deg) ms: %s' % (ms.get_sun_dist(), pathMS))
             else:
                 self.mssListObj.append(ms)
-
-
+        
         if len(self.mssListObj) == 0:
             raise('ALL MS files flagged.')
+
+        # check that antenna mode and time/freq resolutions are the same for all datasets
+        if check_consistency:
+            antenna_modes = [ms.getAntennaSet() for ms in self.mssListObj]
+            if len(set(antenna_modes)) > 1:
+                logger.error('Mixed antenna modes in AllMSs:', antenna_modes)
+                sys.exit()
+            time_ints = [round(ms.getTimeInt()) for ms in self.mssListObj]
+            if len(set(time_ints)) > 1:
+                logger.error('Mixed time intervals in AllMSs:', time_ints)
+                sys.exit()
+            freq_chan = [ms.getNchan() for ms in self.mssListObj]
+            if len(set(freq_chan)) > 1:
+                logger.error('Mixed nchan in AllMSs:', freq_chan)
+                sys.exit()
 
         self.mssListStr = [ms.pathMS for ms in self.mssListObj]
         self.resolution = self.mssListObj[0].getResolution(check_flags=False)
 
         if len(self.mssListObj) > 500:
-            logger.warning('Many MSs detected, using only the first to determine antenna set and presence of IS.')
+            logger.warning('Many MSs detected, using only the first to determine antenna set (HBA/LBA) and presence of IS.')
             self.isLBA = 'LBA' in self.mssListObj[0].getAntennaSet()
             self.isHBA = 'HBA' in self.mssListObj[0].getAntennaSet()
             self.hasIS = self.mssListObj[0].getMaxBL(check_flags=False) > 150e3
@@ -86,7 +101,7 @@ class AllMSs(object):
             else:
                 Nprocs = NumMSs
 
-            NThreads = int(np.rint( self.scheduler.max_cpucores/Nprocs ))
+            NThreads = round( self.scheduler.max_cpucores/Nprocs )
 
         return NThreads
 
@@ -263,7 +278,7 @@ class AllMSs(object):
         if chunks < 1: chunks = 1
         chunks = int(np.round(chunks))
 
-        ncpu = int(np.rint(self.scheduler.max_cpucores / maxProcs))  # cpu max_proc / threads
+        ncpu = round(self.scheduler.max_cpucores / maxProcs)  # cpu max_proc / threads
 
         extra_flags = ''
         if notime: extra_flags += ' -t'
@@ -361,6 +376,47 @@ class MS(object):
         lst = self.get_time().sidereal_time('mean', self.get_telescope_coords().lon)
         ha = lst - coord.ra # hour angle
         return ha.deg/15.
+
+
+    def get_hist(self):
+        """
+        Return the Hystory subtable cell 1 (containing preprocessin ginfo) as a list
+        """
+
+        with tables.table(self.pathMS + "/HISTORY", ack=False) as table:
+            col = table.col('APP_PARAMS')
+            try:
+                return col.getcell(1)
+            except:
+                return []
+
+
+    def print_ateam_demix(self):
+        """
+        Some debug logs on the ateam
+        """
+        hist = self.get_hist()
+        for h in hist:
+            #print(h)
+            if 'demixer.subtractsources' in h:
+                logger.debug(f'{self.nameMS}: DEMIX - Sources = {h.split('=')[1]}')
+            if 'demixer.ignoretarget' in h:
+                logger.debug(f'{self.nameMS}: DEMIX - Ignoretarget = {h.split('=')[1]}')
+
+
+    def get_ateam_demix(self):
+        """
+        Return a list of the demixed ateam sources
+        """
+        hist = self.get_hist()
+        demixed = None
+        for h in hist:
+            if 'demixer.subtractsources' in h:
+                demixed = h.split('=')[1].replace('\'','').replace(' ','')
+        try:
+            return demixed[1:-1].split(',')
+        except:
+            return []
 
     def distBrightSource(self, name):
         """
@@ -661,31 +717,32 @@ class MS(object):
 
     def getAvgFactors(self, keep_IS):
         """
-        Get the time and frequency averaging factor to arrive at the standard LiLF processing resolution
+        Get the time and frequency averaging factor to arrive at the standard LiLF widefield processing resolution
         depending on SPARSE/OUTER, frequency coverage and Dutch/IS.
         keep_IS: compute resolution for IS data
         """
-        nchan = self.getNchan()
+        nchan_per_sb = round(0.195312e6/self.getChanband())
+        logger.debug(f'nchan_per_sb: {nchan_per_sb}')
         timeint = self.getTimeInt()
         minfreq = np.min(self.getFreqs())
-        if nchan == 1:
+        if nchan_per_sb == 1:
             avg_factor_f = 1
         # elif nchan % 2 == 0 and MSs.isHBA: # case HBA
         #    avg_factor_f = int(nchan / 4)  # to 2 ch/SB
-        elif nchan % 8 == 0 and minfreq < 40e6:
-            avg_factor_f = int(nchan / 8)  # to 8 ch/SB
-        elif nchan % 8 == 0 and 'SPARSE' in self.getAntennaSet():
-            avg_factor_f = int(nchan / 8)  # to 8 ch/SB
-        elif nchan % 4 == 0:
-            avg_factor_f = int(nchan / 4)  # to 4 ch/SB
-        elif nchan % 5 == 0:
-            avg_factor_f = int(nchan / 5)  # to 5 ch/SB
+        elif nchan_per_sb % 8 == 0 and minfreq < 40e6:
+            avg_factor_f = int(nchan_per_sb / 8)  # to 8 ch/SB
+        elif nchan_per_sb % 8 == 0 and 'SPARSE' in self.getAntennaSet():
+            avg_factor_f = int(nchan_per_sb / 8)  # to 8 ch/SB
+        elif nchan_per_sb % 4 == 0:
+            avg_factor_f = int(nchan_per_sb / 4)  # to 4 ch/SB
+        elif nchan_per_sb % 5 == 0:
+            avg_factor_f = int(nchan_per_sb / 5)  # to 5 ch/SB
         else:
             logger.error('Channels should be a multiple of 4 or 5.')
             sys.exit(1)
 
         if keep_IS:
-            avg_factor_f = int(nchan / 16)  # to have the full FoV in LBA we need 16 ch/SB
+            avg_factor_f = int(nchan_per_sb / 32)  # to have the full FoV in LBA we need 32 ch/SB
         if avg_factor_f < 1: avg_factor_f = 1
 
         avg_factor_t = int(np.round(2 / timeint)) if keep_IS else int(np.round(4 / timeint))  # to 4 sec (2 for IS)
@@ -772,7 +829,7 @@ class MS(object):
         Return a reasonable pixel scale
         """
         res = self.getResolution(check_flags)
-        return int(np.rint(res*2/4)) # reasonable value (4" for Dutch LBA)
+        return round(res*2/4) # reasonable value (4" for Dutch LBA)
 
     def getAntennas(self):
         """
@@ -800,6 +857,7 @@ class MS(object):
         with tables.table(self.pathMS, ack = False) as t:
             f = t.getcol('FLAG')
             return np.sum(f)/f.size
+        
 
 
 #    def delBeamInfo(self, col=None):

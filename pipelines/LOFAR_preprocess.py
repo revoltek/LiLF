@@ -10,7 +10,7 @@ from astropy.coordinates import SkyCoord
 import astropy.units as u
 
 ##########################################
-from LiLF import lib_ms, lib_util, lib_log
+from LiLF import lib_ms, lib_util, lib_log, lib_dd_parallel, lib_cat
 logger_obj = lib_log.Logger('pipeline-preprocess')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
@@ -90,7 +90,7 @@ if len(MSs.getListStr()) == 0:
     sys.exit(0)
 
 if keep_IS and not MSs.hasIS:
-    logger.debug(f'Keeping IS requested but IS were not recorded - switching to averaging settings for Dutch only.')
+    logger.debug('Keeping IS requested but IS were not recorded - switching to averaging settings for Dutch only.')
     keep_IS = False
 
 ######################################
@@ -109,7 +109,7 @@ if run_aoflagger:
         # Flag in an identical way to the observatory flagging
         logger.info('Flagging...')
         MSs.run('DP3 ' + parset_dir + '/DP3-flag.parset msin=$pathMS aoflagger.strategy=' + parset_dir + '/LBAdefaultwideband.lua',
-            log='$nameMS_flag.log', commandType='DP3', maxProcs=16) # there might be a better way of parallelizing
+            log='$nameMS_flag.log', commandType='DP3') # there might be a better way of parallelizing as this might be I/O or memory limited
 
 if fix_table:
     with w.if_todo('fix_table'):
@@ -139,8 +139,7 @@ with w.if_todo('rescale_flux'):
     s.run(check=True)
 
 ######################################
-# Avg to 4 chan and 2 sec
-# Remove internationals
+# Averaging/demixing/removing IS (if requested)
 if renameavg:
     with w.if_todo('renameavg'):
         logger.info('Renaming/averaging...')
@@ -161,6 +160,7 @@ if renameavg:
                 # get avg time/freq values
                 nchan = MS.getNchan()
                 timeint = MS.getTimeInt()
+                logger.info(f'{MS.nameMS}: nchan={nchan}, timeint={timeint:.2f}s, antennaset={antennaset}')
                 # TODO change these lines to use MS.getAvgFactors() after running survey
                 if nchan == 1:
                     avg_factor_f = 1
@@ -179,6 +179,7 @@ if renameavg:
                     sys.exit(1)
 
                 if keep_IS:
+                    # TODO HE - I think we want at least 2s 32ch/SB for IS here (at least for the target field)!
                      avg_factor_f = int(nchan / 16) # to have the full FoV in LBA we need 16 ch/SB
                 if avg_factor_f < 1: avg_factor_f = 1
 
@@ -209,29 +210,39 @@ if renameavg:
                         demix_sm = lsmtool.load(demix_sm_file, beamMS=MS.pathMS) # load demix sm
                         ra, dec = MS.getPhaseCentre()  # to calculate distance
                         # check target field skymodel
-                        # if not provided, use GSM
-                        if demix_field_skymodel:
-                            if demix_field_skymodel == 'gsm':
-                                logger.info('Include target from GSM...')
-                                ra, dec = MS.getPhaseCentre()
-                                fwhm = MS.getFWHM(freq='min') # for radius of model
-                                # get model the size of the image (radius=fwhm/2)
-                                os.system('wget -O demix_tgts.skymodel "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord=%f,%f&radius=%f&unit=deg"' % (
-                                        ra, dec, fwhm/2))  # ASTRON
-                                lsm = lsmtool.load('demix_tgts.skymodel', beamMS=MS.pathMS)
-                                lsm.remove('I<1')
-                            else:
-                                lsm = lsmtool.load(demix_field_skymodel, beamMS=MS.pathMS)
-                            lsm.group('single', root='target')
-                            lsm.setColValues('LogarithmicSI', ['true'] * len(lsm))
-                            # apply beam to the target-field
-                            lsm.setColValues('I', lsm.getColValues('I', applyBeam=True))
-                            # join with ateam skymodel
-                            lsm.concatenate(demix_sm)
-                            # DO NOT USE APPARENT MODEL FOR DEMIX SOURCES! THIS GIVES WORSE RESULTS IN SOME CASES!
-                            lsm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)
-                            # lsm.write(f'{MS.pathMS}/demix_combined_apparent.skymodel', clobber=True, applyBeam=True)
+                        # if not provided, use LOTSS DR3. If this is not available, use GSM
 
+                        if demix_field_skymodel:
+                            phasecentre = MS.getPhaseCentre()
+                            fwhm = MS.getFWHM(freq='min')  # for radius of model
+                            if demix_field_skymodel.upper() not in ['GSM','LOTSS','TGSS','VLSSR','NVSS','WENSS','LOTSS-DR3']:
+                                sm = lsmtool.load(demix_field_skymodel, beamMS=MS.pathMS)
+                            else:
+                                if demix_field_skymodel.upper() == 'LOTSS-DR3':
+                                    if lib_dd_parallel.check_lotss_coverage(phasecentre, fwhm/2):
+                                        logger.info('Target fully in LoTSS-DR3 - start from LoTSS.')
+                                        sm = lib_cat.get_LOTSS_DR3_cone_as_skymodel(phasecentre, fwhm / 2,
+                                                                                'demixfield_lotss.skymodel', MS.pathMS)
+                                    else:
+                                        logger.info('Target not fully in LoTSS-DR3 - start from GSM.')
+                                        demix_field_skymodel = 'GSM'
+                                if demix_field_skymodel.upper() in ['GSM','LOTSS','TGSS','VLSSR','NVSS','WENSS']:
+                                    logger.info(f'Include target from {demix_field_skymodel}...')
+                                    # get model the size of the image (radius=fwhm/2)
+                                    sm = lsmtool.load(demix_field_skymodel, VOPosition=phasecentre, VORadius=fwhm/2, beamMS=MS.pathMS)
+                                    sm.remove('I<1')
+                                    if demix_field_skymodel.upper() == 'LOTSS':
+                                        sm.setColValues('I', sm.getColValues('I')/1000) # convert mJy to Jy TODO fix in LSMtool
+                                        sm.setColValues('SpectralIndex', [[-0.7]]*len(sm.getColValues('I'))) # add standard spidx
+                            sm.group('single', root='target')
+                            sm.setColValues('LogarithmicSI', ['true'] * len(sm))
+                            # apply beam to the target-field
+                            sm.setColValues('I', sm.getColValues('I', applyBeam=True))
+                            # join with ateam skymodel
+                            sm.concatenate(demix_sm)
+                            # DO NOT USE APPARENT MODEL FOR DEMIX SOURCES! THIS GIVES WORSE RESULTS IN SOME CASES!
+                            sm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)
+                            # lsm.write(f'{MS.pathMS}/demix_combined_apparent.skymodel', clobber=True, applyBeam=True)
                         else: # ignore target
                             logger.info('Ignoring target...')
                             demix_sm.write(f'{MS.pathMS}/demix_combined.skymodel', clobber=True, applyBeam=False)

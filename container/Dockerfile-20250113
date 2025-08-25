@@ -15,6 +15,10 @@ USER root
 # Support large mlocks
 RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
+ENV CPPSTD c++17
+ENV CFLAGS "-w -march=${MARCH} -mtune=${MARCH}"
+ENV CXXFLAGS "-w -march=${MARCH} -mtune=${MARCH} -std=${CPPSTD}"
+
 RUN apt-get update
 RUN apt-get install -y cmake texinfo git wget flex bison sudo vim hdf5-tools rename python3-magic htop curl \
     python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm \
@@ -96,6 +100,7 @@ RUN cd /opt && git clone --single-branch --branch master https://github.com/casa
     && cd /opt/casacore && git checkout tags/v3.6.1
 RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused ftp://anonymous@ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar && rm WSRT_Measures.ztar
 RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=False -DBUILD_PYTHON3=True -DUSE_OPENMP=True -DUSE_HDF5=True .. && make -j 6 && make install
+RUN cd /opt/casacore && rm -r $(ls -A | grep -v data)
 
 #####################################################################
 ## CASACORE-python v3.6.1
@@ -183,7 +188,7 @@ RUN rm -rf /opt/DP3/
 ENV PYTHONPATH /usr/local/lib/python3.12/site-packages/:$PYTHONPATH
 
 #####################################################################
-## Wsclean master (16/1/25)
+## Wsclean master (11/2/25)
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
     && cd /opt/wsclean && git checkout af847af6b39986b18dd06c8e0846fb01f87f36c3

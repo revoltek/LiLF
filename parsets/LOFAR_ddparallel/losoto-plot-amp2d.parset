@@ -10,4 +10,4 @@ plotFlag = True
 prefix = plots/amp_
 NColFig = 4
 figSize = [20,20]
-minmax = [0.9,1.2]
+#minmax = [0.9,1.2]
