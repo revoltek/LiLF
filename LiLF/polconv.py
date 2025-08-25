@@ -37,7 +37,7 @@ except:
         from dp3 import Step
 
 class PolConv(Step):
-    """
+    r"""
     Convert UV data polarization.
     lin2circ --> convert from linear to circular UV data
     circ2lin --> convert from circular to linear UV data
@@ -132,7 +132,7 @@ class PolConv(Step):
 
     def get_provided_fields(self):
         if DP3_VERSION>5.3:
-            return Fields()
+            return (Fields.DATA | Fields.FLAGS | Fields.WEIGHTS | Fields.UVW)
         else:
             pass
 
@@ -145,12 +145,6 @@ class PolConv(Step):
         """
 
         super().update_info(dpinfo)
-
-        # Make sure data is read
-        self.info().set_need_vis_data()
-
-        # Make sure data will be written
-        self.info().set_write_data()
 
     def show(self):
         """Print a summary of the step and its settings"""
