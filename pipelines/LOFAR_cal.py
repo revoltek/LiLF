@@ -29,7 +29,7 @@ less_aggressive_flag = parset.getboolean('LOFAR_cal', 'less_aggressive_flag') # 
 develop = parset.getboolean('LOFAR_cal', 'develop') # for development, don't delete files
 use_shm = parset.getboolean('LOFAR_cal', 'use_shm') # use shared memory for wsclean
 bl2flag = parset.get('flag', 'stations')
-use_GNSS = parset.getboolean('LOFAR_cal', 'use_GNSS') # Use GNSS for pre-TEC and FR
+use_GNSS = True# parset.getboolean('LOFAR_cal', 'use_GNSS') # Use GNSS for pre-TEC and FR
 #############################################################
 
 def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
@@ -55,7 +55,6 @@ def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
                          channels_out=MSs.getChout(4e6), use_shm=use_shm)
 
 #############################################################
-
 # Clear
 with w.if_todo('cleaning'):
     logger.info('Cleaning...')
