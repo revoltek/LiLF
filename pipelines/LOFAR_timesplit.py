@@ -37,7 +37,6 @@ with w.if_todo('clean'):
     mss_list = glob.glob('mss*/*MS')
     if len(mss_list) > 0:
         raise ValueError(f'mss folders exist already {mss_list}! If this is the output of a previous LOFAR_timesplit.py run and you want to re-run LOFAR_timesplit.py, then delete them manually.')
-    lib_util.check_rm('mss*')
 ### DONE
 
 with w.if_todo('copy'):
