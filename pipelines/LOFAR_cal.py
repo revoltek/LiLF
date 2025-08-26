@@ -312,12 +312,13 @@ with w.if_todo('cal_pa'):
         logger.info('TEC correction (GPS)...')
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-tec.h5 msin.datacolumn=DATA\
                     cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
-    # Correct pre-iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Iono correction (preliminary)...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
-                cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
-                cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+    else:
+        # Correct pre-iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('Iono correction (preliminary)...')
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
+                    cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
+                    cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
     # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
 
@@ -400,15 +401,17 @@ with w.if_todo('cal_fr'):
         logger.info('TEC pre-correction (GPS)...')
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-tec.h5 \
                     cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
-    # Correct TEC concat_all:CORRECTED_DATA -> CORRECTED_DATA
-    logger.info('Iono correction (preliminary)...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
+        # Correct TEC concat_all:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('dTEC correction (fitted)...')
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
+                    cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
+    else:
+        logger.info('Iono correction (preliminary)...')
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
                     cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
-    #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
-    #                cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
-    logger.info('dTEC correction (fitted)...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
-                cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
+                        cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+        
     # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
 
