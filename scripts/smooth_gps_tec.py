@@ -39,12 +39,12 @@ def smooth_phases_in_time(phases, data, window=5):
         spl = make_smoothing_spline(data['time'], dtec, lam=1e8)
         smooth_phases[data['ant']==ant,:] = spl(data['time'])
         
-        import matplotlib.pyplot as plt
-        plt.plot(data['time'], dtec, label="dtec")
-        plt.plot(data['time'], spl(data['time']), label="smoothed dtec")
-        plt.legend()
-        plt.savefig(f"smoothed_dtec_{ant}.png")
-        plt.close()
+        #import matplotlib.pyplot as plt
+        #plt.plot(data['time'], dtec, label="dtec")
+        #plt.plot(data['time'], spl(data['time']), label="smoothed dtec")
+        #plt.legend()
+        #plt.savefig(f"smoothed_dtec_{ant}.png")
+        #plt.close()
 
     return smooth_phases
 

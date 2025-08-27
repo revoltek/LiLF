@@ -299,7 +299,7 @@ with w.if_todo('pre_iono'):
         logger.info('fit residual dTEC...')
         s.add("dtec_finder.py --gps_corrected cal-preiono.h5", log='dtec_finder.log', commandType='python')
         s.run(check=True)
-        lib_util.run_losoto(s, 'cal-dtec.h5', ['cal-dtec.h5'], [parset_dir + '/losoto-resettec-Nenu.parset', parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-dtec-finder')
+        lib_util.run_losoto(s, 'cal-dtec.h5', ['cal-dtec.h5'], [parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-dtec-finder')
 
 ### DONE
 ########################################################
@@ -428,16 +428,20 @@ with w.if_todo('cal_fr'):
         lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_concat_all.getListStr()],
                             [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
                              parset_dir + '/losoto-fr-low.parset'])
+    elif MSs_concat_all.hasIS:
+        lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_concat_all.getListStr()],
+                            [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
+                             parset_dir + '/losoto-fr-IS.parset'])
+        # workaround to remove all flags from cal-fr.h5
+        #logger.info('unflag cal-fr.h5...')
+        #s.add("h5_remove_flags.py cal-fr.h5 rotationmeasure", log='h5_remove_flag.log', commandType='python')
+        #s.run()
+        #os.system('mv cal-fr.h5 cal-fr-original.h5')
+        #os.system('mv cal-fr-noflag.h5 cal-fr.h5')
     else:
         lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_concat_all.getListStr()],
                             [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
                              parset_dir + '/losoto-fr.parset'])
-    # workaround to remove all flags from cal-fr.h5
-    logger.info('unflag cal-fr.h5...')
-    s.add("h5_remove_flags.py cal-fr.h5 rotationmeasure", log='h5_remove_flag.log', commandType='python')
-    s.run()
-    os.system('mv cal-fr.h5 cal-fr-original.h5')
-    os.system('mv cal-fr-noflag.h5 cal-fr.h5')
 
 ### DONE
 #################################################
