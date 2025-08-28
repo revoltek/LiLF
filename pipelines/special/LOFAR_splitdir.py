@@ -169,7 +169,7 @@ with w.if_todo('interph5'):
     #                      channels_out=6, deconvolution_channels=3,
     #                      multiscale='', multiscale_scale_bias=0.65, pol='i', beam_size=15,
     #                      apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
-    #                      facet_regions=f'{dutchdir}/ddserial/c00/images/wideDDP-c00_facets.reg', maxuvw_m=max_uvw_m_dutch,
+    #                      facet_regions=f'{dutchdir}/ddserial/c00/images/wideDDS-c0_facets.reg', maxuvw_m=max_uvw_m_dutch,
     #                      apply_facet_solutions='interp_merged.h5 phase000,amplitude000')
 
 ################################ split our infield or ddcal ################################
@@ -179,9 +179,9 @@ if mode in ['infield', 'ddcal']:
         # prepare model of central/external regions
         logger.info('Predict corrupted model of full field (wsclean)...')
         image_channels = len(
-            glob.glob(f"{dutchdir}/ddserial/c0{ddserialcycle}/images/wideDDP-c0{ddserialcycle}*-fpb.fits"))
+            glob.glob(f"{dutchdir}/ddserial/c0{ddserialcycle}/images/wideDDS-c{ddserialcycle}*-fpb.fits"))
         s.add(
-            f'wsclean -predict -padding 1.8 -name {dutchdir}/ddserial/c0{ddserialcycle}/images/wideDDP-c0{ddserialcycle} -j {s.max_cpucores} -channels-out {image_channels} \
+            f'wsclean -predict -padding 1.8 -name {dutchdir}/ddserial/c0{ddserialcycle}/images/wideDDS-c{ddserialcycle} -j {s.max_cpucores} -channels-out {image_channels} \
                 -facet-regions {dutchdir}/ddserial/c0{ddserialcycle}/solutions/facetsS-c{ddserialcycle}.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                 -apply-facet-solutions interp_merged.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
             log='wscleanPRE.log', commandType='wsclean')
@@ -222,13 +222,13 @@ if mode in ['infield', 'ddcal']:
         with w.if_todo(f'addback-{name}'):
             # prepare model of central/external regions
             logger.info('Blanking model: all but direction region...')
-            for im in glob.glob(f'{dutchdir}/ddserial/c0{ddserialcycle}/images/wideDDP-c0{ddserialcycle}*model*fpb.fits'):
-                wideMext = 'splitdir/' + im.replace(f'wideDDP-c0{ddserialcycle}',f'wideDDP-c0{ddserialcycle}-{name}').split('/')[-1]
+            for im in glob.glob(f'{dutchdir}/ddserial/c0{ddserialcycle}/images/wideDDS-c{ddserialcycle}*model*fpb.fits'):
+                wideMext = 'splitdir/' + im.replace(f'wideDDS-c{ddserialcycle}',f'wideDDS-c{ddserialcycle}-{name}').split('/')[-1]
                 os.system('cp %s %s' % (im, wideMext))
                 lib_img.blank_image_reg(wideMext, regfile, blankval=0., inverse=True)
             # Recreate MODEL_DATA of external region for re-adding
             logger.info('Predict corrupted model of direction region (wsclean)...')
-            s.add(f'wsclean -predict -padding 1.8 -name splitdir/wideDDP-c0{ddserialcycle}-{name} -j {s.max_cpucores} -channels-out {len(glob.glob(f"splitdir/wideDDP-c0{ddserialcycle}-{name}*fpb.fits"))} \
+            s.add(f'wsclean -predict -padding 1.8 -name splitdir/wideDDS-c{ddserialcycle}-{name} -j {s.max_cpucores} -channels-out {len(glob.glob(f"splitdir/wideDDS-c{ddserialcycle}-{name}*fpb.fits"))} \
                     -facet-regions {d.get_region_facets()} -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam -no-solution-directions-check \
                     -apply-facet-solutions interp_merged.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
                   log='wscleanPRE.log', commandType='wsclean')
