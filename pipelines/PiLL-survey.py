@@ -64,6 +64,7 @@ def check_done(pipename):
               *{target[:-1]}*/pipeline-timesplit_*logger *{target[:-1]}*/pipeline-timesplit.walker *{target[:-1]}*/logs_pipeline-timesplit_* \
               {target}/pipeline-ddparallel_*logger {target}/pipeline-ddparallel.walker {target}/logs_pipeline-ddparallel_* \
               {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
+              {target}*/pipeline-quality_*logger {target}/pipeline-quality.walker \
               {archive}/logs')
 
         logger.error('Something went wrong in the last pipeline call.')
@@ -273,6 +274,7 @@ with w.if_todo('saveproducts_%s' % target):
               *{target[:-1]}*/pipeline-timesplit_*logger *{target[:-1]}*/pipeline-timesplit.walker *{target[:-1]}*/logs_pipeline-timesplit_* \
               {target}/pipeline-ddparallel_*logger {target}/pipeline-ddparallel.walker {target}/logs_pipeline-ddparallel_* \
               {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
+              {target}*/pipeline-quality_*logger {target}/pipeline-quality.walker \
               {archive}/logs')
 ### DONE
 

@@ -350,6 +350,7 @@ class Image(object):
         
         #if os.path.isfile(outplotname + '.png'):
         #    os.system('rm -f ' + outplotname + '.png')
+        logger.info('Saving image png to %s.' % outplotname)
         plt.savefig(outplotname, format='png', bbox_inches='tight')
         plt.close()
 
