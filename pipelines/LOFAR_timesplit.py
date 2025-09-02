@@ -233,28 +233,38 @@ with w.if_todo('timesplit'):
     logger.info('Splitting in time...')
     tc = initc
     for groupname in groupnames:
-        ms = groupname+'/'+groupname+'.MS'
-        if not os.path.exists(ms): continue
+        ms = groupname + '/' + groupname + '.MS'
+        if not os.path.exists(ms):
+            continue
+
         t = pt.table(ms, ack=False)
         starttime = t[0]['TIME']
-        endtime   = t[t.nrows()-1]['TIME']
-        hours = (endtime-starttime)/3600.
-        logger.debug(ms+' has length of '+str(hours)+' h.')
+        endtime = t[t.nrows() - 1]['TIME']
+        hours = (endtime - starttime) / 3600.0
+        logger.debug(ms + ' has length of ' + str(hours) + ' h.')
 
-        for timerange in np.array_split(sorted(set(t.getcol('TIME'))), round(hours)):
-            logger.info('%02i - Splitting timerange %f %f' % (tc, timerange[0], timerange[-1]))
-            logger.info(f'Splitting timerange {timerange[-1]-timerange[0]} -> 3584s.')
-            t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[0]+3584), sortlist='TIME,ANTENNA1,ANTENNA2')
-            splitms = groupname+'/TC%02i.MS' % tc
+        from math import ceil
+        num_chunks = ceil(hours)
+
+        for i in range(num_chunks):
+            chunk_start = starttime + i * 3600
+            chunk_end = min(starttime + (i + 1) * 3600, endtime)
+
+            logger.info('%02i - Splitting timerange %f %f' % (tc, chunk_start, chunk_end))
+            t1 = t.query('TIME >= %f && TIME < %f' % (chunk_start, chunk_end), sortlist='TIME,ANTENNA1,ANTENNA2')
+
+            if t1.nrows() == 0:
+                t1.close()
+                continue
+
+            splitms = groupname + '/TC%02i.MS' % tc
             lib_util.check_rm(splitms)
             t1.copy(splitms, True)
             t1.close()
             tc += 1
         t.close()
-
-        lib_util.check_rm(ms) # remove not-timesplitted file
+        lib_util.check_rm(ms)  # remove not-timesplitted file
 ### DONE
-
 # If we have IS present, also split out the averaged dutch baselines for DDparallel processing
 if MSs.hasIS:
     for groupname in groupnames:
