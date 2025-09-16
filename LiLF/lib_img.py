@@ -52,7 +52,7 @@ class Image(object):
             if units is None:
                 units = prhd.get('UNIT')
             if units != 'JY/BEAM' and units != 'Jy/beam':
-                print('Warning: units are', units, 'but code expects JY/BEAM')
+                logger.warning('Units are', units, 'but code expects JY/BEAM')
             bmaj = prhd.get('BMAJ')
             bmin = prhd.get('BMIN')
 
@@ -63,7 +63,7 @@ class Image(object):
             cd1 = -w.wcs.cdelt[0]
             cd2 = w.wcs.cdelt[1]
             if ((cd1 - cd2) / cd1) > 1.0001 and ((bmaj - bmin) / bmin) > 1.0001:
-                print('Pixels are not square (%g, %g) and beam is elliptical' % (cd1, cd2))
+                logger.warning('Pixels are not square (%g, %g) and beam is elliptical' % (cd1, cd2))
 
             bmaj /= cd1
             bmin /= cd2
@@ -332,7 +332,7 @@ class Image(object):
             from astropy.visualization.wcsaxes import add_beam
             add_beam(ax, header=head, frame=False) 
         except Exception as e:
-            print(f"Cannot plot beam on image, failed with error: {e}. Skipping.")
+            logger.error(f"Cannot plot beam on image, failed with error: {e}. Skipping.")
 
         cbar = plt.colorbar(img, shrink=0.8)
         cbar.set_label('Flux density (mJy beam$^{-1}$)')
@@ -346,7 +346,7 @@ class Image(object):
                     reg = ds9region.to_pixel(self.getWCS())
                     reg.plot(ax=ax, alpha=regionalpha, lw=0.2)
         except Exception as e:
-            print(f"Cannot overplot facets, failed with error: {e}. Skipping.")
+            logger.error(f"Cannot overplot facets, failed with error: {e}. Skipping.")
         
         #if os.path.isfile(outplotname + '.png'):
         #    os.system('rm -f ' + outplotname + '.png')
