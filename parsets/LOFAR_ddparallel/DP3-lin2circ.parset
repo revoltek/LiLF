@@ -1,5 +1,3 @@
-msout.uvwcompression=false
-msout.antennacompression=false
 msin = 
 msin.datacolumn =
 msout =.
