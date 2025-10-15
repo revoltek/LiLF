@@ -2,6 +2,8 @@ msin =
 msin.datacolumn = CORRECTED_DATA
 #do not copy aucorr as they have too weird weights for dysco
 msin.baseline = "*&"
+msout.uvwcompression=false
+msout.antennacompression=false
 
 msout = 
 msout.storagemanager = dysco

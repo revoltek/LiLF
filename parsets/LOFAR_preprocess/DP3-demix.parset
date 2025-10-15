@@ -3,6 +3,8 @@ msin.datacolumn = DATA
 msin.baseline =
 msout =
 msout.storagemanager = dysco
+msout.uvwcompression=false
+msout.antennacompression=false
 
 # numthreads = ?? what is the best way to run this?
 

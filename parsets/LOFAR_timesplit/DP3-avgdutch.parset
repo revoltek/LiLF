@@ -4,6 +4,8 @@ msin.datacolumn = DATA
 msin.baseline = "[CR]S*&"
 msout = 
 msout.storagemanager = dysco
+msout.uvwcompression=false
+msout.antennacompression=false
 
 numthreads = 1 # leave this to 1 as it is called with s.run() and IO limited
 
