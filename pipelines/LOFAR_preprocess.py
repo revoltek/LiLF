@@ -151,12 +151,6 @@ if renameavg:
 
                 antennaset = MS.getAntennaSet()
 
-                if 'HBA' in antennaset:
-                    logger.warning(f'Skipping HBA: deleting {MS.pathMS}')
-                    lib_util.check_rm(MS.pathMS)
-                    flog.write(MS.nameMS+'.MS\n') # after averaging to be sure no log is written if an error occurs
-                    continue
-
                 # get avg time/freq values
                 nchan = MS.getNchan()
                 timeint = MS.getTimeInt()
@@ -164,8 +158,8 @@ if renameavg:
                 # TODO change these lines to use MS.getAvgFactors() after running survey
                 if nchan == 1:
                     avg_factor_f = 1
-                #elif nchan % 2 == 0 and MSs.isHBA: # case HBA
-                #    avg_factor_f = int(nchan / 4)  # to 2 ch/SB
+                elif nchan % 2 == 0 and MSs.isHBA: # case HBA
+                   avg_factor_f = int(nchan / 4)  # to 4 ch/SB
                 elif nchan % 8 == 0 and minfreq < 40e6:
                     avg_factor_f = int(nchan / 8)  # to 8 ch/SB
                 elif nchan % 8 == 0 and 'SPARSE' in antennaset:
