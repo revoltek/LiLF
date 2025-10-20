@@ -1,0 +1,11 @@
+Ncpu = 0
+
+[plotTEC]
+operation = PLOT
+soltab = sol000/rotationmeasure000
+axesInPlot = time
+axisInTable = ant
+plotFlag = True
+#minmax = [-0.5,0.5]
+prefix = plots/rm_
+refAnt = auto

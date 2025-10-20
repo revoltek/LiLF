@@ -231,7 +231,7 @@ class Direction(object):
 
     def add_h5parm(self, typ, h5parmFile):
         """
-        typ can be 'ph', 'fr', 'amp1', or 'amp2'
+        typ can be 'ph','ph1','ph2','ph-ddserial','fr','amp1','amp2'
         h5parmFile: filename
         """
         assert typ in self.soltypes

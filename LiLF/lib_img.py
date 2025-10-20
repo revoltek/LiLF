@@ -6,11 +6,14 @@ from casacore import quanta
 import lsmtool
 import pyregion
 from scipy.ndimage.measurements import label
+from astropy.stats import median_absolute_deviation
 from LiLF import make_mask, lib_util
 from LiLF.lib_log import logger
 import astropy.io.fits as fits
 import astropy.wcs as wcs
 from astropy.coordinates import SkyCoord
+import matplotlib.pyplot as plt
+from astropy.visualization import AsymmetricPercentileInterval, SqrtStretch, LogStretch, ImageNormalize
 
 class Image(object):
     def __init__(self, imagename, userReg = None, beamReg= None ):
@@ -49,7 +52,7 @@ class Image(object):
             if units is None:
                 units = prhd.get('UNIT')
             if units != 'JY/BEAM' and units != 'Jy/beam':
-                print('Warning: units are', units, 'but code expects JY/BEAM')
+                logger.warning('Units are', units, 'but code expects JY/BEAM')
             bmaj = prhd.get('BMAJ')
             bmin = prhd.get('BMIN')
 
@@ -60,7 +63,7 @@ class Image(object):
             cd1 = -w.wcs.cdelt[0]
             cd2 = w.wcs.cdelt[1]
             if ((cd1 - cd2) / cd1) > 1.0001 and ((bmaj - bmin) / bmin) > 1.0001:
-                print('Pixels are not square (%g, %g) and beam is elliptical' % (cd1, cd2))
+                logger.warning('Pixels are not square (%g, %g) and beam is elliptical' % (cd1, cd2))
 
             bmaj /= cd1
             bmin /= cd2
@@ -197,23 +200,47 @@ class Image(object):
         lib_util.check_rm(self.skydb)
         os.system('makesourcedb outtype="blob" format="<" in="'+self.skymodel_cut+'" out="'+self.skydb+'"')
 
-    def getNoise(self, boxsize=None):
+    def getNoise(self, boxsize=None, useMask=True):
         """
         Return the rms of all the non-masked pixels in an image
         boxsize : limit to central box of this pixelsize
         """   
-        self.makeMask()
+        if useMask:
+            self.makeMask()
 
-        with pyfits.open(self.imagename) as fits:
-            with pyfits.open(self.maskname) as mask:
+            with pyfits.open(self.imagename) as fits:
+                with pyfits.open(self.maskname) as mask:
+                    data = np.squeeze(fits[0].data)
+                    mask = np.squeeze(mask[0].data)
+                    if boxsize is not None:
+                        ys,xs = data.shape
+                        data = data[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2]
+                        mask = mask[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2]
+    
+            return np.nanstd(data[mask==0])
+        else:
+            with pyfits.open(self.imagename) as fits:
                 data = np.squeeze(fits[0].data)
-                mask = np.squeeze(mask[0].data)
                 if boxsize is not None:
                     ys,xs = data.shape
                     data = data[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2]
-                    mask = mask[ys/2-boxsize/2:ys/2+boxsize/2,xs/2-boxsize/2:xs/2+boxsize/2]
-    
-                return np.nanstd(data[mask==0])
+            
+            eps = 1e-3; niter = 100; sigma = 5
+            data = data[ ~np.isnan(data) & (data != 0) ] # remove nans and 0s
+            initial_len = len(data)
+            if initial_len == 0: return 0
+            mad_old = 0.
+            for i in range(niter):
+                mad = median_absolute_deviation(data)
+                logger.debug('%s: MAD noise: %.1f mJy on %f%% data' % (self.imagename, mad*1e3, 100*len(data)/initial_len))
+                if np.isnan(mad): return 0
+                if np.abs(mad_old-mad)/mad < eps:
+                    rms = np.nanstd( data )
+                    logger.debug('%s: Noise: %.1f mJy/b (data len: %i -> %i - %.2f%%)' % (self.imagename, rms*1e3, initial_len, len(data), 100*len(data)/initial_len))
+                    return rms
+
+                data = data[np.abs(data) < (sigma*mad)]
+                mad_old = mad
 
     def getMaxMinRatio(self):
         """
@@ -263,11 +290,78 @@ class Image(object):
             else:
                 return wcs.WCS(phdu[0].header)
 
+    def plotimage(self, outplotname, regionfile=None, minmax=None, title=None, \
+                      cmap='gist_heat', stretch_type='sqrt', regionalpha=0.5):
+        """
+        minmax: in mJy/beam, if None then use 20-99.99 percentile
+        """
+        if title is None:
+            title = self.imagename
+
+        # image noise info
+        head, data = flatten(self.imagename)
+        imagenoiseinfo = self.getNoise(useMask=False)
+    
+        f = plt.figure(figsize=(8, 8), dpi=450)
+        ax = f.add_subplot(111, projection=self.getWCS() ) #, slices=('x', 'y', 0, 0))
+
+        data *= 1e3  # convert to mJy/beam
+        if stretch_type == 'sqrt':
+            interval = AsymmetricPercentileInterval(20, 99.99)  # 20 - 99.99 percentile
+            stretch = SqrtStretch()
+        elif stretch_type == 'log':
+            interval = AsymmetricPercentileInterval(80, 99.999)  # 80 - 99.99 percentile
+            stretch = LogStretch()
+        int_min, int_max = interval.get_limits(data)
+        if int_max > 20 * imagenoiseinfo*1e3: int_max = 20 * imagenoiseinfo*1e3
+        if minmax != None: int_min, int_max = minmax
+        norm = ImageNormalize(data, vmin=float(int_min), vmax=float(int_max), stretch=stretch)#, clip=True)
+        img = ax.imshow(data, origin='lower', interpolation='nearest', cmap=cmap, norm=norm)
+        #img = ax.imshow(data, cmap=cmap, vmax=minmax[1], vmin=minmax[0])
+        
+        ax.set_title(title + ' (noise = {} mJy/beam)'.format(round(imagenoiseinfo * 1e3, 3)), fontsize=6)
+    
+        ax.grid(False)
+        ax.coords[0].set_axislabel_position('b') # for some reason this needs to be hardcoded, otherwise RA gets on top axis
+        ax.coords[0].set_ticks_position('bt')
+        ax.coords[0].set_ticklabel_position('b') # for some reason this needs to be hardcoded, otherwise RA gets on top axis
+    
+        ax.set_xlabel('Right Ascension (J2000)')
+        ax.set_ylabel('Declination (J2000)')
+        try:
+            from astropy.visualization.wcsaxes import add_beam
+            add_beam(ax, header=head, frame=False) 
+        except Exception as e:
+            logger.error(f"Cannot plot beam on image, failed with error: {e}. Skipping.")
+
+        cbar = plt.colorbar(img, shrink=0.8)
+        cbar.set_label('Flux density (mJy beam$^{-1}$)')
+        #ax.add_artist(_add_astropy_beam(fitsimagename))
+ 
+        try: 
+            if regionfile is not None:
+                import regions
+                ds9regions = regions.Regions.read(regionfile, format='ds9')
+                for ds9region in ds9regions:
+                    reg = ds9region.to_pixel(self.getWCS())
+                    reg.plot(ax=ax, alpha=regionalpha, lw=0.2)
+        except Exception as e:
+            logger.error(f"Cannot overplot facets, failed with error: {e}. Skipping.")
+        
+        #if os.path.isfile(outplotname + '.png'):
+        #    os.system('rm -f ' + outplotname + '.png')
+        logger.info('Saving image png to %s.' % outplotname)
+        plt.savefig(outplotname, format='png', bbox_inches='tight')
+        plt.close()
+
 
 def flatten(f, channel = 0, freqaxis = 0):
     """
     Flatten a fits file so that it becomes a 2D image. Return new header and data
+    f: fits file or fits HDUList
     """
+    if isinstance(f, str):
+        f = pyfits.open(f)
 
     naxis=f[0].header['NAXIS']
     if (naxis < 2):
@@ -303,6 +397,15 @@ def flatten(f, channel = 0, freqaxis = 0):
             slicing.append(channel)
         else:
             slicing.append(0)
+
+    try:
+        # if the beam is present, we need to keep it
+        header["BMAJ"] = f[0].header["BMAJ"]
+        header["BMIN"] = f[0].header["BMIN"]
+        header["BPA"] = f[0].header["BPA"]
+    except KeyError:
+        # if the beam is not present, we do not need to keep it
+        pass
 
     # slice=(0,)*(naxis-2)+(np.s_[:],)*2
     return header, f[0].data[tuple(slicing)]

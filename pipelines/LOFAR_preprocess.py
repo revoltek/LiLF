@@ -179,7 +179,9 @@ if renameavg:
                     sys.exit(1)
 
                 if keep_IS:
-                    # TODO HE - I think we want at least 2s 32ch/SB for IS here (at least for the target field)!
+                    # TODO HE - There should be some selection, we want 32chan / 2s for wide-field VLBI target,
+                    # TODO HE - probably something like 8 or 16 chan/SB and 4s for calibrator beams and
+                    # TODO HE - 16 chan / 2s for targeted observations (non-widefield)
                      avg_factor_f = int(nchan / 16) # to have the full FoV in LBA we need 16 ch/SB
                 if avg_factor_f < 1: avg_factor_f = 1
 

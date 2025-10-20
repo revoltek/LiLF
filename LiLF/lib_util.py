@@ -65,6 +65,7 @@ def getParset(parsetFile=''):
     add_default('PiLL', 'target', '')
     add_default('PiLL', 'obsid', '') # unique ID
     add_default('PiLL', 'minmaxhrs', '0,9999') # min and max hours for an obs to be selected
+    add_default('PiLL', 'logfile', '') # logfile for PiLL
     # preprocess
     add_default('LOFAR_preprocess', 'fix_table', 'True') # fix bug in some old observations
     add_default('LOFAR_preprocess', 'renameavg', 'True')
@@ -83,6 +84,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_cal', 'fillmissingedges', 'True')
     add_default('LOFAR_cal', 'less_aggressive_flag', 'False') # change flagging so that we can handle data with alternating SBs only or many flagged points
     add_default('LOFAR_cal', 'develop', 'False') # if true prevents the deletion of files
+    add_default('LOFAR_cal', 'use_GNSS', 'False') # Use GNSS satellite data for pre correcting TEC and FR
     add_default('LOFAR_cal', 'use_shm', 'False') # use /dev/shm for temporary files, if available
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
@@ -93,6 +95,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_timesplit', 'apply_fr', 'False') # Also transfer rotationmeasure sols? (E.g. for nearby calibrator and target)
     add_default('LOFAR_timesplit', 'no_aoflagger', 'False') # TEST: Skip aoflagger (e.g. for observations of A-Team sources)
     add_default('LOFAR_timesplit', 'ateam_clip', '') # [CygA, CasA] or [CasA] or [CygA] or '' - the code clips the specified ateams (if not demixed from the observatory)
+    add_default('LOFAR_timesplit', 'use_GNSS', 'False') # Use GNSS satellite data for pre correcting TEC and FR
     # ddparallel
     add_default('LOFAR_ddparallel', 'maxIter', '2')
     add_default('LOFAR_ddparallel', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
@@ -104,12 +107,12 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'max_facets', '')
     add_default('LOFAR_ddparallel', 'develop', 'False') # if true make more debug images (slower)
     add_default('LOFAR_ddparallel', 'data_dir', '')
-    add_default('LOFAR_ddparallel', 'use_shm', 'True') # use /dev/shm for temporary files, if available
+    add_default('LOFAR_ddparallel', 'use_shm', 'False') # use /dev/shm for temporary files, if available
     # ddserial
     add_default('LOFAR_ddserial', 'maxIter', '1')
     add_default('LOFAR_ddserial', 'minCalFlux60', '0.8')
     add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
-    add_default('LOFAR_ddserial', 'use_shm', 'True') # use /dev/shm for temporary files, if available
+    add_default('LOFAR_ddserial', 'use_shm', 'False') # use /dev/shm for temporary files, if available
     add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec
     add_default('LOFAR_ddserial', 'manual_dd_cal', '')
     add_default('LOFAR_ddserial', 'develop', 'False') # if true make more debug images (slower) 
@@ -456,6 +459,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
     if use_shm and os.access('/dev/shm/', os.W_OK) and not 'temp_dir' in list(kwargs.keys()):
         check_rm('/dev/shm/*') # remove possible leftovers
         wsc_parms.append( '-temp-dir /dev/shm/' )
+        wsc_parms.append( '-mem 90' ) # use 90% of memory
     elif s.cluster == 'Spider':
         wsc_parms.append( '-temp-dir /tmp/' )
     #elif s.cluster == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
