@@ -217,8 +217,10 @@ with w.if_todo('timesplit'):
     logger.info('Splitting in time...')
     tc = initc
     for groupname in groupnames:
-        ms = groupname+'/'+groupname+'.MS'
-        if not os.path.exists(ms): continue
+        ms = groupname + '/' + groupname + '.MS'
+        if not os.path.exists(ms):
+            continue
+
         t = pt.table(ms, ack=False)
         starttime = t[0]['TIME']
         endtime   = t[t.nrows()-1]['TIME']
@@ -234,10 +236,8 @@ with w.if_todo('timesplit'):
             t1.close()
             tc += 1
         t.close()
-
-        lib_util.check_rm(ms) # remove not-timesplitted file
+        lib_util.check_rm(ms)  # remove not-timesplitted file
 ### DONE
-
 # If we have IS present, also split out the averaged dutch baselines for DDparallel processing
 if MSs.hasIS:
     for groupname in groupnames:

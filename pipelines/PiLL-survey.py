@@ -17,6 +17,7 @@ parset = lib_util.getParset(parsetFile='lilf.config')
 # use lilf.config (this is also used by all other scripits)
 working_dir = os.path.abspath(parset.get('PiLL','working_dir'))
 minmaxhrs = parset.get('PiLL','minmaxhrs').split(',')
+logfile = parset.get('PiLL','logfile')
 
 caldirroot = ('/iranet/groups/ulu/fdg/surveycals/done/')
 tgtdirroot = ('/iranet/groups/ulu/fdg/surveytgts/download*/mss/')
@@ -66,6 +67,8 @@ def check_done(pipename):
               {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
               {target}*/pipeline-quality_*logger {target}/pipeline-quality.walker \
               {archive}/logs')
+            if os.path.exists(logfile): os.system(f'cp {logfile} {archive}/logs')
+        ### DONE
 
         logger.error('Something went wrong in the last pipeline call.')
         sys.exit()
@@ -276,6 +279,7 @@ with w.if_todo('saveproducts_%s' % target):
               {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
               {target}*/pipeline-quality_*logger {target}/pipeline-quality.walker \
               {archive}/logs')
+    if os.path.exists(logfile): os.system(f'cp {logfile} {archive}/logs')
 ### DONE
 
 update_status_db(target, 'Done')

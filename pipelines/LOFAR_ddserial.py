@@ -1001,13 +1001,15 @@ with w.if_todo('predict-final'):
 
 #Leakage calibration
 with w.if_todo('cal-leakage'):
-	logger.info('Leakage calibration (fulljones, solint: 30 min)...')
-	# Calibration - ms:CORRECTED_DATA
-	MSs.run('DP3 '+ parset_dir + f'/DP3-solGfj.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-leak.h5 \
-		sol.solint={int(MSs.getListObj()[0].getNtime()/2)} sol.nchan=1 sol.smoothnessconstraint=3e6',
-		log='$nameMS_sol_leak.log', commandType='DP3')
-	lib_util.run_losoto(s, 'leak', [ms+'/cal-leak.h5' for ms in MSs.getListStr()],
-                    [parset_dir+'/losoto-plot-fullj.parset'], plots_dir='ddserial/c00/plots/plots-leak', h5_dir = 'ddserial/c00/solutions')
+    logger.info('Leakage calibration (fulljones, solint: 30 min)...')
+    # Calibration - ms:CORRECTED_DATA
+    MSs.run('DP3 '+ parset_dir + f'/DP3-solGfj.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-leak.h5 \
+        sol.solint={int(MSs.getListObj()[0].getNtime()/2)} sol.nchan=1 sol.smoothnessconstraint=3e6',
+        log='$nameMS_sol_leak.log', commandType='DP3')
+    lib_util.run_losoto(s, 'leak', [ms+'/cal-leak.h5' for ms in MSs.getListStr()],
+                        [parset_dir+'/losoto-plot-fullj.parset'], plots_dir='ddserial/c00/plots/plots-leak', h5_dir = 'ddserial/c00/solutions')
+    for ms in MSs.getListStr():
+        lib_util.check_rm(ms + '/cal-leak.h5')  # remove the h5parm copied by losoto
 
 if not os.path.exists('mss-lres'):
     timeint = MSs.getListObj()[0].getTimeInt()

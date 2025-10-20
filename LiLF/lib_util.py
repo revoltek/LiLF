@@ -65,6 +65,7 @@ def getParset(parsetFile=''):
     add_default('PiLL', 'target', '')
     add_default('PiLL', 'obsid', '') # unique ID
     add_default('PiLL', 'minmaxhrs', '0,9999') # min and max hours for an obs to be selected
+    add_default('PiLL', 'logfile', '') # logfile for PiLL
     # preprocess
     add_default('LOFAR_preprocess', 'fix_table', 'True') # fix bug in some old observations
     add_default('LOFAR_preprocess', 'renameavg', 'True')
