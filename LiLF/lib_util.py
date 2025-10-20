@@ -37,7 +37,9 @@ def getParset(parsetFile=''):
     
     if parsetFile == '':
         matched_conf_files = glob.glob('[Ll][Ii][Ll][Ff].conf*') + glob.glob('../[Ll][Ii][Ll][Ff].conf*')
-        if len(matched_conf_files) > 0:
+        if len(matched_conf_files) > 1:
+            raise LookupError(f'Found more than one configuration file: {matched_conf_files}')
+        elif len(matched_conf_files) == 0:
             parsetFile = matched_conf_files[0]
             logger.info(f'Found config file: {parsetFile}')
 
