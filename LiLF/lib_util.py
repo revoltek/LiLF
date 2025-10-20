@@ -185,63 +185,6 @@ def create_extregion(ra, dec, extent, color='yellow'):
     return target
 
 
-def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithOnes = True, comment = "", verbose = False):
-    # more to lib_ms
-    """
-    Add a column to a MS that is similar to a pre-existing column (in shape, but not in values).
-    pathMS:                 path of the MS
-    columnNameNew:          name of the column to be added
-    columnNameSimilar:      name of the column from which properties are copied (e.g. "DATA")
-    dataManagerInfoNameNew: string value for the data manager info (DMI) keyword "NAME" (should be unique in the MS)
-    overwrite:              whether or not to overwrite column 'columnNameNew' if it already exists
-    fillWithOnes:           whether or not to fill the newly-made column with ones
-    verbose:                whether or not to produce abundant output
-    """
-    t = tables.table(pathMS, readonly = False)
-
-    if (columnExists(t, columnNameNew) and not overwrite):
-        logger.warning("Attempt to add column '" + columnNameNew + "' aborted, as it already exists and 'overwrite = False' in columnAddSimilar(...).")
-    else: # Either the column does not exist yet, or it does but overwriting is allowed.
-
-        # Remove column if necessary.
-        if (columnExists(t, columnNameNew)):
-            logger.info("Removing column '" + columnNameNew + "'...")
-            t.removecols(columnNameNew)
-
-        # Add column.
-        columnDescription       = t.getcoldesc(columnNameSimilar)
-        dataManagerInfo         = t.getdminfo(columnNameSimilar)
-
-        if (verbose):
-            logger.debug("columnDescription:")
-            logger.debug(columnDescription)
-            logger.debug("dataManagerInfo:")
-            logger.debug(dataManagerInfo)
-
-        columnDescription["comment"] = ""
-        # What about adding something here like:
-        #columnDescription["dataManagerGroup"] = ...?
-        dataManagerInfo["NAME"]      = dataManagerInfoNameNew
-
-        if (verbose):
-            logger.debug("columnDescription (updated):")
-            logger.debug(columnDescription)
-            logger.debug("dataManagerInfo (updated):")
-            logger.debug(dataManagerInfo)
-
-        logger.info("Adding column '" + columnNameNew + "'...")
-        t.addcols(tables.makecoldesc(columnNameNew, columnDescription), dataManagerInfo)
-
-        # Fill with ones if desired.
-        if (fillWithOnes):
-            logger.info("Filling column '" + columnNameNew + "' with ones...")
-            columnDataSimilar = t.getcol(columnNameSimilar)
-            t.putcol(columnNameNew, np.ones_like(columnDataSimilar))
-
-    # Close the table to avoid that it is locked for further use.
-    t.close()
-
-
 def getCalibratorProperties():
     """
     Return properties of known calibrators.
@@ -517,38 +460,6 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
         s.run(check=True)
     if not keep_concat:
         check_rm('wsclean_concat_*.MS')
-
-def run_DDF(s, logfile, **kwargs):
-    """
-    s : scheduler
-    args : parameters for ddfacet, "_" are replaced with "-", any parms=None is ignored.
-           To pass a parameter with no values use e.g. " no_update_model_required='' "
-    """
-    
-    ddf_parms = []
-
-    # basic parms
-    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i --Misc-IgnoreDeprecationMarking=1 ' % (s.maxProcs) )
-
-    # cache dir
-    if not 'Cache_Dir' in list(kwargs.keys()):
-        ddf_parms.append( '--Cache-Dir .' )
-
-    # user defined parms
-    for parm, value in list(kwargs.items()):
-        if value is None: continue
-        if isinstance(value, str):
-            if '$' in value: # escape dollar signs (e.g. of BeamFits)
-                value = "'" + value + "'"
-        ddf_parms.append( '--%s=%s' % (parm.replace('_','-'), str(value)) )
-
-    # files
-    #wsc_parms.append( MSs_files )
-
-    # create command string
-    command_string = 'DDF.py '+' '.join(ddf_parms)
-    s.add(command_string, log=logfile, commandType='DDFacet')
-    s.run(check=True)
 
 
 class Region_helper():
