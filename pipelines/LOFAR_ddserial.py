@@ -686,7 +686,7 @@ for cmaj in range(maxIter):
                     MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("pre")}-sources.txt',   log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
                 continue
             # if noise incresed and mm ratio decreased - or noise increased a lot!
-            elif (cdd >= 4) and ((rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre) or rms_noise > 1.2*rms_noise_pre):
+            elif (cdd >= 4) and ((rms_noise > 1.01*rms_noise_pre and mm_ratio < 0.99*mm_ratio_pre) or rms_noise > 1.05*rms_noise_pre):
                 # if (mm_ratio < 10 and cdd >= 2) or \
                 # (mm_ratio < 20 and cdd >= 3) or \
                 # (cdd >= 4):

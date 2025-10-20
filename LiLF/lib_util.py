@@ -668,8 +668,13 @@ class Walker():
         """
         if type is None:
             with open(self.filename, "a") as f:
-                delta = 'h '.join(str(datetime.datetime.now() - self.__timeinit__).split(':')[:-1])+'m'
-                f.write(self.__step__ + ' # '+delta+' ' +'\n')
+                delta_td = datetime.datetime.now() - self.__timeinit__
+                total_seconds = int(delta_td.total_seconds())
+                days, rem = divmod(total_seconds, 86400)
+                hours, rem = divmod(rem, 3600)
+                minutes, seconds = divmod(rem, 60)
+                delta = f"{days}d {hours}h {minutes}m {seconds}s"
+                f.write(f"{self.__step__} # {delta}\n")
             logger.info('<< done << {}'.format(self.__step__))
             return  # No exception
         if issubclass(type, Skip):
