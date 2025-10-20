@@ -799,7 +799,7 @@ for c in range(maxIter):
             lib_img.blank_image_fits(wideDDPext, subfield_extmask, blankval = 0., inverse=True)
     # DONE
 
-    with w.if_todo('c%02i_xtreg_subtract' % c):
+    with w.if_todo('c%02i_extreg_subtract' % c):
         # Predict (with dd-sol) external region for subtraction - MSs: MODEL_DATA
         logger.info('Predict corrupted model of external region (wsclean)...')
         s.add(f'wsclean -predict -padding 1.8 -name img/wideDDPext-c{c} -j {s.max_cpucores} -channels-out {channels_out} \
@@ -845,7 +845,7 @@ for c in range(maxIter):
     ### DONE
 
     if c>0:
-        with w.if_todo('c%02i_subfierld_corr_diamp' % c):
+        with w.if_todo('c%02i_subfield_corr_diamp' % c):
             # Correct amp MSs:SUBFIELD_DATA -> SUBFIELD_DATA
             corr_die_amp(MSs, col='SUBFIELD_DATA', fulljones=fulljones)
         ### DONE
