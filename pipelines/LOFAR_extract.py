@@ -243,6 +243,7 @@ else:
 
 if extractreg:
     target_reg_file = str(extractreg)
+    print(target_reg_file)
     logger.info('Extraction region provided. No automatic region will be drawn...')
 else:
     logger.info('Extraction region not set by the user. It will be created automatically...')
@@ -446,12 +447,12 @@ for p in close_pointings:
 
     with w.if_todo('subtract_rest_'+p):
 
-        # Remove corrupted data from CORRECTED_DATA
+        # Remove corrupted data from DATA
         logger.info('Add columns...')
         #MSs.run('addcol2ms.py -m $pathMS -c SUBTRACTED_DATA -i CORRECTED_DATA', log='$nameMS_addcol.log', commandType='python')
-        MSs.addcol('SUBTRACTED_DATA', 'CORRECTED_DATA', log='$nameMS_addcol.log')
-        logger.info('Set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA...')
-        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
+        MSs.addcol('SUBTRACTED_DATA', 'DATA', log='$nameMS_addcol.log')
+        logger.info('Set SUBTRACTED_DATA = DATA - MODEL_DATA...')
+        MSs.run('taql "update $pathMS set SUBTRACTED_DATA = DATA - MODEL_DATA"',
                 log='$nameMS_subtract.log', commandType='general')
 
     # Phase shift in the target location

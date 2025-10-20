@@ -27,7 +27,7 @@ initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for mu
 apply_fr = parset.getboolean('LOFAR_timesplit','apply_fr') # also transfer the FR solutions (possibly useful if calibrator and target are close, especially for IS data.)
 no_aoflagger = parset.getboolean('LOFAR_timesplit','no_aoflagger')
 bl2flag = parset.get('flag','stations')
-
+use_GNSS = parset.getboolean('LOFAR_timesplit', 'use_GNSS')
 #################################################
 
 # Clean
@@ -36,7 +36,6 @@ with w.if_todo('clean'):
     mss_list = glob.glob('mss*/*MS')
     if len(mss_list) > 0:
         raise ValueError(f'mss folders exist already {mss_list}! If this is the output of a previous LOFAR_timesplit.py run and you want to re-run LOFAR_timesplit.py, then delete them manually.')
-    lib_util.check_rm('mss*')
 ### DONE
 
 with w.if_todo('copy'):
@@ -103,7 +102,19 @@ with w.if_todo('apply'):
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
     logger.info('Beam correction...')
     MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM.log', commandType='DP3')
-
+    if use_GNSS:
+        # Correct gps-tec concat_all:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('TEC correction (GPS)...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb={cal_dir}/cal-gps-tec.h5 \
+                      cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
+        # Correct TEC concat_all:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('dTEC correction (fitted)...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb={cal_dir}/cal-dtec.h5 \
+                      cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
+        # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('Faraday rotation pre-correction (GPS)...')
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb={cal_dir}/cal-gps-rm.h5 \
+                        cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
     # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, calibrator corrected+reweight)
     logger.info('Iono correction...')
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_iono_cs} msin.datacolumn=CORRECTED_DATA \

@@ -20,9 +20,6 @@
 import sys, logging, time
 import numpy as np
 from casacore.tables import taql, table
-import matplotlib as mpl
-mpl.use("Agg")
-import matplotlib.pyplot as plt
 
 class MShandler():
     def __init__(self, ms_file):

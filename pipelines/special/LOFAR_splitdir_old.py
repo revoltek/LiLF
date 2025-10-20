@@ -4,6 +4,7 @@
 #     use cases are e.g. the preparation of in-field calibrators
 
 # TODO: possible improvement: interpolate IS DI phase solutions
+# Keep this file for a while to make it backwards compatible with earlier runs of ddserial/ddparallel
 
 import os, glob, argparse
 import numpy as np
@@ -46,7 +47,7 @@ parser = argparse.ArgumentParser(description='Split out a single direction by su
 parser.add_argument('--mode', type=str, help='Either infield, ddcal or widefield.')
 parser.add_argument('--infieldreg', default=None, type=str, help='Provide a region for the infield calibrator (ds9 circle or square).')
 parser.add_argument('--dutchdir', type=str, default=None, help='Directory of the dutch processing.')
-parser.add_argument('--ddserialcycle', type=int, default=0, help='cycle to use.')
+parser.add_argument('--ddserialcycle', type=int, default=1, help='cycle to use.')
 parser.add_argument('--mss', type=str, default=None, help='Directory containing the IS MSs (after timesplit).')
 ### Options for splitting of infield or ddcal
 parser.add_argument('--freqres', type=float, default=0.195312, help='Freq. resolution of the split-off MSs in Mhz. Default=0.195312MHz (1 subband)')
@@ -104,27 +105,26 @@ with w.if_todo('correct_dutch_di'):
     # TODO change order of FR and di-amp for newer data
     # load original MSs - those will NOT be manipulated
     MSs_orig = lib_ms.AllMSs(glob.glob(mss_path + '/*MS'), s, check_flags=False, check_sun=False)
-    logger.info('Correcting DI amplitude (Dutch stations) DATA -> DATA...')
+    logger.info('Correcting FR (Dutch stations) DATA -> DATA...')
     # Correct FR- MSs-orig/TC.MS:DATA -> MSs/TC.MS:DATA
     MSs_avg = lib_ms.AllMSs(glob.glob(dutchdir + '/mss-avg/*MS'), s, check_flags=False, check_sun=False)
     # we cut some channels from Dutch MSs in ddserial - make sure to cut the same amount of channels here
     freqres_dutch = MSs_avg.getListObj()[0].getChanband()
     freqres_is = MSs_orig.getListObj()[0].getChanband()
     msin_nchan = int(MSs_avg.getListObj()[0].getNchan()*freqres_dutch/freqres_is) # 1920 for A2255 data
-    MSs_orig.run(f'DP3 {parset_dir}/DP3-cor.parset msin.nchan={msin_nchan} msin=$pathMS msout=mss-hires/$nameMS.MS msout.datacolumn=DATA cor.parmdb={dutchdir}/ddparallel/solutions/cal-amp-di.h5 \
-            cor.correction=amplitudeSmooth', log='$nameMS_corFR.log', commandType='DP3')
+    MSs_orig.run(f'DP3 {parset_dir}/DP3-cor.parset msin.nchan={msin_nchan} msin=$pathMS msout=mss-hires/$nameMS.MS msout.datacolumn=DATA cor.parmdb={dutchdir}/ddparallel/solutions/cal-fr.h5 \
+            cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType='DP3')
     MSs = lib_ms.AllMSs(glob.glob('mss-hires/*MS'), s, check_flags=False, check_sun=False)
     logger.info('Correcting subfield phase (Dutch stations) DATA -> DATA...')
     # Correct MSs>DATA -> DATA
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
-            cor.parmdb={dutchdir}/ddparallel/solutions/cal-tec-sf-c1.h5 cor.correction=phase000',
+            cor.parmdb={dutchdir}/ddparallel/solutions/cal-tec-sf-merged-c1.h5 cor.correction=phase000',
             log='$nameMS_sf-correct.log', commandType='DP3')
     # Correct MSs:DATA -> DATA
-    logger.info('Correcting FR (Dutch stations) DATA -> DATA...')
+    logger.info('Correcting DI amplitude (Dutch stations) DATA -> DATA...')
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=DATA \
-                cor.parmdb={dutchdir}/ddparallel/solutions/cal-fr.h5 cor.correction=rotationmeasure000 ',
+                cor.parmdb={dutchdir}/ddparallel/solutions/cal-amp-di.h5 cor.correction=amplitudeSmooth ',
             log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
-
 
 MSs = lib_ms.AllMSs(glob.glob('mss-hires/*MS'), s, check_flags=False, check_sun=False)
 orig_center = MSs.getListObj()[0].getPhaseCentre()
@@ -169,7 +169,7 @@ with w.if_todo('interph5'):
     #                      channels_out=6, deconvolution_channels=3,
     #                      multiscale='', multiscale_scale_bias=0.65, pol='i', beam_size=15,
     #                      apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
-    #                      facet_regions=f'{dutchdir}/ddserial/c00/images/wideDDS-c0_facets.reg', maxuvw_m=max_uvw_m_dutch,
+    #                      facet_regions=f'{dutchdir}/ddserial/c00/images/wideDD-c00_facets.reg', maxuvw_m=max_uvw_m_dutch,
     #                      apply_facet_solutions='interp_merged.h5 phase000,amplitude000')
 
 ################################ split our infield or ddcal ################################
@@ -179,10 +179,10 @@ if mode in ['infield', 'ddcal']:
         # prepare model of central/external regions
         logger.info('Predict corrupted model of full field (wsclean)...')
         image_channels = len(
-            glob.glob(f"{dutchdir}/ddserial/c0{ddserialcycle}/images/wideDDS-c{ddserialcycle}*-fpb.fits"))
+            glob.glob(f"{dutchdir}/ddserial/c0{ddserialcycle}/images/wideDD-c0{ddserialcycle}*-fpb.fits"))
         s.add(
-            f'wsclean -predict -padding 1.8 -name {dutchdir}/ddserial/c0{ddserialcycle}/images/wideDDS-c{ddserialcycle} -j {s.max_cpucores} -channels-out {image_channels} \
-                -facet-regions {dutchdir}/ddserial/c0{ddserialcycle}/solutions/facetsS-c{ddserialcycle}.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
+            f'wsclean -predict -padding 1.8 -name {dutchdir}/ddserial/c0{ddserialcycle}/images/wideDD-c0{ddserialcycle} -j {s.max_cpucores} -channels-out {image_channels} \
+                -facet-regions {dutchdir}/ddserial/c0{ddserialcycle}/solutions/facets-c0{ddserialcycle}.reg -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                 -apply-facet-solutions interp_merged.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
             log='wscleanPRE.log', commandType='wsclean')
         s.run(check=True)
@@ -216,19 +216,19 @@ if mode in ['infield', 'ddcal']:
         center = dir_center
         d.region_file = regfile
         d.set_position(center, orig_center)
-        d.set_region_facets(facets_region_file=f'{dutchdir}/ddserial/c0{ddserialcycle}/solutions/facetsS-c{ddserialcycle}.reg', loc='splitdir')
+        d.set_region_facets(facets_region_file=f'{dutchdir}/ddserial/c0{ddserialcycle}/solutions/facets-c0{ddserialcycle}.reg', loc='splitdir')
 
         # 5. Predict back the corrupted visibilities for the infield direction -  set to zero for all non-dutch baselines!
         with w.if_todo(f'addback-{name}'):
             # prepare model of central/external regions
             logger.info('Blanking model: all but direction region...')
-            for im in glob.glob(f'{dutchdir}/ddserial/c0{ddserialcycle}/images/wideDDS-c{ddserialcycle}*model*fpb.fits'):
-                wideMext = 'splitdir/' + im.replace(f'wideDDS-c{ddserialcycle}',f'wideDDS-c{ddserialcycle}-{name}').split('/')[-1]
+            for im in glob.glob(f'{dutchdir}/ddserial/c0{ddserialcycle}/images/wideDD-c0{ddserialcycle}*model*fpb.fits'):
+                wideMext = 'splitdir/' + im.replace(f'wideDD-c0{ddserialcycle}',f'wideDD-c0{ddserialcycle}-{name}').split('/')[-1]
                 os.system('cp %s %s' % (im, wideMext))
                 lib_img.blank_image_reg(wideMext, regfile, blankval=0., inverse=True)
             # Recreate MODEL_DATA of external region for re-adding
             logger.info('Predict corrupted model of direction region (wsclean)...')
-            s.add(f'wsclean -predict -padding 1.8 -name splitdir/wideDDS-c{ddserialcycle}-{name} -j {s.max_cpucores} -channels-out {len(glob.glob(f"splitdir/wideDDS-c{ddserialcycle}-{name}*fpb.fits"))} \
+            s.add(f'wsclean -predict -padding 1.8 -name splitdir/wideDD-c0{ddserialcycle}-{name} -j {s.max_cpucores} -channels-out {len(glob.glob(f"splitdir/wideDD-c0{ddserialcycle}-{name}*fpb.fits"))} \
                     -facet-regions {d.get_region_facets()} -maxuvw-m {max_uvw_m_dutch} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam -no-solution-directions-check \
                     -apply-facet-solutions interp_merged.h5 phase000,amplitude000 {MSs.getStrWsclean()}',
                   log='wscleanPRE.log', commandType='wsclean')

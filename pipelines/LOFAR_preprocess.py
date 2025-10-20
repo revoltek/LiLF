@@ -139,8 +139,7 @@ with w.if_todo('rescale_flux'):
     s.run(check=True)
 
 ######################################
-# Avg to 4 chan and 2 sec
-# Remove internationals
+# Averaging/demixing/removing IS (if requested)
 if renameavg:
     with w.if_todo('renameavg'):
         logger.info('Renaming/averaging...')
@@ -161,6 +160,7 @@ if renameavg:
                 # get avg time/freq values
                 nchan = MS.getNchan()
                 timeint = MS.getTimeInt()
+                logger.info(f'{MS.nameMS}: nchan={nchan}, timeint={timeint:.2f}s, antennaset={antennaset}')
                 # TODO change these lines to use MS.getAvgFactors() after running survey
                 if nchan == 1:
                     avg_factor_f = 1
@@ -179,7 +179,9 @@ if renameavg:
                     sys.exit(1)
 
                 if keep_IS:
-                    # TODO HE - I think we want at least 2s 32ch/SB for IS here (at least for the target field)!
+                    # TODO HE - There should be some selection, we want 32chan / 2s for wide-field VLBI target,
+                    # TODO HE - probably something like 8 or 16 chan/SB and 4s for calibrator beams and
+                    # TODO HE - 16 chan / 2s for targeted observations (non-widefield)
                      avg_factor_f = int(nchan / 16) # to have the full FoV in LBA we need 16 ch/SB
                 if avg_factor_f < 1: avg_factor_f = 1
 

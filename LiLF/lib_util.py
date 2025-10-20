@@ -64,6 +64,8 @@ def getParset(parsetFile=''):
     add_default('PiLL', 'project', '')
     add_default('PiLL', 'target', '')
     add_default('PiLL', 'obsid', '') # unique ID
+    add_default('PiLL', 'minmaxhrs', '0,9999') # min and max hours for an obs to be selected
+    add_default('PiLL', 'logfile', '') # logfile for PiLL
     # preprocess
     add_default('LOFAR_preprocess', 'fix_table', 'True') # fix bug in some old observations
     add_default('LOFAR_preprocess', 'renameavg', 'True')
@@ -82,6 +84,8 @@ def getParset(parsetFile=''):
     add_default('LOFAR_cal', 'fillmissingedges', 'True')
     add_default('LOFAR_cal', 'less_aggressive_flag', 'False') # change flagging so that we can handle data with alternating SBs only or many flagged points
     add_default('LOFAR_cal', 'develop', 'False') # if true prevents the deletion of files
+    add_default('LOFAR_cal', 'use_GNSS', 'False') # Use GNSS satellite data for pre correcting TEC and FR
+    add_default('LOFAR_cal', 'use_shm', 'False') # use /dev/shm for temporary files, if available
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
@@ -90,6 +94,8 @@ def getParset(parsetFile=''):
     add_default('LOFAR_timesplit', 'fillmissingedges', 'True')
     add_default('LOFAR_timesplit', 'apply_fr', 'False') # Also transfer rotationmeasure sols? (E.g. for nearby calibrator and target)
     add_default('LOFAR_timesplit', 'no_aoflagger', 'False') # TEST: Skip aoflagger (e.g. for observations of A-Team sources)
+    add_default('LOFAR_timesplit', 'ateam_clip', '') # [CygA, CasA] or [CasA] or [CygA] or '' - the code clips the specified ateams (if not demixed from the observatory)
+    add_default('LOFAR_timesplit', 'use_GNSS', 'False') # Use GNSS satellite data for pre correcting TEC and FR
     # ddparallel
     add_default('LOFAR_ddparallel', 'maxIter', '2')
     add_default('LOFAR_ddparallel', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
@@ -99,14 +105,14 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'fulljones', 'False')
     add_default('LOFAR_ddparallel', 'min_facets', '')
     add_default('LOFAR_ddparallel', 'max_facets', '')
-    add_default('LOFAR_ddparallel', 'ateam_clip', '') # [CygA, CasA] or [CasA] or [CygA] or '' - the code clips the specified ateams (if not demixed from the observatory)
     add_default('LOFAR_ddparallel', 'develop', 'False') # if true make more debug images (slower)
     add_default('LOFAR_ddparallel', 'data_dir', '')
+    add_default('LOFAR_ddparallel', 'use_shm', 'False') # use /dev/shm for temporary files, if available
     # ddserial
     add_default('LOFAR_ddserial', 'maxIter', '1')
     add_default('LOFAR_ddserial', 'minCalFlux60', '0.8')
     add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
-    # add_default('LOFAR_ddserial', 'removeExtendedCutoff', '0.0005')
+    add_default('LOFAR_ddserial', 'use_shm', 'False') # use /dev/shm for temporary files, if available
     add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec
     add_default('LOFAR_ddserial', 'manual_dd_cal', '')
     add_default('LOFAR_ddserial', 'develop', 'False') # if true make more debug images (slower)
@@ -377,12 +383,13 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
         check_rm('plots')
 
 
-def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_concat=False, reuse_concat=False, **kwargs):
+def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_concat=False, reuse_concat=False, use_shm=False, **kwargs):
     """
     s : scheduler
     concat_mss : try to concatenate mss files to speed up wsclean
     keep_concat : keep the concat MSs for re-use either by -cont or by reuse_concat=True
     reuse_concat : reuse concatenated MS previously kept with keep_concat=True
+    temp_dir : if true try to store temp file in /dev/shm to speed up wsclean
     args : parameters for wsclean, "_" are replaced with "-", any parms=None is ignored.
            To pass a parameter with no values use e.g. " no_update_model_required='' "
     """
@@ -443,11 +450,21 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
             wsc_parms.append( '-mem 10' )
         else:
             wsc_parms.append( '-idg-mode cpu' )
-    if s.cluster == 'Spider':
+            
+    # limit parallel gridding to maxProcs
+    if 'parallel_gridding' in kwargs.keys() and kwargs['parallel_gridding'] > s.maxProcs:
+            kwargs['parallel_gridding'] = s.maxProcs
+
+    # set the tmp dir to speed up
+    if use_shm and os.access('/dev/shm/', os.W_OK) and not 'temp_dir' in list(kwargs.keys()):
+        check_rm('/dev/shm/*') # remove possible leftovers
+        wsc_parms.append( '-temp-dir /dev/shm/' )
+        wsc_parms.append( '-mem 90' ) # use 90% of memory
+    elif s.cluster == 'Spider':
         wsc_parms.append( '-temp-dir /tmp/' )
-    # temp dir
-    #if s.cluster == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
+    #elif s.cluster == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
     #    wsc_parms.append( '-temp-dir /localwork.ssd' )
+
     # user defined parms
     for parm, value in list(kwargs.items()):
         if value is None: continue
@@ -861,6 +878,8 @@ class Scheduler():
             out = subprocess.check_output(r'grep -l "exception occur" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -l "Aborted" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Bus error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "(core dumped)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             # out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):

@@ -16,14 +16,11 @@ parset = lib_util.getParset(parsetFile='lilf.config')
 # get parameters
 # use lilf.config (this is also used by all other scripits)
 working_dir = os.path.abspath(parset.get('PiLL','working_dir'))
-project = parset.get('PiLL','project')
-target = parset.get('PiLL','target')
-obsid = parset.get('PiLL','obsid')
-download_file = parset.get('PiLL','download_file')
+minmaxhrs = parset.get('PiLL','minmaxhrs').split(',')
+logfile = parset.get('PiLL','logfile')
 
 caldirroot = ('/iranet/groups/ulu/fdg/surveycals/done/')
 tgtdirroot = ('/iranet/groups/ulu/fdg/surveytgts/download*/mss/')
-
 
 def update_status_db(field, status):
 
@@ -49,15 +46,15 @@ def check_done(pipename):
             lib_util.check_rm(f'{archive}')
             os.system(f'mkdir {archive}; mkdir {archive}/plots {archive}/logs')
             os.chdir(working_dir+'/'+target)
-            os.system(f'cp ddparallel/images/wideM-*-MFS-image.fits {archive}')
-            os.system(f'cp ddparallel/images/wide-lr-MFS-image.fits {archive}')
+            os.system(f'cp ddparallel/images/wideDDP-c*-MFS-image.fits {archive}')
+            os.system(f'cp ddparallel/images/wide-sidelobe-MFS-image.fits {archive}')
             os.system(f'cp ddparallel/solutions/faceets*reg {archive}')
             os.system(f'cp ddparallel/skymodel/subfield.reg {archive}')
             os.system(f'cp -r ddparallel/plots/* {archive}/plots')
             os.system(f'cp ddserial/c0*/images/*MFS-image.fits {archive}')
-            os.system(f'cp ddserial/c0*/images/wideDD-*MFS-residual.fits {archive}')
-            os.system(f'cp ddserial/c0*/solutions/facets-c*.reg {archive}')
-            os.system(f'cp ddserial/c0*/skymodels/all*reg {archive}')
+            os.system(f'cp ddserial/c0*/images/wideDDS-*MFS-residual.fits {archive}')
+            os.system(f'cp ddserial/c0*/solutions/facetsS-c*.reg {archive}')
+            os.system(f'cp ddserial/c0*/skymodels/ddcals*reg {archive}')
             os.system(f'cp ddserial/c0*/skymodels/mask-ddcal-c*.cat.fits {archive}')
             os.system(f'cp ddserial/c0*/skymodels/mask-ddcal-c*.reg {archive}')
             os.system(f'cp quality/quality.pickle {archive}')
@@ -68,7 +65,10 @@ def check_done(pipename):
               *{target[:-1]}*/pipeline-timesplit_*logger *{target[:-1]}*/pipeline-timesplit.walker *{target[:-1]}*/logs_pipeline-timesplit_* \
               {target}/pipeline-ddparallel_*logger {target}/pipeline-ddparallel.walker {target}/logs_pipeline-ddparallel_* \
               {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
+              {target}*/pipeline-quality_*logger {target}/pipeline-quality.walker \
               {archive}/logs')
+            if os.path.exists(logfile): os.system(f'cp {logfile} {archive}/logs')
+        ### DONE
 
         logger.error('Something went wrong in the last pipeline call.')
         sys.exit()
@@ -82,7 +82,20 @@ with SurveysDB(survey='lba',readonly=True) as sdb:
             target = file.readline()[:-1]
     else:
         # get all fields with max priority
-        sdb.execute('SELECT * FROM fields WHERE status = "Downloaded" AND priority = (SELECT MAX(priority) FROM fields WHERE status = "Downloaded")')
+        #sdb.execute('SELECT * FROM fields WHERE status = "Downloaded" AND priority = (SELECT MAX(priority) FROM fields WHERE status = "Downloaded")')
+        sdb.execute(f'''
+                    SELECT f.id
+                    FROM fields f
+                    JOIN field_obs fo ON f.id = fo.field_id
+                    WHERE f.status = "Downloaded"
+                        AND f.priority = (
+                            SELECT MAX(priority)
+                            FROM fields
+                            WHERE status = "Downloaded"
+                        )
+                    GROUP BY f.id
+                    HAVING COUNT(fo.field_id) BETWEEN {minmaxhrs[0]} AND {minmaxhrs[1]}
+                    ''')
         r = sdb.cur.fetchall()
         if len(r) == 0:
             logger.warning('No field left in the db...')
@@ -90,8 +103,6 @@ with SurveysDB(survey='lba',readonly=True) as sdb:
         
         rndidx = random.randint(0, len(r)-1) # select a random field
         target = r[rndidx]['id'] # here we set $target
-        target_ra = r[rndidx]['ra']
-        target_dec = r[rndidx]['decl']
         # save target name
         with open("target.txt", "w") as file:
             print(target, file=file)
@@ -108,7 +119,7 @@ nodename = socket.gethostname()
 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 with SurveysDB(survey='lba',readonly=False) as sdb:
     r = sdb.execute('UPDATE fields SET username="%s", clustername="%s", nodename="%s", start_date="%s" WHERE id="%s"' % \
-                    (username, clustername, nodename, target, timestamp))
+                    (username, clustername, nodename, timestamp, target))
 
 ###################################################################################
 # setup and copy
@@ -233,21 +244,28 @@ with w.if_todo('saveproducts_%s' % target):
     logger.info(f'Copy products -> {archive}')
     lib_util.check_rm(f'{archive}')
     os.system(f'mkdir {archive}; mkdir {archive}/plots {archive}/logs')
-    os.system(f'cp ddparallel/images/wideM-*-MFS-image.fits {archive}')
-    os.system(f'cp ddparallel/images/wide-lr-MFS-image.fits {archive}')
-    os.system(f'cp ddparallel/solutions/facets*reg {archive}')
+    os.system(f'cp ddparallel/images/wideDDP-c*-MFS-image.fits {archive}')
+    os.system(f'cp ddparallel/images/wide-sidelobe-MFS-image.fits {archive}')
+    os.system(f'cp ddparallel/solutions/facetsP-c*.reg {archive}')
+    os.system(f'gzip ddparallel/solutions/cal-amp-di.h5; cp ddparallel/solutions/cal-amp-di.h5.gz {archive}')
+    os.system(f'gzip ddparallel/solutions/cal-tec-sf-c1.h5; cp ddparallel/solutions/cal-tec-sf-c1.h5.gz {archive}')
+    os.system(f'gzip ddparallel/solutions/cal-fr.h5; cp ddparallel/solutions/cal-fr.h5.gz {archive}')
     os.system(f'cp ddparallel/skymodel/subfield.reg {archive}')
     os.system(f'cp -r ddparallel/plots/* {archive}/plots')
+
     os.system(f'cp ddserial/c0*/images/*image*.fits {archive}')
-    os.system(f'cp ddserial/c0*/images/wideDD-*MFS-residual.fits {archive}')
-    os.system(f'cp ddserial/c00/images/wideDD*model*fpb.fits {archive}')
+    os.system(f'cp ddserial/c0*/images/wideDDS-*MFS-residual.fits {archive}')
+    os.system(f'cp ddserial/c0*/images/wideDDS-*MFS-psf.fits {archive}')
+    os.system(f'cp ddserial/c00/images/wideDDS*model*fpb.fits {archive}')
     os.system(f'gzip ddserial/c00/solutions/interp.h5; cp ddserial/c00/solutions/interp.h5.gz {archive}')
-    os.system(f'cp ddserial/c00/solutions/facets-c00.reg {archive}')
-    os.system(f'cp ddserial/c0*/skymodels/all*reg {archive}')
+    os.system(f'cp ddserial/c00/solutions/facetsS-c0.reg {archive}')
+    os.system(f'gzip ddserial/c00/solutions/cal-leak.h5; cp ddserial/c00/solutions/cal-leak.h5.gz {archive}')
+    os.system(f'cp ddserial/c0*/skymodels/ddcals*reg {archive}')
     os.system(f'cp ddserial/c0*/skymodels/mask-ddcal-c*.cat.fits {archive}')
     os.system(f'cp ddserial/c0*/skymodels/mask-ddcal-c*.reg {archive}')
     os.system(f'cp ddserial/primarybeam.fits {archive}')
     os.system(f'cp quality/quality.pickle {archive}')
+    os.system(f'cp quality/*png {archive}')
     # copy ms
     logger.info(f'Copy mss -> {archive}')
     os.system(f'tar zcf {target}.tgz mss-avg')
@@ -259,7 +277,9 @@ with w.if_todo('saveproducts_%s' % target):
               *{target[:-1]}*/pipeline-timesplit_*logger *{target[:-1]}*/pipeline-timesplit.walker *{target[:-1]}*/logs_pipeline-timesplit_* \
               {target}/pipeline-ddparallel_*logger {target}/pipeline-ddparallel.walker {target}/logs_pipeline-ddparallel_* \
               {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
+              {target}*/pipeline-quality_*logger {target}/pipeline-quality.walker \
               {archive}/logs')
+    if os.path.exists(logfile): os.system(f'cp {logfile} {archive}/logs')
 ### DONE
 
 update_status_db(target, 'Done')
