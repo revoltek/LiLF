@@ -455,64 +455,70 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
     if 'parallel_gridding' in kwargs.keys() and kwargs['parallel_gridding'] > s.maxProcs:
             kwargs['parallel_gridding'] = s.maxProcs
 
-    # set the tmp dir to speed up
-    if use_shm and os.access('/dev/shm/', os.W_OK) and not 'temp_dir' in list(kwargs.keys()):
-        check_rm('/dev/shm/*') # remove possible leftovers
-        wsc_parms.append( '-temp-dir /dev/shm/' )
-        wsc_parms.append( '-mem 90' ) # use 90% of memory
+    tmp_dir = None
+    if use_shm and os.access('/dev/shm/', os.W_OK) and 'temp_dir' not in kwargs:
+        tmp_dir = tempfile.mkdtemp(dir='/dev/shm')
+
+        wsc_parms.append(f'-temp-dir {tmp_dir}')
+        wsc_parms.append('-mem 90')  # use 90% of memory
     elif s.cluster == 'Spider':
-        wsc_parms.append( '-temp-dir /tmp/' )
+        wsc_parms.append('-temp-dir /tmp/')
     #elif s.cluster == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
     #    wsc_parms.append( '-temp-dir /localwork.ssd' )
 
-    # user defined parms
-    for parm, value in list(kwargs.items()):
-        if value is None: continue
-        if parm == 'baseline_averaging' and value == '':
-            scale = float(kwargs['scale'].replace('arcsec','')) # arcsec
-            value = 1.87e3*60000.*2.*np.pi/(24.*60.*60*np.max(kwargs['size'])) # the np.max() is OK with both float and arrays
-            if value > 10: value=10
-            if value < 1: continue
-        if parm == 'cont': 
-            parm = 'continue'
-            value = ''
-            # if continue, remove nans from previous models
-            lib_img.Image(kwargs['name']).nantozeroModel()
-        if parm == 'size' and type(value) is int: value = '%i %i' % (value, value)
-        if parm == 'size' and type(value) is list: value = '%i %i' % (value[0], value[1])
-        wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
-
-    # files
-    wsc_parms.append( MSs_files_clean )
-
-    # create command string
-    command_string = 'wsclean '+' '.join(wsc_parms)
-    s.add(command_string, log=logfile, commandType='wsclean')
-    logger.info('Running WSClean...')
-    s.run(check=True)
-
-    # Predict in case update_model_required cannot be used
-    if do_predict == True:
-        if 'apply_facet_solutions' in kwargs.keys():
-            raise NotImplementedError('do_predict in combination with apply_facet_solutions is not implemented.')
-        wsc_parms = []
-        # keep imagename and channel number
+    try:
+        # user defined parms
         for parm, value in list(kwargs.items()):
             if value is None: continue
-            #if 'min' in parm or 'max' in parm or parm == 'name' or parm == 'channels_out':
-            if parm == 'name' or parm == 'channels_out' or parm == 'wgridder_accuracy' or parm == 'shift':
-                wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
-
-        # files (the original, not the concatenated)
-        wsc_parms.append( MSs_files )
-        lib_img.Image(kwargs['name']).nantozeroModel() # If we have fully flagged channel, set to zero so we don't get error
-
-        # Test without reorder as it apperas to be faster
-        # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
-        command_string = 'wsclean -predict -padding 1.8 ' \
-                         '-j '+str(s.maxProcs)+' '+' '.join(wsc_parms)
+            if parm == 'baseline_averaging' and value == '':
+                scale = float(kwargs['scale'].replace('arcsec','')) # arcsec
+                value = 1.87e3*60000.*2.*np.pi/(24.*60.*60*np.max(kwargs['size'])) # the np.max() is OK with both float and arrays
+                if value > 10: value=10
+                if value < 1: continue
+            if parm == 'cont': 
+                parm = 'continue'
+                value = ''
+                # if continue, remove nans from previous models
+                lib_img.Image(kwargs['name']).nantozeroModel()
+            if parm == 'size' and type(value) is int: value = '%i %i' % (value, value)
+            if parm == 'size' and type(value) is list: value = '%i %i' % (value[0], value[1])
+            wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
+    
+        # files
+        wsc_parms.append( MSs_files_clean )
+    
+        # create command string
+        command_string = 'wsclean '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean')
+        logger.info('Running WSClean...')
         s.run(check=True)
+    
+        # Predict in case update_model_required cannot be used
+        if do_predict == True:
+            if 'apply_facet_solutions' in kwargs.keys():
+                raise NotImplementedError('do_predict in combination with apply_facet_solutions is not implemented.')
+            wsc_parms = []
+            # keep imagename and channel number
+            for parm, value in list(kwargs.items()):
+                if value is None: continue
+                #if 'min' in parm or 'max' in parm or parm == 'name' or parm == 'channels_out':
+                if parm == 'name' or parm == 'channels_out' or parm == 'wgridder_accuracy' or parm == 'shift':
+                    wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
+    
+            # files (the original, not the concatenated)
+            wsc_parms.append( MSs_files )
+            lib_img.Image(kwargs['name']).nantozeroModel() # If we have fully flagged channel, set to zero so we don't get error
+    
+            # Test without reorder as it apperas to be faster
+            # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
+            command_string = 'wsclean -predict -padding 1.8 ' \
+                             '-j '+str(s.maxProcs)+' '+' '.join(wsc_parms)
+            s.add(command_string, log=logfile, commandType='wsclean')
+            s.run(check=True)
+    finally:
+        if tmp_dir and os.path.exists(tmp_dir):
+            logger.info(f"Deleting temporary directory {tmp_dir}")
+            check_rm(tmp_dir)
     if not keep_concat:
         check_rm('wsclean_concat_*.MS')
 
