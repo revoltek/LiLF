@@ -9,7 +9,7 @@ soltabOut = phaseOrig000
 soltab = sol000/phase000
 operation = POLALIGN
 soltabOut = polalign
-minFreq = 30e6
+minFreq = 20e6
 refAnt = auto
 
 # copy flags on polalign (this is because diag+rot is good at flagging bad points)

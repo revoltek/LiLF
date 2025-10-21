@@ -26,6 +26,7 @@ ngroups = parset.getint('LOFAR_timesplit','ngroups')
 initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for multiple observation of same target)
 apply_fr = parset.getboolean('LOFAR_timesplit','apply_fr') # also transfer the FR solutions (possibly useful if calibrator and target are close, especially for IS data.)
 no_aoflagger = parset.getboolean('LOFAR_timesplit','no_aoflagger')
+ateam_clip = parset.get('LOFAR_timesplit', 'ateam_clip') # '' no clip
 bl2flag = parset.get('flag','stations')
 use_GNSS = parset.getboolean('LOFAR_timesplit', 'use_GNSS')
 #################################################
@@ -54,7 +55,6 @@ with w.if_todo('copy'):
 
     logger.info('Copy data...')
     for MS in MSs.getListObj():
-        # if min(MS.getFreqs()) > 30.e6:
         # overwrite=True to prevent updating the weights twice
         MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=True)
 ### DONE
@@ -164,16 +164,24 @@ for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
         for j in range(num_init, num_fin+1):
             msg.append(prefix+'SB%03i.MS' % j)
 
+        # Dutch obs should be at 4s
+        if not MSs.hasIS and MSs.mssListObj[0].getTimeInt() < 4:
+            avgtimestep = int(round(4./MSs.mssListObj[0].getTimeInt()))
+            DP3str = f'steps=[avg] avg.type=averager avg.timestep={avgtimestep}'
+            logger.warning(f'Using averaging factor {avgtimestep} to get to 4s time resolution.')
+        else:
+            DP3str = ''
+
         # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected)
         s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(msg)+']" msin.missingdata=True msin.orderms=False \
-               msout='+groupname+'/'+groupname+'-temp.MS', log=groupname+'_DP3_concat.log', commandType='DP3')
+               msout='+groupname+'/'+groupname+'-temp.MS '+DP3str, log=groupname+'_DP3_concat.log', commandType='DP3')
         s.run(check=True)
 
-        # We need a number of channels that is - after averaging to the final dutch wide-field resolution - divisable by 48.check that nchan is divisible by 48 - necessary in dd pipeline; discard high freq unused channels
+        # We need a number of channels that is - after averaging to the final dutch wide-field resolution - divisable by 48; discard high freq unused channels
         nchan_init = MSs.getListObj()[0].getNchan()*len(msg)
-        final_freqres_dutch = 0.048828e6 if 'OUTER' in MSs.getListObj()[0].getAntennaSet() else 0.024414e6
+        final_freqres_dutch = 0.048828125e6 if 'OUTER' in MSs.getListObj()[0].getAntennaSet() else 0.0244140625e6
         freqres = MSs.getListObj()[0].getChanband()
-        averaging_factor = int(round(final_freqres_dutch / freqres))
+        averaging_factor = max([1,int(round(final_freqres_dutch / freqres))])
         nchan = nchan_init - nchan_init % (48*averaging_factor)
         logger.info('Reducing total channels: %ich -> %ich)' % (nchan_init, nchan))
         s.add(f'DP3 {parset_dir}/DP3-concat.parset msin={groupname}/{groupname}-temp.MS msin.datacolumn=DATA msin.nchan={nchan} msout={groupname}/{groupname}.MS',
@@ -211,14 +219,36 @@ with w.if_todo('flag'):
 ### DONE
 
 #####################################
+# check if an ateam was not demixed and do clipping
+if ateam_clip != '':
+    with w.if_todo('clipping'):
+        ateam_clip = ateam_clip.replace('[', '').replace(']', '').split(',')
+        ateam_model = os.path.dirname(__file__) + '/../models/demix_all.skymodel'
+        for MS in MSs.getListObj():
+            demixed = MS.get_ateam_demix()
+            #print(MS.pathMS, demixed, ateam_clip)
+            for a in ateam_clip:
+                if a not in ['CasA', 'CygA', 'VirA', 'TauA']:
+                    logger.warning(f'Can clip only Ateam (Cas, Cyg, Vir, Tau), not {a} -> skip.')
+                elif (a not in demixed) and (MSs.getListObj()[0].distBrightSource(a) > 15):
+                    logger.info(f'{MS.nameMS}: Clipping {a} that was not demixed.')
+                    cmd = f'DP3 msin={MS.pathMS} msout=. steps=[count,clipper,count] clipper.type=CLIPPER clipper.sourcedb={ateam_model} \
+                        clipper.sources=[{a}] clipper.usebeammodel=True clipper.correctfreqsmearing=True'
+                    s.add(cmd, log=MS.nameMS+'_clipper.log', commandType='DP3')
+                    s.run(check=True)
+    ### DONE
+
+#####################################
 # Create time-chunks
 with w.if_todo('timesplit'):
 
     logger.info('Splitting in time...')
     tc = initc
     for groupname in groupnames:
-        ms = groupname+'/'+groupname+'.MS'
-        if not os.path.exists(ms): continue
+        ms = groupname + '/' + groupname + '.MS'
+        if not os.path.exists(ms):
+            continue
+
         t = pt.table(ms, ack=False)
         starttime = t[0]['TIME']
         endtime   = t[t.nrows()-1]['TIME']
@@ -227,7 +257,8 @@ with w.if_todo('timesplit'):
 
         for timerange in np.array_split(sorted(set(t.getcol('TIME'))), round(hours)):
             logger.info('%02i - Splitting timerange %f %f' % (tc, timerange[0], timerange[-1]))
-            t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[-1]), sortlist='TIME,ANTENNA1,ANTENNA2')
+            logger.info(f'Splitting timerange {timerange[-1]-timerange[0]} -> 3584s.')
+            t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[0]+3584), sortlist='TIME,ANTENNA1,ANTENNA2')
             splitms = groupname+'/TC%02i.MS' % tc
             lib_util.check_rm(splitms)
             t1.copy(splitms, True)
@@ -246,10 +277,11 @@ if MSs.hasIS:
         with w.if_todo('avgdutch'):
             if not os.path.exists(groupname_dutch):
                 os.system(f'mkdir {groupname_dutch}')
-            MS = lib_ms.AllMSs([glob.glob(data_dir+'/*MS')[0]], s).getListObj()[0]
-            avg_factor_t, avg_factor_f = MS.getAvgFactors(keep_IS=False)
+
+            avg_factor_t, avg_factor_f = MSs.getListObj()[0].getAvgFactors(keep_IS=False)
+            logger.info(f'Averaging Dutch MSs: x{avg_factor_t} time; x{avg_factor_f} freq')
             MSs.run(f'DP3 {parset_dir}/DP3-avgdutch.parset msin=$pathMS msout={groupname_dutch}/$nameMS.MS avg.freqstep={avg_factor_f} avg.timestep={avg_factor_t}',
-                              log=MS.nameMS+'_avg.log', commandType='DP3')
+                              log='$nameMS_avg.log', commandType='DP3')
 
 logger.info('Cleaning up...')
 os.system('rm -r *MS')
