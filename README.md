@@ -205,3 +205,7 @@ this config file here adds a source to demix and passes in the skymodel.
 stations = RS106
 ```
 this config file works only for the LOFAR_cal and LOFAR_timesplit steps and is applied when running one of the two. Stations allows to select the stations to flag.
+
+
+### Development information
+The master branch is protected, issue a pull request to include your changes.
