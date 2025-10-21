@@ -75,7 +75,7 @@ def corrupt_model_dirs(MSs, c, model_columns, solmode='phase'):
     MSs: MSs object
     c: int, cycle
     model_columns: list of patch names
-    solmode: which solution mode to corrupt for (phase, tec, tecandphase)
+    solmode: which solution mode to corrupt for (phase, tec, tecandphase, amplitude)
     """
     logger.info(f'Corrupt models: {solmode}...')
     for model_column in model_columns:

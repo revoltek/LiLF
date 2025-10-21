@@ -3,7 +3,7 @@
 
 # Pipeline for direction dependent calibration
 
-import sys, os, glob, pickle, collections, fileinput
+import sys, os, glob, pickle, collections, fileinput, tempfile
 import numpy as np
 from astropy.table import Table as astrotab
 from astropy.coordinates import SkyCoord
@@ -31,6 +31,7 @@ solve_amp = parset.getboolean('LOFAR_ddserial','solve_amp')
 manual_dd_cal = parset.get('LOFAR_ddserial','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
 develop = parset.getboolean('LOFAR_ddserial', 'develop') # for development, make more output/images
 use_shm = parset.getboolean('LOFAR_ddserial', 'use_shm') # use shared memory for wsclean
+use_shm_ddcal = parset.getboolean('LOFAR_ddserial', 'use_shm_ddcal') # use shared memory for ddcal
 userReg = parset.get('model','userReg')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=6.5):
@@ -454,11 +455,10 @@ for cmaj in range(maxIter):
 
             logger.info(f'Phase shift, apply phase of closest facet ({closest}) and avg...')
             lib_util.check_rm('mss-dir')
-            if use_shm:
+            if use_shm_ddcal and os.access('/dev/shm/', os.W_OK):
                 # use shared memory for direction
-                lib_util.check_rm('/dev/shm/mss-dir')
-                os.makedirs('/dev/shm/mss-dir')
-                os.system('ln -s /dev/shm/mss-dir mss-dir')
+                tmp_shm_dir = tempfile.mkdtemp(dir='/dev/shm')
+                os.system(f'ln -s {tmp_shm_dir} mss-dir')
             else:
                 os.makedirs('mss-dir')
 
@@ -708,9 +708,9 @@ for cmaj in range(maxIter):
         # End calibration cycle
         ##################################
 
-        if use_shm:
+        if use_shm_ddcal and os.access('/dev/shm/', os.W_OK):
             # use shared memory for DP3
-            lib_util.check_rm('/dev/shm/mss-dir')
+            lib_util.check_rm(tmp_shm_dir)
 
         # if died the first cycle or diverged
         if cdd == 0 or ((rms_noise_pre >= d.rms_noise_init) and (mm_ratio_pre/2 < d.mm_ratio_init)):

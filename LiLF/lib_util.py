@@ -116,6 +116,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddserial', 'minCalFlux60', '0.8')
     add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
     add_default('LOFAR_ddserial', 'use_shm', 'False') # use /dev/shm for temporary files, if available
+    add_default('LOFAR_ddserial', 'use_shm_ddcal', 'True') # use /dev/shm for temporary ddcal files, if available
     add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec
     add_default('LOFAR_ddserial', 'manual_dd_cal', '')
     add_default('LOFAR_ddserial', 'develop', 'False') # if true make more debug images (slower)
@@ -404,7 +405,6 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
     tmp_dir = None
     if use_shm and os.access('/dev/shm/', os.W_OK) and 'temp_dir' not in kwargs:
         tmp_dir = tempfile.mkdtemp(dir='/dev/shm')
-
         wsc_parms.append(f'-temp-dir {tmp_dir}')
         wsc_parms.append('-mem 90')  # use 90% of memory
     elif s.cluster == 'Spider':
