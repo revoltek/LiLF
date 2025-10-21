@@ -1,6 +1,7 @@
 import os, sys, glob
 import socket
 import datetime
+import tempfile
 
 from casacore import tables
 import numpy as np
