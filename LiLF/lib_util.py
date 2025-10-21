@@ -509,7 +509,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
 
         # Test without reorder as it apperas to be faster
         # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
-        command_string = 'wsclean -predict -padding 1.8 ' \
+        command_string = 'wsclean -predict -model-storage-manager sisco -padding 1.8 ' \
                          '-j '+str(s.maxProcs)+' '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean')
         s.run(check=True)

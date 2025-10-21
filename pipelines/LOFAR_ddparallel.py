@@ -804,7 +804,7 @@ for c in range(maxIter):
         logger.info('Predict corrupted model of external region (wsclean)...')
         s.add(f'wsclean -predict -padding 1.8 -name img/wideDDPext-c{c} -j {s.max_cpucores} -channels-out {channels_out} \
                 -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
-                -apply-facet-solutions {wide_h5} phase000 {MSs.getStrWsclean()}',
+                -model-storage-manager sisco -apply-facet-solutions {wide_h5} phase000 {MSs.getStrWsclean()}',
             log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
         s.run(check=True)
 
@@ -835,7 +835,7 @@ for c in range(maxIter):
         logger.info('Predict model of internal region...')
         s.add(f'wsclean -predict -padding 1.8 -name img/wideDDPint-c{c} -j {s.max_cpucores} -channels-out {channels_out} \
                 -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
-                {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
+                -model-storage-manager sisco {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
         s.run(check=True)
 
         # Corrupt for FR internal region - MSs: MODEL_DATA -> MODEL_DATA
@@ -1000,7 +1000,7 @@ for c in range(maxIter):
 
                 logger.info('Predict model of sidelobe region (wsclean)...')
                 # --facet-regions {facetregname_lr} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
-                s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} -channels-out {channels_out_lr} \
+                s.add(f'wsclean -predict -model-storage-manager sisco -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} -channels-out {channels_out_lr} \
                       {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
                 s.run(check=True)
 

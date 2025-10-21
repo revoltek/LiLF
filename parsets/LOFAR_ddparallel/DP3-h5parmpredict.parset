@@ -5,7 +5,7 @@ msin.datacolumn = DATA
 
 msout = .
 msout.datacolumn = MODEL_DATA
-#msout.storagemanager = dysco # by default uncompressed
+msout.storagemanager = sisco # only works for new dp3
 
 steps = [pre]
 
