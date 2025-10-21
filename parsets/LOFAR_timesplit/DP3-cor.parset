@@ -2,8 +2,6 @@ msin =
 msin.datacolumn = DATA
 msout = .
 msout.datacolumn = CORRECTED_DATA
-msout.uvwcompression=false
-msout.antennacompression=false
 
 steps = [cor]
 
