@@ -572,7 +572,9 @@ def make_subfield_region(name, MS, sm, min_flux, pixscale, imgsizepix, debug_dir
     sc = SkyCoord(ra, dec)
     # NOTE: ignore higher order SI terms for now...
     assert len(np.unique(reff)) == 1
-    fluxes = I*(freq/reff[0])**si[:,0]
+    fluxes = I
+    for i in range(len(si[0])):
+        fluxes += si[:,i]*(freq/reff[0]-1)**(i+1)
 
     def create_cone_kernel(size, edge_value=0.9):
         # helper function to create the kernel. The kernel is 1 at the center and radially drops to edge_value at the edge

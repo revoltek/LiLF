@@ -27,8 +27,8 @@ initc = parset.getint('LOFAR_timesplit','initc') # initial tc num (useful for mu
 apply_fr = parset.getboolean('LOFAR_timesplit','apply_fr') # also transfer the FR solutions (possibly useful if calibrator and target are close, especially for IS data.)
 no_aoflagger = parset.getboolean('LOFAR_timesplit','no_aoflagger')
 ateam_clip = parset.get('LOFAR_timesplit', 'ateam_clip') # '' no clip
-bl2flag = parset.get('flag','stations')
 use_GNSS = parset.getboolean('LOFAR_timesplit', 'use_GNSS')
+bl2flag = parset.get('flag','stations')
 #################################################
 
 # Clean
