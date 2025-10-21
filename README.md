@@ -208,4 +208,4 @@ this config file works only for the LOFAR_cal and LOFAR_timesplit steps and is a
 
 
 ### Development information
-The master branch is protected, issue a pull request to include your changes.
+Development should flow to the master branch. The master branch is protected, issue a pull request to include your changes.
