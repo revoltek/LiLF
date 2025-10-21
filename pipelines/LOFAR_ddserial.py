@@ -687,9 +687,6 @@ for cmaj in range(maxIter):
                 continue
             # if noise incresed and mm ratio decreased - or noise increased a lot!
             elif (cdd >= 4) and ((rms_noise > 1.01*rms_noise_pre and mm_ratio < 0.99*mm_ratio_pre) or rms_noise > 1.05*rms_noise_pre):
-                # if (mm_ratio < 10 and cdd >= 2) or \
-                # (mm_ratio < 20 and cdd >= 3) or \
-                # (cdd >= 4):
                 logger.debug('BREAK ddcal self cycle with noise: %f (noise_pre: %f) - mmratio: %f (mmratio_pre: %f)' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
                 break
 
