@@ -39,7 +39,7 @@ def getParset(parsetFile=''):
     add_default('scheduler', 'backend', 'local') # 'local' or 'slurm'
     add_default('scheduler', 'max_cpucores', '') # default: use all on node
     add_default('scheduler', 'slurm_max_workers', '1') # (only for slurm): max parallel workers
-    add_default('scheduler', 'slurm_mem_per_cpu', '8') # (only for slurm): max parallel workers
+    add_default('scheduler', 'slurm_mem_per_cpu', '16') # (only for slurm): max parallel workers
     # flag
     add_default('flag', 'stations', '')
     # model

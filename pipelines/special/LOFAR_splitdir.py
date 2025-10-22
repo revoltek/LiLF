@@ -206,7 +206,7 @@ if mode in ['infield', 'ddcal']:
     regfile_list = [infieldregfile] if mode == 'infield' else dirregfile_list
     # iterate over all regions, per region re-add the sources on the region, correct the sols
     for i, regfile in enumerate(regfile_list):
-        name = regfile.split('.reg')[0]
+        name = regfile.split('/')[-1].split('.reg')[0]
         logger.info(f'Splitting out direction {name} ({i+1}/{len(regfile_list)})...')
         dir_reg = lib_util.Region_helper(regfile)
         dir_center = dir_reg.get_center()  # center of the ddcal region

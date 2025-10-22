@@ -463,7 +463,11 @@ class Walker():
         logger.info('Done. Total time: '+delta)
 
 
-def _run_cmd(cmd, log_path=None, timeout=None, env=None):
+def _run_cmd(cmd):
+    pass
+
+def _run_cmd_gpt(cmd, log_path=None, timeout=None):
+    # ChatGPT
     """
     Run a shell command, tee to log file, return (returncode, walltime_s).
     """
@@ -476,7 +480,7 @@ def _run_cmd(cmd, log_path=None, timeout=None, env=None):
     with open(log_path, "a" if log_path else os.devnull) as logf:
         # Start in a process group so we can kill children if timeout
         with subprocess.Popen(cmd, shell=True, stdout=logf, stderr=logf,
-                              preexec_fn=os.setsid, env=env) as p:
+                              preexec_fn=os.setsid) as p:
             try:
                 p.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
@@ -485,15 +489,50 @@ def _run_cmd(cmd, log_path=None, timeout=None, env=None):
                 return (124, time.time() - t0)   # 124 like GNU timeout
     return (p.returncode, time.time() - t0)
 
+def get_slurm_max_walltime():
+    # ChatGPT
+    import os, re, subprocess
+    def _parse_slurm_time(tstr):
+        if not tstr or tstr.upper() == "UNLIMITED":
+            return None
+        if '-' in tstr:
+            days, hms = tstr.split('-', 1)
+            days = int(days)
+        else:
+            days = 0
+            hms = tstr
+        hh, mm, ss = (list(map(int, hms.split(':'))) + [0, 0, 0])[:3]
+        return days*86400 + hh*3600 + mm*60 + ss
+    
+    partition = os.getenv('SLURM_PARTITION')
+    try:
+        if partition:
+            outp = subprocess.check_output(['scontrol', 'show', 'partition', partition], text=True, stderr=subprocess.DEVNULL)
+            m = re.search(r'MaxTime=([^\s]+)', outp)
+            if m:
+                timestr = m.group(1)
+                return _parse_slurm_time(timestr), timestr
+        # try sinfo: list partitions and limits, take first non-empty limit
+        out = subprocess.check_output(['sinfo', '-h', '-o', '%P %l'], text=True, stderr=subprocess.DEVNULL)
+        for line in out.splitlines():
+            part, limit = line.split(None, 1)
+            if limit and limit != "UNKNOWN":
+                timestr = limit.strip()
+                return _parse_slurm_time(timestr), timestr
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
+    return None, None
+
 
 class Scheduler():
-    def __init__(self, backend=None, max_workers=None, max_cpucores_per_node=None, slurm_max_walltime='24:00:00',
-                 log_dir = 'logs', dry = False):
+    def __init__(self, backend=None, max_jobs=None, max_cpucores_per_node=None, slurm_max_walltime='24:00:00',
+                 log_dir = 'logs', dry = False, container_path=''):
         """
         TODO max walltime
-        TODO max_workers autoset?
+        TODO max_jobs autoset?
         backend: string, backend used to launch jobs. 'local' and 'slurm' are supported
-        maxWorkers:       max number of parallel processes (either on local node or on slurm cluster)
+        max_jobs:       max number of parallel processes (either on local node or on slurm cluster)
         max_cpucores:   max number of cpu cores usable in a node
         dry:            don't schedule job
         """
@@ -516,36 +555,65 @@ class Scheduler():
                     logger.warning('Neither max_cpucores_per_node nor $SLURM_CPUS_ON_NODE defined - guessing cpus per node.')
                     self.max_cpucores_per_node = multiprocessing.cpu_count()
 
-        # automatically set maxWorkers if not manually set
-        if max_workers is None:
-            logger.warn(f'max_workers not set - what to do in this case?')
-            self.max_workers = 1
+        # automatically set maxJobs if not manually set
+        if max_jobs is None:
+            logger.warn(f'max_jobs not set - what to do in this case?')
+            self.max_jobs = 1
         else:
-            self.max_workers = int(max_workers)
+            self.max_jobs = int(max_jobs)
 
         self.dry = dry
 
         logger.info(f'Scheduler initialised  for cluster {self.cluster}:{self.hostname} using {backend} backend \
-                     (maxProcs: {self.max_workers}, max_cpucores_per_node: {self.max_cpucores_per_node})')
+                     (maxProcs: {self.max_jobs}, max_cpucores_per_node: {self.max_cpucores_per_node})')
 
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
 
-        if backend == "slurm":
+        if self.backend == "slurm":
             # sensible defaults; override with slurm_opts
             # memory - is it total or per job?
-            so = {'queue': 'batch', 'cores': self.max_cpucores_per_node, 'memory': f'{8*self.max_cpucores_per_node}GB',
-                  'walltime': slurm_max_walltime} # cores, processes
+            slurm_max_walltime = get_slurm_max_walltime()[1] 
+            LILFDIR = os.path.realpath(__file__).split('LiLF')[0] + 'LiLF'
+            
+            # We mount only the directory above the current working directory
+            singularity_command = f"singularity exec --cleanenv --pwd {os.getcwd()} \
+                --env PYTHONPATH=$PYTHONPATH:{LILFDIR},PATH=$PATH:{LILFDIR}/scripts/ --pid \
+                --writable-tmpfs -B{os.path.dirname(os.getcwd())} {container_path}"
+
+            so = {
+                    'cores': min(self.max_cpucores_per_node, 32),
+                    'memory': f'{8*self.max_cpucores_per_node}GB',
+                    'walltime': slurm_max_walltime,
+                    'python': 'python',
+                    'log_directory': self.log_dir,
+                    'job_script_prologue': [
+                        "unset PYTHONPATH",
+                        "unset PYTHONHOME",
+                        "unset LD_LIBRARY_PATH",
+                        f"{singularity_command} \\"
+                    ]
+                }
+            
+            if self.cluster == "Herts":
+                so.update({'shebang': '#!/bin/tcsh'})
+                so.update({'queue': 'core32'})
+            else: 
+                logger.warning(f'Slurm cluster {self.cluster} not specifically supported, trying generic settings.')
+                
             self._cluster = SLURMCluster(**so)
             # Test if we want adaptive scaling if you like
-            self._cluster.adapt(minimum=1, maximum=max_workers)
+            self._cluster.adapt(minimum=1, maximum=max_jobs)
             self._client = Client(self._cluster)
+            
+            logger.debug(f"Dask SLURM cluster script:\n{self._cluster.job_script()}")
 
 
-    def add(self, cmd='', log='', commandType='general', threads=1, mem=None, time='00:30:00', timeout=None, env=None):
+    def add(self, cmd='', log='', commandType='general', threads=1, mem=None, time='00:30:00', timeout=None):
         """
         Add a command with optional resources (mapped to SLURM/Dask).
         """
+        
         if mem is None:
             mem =threads
         log_path = os.path.join(self.log_dir, log) if log else ''
@@ -559,35 +627,36 @@ class Scheduler():
             logger.debug(f'Running {commandType}: {cmd}')
         else:
             logger.debug(f'Running general: {cmd}')
+            
 
         self.action_list.append(dict(
             cmd=cmd, log=log_path, commandType=commandType,
-            threads=threads, mem=mem, time=time, timeout=timeout, env=env
+            threads=threads, mem=mem, time=time, timeout=timeout
         ))
+        
 
     def run(self, check=False, maxProcs=None):
         if self.dry:
             return
         maxProcs_run = self.maxProcs if maxProcs is None else min(maxProcs, self.maxProcs)
 
-        if self.backend == "dask-slurm":
+        if self.backend == "slurm":
             futures = []
-            for a in self.action_list:
+            for action in self.action_list:
                 # Hint Dask/SLURM about resources via worker restrictions
                 # Simple pattern: match by threads; on SLURMCluster, 'cores' controls worker capacity.
-                fut = self._client.submit(
-                    _run_cmd, a['cmd'], a['log'], a['timeout'], a['env'],
-                    resources=None, pure=False
-                )
-                futures.append((fut, a))
+                fut = self._client.submit(_run_cmd_gpt, action['cmd'], action['log'], action['timeout'], resources=None, pure=False)
+                #fut = self._client.submit(_run_cmd, action["cmd"])
+                futures.append((fut, action))
+                
             # Gather and raise on failure
-            for fut, a in as_completed([f for f, _ in futures], with_results=True):
+            for fut, action in as_completed([f for f, _ in futures]):
                 rc, wall = fut.result()
                 if rc != 0:
                     tail = ''
-                    if a['log'] and os.path.exists(a['log']):
-                        tail = subprocess.check_output(f'tail -n 40 {shlex.quote(a["log"])}', shell=True).decode()
-                    raise RuntimeError(f"Command failed (rc={rc}): {a['cmd']}\nLog: {a['log']}\n{tail}")
+                    if action['log'] and os.path.exists(action['log']):
+                        tail = subprocess.check_output(f'tail -n 40 {shlex.quote(action["log"])}', shell=True).decode()
+                    raise RuntimeError(f"Command failed (rc={rc}): {action['cmd']}\nLog: {action['log']}\n{tail}")
 
         else:
             # local thread pool (your existing behavior)
@@ -769,6 +838,13 @@ class Scheduler():
         else:
             logger.debug('Hostname %s unknown.' % hostname)
             return "Unknown"
+        
+    def close(self):
+        if self.backend == "slurm":
+            self._client.close()
+            self._cluster.close()
+        else:
+            pass
 
 def get_template_image(reference_ra_deg, reference_dec_deg, ximsize=512, yimsize=512, cellsize_deg=0.000417, fill_val=0):
     """
