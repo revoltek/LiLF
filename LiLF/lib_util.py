@@ -464,7 +464,7 @@ class Walker():
 
 
 def _run_cmd(cmd):
-    pass
+    os.system(cmd)
 
 def _run_cmd_gpt(cmd, log_path=None, timeout=None):
     # ChatGPT
@@ -569,6 +569,7 @@ class Scheduler():
 
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
+        self.futures     = []
 
         if self.backend == "slurm":
             # sensible defaults; override with slurm_opts
@@ -633,7 +634,11 @@ class Scheduler():
             cmd=cmd, log=log_path, commandType=commandType,
             threads=threads, mem=mem, time=time, timeout=timeout
         ))
-        
+
+        if self.backend == "slurm":
+            #fut = self._client.submit(_run_cmd, cmd)
+            fut = self._client.submit(_run_cmd_gpt, cmd, log_path, timeout, resources=None, pure=False)
+            self.futures.append(fut)
 
     def run(self, check=False, maxProcs=None):
         if self.dry:
@@ -641,16 +646,8 @@ class Scheduler():
         maxProcs_run = self.maxProcs if maxProcs is None else min(maxProcs, self.maxProcs)
 
         if self.backend == "slurm":
-            futures = []
-            for action in self.action_list:
-                # Hint Dask/SLURM about resources via worker restrictions
-                # Simple pattern: match by threads; on SLURMCluster, 'cores' controls worker capacity.
-                fut = self._client.submit(_run_cmd_gpt, action['cmd'], action['log'], action['timeout'], resources=None, pure=False)
-                #fut = self._client.submit(_run_cmd, action["cmd"])
-                futures.append((fut, action))
-                
             # Gather and raise on failure
-            for fut, action in as_completed([f for f, _ in futures]):
+            for fut, action in as_completed([f for f, _ in self.futures]):
                 rc, wall = fut.result()
                 if rc != 0:
                     tail = ''
@@ -690,6 +687,7 @@ class Scheduler():
 
         self.action_list.clear()
         self.log_list.clear()
+        self.futures.clear()
 
         #if self.qsub:
         #    if qsub_cpucores == 'max':
