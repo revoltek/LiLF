@@ -2,7 +2,6 @@ import os, sys, glob
 import socket
 import datetime
 
-from casacore import tables
 import numpy as np
 import multiprocessing, subprocess
 from threading import Thread
@@ -10,16 +9,14 @@ from queue import Queue
 import pyregion
 from astropy.io import fits
 import gc
+from dask_jobqueue import SLURMCluster
+from dask.distributed import Client, as_completed
+import subprocess, os, time, shlex, signal, gc
 
 # remove some annoying warnings from astropy
 import warnings
 from astropy.io.fits.verify import VerifyWarning
 warnings.simplefilter('ignore', category=VerifyWarning)
-
-if (sys.version_info > (3, 0)):
-    from configparser import ConfigParser
-else:
-    from ConfigParser import ConfigParser
 
 # load here to be sure to have "Agg" at the beginning
 import matplotlib as mpl
@@ -28,137 +25,6 @@ mpl.use("Agg")
 from LiLF import lib_img
 from LiLF.lib_log import logger
 
-def getParset(parsetFile=''):
-    """
-    Get parset file and return dict of values
-    """
-    def add_default(section, option, val):
-        if not config.has_option(section, option): config.set(section, option, val)
-    
-    if parsetFile == '':
-        matched_conf_files = glob.glob('[Ll][Ii][Ll][Ff].conf*') + glob.glob('../[Ll][Ii][Ll][Ff].conf*')
-        if len(matched_conf_files) > 1:
-            raise LookupError(f'Found more than one configuration file: {matched_conf_files}')
-        elif len(matched_conf_files) == 0:
-            parsetFile = matched_conf_files[0]
-            logger.info(f'Found config file: {parsetFile}')
-
-    config = ConfigParser(defaults=None)
-    config.read(parsetFile)
-    
-    # add pipeline sections and defaul parset dir:
-    for pipeline in glob.glob(os.path.dirname(__file__)+'/../parsets/*'):
-        pipeline = os.path.basename(pipeline)
-        if not config.has_section(pipeline): config.add_section(pipeline)
-        if not config.has_option(pipeline, 'parset_dir'):
-                config.set(pipeline, 'parset_dir', os.path.dirname(__file__)+'/../parsets/'+pipeline)
-    # add other sections
-    if not config.has_section('flag'): config.add_section('flag')
-    if not config.has_section('model'): config.add_section('model')
-    if not config.has_section('PiLL'): config.add_section('PiLL')
-
-    ### LOFAR ###
-
-    # PiLL
-    add_default('PiLL', 'working_dir', os.getcwd())
-    add_default('PiLL', 'redo_cal', 'False') # re-do the calibrator although it is in the archive
-    add_default('PiLL', 'download_file', '') # html.txt file to use instead of staging
-    add_default('PiLL', 'project', '')
-    add_default('PiLL', 'target', '')
-    add_default('PiLL', 'obsid', '') # unique ID
-    add_default('PiLL', 'minmaxhrs', '0,9999') # min and max hours for an obs to be selected
-    add_default('PiLL', 'logfile', '') # logfile for PiLL
-    # preprocess
-    add_default('LOFAR_preprocess', 'fix_table', 'True') # fix bug in some old observations
-    add_default('LOFAR_preprocess', 'renameavg', 'True')
-    add_default('LOFAR_preprocess', 'keep_IS', 'True')
-    add_default('LOFAR_preprocess', 'backup_full_res', 'False')
-    add_default('LOFAR_preprocess', 'demix_sources', '')  # Demix  sources in these patches (e.g. [VirA,TauA], default: No demix
-    add_default('LOFAR_preprocess', 'demix_skymodel', '')  # Use non-default demix skymodel.
-    add_default('LOFAR_preprocess', 'demix_field_skymodel', 'LOTSS-DR3')  # Provide a custom target skymodel instead of online gsm model. Set to '' to ignore target.
-    add_default('LOFAR_preprocess', 'run_aoflagger', 'False')  # run aoflagger on individual sub-bands, only in cases where this was not one by the observatory!
-    add_default('LOFAR_preprocess', 'tar', 'True')  # Tar MS files at the end
-    add_default('LOFAR_preprocess', 'data_dir', '')
-    # cal
-    add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
-    add_default('LOFAR_cal', 'skymodel', '') # by default use calib-simple.skydb for LBA and calib-hba.skydb for HBA
-    add_default('LOFAR_cal', 'imaging', 'False')
-    add_default('LOFAR_cal', 'fillmissingedges', 'True')
-    add_default('LOFAR_cal', 'less_aggressive_flag', 'False') # change flagging so that we can handle data with alternating SBs only or many flagged points
-    add_default('LOFAR_cal', 'develop', 'False') # if true prevents the deletion of files
-    add_default('LOFAR_cal', 'use_GNSS', 'False') # Use GNSS satellite data for pre correcting TEC and FR
-    add_default('LOFAR_cal', 'use_shm', 'False') # use /dev/shm for temporary files, if available
-    # timesplit
-    add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
-    add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
-    add_default('LOFAR_timesplit', 'ngroups', '1')
-    add_default('LOFAR_timesplit', 'initc', '0')
-    add_default('LOFAR_timesplit', 'fillmissingedges', 'True')
-    add_default('LOFAR_timesplit', 'apply_fr', 'False') # Also transfer rotationmeasure sols? (E.g. for nearby calibrator and target)
-    add_default('LOFAR_timesplit', 'no_aoflagger', 'False') # TEST: Skip aoflagger (e.g. for observations of A-Team sources)
-    add_default('LOFAR_timesplit', 'ateam_clip', '') # [CygA, CasA] or [CasA] or [CygA] or '' - the code clips the specified ateams (if not demixed from the observatory)
-    add_default('LOFAR_timesplit', 'use_GNSS', 'False') # Use GNSS satellite data for pre correcting TEC and FR
-    # ddparallel
-    add_default('LOFAR_ddparallel', 'maxIter', '2')
-    add_default('LOFAR_ddparallel', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
-    add_default('LOFAR_ddparallel', 'subfield_min_flux', '20') # min flux within calibration subfield
-    add_default('LOFAR_ddparallel', 'ph_sol_mode', 'phase') # phase or tecandphase
-    add_default('LOFAR_ddparallel', 'remove3c', 'True')
-    add_default('LOFAR_ddparallel', 'fulljones', 'False')
-    add_default('LOFAR_ddparallel', 'min_facets', '')
-    add_default('LOFAR_ddparallel', 'max_facets', '')
-    add_default('LOFAR_ddparallel', 'develop', 'False') # if true make more debug images (slower)
-    add_default('LOFAR_ddparallel', 'data_dir', '')
-    add_default('LOFAR_ddparallel', 'use_shm', 'False') # use /dev/shm for temporary files, if available
-    # ddserial
-    add_default('LOFAR_ddserial', 'maxIter', '1')
-    add_default('LOFAR_ddserial', 'minCalFlux60', '0.8')
-    add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
-    add_default('LOFAR_ddserial', 'use_shm', 'False') # use /dev/shm for temporary files, if available
-    add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec
-    add_default('LOFAR_ddserial', 'manual_dd_cal', '')
-    add_default('LOFAR_ddserial', 'develop', 'False') # if true make more debug images (slower)
-    # add_default('LOFAR_ddserial', 'solve_tec', 'False') # per default, solve each dd for scalarphase. if solve_tec==True, solve for TEC instead.
-    # extract
-    add_default('LOFAR_extract', 'max_niter', '10')
-    add_default('LOFAR_extract', 'subtract_region', '') # Sources inside extract-reg that should still be subtracted! Use this e.g. for individual problematic sources in a large extractReg
-    add_default('LOFAR_extract', 'ph_sol_mode', 'phase') # tecandphase, phase
-    add_default('LOFAR_extract', 'amp_sol_mode', 'diagonal') # diagonal, fulljones
-    add_default('LOFAR_extract', 'beam_cut', '0.3') # up to which distance a pointing will be considered
-    add_default('LOFAR_extract', 'no_selfcal', 'False') # just extract the data, do not perform selfcal - use this if u want to use e.g. Reinout van Weeren's facet_seflcal script
-    add_default('LOFAR_extract', 'ampcal', 'auto')
-    add_default('LOFAR_extract', 'extractRegion', 'target.reg')
-    # quality
-    add_default('LOFAR_quality', 'ddparallel_dir', 'ddparallel')
-    add_default('LOFAR_quality', 'ddserial_dir', 'ddserial')
-    # virgo
-    add_default('LOFAR_virgo', 'cal_dir', '')
-    add_default('LOFAR_virgo', 'data_dir', './')
-    # m87
-    add_default('LOFAR_m87', 'data_dir', './')
-    add_default('LOFAR_m87', 'updateweights', 'False')
-    add_default('LOFAR_m87', 'skipmodel', 'False')
-    add_default('LOFAR_m87', 'model_dir', '')
-    # peel
-    ### uGMRT ###
-    # init - deprecated
-    #add_default('uGMRT_init', 'data_dir', './datadir')
-    # cal - deprecated
-    #add_default('uGMRT_cal', 'skymodel', os.path.dirname(__file__)+'/../models/calib-simple.skydb')
-
-    ### General ###
-
-    # flag
-    add_default('flag', 'stations', '') # LOFAR
-    add_default('flag', 'antennas', '') # uGMRT
-    # model
-    add_default('model', 'sourcedb', '')
-    add_default('model', 'fits_model', '')
-    add_default('model', 'apparent', 'False')
-    add_default('model', 'userReg', '')
-
-
-    return config
 
 def create_extregion(ra, dec, extent, color='yellow'):
     """
@@ -388,7 +254,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
     #reordering_processors = np.min([len(MSs_files_clean),s.maxProcs])
 
     # basic parms
-    wsc_parms.append( '-j '+str(s.maxProcs)+' -reorder -parallel-reordering 4 ' )
+    wsc_parms.append( '-j ' + str(s.maxWorkers) + ' -reorder -parallel-reordering 4 ')
     if 'use_idg' in kwargs.keys():
         if s.cluster == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
             wsc_parms.append( '-idg-mode hybrid' )
@@ -397,8 +263,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
             wsc_parms.append( '-idg-mode cpu' )
             
     # limit parallel gridding to maxProcs
-    if 'parallel_gridding' in kwargs.keys() and kwargs['parallel_gridding'] > s.maxProcs:
-            kwargs['parallel_gridding'] = s.maxProcs
+    if 'parallel_gridding' in kwargs.keys() and kwargs['parallel_gridding'] > s.maxWorkers:
+            kwargs['parallel_gridding'] = s.maxWorkers
 
     # set the tmp dir to speed up
     if use_shm and os.access('/dev/shm/', os.W_OK) and not 'temp_dir' in list(kwargs.keys()):
@@ -455,7 +321,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
         # Test without reorder as it apperas to be faster
         # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
         command_string = 'wsclean -predict -padding 1.8 ' \
-                         '-j '+str(s.maxProcs)+' '+' '.join(wsc_parms)
+                         '-j ' + str(s.maxWorkers) + ' ' + ' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean')
         s.run(check=True)
     if not keep_concat:
@@ -596,105 +462,165 @@ class Walker():
         delta = 'h '.join(str(datetime.datetime.now() - self.__globaltimeinit__).split(':')[:-1])+'m'
         logger.info('Done. Total time: '+delta)
 
+
+def _run_cmd(cmd, log_path=None, timeout=None, env=None):
+    """
+    Run a shell command, tee to log file, return (returncode, walltime_s).
+    """
+    t0 = time.time()
+    # Ensure parent dirs for logs exist
+    if log_path:
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+
+    # Open log and stream stdout/stderr
+    with open(log_path, "a" if log_path else os.devnull) as logf:
+        # Start in a process group so we can kill children if timeout
+        with subprocess.Popen(cmd, shell=True, stdout=logf, stderr=logf,
+                              preexec_fn=os.setsid, env=env) as p:
+            try:
+                p.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                # Kill the whole process group
+                os.killpg(os.getpgid(p.pid), signal.SIGKILL)
+                return (124, time.time() - t0)   # 124 like GNU timeout
+    return (p.returncode, time.time() - t0)
+
+
 class Scheduler():
-    def __init__(self, maxProcs = None, max_cpucores = None, log_dir = 'logs', dry = False):
+    def __init__(self, backend=None, max_workers=None, max_cpucores_per_node=None, slurm_max_walltime='24:00:00',
+                 log_dir = 'logs', dry = False):
         """
-        maxProcs:       max number of parallel processes
+        TODO max walltime
+        TODO max_workers autoset?
+        backend: string, backend used to launch jobs. 'local' and 'slurm' are supported
+        maxWorkers:       max number of parallel processes (either on local node or on slurm cluster)
         max_cpucores:   max number of cpu cores usable in a node
         dry:            don't schedule job
         """
+        self.backend = backend.lower()
         self.hostname = socket.gethostname()
         self.cluster = self.get_cluster()
         self.log_dir = log_dir
-        #self.qsub    = qsub
-        # if qsub/max_thread/max_cpucores not set, guess from the cluster
-        # if they are set, double check number are reasonable
-        #if (self.qsub == None):
-        #    self.qsub = False
-        #else:
-        #    if ((self.qsub is False and self.cluster == "Hamburg") or
-        #       (self.qsub is True and (self.cluster == "Leiden" or self.cluster == "CEP3" or
-        #                               self.cluster == "Hamburg_fat" or self.cluster == "Pleiadi" or self.cluster == "Herts"))):
-        #        logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
-        #        sys.exit(1)
 
-        if (max_cpucores == None):
-            # check if running in a slurm environment with a limited number of CPUs (less than cpu_count())
-            slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE', False)
-            if slurm_cpus:
-                self.max_cpucores = int(slurm_cpus)
-            else:
-                self.max_cpucores = multiprocessing.cpu_count()
-        else:
-            self.max_cpucores = max_cpucores
+        # automatically set max cpucores if not set manually
+        if max_cpucores_per_node:
+            self.max_cpucores_per_node = int(max_cpucores_per_node)
+        elif max_cpucores_per_node is None:
+            if backend == 'local':
+                self.max_cpucores_per_node = multiprocessing.cpu_count()
+            elif backend == 'slurm':
+                slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE')
+                if slurm_cpus:
+                    self.max_cpucores_per_node = int(slurm_cpus)
+                else:
+                    logger.warning('Neither max_cpucores_per_node nor $SLURM_CPUS_ON_NODE defined - guessing cpus per node.')
+                    self.max_cpucores_per_node = multiprocessing.cpu_count()
 
-        if (maxProcs is None) or (maxProcs > self.max_cpucores):
-            self.maxProcs = self.max_cpucores
+        # automatically set maxWorkers if not manually set
+        if max_workers is None:
+            logger.warn(f'max_workers not set - what to do in this case?')
+            self.max_workers = 1
         else:
-            self.maxProcs = maxProcs
+            self.max_workers = int(max_workers)
 
         self.dry = dry
 
-        logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname +
-                    " (maxProcs: " + str(self.maxProcs) + ", max_cpucores: " + str(self.max_cpucores) + ").")
+        logger.info(f'Scheduler initialised  for cluster {self.cluster}:{self.hostname} using {backend} backend \
+                     (maxProcs: {self.max_workers}, max_cpucores_per_node: {self.max_cpucores_per_node})')
 
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
 
+        if backend == "slurm":
+            # sensible defaults; override with slurm_opts
+            # memory - is it total or per job?
+            so = {'queue': 'batch', 'cores': self.max_cpucores_per_node, 'memory': f'{8*self.max_cpucores_per_node}GB',
+                  'walltime': slurm_max_walltime} # cores, processes
+            self._cluster = SLURMCluster(**so)
+            # Test if we want adaptive scaling if you like
+            self._cluster.adapt(minimum=1, maximum=max_workers)
+            self._client = Client(self._cluster)
 
-    def get_cluster(self):
+
+    def add(self, cmd='', log='', commandType='general', threads=1, mem=None, time='00:30:00', timeout=None, env=None):
         """
-        Find in which computing cluster the pipeline is running
+        Add a command with optional resources (mapped to SLURM/Dask).
         """
-        hostname = self.hostname
-        if (hostname == 'lgc1' or hostname == 'lgc2'):
-            return "Hamburg"
-        elif ('r' == hostname[0] and 'c' == hostname[3] and 's' == hostname[6]):
-            return "Pleiadi"
-        elif ('node3' in hostname):
-            return "Hamburg_fat"
-        elif ('node' in hostname):
-            return "Herts"
-        elif ('leidenuniv' in hostname):
-            return "Leiden"
-        elif ('spider' in hostname):
-            return "Spider"
+        if mem is None:
+            mem =threads
+        log_path = os.path.join(self.log_dir, log) if log else ''
+        if log:
+            # Truncate the log on first write
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            open(log_path, 'w').close()
+            self.log_list.append((log_path, commandType))
+
+        if commandType in ['wsclean', 'DP3', 'python']:
+            logger.debug(f'Running {commandType}: {cmd}')
         else:
-            logger.debug('Hostname %s unknown.' % hostname)
-            return "Unknown"
+            logger.debug(f'Running general: {cmd}')
 
+        self.action_list.append(dict(
+            cmd=cmd, log=log_path, commandType=commandType,
+            threads=threads, mem=mem, time=time, timeout=timeout, env=env
+        ))
 
-    def add(self, cmd = '', log = '', logAppend = True, commandType = ''):
-        """
-        Add a command to the scheduler list
-        cmd:         the command to run
-        log:         log file name that can be checked at the end
-        logAppend:   if True append, otherwise replace
-        commandType: can be a list of known command types as "wsclean", "DP3", ...
-        """
+    def run(self, check=False, maxProcs=None):
+        if self.dry:
+            return
+        maxProcs_run = self.maxProcs if maxProcs is None else min(maxProcs, self.maxProcs)
 
-        if (log != ''):
-            log = self.log_dir + '/' + log
+        if self.backend == "dask-slurm":
+            futures = []
+            for a in self.action_list:
+                # Hint Dask/SLURM about resources via worker restrictions
+                # Simple pattern: match by threads; on SLURMCluster, 'cores' controls worker capacity.
+                fut = self._client.submit(
+                    _run_cmd, a['cmd'], a['log'], a['timeout'], a['env'],
+                    resources=None, pure=False
+                )
+                futures.append((fut, a))
+            # Gather and raise on failure
+            for fut, a in as_completed([f for f, _ in futures], with_results=True):
+                rc, wall = fut.result()
+                if rc != 0:
+                    tail = ''
+                    if a['log'] and os.path.exists(a['log']):
+                        tail = subprocess.check_output(f'tail -n 40 {shlex.quote(a["log"])}', shell=True).decode()
+                    raise RuntimeError(f"Command failed (rc={rc}): {a['cmd']}\nLog: {a['log']}\n{tail}")
 
-            if (logAppend):
-                cmd += " >> "
-            else:
-                cmd += " > "
-            cmd += log + " 2>&1"
-
-        if commandType == 'wsclean':
-            logger.debug('Running wsclean: %s' % cmd)
-        elif commandType == 'DP3':
-            logger.debug('Running DP3: %s' % cmd)
-        #elif commandType == 'singularity':
-        #    cmd = 'SINGULARITY_TMPDIR=/dev/shm singularity exec -B /tmp,/dev/shm,/localwork,/localwork.ssd,/home /home/fdg/node31/opt/src/lofar_sksp_ddf.simg ' + cmd
-        #    logger.debug('Running singularity: %s' % cmd)
-        elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
-            logger.debug('Running DDFacet: %s' % cmd)
-        elif commandType == 'python':
-            logger.debug('Running python: %s' % cmd)
         else:
-            logger.debug('Running general: %s' % cmd)
+            # local thread pool (your existing behavior)
+            from queue import Queue
+            from threading import Thread
+            q = Queue()
+
+            def worker():
+                for item in iter(q.get, None):
+                    cmd, log, timeout, env = item['cmd'], item['log'], item['timeout'], item['env']
+                    gc.collect()
+                    rc, wall = _run_cmd(cmd, log, timeout, env)
+                    if rc != 0:
+                        tail = ''
+                        if log and os.path.exists(log):
+                            tail = subprocess.check_output(f'tail -n 40 {shlex.quote(log)}', shell=True).decode()
+                        raise RuntimeError(f"Command failed (rc={rc}): {cmd}\nLog: {log}\n{tail}")
+                    q.task_done()
+
+            threads = [Thread(target=worker, daemon=True) for _ in range(maxProcs_run)]
+            for t in threads: t.start()
+            for a in self.action_list:
+                q.put_nowait(a)
+            q.join()
+            for _ in threads: q.put(None)
+            for t in threads: t.join()
+
+        if check:
+            for log, ctype in self.log_list:
+                self.check_run(log, ctype)
+
+        self.action_list.clear()
+        self.log_list.clear()
 
         #if self.qsub:
         #    if qsub_cpucores == 'max':
@@ -732,9 +658,9 @@ class Scheduler():
 
         # limit number of processes
         if (maxProcs == None):
-            maxProcs_run = self.maxProcs
+            maxProcs_run = self.maxWorkers
         else:
-            maxProcs_run = min(maxProcs, self.maxProcs)
+            maxProcs_run = min(maxProcs, self.maxWorkers)
 
         q       = Queue()
         threads = [Thread(target = worker, args=(q,)) for _ in range(maxProcs_run)]
@@ -795,16 +721,6 @@ class Scheduler():
             out += subprocess.check_output(r'grep -l "(core dumped)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             # out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
-        elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
-            out = subprocess.check_output(r'grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "exception occur" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" ' + log + ' ; exit 0', shell=True,
-                                           stderr=subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "killed by signal" ' + log + ' ; exit 0', shell=True,
-                                           stderr=subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "Aborted" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
-
         elif (commandType == "python"):
             out = subprocess.check_output(r'grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
@@ -815,10 +731,6 @@ class Scheduler():
             out += subprocess.check_output(r'grep -l "Traceback (most recent call last)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -l "Permission denied" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
-#        elif (commandType == "singularity"):
-#            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-#            out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-#            out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "general"):
             out = subprocess.check_output('grep -l -i "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
@@ -834,6 +746,29 @@ class Scheduler():
             raise RuntimeError(commandType+' run problem on:\n'+out+'\n'+errlines)
 
         return 0
+
+
+    def get_cluster(self):
+        """
+        TODO required?
+        Find in which computing cluster the pipeline is running
+        """
+        hostname = self.hostname
+        if (hostname == 'lgc1' or hostname == 'lgc2'):
+            return "Hamburg"
+        elif ('r' == hostname[0] and 'c' == hostname[3] and 's' == hostname[6]):
+            return "Pleiadi"
+        elif ('node3' in hostname):
+            return "Hamburg_fat"
+        elif ('node' in hostname):
+            return "Herts"
+        elif ('leidenuniv' in hostname):
+            return "Leiden"
+        elif ('spider' in hostname):
+            return "Spider"
+        else:
+            logger.debug('Hostname %s unknown.' % hostname)
+            return "Unknown"
 
 def get_template_image(reference_ra_deg, reference_dec_deg, ximsize=512, yimsize=512, cellsize_deg=0.000417, fill_val=0):
     """
