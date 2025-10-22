@@ -209,40 +209,6 @@ def point_h5dirs_to_skymodel(h5, skymodel):
         direction = patches[dirname]
         repoint_h5dir(h5, dirname, direction)
 
-#def point_h5dirs_to_skymodel(h5, skymodel):
-#    # TODO simplify this function and use repoint_h5dir function within
-#    """
-#    Change the [ra,dec] of h5parm directions
-#    Parameters
-#    ----------
-#    h5: input file
-#    skymodel: skymodel from which we take patch names and dirs
-#    """
-#    h5 = h5parm(h5, readonly=False)
-#    ss = h5.getSolset('sol000')
-#    sourceTable = ss.obj.source
-#    skymodel = lsmtool.load(skymodel)
-#    patches = skymodel.getPatchPositions()
-#    dirnames = patches.keys()
-#
-#    # check which of the directions to rename is in solset
-#    for dirname in dirnames:
-#        direction = patches[dirname]
-#        # iterate sourcetable
-#        repointed = False
-#        for i, (dirname_ss, direction_ss) in enumerate(sourceTable[:]):
-#            if str(dirname_ss, 'utf-8') == f'[{dirname}]': # convert bytestring
-#                ra, dec = direction[0].rad, direction[1].rad
-#                if ra > np.pi:
-#                    ra -= 2*np.pi  # map to -pi, pi
-#                logger.info(f'Repointing dir {dirname} {direction_ss} -> {[ra, dec]}')
-#                sourceTable[i] = (sourceTable[i][0], np.array([ra, dec]))
-#                repointed = True
-#
-#        if not repointed:
-#            raise ValueError(f'{dirname} not found in solset! Available directions: {",".join(ss.getSou().keys())}.')
-#    h5.close()
-
 def get_closest_dir(h5, dir):
     """
 

@@ -672,7 +672,7 @@ for cmaj in range(maxIter):
             # if in cdd01 and cdd02 (before using amps) noise and mm ratio are worse or noise is a lot higher -> go back to previous ph_solint and restore current best model...
             # TODO technically if the cycle after we continue is converged, we would use the skipped cycle solutions since those are the "-2" ones... Fix that somehow.
             elif (cdd in [1,2,3]) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
-                if (512/dir_timeint) < (2*solint_ph): 
+                if (512/dir_timeint) < (2*solint_ph):
                     logger.warning(f'Too many failed attempt, solint_ph too long, giving up this direction.')
                     break
                 logger.warning(f'Image quality decreased after cdd{cdd}. Restore previous iteration ph_solint and model...')
@@ -686,10 +686,7 @@ for cmaj in range(maxIter):
                     MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("pre")}-sources.txt',   log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
                 continue
             # if noise incresed and mm ratio decreased - or noise increased a lot!
-            elif (cdd >= 4) and ((rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre) or rms_noise > 1.2*rms_noise_pre):
-                # if (mm_ratio < 10 and cdd >= 2) or \
-                # (mm_ratio < 20 and cdd >= 3) or \
-                # (cdd >= 4):
+            elif (cdd >= 4) and ((rms_noise > 1.01*rms_noise_pre and mm_ratio < 0.99*mm_ratio_pre) or rms_noise > 1.05*rms_noise_pre):
                 logger.debug('BREAK ddcal self cycle with noise: %f (noise_pre: %f) - mmratio: %f (mmratio_pre: %f)' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
                 break
 
@@ -954,7 +951,7 @@ for cmaj in range(maxIter):
         s.run(check=True)
 
         # non-circ beam at low dec
-        if phase_center[1] < 23:
+        if phase_center[1] < 23 or True: # This has to be fixed before LoDeSS TODO TODO TODO
             logger.info(f'Low-declination observation ({phase_center[1]}deg). Use non-circular PSF')
             beam_kwargs = {}
         else:
@@ -972,12 +969,12 @@ for cmaj in range(maxIter):
         logger.info('Cleaning...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA',
                 size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
-                parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
+                parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=30, mgain=0.75, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                 save_source_list='', no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
                 apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75,
-                concat_mss=True, use_shm=use_shm, **beam_kwargs)
+                concat_mss=True, use_shm=use_shm, keep_concat=True, **beam_kwargs)
  
         os.system(f'mv {imagename}*MFS-image*fits {imagename}*MFS-model*fits {imagename}*MFS-residual*fits {imagename}*MFS-psf*fits \
                   {imagename}-0*image*fits {imagename}-0*model*fits ddserial/c{cmaj:02}/images')
