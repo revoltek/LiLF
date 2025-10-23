@@ -9,8 +9,7 @@ from queue import Queue
 import pyregion
 from astropy.io import fits
 import gc
-from dask_jobqueue import SLURMCluster
-from dask.distributed import Client, as_completed
+import submitit
 import subprocess, os, time, shlex, signal, gc
 
 # remove some annoying warnings from astropy
@@ -463,36 +462,23 @@ class Walker():
         logger.info('Done. Total time: '+delta)
 
 
-def _run_cmd(cmd):
+def _run_cmd_submitit(cmd, log_path=None):
+    """
+    Worker function run on the SLURM node (via submitit).
+    """
+    import time
+    start = time.time()
+    rc = 0
+
     try:
-        os.system(cmd)
-        return 0, 0.0
+        with open(log_path, "w") if log_path else open(os.devnull, "w") as logf:
+            rc = subprocess.call(cmd, shell=True, stdout=logf, stderr=subprocess.STDOUT)
     except Exception as e:
-        logger.error(f"Error occurred while running command: {cmd}\n{e}")
-        return 1, 0.0
+        logger.error(f"Command failed: {cmd}\nError: {e}")
+        rc = 1
+    wall = time.time() - start
+    return rc, wall
 
-def _run_cmd_gpt(cmd, log_path=None, timeout=None):
-    # ChatGPT
-    """
-    Run a shell command, tee to log file, return (returncode, walltime_s).
-    """
-    t0 = time.time()
-    # Ensure parent dirs for logs exist
-    if log_path:
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
-
-    # Open log and stream stdout/stderr
-    with open(log_path, "a" if log_path else os.devnull) as logf:
-        # Start in a process group so we can kill children if timeout
-        with subprocess.Popen(cmd, shell=True, stdout=logf, stderr=logf,
-                              preexec_fn=os.setsid) as p:
-            try:
-                p.wait(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                # Kill the whole process group
-                os.killpg(os.getpgid(p.pid), signal.SIGKILL)
-                return (124, time.time() - t0)   # 124 like GNU timeout
-    return (p.returncode, time.time() - t0)
 
 def get_slurm_max_walltime():
     # ChatGPT
@@ -569,58 +555,33 @@ class Scheduler():
             self.slurm_max_jobs = int(slurm_max_jobs)
 
         self.dry = dry
-
-
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
-        self.futures     = []
 
         if self.backend == "slurm":
-            # sensible defaults; override with slurm_opts
             LILFDIR = os.path.realpath(__file__).split('LiLF')[0] + 'LiLF'
             # We mount only the parent directory of the current working directory
-            singularity_command = f"singularity exec --cleanenv --pwd {os.getcwd()} \
+            self.singularity_preamble = f"singularity exec --cleanenv --pwd {os.getcwd()} \
                 --env PYTHONPATH=\$PYTHONPATH:{LILFDIR},PATH=\$PATH:{LILFDIR}/scripts/ --pid \
-                --writable-tmpfs -B{os.path.dirname(os.getcwd())} {container_path}"
-            self.slurm_max_walltime = slurm_max_walltime if slurm_max_walltime else get_slurm_max_walltime()[1],  # auto-find max walltime if not set
+                --writable-tmpfs -B{os.path.dirname(os.getcwd())} {container_path} "
+            # sensible defaults; override with slurm_opts
 
-            so = {
-                    'cores': 16, # We use 1 job per worker, so this is the CPUs per job -> maps to --cpus-per-taks
-                    'memory': f'{16*self.max_cpus_per_node}GB', # We use 1 job per worker, so this is the memory per job
-                    'walltime': self.slurm_max_walltime,
-                    'python': 'python',
-                    'processes': 1, # (I think) this forces the 1 job per worker
-                    'log_directory': self.log_dir,
-                    'worker_extra_args' : ['--nthreads', '1'], # this forces one job at a time?
-                    # 'job_extra': ['--cpus-per-task=16',  f'--mem-per-cpu={slurm_mem_per_cpu}'],
-                    'job_script_prologue': [
-                        "unset PYTHONPATH",
-                        "unset PYTHONHOME",
-                        "unset LD_LIBRARY_PATH",
-                        f"{singularity_command} \\"
-                    ]
-                }
-            
+            slurm_max_walltime = slurm_max_walltime if slurm_max_walltime else get_slurm_max_walltime()[1],  # auto-find max walltime if not set
+
+            self.executor = submitit.AutoExecutor(folder=self.log_dir)
+            self.executor.update_parameters(
+                mem_gb=(int(slurm_mem_per_cpu.replace('GB', '')) * self.max_cpus_per_node),
+                cpus_per_task=max_cpus_per_node, slurm_array_parallelism=slurm_max_jobs,
+                timeout_min=self._parse_time_to_min(slurm_max_walltime))
+
             if self.cluster == "Herts":
-                so.update({'shebang': '#!/bin/tcsh'})
-                so.update({'queue': 'core32'})
-            else: 
+                self.executor.update_parameters(queue = 'core32')
+            else:
                 logger.warning(f'Slurm cluster {self.cluster} not specifically supported, trying generic settings.')
                 
-            self._cluster = SLURMCluster(**so)
-            # Test if we want adaptive scaling if you like
-            self._cluster.adapt(minimum=1, maximum=slurm_max_jobs)
-            print('Scale cluster')
-            # self._cluster.scale(slurm_max_jobs)
-            self._client = Client(self._cluster)
-            print('created clients')
-
-            logger.debug(f"Dask SLURM cluster script:\n{self._cluster.job_script()}")
-
-        if backend == 'slurm':
             logger.info(f'SLURM scheduler initialised  for cluster {self.cluster}:{self.hostname} '
                         f'(slurm_max_jobs: {self.slurm_max_jobs}, max_cpus_per_node: {self.max_cpus_per_node}, '
-                        f'slurm_max_walltime: {self.slurm_max_walltime[0]}, slurm_mem_per_cpu: {slurm_mem_per_cpu})')
+                        f'slurm_max_walltime: {slurm_max_walltime}, slurm_mem_per_cpu: {slurm_mem_per_cpu})')
         else:
             logger.info(f'Local scheduler initialised  for cluster {self.cluster}:{self.hostname} \
                          (max_cpucores_per_node: {self.max_cpus_per_node})')
@@ -642,32 +603,26 @@ class Scheduler():
         else:
             logger.debug(f'Running general: {cmd}')
             
-
         action = dict(cmd=cmd, log=log_path, commandType=commandType, threads=1, mem=mem, time=time, timeout=timeout)
         self.action_list.append(action)
 
-        if self.backend == "slurm":
-            fut = self._client.submit(_run_cmd_gpt, cmd, log_path, timeout, resources=None, pure=False)
-            self.futures.append(fut)
 
     def run(self, check=False, maxProcs=None):
         if self.dry:
             return
 
         if self.backend == "slurm":
-            # Gather and raise on failure
-            for fut, result in as_completed(self.futures, with_results=True):
-                rc, wall = result
-                print(rc, wall)
-                # print('action', action)
-                # if rc != 0:
-                #     tail = ''
-                    # if action['log'] and os.path.exists(action['log']):
-                    #     tail = subprocess.check_output(f'tail -n 40 {shlex.quote(action["log"])}', shell=True).decode()
-                    # raise RuntimeError(f"Command failed (rc={rc}): {action['cmd']}\nLog: {action['log']}\n{tail}")
-                
-            self.futures.clear()
-
+            # with self.executor.batch():
+            #     for action in self.action_list:
+            #         if action["mem"]:
+            #             self.executor.update_parameters(mem_gb = int(action["mem"].replace('GB', '')))
+            #         if action["time"]:
+            #             self.executor.update_parameters(walltime = self._parse_time_to_min(action["time"]))
+            #         if action["time"]:
+            #             self.executor.update_parameters(cpus_per_task=1)
+            jobs = self.executor.map_array(_run_cmd_submitit, [[self.singularity_preamble+action['cmd'], action['log']] for action in self.action_list])
+            outputs = [job.result() for job in jobs]
+            print(outputs)
         else:
             # local/single-node processing
             from queue import Queue
