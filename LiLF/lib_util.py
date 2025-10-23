@@ -564,13 +564,6 @@ class Scheduler():
 
         self.dry = dry
 
-        if backend == 'slurm':
-            logger.info(f'SLURM scheduler initialised  for cluster {self.cluster}:{self.hostname} \
-                         (slurm_max_jobs: {self.slurm_max_jobs}, max_cpus_per_node: {self.max_cpus_per_node}, \
-                         slurm_max_walltime: {slurm_max_walltime}, slurm_mem_per_cpu: {slurm_mem_per_cpu})')
-        else:
-            logger.info(f'Local scheduler initialised  for cluster {self.cluster}:{self.hostname} \
-                         (max_cpucores_per_node: {self.max_cpus_per_node})')
 
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
@@ -583,11 +576,12 @@ class Scheduler():
             singularity_command = f"singularity exec --cleanenv --pwd {os.getcwd()} \
                 --env PYTHONPATH=$PYTHONPATH:{LILFDIR},PATH=$PATH:{LILFDIR}/scripts/ --pid \
                 --writable-tmpfs -B{os.path.dirname(os.getcwd())} {container_path}"
+            self.slurm_max_walltime = slurm_max_walltime if slurm_max_walltime else get_slurm_max_walltime()[1],  # auto-find max walltime if not set
 
             so = {
                     'cores': min(self.max_cpus_per_node, 32),
                     'memory': f'{8*self.max_cpus_per_node}GB',
-                    'walltime': slurm_max_walltime if slurm_max_walltime else get_slurm_max_walltime()[1], # auto-find max walltime if not set
+                    'walltime': self.slurm_max_walltime,
                     'python': 'python',
                     'log_directory': self.log_dir,
                     'job_script_prologue': [
@@ -611,6 +605,13 @@ class Scheduler():
             
             logger.debug(f"Dask SLURM cluster script:\n{self._cluster.job_script()}")
 
+        if backend == 'slurm':
+            logger.info(f'SLURM scheduler initialised  for cluster {self.cluster}:{self.hostname} \
+                         (slurm_max_jobs: {self.slurm_max_jobs}, max_cpus_per_node: {self.max_cpus_per_node}, \
+                         slurm_max_walltime: {self.slurm_max_walltime}, slurm_mem_per_cpu: {slurm_mem_per_cpu})')
+        else:
+            logger.info(f'Local scheduler initialised  for cluster {self.cluster}:{self.hostname} \
+                         (max_cpucores_per_node: {self.max_cpus_per_node})')
 
     def add(self, cmd='', log='', commandType='general', threads=1, mem=None, time='00:30:00', timeout=None):
         """
@@ -645,7 +646,7 @@ class Scheduler():
     def run(self, check=False, maxProcs=None):
         if self.dry:
             return
-        maxProcs_run = self.maxProcs if maxProcs is None else min(maxProcs, self.maxProcs)
+        maxProcs_run = maxProcs
 
         if self.backend == "slurm":
             # Gather and raise on failure
