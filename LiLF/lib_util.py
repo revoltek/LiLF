@@ -526,7 +526,7 @@ def get_slurm_max_walltime():
 
 
 class Scheduler():
-    def __init__(self, backend=None, max_jobs=None, max_cpucores_per_node=None, slurm_max_walltime='24:00:00',
+    def __init__(self, backend='slurm', slurm_max_jobs=244, max_cpucores_per_node=None, slurm_max_walltime='24:00:00',
                  log_dir = 'logs', dry = False, container_path=''):
         """
         TODO max walltime
@@ -556,11 +556,11 @@ class Scheduler():
                     self.max_cpucores_per_node = multiprocessing.cpu_count()
 
         # automatically set maxJobs if not manually set
-        if max_jobs is None:
+        if slurm_max_jobs is None:
             logger.warn(f'max_jobs not set - what to do in this case?')
             self.max_jobs = 1
         else:
-            self.max_jobs = int(max_jobs)
+            self.max_jobs = int(slurm_max_jobs)
 
         self.dry = dry
 
@@ -604,7 +604,7 @@ class Scheduler():
                 
             self._cluster = SLURMCluster(**so)
             # Test if we want adaptive scaling if you like
-            self._cluster.adapt(minimum=1, maximum=max_jobs)
+            self._cluster.adapt(minimum=1, maximum=slurm_max_jobs)
             self._client = Client(self._cluster)
             
             logger.debug(f"Dask SLURM cluster script:\n{self._cluster.job_script()}")
@@ -707,52 +707,6 @@ class Scheduler():
 
         if (log != ""):
             self.log_list.append((log, commandType))
-
-
-    def run(self, check = False, maxProcs = None):
-        """
-        If 'check' is True, a check is done on every log in 'self.log_list'.
-        If max_thread != None, then it overrides the global values, useful for special commands that need a lower number of threads.
-        """
-
-        def worker(queue):
-            for cmd in iter(queue.get, None):
-                #if self.qsub and self.cluster == "Hamburg":
-                #    cmd = 'salloc --job-name LBApipe --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
-                #            ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
-                gc.collect()
-                subprocess.call(cmd, shell = True)
-
-        # limit number of processes
-        if (maxProcs == None):
-            maxProcs_run = self.maxWorkers
-        else:
-            maxProcs_run = min(maxProcs, self.maxWorkers)
-
-        q       = Queue()
-        threads = [Thread(target = worker, args=(q,)) for _ in range(maxProcs_run)]
-
-        for i, t in enumerate(threads): # start workers
-            t.daemon = True
-            t.start()
-
-        for action in self.action_list:
-            if (self.dry):
-                continue # don't schedule if dry run
-            q.put_nowait(action)
-        for _ in threads:
-            q.put(None) # signal no more commands
-        for t in threads:
-            t.join()
-
-        # check outcomes on logs
-        if (check):
-            for log, commandType in self.log_list:
-                self.check_run(log, commandType)
-
-        # reset list of commands
-        self.action_list = []
-        self.log_list    = []
 
 
     def check_run(self, log = "", commandType = ""):
