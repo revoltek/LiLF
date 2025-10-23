@@ -710,7 +710,7 @@ for cmaj in range(maxIter):
 
         # End calibration cycle
         ##################################
-
+        
         if use_shm:
             # use shared memory for DP3
             lib_util.check_rm('/dev/shm/mss-dir')
