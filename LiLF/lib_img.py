@@ -52,7 +52,7 @@ class Image(object):
             if units is None:
                 units = prhd.get('UNIT')
             if units != 'JY/BEAM' and units != 'Jy/beam':
-                print('Warning: units are', units, 'but code expects JY/BEAM')
+                logger.warning('Units are', units, 'but code expects JY/BEAM')
             bmaj = prhd.get('BMAJ')
             bmin = prhd.get('BMIN')
 
@@ -63,7 +63,7 @@ class Image(object):
             cd1 = -w.wcs.cdelt[0]
             cd2 = w.wcs.cdelt[1]
             if ((cd1 - cd2) / cd1) > 1.0001 and ((bmaj - bmin) / bmin) > 1.0001:
-                print('Pixels are not square (%g, %g) and beam is elliptical' % (cd1, cd2))
+                logger.warning('Pixels are not square (%g, %g) and beam is elliptical' % (cd1, cd2))
 
             bmaj /= cd1
             bmin /= cd2
@@ -332,7 +332,7 @@ class Image(object):
             from astropy.visualization.wcsaxes import add_beam
             add_beam(ax, header=head, frame=False) 
         except Exception as e:
-            print(f"Cannot plot beam on image, failed with error: {e}. Skipping.")
+            logger.error(f"Cannot plot beam on image, failed with error: {e}. Skipping.")
 
         cbar = plt.colorbar(img, shrink=0.8)
         cbar.set_label('Flux density (mJy beam$^{-1}$)')
@@ -346,7 +346,7 @@ class Image(object):
                     reg = ds9region.to_pixel(self.getWCS())
                     reg.plot(ax=ax, alpha=regionalpha, lw=0.2)
         except Exception as e:
-            print(f"Cannot overplot facets, failed with error: {e}. Skipping.")
+            logger.error(f"Cannot overplot facets, failed with error: {e}. Skipping.")
         
         #if os.path.isfile(outplotname + '.png'):
         #    os.system('rm -f ' + outplotname + '.png')
@@ -514,45 +514,3 @@ def blank_image_reg(filename, region, outfile = None, inverse = False, blankval 
 
     logger.debug("%s: Blanking (%s): sum of values: %f -> %f" % (filename, region, sum_before, np.sum(data)))
 
-def make_fits(filename, shape, fill_value=1):
-    """
-    Create a fits file
-    """
-    data = np.full(shape=shape, fill_value=fill_value)
-    hdu = pyfits.PrimaryHDU(data)
-    hdul = pyfits.HDUList([hdu])
-    hdul.writeto(filename, overwrite=True)
-
-
-def regrid(image_in, header_from, image_out):
-    """
-    Regrid 'image_in' to the header of 'header_from' and write it in 'image_out'
-    """
-    from astropy.io import fits
-    from reproject import reproject_interp, reproject_exact
-    reproj = reproject_exact
-
-    # get input and header for regridding
-    header_rep, data_rep = flatten(fits.open(header_from))
-    header_in, data_in = flatten(fits.open(image_in))
-
-    # do the regrid
-    logging.info('Regridding %s->%s' % (image_in, image_out))
-    data_out, footprint = reproj((data_in, header_in), header_rep, parallel=True)
-
-    # write output
-    header_rep =  fits.open(header_from)[0].header
-    hdu = fits.PrimaryHDU(header=header_rep, data=[[data_out]])
-    hdu.writeto(image_out, overwrite=True)
-
-def add_beam(imagefile, bmaj, bmin, bpa):
-    """
-    Add/change beam info to fits header
-    """
-    with pyfits.open(imagefile) as fits:
-        header = fits[0].header
-        header["BMAJ"] = bmaj
-        header["BMIN"] = bmin
-        header["BPA"] = bpa
-        fits[0].header = header
-        fits.writeto(imagefile, overwrite=True)

@@ -3,7 +3,7 @@
 
 # Pipeline for direction dependent calibration
 
-import sys, os, glob, pickle, collections, fileinput
+import sys, os, glob, pickle, collections, fileinput, tempfile
 import numpy as np
 from astropy.table import Table as astrotab
 from astropy.coordinates import SkyCoord
@@ -31,6 +31,7 @@ solve_amp = parset.getboolean('LOFAR_ddserial','solve_amp')
 manual_dd_cal = parset.get('LOFAR_ddserial','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
 develop = parset.getboolean('LOFAR_ddserial', 'develop') # for development, make more output/images
 use_shm = parset.getboolean('LOFAR_ddserial', 'use_shm') # use shared memory for wsclean
+use_shm_ddcal = parset.getboolean('LOFAR_ddserial', 'use_shm_ddcal') # use shared memory for ddcal
 userReg = parset.get('model','userReg')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=6.5):
@@ -454,11 +455,10 @@ for cmaj in range(maxIter):
 
             logger.info(f'Phase shift, apply phase of closest facet ({closest}) and avg...')
             lib_util.check_rm('mss-dir')
-            if use_shm:
+            if use_shm_ddcal and os.access('/dev/shm/', os.W_OK):
                 # use shared memory for direction
-                lib_util.check_rm('/dev/shm/mss-dir')
-                os.makedirs('/dev/shm/mss-dir')
-                os.system('ln -s /dev/shm/mss-dir mss-dir')
+                tmp_shm_dir = tempfile.mkdtemp(dir='/dev/shm')
+                os.system(f'ln -s {tmp_shm_dir} mss-dir')
             else:
                 os.makedirs('mss-dir')
 
@@ -672,7 +672,7 @@ for cmaj in range(maxIter):
             # if in cdd01 and cdd02 (before using amps) noise and mm ratio are worse or noise is a lot higher -> go back to previous ph_solint and restore current best model...
             # TODO technically if the cycle after we continue is converged, we would use the skipped cycle solutions since those are the "-2" ones... Fix that somehow.
             elif (cdd in [1,2,3]) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
-                if (512/dir_timeint) < (2*solint_ph): 
+                if (512/dir_timeint) < (2*solint_ph):
                     logger.warning(f'Too many failed attempt, solint_ph too long, giving up this direction.')
                     break
                 logger.warning(f'Image quality decreased after cdd{cdd}. Restore previous iteration ph_solint and model...')
@@ -686,10 +686,7 @@ for cmaj in range(maxIter):
                     MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("pre")}-sources.txt',   log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
                 continue
             # if noise incresed and mm ratio decreased - or noise increased a lot!
-            elif (cdd >= 4) and ((rms_noise > 0.99*rms_noise_pre and mm_ratio < 1.01*mm_ratio_pre) or rms_noise > 1.2*rms_noise_pre):
-                # if (mm_ratio < 10 and cdd >= 2) or \
-                # (mm_ratio < 20 and cdd >= 3) or \
-                # (cdd >= 4):
+            elif (cdd >= 4) and ((rms_noise > 1.01*rms_noise_pre and mm_ratio < 0.99*mm_ratio_pre) or rms_noise > 1.05*rms_noise_pre):
                 logger.debug('BREAK ddcal self cycle with noise: %f (noise_pre: %f) - mmratio: %f (mmratio_pre: %f)' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
                 break
 
@@ -710,10 +707,10 @@ for cmaj in range(maxIter):
 
         # End calibration cycle
         ##################################
-        
-        if use_shm:
+
+        if use_shm_ddcal and os.access('/dev/shm/', os.W_OK):
             # use shared memory for DP3
-            lib_util.check_rm('/dev/shm/mss-dir')
+            lib_util.check_rm(tmp_shm_dir)
 
         # if died the first cycle or diverged
         if cdd == 0 or ((rms_noise_pre >= d.rms_noise_init) and (mm_ratio_pre/2 < d.mm_ratio_init)):
@@ -1001,13 +998,15 @@ with w.if_todo('predict-final'):
 
 #Leakage calibration
 with w.if_todo('cal-leakage'):
-	logger.info('Leakage calibration (fulljones, solint: 30 min)...')
-	# Calibration - ms:CORRECTED_DATA
-	MSs.run('DP3 '+ parset_dir + f'/DP3-solGfj.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-leak.h5 \
-		sol.solint={int(MSs.getListObj()[0].getNtime()/2)} sol.nchan=1 sol.smoothnessconstraint=3e6',
-		log='$nameMS_sol_leak.log', commandType='DP3')
-	lib_util.run_losoto(s, 'leak', [ms+'/cal-leak.h5' for ms in MSs.getListStr()],
-                    [parset_dir+'/losoto-plot-fullj.parset'], plots_dir='ddserial/c00/plots/plots-leak', h5_dir = 'ddserial/c00/solutions')
+    logger.info('Leakage calibration (fulljones, solint: 30 min)...')
+    # Calibration - ms:CORRECTED_DATA
+    MSs.run('DP3 '+ parset_dir + f'/DP3-solGfj.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-leak.h5 \
+        sol.solint={int(MSs.getListObj()[0].getNtime()/2)} sol.nchan=1 sol.smoothnessconstraint=3e6',
+        log='$nameMS_sol_leak.log', commandType='DP3')
+    lib_util.run_losoto(s, 'leak', [ms+'/cal-leak.h5' for ms in MSs.getListStr()],
+                        [parset_dir+'/losoto-plot-fullj.parset'], plots_dir='ddserial/c00/plots/plots-leak', h5_dir = 'ddserial/c00/solutions')
+    for ms in MSs.getListStr():
+        lib_util.check_rm(ms + '/cal-leak.h5')  # remove the h5parm copied by losoto
 
 if not os.path.exists('mss-lres'):
     timeint = MSs.getListObj()[0].getTimeInt()
