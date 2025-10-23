@@ -93,7 +93,7 @@ class AllMSs(object):
         with a max parallel runs of maxProcs
         """
         NumMSs = len(self.mssListStr)
-        if self.scheduler.max_cpucores < NumMSs: 
+        if self.scheduler.max_cpucores < NumMSs:
             NThreads = 1
         else:
             if maxProcs != None:
@@ -165,7 +165,12 @@ class AllMSs(object):
         """
         # add max num of threads given the total jobs to run
         # e.g. in a 64 processors machine running on 16 MSs, would result in numthreads=4
-        if commandType == 'DP3': command += ' numthreads='+str(self.getNThreads(maxProcs))
+        # TODO we need to figure out how to set numthreads for the slurm case...
+        if commandType == 'DP3':
+            if self.scheduler.backend == 'slurm':
+                command += ' numthreads=16'
+            else:
+                command += ' numthreads='+str(self.getNThreads(maxProcs))
 
         for MSObject in self.mssListObj:
             commandCurrent = MSObject.concretiseString(command)

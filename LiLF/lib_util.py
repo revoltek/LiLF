@@ -531,8 +531,8 @@ def get_slurm_max_walltime():
 
 
 class Scheduler():
-    def __init__(self, backend=None, max_jobs=None, max_cpucores_per_node=None, slurm_max_walltime='24:00:00',
-                 log_dir = 'logs', dry = False, container_path=''):
+    def __init__(self, backend='slurm', slurm_max_jobs=244, max_cpus_per_node=None, slurm_max_walltime=None, slurm_mem_per_cpu='8GB',
+                 log_dir = 'logs', dry = False, container_path=None):
         """
         TODO max walltime
         TODO max_jobs autoset?
@@ -547,33 +547,38 @@ class Scheduler():
         self.log_dir = log_dir
 
         # automatically set max cpucores if not set manually
-        if max_cpucores_per_node:
-            self.max_cpucores_per_node = int(max_cpucores_per_node)
-        elif max_cpucores_per_node is None:
+        if max_cpus_per_node:
+            self.max_cpus_per_node = int(max_cpus_per_node)
+        elif max_cpus_per_node is None:
             if backend == 'local':
-                self.max_cpucores_per_node = multiprocessing.cpu_count()
+                self.max_cpus_per_node = multiprocessing.cpu_count()
             elif backend == 'slurm':
                 slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE')
                 if slurm_cpus:
-                    self.max_cpucores_per_node = int(slurm_cpus)
+                    self.max_cpus_per_node = int(slurm_cpus)
                 else:
                     logger.warning('Neither max_cpucores_per_node nor $SLURM_CPUS_ON_NODE defined - guessing cpus per node.')
-                    self.max_cpucores_per_node = multiprocessing.cpu_count()
+                    self.max_cpus_per_node = multiprocessing.cpu_count()
              
         # HARDCODED LIMIT FOR NOW            
         self.max_cpucores_per_node = 16
         
         # automatically set maxJobs if not manually set
-        if max_jobs is None:
+        if slurm_max_jobs is None:
             logger.warn(f'max_jobs not set - what to do in this case?')
-            self.max_jobs = 1
+            self.slurm_max_jobs = 1
         else:
-            self.max_jobs = int(max_jobs)
+            self.slurm_max_jobs = int(slurm_max_jobs)
 
         self.dry = dry
 
-        logger.info(f'Scheduler initialised  for cluster {self.cluster}:{self.hostname} using {backend} backend \
-                     (maxProcs: {self.max_jobs}, max_cpucores_per_node: {self.max_cpucores_per_node})')
+        if backend == 'slurm':
+            logger.info(f'SLURM scheduler initialised  for cluster {self.cluster}:{self.hostname} \
+                         (slurm_max_jobs: {self.slurm_max_jobs}, max_cpus_per_node: {self.max_cpus_per_node}, \
+                         slurm_max_walltime: {slurm_max_walltime}, slurm_mem_per_cpu: {slurm_mem_per_cpu})')
+        else:
+            logger.info(f'Local scheduler initialised  for cluster {self.cluster}:{self.hostname} \
+                         (max_cpucores_per_node: {self.max_cpus_per_node})')
 
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
@@ -581,19 +586,16 @@ class Scheduler():
 
         if self.backend == "slurm":
             # sensible defaults; override with slurm_opts
-            # memory - is it total or per job?
-            slurm_max_walltime = get_slurm_max_walltime()[1] 
             LILFDIR = os.path.realpath(__file__).split('LiLF')[0] + 'LiLF'
-            
-            # We mount only the directory above the current working directory
+            # We mount only the parent directory of the current working directory
             singularity_command = f"singularity exec --cleanenv --pwd {os.getcwd()} \
                 --env PYTHONPATH=\$PYTHONPATH:{LILFDIR},PATH=\$PATH:{LILFDIR}/scripts/ --pid \
                 --writable-tmpfs -B{os.path.dirname(os.getcwd())} {container_path}"
 
             so = {
-                    'cores': min(self.max_cpucores_per_node, 32),
-                    'memory': f'{8*self.max_cpucores_per_node}GB',
-                    'walltime': slurm_max_walltime,
+                    'cores': min(self.max_cpus_per_node, 32),
+                    'memory': f'{8*self.max_cpus_per_node}GB',
+                    'walltime': slurm_max_walltime if slurm_max_walltime else get_slurm_max_walltime()[1], # auto-find max walltime if not set
                     'python': 'python',
                     'log_directory': self.log_dir,
                     'job_script_prologue': [
@@ -612,7 +614,7 @@ class Scheduler():
                 
             self._cluster = SLURMCluster(**so)
             # Test if we want adaptive scaling if you like
-            self._cluster.adapt(minimum=1, maximum=max_jobs)
+            self._cluster.adapt(minimum=1, maximum=slurm_max_jobs)
             self._client = Client(self._cluster)
             
             logger.debug(f"Dask SLURM cluster script:\n{self._cluster.job_script()}")
@@ -721,52 +723,6 @@ class Scheduler():
 
         if (log != ""):
             self.log_list.append((log, commandType))
-
-
-    def run(self, check = False, maxProcs = None):
-        """
-        If 'check' is True, a check is done on every log in 'self.log_list'.
-        If max_thread != None, then it overrides the global values, useful for special commands that need a lower number of threads.
-        """
-
-        def worker(queue):
-            for cmd in iter(queue.get, None):
-                #if self.qsub and self.cluster == "Hamburg":
-                #    cmd = 'salloc --job-name LBApipe --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
-                #            ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
-                gc.collect()
-                subprocess.call(cmd, shell = True)
-
-        # limit number of processes
-        if (maxProcs == None):
-            maxProcs_run = self.maxWorkers
-        else:
-            maxProcs_run = min(maxProcs, self.maxWorkers)
-
-        q       = Queue()
-        threads = [Thread(target = worker, args=(q,)) for _ in range(maxProcs_run)]
-
-        for i, t in enumerate(threads): # start workers
-            t.daemon = True
-            t.start()
-
-        for action in self.action_list:
-            if (self.dry):
-                continue # don't schedule if dry run
-            q.put_nowait(action)
-        for _ in threads:
-            q.put(None) # signal no more commands
-        for t in threads:
-            t.join()
-
-        # check outcomes on logs
-        if (check):
-            for log, commandType in self.log_list:
-                self.check_run(log, commandType)
-
-        # reset list of commands
-        self.action_list = []
-        self.log_list    = []
 
 
     def check_run(self, log = "", commandType = ""):
