@@ -11,6 +11,8 @@ from losoto.h5parm import h5parm
 from pathlib import Path
 import warnings
 from astropy.cosmology import FlatLambdaCDM
+from astropy.coordinates import SkyCoord
+import astropy.units as u
 from LiLF import lib_ms, lib_img, lib_util, lib_log
 
 #####################################################
@@ -97,7 +99,20 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
             logger.info('Cleaning w/ mask (' + str(p) + ')...')
         else:
             logger.info('Cleaning (' + str(p) + ')...')
-        imagenameM = 'img/extractM-' + str(p)
+
+        if targetname:
+            imagenameM = f'img/{targetname}-' + str(p)
+        else:
+            sc = SkyCoord(ra=target_ra * u.deg, dec=target_dec * u.deg, frame='icrs')
+            total_ra_min = int(round(sc.ra.hour * 60.0))
+            ra_h = (total_ra_min // 60) % 24
+            ra_m = total_ra_min % 60
+            total_dec_arcmin = int(round(abs(sc.dec.degree) * 60.0))
+            dec_d = total_dec_arcmin // 60
+            dec_m = total_dec_arcmin % 60
+            sign = '+' if sc.dec.degree >= 0 else '-'
+            imagenameM = f'img/J{ra_h:02d}{ra_m:02d}{sign}{dec_d:02d}{dec_m:02d}'
+
         if apply_beam:
             imsize[0] = imsize[1]
             arg_dict['use_idg'] = ''
@@ -143,9 +158,8 @@ parser = argparse.ArgumentParser(description='Extraction of targets of interest 
 parser.add_argument('-p', '--path', dest='path', action='store', default='', type=str, help='Path where to look for observations.')
 parser.add_argument('-radec', '--radec', dest='radec', nargs=2, type=float, default=None, help='RA/DEC where to center the extraction in deg. Use if you wish to extract only one target.')
 parser.add_argument('--z', dest='redshift', type=float, default=-99, help='Redshift of the target. Not necessary unless one wants to perform compact source subtraction.')
-parser.add_argument('--name', dest='name', type=str, default='target_extracted', help='Name of the target. Will be used to create the directory containing the extracted data.')
+parser.add_argument('--name', dest='name', type=str, default=None, help='Name of the target. Will be used to create the directory containing the extracted data.')
 parser.add_argument('--beamcut', dest='beamcut', type=float, default=0.3, help='Beam sensitivity threshold.')
-parser.add_argument('--ddcycle', dest='ddcycle', type=int, help='Output cycle of the DD calibration to start the extraction from. If not specified, start from latest cycle.')
 parser.add_argument('--noselfcal', dest='noselfcal', help='Do not perform selfcalibration.', action='store_true')
 parser.add_argument('--extreg', dest='extreg', action='store', default=None, type=str, help='Provide an extraction region.')
 parser.add_argument('--maskreg', dest='maskreg', action='store', default=None, type=str, help='Provide a user mask for cleaning.')
@@ -162,7 +176,6 @@ pathdir = args.path
 ztarget = args.redshift
 targetname = args.name
 beam_cut = args.beamcut
-ddcycle = args.ddcycle
 no_selfcal = args.noselfcal
 extractreg = args.extreg
 userReg = args.maskreg
@@ -172,6 +185,31 @@ phSolMode = args.phsol
 maxniter = args.maxniter
 subtract_reg_file = args.subreg
 use_idg = args.idg
+
+if not pathdir:
+    logger.error('Provide a path (-p) where to look for LBA observations.')
+    sys.exit()
+
+if coords is None:
+    logger.error('Provide RA and DEC (--radec) in deg where to shift the phase centre.')
+    sys.exit()
+
+target_ra = coords[0]
+target_dec = coords[1]
+
+target_defined = False
+if targetname:
+    target_defined = True
+else:
+    sc = SkyCoord(ra=target_ra * u.deg, dec=target_dec * u.deg, frame='icrs')
+    total_ra_min = int(round(sc.ra.hour * 60.0))
+    ra_h = (total_ra_min // 60) % 24
+    ra_m = total_ra_min % 60
+    total_dec_arcmin = int(round(abs(sc.dec.degree) * 60.0))
+    dec_d = total_dec_arcmin // 60
+    dec_m = total_dec_arcmin % 60
+    sign = '+' if sc.dec.degree >= 0 else '-'
+    targetname = f'J{ra_h:02d}{ra_m:02d}{sign}{dec_d:02d}{dec_m:02d}'
 
 if not os.path.exists(targetname):
     os.system(f'mkdir {targetname}')
@@ -187,13 +225,10 @@ cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_extract','parset_dir')
 
-if not pathdir:
-    logger.error('Provide a path (-p) where to look for LBA observations.')
-    sys.exit()
-
-if coords is None:
-    logger.error('Provide RA and DEC (--radec) in deg where to shift the phase centre.')
-    sys.exit()
+if target_defined == True:
+    logger.info(f'Target name: {targetname}')
+else:
+    logger.info(f'Target name not provided. Using coordinates to name the target: {targetname}')
 
 logger.info(f'Beam sensitivity cut: {beam_cut}')
 if no_selfcal:
@@ -215,9 +250,6 @@ if phSolMode not in ['tecandphase', 'phase']:
 if ampSolMode not in ['diagonal', 'fulljones']:
     logger.error('ampSolMode {} not supported. Choose diagonal, fulljones.')
     sys.exit()
-
-target_ra = coords[0]
-target_dec = coords[1]
 
 if userReg is not None:
     if not extreg:
@@ -246,13 +278,13 @@ if extractreg:
     print(target_reg_file)
     logger.info('Extraction region provided. No automatic region will be drawn...')
 else:
-    logger.info('Extraction region not set by the user. It will be created automatically...')
+    logger.info('Extraction region not set by the user. It will be created automatically.')
     target = lib_util.create_extregion(target_ra, target_dec, ext_region_extent)
-    if os.path.exists('target.reg'):
-        os.remove('target.reg')
-    with open('target.reg', 'w') as f:
+    if os.path.exists(f'{targetname}.reg'):
+        os.remove(f'{targetname}.reg')
+    with open(f'{targetname}.reg', 'w') as f:
         f.write(target)
-        target_reg_file = 'target.reg'
+        target_reg_file = f'{targetname}.reg'
 
 target_reg = lib_util.Region_helper(target_reg_file)
 center = target_reg.get_center() # center of the extract region
@@ -260,26 +292,18 @@ center = target_reg.get_center() # center of the extract region
 list_dirs = [_d for _d in Path(str(pathdir)).iterdir() if _d.is_dir()]
 tocheck = []
 for dir in list_dirs:
-    if dir/'ddserial' in dir.iterdir() and dir/'mss-avg' in dir.iterdir():
+    if (dir / 'wideDDS-c0-MFS-image-pb.fits').exists() and ((dir / 'interp.h5.gz').exists() or (dir / 'interp.h5').exists()):
         tocheck.append(dir)
+        if (dir/'interp.h5.gz').exists():
+            s.add(f'gunzip {dir}/interp.h5.gz')
+            s.run(check=True)
 close_pointings = []
 
 
 for pointing in tocheck:
-    #Pick latest DDcycle if not specified otherwise
-    if not ddcycle:
-        ddcal_dir = [d for d in os.listdir(f'{pointing}/ddserial') if os.path.isdir(os.path.join(f'{pointing}/ddserial', d)) and d.startswith('c')]
-        highest_ddcal = max(ddcal_dir, key=lambda x: int(x[1:]))
-        logger.info(f'Pointing {pointing}: using DD calibration cycle {highest_ddcal}.')
-    else:
-        if ddcycle == 1:
-            highest_ddcal = 'c00'
-        else:
-            highest_ddcal = 'c01'
-        logger.info(f'Using DD calibration cycle {highest_ddcal}.')
 
-    chout_max = len(glob.glob(f'{pointing}/ddserial/primarybeam.fits'))
-    with fits.open(f'{pointing}/ddserial/primarybeam.fits') as f:
+    chout_max = len(glob.glob(f'{pointing}/primarybeam.fits'))
+    with fits.open(f'{pointing}/primarybeam.fits') as f:
         header, data = lib_img.flatten(f)
         wcs = WCS(header)
         c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
@@ -332,20 +356,22 @@ with w.if_todo('cleaning'):
     os.makedirs('mss-extract/shiftavg')
 
     for i, p in enumerate(close_pointings):
-        os.makedirs('extract/init/'+p)
-        os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/images/wideDD-{highest_ddcal}-MFS-image-pb.fits extract/init/{p}')  # copy ddcal images
-        os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/images/wideDD-{highest_ddcal}-0*-model-fpb.fits extract/init/{p}')  # copy models
-        os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/solutions/interp.h5 extract/init/{p}')  # copy final dde sols
-        os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/solutions/facets-{highest_ddcal}.reg extract/init/{p}')  # copy facet file
+        os.makedirs('extract-files/init/'+p)
+        os.system(f'cp {str(pathdir)}/{p}/wideDDS-c0-MFS-image-pb.fits extract-files/init/{p}')  # copy ddcal images
+        os.system(f'cp {str(pathdir)}/{p}/wideDDS-c0-0*-model-fpb.fits extract-files/init/{p}')  # copy models
+        os.system(f'cp {str(pathdir)}/{p}/interp.h5 extract-files/init/{p}')  # copy final dde sols
+        os.system(f'cp {str(pathdir)}/{p}/facetsS-c0.reg extract-files/init/{p}')  # copy facet file
         lib_util.check_rm('mss-extract/'+p)
         if not os.path.exists('mss-extract/'+p):
-            logger.info('Copying MS of '+p+'...')
+            logger.info(f'Uncompressing .MS files of {p}...')
             os.makedirs('mss-extract/' + p)
-            os.system(f'cp -r {str(pathdir)}/{p}/mss-avg/* mss-extract/{p}')
+            tgz_file = Path(pathdir) / p / f'{p}.tgz'
+            if tgz_file.exists():
+                os.system(f'tar -xzf {tgz_file} -C mss-extract/{p}')
 
 if not extractreg:
     for p in close_pointings:
-        image_tocheck = f'extract/init/{p}/wideDD-{highest_ddcal}-MFS-image-pb.fits'
+        image_tocheck = f'extract-files/init/{p}/wideDDS-c0-MFS-image-pb.fits'
         flux_check = lib_img.Image(image_tocheck)
         reg_flux = flux_check.calc_flux(target_reg_file)
         flux_thresh = 5 #Jy. If flux is lower than this, the extent of the extraction region gets increased.
@@ -358,11 +384,11 @@ if not extractreg:
             if ext_region_extent < 0.75:
                 maxthreshold = False
                 target = lib_util.create_extregion(target_ra, target_dec, ext_region_extent)
-                if os.path.exists('target.reg'):
-                    os.remove('target.reg')
-                with open('target.reg', 'w') as f:
+                if os.path.exists(f'{targetname}.reg'):
+                    os.remove(f'{targetname}.reg')
+                with open(f'{targetname}.reg', 'w') as f:
                     f.write(target)
-                target_reg_file = 'target.reg'
+                target_reg_file = f'{targetname}.reg'
                 target_reg = lib_util.Region_helper(target_reg_file)
                 center = target_reg.get_center()  # center of the extract region
                 reg_flux = flux_check.calc_flux(target_reg_file)
@@ -372,11 +398,11 @@ if not extractreg:
                 maxthreshold = True
                 ext_region_extent = 0.75
                 target = lib_util.create_extregion(target_ra, target_dec, ext_region_extent)
-                if os.path.exists('target.reg'):
-                    os.remove('target.reg')
-                with open('target.reg', 'w') as f:
+                if os.path.exists(f'{targetname}.reg'):
+                    os.remove(f'{targetname}.reg')
+                with open(f'{targetname}.reg', 'w') as f:
                     f.write(target)
-                target_reg_file = 'target.reg'
+                target_reg_file = f'{targetname}.reg'
                 target_reg = lib_util.Region_helper(target_reg_file)
                 center = target_reg.get_center()  # center of the extract region
                 break
@@ -389,13 +415,13 @@ if not extractreg:
         logger.info(f'The extraction region will have a radius of {int(ext_region_extent * 60)} arcmin.')
 
 for p in close_pointings:
-    MSs = lib_ms.AllMSs( glob.glob('mss-extract/'+p+'/*MS'), s )
+    MSs = lib_ms.AllMSs( glob.glob('mss-extract/'+p+'/mss-avg/*MS'), s )
     ch_out = MSs.getChout(4e6)  # chout from dd
     fwhm = MSs.getListObj()[0].getFWHM(freq='mid')
     phase_center = MSs.getListObj()[0].getPhaseCentre()
     # read image, h5parm, make mask
-    wideDD_image = lib_img.Image(f'extract/init/{p}/wideDD-{highest_ddcal}-MFS-image-pb.fits')
-    dde_h5parm = 'extract/init/'+p+'/interp.h5'
+    wideDD_image = lib_img.Image(f'extract-files/init/{p}/wideDDS-c0-MFS-image-pb.fits')
+    dde_h5parm = f'extract-files/init/{p}/interp.h5'
     # make mask for subtraction
     mask_ddcal = wideDD_image.imagename.replace('.fits', '_mask-ddcal.fits')  # this is used to find calibrators
     wideDD_image.makeMask(threshpix=5, atrous_do=True, maskname=mask_ddcal, write_srl=True, write_ds9=True)
@@ -410,14 +436,14 @@ for p in close_pointings:
     with w.if_todo('predict_rest_' + p):
 
         # # Add mock MODEL column to avoid DDFacet overflow
-        MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA', log='$nameMS_addmodelcol.log', commandType='python')
+        #MSs.run('addcol2ms.py -m $pathMS -c MODEL_DATA', log='$nameMS_addmodelcol.log', commandType='python')
 
         # Predict+corrupt in MODEL_DATA of everything BUT the calibrator
-        inmask = f'extract/init/{p}/wideDD-{highest_ddcal}-MFS-image-pb_mask-ddcal.fits'
+        inmask = f'extract-files/init/{p}/wideDDS-c0-MFS-image-pb_mask-ddcal.fits'
         outmask = inmask + '.mask'
         lib_img.blank_image_reg(inmask, target_reg_file, outfile=outmask, inverse=False, blankval=0.)
 
-        for im in glob.glob(f'extract/init/{p}/wideDD-{highest_ddcal}-0*model-fpb.fits'):
+        for im in glob.glob(f'extract-files/init/{p}/wideDDS-c0-0*model-fpb.fits'):
             wideDDext = im.replace('wideDD', 'wideDDext')
             os.system('cp %s %s' % (im, wideDDext))
             lib_img.blank_image_reg(wideDDext, target_reg_file, blankval=0.)
@@ -436,8 +462,8 @@ for p in close_pointings:
         else:
             correct_for = 'phase000'
 
-        facet_path = f'extract/init/{p}/facets-{highest_ddcal}.reg'
-        s.add(f'wsclean -predict -padding 1.8 -name extract/init/{p}/wideDDext-{highest_ddcal} -j ' + str(s.max_cpucores) + ' -channels-out ' + str(
+        facet_path = f'extract-files/init/{p}/facetsS-c0.reg'
+        s.add(f'wsclean -predict -padding 1.8 -name extract-files/init/{p}/wideDDextS-c0 -j ' + str(s.max_cpucores) + ' -channels-out ' + str(
             ch_out) + ' -facet-regions ' + facet_path + ' -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
             -apply-facet-solutions ' + dde_h5parm + ' ' + correct_for + ' \
             -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
@@ -509,7 +535,7 @@ with w.if_todo('smooth'):
     MSs_extract.run('BLsmooth.py -c 1 -n 8 -r -i DATA -o SMOOTHED_DATA $pathMS', log='$nameMS_smooth.log', commandType='python', maxProcs=1)
 
 # get initial noise and set iterators for timeint solutions
-image = lib_img.Image('img/extractM-init-MFS-image.fits', userReg=userReg)
+image = lib_img.Image(f'img/{targetname}-init-MFS-image.fits', userReg=userReg)
 rms_noise_pre, mm_ratio_pre = image.getNoise(), image.getMaxMinRatio()
 rms_noise_init, mm_ratio_init = rms_noise_pre, mm_ratio_pre
 doamp = False
@@ -538,14 +564,14 @@ rms_noise_pre = np.inf
 for c in range(maxniter):
     logger.info('Starting cycle: %i' % c)
 
-    h5ph = 'extract/cal-ph-c%02i.h5' % c
+    h5ph = 'extract-files/cal-ph-c%02i.h5' % c
     solint_ph = next(iter_ph_solint)
     if doamp:
-        h5amp1 = 'extract/cal-amp1-c%02i.h5' % c
+        h5amp1 = 'extract-files/cal-amp1-c%02i.h5' % c
         solint_amp = next(iter_amp_solint)
-        h5amp2 = 'extract/cal-amp2-c%02i.h5' % c
+        h5amp2 = 'extract-files/cal-amp2-c%02i.h5' % c
         solint_amp2 = next(iter_amp2_solint)
-        h5fj = 'extract/cal-fulljones-c%02i.h5' % c
+        h5fj = 'extract-files/cal-fulljones-c%02i.h5' % c
 
     if phSolMode == 'phase':
         logger.info('Phase calibration...')
@@ -556,7 +582,7 @@ for c in range(maxniter):
                      log='$nameMS_solGph-c%02i.log' % c, commandType='DP3')
             lib_util.run_losoto(s, 'ph', [ms + '/cal-ph.h5' for ms in MSs_extract.getListStr()],
                                 [parset_dir + '/losoto-plot1.parset'],
-                                plots_dir='extract/plots-%s' % c)
+                                plots_dir='extract-files/plots-%s' % c)
             os.system('mv cal-ph.h5 %s' % h5ph)
 
         with w.if_todo('cor-ph-c%02i' % c):
@@ -574,7 +600,7 @@ for c in range(maxniter):
                      log='$nameMS_soltecandphase-c%02i.log' % c, commandType='DP3')
             lib_util.run_losoto(s, 'ph', [ms + '/cal-ph.h5' for ms in MSs_extract.getListStr()],
                                 [parset_dir + '/losoto-plottecandphase.parset'],
-                                plots_dir='extract/plots-%s' % c)
+                                plots_dir='extract-files/plots-%s' % c)
             os.system('mv cal-ph.h5 %s' % h5ph)
         logger.info('tecandphase calibration...')
 
@@ -603,7 +629,7 @@ for c in range(maxniter):
                 losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-norm.parset',
                                       parset_dir + '/losoto-plot2.parset']
                 lib_util.run_losoto(s, 'amp1', [ms + '/cal-amp1.h5' for ms in MSs_extract.getListStr()], losoto_parsets,
-                                    plots_dir='extract/plots-%s' % c)
+                                    plots_dir='extract-files/plots-%s' % c)
                 os.system('mv cal-amp1.h5 %s' % h5amp1)
 
             with w.if_todo('cor-amp1-c%02i' % c):
@@ -624,7 +650,7 @@ for c in range(maxniter):
                 losoto_parsets = [parset_dir + '/losoto-clip2.parset', parset_dir + '/losoto-norm.parset',
                                   parset_dir + '/losoto-plot3.parset']
                 lib_util.run_losoto(s, 'amp2', [ms + '/cal-amp2.h5' for ms in MSs_extract.getListStr()], losoto_parsets,
-                                    plots_dir='extract/plots-%s' % c)
+                                    plots_dir='extract-files/plots-%s' % c)
                 os.system('mv cal-amp2.h5 %s' % h5amp2)
 
             with w.if_todo('cor-amp2-c%02i' % c):
@@ -651,7 +677,7 @@ for c in range(maxniter):
                         log=f'$nameMS_solFulljones-c{c}.log', commandType="DP3")
 
                 lib_util.run_losoto(s, 'fulljones', [ms + '/cal-fulljones.h5' for ms in MSs_extract.getListStr()], \
-                                    [parset_dir + '/losoto-fulljones.parset'], plots_dir='extract/plots-%s' % c)
+                                    [parset_dir + '/losoto-fulljones.parset'], plots_dir='extract-files/plots-%s' % c)
                 os.system('mv cal-fulljones.h5 %s' % h5fj)
 
             # Correct gain amp and ph CORRECTED_DATA -> CORRECTED_DATA
@@ -667,7 +693,7 @@ for c in range(maxniter):
         clean('c%02i' % c, MSs_extract, size=(1.1*target_reg.get_width(),1.1*target_reg.get_height()), apply_beam=do_beam, userReg=userReg, datacol='CORRECTED_DATA') # size 2 times radius  , apply_beam = c==maxniter
 
     # get noise, if larger than 98% of prev cycle: break
-    extract_image = lib_img.Image('img/extractM-c%02i-MFS-image.fits' % c, userReg=userReg)
+    extract_image = lib_img.Image(f'img/{targetname}-c%02i-MFS-image.fits' % c, userReg=userReg)
     rms_noise, mm_ratio = extract_image.getNoise(), extract_image.getMaxMinRatio()
 
     extract_image.selectCC(checkBeam=False)
@@ -710,9 +736,9 @@ for c in range(maxniter):
 with w.if_todo('final_apply'):
     if best_iter != c: # If last iteration was NOT the best iteration, apply best iteration.
         logger.info('Best iteration: second to last cycle ({})'.format(best_iter))
-        h5ph = 'extract/cal-ph-c%02i.h5' % best_iter
-        h5amp1 = 'extract/cal-amp1-c%02i.h5' % best_iter
-        h5amp2 = 'extract/cal-amp2-c%02i.h5' % best_iter
+        h5ph = 'extract-files/cal-ph-c%02i.h5' % best_iter
+        h5amp1 = 'extract-files/cal-amp1-c%02i.h5' % best_iter
+        h5amp2 = 'extract-files/cal-amp2-c%02i.h5' % best_iter
         # correct ph - ms:DATA -> ms:CORRECTED_DATA
         logger.info('Correct ph...')
         MSs_extract.run('DP3 ' + parset_dir + '/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
@@ -766,11 +792,11 @@ if sourcesub == True:
     with w.if_todo('produce_mask'):
         logger.info('Subtracting compact sources...')
         #os.system(f'MakeMask.py --RestoredIm img/{highimagename} --Th 3')
-        highres_image = lib_img.Image('img/extractM-sub-highres-MFS-image.fits')
+        highres_image = lib_img.Image(f'img/{targetname}-sub-highres-MFS-image.fits')
         mask_highres = highres_image.imagename.replace('.fits', '_mask-highres.fits')
         highres_image.makeMask(threshpix=3, atrous_do=True, maskname=mask_highres, write_srl=True, write_ds9=True)
 
-        fitsmask = 'extractM-sub-highres-MFS-image_mask-highres.fits'
+        fitsmask = f'{targetname}-sub-highres-MFS-image_mask-highres.fits'
         clean('compactmask', MSs_extract, size=(1.1 * target_reg.get_width(), 1.1 * target_reg.get_height()), fits_mask=f'img/{fitsmask}',
               minuv=minuv_forsub, res='ultrahigh', datacol='CORRECTED_DATA')
 
@@ -786,10 +812,12 @@ if sourcesub == True:
 
 if not os.path.exists('extract-images'):
     os.makedirs('extract-images')
-os.system('mv img/extractM-final-MFS-image*.fits extract-images/')
-os.system('mv img/extractM-highres-MFS-image*.fits extract-images/')
-if os.path.exists('img/extractM-sourcesubtracted-MFS-image.fits'):
-    os.system('mv img/extractM-sourcesubtracted-MFS-image.fits extract-images/')
+os.system(f'mv img/{targetname}-final-MFS-image*.fits extract-images/')
+os.system(f'mv img/{targetname}-highres-MFS-image*.fits extract-images/')
+if os.path.exists(f'img/{targetname}-sourcesubtracted-MFS-image.fits'):
+    os.system(f'mv img/{targetname}-sourcesubtracted-MFS-image.fits extract-images/')
+if os.path.exists(f'pointinglist.txt'):
+    os.system('rm pointinglist.txt')
 
 w.alldone()
 
@@ -804,9 +832,12 @@ with open(logfile, 'r') as f:
         os.chdir('../')
 
         logger.info(f'Extracted datasets are in the mss-extract directory of {targetname}.')
-        logger.info(f'Nominal, high and source-subtracted low resolution images are in the extract-images/ directory of {targetname}.')
+
         if sourcesub == True:
-            logger.info('A new column DIFFUSE_SUB has been added to each successfully extracted .ms file.')
+            logger.info(f'Nominal, high and source-subtracted low resolution images are in the extract-images/ directory of {targetname}.')
+            logger.info('A new column "DIFFUSE_SUB" has been added to each extracted .MS file.')
             logger.info('It contains the compact-source-subtracted visibilities.')
+        else:
+            logger.info(f'Nominal and high resolution images are in the extract-images/ directory of {targetname}.')
 
 
