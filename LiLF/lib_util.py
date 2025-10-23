@@ -526,8 +526,8 @@ def get_slurm_max_walltime():
 
 
 class Scheduler():
-    def __init__(self, backend='slurm', slurm_max_jobs=244, max_cpucores_per_node=None, slurm_max_walltime='24:00:00',
-                 log_dir = 'logs', dry = False, container_path=''):
+    def __init__(self, backend='slurm', slurm_max_jobs=244, max_cpus_per_node=None, slurm_max_walltime=None, slurm_mem_per_cpu='8GB',
+                 log_dir = 'logs', dry = False, container_path=None):
         """
         TODO max walltime
         TODO max_jobs autoset?
@@ -542,30 +542,35 @@ class Scheduler():
         self.log_dir = log_dir
 
         # automatically set max cpucores if not set manually
-        if max_cpucores_per_node:
-            self.max_cpucores_per_node = int(max_cpucores_per_node)
-        elif max_cpucores_per_node is None:
+        if max_cpus_per_node:
+            self.max_cpus_per_node = int(max_cpus_per_node)
+        elif max_cpus_per_node is None:
             if backend == 'local':
-                self.max_cpucores_per_node = multiprocessing.cpu_count()
+                self.max_cpus_per_node = multiprocessing.cpu_count()
             elif backend == 'slurm':
                 slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE')
                 if slurm_cpus:
-                    self.max_cpucores_per_node = int(slurm_cpus)
+                    self.max_cpus_per_node = int(slurm_cpus)
                 else:
                     logger.warning('Neither max_cpucores_per_node nor $SLURM_CPUS_ON_NODE defined - guessing cpus per node.')
-                    self.max_cpucores_per_node = multiprocessing.cpu_count()
+                    self.max_cpus_per_node = multiprocessing.cpu_count()
 
         # automatically set maxJobs if not manually set
         if slurm_max_jobs is None:
             logger.warn(f'max_jobs not set - what to do in this case?')
-            self.max_jobs = 1
+            self.slurm_max_jobs = 1
         else:
-            self.max_jobs = int(slurm_max_jobs)
+            self.slurm_max_jobs = int(slurm_max_jobs)
 
         self.dry = dry
 
-        logger.info(f'Scheduler initialised  for cluster {self.cluster}:{self.hostname} using {backend} backend \
-                     (maxProcs: {self.max_jobs}, max_cpucores_per_node: {self.max_cpucores_per_node})')
+        if backend == 'slurm':
+            logger.info(f'SLURM scheduler initialised  for cluster {self.cluster}:{self.hostname} \
+                         (slurm_max_jobs: {self.slurm_max_jobs}, max_cpus_per_node: {self.max_cpus_per_node}, \
+                         slurm_max_walltime: {slurm_max_walltime}, slurm_mem_per_cpu: {slurm_mem_per_cpu})')
+        else:
+            logger.info(f'Local scheduler initialised  for cluster {self.cluster}:{self.hostname} \
+                         (max_cpucores_per_node: {self.max_cpus_per_node})')
 
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
@@ -573,19 +578,16 @@ class Scheduler():
 
         if self.backend == "slurm":
             # sensible defaults; override with slurm_opts
-            # memory - is it total or per job?
-            slurm_max_walltime = get_slurm_max_walltime()[1] 
             LILFDIR = os.path.realpath(__file__).split('LiLF')[0] + 'LiLF'
-            
-            # We mount only the directory above the current working directory
+            # We mount only the parent directory of the current working directory
             singularity_command = f"singularity exec --cleanenv --pwd {os.getcwd()} \
                 --env PYTHONPATH=$PYTHONPATH:{LILFDIR},PATH=$PATH:{LILFDIR}/scripts/ --pid \
                 --writable-tmpfs -B{os.path.dirname(os.getcwd())} {container_path}"
 
             so = {
-                    'cores': min(self.max_cpucores_per_node, 32),
-                    'memory': f'{8*self.max_cpucores_per_node}GB',
-                    'walltime': slurm_max_walltime,
+                    'cores': min(self.max_cpus_per_node, 32),
+                    'memory': f'{8*self.max_cpus_per_node}GB',
+                    'walltime': slurm_max_walltime if slurm_max_walltime else get_slurm_max_walltime()[1], # auto-find max walltime if not set
                     'python': 'python',
                     'log_directory': self.log_dir,
                     'job_script_prologue': [
