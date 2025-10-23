@@ -83,26 +83,25 @@ with SurveysDB(survey='lba',readonly=True) as sdb:
     else:
         # get all fields with max priority
         #sdb.execute('SELECT * FROM fields WHERE status = "Downloaded" AND priority = (SELECT MAX(priority) FROM fields WHERE status = "Downloaded")')
+        mn, mx = int(minmaxhrs[0]), int(minmaxhrs[1])
+        # select all eligible fields, then pick randomly among those with the highest priority
         sdb.execute(f'''
-                    SELECT f.id
-                    FROM fields f
-                    JOIN field_obs fo ON f.id = fo.field_id
-                    WHERE f.status = "Downloaded"
-                        AND f.priority = (
-                            SELECT MAX(priority)
-                            FROM fields
-                            WHERE status = "Downloaded"
-                        )
-                    GROUP BY f.id
-                    HAVING COUNT(fo.field_id) BETWEEN {minmaxhrs[0]} AND {minmaxhrs[1]}
-                    ''')
+            SELECT f.id, f.priority
+            FROM fields f
+            JOIN field_obs fo ON f.id = fo.field_id
+            WHERE f.status = "Downloaded"
+            GROUP BY f.id, f.priority
+            HAVING COUNT(fo.field_id) BETWEEN {mn} AND {mx}
+        ''')
         r = sdb.cur.fetchall()
         if len(r) == 0:
             logger.warning('No field left in the db...')
             sys.exit()
-        
-        rndidx = random.randint(0, len(r)-1) # select a random field
-        target = r[rndidx]['id'] # here we set $target
+
+        max_prio = max(row['priority'] for row in r)
+        top = [row for row in r if row['priority'] == max_prio]
+        target = random.choice(top)['id']  # here we set $target
+
         # save target name
         with open("target.txt", "w") as file:
             print(target, file=file)
