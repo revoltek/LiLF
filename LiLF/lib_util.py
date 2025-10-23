@@ -36,9 +36,11 @@ def getParset(parsetFile=''):
     def add_default(section, option, val):
         if not config.has_option(section, option): config.set(section, option, val)
     
-    if parsetFile == '': 
+    if parsetFile == '':
         matched_conf_files = glob.glob('[Ll][Ii][Ll][Ff].conf*') + glob.glob('../[Ll][Ii][Ll][Ff].conf*')
-        if len(matched_conf_files) > 0:
+        if len(matched_conf_files) > 1:
+            raise LookupError(f'Found more than one configuration file: {matched_conf_files}')
+        elif len(matched_conf_files) == 1:
             parsetFile = matched_conf_files[0]
             logger.info(f'Found config file: {parsetFile}')
 
@@ -76,7 +78,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_preprocess', 'demix_skymodel', '')  # Use non-default demix skymodel.
     add_default('LOFAR_preprocess', 'demix_field_skymodel', 'LOTSS-DR3')  # Provide a custom target skymodel instead of online gsm model. Set to '' to ignore target.
     add_default('LOFAR_preprocess', 'run_aoflagger', 'False')  # run aoflagger on individual sub-bands, only in cases where this was not one by the observatory!
-    add_default('LOFAR_preprocess', 'tar', 'True')  # Tar MS files at the end 
+    add_default('LOFAR_preprocess', 'tar', 'True')  # Tar MS files at the end
     add_default('LOFAR_preprocess', 'data_dir', '')
     # cal
     add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
@@ -114,9 +116,10 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddserial', 'minCalFlux60', '0.8')
     add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
     add_default('LOFAR_ddserial', 'use_shm', 'False') # use /dev/shm for temporary files, if available
+    add_default('LOFAR_ddserial', 'use_shm_ddcal', 'True') # use /dev/shm for temporary ddcal files, if available
     add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec
     add_default('LOFAR_ddserial', 'manual_dd_cal', '')
-    add_default('LOFAR_ddserial', 'develop', 'False') # if true make more debug images (slower) 
+    add_default('LOFAR_ddserial', 'develop', 'False') # if true make more debug images (slower)
     # add_default('LOFAR_ddserial', 'solve_tec', 'False') # per default, solve each dd for scalarphase. if solve_tec==True, solve for TEC instead.
     # extract
     add_default('LOFAR_extract', 'max_niter', '10')
@@ -184,63 +187,6 @@ def create_extregion(ra, dec, extent, color='yellow'):
     return target
 
 
-def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithOnes = True, comment = "", verbose = False):
-    # more to lib_ms
-    """
-    Add a column to a MS that is similar to a pre-existing column (in shape, but not in values).
-    pathMS:                 path of the MS
-    columnNameNew:          name of the column to be added
-    columnNameSimilar:      name of the column from which properties are copied (e.g. "DATA")
-    dataManagerInfoNameNew: string value for the data manager info (DMI) keyword "NAME" (should be unique in the MS)
-    overwrite:              whether or not to overwrite column 'columnNameNew' if it already exists
-    fillWithOnes:           whether or not to fill the newly-made column with ones
-    verbose:                whether or not to produce abundant output
-    """
-    t = tables.table(pathMS, readonly = False)
-
-    if (columnExists(t, columnNameNew) and not overwrite):
-        logger.warning("Attempt to add column '" + columnNameNew + "' aborted, as it already exists and 'overwrite = False' in columnAddSimilar(...).")
-    else: # Either the column does not exist yet, or it does but overwriting is allowed.
-
-        # Remove column if necessary.
-        if (columnExists(t, columnNameNew)):
-            logger.info("Removing column '" + columnNameNew + "'...")
-            t.removecols(columnNameNew)
-
-        # Add column.
-        columnDescription       = t.getcoldesc(columnNameSimilar)
-        dataManagerInfo         = t.getdminfo(columnNameSimilar)
-
-        if (verbose):
-            logger.debug("columnDescription:")
-            logger.debug(columnDescription)
-            logger.debug("dataManagerInfo:")
-            logger.debug(dataManagerInfo)
-
-        columnDescription["comment"] = ""
-        # What about adding something here like:
-        #columnDescription["dataManagerGroup"] = ...?
-        dataManagerInfo["NAME"]      = dataManagerInfoNameNew
-
-        if (verbose):
-            logger.debug("columnDescription (updated):")
-            logger.debug(columnDescription)
-            logger.debug("dataManagerInfo (updated):")
-            logger.debug(dataManagerInfo)
-
-        logger.info("Adding column '" + columnNameNew + "'...")
-        t.addcols(tables.makecoldesc(columnNameNew, columnDescription), dataManagerInfo)
-
-        # Fill with ones if desired.
-        if (fillWithOnes):
-            logger.info("Filling column '" + columnNameNew + "' with ones...")
-            columnDataSimilar = t.getcol(columnNameSimilar)
-            t.putcol(columnNameNew, np.ones_like(columnDataSimilar))
-
-    # Close the table to avoid that it is locked for further use.
-    t.close()
-
-
 def getCalibratorProperties():
     """
     Return properties of known calibrators.
@@ -284,7 +230,7 @@ def check_rm(regexp):
     for filename in filenames:
         # glob is used to check if file exists
         for f in glob.glob(filename):
-            os.system("rm -r " + f)    
+            os.system("rm -r " + f)
 
 
 class Sol_iterator(object):
@@ -459,7 +405,6 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
     tmp_dir = None
     if use_shm and os.access('/dev/shm/', os.W_OK) and 'temp_dir' not in kwargs:
         tmp_dir = tempfile.mkdtemp(dir='/dev/shm')
-
         wsc_parms.append(f'-temp-dir {tmp_dir}')
         wsc_parms.append('-mem 90')  # use 90% of memory
     elif s.cluster == 'Spider':
@@ -522,38 +467,6 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
             check_rm(tmp_dir)
     if not keep_concat:
         check_rm('wsclean_concat_*.MS')
-
-def run_DDF(s, logfile, **kwargs):
-    """
-    s : scheduler
-    args : parameters for ddfacet, "_" are replaced with "-", any parms=None is ignored.
-           To pass a parameter with no values use e.g. " no_update_model_required='' "
-    """
-    
-    ddf_parms = []
-
-    # basic parms
-    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i --Misc-IgnoreDeprecationMarking=1 ' % (s.maxProcs) )
-
-    # cache dir
-    if not 'Cache_Dir' in list(kwargs.keys()):
-        ddf_parms.append( '--Cache-Dir .' )
-
-    # user defined parms
-    for parm, value in list(kwargs.items()):
-        if value is None: continue
-        if isinstance(value, str):
-            if '$' in value: # escape dollar signs (e.g. of BeamFits)
-                value = "'" + value + "'"
-        ddf_parms.append( '--%s=%s' % (parm.replace('_','-'), str(value)) )
-
-    # files
-    #wsc_parms.append( MSs_files )
-
-    # create command string
-    command_string = 'DDF.py '+' '.join(ddf_parms)
-    s.add(command_string, log=logfile, commandType='DDFacet')
-    s.run(check=True)
 
 
 class Region_helper():
@@ -690,7 +603,7 @@ class Walker():
         if issubclass(type, Exit):
             logger.error('<< exit << {}'.format(self.__step__))
             return True
-        
+
     def alldone(self):
         delta = 'h '.join(str(datetime.datetime.now() - self.__globaltimeinit__).split(':')[:-1])+'m'
         logger.info('Done. Total time: '+delta)
@@ -734,7 +647,7 @@ class Scheduler():
 
         self.dry = dry
 
-        logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname + 
+        logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname +
                     " (maxProcs: " + str(self.maxProcs) + ", max_cpucores: " + str(self.max_cpucores) + ").")
 
         self.action_list = []
