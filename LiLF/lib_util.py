@@ -464,7 +464,12 @@ class Walker():
 
 
 def _run_cmd(cmd):
-    os.system(cmd)
+    try:
+        os.system(cmd)
+        return 0, 0.0
+    except Exception as e:
+        logger.error(f"Error occurred while running command: {cmd}\n{e}")
+        return 1, 0.0
 
 def _run_cmd_gpt(cmd, log_path=None, timeout=None):
     # ChatGPT
@@ -554,7 +559,10 @@ class Scheduler():
                 else:
                     logger.warning('Neither max_cpucores_per_node nor $SLURM_CPUS_ON_NODE defined - guessing cpus per node.')
                     self.max_cpucores_per_node = multiprocessing.cpu_count()
-
+             
+        # HARDCODED LIMIT FOR NOW            
+        self.max_cpucores_per_node = 16
+        
         # automatically set maxJobs if not manually set
         if max_jobs is None:
             logger.warn(f'max_jobs not set - what to do in this case?')
@@ -579,7 +587,7 @@ class Scheduler():
             
             # We mount only the directory above the current working directory
             singularity_command = f"singularity exec --cleanenv --pwd {os.getcwd()} \
-                --env PYTHONPATH=$PYTHONPATH:{LILFDIR},PATH=$PATH:{LILFDIR}/scripts/ --pid \
+                --env PYTHONPATH=\$PYTHONPATH:{LILFDIR},PATH=\$PATH:{LILFDIR}/scripts/ --pid \
                 --writable-tmpfs -B{os.path.dirname(os.getcwd())} {container_path}"
 
             so = {
@@ -636,9 +644,13 @@ class Scheduler():
         ))
 
         if self.backend == "slurm":
+            action = dict(
+                cmd=cmd, log=log_path, commandType=commandType,
+                threads=threads, mem=mem, time=time, timeout=timeout
+            )
             #fut = self._client.submit(_run_cmd, cmd)
             fut = self._client.submit(_run_cmd_gpt, cmd, log_path, timeout, resources=None, pure=False)
-            self.futures.append(fut)
+            self.futures.append(fut, action)
 
     def run(self, check=False, maxProcs=None):
         if self.dry:
@@ -654,6 +666,8 @@ class Scheduler():
                     if action['log'] and os.path.exists(action['log']):
                         tail = subprocess.check_output(f'tail -n 40 {shlex.quote(action["log"])}', shell=True).decode()
                     raise RuntimeError(f"Command failed (rc={rc}): {action['cmd']}\nLog: {action['log']}\n{tail}")
+                
+            self.futures.clear()
 
         else:
             # local thread pool (your existing behavior)
@@ -687,7 +701,7 @@ class Scheduler():
 
         self.action_list.clear()
         self.log_list.clear()
-        self.futures.clear()
+        
 
         #if self.qsub:
         #    if qsub_cpucores == 'max':
