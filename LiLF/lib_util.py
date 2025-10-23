@@ -531,7 +531,7 @@ def get_slurm_max_walltime():
 
 
 class Scheduler():
-    def __init__(self, backend='slurm', slurm_max_jobs=244, max_cpus_per_node=None, slurm_max_walltime=None, slurm_mem_per_cpu='8GB',
+    def __init__(self, backend='slurm', slurm_max_jobs=244, max_cpus_per_node=32, slurm_max_walltime=None, slurm_mem_per_cpu='8GB',
                  log_dir = 'logs', dry = False, container_path=None):
         """
         TODO max walltime
@@ -560,9 +560,7 @@ class Scheduler():
                     logger.warning('Neither max_cpucores_per_node nor $SLURM_CPUS_ON_NODE defined - guessing cpus per node.')
                     self.max_cpus_per_node = multiprocessing.cpu_count()
              
-        # HARDCODED LIMIT FOR NOW            
-        self.max_cpucores_per_node = 16
-        
+
         # automatically set maxJobs if not manually set
         if slurm_max_jobs is None:
             logger.warn(f'max_jobs not set - what to do in this case?')
@@ -614,9 +612,9 @@ class Scheduler():
             logger.debug(f"Dask SLURM cluster script:\n{self._cluster.job_script()}")
 
         if backend == 'slurm':
-            logger.info(f'SLURM scheduler initialised  for cluster {self.cluster}:{self.hostname} \
-                         (slurm_max_jobs: {self.slurm_max_jobs}, max_cpus_per_node: {self.max_cpus_per_node}, \
-                         slurm_max_walltime: {self.slurm_max_walltime}, slurm_mem_per_cpu: {slurm_mem_per_cpu})')
+            logger.info(f'SLURM scheduler initialised  for cluster {self.cluster}:{self.hostname} '
+                        f'(slurm_max_jobs: {self.slurm_max_jobs}, max_cpus_per_node: {self.max_cpus_per_node}, '
+                        f'slurm_max_walltime: {self.slurm_max_walltime[0]}, slurm_mem_per_cpu: {slurm_mem_per_cpu})')
         else:
             logger.info(f'Local scheduler initialised  for cluster {self.cluster}:{self.hostname} \
                          (max_cpucores_per_node: {self.max_cpus_per_node})')
@@ -651,9 +649,8 @@ class Scheduler():
                 cmd=cmd, log=log_path, commandType=commandType,
                 threads=threads, mem=mem, time=time, timeout=timeout
             )
-            #fut = self._client.submit(_run_cmd, cmd)
             fut = self._client.submit(_run_cmd_gpt, cmd, log_path, timeout, resources=None, pure=False)
-            self.futures.append(fut, action)
+            self.futures.append((fut, action))
 
     def run(self, check=False, maxProcs=None):
         if self.dry:
@@ -662,8 +659,9 @@ class Scheduler():
 
         if self.backend == "slurm":
             # Gather and raise on failure
-            for fut, action in as_completed([f for f, _ in self.futures]):
+            for fut, action in as_completed([f for f, _ in self.futures], with_results=True):
                 rc, wall = fut.result()
+                print(rc, wall)
                 if rc != 0:
                     tail = ''
                     if action['log'] and os.path.exists(action['log']):
@@ -673,7 +671,7 @@ class Scheduler():
             self.futures.clear()
 
         else:
-            # local thread pool (your existing behavior)
+            # local/single-node processing
             from queue import Queue
             from threading import Thread
             q = Queue()
@@ -705,26 +703,6 @@ class Scheduler():
         self.action_list.clear()
         self.log_list.clear()
         
-
-        #if self.qsub:
-        #    if qsub_cpucores == 'max':
-        #        qsub_cpucores = self.max_cpucores
-        #    # if number of cores not specified, try to find automatically
-        #    elif qsub_cpucores == None:
-        #        qsub_cpucores = 1 # default use single CPU
-        #        if ("DP3" == cmd[ : 4]):
-        #            qsub_cpucores = 1
-        #        if ("wsclean" == cmd[ : 7]):
-        #            qsub_cpucores = self.max_cpucores
-        #    if (qsub_cpucores > self.max_cpucores):
-        #        qsub_cpucores = self.max_cpucores
-        #    self.action_list.append([str(qsub_cpucores), '\'' + cmd + '\''])
-        #else:
-        self.action_list.append(cmd)
-
-        if (log != ""):
-            self.log_list.append((log, commandType))
-
 
     def check_run(self, log = "", commandType = ""):
         """
