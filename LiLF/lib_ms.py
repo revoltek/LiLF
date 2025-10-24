@@ -4,7 +4,7 @@ import os, sys, shutil
 import numpy as np
 import pyregion
 from pyregion.parser_helper import Shape
-from casacore import tables
+from casacore import tables # type: ignore
 from astropy.coordinates import get_sun, get_body, SkyCoord, EarthLocation, AltAz
 from astropy.time import Time
 from astropy import units as u

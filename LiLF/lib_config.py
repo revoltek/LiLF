@@ -15,9 +15,12 @@ def getParset(parsetFile=''):
         matched_conf_files = glob.glob('[Ll][Ii][Ll][Ff].conf*') + glob.glob('../[Ll][Ii][Ll][Ff].conf*')
         if len(matched_conf_files) > 1:
             raise LookupError(f'Found more than one configuration file: {matched_conf_files}')
-        elif len(matched_conf_files) == 0:
+        elif len(matched_conf_files) == 1:
             parsetFile = matched_conf_files[0]
             logger.info(f'Found config file: {parsetFile}')
+        else:
+            parsetFile = os.path.dirname(__file__) + '/../LiLF.conf'
+            logger.info(f'No config file found - using default: {parsetFile}')
 
     config = ConfigParser(defaults=None)
     config.read(parsetFile)
@@ -32,7 +35,10 @@ def getParset(parsetFile=''):
     if not config.has_section('flag'): config.add_section('flag')
     if not config.has_section('model'): config.add_section('model')
     if not config.has_section('PiLL'): config.add_section('PiLL')
+    if not config.has_section("scheduler"): config.add_section("scheduler")
 
+    
+    print(config.sections())
     ### General ###
     # scheduler
     add_default('scheduler', 'use_shm', 'False')  # use /dev/shm for temporary files, if available
@@ -113,6 +119,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddserial', 'solve_amp', 'True')  # to disable amp sols
     add_default('LOFAR_ddserial', 'target_dir', '')  # ra,dec
     add_default('LOFAR_ddserial', 'manual_dd_cal', '')
+    add_default('LOFAR_ddparallel', 'use_shm', 'False')  # use /dev/shm for temporary files, if available
     add_default('LOFAR_ddserial', 'develop', 'False')  # if true make more debug images (slower)
     # add_default('LOFAR_ddserial', 'solve_tec', 'False') # per default, solve each dd for scalarphase. if solve_tec==True, solve for TEC instead.
     # extract

@@ -17,7 +17,7 @@ s = lib_util.SLURMScheduler(log_dir=logger_obj.log_dir, container_path=os.path.e
 
 
 
-data_dir = '/beegfs/lofar/boxelaar/deepfields/Elais-N1/batches/testbatch/mss'
+data_dir = 'mss'
 MSs = lib_ms.AllMSs(glob.glob(data_dir + '/TC*.MS'), s,)
 logger.info(f"Found {len(MSs.getListObj())} MSs to process.")
 

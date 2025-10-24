@@ -29,13 +29,13 @@ from losoto.h5parm import h5parm
 import lsmtool
 
 ########################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd, lib_h5, lib_dd_parallel, lib_cat
+from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd, lib_h5, lib_dd_parallel, lib_cat, lib_config
 logger_obj = lib_log.Logger('pipeline-ddparallel')
 logger = lib_log.logger
-s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
+s = lib_util.SLURMScheduler(log_dir=logger_obj.log_dir, container_path=os.path.expanduser('~') + "/pill.simg", walltime='02:00:00', max_cpus_per_node=16)
 w = lib_util.Walker('pipeline-ddparallel.walker')
 
-parset = lib_util.getParset()
+parset = lib_config.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_ddparallel'])))
 parset_dir = parset.get('LOFAR_ddparallel','parset_dir')
 subfield_min_flux = parset.getfloat('LOFAR_ddparallel','subfield_min_flux') # default 20 Jy
