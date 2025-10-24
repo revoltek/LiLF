@@ -560,7 +560,7 @@ class Scheduler():
                     logger.warning('Neither max_cpucores_per_node nor $SLURM_CPUS_ON_NODE defined - guessing cpus per node.')
                     self.max_cpus_per_node = multiprocessing.cpu_count()
              
-
+        self.max_cpus_per_node = 16  # TEMP override
         # automatically set maxJobs if not manually set
         if slurm_max_jobs is None:
             logger.warn(f'max_jobs not set - what to do in this case?')
@@ -579,17 +579,21 @@ class Scheduler():
             # sensible defaults; override with slurm_opts
             LILFDIR = os.path.realpath(__file__).split('LiLF')[0] + 'LiLF'
             # We mount only the parent directory of the current working directory
-            singularity_command = f"singularity exec --cleanenv --pwd {os.getcwd()} \
+            singularity_command = f"singularity exec --pwd {os.getcwd()} \
                 --env PYTHONPATH=\$PYTHONPATH:{LILFDIR},PATH=\$PATH:{LILFDIR}/scripts/ --pid \
                 --writable-tmpfs -B{os.path.dirname(os.getcwd())} {container_path}"
             self.slurm_max_walltime = slurm_max_walltime if slurm_max_walltime else get_slurm_max_walltime()[1],  # auto-find max walltime if not set
 
             so = {
                     'cores': min(self.max_cpus_per_node, 32),
-                    'memory': f'{8*self.max_cpus_per_node}GB',
+                    'processes': 1,
+                    'memory': f'{4*self.max_cpus_per_node}GB',
                     'walltime': self.slurm_max_walltime,
                     'python': 'python',
                     'log_directory': self.log_dir,
+                    'local_directory': os.getcwd()+'/tmp_dask/',
+                    #'interface': 'eth0',  # or ib0 depending on your cluster
+                    'job_extra_directives': ['--export=ALL'],
                     'job_script_prologue': [
                         "unset PYTHONPATH",
                         "unset PYTHONHOME",
@@ -599,17 +603,20 @@ class Scheduler():
                 }
             
             if self.cluster == "Herts":
-                so.update({'shebang': '#!/bin/tcsh'})
+                #so.update({'shebang': '#!/bin/tcsh'})
                 so.update({'queue': 'core32'})
             else: 
                 logger.warning(f'Slurm cluster {self.cluster} not specifically supported, trying generic settings.')
                 
             self._cluster = SLURMCluster(**so)
             # Test if we want adaptive scaling if you like
-            self._cluster.adapt(minimum=1, maximum=slurm_max_jobs)
+            #self._cluster.adapt(minimum=2, maximum=slurm_max_jobs)
+            self._cluster.scale(jobs=2)
             self._client = Client(self._cluster)
             
             logger.debug(f"Dask SLURM cluster script:\n{self._cluster.job_script()}")
+            
+            
 
         if backend == 'slurm':
             logger.info(f'SLURM scheduler initialised  for cluster {self.cluster}:{self.hostname} '
@@ -651,22 +658,30 @@ class Scheduler():
             )
             fut = self._client.submit(_run_cmd_gpt, cmd, log_path, timeout, resources=None, pure=False)
             self.futures.append((fut, action))
-
+            
     def run(self, check=False, maxProcs=None):
         if self.dry:
             return
         maxProcs_run = maxProcs
+        
+        logger.debug(self._client.scheduler_info())
+        logger.debug(self._client.scheduler_info()['workers'].keys())
+        logger.debug(self._client.nthreads())            # gives {worker_addr: nthreads}
+        logger.debug(self._client.run(lambda: os.uname()))
+        logger.debug(self._client.has_what())
+        logger.debug(self._client.who_has())
+        logs = self._client.get_worker_logs()     # dict of recent logs
+        logger.debug(f"Dask SLURM cluster logs:\n{logs}")
 
         if self.backend == "slurm":
             # Gather and raise on failure
             for fut, action in as_completed([f for f, _ in self.futures], with_results=True):
                 rc, wall = fut.result()
-                print(rc, wall)
-                if rc != 0:
-                    tail = ''
-                    if action['log'] and os.path.exists(action['log']):
-                        tail = subprocess.check_output(f'tail -n 40 {shlex.quote(action["log"])}', shell=True).decode()
-                    raise RuntimeError(f"Command failed (rc={rc}): {action['cmd']}\nLog: {action['log']}\n{tail}")
+                #if rc != 0:
+                #    tail = ''
+                #    if action['log'] and os.path.exists(action['log']):
+                #        tail = subprocess.check_output(f'tail -n 40 {shlex.quote(action["log"])}', shell=True).decode()
+                #    raise RuntimeError(f"Command failed (rc={rc}): {action['cmd']}\nLog: {action['log']}\n{tail}")
                 
             self.futures.clear()
 
