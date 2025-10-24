@@ -462,7 +462,7 @@ class Walker():
         logger.info('Done. Total time: '+delta)
 
 
-def _run_cmd_submitit(cmd, log_path=None):
+def _run_cmd_submitit(cmd, log_path=None):    
     """
     Worker function run on the SLURM node (via submitit).
     """
@@ -563,11 +563,18 @@ class Scheduler():
                 "SLURM_PROCID",
                 "SLURM_LOCALID",
                 "SLURM_ARRAY_TASK_ID"]
-            env_args = " ".join(f"--env {var}={os.environ.get(var, '')}" for var in slurm_vars)
+            
+            env_args = ""
+            for var in slurm_vars:
+                if os.environ.get(var) is None:
+                    logger.debug(f'Environment variable {var} not set - may lead to issues inside the container.')
+                else:
+                    logger.debug(f'Passing environment variable {var} to container.')
+                    env_args += f"--env {var}={os.environ.get(var)} "
 
             self.singularity_preamble = f"singularity exec --cleanenv --pwd {os.getcwd()} \
                 --pid {env_args}\
-                 -B{os.path.dirname(os.getcwd())} {container_path} "
+                 -B{os.path.dirname(os.getcwd())} {container_path} \ "
             # --env
             # PYTHONPATH =\$PYTHONPATH: {LILFDIR}, PATH =\$PATH: {LILFDIR} / scripts / --pid \
                 # sensible defaults; override with slurm_opts
@@ -581,7 +588,7 @@ class Scheduler():
                 timeout_min=int(slurm_max_walltime_min))
 
             if self.cluster == "Herts":
-                self.executor.update_parameters(queue = 'core32')
+                self.executor.update_parameters(slurm_partition='core32')
             else:
                 logger.warning(f'Slurm cluster {self.cluster} not specifically supported, trying generic settings.')
                 
@@ -633,9 +640,14 @@ class Scheduler():
             if maxProcs:
                 self.executor.update_parameters(cpus_per_task=16)
             print(self.executor.parameters, self.executor.cluster)
-            mapargs = [[self.singularity_preamble + action['cmd'], action['log']] for action in self.action_list]
-            print(mapargs)
-            jobs = self.executor.map_array(_run_cmd_submitit, mapargs)
+            eff_cmd_list = []
+            eff_log_list = []
+            for action in self.action_list:
+                eff_cmd_list.append(action['cmd'])
+                eff_log_list.append(action['log'])
+            #mapargs = [[action['cmd'], action['log']] for action in self.action_list]
+            #print('mapargs:', mapargs[0])
+            jobs = self.executor.map_array(_run_cmd_submitit, eff_cmd_list, eff_log_list)
             print('collect')
             print(self.executor.cluster)
             outputs = [job.result() for job in jobs]
