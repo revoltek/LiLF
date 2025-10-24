@@ -157,7 +157,7 @@ class AllMSs(object):
         return np.mean([ms.fractionalFlag() for ms in self.getListObj()])
 
 
-    def run(self, command, log, commandType='', maxProcs=None):
+    def run(self, command, log, commandType=None, maxProcs=None):
         """
         Run command 'command' of type 'commandType', and use 'log' for logger,for each MS of AllMSs.
         The command and log file path can be customised for each MS using keywords (see: 'MS.concretiseString()').
@@ -184,7 +184,7 @@ class AllMSs(object):
             #lib_util.printLineBold("logCurrent:")
             #print (logCurrent)
 
-        self.scheduler.run(check = True, maxProcs = maxProcs)
+        self.scheduler.run(check = True)
 
     def addcol(self, newcol, fromcol, usedysco='auto', log='$nameMS_addcol.log', overwrite=True):
         """
