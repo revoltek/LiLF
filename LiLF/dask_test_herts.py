@@ -16,16 +16,13 @@ logger = lib_log.logger
 
 s = lib_util.Scheduler(log_dir=logger_obj.log_dir, backend='slurm', container_path=os.path.expanduser('~') + "/pill.simg")
 
-#s._cluster.scale(cores=1)
-
-logger.debug(s._client.scheduler_info())
-logger.debug(s._client.run(lambda: os.uname()))
 
 
-MSs = lib_ms.AllMSs(glob.glob('/beegfs/lofar/boxelaar/deepfields/Elais-N1/mss-dask-test/TC*.MS'), s,)
+data_dir = '/beegfs/lofar/boxelaar/deepfields/Elais-N1/batches/testbatch/mss'
+MSs = lib_ms.AllMSs(glob.glob(data_dir + '/TC*.MS'), s,)
 logger.info(f"Found {len(MSs.getListObj())} MSs to process.")
 
-lib_util.check_rm('/beegfs/lofar/boxelaar/deepfields/Elais-N1/mss-dask-test/TC*.MS-test')
+lib_util.check_rm(data_dir + '/TC*.MS-test')
 MSs.run(f'DP3 msin=$pathMS msout=$pathMS-test steps=[count]', log='$nameMS_count.log', commandType='DP3')
 
 

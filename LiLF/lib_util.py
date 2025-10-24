@@ -463,15 +463,8 @@ class Walker():
         logger.info('Done. Total time: '+delta)
 
 
-def _run_cmd(cmd):
-    try:
-        os.system(cmd)
-        return 0, 0.0
-    except Exception as e:
-        logger.error(f"Error occurred while running command: {cmd}\n{e}")
-        return 1, 0.0
 
-def _run_cmd_gpt(cmd, log_path=None, timeout=None):
+def _run_cmd(cmd, log_path=None, timeout=None):
     # ChatGPT
     """
     Run a shell command, tee to log file, return (returncode, walltime_s).
@@ -491,8 +484,8 @@ def _run_cmd_gpt(cmd, log_path=None, timeout=None):
             except subprocess.TimeoutExpired:
                 # Kill the whole process group
                 os.killpg(os.getpgid(p.pid), signal.SIGKILL)
-                return (124, time.time() - t0)   # 124 like GNU timeout
-    return (p.returncode, time.time() - t0)
+                return 124   # 124 like GNU timeout
+    return p.returncode
 
 def get_slurm_max_walltime():
     # ChatGPT
@@ -592,7 +585,6 @@ class Scheduler():
                     'python': 'python',
                     'log_directory': self.log_dir,
                     'local_directory': os.getcwd()+'/tmp_dask/',
-                    #'interface': 'eth0',  # or ib0 depending on your cluster
                     'job_extra_directives': ['--export=ALL'],
                     'job_script_prologue': [
                         "unset PYTHONPATH",
@@ -610,8 +602,7 @@ class Scheduler():
                 
             self._cluster = SLURMCluster(**so)
             # Test if we want adaptive scaling if you like
-            #self._cluster.adapt(minimum=2, maximum=slurm_max_jobs)
-            self._cluster.scale(jobs=2)
+            self._cluster.adapt(minimum=2, maximum=slurm_max_jobs)
             self._client = Client(self._cluster)
             
             logger.debug(f"Dask SLURM cluster script:\n{self._cluster.job_script()}")
@@ -652,31 +643,28 @@ class Scheduler():
         ))
 
         if self.backend == "slurm":
-            action = dict(
-                cmd=cmd, log=log_path, commandType=commandType,
-                threads=threads, mem=mem, time=time, timeout=timeout
-            )
-            fut = self._client.submit(_run_cmd_gpt, cmd, log_path, timeout, resources=None, pure=False)
-            self.futures.append((fut, action))
+            fut = self._client.submit(_run_cmd, cmd, log_path, timeout, resources=None, pure=False)
+            self.futures.append(fut)
             
     def run(self, check=False, maxProcs=None):
         if self.dry:
             return
         maxProcs_run = maxProcs
         
+        # Dask debug info.
         logger.debug(self._client.scheduler_info())
         logger.debug(self._client.scheduler_info()['workers'].keys())
         logger.debug(self._client.nthreads())            # gives {worker_addr: nthreads}
         logger.debug(self._client.run(lambda: os.uname()))
         logger.debug(self._client.has_what())
         logger.debug(self._client.who_has())
-        logs = self._client.get_worker_logs()     # dict of recent logs
-        logger.debug(f"Dask SLURM cluster logs:\n{logs}")
 
         if self.backend == "slurm":
             # Gather and raise on failure
-            for fut, action in as_completed([f for f, _ in self.futures], with_results=True):
-                rc, wall = fut.result()
+            for fut, result in as_completed([f for f in self.futures], with_results=True):
+                rc = fut.result()
+                logger.debug(f"Command completed with return code {rc}")
+                logger.debug(result)
                 #if rc != 0:
                 #    tail = ''
                 #    if action['log'] and os.path.exists(action['log']):
