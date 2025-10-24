@@ -480,7 +480,7 @@ def _run_cmd_submitit(cmd, log_path=None):
     return rc, wall
 
 
-def get_slurm_max_walltime():
+def get_slurm_max_walltime_min():
     # ChatGPT
     import os, re, subprocess
     def _parse_slurm_time(tstr):
@@ -493,7 +493,7 @@ def get_slurm_max_walltime():
             days = 0
             hms = tstr
         hh, mm, ss = (list(map(int, hms.split(':'))) + [0, 0, 0])[:3]
-        return days*86400 + hh*3600 + mm*60 + ss
+        return (days*86400 + hh*3600 + mm*60 + ss)/60
     
     partition = os.getenv('SLURM_PARTITION')
     try:
@@ -517,11 +517,9 @@ def get_slurm_max_walltime():
 
 
 class Scheduler():
-    def __init__(self, backend='slurm', slurm_max_jobs=244, max_cpus_per_node=16, slurm_max_walltime=None, slurm_mem_per_cpu='8GB',
+    def __init__(self, backend='slurm', slurm_max_jobs=244, max_cpus_per_node=16, slurm_max_walltime=None, slurm_mem_per_cpu='7GB',
                  log_dir = 'logs', dry = False, container_path=None):
         """
-        TODO max walltime
-        TODO max_jobs autoset?
         backend: string, backend used to launch jobs. 'local' and 'slurm' are supported
         max_jobs:       max number of parallel processes (either on local node or on slurm cluster)
         max_cpucores:   max number of cpu cores usable in a node
@@ -531,6 +529,7 @@ class Scheduler():
         self.hostname = socket.gethostname()
         self.cluster = self.get_cluster()
         self.log_dir = log_dir
+        self.slurm_max_jobs = int(slurm_max_jobs)
 
         # automatically set max cpucores if not set manually
         if max_cpus_per_node:
@@ -545,14 +544,7 @@ class Scheduler():
                 else:
                     logger.warning('Neither max_cpucores_per_node nor $SLURM_CPUS_ON_NODE defined - guessing cpus per node.')
                     self.max_cpus_per_node = multiprocessing.cpu_count()
-             
 
-        # automatically set maxJobs if not manually set
-        if slurm_max_jobs is None:
-            logger.warn(f'max_jobs not set - what to do in this case?')
-            self.slurm_max_jobs = 1
-        else:
-            self.slurm_max_jobs = int(slurm_max_jobs)
 
         self.dry = dry
         self.action_list = []
@@ -561,18 +553,32 @@ class Scheduler():
         if self.backend == "slurm":
             LILFDIR = os.path.realpath(__file__).split('LiLF')[0] + 'LiLF'
             # We mount only the parent directory of the current working directory
+            slurm_vars = [
+                "SLURM_ARRAY_JOB_ID",
+                "SLURM_JOB_ID",
+                "SLURM_NTASKS",
+                "SLURM_JOB_NUM_NODES",
+                "SLURM_NODEID",
+                "SLURM_JOB_NODELIST",
+                "SLURM_PROCID",
+                "SLURM_LOCALID",
+                "SLURM_ARRAY_TASK_ID"]
+            env_args = " ".join(f"--env {var}={os.environ.get(var, '')}" for var in slurm_vars)
+
             self.singularity_preamble = f"singularity exec --cleanenv --pwd {os.getcwd()} \
-                --env PYTHONPATH=\$PYTHONPATH:{LILFDIR},PATH=\$PATH:{LILFDIR}/scripts/ --pid \
-                --writable-tmpfs -B{os.path.dirname(os.getcwd())} {container_path} "
-            # sensible defaults; override with slurm_opts
+                --pid {env_args}\
+                 -B{os.path.dirname(os.getcwd())} {container_path} "
+            # --env
+            # PYTHONPATH =\$PYTHONPATH: {LILFDIR}, PATH =\$PATH: {LILFDIR} / scripts / --pid \
+                # sensible defaults; override with slurm_opts
 
-            slurm_max_walltime = slurm_max_walltime if slurm_max_walltime else get_slurm_max_walltime()[1],  # auto-find max walltime if not set
-
-            self.executor = submitit.AutoExecutor(folder=self.log_dir)
+            slurm_max_walltime_min = self._parse_time_to_min(slurm_max_walltime) if slurm_max_walltime else get_slurm_max_walltime_min()[0]  # auto-find max walltime if not set
+            self.executor = submitit.AutoExecutor(folder=self.log_dir, cluster='slurm', slurm_python=f'{self.singularity_preamble}   python ')
+            # self.executor._python_executable = self.singularity_preamble
             self.executor.update_parameters(
                 mem_gb=(int(slurm_mem_per_cpu.replace('GB', '')) * self.max_cpus_per_node),
                 cpus_per_task=max_cpus_per_node, slurm_array_parallelism=slurm_max_jobs,
-                timeout_min=self._parse_time_to_min(slurm_max_walltime))
+                timeout_min=int(slurm_max_walltime_min))
 
             if self.cluster == "Herts":
                 self.executor.update_parameters(queue = 'core32')
@@ -606,21 +612,32 @@ class Scheduler():
         action = dict(cmd=cmd, log=log_path, commandType=commandType, threads=1, mem=mem, time=time, timeout=timeout)
         self.action_list.append(action)
 
+        # self.executor.update_parameters(
+        #     mem_gb=(int(slurm_mem_per_cpu.replace('GB', '')) * self.max_cpus_per_node),
+        #     cpus_per_task=max_cpus_per_node, slurm_array_parallelism=slurm_max_jobs,
+        #     timeout_min=int(slurm_max_walltime_min))
+
+        if mem:
+            self.executor.update_parameters(mem_gb = int(action["mem"].replace('GB', '')))
+        # if time:
+        #     self.executor.update_parameters(walltime = self._parse_time_to_min(action["time"]))
+        # if action["time"]:
+        #     self.executor.update_parameters(cpus_per_task=1)
 
     def run(self, check=False, maxProcs=None):
         if self.dry:
             return
 
         if self.backend == "slurm":
-            # with self.executor.batch():
-            #     for action in self.action_list:
-            #         if action["mem"]:
-            #             self.executor.update_parameters(mem_gb = int(action["mem"].replace('GB', '')))
-            #         if action["time"]:
-            #             self.executor.update_parameters(walltime = self._parse_time_to_min(action["time"]))
-            #         if action["time"]:
-            #             self.executor.update_parameters(cpus_per_task=1)
-            jobs = self.executor.map_array(_run_cmd_submitit, [[self.singularity_preamble+action['cmd'], action['log']] for action in self.action_list])
+
+            if maxProcs:
+                self.executor.update_parameters(cpus_per_task=16)
+            print(self.executor.parameters, self.executor.cluster)
+            mapargs = [[self.singularity_preamble + action['cmd'], action['log']] for action in self.action_list]
+            print(mapargs)
+            jobs = self.executor.map_array(_run_cmd_submitit, mapargs)
+            print('collect')
+            print(self.executor.cluster)
             outputs = [job.result() for job in jobs]
             print(outputs)
         else:
@@ -655,7 +672,7 @@ class Scheduler():
 
         self.action_list.clear()
         self.log_list.clear()
-        
+
 
     def check_run(self, log = "", commandType = ""):
         """
@@ -715,6 +732,12 @@ class Scheduler():
             raise RuntimeError(commandType+' run problem on:\n'+out+'\n'+errlines)
 
         return 0
+
+    def _parse_time_to_min(self, timestr):
+        print(timestr)
+        """Convert HH:MM:SS to minutes."""
+        h, m, s = map(int, timestr.split(":"))
+        return h * 60 + m + (s > 0)
 
 
     def get_cluster(self):
