@@ -463,15 +463,8 @@ class Walker():
         logger.info('Done. Total time: '+delta)
 
 
-def _run_cmd(cmd):
-    try:
-        os.system(cmd)
-        return 0, 0.0
-    except Exception as e:
-        logger.error(f"Error occurred while running command: {cmd}\n{e}")
-        return 1, 0.0
 
-def _run_cmd_gpt(cmd, log_path=None, timeout=None):
+def _run_cmd(cmd, log_path=None, timeout=None):
     # ChatGPT
     """
     Run a shell command, tee to log file, return (returncode, walltime_s).
@@ -491,8 +484,8 @@ def _run_cmd_gpt(cmd, log_path=None, timeout=None):
             except subprocess.TimeoutExpired:
                 # Kill the whole process group
                 os.killpg(os.getpgid(p.pid), signal.SIGKILL)
-                return (124, time.time() - t0)   # 124 like GNU timeout
-    return (p.returncode, time.time() - t0)
+                return 124   # 124 like GNU timeout
+    return p.returncode
 
 def get_slurm_max_walltime():
     # ChatGPT
@@ -531,7 +524,7 @@ def get_slurm_max_walltime():
 
 
 class Scheduler():
-    def __init__(self, backend='slurm', slurm_max_jobs=244, max_cpus_per_node=16, slurm_max_walltime=None, slurm_mem_per_cpu='8GB',
+    def __init__(self, backend='slurm', slurm_max_jobs=244, max_cpus_per_node=32, slurm_max_walltime=None, slurm_mem_per_cpu='8GB',
                  log_dir = 'logs', dry = False, container_path=None):
         """
         TODO max walltime
@@ -560,7 +553,7 @@ class Scheduler():
                     logger.warning('Neither max_cpucores_per_node nor $SLURM_CPUS_ON_NODE defined - guessing cpus per node.')
                     self.max_cpus_per_node = multiprocessing.cpu_count()
              
-
+        self.max_cpus_per_node = 16  # TEMP override
         # automatically set maxJobs if not manually set
         if slurm_max_jobs is None:
             logger.warn(f'max_jobs not set - what to do in this case?')
@@ -579,20 +572,22 @@ class Scheduler():
             # sensible defaults; override with slurm_opts
             LILFDIR = os.path.realpath(__file__).split('LiLF')[0] + 'LiLF'
             # We mount only the parent directory of the current working directory
-            singularity_command = f"singularity exec --cleanenv --pwd {os.getcwd()} \
+            singularity_command = f"singularity exec --pwd {os.getcwd()} \
                 --env PYTHONPATH=\$PYTHONPATH:{LILFDIR},PATH=\$PATH:{LILFDIR}/scripts/ --pid \
                 --writable-tmpfs -B{os.path.dirname(os.getcwd())} {container_path}"
             self.slurm_max_walltime = slurm_max_walltime if slurm_max_walltime else get_slurm_max_walltime()[1],  # auto-find max walltime if not set
 
             so = {
-                    'cores': 16, # We use 1 job per worker, so this is the CPUs per job -> maps to --cpus-per-taks
-                    'memory': f'{16*self.max_cpus_per_node}GB', # We use 1 job per worker, so this is the memory per job
+                    'cores': min(self.max_cpus_per_node, 32),  # We use 1 job per worker, so this is the CPUs per job -> maps to --cpus-per-taks
+                    'processes': 1, # (I think) this forces the 1 job per worker
+                    'memory': f'{4*self.max_cpus_per_node}GB', # We use 1 job per worker, so this is the memory per job
                     'walltime': self.slurm_max_walltime,
                     'python': 'python',
-                    'processes': 1, # (I think) this forces the 1 job per worker
                     'log_directory': self.log_dir,
-                    'worker_extra_args' : ['--nthreads', '1'], # this forces one job at a time?
-                    # 'job_extra': ['--cpus-per-task=16',  f'--mem-per-cpu={slurm_mem_per_cpu}'],
+                    'job_extra_directives': ['--export=ALL'],
+                    'local_directory': os.getcwd()+'/tmp_dask/',
+                     #'worker_extra_args' : ['--nthreads', '1'], # this forces one job at a time?
+
                     'job_script_prologue': [
                         "unset PYTHONPATH",
                         "unset PYTHONHOME",
@@ -602,20 +597,19 @@ class Scheduler():
                 }
             
             if self.cluster == "Herts":
-                so.update({'shebang': '#!/bin/tcsh'})
+                #so.update({'shebang': '#!/bin/tcsh'})
                 so.update({'queue': 'core32'})
             else: 
                 logger.warning(f'Slurm cluster {self.cluster} not specifically supported, trying generic settings.')
                 
             self._cluster = SLURMCluster(**so)
             # Test if we want adaptive scaling if you like
-            self._cluster.adapt(minimum=1, maximum=slurm_max_jobs)
-            print('Scale cluster')
-            # self._cluster.scale(slurm_max_jobs)
+            self._cluster.adapt(minimum=2, maximum=slurm_max_jobs)
             self._client = Client(self._cluster)
-            print('created clients')
-
+            
             logger.debug(f"Dask SLURM cluster script:\n{self._cluster.job_script()}")
+
+
 
         if backend == 'slurm':
             logger.info(f'SLURM scheduler initialised  for cluster {self.cluster}:{self.hostname} '
@@ -625,11 +619,13 @@ class Scheduler():
             logger.info(f'Local scheduler initialised  for cluster {self.cluster}:{self.hostname} \
                          (max_cpucores_per_node: {self.max_cpus_per_node})')
 
-    def add(self, cmd='', log='', commandType='general', mem=None, time='00:30:00', timeout=None):
+    def add(self, cmd='', log='', commandType='general', threads=1, mem=None, time='00:30:00', timeout=None):
         """
         Add a command with optional resources (mapped to SLURM/Dask).
         """
         
+        if mem is None:
+            mem =threads
         log_path = os.path.join(self.log_dir, log) if log else ''
         if log:
             # Truncate the log on first write
@@ -643,28 +639,39 @@ class Scheduler():
             logger.debug(f'Running general: {cmd}')
             
 
-        action = dict(cmd=cmd, log=log_path, commandType=commandType, threads=1, mem=mem, time=time, timeout=timeout)
-        self.action_list.append(action)
+        self.action_list.append(dict(
+            cmd=cmd, log=log_path, commandType=commandType,
+            threads=threads, mem=mem, time=time, timeout=timeout
+        ))
 
         if self.backend == "slurm":
-            fut = self._client.submit(_run_cmd_gpt, cmd, log_path, timeout, resources=None, pure=False)
+            fut = self._client.submit(_run_cmd, cmd, log_path, timeout, resources=None, pure=False)
             self.futures.append(fut)
 
     def run(self, check=False, maxProcs=None):
         if self.dry:
             return
+        maxProcs_run = maxProcs
+
+        # Dask debug info.
+        logger.debug(self._client.scheduler_info())
+        logger.debug(self._client.scheduler_info()['workers'].keys())
+        logger.debug(self._client.nthreads())            # gives {worker_addr: nthreads}
+        logger.debug(self._client.run(lambda: os.uname()))
+        logger.debug(self._client.has_what())
+        logger.debug(self._client.who_has())
 
         if self.backend == "slurm":
             # Gather and raise on failure
-            for fut, result in as_completed(self.futures, with_results=True):
-                rc, wall = result
-                print(rc, wall)
-                # print('action', action)
-                # if rc != 0:
-                #     tail = ''
-                    # if action['log'] and os.path.exists(action['log']):
-                    #     tail = subprocess.check_output(f'tail -n 40 {shlex.quote(action["log"])}', shell=True).decode()
-                    # raise RuntimeError(f"Command failed (rc={rc}): {action['cmd']}\nLog: {action['log']}\n{tail}")
+            for fut, result in as_completed([f for f in self.futures], with_results=True):
+                rc = fut.result()
+                logger.debug(f"Command completed with return code {rc}")
+                logger.debug(result)
+                #if rc != 0:
+                #    tail = ''
+                #    if action['log'] and os.path.exists(action['log']):
+                #        tail = subprocess.check_output(f'tail -n 40 {shlex.quote(action["log"])}', shell=True).decode()
+                #    raise RuntimeError(f"Command failed (rc={rc}): {action['cmd']}\nLog: {action['log']}\n{tail}")
                 
             self.futures.clear()
 
