@@ -111,12 +111,6 @@ class AllMSs(object):
         """
         return ' '.join(self.mssListStr)
 
-    def getStrDDF(self):
-        """
-        Return a string with all MS paths, useful for DDF
-        """
-        return ','.join(self.mssListStr)
-
 
     def getFreqs(self):
         """
@@ -376,6 +370,47 @@ class MS(object):
         lst = self.get_time().sidereal_time('mean', self.get_telescope_coords().lon)
         ha = lst - coord.ra # hour angle
         return ha.deg/15.
+
+
+    def get_hist(self):
+        """
+        Return the Hystory subtable cell 1 (containing preprocessin ginfo) as a list
+        """
+
+        with tables.table(self.pathMS + "/HISTORY", ack=False) as table:
+            col = table.col('APP_PARAMS')
+            try:
+                return col.getcell(1)
+            except:
+                return []
+
+
+    def print_ateam_demix(self):
+        """
+        Some debug logs on the ateam
+        """
+        hist = self.get_hist()
+        for h in hist:
+            #print(h)
+            if 'demixer.subtractsources' in h:
+                logger.debug(f'{self.nameMS}: DEMIX - Sources = {h.split('=')[1]}')
+            if 'demixer.ignoretarget' in h:
+                logger.debug(f'{self.nameMS}: DEMIX - Ignoretarget = {h.split('=')[1]}')
+
+
+    def get_ateam_demix(self):
+        """
+        Return a list of the demixed ateam sources
+        """
+        hist = self.get_hist()
+        demixed = None
+        for h in hist:
+            if 'demixer.subtractsources' in h:
+                demixed = h.split('=')[1].replace('\'','').replace(' ','')
+        try:
+            return demixed[1:-1].split(',')
+        except:
+            return []
 
     def distBrightSource(self, name):
         """
@@ -676,31 +711,32 @@ class MS(object):
 
     def getAvgFactors(self, keep_IS):
         """
-        Get the time and frequency averaging factor to arrive at the standard LiLF processing resolution
+        Get the time and frequency averaging factor to arrive at the standard LiLF widefield processing resolution
         depending on SPARSE/OUTER, frequency coverage and Dutch/IS.
         keep_IS: compute resolution for IS data
         """
-        nchan = self.getNchan()
+        nchan_per_sb = round(0.195312e6/self.getChanband())
+        logger.debug(f'nchan_per_sb: {nchan_per_sb}')
         timeint = self.getTimeInt()
         minfreq = np.min(self.getFreqs())
-        if nchan == 1:
+        if nchan_per_sb == 1:
             avg_factor_f = 1
         # elif nchan % 2 == 0 and MSs.isHBA: # case HBA
         #    avg_factor_f = int(nchan / 4)  # to 2 ch/SB
-        elif nchan % 8 == 0 and minfreq < 40e6:
-            avg_factor_f = int(nchan / 8)  # to 8 ch/SB
-        elif nchan % 8 == 0 and 'SPARSE' in self.getAntennaSet():
-            avg_factor_f = int(nchan / 8)  # to 8 ch/SB
-        elif nchan % 4 == 0:
-            avg_factor_f = int(nchan / 4)  # to 4 ch/SB
-        elif nchan % 5 == 0:
-            avg_factor_f = int(nchan / 5)  # to 5 ch/SB
+        elif nchan_per_sb % 8 == 0 and minfreq < 40e6:
+            avg_factor_f = int(nchan_per_sb / 8)  # to 8 ch/SB
+        elif nchan_per_sb % 8 == 0 and 'SPARSE' in self.getAntennaSet():
+            avg_factor_f = int(nchan_per_sb / 8)  # to 8 ch/SB
+        elif nchan_per_sb % 4 == 0:
+            avg_factor_f = int(nchan_per_sb / 4)  # to 4 ch/SB
+        elif nchan_per_sb % 5 == 0:
+            avg_factor_f = int(nchan_per_sb / 5)  # to 5 ch/SB
         else:
             logger.error('Channels should be a multiple of 4 or 5.')
             sys.exit(1)
 
         if keep_IS:
-            avg_factor_f = int(nchan / 16)  # to have the full FoV in LBA we need 16 ch/SB
+            avg_factor_f = int(nchan_per_sb / 32)  # to have the full FoV in LBA we need 32 ch/SB
         if avg_factor_f < 1: avg_factor_f = 1
 
         avg_factor_t = int(np.round(2 / timeint)) if keep_IS else int(np.round(4 / timeint))  # to 4 sec (2 for IS)
@@ -815,71 +851,4 @@ class MS(object):
         with tables.table(self.pathMS, ack = False) as t:
             f = t.getcol('FLAG')
             return np.sum(f)/f.size
-
-
-#    def delBeamInfo(self, col=None):
-#        """
-#        Delete beam info of one column
-#        col: column name, use all if not specified
-#        """
-#
-#        with tables.table(self.pathMS, ack = False, readonly = False) as t:
-#            if col is None:
-#                cols = t.colnames()
-#            else:
-#                cols = [col]
-#
-#            for col in cols:
-#                kw = t.getcolkeywords(col)
-#                print('Old kw ('+col+'):', kw)
-#                t.putcolkeyword(col,'LOFAR_APPLIED_BEAM_MODE', 'None')
-#                kw = t.getcolkeywords(col)
-#                print('New kw ('+col+'):', kw)
-#
-#
-#    def putBeamInfo(self, mode, direction, col=None):
-#        """
-#        Modify beam infor of one column
-#        col: column name, use all if not specified
-#        mode: None, Full, ArrayFactor, Element
-#        direction: [deg,deg]
-#        """
-#        assert mode == 'None' or mode == 'Full' or mode == 'ArrayFactor' or mode == 'Element'
-#
-#        beam_dir={'type': 'direction',
-#                'refer': 'J2000',
-#                'm0': {'value': direction[0]*np.pi/180, 'unit': 'rad'},
-#                'm1': {'value': direction[1]*np.pi/180, 'unit': 'rad'}}
-#
-#        with tables.table(self.pathMS, ack = False, readonly = False) as t:
-#            if col is None:
-#                cols = t.colnames()
-#            else:
-#                cols = [col]
-#
-#            for col in cols:
-#                kw = t.getcolkeywords(col)
-#                print('Old kw ('+col+'):', kw)
-#                t.putcolkeyword(col,'LOFAR_APPLIED_BEAM_MODE', mode)
-#                t.putcolkeyword(col,'LOFAR_APPLIED_BEAM_DIR', beam_dir)
-#                kw = t.getcolkeywords(col)
-#                print('New kw ('+col+'):', kw)
-#
-#    def copyBeamInfo(self, from_ms, from_ms_col, col=None):
-#        """
-#        from_ms: get the keywoords from another ms
-#        from_ms_col: the column to pick the values from
-#        """
-#        if col is None:
-#            cols = t.colnames()
-#        else:
-#            cols = [col]
-#        
-#        with tables.table(from_ms, ack = False, readonly = True) as t:
-#            kw = t.getcolkeywords(from_ms_col)
-#
-#        with tables.table(self.pathMS, ack = False, readonly = False) as t:
-#            for col in cols:
-#                print('set',kw)
-#                t.putcolkeywords(col, kw)
-#
+        

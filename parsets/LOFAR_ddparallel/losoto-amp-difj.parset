@@ -9,7 +9,7 @@ soltabOut = amplitudeSmooth
 operation = REPLICATEONAXIS
 soltab = sol000/amplitudeSmooth
 axisReplicate = ant
-fromCell = first
+fromCell = nonflaggedCS
 
 [plotAsmooth]
 operation = PLOT
@@ -28,7 +28,7 @@ soltabOut = phaseSmooth
 operation = REPLICATEONAXIS
 soltab = sol000/phaseSmooth
 axisReplicate = ant
-fromCell = first
+fromCell = nonflaggedCS
 
 [plotPsmooth]
 operation = PLOT

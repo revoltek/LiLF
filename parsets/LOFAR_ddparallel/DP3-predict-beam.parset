@@ -12,7 +12,13 @@ pre.sourcedb =
 pre.usebeammodel = True
 pre.usechannelfreq = True
 pre.beam_interval = 120
-pre.beammode = array_factor
+pre.beammode = array_factor # best would be to predicts array+element, then we correct for element at phase centre to have array+differential element but VERY slow
 pre.correctfreqsmearing = True
 # pre.correcttimesmearing = 2 # upsampling factor - set it to 2 when dp3 bug is solved
 
+# each patch is corrupted for the element beam, now we correct at the phase centre to have a differential-beam
+#corrbeam.type = applybeam
+#corrbeam.beammode = element
+#corrbeam.invert = True # True=correct
+#corrbeam.usechannelfreq = True
+#corrbeam.updateweights = False

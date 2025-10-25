@@ -2,6 +2,7 @@ msin =
 msin.datacolumn = CORRECTED_DATA
 msout = 
 msout.storagemanager = dysco
+msout.uvwcompression = False
 
 numthreads = 1 # leave this to 1 as it is called with s.run() and IO limited
 

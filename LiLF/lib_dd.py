@@ -7,7 +7,7 @@ from astropy.wcs import WCS
 import pyregion
 from regions import Regions
 from pyregion.parser_helper import Shape
-from shapely.geometry import Polygon
+from spherical_geometry.polygon import SphericalPolygon
 
 from LiLF.lib_log import logger
 from LiLF import lib_img, lib_util
@@ -79,6 +79,25 @@ class Direction(object):
         Create an intersection of the ddcal region and the facet regions to be used for fast predict
         """
         
+        #def ra_dec_to_unit_vector(ra_deg, dec_deg):
+        #    ra_rad = np.deg2rad(ra_deg)
+        #    dec_rad = np.deg2rad(dec_deg)
+        #    x = np.cos(dec_rad) * np.cos(ra_rad)
+        #    y = np.cos(dec_rad) * np.sin(ra_rad)
+        #    z = np.sin(dec_rad)
+        #    return np.array([x, y, z]).T
+
+        #def unit_vector_to_radec(vec):
+        #    """
+        #    Convert an array of unit vectors to RA/Dec in degrees.
+        #    Input: vec shape (N, 3)
+        #    Returns: (RA, Dec) arrays in degrees
+        #    """
+        #    x, y, z = vec.T
+        #    ra = np.degrees(np.arctan2(y, x)) % 360   # RA in [0, 360)
+        #    dec = np.degrees(np.arcsin(z))            # Dec in [-90, +90]
+        #    return ra, dec
+
         def create_circle_polygon(center, radius, num_points=100):
             """
             Create a circular polygon by sampling points along the circumference.
@@ -101,7 +120,8 @@ class Direction(object):
             dec_points = center_rad[1] + radius_rad * np.sin(theta)
             ra_points = np.degrees(ra_points) % 360  # Ensure RA is within 0-360 degrees
             dec_points = np.degrees(dec_points)
-            return Polygon(np.column_stack((ra_points, dec_points)))
+            return SphericalPolygon.from_radec( ra_points, dec_points )
+            #return Polygon(np.column_stack((ra_points, dec_points)))
 
         def load_regions_with_comments(region_file):
             regions = []
@@ -139,7 +159,7 @@ class Direction(object):
         # Load the regions
         circular_region = Regions.read(self.region_file, format="ds9")[0]
         # Convert the circular region to a Shapely object
-        circle_shapely = create_circle_polygon([circular_region.center.ra.value % 360, circular_region.center.dec.value], circular_region.radius.to_value('deg'))
+        circle_polygon = create_circle_polygon([circular_region.center.ra.value % 360, circular_region.center.dec.value], circular_region.radius.to_value('deg'))
 
         # now work on a series of polygon regions
         region_str = ''
@@ -152,18 +172,18 @@ class Direction(object):
             except:
                 continue
 
+            # Convert the polygon to a SphericalPolygon object
             vertices_radec = np.array([[v.ra.value%360,v.dec.value] for v in vertices_skycoord]) # extract ra and recs
-            # Convert the polygon to a Shapely object
-            polygon_shapely = Polygon(vertices_radec)
+            facet_polygon = SphericalPolygon.from_radec( vertices_radec[:,0], vertices_radec[:,1] )
 
-            # Calculate the intersection - this is approximate as it assumes eucledian while we use ra/dec
-            intersection = polygon_shapely.intersection(circle_shapely)
+            # Calculate the intersection
+            intersection = facet_polygon.intersection(circle_polygon)
 
-            if not intersection.is_empty:
+            if len(intersection.polygons) > 0:
                 # Convert the intersection back to a DS9 polygon region
-                if isinstance(intersection, Polygon):
-                    vertices = np.array(intersection.exterior.coords)
-                    region_str += "polygon(" + ", ".join(f"{x}, {y}" for x, y in vertices) + ")\n"
+                if len(intersection.polygons) == 1:
+                    vertices = np.array(intersection.polygons[0].to_radec())
+                    region_str += "polygon(" + ", ".join(f"{v[0]}, {v[1]}" for v in vertices.T) + ")\n"
                     ra, dec = regions[i+1].center.ra.value, regions[i+1].center.dec.value
                     region_str += f"point({ra},{dec}) # "+comments[i+1]+"\n"
                     facet_dirs.append(comments[i+1].split("=")[1])
@@ -175,7 +195,7 @@ class Direction(object):
 
         # Save the intersection region to a DS9 region file
         self.region_facets_file = loc+'/'+self.name+'-facets.reg'
-        self.facets_dirs = facet_dirs
+        self.facets_dirs = facet_dirs # not used
         with open(self.region_facets_file, "w") as f:
             f.write("# Region file format: DS9\n")
             f.write("fk5\n")
@@ -211,7 +231,7 @@ class Direction(object):
 
     def add_h5parm(self, typ, h5parmFile):
         """
-        typ can be 'ph', 'fr', 'amp1', or 'amp2'
+        typ can be 'ph','ph1','ph2','ph-ddserial','fr','amp1','amp2'
         h5parmFile: filename
         """
         assert typ in self.soltypes
@@ -552,7 +572,9 @@ def make_subfield_region(name, MS, sm, min_flux, pixscale, imgsizepix, debug_dir
     sc = SkyCoord(ra, dec)
     # NOTE: ignore higher order SI terms for now...
     assert len(np.unique(reff)) == 1
-    fluxes = I*(freq/reff[0])**si[:,0]
+    fluxes = I
+    for i in range(len(si[0])):
+        fluxes += si[:,i]*(freq/reff[0]-1)**(i+1)
 
     def create_cone_kernel(size, edge_value=0.9):
         # helper function to create the kernel. The kernel is 1 at the center and radially drops to edge_value at the edge
@@ -637,10 +659,7 @@ def make_subfield_region(name, MS, sm, min_flux, pixscale, imgsizepix, debug_dir
     region_string = f"""# Region file format: DS9 version 4.1
                         global color=green dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1
                         fk5
-                        box({bestbox_coord[0]},{bestbox_coord[1]},{1.02*bestbox_size},{1.02*bestbox_size},0.0)"""
+                        box({bestbox_coord[0]},{bestbox_coord[1]},{bestbox_size+2/60},{bestbox_size+2/60},0.0)"""
     region = pyregion.parse(region_string)
     region.write(name)
     return bestbox_coord, bestbox_size
-
-
-

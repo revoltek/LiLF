@@ -18,7 +18,6 @@ sol.stepsize = 0.2
 #sol.beamproximitylimit = 200
 #sol.invert = True
 
-#sol.coreconstraint = 2000 # for now to stay conservative.
 # solver specific stuff - to be tested!
 #sol.directions = [[],[]]...
 sol.solveralgorithm  = directioniterative

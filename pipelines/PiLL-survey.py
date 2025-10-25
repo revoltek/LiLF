@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-import os, sys, glob, getpass, socket, pickle
+import os, sys, glob, getpass, socket, pickle, random
+from datetime import datetime
 from LiLF.surveys_db import SurveysDB
 from LiLF import lib_util, lib_log
 logger_obj = lib_log.Logger('PiLL')
@@ -9,50 +10,23 @@ s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('PiLL.walker')
 
 LiLF_dir = os.path.dirname(os.path.dirname(lib_util.__file__))
+
 parset = lib_util.getParset(parsetFile='lilf.config')
 
 # get parameters
 # use lilf.config (this is also used by all other scripits)
 working_dir = os.path.abspath(parset.get('PiLL','working_dir'))
-project = parset.get('PiLL','project')
-target = parset.get('PiLL','target')
-obsid = parset.get('PiLL','obsid')
-download_file = parset.get('PiLL','download_file')
+minmaxhrs = parset.get('PiLL','minmaxhrs').split(',')
+logfile = parset.get('PiLL','logfile')
 
 caldirroot = ('/iranet/groups/ulu/fdg/surveycals/done/')
 tgtdirroot = ('/iranet/groups/ulu/fdg/surveytgts/download*/mss/')
 
-#def calibrator_tables_available(obsid):
-#    """
-#    check if calibrator data exist in the database
-#    """
-#    with SurveysDB(survey='lba',readonly=True) as sdb:
-#        sdb.execute('SELECT * FROM observations WHERE id=%f' % obsid)
-#        r = sdb.cur.fetchall()
-#        if len(r) != 0 and r[0]['location'] != '': return True
-#        else: return False
-
-
-#def local_calibrator_dirs(searchdir='', obsid=None):
-#    """
-#    Return the dirname of the calibrators
-#    """
-#    if searchdir != '': searchdir += '/'
-#    if obsid is None:
-#        calibrators = glob.glob(searchdir+'id*_-_*3[C|c]196*') + \
-#                  glob.glob(searchdir+'id*_-_*3[C|c]295*') + \
-#                  glob.glob(searchdir+'id*_-_*3[C|c]380*')
-#    else:
-#        calibrators = glob.glob(searchdir+'/id%i_-_*3[C|c]196*' % obsid) + \
-#                  glob.glob(searchdir+'id%i_-_*3[C|c]295*' % obsid) + \
-#                  glob.glob(searchdir+'id%i_-_*3[C|c]380*' % obsid)
-#    if len(calibrators) == 0: return []
-#    else: return calibrators
-
-
 def update_status_db(field, status):
+
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     with SurveysDB(survey='lba',readonly=False) as sdb:
-        r = sdb.execute('UPDATE fields SET status="%s" WHERE id="%s"' % (status,field))
+        r = sdb.execute('UPDATE fields SET end_date="%s", status="%s" WHERE id="%s"' % (timestamp, status, field))
 
 def check_done(pipename):
     """
@@ -63,6 +37,39 @@ def check_done(pipename):
         last_line = f.readlines()[-1]
     if not "Done" in last_line:
         update_status_db(target, 'Error') 
+
+        # save everything possible for debug
+        with w.if_todo('saveproduct_error_%s' % target):
+            archive = '/iranet/groups/ulu/fdg/surveytgts/done/'+target+'.error'
+            # copy images in herts
+            logger.info(f'Copy products -> {archive}')
+            lib_util.check_rm(f'{archive}')
+            os.system(f'mkdir {archive}; mkdir {archive}/plots {archive}/logs')
+            os.chdir(working_dir+'/'+target)
+            os.system(f'cp ddparallel/images/wideDDP-c*-MFS-image.fits {archive}')
+            os.system(f'cp ddparallel/images/wide-sidelobe-MFS-image.fits {archive}')
+            os.system(f'cp ddparallel/solutions/faceets*reg {archive}')
+            os.system(f'cp ddparallel/skymodel/subfield.reg {archive}')
+            os.system(f'cp -r ddparallel/plots/* {archive}/plots')
+            os.system(f'cp ddserial/c0*/images/*MFS-image.fits {archive}')
+            os.system(f'cp ddserial/c0*/images/wideDDS-*MFS-residual.fits {archive}')
+            os.system(f'cp ddserial/c0*/solutions/facetsS-c*.reg {archive}')
+            os.system(f'cp ddserial/c0*/skymodels/ddcals*reg {archive}')
+            os.system(f'cp ddserial/c0*/skymodels/initcat-c*.cat.fits {archive}')
+            os.system(f'cp ddserial/c0*/skymodels/mask-ddcal-c*.reg {archive}')
+            os.system(f'cp quality/quality.pickle {archive}')
+            # copy logs
+            logger.info(f'Copy logs -> {archive}')
+            os.chdir(working_dir)
+            os.system(f'cp -r PiLL_*logger PiLL*walker \
+              *{target[:-1]}*/pipeline-timesplit_*logger *{target[:-1]}*/pipeline-timesplit.walker *{target[:-1]}*/logs_pipeline-timesplit_* \
+              {target}/pipeline-ddparallel_*logger {target}/pipeline-ddparallel.walker {target}/logs_pipeline-ddparallel_* \
+              {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
+              {target}*/pipeline-quality_*logger {target}/pipeline-quality.walker \
+              {archive}/logs')
+            if os.path.exists(logfile): os.system(f'cp {logfile} {archive}/logs')
+        ### DONE
+
         logger.error('Something went wrong in the last pipeline call.')
         sys.exit()
 
@@ -72,19 +79,32 @@ logger.info('### Quering database...')
 with SurveysDB(survey='lba',readonly=True) as sdb:
     if os.path.exists('target.txt'):
          with open("target.txt", "r") as file:
-            target, target_ra, target_dec = file.readline()[:-1].split(',')
+            target = file.readline()[:-1]
     else:
-        sdb.execute('SELECT * FROM fields WHERE status="Downloaded" order by priority asc')
+        # get all fields with max priority
+        #sdb.execute('SELECT * FROM fields WHERE status = "Downloaded" AND priority = (SELECT MAX(priority) FROM fields WHERE status = "Downloaded")')
+        mn, mx = int(minmaxhrs[0]), int(minmaxhrs[1])
+        # select all eligible fields, then pick randomly among those with the highest priority
+        sdb.execute(f'''
+            SELECT f.id, f.priority
+            FROM fields f
+            JOIN field_obs fo ON f.id = fo.field_id
+            WHERE f.status = "Downloaded"
+            GROUP BY f.id, f.priority
+            HAVING COUNT(fo.field_id) BETWEEN {mn} AND {mx}
+        ''')
         r = sdb.cur.fetchall()
         if len(r) == 0:
             logger.warning('No field left in the db...')
             sys.exit()
-        target = r[0]['id'] # here we set $target
-        target_ra = r[0]['ra']
-        target_dec = r[0]['decl']
+
+        max_prio = max(row['priority'] for row in r)
+        top = [row for row in r if row['priority'] == max_prio]
+        target = random.choice(top)['id']  # here we set $target
+
         # save target name
         with open("target.txt", "w") as file:
-            print('%s,%f,%f' % (target,target_ra,target_dec), file=file)
+            print(target, file=file)
 
     sdb.execute('SELECT * FROM field_obs WHERE field_id="%s"' % target)
     r = sdb.cur.fetchall()
@@ -95,16 +115,17 @@ logger.info(f"### Working on target: {target} (obsids: {obsids})")
 username = getpass.getuser()
 clustername = s.cluster
 nodename = socket.gethostname()
+timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 with SurveysDB(survey='lba',readonly=False) as sdb:
-    r = sdb.execute('UPDATE fields SET username="%s" WHERE id="%s"' % (username, target))
-    r = sdb.execute('UPDATE fields SET clustername="%s" WHERE id="%s"' % (clustername, target))
-    r = sdb.execute('UPDATE fields SET nodename="%s" WHERE id="%s"' % (nodename, target))
+    r = sdb.execute('UPDATE fields SET username="%s", clustername="%s", nodename="%s", start_date="%s" WHERE id="%s"' % \
+                    (username, clustername, nodename, timestamp, target))
 
 ###################################################################################
 # setup and copy
 
 update_status_db(target, 'Copy') 
 
+# pipelines search for lilf.config also in the ../ dir
 if not os.path.exists(working_dir):
     os.makedirs(working_dir)
 if os.path.exists('lilf.config') and os.getcwd() != working_dir: 
@@ -193,22 +214,22 @@ with w.if_todo('dd-serial_%s' % target):
 update_status_db(target, 'QualityCheck')
 
 with w.if_todo('quality_%s' % target):
-        logger.info('### %s: Starting quality check #####################################' % target)
-        os.system(LiLF_dir+'/pipelines/LOFAR_quality.py')
-        check_done('pipeline-quality')
+    logger.info('### %s: Starting quality check #####################################' % target)
+    os.system(LiLF_dir+'/pipelines/LOFAR_quality.py')
+    check_done('pipeline-quality')
 
-        with open('quality/quality.pickle', 'rb') as f:
-            qdict = pickle.load(f)
-        logger.info('DDparallel residual rms noise (cycle 0): %.1f mJy/b' % (qdict["ddparallel_c0_rms"] * 1e3))
-        logger.info('DDparallel residual rms noise (cycle 1): %.1f mJy/b' % (qdict["ddparallel_c1_rms"] * 1e3))
-        logger.info('DDserial residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddserial_c0_rms'] * 1e3))
-        logger.info('DDserial residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddserial_c1_rms'] * 1e3))
-        logger.info('DDserial NVSS ratio (cycle 1): %.1f with %i matches' % (qdict['nvss_ratio'], qdict['nvss_match']))
-        logger.info('DDserial total flags: %.1f%%' % (qdict['flag_frac']*100))
+    with open('quality/quality.pickle', 'rb') as f:
+        qdict = pickle.load(f)
+    logger.info('DDparallel residual rms noise (cycle 0): %.1f mJy/b' % (qdict["ddparallel_c0_rms"] * 1e3))
+    logger.info('DDparallel residual rms noise (cycle 1): %.1f mJy/b' % (qdict["ddparallel_c1_rms"] * 1e3))
+    logger.info('DDserial residual rms noise (cycle 0): %.1f mJy/b' % (qdict['ddserial_c0_rms'] * 1e3))
+    #logger.info('DDserial residual rms noise (cycle 1): %.1f mJy/b' % (qdict['ddserial_c1_rms'] * 1e3))
+    logger.info('DDserial NVSS ratio (cycle 1): %.1f with %i matches' % (qdict['nvss_ratio'], qdict['nvss_match']))
+    logger.info('DDserial total flags: %.1f%%' % (qdict['flag_frac']*100))
 
-        with SurveysDB(survey='lba', readonly=False) as sdb:
-            r = sdb.execute('UPDATE fields SET noise="%s", nvss_ratio="%s", nvss_match="%s", flag_frac="%s" WHERE id="%s"' \
-                    % (qdict['ddserial_c1_rms'],qdict['nvss_ratio'], qdict['nvss_match'], qdict['flag_frac'],  target))
+    with SurveysDB(survey='lba', readonly=False) as sdb:
+        r = sdb.execute('UPDATE fields SET noise="%s", nvss_ratio="%s", nvss_match="%s", flag_frac="%s" WHERE id="%s"' \
+            % (qdict['ddserial_c0_rms'],qdict['nvss_ratio'], qdict['nvss_match'], qdict['flag_frac'],  target))
 ### DONE
 
 ################################################################################
@@ -222,15 +243,28 @@ with w.if_todo('saveproducts_%s' % target):
     logger.info(f'Copy products -> {archive}')
     lib_util.check_rm(f'{archive}')
     os.system(f'mkdir {archive}; mkdir {archive}/plots {archive}/logs')
-    os.system(f'cp ddparallel/images/wideM-*-MFS-image.fits {archive}')
+    os.system(f'cp ddparallel/images/wideDDP-c*-MFS-image.fits {archive}')
+    os.system(f'cp ddparallel/images/wide-sidelobe-MFS-image.fits {archive}')
+    os.system(f'cp ddparallel/solutions/facetsP-c*.reg {archive}')
+    os.system(f'gzip ddparallel/solutions/cal-amp-di.h5; cp ddparallel/solutions/cal-amp-di.h5.gz {archive}')
+    os.system(f'gzip ddparallel/solutions/cal-tec-sf-c1.h5; cp ddparallel/solutions/cal-tec-sf-c1.h5.gz {archive}')
+    os.system(f'gzip ddparallel/solutions/cal-fr.h5; cp ddparallel/solutions/cal-fr.h5.gz {archive}')
+    os.system(f'cp ddparallel/skymodel/subfield.reg {archive}')
     os.system(f'cp -r ddparallel/plots/* {archive}/plots')
+
     os.system(f'cp ddserial/c0*/images/*image*.fits {archive}')
-    os.system(f'cp ddserial/c0*/images/wideDD-*MFS-residual.fits {archive}')
-    os.system(f'cp ddserial/c00/images/wideDD*model*fpb.fits {archive}')
-    os.system(f'cp ddserial/c00/solutions/interp.h5 ddserial/c00/solutions/facets-c00.reg {archive}')
-    os.system(f'cp ddserial/c0*/skymodels/all*reg {archive}')
+    os.system(f'cp ddserial/c0*/images/wideDDS-*MFS-residual.fits {archive}')
+    os.system(f'cp ddserial/c0*/images/wideDDS-*MFS-psf.fits {archive}')
+    os.system(f'cp ddserial/c00/images/wideDDS*model*fpb.fits {archive}')
+    os.system(f'gzip ddserial/c00/solutions/interp.h5; cp ddserial/c00/solutions/interp.h5.gz {archive}')
+    os.system(f'cp ddserial/c00/solutions/facetsS-c0.reg {archive}')
+    os.system(f'gzip ddserial/c00/solutions/cal-leak.h5; cp ddserial/c00/solutions/cal-leak.h5.gz {archive}')
+    os.system(f'cp ddserial/c0*/skymodels/ddcals*reg {archive}')
+    os.system(f'cp ddserial/c0*/skymodels/initcat-c*.cat.fits {archive}')
+    os.system(f'cp ddserial/c0*/skymodels/mask-ddcal-c*.reg {archive}')
     os.system(f'cp ddserial/primarybeam.fits {archive}')
     os.system(f'cp quality/quality.pickle {archive}')
+    os.system(f'cp quality/*png {archive}')
     # copy ms
     logger.info(f'Copy mss -> {archive}')
     os.system(f'tar zcf {target}.tgz mss-avg')
@@ -238,12 +272,13 @@ with w.if_todo('saveproducts_%s' % target):
     # copy logs
     logger.info(f'Copy logs -> {archive}')
     os.chdir(working_dir)
-    os.system(f'cp -r PiLL_*logger PiLL*walker logs_PiLL \
+    os.system(f'cp -r PiLL_*logger PiLL*walker \
               *{target[:-1]}*/pipeline-timesplit_*logger *{target[:-1]}*/pipeline-timesplit.walker *{target[:-1]}*/logs_pipeline-timesplit_* \
               {target}/pipeline-ddparallel_*logger {target}/pipeline-ddparallel.walker {target}/logs_pipeline-ddparallel_* \
               {target}*/pipeline-ddserial_*logger {target}/pipeline-ddserial.walker {target}/logs_pipeline-ddserial_* \
+              {target}*/pipeline-quality_*logger {target}/pipeline-quality.walker \
               {archive}/logs')
-
+    if os.path.exists(logfile): os.system(f'cp {logfile} {archive}/logs')
 ### DONE
 
 update_status_db(target, 'Done')

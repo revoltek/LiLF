@@ -2,5 +2,6 @@ Ncpu = 0
 
 [reference]
 operation = REFERENCE
+refAnt = SuperSt
 soltab = sol000/tec000
-refAnt = auto
+

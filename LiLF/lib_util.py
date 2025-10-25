@@ -1,6 +1,7 @@
 import os, sys, glob
 import socket
 import datetime
+import tempfile
 
 from casacore import tables
 import numpy as np
@@ -35,9 +36,11 @@ def getParset(parsetFile=''):
     def add_default(section, option, val):
         if not config.has_option(section, option): config.set(section, option, val)
     
-    if parsetFile == '': 
+    if parsetFile == '':
         matched_conf_files = glob.glob('[Ll][Ii][Ll][Ff].conf*') + glob.glob('../[Ll][Ii][Ll][Ff].conf*')
-        if len(matched_conf_files) > 0:
+        if len(matched_conf_files) > 1:
+            raise LookupError(f'Found more than one configuration file: {matched_conf_files}')
+        elif len(matched_conf_files) == 1:
             parsetFile = matched_conf_files[0]
             logger.info(f'Found config file: {parsetFile}')
 
@@ -64,6 +67,8 @@ def getParset(parsetFile=''):
     add_default('PiLL', 'project', '')
     add_default('PiLL', 'target', '')
     add_default('PiLL', 'obsid', '') # unique ID
+    add_default('PiLL', 'minmaxhrs', '0,9999') # min and max hours for an obs to be selected
+    add_default('PiLL', 'logfile', '') # logfile for PiLL
     # preprocess
     add_default('LOFAR_preprocess', 'fix_table', 'True') # fix bug in some old observations
     add_default('LOFAR_preprocess', 'renameavg', 'True')
@@ -73,7 +78,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_preprocess', 'demix_skymodel', '')  # Use non-default demix skymodel.
     add_default('LOFAR_preprocess', 'demix_field_skymodel', 'LOTSS-DR3')  # Provide a custom target skymodel instead of online gsm model. Set to '' to ignore target.
     add_default('LOFAR_preprocess', 'run_aoflagger', 'False')  # run aoflagger on individual sub-bands, only in cases where this was not one by the observatory!
-    add_default('LOFAR_preprocess', 'tar', 'True')  # Tar MS files at the end 
+    add_default('LOFAR_preprocess', 'tar', 'True')  # Tar MS files at the end
     add_default('LOFAR_preprocess', 'data_dir', '')
     # cal
     add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
@@ -82,6 +87,8 @@ def getParset(parsetFile=''):
     add_default('LOFAR_cal', 'fillmissingedges', 'True')
     add_default('LOFAR_cal', 'less_aggressive_flag', 'False') # change flagging so that we can handle data with alternating SBs only or many flagged points
     add_default('LOFAR_cal', 'develop', 'False') # if true prevents the deletion of files
+    add_default('LOFAR_cal', 'use_GNSS', 'False') # Use GNSS satellite data for pre correcting TEC and FR
+    add_default('LOFAR_cal', 'use_shm', 'False') # use /dev/shm for temporary files, if available
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
@@ -90,6 +97,8 @@ def getParset(parsetFile=''):
     add_default('LOFAR_timesplit', 'fillmissingedges', 'True')
     add_default('LOFAR_timesplit', 'apply_fr', 'False') # Also transfer rotationmeasure sols? (E.g. for nearby calibrator and target)
     add_default('LOFAR_timesplit', 'no_aoflagger', 'False') # TEST: Skip aoflagger (e.g. for observations of A-Team sources)
+    add_default('LOFAR_timesplit', 'ateam_clip', '') # [CygA, CasA] or [CasA] or [CygA] or '' - the code clips the specified ateams (if not demixed from the observatory)
+    add_default('LOFAR_timesplit', 'use_GNSS', 'False') # Use GNSS satellite data for pre correcting TEC and FR
     # ddparallel
     add_default('LOFAR_ddparallel', 'maxIter', '2')
     add_default('LOFAR_ddparallel', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
@@ -101,14 +110,16 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddparallel', 'max_facets', '')
     add_default('LOFAR_ddparallel', 'develop', 'False') # if true make more debug images (slower)
     add_default('LOFAR_ddparallel', 'data_dir', '')
+    add_default('LOFAR_ddparallel', 'use_shm', 'False') # use /dev/shm for temporary files, if available
     # ddserial
-    add_default('LOFAR_ddserial', 'maxIter', '2')
+    add_default('LOFAR_ddserial', 'maxIter', '1')
     add_default('LOFAR_ddserial', 'minCalFlux60', '0.8')
     add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
-    # add_default('LOFAR_ddserial', 'removeExtendedCutoff', '0.0005')
+    add_default('LOFAR_ddserial', 'use_shm', 'False') # use /dev/shm for temporary files, if available
+    add_default('LOFAR_ddserial', 'use_shm_ddcal', 'True') # use /dev/shm for temporary ddcal files, if available
     add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec
     add_default('LOFAR_ddserial', 'manual_dd_cal', '')
-    add_default('LOFAR_ddserial', 'develop', 'False') # if true make more debug images (slower) 
+    add_default('LOFAR_ddserial', 'develop', 'False') # if true make more debug images (slower)
     # add_default('LOFAR_ddserial', 'solve_tec', 'False') # per default, solve each dd for scalarphase. if solve_tec==True, solve for TEC instead.
     # extract
     add_default('LOFAR_extract', 'max_niter', '10')
@@ -176,63 +187,6 @@ def create_extregion(ra, dec, extent, color='yellow'):
     return target
 
 
-def columnAddSimilar(pathMS, columnNameNew, columnNameSimilar, dataManagerInfoNameNew, overwrite = False, fillWithOnes = True, comment = "", verbose = False):
-    # more to lib_ms
-    """
-    Add a column to a MS that is similar to a pre-existing column (in shape, but not in values).
-    pathMS:                 path of the MS
-    columnNameNew:          name of the column to be added
-    columnNameSimilar:      name of the column from which properties are copied (e.g. "DATA")
-    dataManagerInfoNameNew: string value for the data manager info (DMI) keyword "NAME" (should be unique in the MS)
-    overwrite:              whether or not to overwrite column 'columnNameNew' if it already exists
-    fillWithOnes:           whether or not to fill the newly-made column with ones
-    verbose:                whether or not to produce abundant output
-    """
-    t = tables.table(pathMS, readonly = False)
-
-    if (columnExists(t, columnNameNew) and not overwrite):
-        logger.warning("Attempt to add column '" + columnNameNew + "' aborted, as it already exists and 'overwrite = False' in columnAddSimilar(...).")
-    else: # Either the column does not exist yet, or it does but overwriting is allowed.
-
-        # Remove column if necessary.
-        if (columnExists(t, columnNameNew)):
-            logger.info("Removing column '" + columnNameNew + "'...")
-            t.removecols(columnNameNew)
-
-        # Add column.
-        columnDescription       = t.getcoldesc(columnNameSimilar)
-        dataManagerInfo         = t.getdminfo(columnNameSimilar)
-
-        if (verbose):
-            logger.debug("columnDescription:")
-            logger.debug(columnDescription)
-            logger.debug("dataManagerInfo:")
-            logger.debug(dataManagerInfo)
-
-        columnDescription["comment"] = ""
-        # What about adding something here like:
-        #columnDescription["dataManagerGroup"] = ...?
-        dataManagerInfo["NAME"]      = dataManagerInfoNameNew
-
-        if (verbose):
-            logger.debug("columnDescription (updated):")
-            logger.debug(columnDescription)
-            logger.debug("dataManagerInfo (updated):")
-            logger.debug(dataManagerInfo)
-
-        logger.info("Adding column '" + columnNameNew + "'...")
-        t.addcols(tables.makecoldesc(columnNameNew, columnDescription), dataManagerInfo)
-
-        # Fill with ones if desired.
-        if (fillWithOnes):
-            logger.info("Filling column '" + columnNameNew + "' with ones...")
-            columnDataSimilar = t.getcol(columnNameSimilar)
-            t.putcol(columnNameNew, np.ones_like(columnDataSimilar))
-
-    # Close the table to avoid that it is locked for further use.
-    t.close()
-
-
 def getCalibratorProperties():
     """
     Return properties of known calibrators.
@@ -276,7 +230,7 @@ def check_rm(regexp):
     for filename in filenames:
         # glob is used to check if file exists
         for f in glob.glob(filename):
-            os.system("rm -r " + f)    
+            os.system("rm -r " + f)
 
 
 class Sol_iterator(object):
@@ -376,12 +330,13 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
         check_rm('plots')
 
 
-def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_concat=False, reuse_concat=False, **kwargs):
+def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_concat=False, reuse_concat=False, use_shm=False, **kwargs):
     """
     s : scheduler
     concat_mss : try to concatenate mss files to speed up wsclean
     keep_concat : keep the concat MSs for re-use either by -cont or by reuse_concat=True
     reuse_concat : reuse concatenated MS previously kept with keep_concat=True
+    temp_dir : if true try to store temp file in /dev/shm to speed up wsclean
     args : parameters for wsclean, "_" are replaced with "-", any parms=None is ignored.
            To pass a parameter with no values use e.g. " no_update_model_required='' "
     """
@@ -437,96 +392,81 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
     # basic parms
     wsc_parms.append( '-j '+str(s.maxProcs)+' -reorder -parallel-reordering 4 ' )
     if 'use_idg' in kwargs.keys():
-        if s.get_cluster() == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
+        if s.cluster == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
             wsc_parms.append( '-idg-mode hybrid' )
             wsc_parms.append( '-mem 10' )
         else:
             wsc_parms.append( '-idg-mode cpu' )
-    if s.get_cluster() == 'Spider':
-        wsc_parms.append( '-temp-dir /tmp/' )
-    # temp dir
-    #if s.get_cluster() == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
+            
+    # limit parallel gridding to maxProcs
+    if 'parallel_gridding' in kwargs.keys() and kwargs['parallel_gridding'] > s.maxProcs:
+            kwargs['parallel_gridding'] = s.maxProcs
+
+    tmp_dir = None
+    if use_shm and os.access('/dev/shm/', os.W_OK) and 'temp_dir' not in kwargs:
+        tmp_dir = tempfile.mkdtemp(dir='/dev/shm')
+        wsc_parms.append(f'-temp-dir {tmp_dir}')
+        wsc_parms.append('-mem 90')  # use 90% of memory
+    elif s.cluster == 'Spider':
+        wsc_parms.append('-temp-dir /tmp/')
+    #elif s.cluster == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
     #    wsc_parms.append( '-temp-dir /localwork.ssd' )
-    # user defined parms
-    for parm, value in list(kwargs.items()):
-        if value is None: continue
-        if parm == 'baseline_averaging' and value == '':
-            scale = float(kwargs['scale'].replace('arcsec','')) # arcsec
-            value = 1.87e3*60000.*2.*np.pi/(24.*60.*60*np.max(kwargs['size'])) # the np.max() is OK with both float and arrays
-            if value > 10: value=10
-            if value < 1: continue
-        if parm == 'cont': 
-            parm = 'continue'
-            value = ''
-            # if continue, remove nans from previous models
-            lib_img.Image(kwargs['name']).nantozeroModel()
-        if parm == 'size' and type(value) is int: value = '%i %i' % (value, value)
-        if parm == 'size' and type(value) is list: value = '%i %i' % (value[0], value[1])
-        wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
 
-    # files
-    wsc_parms.append( MSs_files_clean )
-
-    # create command string
-    command_string = 'wsclean '+' '.join(wsc_parms)
-    s.add(command_string, log=logfile, commandType='wsclean')
-    logger.info('Running WSClean...')
-    s.run(check=True)
-
-    # Predict in case update_model_required cannot be used
-    if do_predict == True:
-        wsc_parms = []
-        # keep imagename and channel number
+    try:
+        # user defined parms
         for parm, value in list(kwargs.items()):
             if value is None: continue
-            #if 'min' in parm or 'max' in parm or parm == 'name' or parm == 'channels_out':
-            if parm == 'name' or parm == 'channels_out' or parm == 'wgridder_accuracy':
-                wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
-
-        # files (the original, not the concatenated)
-        wsc_parms.append( MSs_files )
-        lib_img.Image(kwargs['name']).nantozeroModel() # If we have fully flagged channel, set to zero so we don't get error
-
-        # Test without reorder as it apperas to be faster
-        # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
-        command_string = 'wsclean -predict -padding 1.8 ' \
-                         '-j '+str(s.maxProcs)+' '+' '.join(wsc_parms)
+            if parm == 'baseline_averaging' and value == '':
+                scale = float(kwargs['scale'].replace('arcsec','')) # arcsec
+                value = 1.87e3*60000.*2.*np.pi/(24.*60.*60*np.max(kwargs['size'])) # the np.max() is OK with both float and arrays
+                if value > 10: value=10
+                if value < 1: continue
+            if parm == 'cont': 
+                parm = 'continue'
+                value = ''
+                # if continue, remove nans from previous models
+                lib_img.Image(kwargs['name']).nantozeroModel()
+            if parm == 'size' and type(value) is int: value = '%i %i' % (value, value)
+            if parm == 'size' and type(value) is list: value = '%i %i' % (value[0], value[1])
+            wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
+    
+        # files
+        wsc_parms.append( MSs_files_clean )
+    
+        # create command string
+        command_string = 'wsclean '+' '.join(wsc_parms)
         s.add(command_string, log=logfile, commandType='wsclean')
+        logger.info('Running WSClean...')
         s.run(check=True)
+    
+        # Predict in case update_model_required cannot be used
+        if do_predict == True:
+            if 'apply_facet_solutions' in kwargs.keys():
+                raise NotImplementedError('do_predict in combination with apply_facet_solutions is not implemented.')
+            wsc_parms = []
+            # keep imagename and channel number
+            for parm, value in list(kwargs.items()):
+                if value is None: continue
+                #if 'min' in parm or 'max' in parm or parm == 'name' or parm == 'channels_out':
+                if parm == 'name' or parm == 'channels_out' or parm == 'wgridder_accuracy' or parm == 'shift':
+                    wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
+    
+            # files (the original, not the concatenated)
+            wsc_parms.append( MSs_files )
+            lib_img.Image(kwargs['name']).nantozeroModel() # If we have fully flagged channel, set to zero so we don't get error
+    
+            # Test without reorder as it apperas to be faster
+            # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
+            command_string = 'wsclean -predict -padding 1.8 ' \
+                             '-j '+str(s.maxProcs)+' '+' '.join(wsc_parms)
+            s.add(command_string, log=logfile, commandType='wsclean')
+            s.run(check=True)
+    finally:
+        if tmp_dir and os.path.exists(tmp_dir):
+            logger.info(f"Deleting temporary directory {tmp_dir}")
+            check_rm(tmp_dir)
     if not keep_concat:
         check_rm('wsclean_concat_*.MS')
-
-def run_DDF(s, logfile, **kwargs):
-    """
-    s : scheduler
-    args : parameters for ddfacet, "_" are replaced with "-", any parms=None is ignored.
-           To pass a parameter with no values use e.g. " no_update_model_required='' "
-    """
-    
-    ddf_parms = []
-
-    # basic parms
-    ddf_parms.append( '--Log-Boring 1 --Debug-Pdb never --Parallel-NCPU %i --Misc-IgnoreDeprecationMarking=1 ' % (s.maxProcs) )
-
-    # cache dir
-    if not 'Cache_Dir' in list(kwargs.keys()):
-        ddf_parms.append( '--Cache-Dir .' )
-
-    # user defined parms
-    for parm, value in list(kwargs.items()):
-        if value is None: continue
-        if isinstance(value, str):
-            if '$' in value: # escape dollar signs (e.g. of BeamFits)
-                value = "'" + value + "'"
-        ddf_parms.append( '--%s=%s' % (parm.replace('_','-'), str(value)) )
-
-    # files
-    #wsc_parms.append( MSs_files )
-
-    # create command string
-    command_string = 'DDF.py '+' '.join(ddf_parms)
-    s.add(command_string, log=logfile, commandType='DDFacet')
-    s.run(check=True)
 
 
 class Region_helper():
@@ -648,8 +588,13 @@ class Walker():
         """
         if type is None:
             with open(self.filename, "a") as f:
-                delta = 'h '.join(str(datetime.datetime.now() - self.__timeinit__).split(':')[:-1])+'m'
-                f.write(self.__step__ + ' # '+delta+' ' +'\n')
+                delta_td = datetime.datetime.now() - self.__timeinit__
+                total_seconds = int(delta_td.total_seconds())
+                days, rem = divmod(total_seconds, 86400)
+                hours, rem = divmod(rem, 3600)
+                minutes, seconds = divmod(rem, 60)
+                delta = f"{days}d {hours}h {minutes}m {seconds}s"
+                f.write(f"{self.__step__} # {delta}\n")
             logger.info('<< done << {}'.format(self.__step__))
             return  # No exception
         if issubclass(type, Skip):
@@ -658,7 +603,7 @@ class Walker():
         if issubclass(type, Exit):
             logger.error('<< exit << {}'.format(self.__step__))
             return True
-        
+
     def alldone(self):
         delta = 'h '.join(str(datetime.datetime.now() - self.__globaltimeinit__).split(':')[:-1])+'m'
         logger.info('Done. Total time: '+delta)
@@ -702,7 +647,7 @@ class Scheduler():
 
         self.dry = dry
 
-        logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname + 
+        logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname +
                     " (maxProcs: " + str(self.maxProcs) + ", max_cpucores: " + str(self.max_cpucores) + ").")
 
         self.action_list = []
@@ -727,7 +672,7 @@ class Scheduler():
         elif ('spider' in hostname):
             return "Spider"
         else:
-            logger.warning('Hostname %s unknown.' % hostname)
+            logger.debug('Hostname %s unknown.' % hostname)
             return "Unknown"
 
 
@@ -844,6 +789,7 @@ class Scheduler():
             out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -l "Aborted (core dumped)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -i -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            #out += subprocess.check_output(r'grep -i -l "already a beam correction applied" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             # this interferes with the missingantennabehaviour=error option...
             # out += subprocess.check_output('grep -l "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -l "misspelled" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
@@ -857,6 +803,8 @@ class Scheduler():
             out = subprocess.check_output(r'grep -l "exception occur" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -l "Aborted" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Bus error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "(core dumped)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             # out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):

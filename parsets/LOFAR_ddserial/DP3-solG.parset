@@ -2,20 +2,20 @@ msin =
 msin.datacolumn = SMOOTHED_DATA
 msout = .
 
-steps=[sol]
+steps = [sol]
 
 sol.type = ddecal
 sol.solveralgorithm = directioniterative # needed for sol.datause
 sol.datause = dual
 
+sol.mode = scalarcomplexgain # diagonal, scalarcomplexgain, tec
 sol.uvlambdamin = 100
-sol.minvisratio = 0.3
+sol.minvisratio = 0.25
 sol.h5parm = 
 sol.maxiter = 100
 sol.tolerance = 1e-5
 sol.solint = 
 sol.nchan = 1
-sol.mode = scalarcomplexgain # diagonal, scalarcomplexgain, tec
 sol.propagatesolutions = True
 sol.propagateconvergedonly = False
 #sol.smoothnessconstraint = 5e6

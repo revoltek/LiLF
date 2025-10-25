@@ -13,7 +13,6 @@ import casacore.tables as pt
 
 from shapely.geometry import Polygon
 import shapely.geometry
-import shapely.ops
 import tables
 
 
@@ -161,14 +160,13 @@ def tessellate(x_pix, y_pix, w, dist_pix, bbox, nouter=64, plot_tessellation=Tru
         xy.append((RAvert, Decvert))
 
     # Generate array of outer points used to constrain the facets
-    means = np.ones((nouter, 2)) * np.array(xy).mean(axis=0)
-    offsets = []
-    angles = [np.pi / (nouter / 2.0) * i for i in range(0, nouter)]
-    for ang in angles:
-        offsets.append([np.cos(ang), np.sin(ang)])
-    scale_offsets = dist_pix * np.array(offsets)
-    outer_box = means + scale_offsets
-
+    center_x, center_y = bbox.centroid.x, bbox.centroid.y
+    angles = np.linspace(0, 2 * np.pi, nouter, endpoint=False)
+    outer_box = np.stack([
+        center_x + 2 * dist_pix * np.cos(angles),
+        center_y + 2 * dist_pix * np.sin(angles)
+        ], axis=-1) # the factor of 2 is to make sure the outer points are outside the image
+    
     # Tessellate and clip
     points_all = np.vstack([xy, outer_box])
     vor = Voronoi(points_all)
@@ -317,11 +315,11 @@ def write_ds9(fname, polygons, points=None, names=None):
             poly_string = "polygon("
             xv, yv = polygon.exterior.xy
             for (x, y) in zip(xv[:-1], yv[:-1]):
-                poly_string = f"{poly_string}{x:.5f},{y:.5f},"
+                poly_string = f"{poly_string}{x:.8f},{y:.8f},"
             # Strip trailing comma
             poly_string = poly_string[:-1] + ")"
             if points is not None:
-                poly_string += f"\npoint({points[i, 0]:.5f}, {points[i, 1]:.5f})"
+                poly_string += f"\npoint({points[i, 0]:.8f}, {points[i, 1]:.8f})"
                 if names is not None:
                     poly_string += f" # text=\"{names[i]}\""
             polygon_strings.append(poly_string)
@@ -381,9 +379,18 @@ def main(args):
         )
         x = np.hstack((x_background, xy[:, 0]))
         y = np.hstack((y_background, xy[:, 1]))
+    elif args.grid:
+        # Generate a regular grid of points
+        deltax = (xmax - xmin) / args.grid
+        deltay = (ymax - ymin) / args.grid
+        x = np.linspace(xmin + int(deltax/2), xmax - int(deltax/2), args.grid)
+        y = np.linspace(ymin + int(deltay/2), ymax - int(deltay/2), args.grid)
+        x, y = np.meshgrid(x, y)
+        x = x.flatten()
+        y = y.flatten()
     else:
         raise Exception(
-            "Use either --h5 or --sourcecatalog, to generate facets from an h5 file or a source catalogue, respectively."
+            "Use either --h5 or --sourcecatalog or --grid, to generate facets from an h5 file or a source catalogue or a regular grid, respectively."
         )
 
     bbox = Polygon([(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)])
@@ -426,6 +433,12 @@ if __name__ == "__main__":
         "--sourcecatalog",
         help="Path to source catalogue, followed by the number of brightest points that should be used.",
         nargs=2,
+    )
+    parser.add_argument(
+        "--grid",
+        help="Generate a regular grid of points for the Voronoi tessellation. Use this if you want to generate facets from a regular grid.",
+        type=int,
+        default=None,
     )
     parser.add_argument(
         "--backgroundfacets",

@@ -11,33 +11,7 @@ soltab = sol000/phase000
 pol = YY
 dataVal = 0.0
 
-[plotP1]
-operation = PLOT
-soltab = sol000/phase000
-freq.minmaxstep = [0,300e6,100]
-axesInPlot = time
-axisInTable = ant
-axisInCol = pol
-plotFlag = True
-prefix = plots/ph_
-refAnt = auto
-minmax = [-3.14,3.14]
-NColFig = 4
-figSize = [20,20]
-
-[plotP2]
-operation = PLOT
-soltab = sol000/phase000
-time.minmaxstep = [0,1e20,1000]
-axesInPlot = freq
-axisInTable = ant
-axisInCol = pol
-plotFlag = True
-prefix = plots/ph_
-refAnt = auto
-minmax = [-3.14,3.14]
-
-[plotP3]
+[plotP]
 operation = PLOT
 soltab = sol000/phase000
 axesInPlot = [time,freq]
@@ -53,7 +27,7 @@ operation = FARADAY
 soltab = sol000/phase000
 refAnt = auto
 maxResidual = 1.
-freq.minmaxstep = [15e6,1e9] # should this start form 30 MHz or does 15 MHz work?
+freq.minmaxstep = [20e6,1e9] # should this start form 30 MHz or does 15 MHz work?
 
 [plotFR]
 operation = PLOT
