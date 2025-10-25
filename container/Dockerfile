@@ -224,8 +224,8 @@ RUN if [ $MARCH == "znver3" ]; then \
 #    -DFFTW3_INCLUDE_DIR="${AOCL_ROOT}/include" \
 #    -DBLAS_openblas_LIBRARY="${AOCL_ROOT}/lib/libblis.so" \
 #    -DLAPACK_LIBRARIES="${AOCL_ROOT}/lib/libflame.so" \
-#    -DCMAKE_CXX_FLAGS="-march=${MARCH} -L${AOCL_ROOT}/lib -lamdlibm -lm -O3 -Ofast" \
-#    -DCMAKE_C_FLAGS="-march=${MARCH} -L${AOCL_ROOT}/lib -lamdlibm -lm -O3 -Ofast" \
+#    -DCMAKE_CXX_FLAGS="-march=${MARCH} -L${AOCL_ROOT}/lib -lamdlibm" \
+#    -DCMAKE_C_FLAGS="-march=${MARCH} -L${AOCL_ROOT}/lib -lamdlibm"
 
 #RUN rm -rf /opt/wsclean/
   
