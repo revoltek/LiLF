@@ -274,8 +274,8 @@ else:
     sourcesub = False
 
 if extractreg:
+    os.system(f'cp ../{extractreg} .')
     target_reg_file = str(extractreg)
-    print(target_reg_file)
     logger.info('Extraction region provided. No automatic region will be drawn...')
 else:
     logger.info('Extraction region not set by the user. It will be created automatically.')
