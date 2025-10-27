@@ -3,22 +3,23 @@
 import os, sys, glob, getpass, socket, pickle, random
 from datetime import datetime
 from LiLF.surveys_db import SurveysDB
+
+#######################################################
 from LiLF import lib_util, lib_log
 logger_obj = lib_log.Logger('PiLL')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('PiLL.walker')
 
-LiLF_dir = os.path.dirname(os.path.dirname(lib_util.__file__))
-
-parset = lib_util.getParset(parsetFile='lilf.config')
-
 # get parameters
 # use lilf.config (this is also used by all other scripits)
+parset = lib_util.getParset(parsetFile='lilf.config')
+logger.info('Parset: '+str(dict(parset['PiLL'])))
 working_dir = os.path.abspath(parset.get('PiLL','working_dir'))
 minmaxhrs = parset.get('PiLL','minmaxhrs').split(',')
 logfile = parset.get('PiLL','logfile')
 
+LiLF_dir = os.path.dirname(os.path.dirname(lib_util.__file__))
 caldirroot = ('/iranet/groups/ulu/fdg/surveycals/done/')
 tgtdirroot = ('/iranet/groups/ulu/fdg/surveytgts/download*/mss/')
 
