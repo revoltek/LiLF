@@ -14,7 +14,8 @@ logger = lib_log.logger
 
 
 s = lib_util.SLURMScheduler(log_dir=logger_obj.log_dir, container_path=os.path.expanduser('~') + "/pill.simg", walltime='02:00:00', max_cpus_per_node=16)
-
+time.sleep(30)
+sys.exit()
 
 
 data_dir = 'mss'

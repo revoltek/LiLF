@@ -327,8 +327,6 @@ class Walker():
         delta = 'h '.join(str(datetime.datetime.now() - self.__globaltimeinit__).split(':')[:-1])+'m'
         logger.info('Done. Total time: '+delta)
 
-
-
 def _run_cmd(cmd, log_path=None, timeout=None):
     """
     Run a shell command, tee to log file, return (returncode, walltime_s). (ChatGPT)
@@ -351,109 +349,204 @@ def _run_cmd(cmd, log_path=None, timeout=None):
     return p.returncode, hostname
 
 
+def run_local(cmd, log='', log_dir='logs', max_cpus_per_node=None, commandType=None):
+    if (max_cpus_per_node == None):
+        # check if running in a slurm environment with a limited number of CPUs (less than cpu_count())
+        slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE', False)
+        if slurm_cpus:
+            max_cpus_per_node = int(slurm_cpus)
+        else:
+            max_cpus_per_node = multiprocessing.cpu_count()
+                
+    if commandType is None:
+        if 'dp3' in cmd.lower(): 
+            commandType = 'DP3'
+            cmd += ' numthreads=' + str(max_cpus_per_node)
+        elif 'wsclean' in cmd.lower(): commandType = 'wsclean'
+        elif 'python' in cmd.lower(): commandType = 'python'
+        else: commandType = 'general'
+    else:
+        commandType = commandType
+    logger.debug(f"Running {commandType}: '{cmd}', log: {log}")
+
+    log_path = os.path.join(log_dir, log) if log else ''
+    rc, hostname = _run_cmd(cmd, log_path)
+    if rc != 0:
+        if os.path.exists(log_path):
+            tail = subprocess.check_output(f'tail -n 40 {shlex.quote(log_path)}', shell=True).decode()
+        else: tail = 'No log file found.'
+        logger.error(f"{commandType} command failed on '{hostname}' with error message: '{tail}' \nLog at: {log_path}")
+        raise RuntimeError(f"\n{commandType} command failed on '{hostname}' with error message: '{tail}' \nLog at: {log_path}")
+    else:
+        pass
+
 class Scheduler():
-    def __init__(self, backend='slurm', max_cpus_per_node=None,
-                 log_dir = 'logs', dry = False, verbose=True):
+    def __init__(self, max_jobs = None, max_cpus_per_node = None, log_dir = 'logs', dry = False, verbose = True):
         """
-        TODO max walltime
-        TODO max_jobs autoset?
-        backend: string, backend used to launch jobs. 'local' and 'slurm' are supported
-        max_jobs:       max number of parallel processes (either on local node or on slurm cluster)
-        max_cpucores:   max number of cpu cores usable in a node
+        max_jobs:       max number of parallel processes
+        max_cpus_per_node:   max number of cpu cores usable in a node
         dry:            don't schedule job
         """
-        self.backend = backend.lower()
+        self.backend = 'local'
         self.hostname = socket.gethostname()
         self.cluster = self.get_cluster()
         self.log_dir = log_dir
+        #self.qsub    = qsub
+        # if qsub/max_thread/max_cpus_per_node not set, guess from the cluster
+        # if they are set, double check number are reasonable
+        #if (self.qsub == None):
+        #    self.qsub = False
+        #else:
+        #    if ((self.qsub is False and self.cluster == "Hamburg") or
+        #       (self.qsub is True and (self.cluster == "Leiden" or self.cluster == "CEP3" or
+        #                               self.cluster == "Hamburg_fat" or self.cluster == "Pleiadi" or self.cluster == "Herts"))):
+        #        logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
+        #        sys.exit(1)
 
-        # automatically set max cpucores if not set manually
-        if max_cpus_per_node:
-            self.max_cpus_per_node = int(max_cpus_per_node)
-        elif max_cpus_per_node is None:
-            if backend == 'local':
+        if (max_cpus_per_node == None):
+            # check if running in a slurm environment with a limited number of CPUs (less than cpu_count())
+            slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE', False)
+            if slurm_cpus:
+                self.max_cpus_per_node = int(slurm_cpus)
+            else:
                 self.max_cpus_per_node = multiprocessing.cpu_count()
-            elif backend == 'slurm':
-                slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE')
-                if slurm_cpus:
-                    self.max_cpus_per_node = int(slurm_cpus)
-                else:
-                    logger.warning('Neither max_cpucores_per_node nor $SLURM_CPUS_ON_NODE defined - guessing cpus per node.')
-                    self.max_cpus_per_node = multiprocessing.cpu_count()
-            
+        else:
+            self.max_cpus_per_node = max_cpus_per_node
+
+        if (max_jobs is None) or (max_jobs > self.max_cpus_per_node):
+            self.max_jobs = self.max_cpus_per_node
+        else:
+            self.max_jobs = max_jobs
 
         self.dry = dry
 
+        if verbose:
+            logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname +
+                        " (max_jobs: " + str(self.max_jobs) + ", max_cpus_per_node: " + str(self.max_cpus_per_node) + ").")
+
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
-        #self.futures     = []
 
-        if verbose:
-            logger.info(f'Local scheduler initialised  for cluster {self.cluster}:{self.hostname} \
-                            (max_cpucores_per_node: {self.max_cpus_per_node})')
 
-    def add(self, cmd='', log='', commandType='general', threads=1, mem=None, time='00:30:00', timeout=None):
+    def get_cluster(self):
         """
-        Add a command with optional resources (mapped to SLURM/Dask).
+        Find in which computing cluster the pipeline is running
         """
-        
-        if mem is None:
-            mem =threads
-        log_path = os.path.join(self.log_dir, log) if log else ''
-        if log:
-            # Truncate the log on first write
-            os.makedirs(os.path.dirname(log_path), exist_ok=True)
-            open(log_path, 'w').close()
-            self.log_list.append((log_path, commandType))
-
-        if commandType in ['wsclean', 'DP3', 'python']:
-            logger.debug(f'Running {commandType}: {cmd}')
+        hostname = self.hostname
+        if (hostname == 'lgc1' or hostname == 'lgc2'):
+            return "Hamburg"
+        elif ('r' == hostname[0] and 'c' == hostname[3] and 's' == hostname[6]):
+            return "Pleiadi"
+        elif ('node3' in hostname):
+            return "Hamburg_fat"
+        elif ('node' in hostname):
+            return "Herts"
+        elif ('leidenuniv' in hostname):
+            return "Leiden"
+        elif ('spider' in hostname):
+            return "Spider"
         else:
-            logger.debug(f'Running general: {cmd}')
-            
+            logger.debug('Hostname %s unknown.' % hostname)
+            return "Unknown"
 
-        self.action_list.append(dict(
-            cmd=cmd, log=log_path, commandType=commandType,
-            threads=threads, mem=mem, time=time, timeout=timeout
-        ))
-            
-    def run(self, check=False, maxProcs=None):
-        if self.dry:
-            return
-        maxProcs_run = maxProcs
 
-        # local/single-node processing
-        from queue import Queue
-        from threading import Thread
-        q = Queue()
+    def add(self, cmd = '', log = '', logAppend = True, commandType = ''):
+        """
+        Add a command to the scheduler list
+        cmd:         the command to run
+        log:         log file name that can be checked at the end
+        logAppend:   if True append, otherwise replace
+        commandType: can be a list of known command types as "wsclean", "DP3", ...
+        """
 
-        def worker():
-            for item in iter(q.get, None):
-                cmd, log, timeout, env = item['cmd'], item['log'], item['timeout'], item['env']
+        if (log != ''):
+            log = self.log_dir + '/' + log
+
+            if (logAppend):
+                cmd += " >> "
+            else:
+                cmd += " > "
+            cmd += log + " 2>&1"
+
+        if commandType == 'wsclean':
+            logger.debug('Running wsclean: %s' % cmd)
+        elif commandType == 'DP3':
+            logger.debug('Running DP3: %s' % cmd)
+        #elif commandType == 'singularity':
+        #    cmd = 'SINGULARITY_TMPDIR=/dev/shm singularity exec -B /tmp,/dev/shm,/localwork,/localwork.ssd,/home /home/fdg/node31/opt/src/lofar_sksp_ddf.simg ' + cmd
+        #    logger.debug('Running singularity: %s' % cmd)
+        elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
+            logger.debug('Running DDFacet: %s' % cmd)
+        elif commandType == 'python':
+            logger.debug('Running python: %s' % cmd)
+        else:
+            logger.debug('Running general: %s' % cmd)
+
+        #if self.qsub:
+        #    if qsub_cpucores == 'max':
+        #        qsub_cpucores = self.max_cpus_per_node
+        #    # if number of cores not specified, try to find automatically
+        #    elif qsub_cpucores == None:
+        #        qsub_cpucores = 1 # default use single CPU
+        #        if ("DP3" == cmd[ : 4]):
+        #            qsub_cpucores = 1
+        #        if ("wsclean" == cmd[ : 7]):
+        #            qsub_cpucores = self.max_cpus_per_node
+        #    if (qsub_cpucores > self.max_cpus_per_node):
+        #        qsub_cpucores = self.max_cpus_per_node
+        #    self.action_list.append([str(qsub_cpucores), '\'' + cmd + '\''])
+        #else:
+        self.action_list.append(cmd)
+
+        if (log != ""):
+            self.log_list.append((log, commandType))
+
+
+    def run(self, check = False, maxProcs = None):
+        """
+        If 'check' is True, a check is done on every log in 'self.log_list'.
+        If max_thread != None, then it overrides the global values, useful for special commands that need a lower number of threads.
+        """
+
+        def worker(queue):
+            for cmd in iter(queue.get, None):
+                #if self.qsub and self.cluster == "Hamburg":
+                #    cmd = 'salloc --job-name LBApipe --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
+                #            ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
                 gc.collect()
-                rc, wall = _run_cmd(cmd, log, timeout, env)
-                if rc != 0:
-                    tail = ''
-                    if log and os.path.exists(log):
-                        tail = subprocess.check_output(f'tail -n 40 {shlex.quote(log)}', shell=True).decode()
-                    raise RuntimeError(f"Command failed (rc={rc}): {cmd}\nLog: {log}\n{tail}")
-                q.task_done()
+                subprocess.call(cmd, shell = True)
 
-        threads = [Thread(target=worker, daemon=True) for _ in range(maxProcs_run)]
-        for t in threads: t.start()
-        for a in self.action_list:
-            q.put_nowait(a)
-        q.join()
-        for _ in threads: q.put(None)
-        for t in threads: t.join()
+        # limit number of processes
+        if (maxProcs == None):
+            maxProcs_run = self.max_jobs
+        else:
+            maxProcs_run = min(maxProcs, self.max_jobs)
 
-        if check:
-            for log, ctype in self.log_list:
-                self.check_run(log, ctype)
+        q       = Queue()
+        threads = [Thread(target = worker, args=(q,)) for _ in range(maxProcs_run)]
 
-        self.action_list.clear()
-        self.log_list.clear()
-        
+        for i, t in enumerate(threads): # start workers
+            t.daemon = True
+            t.start()
+
+        for action in self.action_list:
+            if (self.dry):
+                continue # don't schedule if dry run
+            q.put_nowait(action)
+        for _ in threads:
+            q.put(None) # signal no more commands
+        for t in threads:
+            t.join()
+
+        # check outcomes on logs
+        if (check):
+            for log, commandType in self.log_list:
+                self.check_run(log, commandType)
+
+        # reset list of commands
+        self.action_list = []
+        self.log_list    = []
+
 
     def check_run(self, log = "", commandType = ""):
         """
@@ -488,6 +581,16 @@ class Scheduler():
             out += subprocess.check_output(r'grep -l "(core dumped)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             # out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
+        elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
+            out = subprocess.check_output(r'grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "exception occur" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" ' + log + ' ; exit 0', shell=True,
+                                           stderr=subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "killed by signal" ' + log + ' ; exit 0', shell=True,
+                                           stderr=subprocess.STDOUT)
+            out += subprocess.check_output(r'grep -l "Aborted" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+
         elif (commandType == "python"):
             out = subprocess.check_output(r'grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
@@ -498,6 +601,10 @@ class Scheduler():
             out += subprocess.check_output(r'grep -l "Traceback (most recent call last)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -l "Permission denied" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
+#        elif (commandType == "singularity"):
+#            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+#            out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+#            out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "general"):
             out = subprocess.check_output('grep -l -i "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
@@ -514,35 +621,6 @@ class Scheduler():
 
         return 0
 
-
-    def get_cluster(self):
-        """
-        TODO required?
-        Find in which computing cluster the pipeline is running
-        """
-        hostname = self.hostname
-        if (hostname == 'lgc1' or hostname == 'lgc2'):
-            return "Hamburg"
-        elif ('r' == hostname[0] and 'c' == hostname[3] and 's' == hostname[6]):
-            return "Pleiadi"
-        elif ('headnode' in hostname):
-            return "Herts"
-        elif ('node3' in hostname):
-            return "Hamburg_fat"
-        elif ('leidenuniv' in hostname):
-            return "Leiden"
-        elif ('spider' in hostname):
-            return "Spider"
-        else:
-            logger.debug('Hostname %s unknown.' % hostname)
-            return "Unknown"
-        
-    def close(self):
-        if self.backend == "slurm":
-            self._client.close()
-            self._cluster.close()
-        else:
-            pass
 
 
 class SLURMScheduler(Scheduler):
@@ -563,6 +641,7 @@ class SLURMScheduler(Scheduler):
         os.makedirs(self.log_dir+'/dask-logs', exist_ok=True)
         self.max_walltime = walltime if walltime else self.get_max_walltime()[1],  # auto-find max walltime if not set
         self.slurm_max_jobs = max_jobs if max_jobs else 244
+        self.backend = 'slurm'
 
         so = {
                 'cores': min(self.max_cpus_per_node, 32),
@@ -589,7 +668,8 @@ class SLURMScheduler(Scheduler):
             
         self._cluster = SLURMCluster(**so)
         # Test if we want adaptive scaling if you like
-        self._cluster.adapt(minimum=1, maximum=self.slurm_max_jobs)
+        self._cluster.scale(8)
+        #self._cluster.adapt(minimum=1, maximum=self.slurm_max_jobs)
         self._client = Client(self._cluster)
         self.futures = []
         
@@ -597,14 +677,21 @@ class SLURMScheduler(Scheduler):
         logger.info(f'SLURM scheduler initialised  for cluster {self.cluster}:{self.hostname} '
                     f'(slurm_max_jobs: {self.slurm_max_jobs}, max_cpus_per_node: {self.max_cpus_per_node}, '
                     f'slurm_max_walltime: {self.max_walltime[0]}, slurm_mem_per_cpu: {slurm_mem_per_cpu})')
-
+        
+        
+    def run_function(self, func, *args):
+        futures = self._client.map(func, *args)
+        results = self._client.gather(futures)
+        return results
 
     def add(self, cmd='', log='', commandType=None):
         """
         Add a command with optional resources (mapped to SLURM/Dask).
         """
         if commandType is None:
-            if 'dp3' in cmd.lower(): commandType = 'DP3'
+            if 'dp3' in cmd.lower(): 
+                commandType = 'DP3'
+                cmd += ' numthreads=' + str(self.max_cpus_per_node)
             elif 'wsclean' in cmd.lower(): commandType = 'wsclean'
             elif 'python' in cmd.lower(): commandType = 'python'
             else: commandType = 'general'
@@ -612,12 +699,11 @@ class SLURMScheduler(Scheduler):
             commandType = commandType
         logger.debug(f"Running {commandType}: '{cmd}', log: {log}")
         
-
         log_path = os.path.join(self.log_dir, log) if log else ''
-        if log:
-            # Truncate the log on first write
-            os.makedirs(os.path.dirname(log_path), exist_ok=True)
-            open(log_path, 'w').close()
+        #if log:
+        #    # Truncate the log on first write
+        #    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        #    open(log_path, 'w').close()
 
         fut = self._client.submit(_run_cmd, cmd, log_path, key=commandType+" "+log, resources=None, pure=False)
         self.futures.append(fut)
@@ -639,15 +725,15 @@ class SLURMScheduler(Scheduler):
         for fut in as_completed([f for f in self.futures]):
             rc, hostname = fut.result() # return original command and result code
             log_path = os.path.join(self.log_dir, fut.key.split(" ")[1]) if fut.key else ''
-            command_type = fut.key.split(" ")[0] if fut.key else ''
+            commandType = fut.key.split(" ")[0] if fut.key else ''
             if rc != 0:
                 if os.path.exists(log_path):
                     tail = subprocess.check_output(f'tail -n 40 {shlex.quote(log_path)}', shell=True).decode()
                 else: tail = 'No log file found.'
-                logger.error(f"{command_type} command failed on '{hostname}' with error message: '{tail}' \nLog at: {log_path}")
-                raise RuntimeError(f"\n{command_type} command failed on '{hostname}' with error message: '{tail}' \nLog at: {log_path}")
+                logger.error(f"{commandType} command failed on '{hostname}' with error message: '{tail}' \nLog at: {log_path}")
+                raise RuntimeError(f"\n{commandType} command failed on '{hostname}' with error message: '{tail}' \nLog at: {log_path}")
             else:
-                logger.debug(f"{command_type} command completed successfully on '{hostname}'. Log at: {log_path}")
+                logger.debug(f"{commandType} command completed successfully on '{hostname}'. Log at: {log_path}")
         self.futures.clear()
 
         if check:

@@ -17,8 +17,7 @@ from astropy.utils import iers
 iers.conf.auto_download = False  
 
 class AllMSs(object):
-
-    def __init__(self, pathsMS, scheduler, check_flags=True, check_sun=False, min_sun_dist=10, check_consistency=False):
+    def __init__(self, pathsMS, scheduler: lib_util.SLURMScheduler, check_flags=True, check_sun=False, min_sun_dist=10, check_consistency=False):
         """
         pathsMS:    list of MS paths
         scheduler:  scheduler object
@@ -34,9 +33,9 @@ class AllMSs(object):
             logger.error('Cannot find MS files.')
             raise('Cannot find MS files.')
 
-        self.mssListObj = []
+        self.mssListObj: list[MS] = []
         for pathMS in sorted(pathsMS):
-            ms = MS(pathMS)
+            ms = MS(pathMS, scheduler.log_dir)
             if check_flags and ms.isAllFlagged(): 
                 logger.warning('Skip fully flagged ms: %s' % pathMS)
             elif check_sun and ms.get_sun_dist() < min_sun_dist:
@@ -167,22 +166,14 @@ class AllMSs(object):
         # e.g. in a 64 processors machine running on 16 MSs, would result in numthreads=4
         # TODO we need to figure out how to set numthreads for the slurm case...
         if commandType == 'DP3':
-            if self.scheduler.backend == 'slurm':
-                command += ' numthreads=16'
-            else:
-                command += ' numthreads='+str(self.getNThreads(maxProcs))
+            if self.scheduler.backend != 'slurm':
+                command += ' numthreads=' + str(self.getNThreads(maxProcs))
 
         for MSObject in self.mssListObj:
             commandCurrent = MSObject.concretiseString(command)
             logCurrent     = MSObject.concretiseString(log)
 
             self.scheduler.add(cmd = commandCurrent, log = logCurrent, commandType = commandType)
-
-            # Provide debug output.
-            #lib_util.printLineBold("commandCurrent:")
-            #print (commandCurrent)
-            #lib_util.printLineBold("logCurrent:")
-            #print (logCurrent)
 
         self.scheduler.run(check = True)
 
@@ -311,7 +302,7 @@ class AllMSs(object):
 
 class MS(object):
 
-    def __init__(self, pathMS):
+    def __init__(self, pathMS, log_dir=''):
         """
         pathMS:        path of the MS
         pathDirectory: path of the parent directory of the MS
@@ -319,6 +310,7 @@ class MS(object):
         """
         if pathMS[-1] == "/": pathMS = pathMS[:-1]
         self.setPathVariables(pathMS)
+        self.log_dir = log_dir
         
     def get_telescope_coords(self):
         """
