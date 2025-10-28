@@ -391,17 +391,7 @@ class Scheduler():
         self.hostname = socket.gethostname()
         self.cluster = self.get_cluster()
         self.log_dir = log_dir
-        #self.qsub    = qsub
-        # if qsub/max_thread/max_cpus_per_node not set, guess from the cluster
-        # if they are set, double check number are reasonable
-        #if (self.qsub == None):
-        #    self.qsub = False
-        #else:
-        #    if ((self.qsub is False and self.cluster == "Hamburg") or
-        #       (self.qsub is True and (self.cluster == "Leiden" or self.cluster == "CEP3" or
-        #                               self.cluster == "Hamburg_fat" or self.cluster == "Pleiadi" or self.cluster == "Herts"))):
-        #        logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
-        #        sys.exit(1)
+
 
         if (max_cpus_per_node == None):
             # check if running in a slurm environment with a limited number of CPUs (less than cpu_count())
@@ -472,30 +462,11 @@ class Scheduler():
             logger.debug('Running wsclean: %s' % cmd)
         elif commandType == 'DP3':
             logger.debug('Running DP3: %s' % cmd)
-        #elif commandType == 'singularity':
-        #    cmd = 'SINGULARITY_TMPDIR=/dev/shm singularity exec -B /tmp,/dev/shm,/localwork,/localwork.ssd,/home /home/fdg/node31/opt/src/lofar_sksp_ddf.simg ' + cmd
-        #    logger.debug('Running singularity: %s' % cmd)
-        elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
-            logger.debug('Running DDFacet: %s' % cmd)
         elif commandType == 'python':
             logger.debug('Running python: %s' % cmd)
         else:
             logger.debug('Running general: %s' % cmd)
 
-        #if self.qsub:
-        #    if qsub_cpucores == 'max':
-        #        qsub_cpucores = self.max_cpus_per_node
-        #    # if number of cores not specified, try to find automatically
-        #    elif qsub_cpucores == None:
-        #        qsub_cpucores = 1 # default use single CPU
-        #        if ("DP3" == cmd[ : 4]):
-        #            qsub_cpucores = 1
-        #        if ("wsclean" == cmd[ : 7]):
-        #            qsub_cpucores = self.max_cpus_per_node
-        #    if (qsub_cpucores > self.max_cpus_per_node):
-        #        qsub_cpucores = self.max_cpus_per_node
-        #    self.action_list.append([str(qsub_cpucores), '\'' + cmd + '\''])
-        #else:
         self.action_list.append(cmd)
 
         if (log != ""):
@@ -510,9 +481,6 @@ class Scheduler():
 
         def worker(queue):
             for cmd in iter(queue.get, None):
-                #if self.qsub and self.cluster == "Hamburg":
-                #    cmd = 'salloc --job-name LBApipe --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
-                #            ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
                 gc.collect()
                 subprocess.call(cmd, shell = True)
 
@@ -591,7 +559,6 @@ class Scheduler():
             out += subprocess.check_output(r'grep -l "Traceback (most recent call last)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(r'grep -l "Permission denied" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
-
         elif (commandType == "general"):
             out = subprocess.check_output('grep -l -i "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
@@ -610,7 +577,18 @@ class Scheduler():
 
 
 class SLURMScheduler(Scheduler):
-    def __init__(self, container_path=None, walltime=None, slurm_mem_per_cpu='8GB', bind_dirs=[], max_jobs=None,**kwargs):
+    def __init__(self, container_path=None, walltime=None, slurm_mem_per_cpu='8GB', bind_dirs=[], max_jobs=244,**kwargs):
+        """
+
+        Parameters
+        ----------
+        container_path: str, path to singularity/apptainer
+        walltime:
+        slurm_mem_per_cpu
+        bind_dirs
+        max_jobs
+        kwargs
+        """
         if 'verbose' in kwargs:
             del kwargs['verbose']
 
@@ -622,15 +600,15 @@ class SLURMScheduler(Scheduler):
         bind_opts = ','.join([f'{d}' for d in [os.path.dirname(os.getcwd())] + bind_dirs])
         singularity_command = f"singularity exec --pwd {os.getcwd()} \
             --env PYTHONPATH=\$PYTHONPATH:{lilfdir},PATH=\$PATH:{lilfdir}/scripts/ --pid \
-            --writable-tmpfs -B{bind_opts} {container_path}"
+            -B{bind_opts} {container_path}"
 
         os.makedirs(self.log_dir+'/dask-logs', exist_ok=True)
         self.max_walltime = walltime if walltime else self.get_max_walltime()[1],  # auto-find max walltime if not set
-        self.slurm_max_jobs = max_jobs if max_jobs else 244
+        self.slurm_max_jobs = max_jobs
         self.backend = 'slurm'
 
         so = {
-                'cores': min(self.max_cpus_per_node, 32),
+                'cores': min(self.max_cpus_per_node, 64),
                 'processes': 1,
                 'memory': f'{4*self.max_cpus_per_node}GB',
                 'walltime': self.max_walltime,
@@ -650,12 +628,12 @@ class SLURMScheduler(Scheduler):
             #so.update({'shebang': '#!/bin/tcsh'})
             so.update({'queue': 'core32'})
         else:
-            logger.warning(f'Slurm cluster {self.cluster} not specifically supported, trying generic settings.')
+            logger.warning(f'Slurm cluster {self.cluster} unknown, trying generic settings.')
 
         self._cluster = SLURMCluster(**so)
         # Test if we want adaptive scaling if you like
-        self._cluster.scale(8)
-        #self._cluster.adapt(minimum=1, maximum=self.slurm_max_jobs)
+        # self._cluster.scale(8)
+        self._cluster.adapt(minimum=1, maximum=self.slurm_max_jobs)
         self._client = Client(self._cluster)
         self.futures = []
 
@@ -694,7 +672,17 @@ class SLURMScheduler(Scheduler):
         fut = self._client.submit(_run_cmd, cmd, log_path, key=commandType+" "+log, resources=None, pure=False)
         self.futures.append(fut)
 
-    def run(self, check=False, verbose=False):
+    def run(self, check=False, verbose=False, max_jobs=None):
+        """
+        Parameters
+        ----------
+        check
+        verbose
+        max_jobs: limit to this many parallel jobs - this temporarily overwrites the class variable for I/O heavy jobs.
+        """
+        if max_jobs: # temporarily overwrite global value
+            self._cluster.adapt(minimum=1, maximum=max_jobs)
+
         if self.dry:
             return
 
@@ -725,6 +713,10 @@ class SLURMScheduler(Scheduler):
         if check:
             for log, ctype in self.log_list:
                 self.check_run(log, ctype)
+
+        if max_jobs: # reset to global value if we temporarily changed it
+            self._cluster.adapt(minimum=1, maximum=self.slurm_max_jobs)
+
 
     def get_max_walltime(self):
         # ChatGPT
