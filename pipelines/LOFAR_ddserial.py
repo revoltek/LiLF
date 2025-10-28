@@ -3,7 +3,7 @@
 
 # Pipeline for direction dependent calibration
 
-import sys, os, glob, pickle, collections, fileinput
+import sys, os, glob, pickle, collections, fileinput, tempfile
 import numpy as np
 from astropy.table import Table as astrotab
 from astropy.coordinates import SkyCoord
@@ -31,6 +31,8 @@ solve_amp = parset.getboolean('LOFAR_ddserial','solve_amp')
 manual_dd_cal = parset.get('LOFAR_ddserial','manual_dd_cal') # ds9 circle region file containing a manual dd-calibrator
 develop = parset.getboolean('LOFAR_ddserial', 'develop') # for development, make more output/images
 use_shm = parset.getboolean('LOFAR_ddserial', 'use_shm') # use shared memory for wsclean
+use_shm_ddcal = parset.getboolean('LOFAR_ddserial', 'use_shm_ddcal') # use shared memory for ddcal
+use_lowest_rms = parset.getboolean('LOFAR_ddserial', 'use_lowest_rms')
 userReg = parset.get('model','userReg')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=6.5):
@@ -454,11 +456,10 @@ for cmaj in range(maxIter):
 
             logger.info(f'Phase shift, apply phase of closest facet ({closest}) and avg...')
             lib_util.check_rm('mss-dir')
-            if use_shm:
+            if use_shm_ddcal and os.access('/dev/shm/', os.W_OK):
                 # use shared memory for direction
-                lib_util.check_rm('/dev/shm/mss-dir')
-                os.makedirs('/dev/shm/mss-dir')
-                os.system('ln -s /dev/shm/mss-dir mss-dir')
+                tmp_shm_dir = tempfile.mkdtemp(dir='/dev/shm')
+                os.system(f'ln -s {tmp_shm_dir} mss-dir')
             else:
                 os.makedirs('mss-dir')
 
@@ -526,6 +527,10 @@ for cmaj in range(maxIter):
 
         d.fractional_flag_init = MSs_dir.meanFractionalFlag()
         logger.info(f'Mean fractional flag (init): {100*d.fractional_flag_init:.1f}%')
+
+        lowest_rms_noise = np.inf
+        lowest_rms_model = None
+        lowest_rms_cdd = None
 
         for cdd in range(20):
 
@@ -664,14 +669,19 @@ for cmaj in range(maxIter):
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
             logger.info('MM ratio (cdd:%02i): %f' % (cdd,mm_ratio))
 
-            if (cdd == 0 ) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
+            if rms_noise < lowest_rms_noise and use_lowest_rms:
+                lowest_rms_noise = rms_noise
+                lowest_rms_model = image.root
+                lowest_rms_cdd = cdd
+
+            if (cdd == 0 ) and ((rms_noise > 1.2 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.25 * rms_noise_pre)):
                 logger.warning('Image quality decreased at cdd00! Possibly problematic ddcal.')
                 # Predict - ms:MODEL_DATA (could also use wsclean but this seems easier)
                 MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("pre")}-sources.txt', log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
                 continue
             # if in cdd01 and cdd02 (before using amps) noise and mm ratio are worse or noise is a lot higher -> go back to previous ph_solint and restore current best model...
-            # TODO technically if the cycle after we continue is converged, we would use the skipped cycle solutions since those are the "-2" ones... Fix that somehow.
-            elif (cdd in [1,2,3]) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.05 * rms_noise_pre)):
+            # TODO technically if the cycle after we continue is converged, we would use the skipped cycle solutions since those are at "d.best_cdd" ones... Fix that somehow.
+            elif (cdd in [1,2,3]) and ((rms_noise > 1.2 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.25 * rms_noise_pre)):
                 if (512/dir_timeint) < (2*solint_ph):
                     logger.warning(f'Too many failed attempt, solint_ph too long, giving up this direction.')
                     break
@@ -686,7 +696,7 @@ for cmaj in range(maxIter):
                     MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("pre")}-sources.txt',   log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
                 continue
             # if noise incresed and mm ratio decreased - or noise increased a lot!
-            elif (cdd >= 4) and ((rms_noise > 1.01*rms_noise_pre and mm_ratio < 0.99*mm_ratio_pre) or rms_noise > 1.05*rms_noise_pre):
+            elif (cdd >= 4) and ((rms_noise > 1.2*rms_noise_pre and mm_ratio < 0.99*mm_ratio_pre) or rms_noise > 1.25*rms_noise_pre):
                 logger.debug('BREAK ddcal self cycle with noise: %f (noise_pre: %f) - mmratio: %f (mmratio_pre: %f)' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
                 break
 
@@ -704,13 +714,19 @@ for cmaj in range(maxIter):
             d.set_model(image.root, typ='best', apply_region=False)  # current best model
             rms_noise_pre = rms_noise
             mm_ratio_pre = mm_ratio
+        
+        if lowest_rms_model is not None and use_lowest_rms:
+            d.set_model(lowest_rms_model, typ='best', apply_region=False)
+            d.best_cdd = lowest_rms_cdd
+        else:
+            d.best_cdd = -2
 
         # End calibration cycle
         ##################################
 
-        if use_shm:
+        if use_shm_ddcal and os.access('/dev/shm/', os.W_OK):
             # use shared memory for DP3
-            lib_util.check_rm('/dev/shm/mss-dir')
+            lib_util.check_rm(tmp_shm_dir)
 
         # if died the first cycle or diverged
         if cdd == 0 or ((rms_noise_pre >= d.rms_noise_init) and (mm_ratio_pre/2 < d.mm_ratio_init)):
@@ -757,11 +773,11 @@ for cmaj in range(maxIter):
                 # change the direction of the closest facet to be exactly identical with the ddcal (keep --min_distance for rounding errors in losoto)
                 lib_h5.repoint_h5dir(split_h5, 'Dir00', d.position)
                 logger.info(f'Merge final solutions for {d.name} with {closest}...')
-                s.add(f'h5_merger.py --h5_out {d.get_h5parm("ph1", -2)} --h5_tables {d.get_h5parm("ph-ddserial", -2)} {split_h5} --h5_time_freq {split_h5} \
+                s.add(f'h5_merger.py --h5_out {d.get_h5parm("ph1", d.best_cdd)} --h5_tables {d.get_h5parm("ph-ddserial", d.best_cdd)} {split_h5} --h5_time_freq {split_h5} \
                        --no_antenna_crash --min_distance 0.00027', log='h5_merger.log', commandType='python')
                 s.run(check=True)
                 # plot the merged h5parm for debug
-                lib_util.run_losoto(s, 'ph1', d.get_h5parm('ph1', -2),
+                lib_util.run_losoto(s, 'ph1', d.get_h5parm('ph1', d.best_cdd),
                                     [f'{parset_dir}/losoto-plot-ph1.parset'],
                                     plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstring))
                 lib_util.check_rm('cal-ph1.h5') # remove the h5parm copied by losoto
@@ -783,17 +799,17 @@ for cmaj in range(maxIter):
                 # note that these are all scalar or diagonal, so they commute
                 logger.info('Corrupt ph...')
                 MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                            cor.invert=False cor.parmdb='+d.get_h5parm('ph1',-2)+' cor.correction=phase000',
+                            cor.invert=False cor.parmdb='+d.get_h5parm('ph1',d.best_cdd)+' cor.correction=phase000',
                             log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
         
-                if not d.get_h5parm('amp1',-2) is None:
+                if not d.get_h5parm('amp1',d.best_cdd) is None:
                     logger.info('Corrupt amp...')
                     MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                           cor.invert=False cor.parmdb='+d.get_h5parm('amp1',-2)+' cor.correction=amplitude000',
+                           cor.invert=False cor.parmdb='+d.get_h5parm('amp1',d.best_cdd)+' cor.correction=amplitude000',
                            log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
-                if not d.get_h5parm('amp2',-2) is None:
+                if not d.get_h5parm('amp2',d.best_cdd) is None:
                     MSs.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                            cor.invert=False cor.parmdb='+d.get_h5parm('amp2',-2)+' cor.correction=amplitude000',
+                            cor.invert=False cor.parmdb='+d.get_h5parm('amp2',d.best_cdd)+' cor.correction=amplitude000',
                             log='$nameMS_corrupt-'+logstring+'.log', commandType='DP3')
 
                 # sources to peel were not beam corrected when splitting
@@ -856,7 +872,7 @@ for cmaj in range(maxIter):
                     tables_to_print += sol_type+','
             tables_to_print = tables_to_print[:-1] + ']'
 
-            if ic == len(d.rms_noise)-2 and d.converged:
+            if ic == d.best_cdd and d.converged:
                 logger.info('%02i: Rms: %f, MMratio: %f (flag:%.0f%%) - %s ***' % (ic,rms_noise,mm_ratio,100*fractional_flag,tables_to_print))
             else:
                 logger.info('%02i: Rms: %f, MMratio: %f (flag:%.0f%%) - %s' % (ic,rms_noise,mm_ratio,100*fractional_flag,tables_to_print))
@@ -865,7 +881,7 @@ for cmaj in range(maxIter):
         if d.converged:
             for line in fileinput.input('ddserial/c%02i/skymodels/ddcals-c%01i.reg' % (cmaj,cmaj), inplace=True):
                 if d.name in line:
-                    if d.get_h5parm('amp1',-2) is not None:
+                    if d.get_h5parm('amp1',d.best_cdd) is not None:
                         print(line.replace('color=red','color=green'), end='')
                     else:
                         print(line.replace('color=red','color=yellow'), end='')
@@ -893,15 +909,15 @@ for cmaj in range(maxIter):
         if not d.converged:
             continue
 
-        h5parms['ph'].append(d.get_h5parm('ph1',-2))
-        if d.get_h5parm('amp1',-2) is not None:
-            h5parms['amp1'].append(d.get_h5parm('amp1',-2))
-        if d.get_h5parm('amp2',-2) is not None:
-            h5parms['amp2'].append(d.get_h5parm('amp2',-2))
+        h5parms['ph'].append(d.get_h5parm('ph1',d.best_cdd))
+        if d.get_h5parm('amp1',d.best_cdd) is not None:
+            h5parms['amp1'].append(d.get_h5parm('amp1',d.best_cdd))
+        if d.get_h5parm('amp2',d.best_cdd) is not None:
+            h5parms['amp2'].append(d.get_h5parm('amp2',d.best_cdd))
 
-        log = '%s: Phase (%s)' % (d.name, d.get_h5parm('ph1',-2))
-        log += ' Amp1 (%s)' % (d.get_h5parm('amp1',-2))
-        log += ' Amp2 (%s)' % (d.get_h5parm('amp2',-2))
+        log = '%s: Phase (%s)' % (d.name, d.get_h5parm('ph1',d.best_cdd))
+        log += ' Amp1 (%s)' % (d.get_h5parm('amp1',d.best_cdd))
+        log += ' Amp2 (%s)' % (d.get_h5parm('amp2',d.best_cdd))
         logger.info(log)
 
     # If we hava amplitudes (should normally be the case), apply them during facet imaging
@@ -951,7 +967,7 @@ for cmaj in range(maxIter):
         s.run(check=True)
 
         # non-circ beam at low dec
-        if phase_center[1] < 23 or True: # This has to be fixed before LoDeSS TODO TODO TODO
+        if phase_center[1] < 23:
             logger.info(f'Low-declination observation ({phase_center[1]}deg). Use non-circular PSF')
             beam_kwargs = {}
         else:
@@ -969,12 +985,12 @@ for cmaj in range(maxIter):
         logger.info('Cleaning...')
         lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA',
                 size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
-                parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=30, mgain=0.75, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
+                parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                 save_source_list='', no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
                 apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75,
-                concat_mss=True, use_shm=use_shm, keep_concat=True, **beam_kwargs)
+                concat_mss=True, use_shm=use_shm, **beam_kwargs)
  
         os.system(f'mv {imagename}*MFS-image*fits {imagename}*MFS-model*fits {imagename}*MFS-residual*fits {imagename}*MFS-psf*fits \
                   {imagename}-0*image*fits {imagename}-0*model*fits ddserial/c{cmaj:02}/images')

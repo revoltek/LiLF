@@ -28,6 +28,7 @@ class Direction(object):
         self.dist_from_centre = None # distance from the phase centre in deg
         self.peel_off = None
         self.region_file = None
+        self.best_cdd = None
 
         self.model = {}
         self.h5parms = {soltype:[] for soltype in self.soltypes}
