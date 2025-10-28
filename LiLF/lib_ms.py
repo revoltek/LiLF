@@ -4,7 +4,7 @@ import os, sys, shutil
 import numpy as np
 import pyregion
 from pyregion.parser_helper import Shape
-from casacore import tables
+from casacore import tables # type: ignore
 from astropy.coordinates import get_sun, get_body, SkyCoord, EarthLocation, AltAz
 from astropy.time import Time
 from astropy import units as u
@@ -17,8 +17,7 @@ from astropy.utils import iers
 iers.conf.auto_download = False  
 
 class AllMSs(object):
-
-    def __init__(self, pathsMS, scheduler, check_flags=True, check_sun=False, min_sun_dist=10, check_consistency=False):
+    def __init__(self, pathsMS, scheduler: lib_util.SLURMScheduler, check_flags=True, check_sun=False, min_sun_dist=10, check_consistency=False):
         """
         pathsMS:    list of MS paths
         scheduler:  scheduler object
@@ -34,7 +33,7 @@ class AllMSs(object):
             logger.error('Cannot find MS files.')
             raise('Cannot find MS files.')
 
-        self.mssListObj = []
+        self.mssListObj: list[MS] = []
         for pathMS in sorted(pathsMS):
             ms = MS(pathMS)
             if check_flags and ms.isAllFlagged(): 
@@ -157,7 +156,7 @@ class AllMSs(object):
         return np.mean([ms.fractionalFlag() for ms in self.getListObj()])
 
 
-    def run(self, command, log, commandType='', maxProcs=None):
+    def run(self, command, log, commandType=None, maxProcs=None):
         """
         Run command 'command' of type 'commandType', and use 'log' for logger,for each MS of AllMSs.
         The command and log file path can be customised for each MS using keywords (see: 'MS.concretiseString()').
@@ -178,13 +177,7 @@ class AllMSs(object):
 
             self.scheduler.add(cmd = commandCurrent, log = logCurrent, commandType = commandType)
 
-            # Provide debug output.
-            #lib_util.printLineBold("commandCurrent:")
-            #print (commandCurrent)
-            #lib_util.printLineBold("logCurrent:")
-            #print (logCurrent)
-
-        self.scheduler.run(check = True, maxProcs = maxProcs)
+        self.scheduler.run(check = True, maxProcs=maxProcs)
 
     def addcol(self, newcol, fromcol, usedysco='auto', log='$nameMS_addcol.log', overwrite=True):
         """

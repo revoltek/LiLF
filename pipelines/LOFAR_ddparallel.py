@@ -29,13 +29,13 @@ from losoto.h5parm import h5parm
 import lsmtool
 
 ########################################################
-from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd, lib_h5, lib_dd_parallel, lib_cat
+from LiLF import lib_ms, lib_img, lib_util, lib_log, lib_dd, lib_h5, lib_dd_parallel, lib_cat, lib_config
 logger_obj = lib_log.Logger('pipeline-ddparallel')
 logger = lib_log.logger
-s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
+s = lib_util.SLURMScheduler(log_dir=logger_obj.log_dir, container_path=os.path.expanduser('~') + "/pill.simg", walltime='02:00:00', max_cpus_per_node=24)
 w = lib_util.Walker('pipeline-ddparallel.walker')
 
-parset = lib_util.getParset()
+parset = lib_config.getParset()
 logger.info('Parset: '+str(dict(parset['LOFAR_ddparallel'])))
 parset_dir = parset.get('LOFAR_ddparallel','parset_dir')
 subfield_min_flux = parset.getfloat('LOFAR_ddparallel','subfield_min_flux') # default 20 Jy
@@ -54,6 +54,8 @@ userReg = parset.get('model','userReg')
 sf_phaseSolMode = 'phase' #'tec'
 
 #############################################################################
+
+
 
 def clean_empty(MSs, name, col='CORRECTED_DATA', size=5000, shift=None):
     """ For testing/debugging only"""
@@ -310,7 +312,6 @@ else: #default settings
 if (min_facets[0] > max_facets[0]) or (min_facets[1] > max_facets[1]):
     raise ValueError(f'min_facets {min_facets} and max_facets {max_facets} are not compatible.')
 
-
 # Make beam mask/reg
 beamMask = 'ddparallel/beam.fits'
 beamReg = 'ddparallel/beam.reg'
@@ -324,11 +325,57 @@ if not os.path.exists(beamMask):
     lib_img.blank_image_reg(beamMask, beamReg, blankval = 0., inverse=True)
 subfield_path = 'ddparallel/skymodel/subfield.reg'
 
+
 with w.if_todo('addcol'):
     MSs.addcol('CORRECTED_DATA', 'DATA') # carries on varies correction
     MSs.addcol('PREPARED_DATA', 'DATA') # used to store data with annoying sources (3c, sidelobe) subtracted
 
+
 #################################################################################################
+
+# is it beneficial to group multiple comutations in a function to reduce overhead?
+def solve_faraday(MS: lib_ms.MS):
+    logger.info('Converting to circular (DATA -> CIRC_PHASEDIFF_DATA)...')
+    # lin2circ conversion TCxx.MS:DATA -> CIRC_PHASEDIFF_DATA # use no dysco here!
+    lib_util.run_local(cmd=MS.concretiseString(f'DP3 {parset_dir}/DP3-lin2circ.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CIRC_PHASEDIFF_DATA'), 
+                log=MS.concretiseString('$nameMS_lin2circ.log'), log_dir=MS.log_dir)
+    
+    # Get circular phase diff TC.MS: CIRC_PHASEDIFF_DATA -> CIRC_PHASEDIFF_DATA
+    logger.info('Get circular phase difference...')
+    lib_util.run_local(cmd=MS.concretiseString('taql "UPDATE $pathMS SET\
+         CIRC_PHASEDIFF_DATA[,0]=0.5*EXP(1.0i*(PHASE(CIRC_PHASEDIFF_DATA[,0])-PHASE(CIRC_PHASEDIFF_DATA[,3]))), \
+         CIRC_PHASEDIFF_DATA[,3]=CIRC_PHASEDIFF_DATA[,0], \
+         CIRC_PHASEDIFF_DATA[,1]=0+0i, \
+         CIRC_PHASEDIFF_DATA[,2]=0+0i"'), 
+        log=MS.concretiseString('$nameMS_taql.log'), log_dir=MS.log_dir, 
+        commandType='general'
+    )
+
+    logger.info('Creating MODEL_DATA_FR...')  # take from MODEL_DATA but overwrite
+    lib_util.run_local(cmd=MS.concretiseString('taql "UPDATE $pathMS SET MODEL_DATA_FR[,0]=0.5+0i, MODEL_DATA_FR[,1]=0.0+0i, MODEL_DATA_FR[,2]=0.0+0i, \
+         MODEL_DATA_FR[,3]=0.5+0i"'), 
+        log=MS.concretiseString('$nameMS_taql.log'), log_dir=MS.log_dir, 
+        commandType='general'
+    )
+
+    # Solve TC.MS: CIRC_PHASEDIFF_DATA against MODEL_DATA_FR (only solve - solint=2m nchan=0 as it has the smoothnessconstrain)
+    logger.info('Solving circ phase difference ...')
+    lib_util.run_local(cmd=MS.concretiseString(f'DP3 {parset_dir}/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5'),
+                log=MS.concretiseString('$nameMS_solFR.log'), log_dir=MS.log_dir)
+    
+    # Delete cols again to not waste space
+    lib_util.run_local(cmd=MS.concretiseString('taql "ALTER TABLE $pathMS DELETE COLUMN CIRC_PHASEDIFF_DATA, MODEL_DATA_FR"'),
+            log=MS.concretiseString('$nameMS_taql.log'), log_dir=MS.log_dir, commandType='general')
+
+with w.if_todo('check_fr'):
+    #MSs.addcol('MODEL_DATA_FR', 'DATA', usedysco=False)
+    s.run_function(solve_faraday, MSs.getListObj())
+
+    lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
+    os.system(f'mv cal-fr.h5 {sol_dir}')
+    os.system(f'mv plots-fr {plot_dir}')
+         
+        
 # Find FR, all it does is creating the cal-fr.h5
 with w.if_todo('solve_fr'):
     # Probably we do not need BLsmoothing since we have long time intervals and smoothnessconstraint?

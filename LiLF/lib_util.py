@@ -193,141 +193,6 @@ def run_losoto(s, c, h5s, parsets, plots_dir=None, h5_dir=None) -> object:
         os.system('mv plots/* '+plots_dir)
         check_rm('plots')
 
-
-def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_concat=False, reuse_concat=False, use_shm=False, **kwargs):
-    """
-    s : scheduler
-    concat_mss : try to concatenate mss files to speed up wsclean
-    keep_concat : keep the concat MSs for re-use either by -cont or by reuse_concat=True
-    reuse_concat : reuse concatenated MS previously kept with keep_concat=True
-    temp_dir : if true try to store temp file in /dev/shm to speed up wsclean
-    args : parameters for wsclean, "_" are replaced with "-", any parms=None is ignored.
-           To pass a parameter with no values use e.g. " no_update_model_required='' "
-    """
-
-    # Check whether we can combine MS files in time, if some (or all) of them have the same antennas.
-    # This can speed up WSClean significantly (or slow it down, depending on the number and size of MSs and the clean call).
-    if concat_mss:
-        if not 'cont' in kwargs.keys() and not reuse_concat:
-            from LiLF import lib_ms
-            from itertools import groupby
-
-            keyfunct = lambda x: ' '.join(sorted(lib_ms.MS(x).getAntennas()))
-            MSs_list = sorted(MSs_files.split(), key=keyfunct) # needs to be sorted
-            groups = []
-            for k, g in groupby(MSs_list, keyfunct):
-                g = list(g)
-                # reorder in time to prevent wsclean bug
-                times = [lib_ms.MS(MS).getTimeRange()[0] for MS in g]
-                g = [MS for _, MS in sorted(zip(times, g))]
-                groups.append(g)
-            logger.info(f"Found {len(groups)} groups of datasets with same antennas.")
-            for i, group in enumerate(groups, start=1):
-                antennas = ', '.join(lib_ms.MS(group[0]).getAntennas())
-                logger.info(f"WSClean MS group {i}: {group}")
-                logger.debug(f"List of antennas: {antennas}")
-
-            MSs_files_clean = []
-            for g, group in enumerate(groups):
-                check_rm(f'wsclean_concat_{g}.MS')
-                # simply make a symlink for groups of 1, faster
-                if len(group) == 1:
-                    os.system(f'ln -s {group[0]} wsclean_concat_{g}.MS') # TEST - symlink should be the quickest
-                    # os.system(f'cp -r {group[0]} wsclean_concat_{g}.MS')
-                else:
-                    if 'data_column' in kwargs.keys():
-                        data_column = kwargs['data_column']
-                    else:
-                        data_column = 'CORRECTED_DATA'
-                    s.add(f'taql select UVW, FLAG_CATEGORY, WEIGHT, SIGMA, ANTENNA1, ANTENNA2, ARRAY_ID, DATA_DESC_ID, EXPOSURE, FEED1, FEED2, FIELD_ID, FLAG_ROW, INTERVAL, OBSERVATION_ID, PROCESSOR_ID, SCAN_NUMBER, STATE_ID, TIME, TIME_CENTROID, {data_column}, FLAG, WEIGHT_SPECTRUM from {group} giving wsclean_concat_{g}.MS as plain', log=logfile, commandType='general')
-                    s.run(check=True)
-                MSs_files_clean.append(f'wsclean_concat_{g}.MS')
-        else:
-            # continue clean
-            MSs_files_clean = glob.glob('wsclean_concat_*.MS')
-            logger.info(f'Continue clean on concat MSs {MSs_files_clean}')
-        MSs_files_clean = ' '.join(MSs_files_clean)
-    else:
-        MSs_files_clean = MSs_files
-
-    wsc_parms = []
-    #reordering_processors = np.min([len(MSs_files_clean),s.maxProcs])
-
-    # basic parms
-    wsc_parms.append( '-j ' + str(s.maxWorkers) + ' -reorder -parallel-reordering 4 ')
-    if 'use_idg' in kwargs.keys():
-        if s.cluster == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
-            wsc_parms.append( '-idg-mode hybrid' )
-            wsc_parms.append( '-mem 10' )
-        else:
-            wsc_parms.append( '-idg-mode cpu' )
-            
-    # limit parallel gridding to maxProcs
-    if 'parallel_gridding' in kwargs.keys() and kwargs['parallel_gridding'] > s.maxWorkers:
-            kwargs['parallel_gridding'] = s.maxWorkers
-
-    # set the tmp dir to speed up
-    if use_shm and os.access('/dev/shm/', os.W_OK) and not 'temp_dir' in list(kwargs.keys()):
-        check_rm('/dev/shm/*') # remove possible leftovers
-        wsc_parms.append( '-temp-dir /dev/shm/' )
-        wsc_parms.append( '-mem 90' ) # use 90% of memory
-    elif s.cluster == 'Spider':
-        wsc_parms.append( '-temp-dir /tmp/' )
-    #elif s.cluster == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
-    #    wsc_parms.append( '-temp-dir /localwork.ssd' )
-
-    # user defined parms
-    for parm, value in list(kwargs.items()):
-        if value is None: continue
-        if parm == 'baseline_averaging' and value == '':
-            scale = float(kwargs['scale'].replace('arcsec','')) # arcsec
-            value = 1.87e3*60000.*2.*np.pi/(24.*60.*60*np.max(kwargs['size'])) # the np.max() is OK with both float and arrays
-            if value > 10: value=10
-            if value < 1: continue
-        if parm == 'cont': 
-            parm = 'continue'
-            value = ''
-            # if continue, remove nans from previous models
-            lib_img.Image(kwargs['name']).nantozeroModel()
-        if parm == 'size' and type(value) is int: value = '%i %i' % (value, value)
-        if parm == 'size' and type(value) is list: value = '%i %i' % (value[0], value[1])
-        wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
-
-    # files
-    wsc_parms.append( MSs_files_clean )
-
-    # create command string
-    command_string = 'wsclean '+' '.join(wsc_parms)
-    s.add(command_string, log=logfile, commandType='wsclean')
-    logger.info('Running WSClean...')
-    s.run(check=True)
-
-    # Predict in case update_model_required cannot be used
-    if do_predict == True:
-        if 'apply_facet_solutions' in kwargs.keys():
-            raise NotImplementedError('do_predict in combination with apply_facet_solutions is not implemented.')
-        wsc_parms = []
-        # keep imagename and channel number
-        for parm, value in list(kwargs.items()):
-            if value is None: continue
-            #if 'min' in parm or 'max' in parm or parm == 'name' or parm == 'channels_out':
-            if parm == 'name' or parm == 'channels_out' or parm == 'wgridder_accuracy' or parm == 'shift':
-                wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
-
-        # files (the original, not the concatenated)
-        wsc_parms.append( MSs_files )
-        lib_img.Image(kwargs['name']).nantozeroModel() # If we have fully flagged channel, set to zero so we don't get error
-
-        # Test without reorder as it apperas to be faster
-        # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
-        command_string = 'wsclean -predict -padding 1.8 ' \
-                         '-j ' + str(s.maxWorkers) + ' ' + ' '.join(wsc_parms)
-        s.add(command_string, log=logfile, commandType='wsclean')
-        s.run(check=True)
-    if not keep_concat:
-        check_rm('wsclean_concat_*.MS')
-
-
 class Region_helper():
     """
     Simple class to get the extent of a ds9 region file containing one or more circles or polygons.
@@ -462,17 +327,13 @@ class Walker():
         delta = 'h '.join(str(datetime.datetime.now() - self.__globaltimeinit__).split(':')[:-1])+'m'
         logger.info('Done. Total time: '+delta)
 
-
-
 def _run_cmd(cmd, log_path=None, timeout=None):
-    # ChatGPT
     """
-    Run a shell command, tee to log file, return (returncode, walltime_s).
+    Run a shell command, tee to log file, return (returncode, walltime_s). (ChatGPT)
     """
-    t0 = time.time()
     # Ensure parent dirs for logs exist
-    if log_path:
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    #if log_path: os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    hostname = socket.gethostname()
 
     # Open log and stream stdout/stderr
     with open(log_path, "a" if log_path else os.devnull) as logf:
@@ -484,228 +345,208 @@ def _run_cmd(cmd, log_path=None, timeout=None):
             except subprocess.TimeoutExpired:
                 # Kill the whole process group
                 os.killpg(os.getpgid(p.pid), signal.SIGKILL)
-                return 124   # 124 like GNU timeout
-    return p.returncode
+                return 124, cmd   # 124 like GNU timeout
+    return p.returncode, hostname
 
-def get_slurm_max_walltime():
-    # ChatGPT
-    import os, re, subprocess
-    def _parse_slurm_time(tstr):
-        if not tstr or tstr.upper() == "UNLIMITED":
-            return None
-        if '-' in tstr:
-            days, hms = tstr.split('-', 1)
-            days = int(days)
+
+def run_local(cmd, log='', log_dir='logs', max_cpus_per_node=None, commandType=None):
+    if (max_cpus_per_node == None):
+        # check if running in a slurm environment with a limited number of CPUs (less than cpu_count())
+        slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE', False)
+        if slurm_cpus:
+            max_cpus_per_node = int(slurm_cpus)
         else:
-            days = 0
-            hms = tstr
-        hh, mm, ss = (list(map(int, hms.split(':'))) + [0, 0, 0])[:3]
-        return days*86400 + hh*3600 + mm*60 + ss
-    
-    partition = os.getenv('SLURM_PARTITION')
-    try:
-        if partition:
-            outp = subprocess.check_output(['scontrol', 'show', 'partition', partition], text=True, stderr=subprocess.DEVNULL)
-            m = re.search(r'MaxTime=([^\s]+)', outp)
-            if m:
-                timestr = m.group(1)
-                return _parse_slurm_time(timestr), timestr
-        # try sinfo: list partitions and limits, take first non-empty limit
-        out = subprocess.check_output(['sinfo', '-h', '-o', '%P %l'], text=True, stderr=subprocess.DEVNULL)
-        for line in out.splitlines():
-            part, limit = line.split(None, 1)
-            if limit and limit != "UNKNOWN":
-                timestr = limit.strip()
-                return _parse_slurm_time(timestr), timestr
-    except (subprocess.CalledProcessError, FileNotFoundError):
+            max_cpus_per_node = multiprocessing.cpu_count()
+
+    if commandType is None:
+        if 'dp3' in cmd.lower():
+            commandType = 'DP3'
+            cmd += ' numthreads=' + str(max_cpus_per_node)
+        elif 'wsclean' in cmd.lower(): commandType = 'wsclean'
+        elif 'python' in cmd.lower(): commandType = 'python'
+        else: commandType = 'general'
+    else:
+        commandType = commandType
+    logger.debug(f"Running {commandType}: '{cmd}', log: {log}")
+
+    log_path = os.path.join(log_dir, log) if log else ''
+    rc, hostname = _run_cmd(cmd, log_path)
+    if rc != 0:
+        if os.path.exists(log_path):
+            tail = subprocess.check_output(f'tail -n 40 {shlex.quote(log_path)}', shell=True).decode()
+        else: tail = 'No log file found.'
+        logger.error(f"{commandType} command failed on '{hostname}' with error message: '{tail}' \nLog at: {log_path}")
+        raise RuntimeError(f"\n{commandType} command failed on '{hostname}' with error message: '{tail}' \nLog at: {log_path}")
+    else:
         pass
 
-    return None, None
-
-
 class Scheduler():
-    def __init__(self, backend='slurm', slurm_max_jobs=244, max_cpus_per_node=32, slurm_max_walltime=None, slurm_mem_per_cpu='8GB',
-                 log_dir = 'logs', dry = False, container_path=None):
+    def __init__(self, max_jobs = None, max_cpus_per_node = None, log_dir = 'logs', dry = False, verbose = True):
         """
-        backend: string, backend used to launch jobs. 'local' and 'slurm' are supported
-        slurm_max_jobs:       max number of parallel processes (either on local node or on slurm cluster)
-        max_cpucores_per_node:   max number of cpu cores usable in a node
+        max_jobs:       max number of parallel processes
+        max_cpus_per_node:   max number of cpu cores usable in a node
         dry:            don't schedule job
         """
-        self.backend = backend.lower()
+        self.backend = 'local'
         self.hostname = socket.gethostname()
         self.cluster = self.get_cluster()
         self.log_dir = log_dir
+        #self.qsub    = qsub
+        # if qsub/max_thread/max_cpus_per_node not set, guess from the cluster
+        # if they are set, double check number are reasonable
+        #if (self.qsub == None):
+        #    self.qsub = False
+        #else:
+        #    if ((self.qsub is False and self.cluster == "Hamburg") or
+        #       (self.qsub is True and (self.cluster == "Leiden" or self.cluster == "CEP3" or
+        #                               self.cluster == "Hamburg_fat" or self.cluster == "Pleiadi" or self.cluster == "Herts"))):
+        #        logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
+        #        sys.exit(1)
 
-        # automatically set max cpucores if not set manually
-        if max_cpus_per_node:
-            self.max_cpus_per_node = int(max_cpus_per_node)
-        elif max_cpus_per_node is None:
-            if backend == 'local':
+        if (max_cpus_per_node == None):
+            # check if running in a slurm environment with a limited number of CPUs (less than cpu_count())
+            slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE', False)
+            if slurm_cpus:
+                self.max_cpus_per_node = int(slurm_cpus)
+            else:
                 self.max_cpus_per_node = multiprocessing.cpu_count()
-            elif backend == 'slurm':
-                slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE')
-                if slurm_cpus:
-                    self.max_cpus_per_node = int(slurm_cpus)
-                else:
-                    logger.warning('Neither max_cpucores_per_node nor $SLURM_CPUS_ON_NODE defined - guessing cpus per node.')
-                    self.max_cpus_per_node = multiprocessing.cpu_count()
-             
-        self.max_cpus_per_node = 16  # TEMP override
-        # automatically set maxJobs if not manually set
-        if slurm_max_jobs is None:
-            logger.warn(f'max_jobs not set - what to do in this case?')
-            self.slurm_max_jobs = 1
         else:
-            self.slurm_max_jobs = int(slurm_max_jobs)
+            self.max_cpus_per_node = max_cpus_per_node
+
+        if (max_jobs is None) or (max_jobs > self.max_cpus_per_node):
+            self.max_jobs = self.max_cpus_per_node
+        else:
+            self.max_jobs = max_jobs
 
         self.dry = dry
 
+        if verbose:
+            logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname +
+                        " (max_jobs: " + str(self.max_jobs) + ", max_cpus_per_node: " + str(self.max_cpus_per_node) + ").")
 
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
-        self.futures     = []
-
-        if self.backend == "slurm":
-            # sensible defaults; override with slurm_opts
-            LILFDIR = os.path.realpath(__file__).split('LiLF')[0] + 'LiLF'
-            # We mount only the parent directory of the current working directory
-            singularity_command = f"singularity exec --pwd {os.getcwd()} \
-                --env PYTHONPATH=\$PYTHONPATH:{LILFDIR},PATH=\$PATH:{LILFDIR}/scripts/ --pid \
-                --writable-tmpfs -B{os.path.dirname(os.getcwd())} {container_path}"
-            self.slurm_max_walltime = slurm_max_walltime if slurm_max_walltime else get_slurm_max_walltime()[1],  # auto-find max walltime if not set
-
-            so = {
-                    'cores': min(self.max_cpus_per_node, 32),  # We use 1 job per worker, so this is the CPUs per job -> maps to --cpus-per-taks
-                    'processes': 1, # (I think) this forces the 1 job per worker
-                    'memory': f'{4*self.max_cpus_per_node}GB',  # We use 1 job per worker, so this is the memory per job
-                    'walltime': self.slurm_max_walltime,
-                    'python': 'python',
-                    'log_directory': self.log_dir,
-                    'job_extra_directives': ['--export=ALL'],
-                'local_directory': os.getcwd() + '/tmp_dask/',
-                #'worker_extra_args' : ['--nthreads', '1'], # this forces one job at a time?
-
-                    'job_script_prologue': [
-                        "unset PYTHONPATH",
-                        "unset PYTHONHOME",
-                        "unset LD_LIBRARY_PATH",
-                        f"{singularity_command} \\"
-                    ]
-                }
-            
-            if self.cluster == "Herts":
-                #so.update({'shebang': '#!/bin/tcsh'})
-                so.update({'queue': 'core32'})
-            else: 
-                logger.warning(f'Slurm cluster {self.cluster} not specifically supported, trying generic settings.')
-                
-            self._cluster = SLURMCluster(**so)
-            # Test if we want adaptive scaling if you like
-            self._cluster.adapt(minimum=2, maximum=slurm_max_jobs)
-            self._client = Client(self._cluster)
-            
-            logger.debug(f"Dask SLURM cluster script:\n{self._cluster.job_script()}")
 
 
-
-        if backend == 'slurm':
-            logger.info(f'SLURM scheduler initialised  for cluster {self.cluster}:{self.hostname} '
-                        f'(slurm_max_jobs: {self.slurm_max_jobs}, max_cpus_per_node: {self.max_cpus_per_node}, '
-                        f'slurm_max_walltime: {self.slurm_max_walltime[0]}, slurm_mem_per_cpu: {slurm_mem_per_cpu})')
-        else:
-            logger.info(f'Local scheduler initialised  for cluster {self.cluster}:{self.hostname} \
-                         (max_cpucores_per_node: {self.max_cpus_per_node})')
-
-    def add(self, cmd='', log='', commandType='general', threads=1, mem=None, time='00:30:00', timeout=None):
+    def get_cluster(self):
         """
-        Add a command with optional resources (mapped to SLURM/Dask).
+        Find in which computing cluster the pipeline is running
         """
-        
-        if mem is None:
-            mem =threads
-        log_path = os.path.join(self.log_dir, log) if log else ''
-        if log:
-            # Truncate the log on first write
-            os.makedirs(os.path.dirname(log_path), exist_ok=True)
-            open(log_path, 'w').close()
-            self.log_list.append((log_path, commandType))
-
-        if commandType in ['wsclean', 'DP3', 'python']:
-            logger.debug(f'Running {commandType}: {cmd}')
+        hostname = self.hostname
+        if (hostname == 'lgc1' or hostname == 'lgc2'):
+            return "Hamburg"
+        elif ('r' == hostname[0] and 'c' == hostname[3] and 's' == hostname[6]):
+            return "Pleiadi"
+        elif ('node3' in hostname):
+            return "Hamburg_fat"
+        elif ('node' in hostname):
+            return "Herts"
+        elif ('leidenuniv' in hostname):
+            return "Leiden"
+        elif ('spider' in hostname):
+            return "Spider"
         else:
-            logger.debug(f'Running general: {cmd}')
-            
+            logger.debug('Hostname %s unknown.' % hostname)
+            return "Unknown"
 
-        self.action_list.append(dict(
-            cmd=cmd, log=log_path, commandType=commandType,
-            threads=threads, mem=mem, time=time, timeout=timeout
-        ))
 
-        if self.backend == "slurm":
-            fut = self._client.submit(_run_cmd, cmd, log_path, timeout, resources=None, pure=False)
-            self.futures.append(fut)
+    def add(self, cmd = '', log = '', logAppend = True, commandType = ''):
+        """
+        Add a command to the scheduler list
+        cmd:         the command to run
+        log:         log file name that can be checked at the end
+        logAppend:   if True append, otherwise replace
+        commandType: can be a list of known command types as "wsclean", "DP3", ...
+        """
 
-    def run(self, check=False, maxProcs=None):
-        if self.dry:
-            return
-        maxProcs_run = maxProcs
+        if (log != ''):
+            log = self.log_dir + '/' + log
 
-        # Dask debug info.
-        logger.debug(self._client.scheduler_info())
-        logger.debug(self._client.scheduler_info()['workers'].keys())
-        logger.debug(self._client.nthreads())            # gives {worker_addr: nthreads}
-        logger.debug(self._client.run(lambda: os.uname()))
-        logger.debug(self._client.has_what())
-        logger.debug(self._client.who_has())
+            if (logAppend):
+                cmd += " >> "
+            else:
+                cmd += " > "
+            cmd += log + " 2>&1"
 
-        if self.backend == "slurm":
-            # Gather and raise on failure
-            for fut, result in as_completed([f for f in self.futures], with_results=True):
-                rc = fut.result()
-                logger.debug(f"Command completed with return code {rc}")
-                logger.debug(result)
-                #if rc != 0:
-                #    tail = ''
-                #    if action['log'] and os.path.exists(action['log']):
-                #        tail = subprocess.check_output(f'tail -n 40 {shlex.quote(action["log"])}', shell=True).decode()
-                #    raise RuntimeError(f"Command failed (rc={rc}): {action['cmd']}\nLog: {action['log']}\n{tail}")
-                
-            self.futures.clear()
-
+        if commandType == 'wsclean':
+            logger.debug('Running wsclean: %s' % cmd)
+        elif commandType == 'DP3':
+            logger.debug('Running DP3: %s' % cmd)
+        #elif commandType == 'singularity':
+        #    cmd = 'SINGULARITY_TMPDIR=/dev/shm singularity exec -B /tmp,/dev/shm,/localwork,/localwork.ssd,/home /home/fdg/node31/opt/src/lofar_sksp_ddf.simg ' + cmd
+        #    logger.debug('Running singularity: %s' % cmd)
+        elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
+            logger.debug('Running DDFacet: %s' % cmd)
+        elif commandType == 'python':
+            logger.debug('Running python: %s' % cmd)
         else:
-            # local/single-node processing
-            from queue import Queue
-            from threading import Thread
-            q = Queue()
+            logger.debug('Running general: %s' % cmd)
 
-            def worker():
-                for item in iter(q.get, None):
-                    cmd, log, timeout, env = item['cmd'], item['log'], item['timeout'], item['env']
-                    gc.collect()
-                    rc, wall = _run_cmd(cmd, log, timeout, env)
-                    if rc != 0:
-                        tail = ''
-                        if log and os.path.exists(log):
-                            tail = subprocess.check_output(f'tail -n 40 {shlex.quote(log)}', shell=True).decode()
-                        raise RuntimeError(f"Command failed (rc={rc}): {cmd}\nLog: {log}\n{tail}")
-                    q.task_done()
+        #if self.qsub:
+        #    if qsub_cpucores == 'max':
+        #        qsub_cpucores = self.max_cpus_per_node
+        #    # if number of cores not specified, try to find automatically
+        #    elif qsub_cpucores == None:
+        #        qsub_cpucores = 1 # default use single CPU
+        #        if ("DP3" == cmd[ : 4]):
+        #            qsub_cpucores = 1
+        #        if ("wsclean" == cmd[ : 7]):
+        #            qsub_cpucores = self.max_cpus_per_node
+        #    if (qsub_cpucores > self.max_cpus_per_node):
+        #        qsub_cpucores = self.max_cpus_per_node
+        #    self.action_list.append([str(qsub_cpucores), '\'' + cmd + '\''])
+        #else:
+        self.action_list.append(cmd)
 
-            threads = [Thread(target=worker, daemon=True) for _ in range(maxProcs_run)]
-            for t in threads: t.start()
-            for a in self.action_list:
-                q.put_nowait(a)
-            q.join()
-            for _ in threads: q.put(None)
-            for t in threads: t.join()
+        if (log != ""):
+            self.log_list.append((log, commandType))
 
-        if check:
-            for log, ctype in self.log_list:
-                self.check_run(log, ctype)
 
-        self.action_list.clear()
-        self.log_list.clear()
-        
+    def run(self, check = False, maxProcs = None):
+        """
+        If 'check' is True, a check is done on every log in 'self.log_list'.
+        If max_thread != None, then it overrides the global values, useful for special commands that need a lower number of threads.
+        """
+
+        def worker(queue):
+            for cmd in iter(queue.get, None):
+                #if self.qsub and self.cluster == "Hamburg":
+                #    cmd = 'salloc --job-name LBApipe --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
+                #            ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
+                gc.collect()
+                subprocess.call(cmd, shell = True)
+
+        # limit number of processes
+        if (maxProcs == None):
+            maxProcs_run = self.max_jobs
+        else:
+            maxProcs_run = min(maxProcs, self.max_jobs)
+
+        q       = Queue()
+        threads = [Thread(target = worker, args=(q,)) for _ in range(maxProcs_run)]
+
+        for i, t in enumerate(threads): # start workers
+            t.daemon = True
+            t.start()
+
+        for action in self.action_list:
+            if (self.dry):
+                continue # don't schedule if dry run
+            q.put_nowait(action)
+        for _ in threads:
+            q.put(None) # signal no more commands
+        for t in threads:
+            t.join()
+
+        # check outcomes on logs
+        if (check):
+            for log, commandType in self.log_list:
+                self.check_run(log, commandType)
+
+        # reset list of commands
+        self.action_list = []
+        self.log_list    = []
+
 
     def check_run(self, log = "", commandType = ""):
         """
@@ -767,34 +608,301 @@ class Scheduler():
         return 0
 
 
-    def get_cluster(self):
-        """
-        TODO required?
-        Find in which computing cluster the pipeline is running
-        """
-        hostname = self.hostname
-        if (hostname == 'lgc1' or hostname == 'lgc2'):
-            return "Hamburg"
-        elif ('r' == hostname[0] and 'c' == hostname[3] and 's' == hostname[6]):
-            return "Pleiadi"
-        elif ('node3' in hostname):
-            return "Hamburg_fat"
-        elif ('node' in hostname):
-            return "Herts"
-        elif ('leidenuniv' in hostname):
-            return "Leiden"
-        elif ('spider' in hostname):
-            return "Spider"
+
+class SLURMScheduler(Scheduler):
+    def __init__(self, container_path=None, walltime=None, slurm_mem_per_cpu='8GB', bind_dirs=[], max_jobs=None,**kwargs):
+        if 'verbose' in kwargs:
+            del kwargs['verbose']
+
+        super().__init__(verbose=False, **kwargs)
+
+        # sensible defaults; override with slurm_opts
+        # We mount the parent directory of the current working directory and user input bind_dirs
+        lilfdir = os.path.realpath(__file__).split('LiLF')[0] + 'LiLF'
+        bind_opts = ','.join([f'{d}' for d in [os.path.dirname(os.getcwd())] + bind_dirs])
+        singularity_command = f"singularity exec --pwd {os.getcwd()} \
+            --env PYTHONPATH=\$PYTHONPATH:{lilfdir},PATH=\$PATH:{lilfdir}/scripts/ --pid \
+            --writable-tmpfs -B{bind_opts} {container_path}"
+
+        os.makedirs(self.log_dir+'/dask-logs', exist_ok=True)
+        self.max_walltime = walltime if walltime else self.get_max_walltime()[1],  # auto-find max walltime if not set
+        self.slurm_max_jobs = max_jobs if max_jobs else 244
+        self.backend = 'slurm'
+
+        so = {
+                'cores': min(self.max_cpus_per_node, 32),
+                'processes': 1,
+                'memory': f'{4*self.max_cpus_per_node}GB',
+                'walltime': self.max_walltime,
+                'python': 'python',
+                'log_directory': self.log_dir+'/dask-logs',
+                'local_directory': os.getcwd()+'/tmp_dask/',
+                'job_extra_directives': ['--export=ALL'],
+                'job_script_prologue': [
+                    "unset PYTHONPATH",
+                    "unset PYTHONHOME",
+                    "unset LD_LIBRARY_PATH",
+                    f"{singularity_command} \\"
+                ]
+            }
+
+        if self.cluster == "Herts":
+            #so.update({'shebang': '#!/bin/tcsh'})
+            so.update({'queue': 'core32'})
         else:
-            logger.debug('Hostname %s unknown.' % hostname)
-            return "Unknown"
+            logger.warning(f'Slurm cluster {self.cluster} not specifically supported, trying generic settings.')
+
+        self._cluster = SLURMCluster(**so)
+        # Test if we want adaptive scaling if you like
+        self._cluster.scale(8)
+        #self._cluster.adapt(minimum=1, maximum=self.slurm_max_jobs)
+        self._client = Client(self._cluster)
+        self.futures = []
+
+        logger.debug(f"Default Dask SLURM cluster script:\n{self._cluster.job_script()}")
+        logger.info(f'SLURM scheduler initialised  for cluster {self.cluster}:{self.hostname} '
+                    f'(slurm_max_jobs: {self.slurm_max_jobs}, max_cpus_per_node: {self.max_cpus_per_node}, '
+                    f'slurm_max_walltime: {self.max_walltime[0]}, slurm_mem_per_cpu: {slurm_mem_per_cpu})')
+
+
+    def run_function(self, func, *args):
+        futures = self._client.map(func, *args)
+        results = self._client.gather(futures)
+        return results
+
+    def add(self, cmd='', log='', commandType=None):
+        """
+        Add a command with optional resources (mapped to SLURM/Dask).
+        """
+        if commandType is None:
+            if 'dp3' in cmd.lower():
+                commandType = 'DP3'
+                cmd += ' numthreads=' + str(self.max_cpus_per_node)
+            elif 'wsclean' in cmd.lower(): commandType = 'wsclean'
+            elif 'python' in cmd.lower(): commandType = 'python'
+            else: commandType = 'general'
+        else:
+            commandType = commandType
+        logger.debug(f"Running {commandType}: '{cmd}', log: {log}")
+
+        log_path = os.path.join(self.log_dir, log) if log else ''
+        #if log:
+        #    # Truncate the log on first write
+        #    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        #    open(log_path, 'w').close()
+
+        fut = self._client.submit(_run_cmd, cmd, log_path, key=commandType+" "+log, resources=None, pure=False)
+        self.futures.append(fut)
+
+    def run(self, check=False, verbose=False):
+        if self.dry:
+            return
+
+        if verbose:
+            # Dask debug info.
+            logger.debug(self._client.scheduler_info())
+            logger.debug(self._client.scheduler_info()['workers'].keys())
+            logger.debug(self._client.nthreads())
+            logger.debug(self._client.run(lambda: os.uname()))
+            logger.debug(self._client.has_what())
+            logger.debug(self._client.who_has())
+
+        # Gather and raise on failure
+        for fut in as_completed([f for f in self.futures]):
+            rc, hostname = fut.result() # return original command and result code
+            log_path = os.path.join(self.log_dir, fut.key.split(" ")[1]) if fut.key else ''
+            commandType = fut.key.split(" ")[0] if fut.key else ''
+            if rc != 0:
+                if os.path.exists(log_path):
+                    tail = subprocess.check_output(f'tail -n 40 {shlex.quote(log_path)}', shell=True).decode()
+                else: tail = 'No log file found.'
+                logger.error(f"{commandType} command failed on '{hostname}' with error message: '{tail}' \nLog at: {log_path}")
+                raise RuntimeError(f"\n{commandType} command failed on '{hostname}' with error message: '{tail}' \nLog at: {log_path}")
+            else:
+                logger.debug(f"{commandType} command completed successfully on '{hostname}'. Log at: {log_path}")
+        self.futures.clear()
+
+        if check:
+            for log, ctype in self.log_list:
+                self.check_run(log, ctype)
+
+    def get_max_walltime(self):
+        # ChatGPT
+        import os, re, subprocess
+        def _parse_slurm_time(tstr):
+            if not tstr or tstr.upper() == "UNLIMITED":
+                return None
+            if '-' in tstr:
+                days, hms = tstr.split('-', 1)
+                days = int(days)
+            else:
+                days = 0
+                hms = tstr
+            hh, mm, ss = (list(map(int, hms.split(':'))) + [0, 0, 0])[:3]
+            return days*86400 + hh*3600 + mm*60 + ss
+
+        partition = os.getenv('SLURM_PARTITION')
+        try:
+            if partition:
+                outp = subprocess.check_output(['scontrol', 'show', 'partition', partition], text=True, stderr=subprocess.DEVNULL)
+                m = re.search(r'MaxTime=([^\s]+)', outp)
+                if m:
+                    timestr = m.group(1)
+                    return _parse_slurm_time(timestr), timestr
+            # try sinfo: list partitions and limits, take first non-empty limit
+            out = subprocess.check_output(['sinfo', '-h', '-o', '%P %l'], text=True, stderr=subprocess.DEVNULL)
+            for line in out.splitlines():
+                part, limit = line.split(None, 1)
+                if limit and limit != "UNKNOWN":
+                    timestr = limit.strip()
+                    return _parse_slurm_time(timestr), timestr
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+
+        return None, None
         
     def close(self):
-        if self.backend == "slurm":
-            self._client.close()
-            self._cluster.close()
+        self._client.close()
+        self._cluster.close()
+
+
+
+def run_wsclean(s: SLURMScheduler, logfile, MSs_files, do_predict=False, concat_mss=False, keep_concat=False, reuse_concat=False, use_shm=False, **kwargs):
+    """
+    s : scheduler
+    concat_mss : try to concatenate mss files to speed up wsclean
+    keep_concat : keep the concat MSs for re-use either by -cont or by reuse_concat=True
+    reuse_concat : reuse concatenated MS previously kept with keep_concat=True
+    temp_dir : if true try to store temp file in /dev/shm to speed up wsclean
+    args : parameters for wsclean, "_" are replaced with "-", any parms=None is ignored.
+           To pass a parameter with no values use e.g. " no_update_model_required='' "
+    """
+
+    # Check whether we can combine MS files in time, if some (or all) of them have the same antennas.
+    # This can speed up WSClean significantly (or slow it down, depending on the number and size of MSs and the clean call).
+    if concat_mss:
+        if not 'cont' in kwargs.keys() and not reuse_concat:
+            from LiLF import lib_ms
+            from itertools import groupby
+
+            keyfunct = lambda x: ' '.join(sorted(lib_ms.MS(x).getAntennas()))
+            MSs_list = sorted(MSs_files.split(), key=keyfunct) # needs to be sorted
+            groups = []
+            for k, g in groupby(MSs_list, keyfunct):
+                g = list(g)
+                # reorder in time to prevent wsclean bug
+                times = [lib_ms.MS(MS).getTimeRange()[0] for MS in g]
+                g = [MS for _, MS in sorted(zip(times, g))]
+                groups.append(g)
+            logger.info(f"Found {len(groups)} groups of datasets with same antennas.")
+            for i, group in enumerate(groups, start=1):
+                antennas = ', '.join(lib_ms.MS(group[0]).getAntennas())
+                logger.info(f"WSClean MS group {i}: {group}")
+                logger.debug(f"List of antennas: {antennas}")
+
+            MSs_files_clean = []
+            for g, group in enumerate(groups):
+                check_rm(f'wsclean_concat_{g}.MS')
+                # simply make a symlink for groups of 1, faster
+                if len(group) == 1:
+                    os.system(f'ln -s {group[0]} wsclean_concat_{g}.MS') # TEST - symlink should be the quickest
+                    # os.system(f'cp -r {group[0]} wsclean_concat_{g}.MS')
+                else:
+                    if 'data_column' in kwargs.keys():
+                        data_column = kwargs['data_column']
+                    else:
+                        data_column = 'CORRECTED_DATA'
+                    s.add(f'taql select UVW, FLAG_CATEGORY, WEIGHT, SIGMA, ANTENNA1, ANTENNA2, ARRAY_ID, DATA_DESC_ID, EXPOSURE, FEED1, FEED2, FIELD_ID, FLAG_ROW, INTERVAL, OBSERVATION_ID, PROCESSOR_ID, SCAN_NUMBER, STATE_ID, TIME, TIME_CENTROID, {data_column}, FLAG, WEIGHT_SPECTRUM from {group} giving wsclean_concat_{g}.MS as plain', log=logfile, commandType='general')
+                    s.run(check=True)
+                MSs_files_clean.append(f'wsclean_concat_{g}.MS')
         else:
-            pass
+            # continue clean
+            MSs_files_clean = glob.glob('wsclean_concat_*.MS')
+            logger.info(f'Continue clean on concat MSs {MSs_files_clean}')
+        MSs_files_clean = ' '.join(MSs_files_clean)
+    else:
+        MSs_files_clean = MSs_files
+
+    wsc_parms = []
+    #reordering_processors = np.min([len(MSs_files_clean),s.maxProcs])
+
+    # basic parms
+    wsc_parms.append( '-j ' + str(s.max_cpus_per_node) + ' -reorder -parallel-reordering 4 ')
+    if 'use_idg' in kwargs.keys():
+        if s.cluster == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
+            wsc_parms.append( '-idg-mode hybrid' )
+            wsc_parms.append( '-mem 10' )
+        else:
+            wsc_parms.append( '-idg-mode cpu' )
+
+    # limit parallel gridding to maxProcs
+    if 'parallel_gridding' in kwargs.keys() and kwargs['parallel_gridding'] > s.max_cpus_per_node:
+            kwargs['parallel_gridding'] = s.max_cpus_per_node
+
+    # set the tmp dir to speed up
+    if use_shm and os.access('/dev/shm/', os.W_OK) and not 'temp_dir' in list(kwargs.keys()):
+        check_rm('/dev/shm/*') # remove possible leftovers
+        wsc_parms.append( '-temp-dir /dev/shm/' )
+        wsc_parms.append( '-mem 90' ) # use 90% of memory
+    elif s.cluster == 'Spider':
+        wsc_parms.append( '-temp-dir /tmp/' )
+    #elif s.cluster == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
+    #    wsc_parms.append( '-temp-dir /localwork.ssd' )
+
+    # user defined parms
+    for parm, value in list(kwargs.items()):
+        if value is None: continue
+        if parm == 'baseline_averaging' and value == '':
+            scale = float(kwargs['scale'].replace('arcsec','')) # arcsec
+            value = 1.87e3*60000.*2.*np.pi/(24.*60.*60*np.max(kwargs['size'])) # the np.max() is OK with both float and arrays
+            if value > 10: value=10
+            if value < 1: continue
+        if parm == 'cont':
+            parm = 'continue'
+            value = ''
+            # if continue, remove nans from previous models
+            lib_img.Image(kwargs['name']).nantozeroModel()
+        if parm == 'size' and type(value) is int: value = '%i %i' % (value, value)
+        if parm == 'size' and type(value) is list: value = '%i %i' % (value[0], value[1])
+        wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
+
+    # files
+    wsc_parms.append( MSs_files_clean )
+
+    # create command string
+    command_string = 'wsclean '+' '.join(wsc_parms)
+    s.add(command_string, log=logfile, commandType='wsclean')
+    logger.info('Running WSClean...')
+    s.run(check=True)
+
+    # Predict in case update_model_required cannot be used
+    if do_predict == True:
+        if 'apply_facet_solutions' in kwargs.keys():
+            raise NotImplementedError('do_predict in combination with apply_facet_solutions is not implemented.')
+        wsc_parms = []
+        # keep imagename and channel number
+        for parm, value in list(kwargs.items()):
+            if value is None: continue
+            #if 'min' in parm or 'max' in parm or parm == 'name' or parm == 'channels_out':
+            if parm == 'name' or parm == 'channels_out' or parm == 'wgridder_accuracy' or parm == 'shift':
+                wsc_parms.append( '-%s %s' % (parm.replace('_','-'), str(value)) )
+
+        # files (the original, not the concatenated)
+        wsc_parms.append( MSs_files )
+        lib_img.Image(kwargs['name']).nantozeroModel() # If we have fully flagged channel, set to zero so we don't get error
+
+        # Test without reorder as it apperas to be faster
+        # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
+        command_string = 'wsclean -predict -padding 1.8 ' \
+                         '-j ' + str(s.max_cpus_per_node) + ' ' + ' '.join(wsc_parms)
+        s.add(command_string, log=logfile, commandType='wsclean')
+        s.run(check=True)
+    if not keep_concat:
+        check_rm('wsclean_concat_*.MS')
+
+
+
+
 
 def get_template_image(reference_ra_deg, reference_dec_deg, ximsize=512, yimsize=512, cellsize_deg=0.000417, fill_val=0):
     """

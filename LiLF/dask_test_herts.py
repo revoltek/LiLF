@@ -9,21 +9,21 @@ import os
 
 from LiLF import lib_ms, lib_util, lib_log
 
-os.makedirs('logs/dask-test', exist_ok=True)
 logger_obj = lib_log.Logger('pipeline-dask-test')
 logger = lib_log.logger
 
 
-s = lib_util.Scheduler(log_dir=logger_obj.log_dir, backend='slurm', container_path=os.path.expanduser('~') + "/pill.simg")
+s = lib_util.SLURMScheduler(log_dir=logger_obj.log_dir, container_path=os.path.expanduser('~') + "/pill.simg", walltime='02:00:00', max_cpus_per_node=16)
+time.sleep(30)
+sys.exit()
 
 
-
-data_dir = '/beegfs/lofar/boxelaar/deepfields/Elais-N1/batches/testbatch/mss'
+data_dir = 'mss'
 MSs = lib_ms.AllMSs(glob.glob(data_dir + '/TC*.MS'), s,)
 logger.info(f"Found {len(MSs.getListObj())} MSs to process.")
 
 lib_util.check_rm(data_dir + '/TC*.MS-test')
-MSs.run(f'DP3 msin=$pathMS msout=$pathMS-test steps=[count]', log='$nameMS_count.log', commandType='DP3')
+MSs.run(f'DP3 msin=$pathMS msout=. steps=[count]', log='$nameMS_count.log')
 
 
 
