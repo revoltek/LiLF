@@ -527,11 +527,9 @@ class Scheduler():
     def __init__(self, backend='slurm', slurm_max_jobs=244, max_cpus_per_node=32, slurm_max_walltime=None, slurm_mem_per_cpu='8GB',
                  log_dir = 'logs', dry = False, container_path=None):
         """
-        TODO max walltime
-        TODO max_jobs autoset?
         backend: string, backend used to launch jobs. 'local' and 'slurm' are supported
-        max_jobs:       max number of parallel processes (either on local node or on slurm cluster)
-        max_cpucores:   max number of cpu cores usable in a node
+        slurm_max_jobs:       max number of parallel processes (either on local node or on slurm cluster)
+        max_cpucores_per_node:   max number of cpu cores usable in a node
         dry:            don't schedule job
         """
         self.backend = backend.lower()
@@ -580,13 +578,13 @@ class Scheduler():
             so = {
                     'cores': min(self.max_cpus_per_node, 32),  # We use 1 job per worker, so this is the CPUs per job -> maps to --cpus-per-taks
                     'processes': 1, # (I think) this forces the 1 job per worker
-                    'memory': f'{4*self.max_cpus_per_node}GB', # We use 1 job per worker, so this is the memory per job
+                    'memory': f'{4*self.max_cpus_per_node}GB',  # We use 1 job per worker, so this is the memory per job
                     'walltime': self.slurm_max_walltime,
                     'python': 'python',
                     'log_directory': self.log_dir,
                     'job_extra_directives': ['--export=ALL'],
-                    'local_directory': os.getcwd()+'/tmp_dask/',
-                     #'worker_extra_args' : ['--nthreads', '1'], # this forces one job at a time?
+                'local_directory': os.getcwd() + '/tmp_dask/',
+                #'worker_extra_args' : ['--nthreads', '1'], # this forces one job at a time?
 
                     'job_script_prologue': [
                         "unset PYTHONPATH",

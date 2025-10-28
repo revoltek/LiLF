@@ -165,10 +165,10 @@ class AllMSs(object):
         """
         # add max num of threads given the total jobs to run
         # e.g. in a 64 processors machine running on 16 MSs, would result in numthreads=4
-        # TODO we need to figure out how to set numthreads for the slurm case...
         if commandType == 'DP3':
+            # we need to set the numthreads smartly and harmonized with the scheduler for DP3 + Slurm
             if self.scheduler.backend == 'slurm':
-                command += ' numthreads=16'
+                command += f' numthreads={self.scheduler.max_cpus_per_node} '
             else:
                 command += ' numthreads='+str(self.getNThreads(maxProcs))
 
