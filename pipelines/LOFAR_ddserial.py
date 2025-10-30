@@ -452,6 +452,7 @@ for cmaj in range(maxIter):
 
         # Determine parameters for correction of closest ddparallel facet
         closest = lib_h5.get_closest_dir(ddparallel_h5parm, d.position)
+        toclean_shm = False
         with w.if_todo('%s-shift' % logstring):
 
             logger.info(f'Phase shift, apply phase of closest facet ({closest}) and avg...')
@@ -460,6 +461,7 @@ for cmaj in range(maxIter):
                 # use shared memory for direction
                 tmp_shm_dir = tempfile.mkdtemp(dir='/dev/shm')
                 os.system(f'ln -s {tmp_shm_dir} mss-dir')
+                toclean_shm = True
             else:
                 os.makedirs('mss-dir')
 
@@ -632,6 +634,12 @@ for cmaj in range(maxIter):
 
                     lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
                         plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+
+                    # If in the first few cycles, clip on amp2 as well
+                    if dnum < 3:
+                        lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], [parset_dir+'/losoto-clip2.parset'],
+                            plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+
                     os.system('mv cal-amp2.h5 %s' % d.get_h5parm('amp2'))
 
                     logger.info('Correct amp 2...')
@@ -724,7 +732,7 @@ for cmaj in range(maxIter):
         # End calibration cycle
         ##################################
 
-        if use_shm_ddcal and os.access('/dev/shm/', os.W_OK):
+        if toclean_shm:
             # use shared memory for DP3
             lib_util.check_rm(tmp_shm_dir)
 
