@@ -33,6 +33,7 @@ develop = parset.getboolean('LOFAR_ddserial', 'develop') # for development, make
 use_shm = parset.getboolean('LOFAR_ddserial', 'use_shm') # use shared memory for wsclean
 use_shm_ddcal = parset.getboolean('LOFAR_ddserial', 'use_shm_ddcal') # use shared memory for ddcal
 use_lowest_rms = parset.getboolean('LOFAR_ddserial', 'use_lowest_rms')
+Forced_beam = parset.getfloat('LOFAR_ddserial', 'forced_beam') # default: 0.0
 userReg = parset.get('model','userReg')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=6.5):
@@ -978,8 +979,10 @@ for cmaj in range(maxIter):
         if phase_center[1] < 23:
             logger.info(f'Low-declination observation ({phase_center[1]}deg). Use non-circular PSF')
             beam_kwargs = {}
+        elif forced_beam != 0.0:
+            beam_kwargs = {'beam_size': forced_beam}
         else:
-            beam_kwargs = {'beam_size': 15}
+            beam_kwargs = {}
 
         # masking
         #s.add('breizorro.py -t 3.0 -r %s -b 50 -o %s' % (full_image.imagename, maskname), 
@@ -1056,6 +1059,12 @@ with w.if_todo('corr-leakage'):
 ### Calibration finished - additional images with scientific value
 
 # Low res as this is relevant only for transient detection
+
+if forced_beam == 0.0:
+    lowres_beam_kwargs = {}
+else:
+    lowres_beam_kwargs = {'beam_size':4*forced_beam}
+
 # TODO: add uv lambda min cut
 with w.if_todo('output-timedep'):
     logger.info('Cleaning (time dep images)...')
@@ -1067,7 +1076,7 @@ with w.if_todo('output-timedep'):
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                 no_update_model_required='',  nmiter=12, auto_threshold=1.0, auto_mask=3.0,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
-                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60)
+                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, **lowres_beam_kwargs)
 
         os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameT, imagenameT, cmaj))
 ### DONE
@@ -1082,7 +1091,7 @@ with w.if_todo('output-lres'):
                 channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                 no_update_model_required='',  nmiter=12, auto_threshold=1.0, auto_mask=3.0,
                 apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
-                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60)
+                apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, **lowres_beam_kwargs)
 
     os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits %s-MFS-psf.fits ddserial/c%02i/images' % (imagenameL, imagenameL, imagenameL, cmaj))
 ### DONE
@@ -1095,7 +1104,7 @@ with w.if_todo('output-vstokes-leakcal'):
                taper_gaussian='40arcsec', weight='briggs 0', niter=100000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=20, mgain=0.85, parallel_deconvolution=512,
                auto_threshold=2.0, auto_mask=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                pol='IQUV', join_polarizations = '', apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
-               apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60 )
+               apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, **lowres_beam_kwargs)
    os.system('mv %s-MFS-I-image*.fits %s-MFS-I-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, cmaj))
    os.system('mv %s-MFS-V-image*.fits %s-MFS-V-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, cmaj))
 
