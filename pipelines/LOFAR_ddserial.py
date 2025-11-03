@@ -33,7 +33,7 @@ develop = parset.getboolean('LOFAR_ddserial', 'develop') # for development, make
 use_shm = parset.getboolean('LOFAR_ddserial', 'use_shm') # use shared memory for wsclean
 use_shm_ddcal = parset.getboolean('LOFAR_ddserial', 'use_shm_ddcal') # use shared memory for ddcal
 use_lowest_rms = parset.getboolean('LOFAR_ddserial', 'use_lowest_rms')
-Forced_beam = parset.getfloat('LOFAR_ddserial', 'forced_beam') # default: 0.0
+forced_beam = parset.getfloat('LOFAR_ddserial', 'forced_beam') # default: 0.0
 userReg = parset.get('model','userReg')
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=6.5):
