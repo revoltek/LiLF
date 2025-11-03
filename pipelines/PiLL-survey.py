@@ -247,6 +247,7 @@ with w.if_todo('saveproducts_%s' % target):
     os.system(f'cp ddparallel/images/wideDDP-c*-MFS-image.fits {archive}')
     os.system(f'cp ddparallel/images/wide-sidelobe-MFS-image.fits {archive}')
     os.system(f'cp ddparallel/solutions/facetsP-c*.reg {archive}')
+    os.system(f'gzip ddparallel/solutions/cal-tec-c1.h5; cp ddparallel/solutions/cal-tec-c1.h5.gz {archive}')
     os.system(f'gzip ddparallel/solutions/cal-amp-di.h5; cp ddparallel/solutions/cal-amp-di.h5.gz {archive}')
     os.system(f'gzip ddparallel/solutions/cal-tec-sf-c1.h5; cp ddparallel/solutions/cal-tec-sf-c1.h5.gz {archive}')
     os.system(f'gzip ddparallel/solutions/cal-fr.h5; cp ddparallel/solutions/cal-fr.h5.gz {archive}')
