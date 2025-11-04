@@ -2,10 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import os, glob, pickle
-from astropy.io.fits import getdata
 import numpy as np
 from casacore.tables import table
-from astropy.stats import median_absolute_deviation
 import bdsf
 
 ########################################################

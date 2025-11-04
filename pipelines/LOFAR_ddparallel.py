@@ -18,7 +18,7 @@
 # TODO add timesmearing in dp3 predict
 # TODO model_weighted_constraint
 
-import os, sys, glob, random, json
+import os, glob, random, json
 import numpy as np
 from regions import Regions
 import astropy.units as u
