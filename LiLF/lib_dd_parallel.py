@@ -1,14 +1,7 @@
 import os, sys
 import numpy as np
-from astropy.io import fits as pyfits
-from astropy import wcs as pywcs
-import pyregion
 import mocpy
 import astropy.units as u
-from pyregion.parser_helper import Shape
-from matplotlib.path import Path
-from scipy.ndimage import binary_dilation, generate_binary_structure
-from scipy.ndimage.measurements import label, center_of_mass
 try:
     from scipy.spatial import Voronoi, voronoi_plot_2d
 except:
@@ -16,7 +9,6 @@ except:
     sys.exit(1)
 
 from LiLF.lib_log import logger
-from LiLF import lib_img
 
 
 def check_lotss_coverage(center, size):
