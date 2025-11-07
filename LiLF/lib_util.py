@@ -313,7 +313,7 @@ def lofar_nu2num(nu):
     """
     nu_clk = 200. # 160 or 200 MHz, clock freq
     # nyquist zone (1 for LBA, 2 for HBA low, 3 for HBA mid-high)
-    if nu < 90:
+    if nu < 100:
         n = 1
     elif nu < 190:
         n = 2
