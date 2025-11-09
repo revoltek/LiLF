@@ -492,7 +492,10 @@ for c in range(maxIter):
         # Smooth MSs:CORRECTED_DATA -> SMOOTHED_DATA
         MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
         logger.info('Solving ionosphere (DD)...')
-        smMHz = np.array([[2.5,4.0,10.0,15.0],[6.0,10.0,15.0,25.0]]) # [cycle0, cycle1]
+        if np.mean(MSs.getFreqs()) > 50e6):
+            smMHz = np.array([[2.5,4.0,10.0,15.0],[6.0,10.0,15.0,25.0]]) # [cycle0, cycle1]
+        else:
+            smMHz = np.array([[1.0,1.5,3.0,5.0],[2.0,3.0,5.0,8.0]]) # less smoothing for decameter!
         smMHz_factors = [smMHz[0]/np.max(smMHz[0]), smMHz[1]/np.max(smMHz[1])] # factors should be <1 otherwise trimming of kernel is off
         solutions_per_direction = 15*np.ones(len(patches), dtype=int)
         # get twice as many solutions for brighter directions solint (i.e. one per time step) for bright directions
@@ -855,7 +858,10 @@ for c in range(maxIter):
         MSs.run_Blsmooth('SUBFIELD_DATA', logstr=f'smooth-c{c}')
         # solve ionosphere phase - ms:SMOOTHED_DATA
         logger.info('Solving ionosphere (subfield)...')
-        smMHz_sf = np.array([2.5,4.0,10.0,15.0])
+        if np.mean(MSs.getFreqs()) > 50e6):
+            smMHz_sf = np.array([2.5,4.0,10.0,15.0])
+        else:
+            smMHz_sf = np.array([1.0,1.5,3.0,5.0]) # less smoothing for decameter!
         smMHz_factors_sf = smMHz_sf/np.max(smMHz_sf) # factors should be <1 otherwise trimming of kernel is off, so normalize
         ant_avg_factors = f'"[CS*:15,[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:4,[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:2,[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:1]"'
         ant_smooth_factors = f'"[CS*:{smMHz_factors_sf[3]},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{smMHz_factors_sf[2]},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{smMHz_factors_sf[1]},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{smMHz_factors_sf[0]}]"'

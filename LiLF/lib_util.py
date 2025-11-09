@@ -117,7 +117,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_ddserial', 'solve_amp', 'True') # to disable amp sols
     add_default('LOFAR_ddserial', 'use_shm', 'False') # use /dev/shm for temporary files, if available
     add_default('LOFAR_ddserial', 'use_shm_ddcal', 'True') # use /dev/shm for temporary ddcal files, if available
-    add_default('LOFAR_ddserial', 'use_lowest_rms', 'False')
+    add_default('LOFAR_ddserial', 'use_lowest_rms', 'True')
     add_default('LOFAR_ddserial', 'forced_beam', '0.')
     add_default('LOFAR_ddserial', 'target_dir', '') # ra,dec
     add_default('LOFAR_ddserial', 'manual_dd_cal', '')
