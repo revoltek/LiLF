@@ -1,6 +1,8 @@
 msin=
 msin.datacolumn = DATA
 msout=.
+msout.uvwcompression=false
+msout.antennacompression=false
 
 steps=[aoflagger, count]
 

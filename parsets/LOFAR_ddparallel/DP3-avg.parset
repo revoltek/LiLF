@@ -1,3 +1,5 @@
+msout.uvwcompression=false
+msout.antennacompression=false
 msin = 
 msin.datacolumn = CORRECTED_DATA
 #do not copy aucorr as they have too weird weights for dysco
