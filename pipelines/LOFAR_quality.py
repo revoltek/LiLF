@@ -110,7 +110,7 @@ if os.path.exists(ddserial_dir):
     nvss.filter(sigma=5, ellipse=[ra, dec, fwhm[0]/2, fwhm[1]/2, 0], isolation=120)
     nvss.write('quality/debug_nvss.fits', overwrite=True, format='fits')
     lofar = lib_cat.RadioCat('quality/wideDDS-c0-MFS-image-pb.cat.fits', 'LOFAR', log=logger, wcs=wcs)
-    lofar.filter(sigma=5, ellipse=[ra, dec, fwhm[0]/2, fwhm[1]/2, 0], isolation=45, minflux=0.06, size=25)
+    lofar.filter(sigma=5, ellipse=[ra, dec, fwhm[0]/2, fwhm[1]/2, 0], isolation=45, minflux=0.06, size=60)
     lofar.write('quality/debug_lofar.fits', overwrite=True, format='fits')
     lofar.match(nvss, 10)
     n_match = len(lofar.get_matches('NVSS'))
