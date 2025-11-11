@@ -683,14 +683,14 @@ for cmaj in range(maxIter):
                 lowest_rms_model = image.root
                 lowest_rms_cdd = cdd
 
-            if (cdd == 0 ) and ((rms_noise > 1.2 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.25 * rms_noise_pre)):
+            if (cdd == 0 ) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.25 * rms_noise_pre)):
                 logger.warning('Image quality decreased at cdd00! Possibly problematic ddcal.')
                 # Predict - ms:MODEL_DATA (could also use wsclean but this seems easier)
                 MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("pre")}-sources.txt', log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
                 continue
             # if in cdd01 and cdd02 (before using amps) noise and mm ratio are worse or noise is a lot higher -> go back to previous ph_solint and restore current best model...
             # TODO technically if the cycle after we continue is converged, we would use the skipped cycle solutions since those are at "d.best_cdd" ones... Fix that somehow.
-            elif (cdd in [1,2,3]) and ((rms_noise > 1.2 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.25 * rms_noise_pre)):
+            elif (cdd in [1,2,3]) and ((rms_noise > 1.01 * rms_noise_pre and mm_ratio < 0.99 * mm_ratio_pre) or (rms_noise > 1.25 * rms_noise_pre)):
                 if (512/dir_timeint) < (2*solint_ph):
                     logger.warning(f'Too many failed attempt, solint_ph too long, giving up this direction.')
                     break
@@ -705,7 +705,7 @@ for cmaj in range(maxIter):
                     MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("pre")}-sources.txt',   log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
                 continue
             # if noise incresed and mm ratio decreased - or noise increased a lot!
-            elif (cdd >= 4) and ((rms_noise > 1.2*rms_noise_pre and mm_ratio < 0.99*mm_ratio_pre) or rms_noise > 1.25*rms_noise_pre):
+            elif (cdd >= 4) and ((rms_noise > 1.01*rms_noise_pre and mm_ratio < 0.99*mm_ratio_pre) or rms_noise > 1.25*rms_noise_pre):
                 logger.debug('BREAK ddcal self cycle with noise: %f (noise_pre: %f) - mmratio: %f (mmratio_pre: %f)' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
                 break
 
