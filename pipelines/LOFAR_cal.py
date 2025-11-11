@@ -312,10 +312,11 @@ with w.if_todo('cal_pa'):
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-tec.h5 msin.datacolumn=DATA\
                     cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
     else:
-        # Correct pre-iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
+        # Correct pre-iono concat_all:DATA -> CORRECTED_DATA
         logger.info('Iono correction (preliminary)...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5  msin.datacolumn=DATA \
                     cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+        # Correct pre-iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
                     cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
     # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
