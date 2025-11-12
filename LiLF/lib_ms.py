@@ -651,7 +651,7 @@ class MS(object):
 
     def getAntennaSet(self):
         """
-        If LBA observation, return obs mode: INNER, OUTER, SPARSE_EVEN, SPARSE_ODD
+        If LBA observation, return obs mode: LBA_ALL, INNER, OUTER, SPARSE_EVEN, SPARSE_ODD
         """
         if self.getTelescope() != 'LOFAR':
             raise("Only LOFAR has Antenna Sets.")

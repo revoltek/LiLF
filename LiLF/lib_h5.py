@@ -272,6 +272,7 @@ def create_h5bandpass(obs, h5parmFilename='bp_first.h5'):
     times = obs.getTimeRange()
     time = np.array([np.mean(times)])
     ants = obs.getAntennas()
+    ant_set = obs.getAntennasSet()
     dir = obs.getPhaseCentre()
     dir = np.array([dir])
 
@@ -282,10 +283,11 @@ def create_h5bandpass(obs, h5parmFilename='bp_first.h5'):
     bp_amplitude = bp_amplitude[None, :, None, None]
     bp_amplitude = np.tile(bp_amplitude, (len(time), 1, len(ants), len(dir)))
 
-    # Modifica delle ampiezze in base al nome delle antenne
+    # if we have heterogeneous antenna set (case LOFAR 1 with IS), scale data accordingly.
     for i, ant in enumerate(ants):
         if not (ant.startswith('CS') or ant.startswith('RS')):
-            bp_amplitude[:, :, i, :] *= 2
+            if ant_set != 'LBA_ALL':
+                bp_amplitude[:, :, i, :] *= 2
 
     ho = h5parm(h5parmFilename, readonly=False)
     solset = ho.getSolset('sol000')
