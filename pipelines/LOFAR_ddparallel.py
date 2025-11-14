@@ -858,7 +858,7 @@ for c in range(maxIter):
         MSs.run_Blsmooth('SUBFIELD_DATA', logstr=f'smooth-c{c}')
         # solve ionosphere phase - ms:SMOOTHED_DATA
         logger.info('Solving ionosphere (subfield)...')
-        if np.mean(MSs.getFreqs()) > 50e6):
+        if np.mean(MSs.getFreqs()) > 50e6:
             smMHz_sf = np.array([2.5,4.0,10.0,15.0])
         else:
             smMHz_sf = np.array([1.0,1.5,3.0,5.0]) # less smoothing for decameter!
