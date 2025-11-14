@@ -492,7 +492,7 @@ for c in range(maxIter):
         # Smooth MSs:CORRECTED_DATA -> SMOOTHED_DATA
         MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
         logger.info('Solving ionosphere (DD)...')
-        if np.mean(MSs.getFreqs()) > 50e6):
+        if np.mean(MSs.getFreqs()) > 50e6:
             smMHz = np.array([[2.5,4.0,10.0,15.0],[6.0,10.0,15.0,25.0]]) # [cycle0, cycle1]
         else:
             smMHz = np.array([[1.0,1.5,3.0,5.0],[2.0,3.0,5.0,8.0]]) # less smoothing for decameter!
