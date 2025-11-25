@@ -118,12 +118,12 @@ RUN cd /opt && git clone https://github.com/casacore/python-casacore.git \
 RUN cd /opt/python-casacore && pip install .
 
 #####################################################################
-## EveryBeam v0.7.4
+## EveryBeam v0.8.0
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
-    && cd /opt/EveryBeam && git checkout tags/v0.7.4
+    && cd /opt/EveryBeam && git checkout tags/v0.8.0
 RUN cd /opt/EveryBeam && mkdir build && cd build \
-    && cmake -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
+    && cmake -DDOWNLOAD_LOBES=On -DBUILD_WITH_PYTHON=On .. \
     && make -j `nproc --all` && make install
 RUN rm -rf /opt/EveryBeam/
 ENV EVERYBEAM_DATADIR=/usr/local/share/everybeam
@@ -164,13 +164,13 @@ RUN if [ $MARCH != "x86-64" ]; then cd /opt/aoflagger && mkdir build && cd build
 #    && make -j `nproc --all` && make install
 
 ####################################################################
-## Dp3 v6.5.1
+## Dp3 (master 19/11/25)
 #####################################################################
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
 RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
-    && cd /opt/DP3 && git checkout v6.5.1
-
+    && cd /opt/DP3 && git checkout cb9ef60494c4d75bc06b2a07eeaa514e4ae49c0a
+    
 RUN if [ $MARCH == "x86-64" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
     && cmake .. \
@@ -194,13 +194,13 @@ RUN if [ $MARCH == "znver3" ]; then \
 
 RUN rm -rf /opt/DP3/
 # add "import dp3"
-ENV PYTHONPATH=/usr/local/lib/python3.12/site-packages/:$PYTHONPATH
+ENV PYTHONPATH=/usr/local/lib/python3.13/site-packages/:$PYTHONPATH
 
 #####################################################################
-## Wsclean master (14/11/25)
+## Wsclean master (19/11/25)
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-    && cd /opt/wsclean && git checkout 35caf14fb9726e83447e679053c98f083a7532a8
+    && cd /opt/wsclean && git checkout bb0fb0efc1dc96274986f4525e058dd6394df498
 
 RUN if [ $MARCH == "x86-64" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
