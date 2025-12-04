@@ -253,9 +253,10 @@ with w.if_todo('timesplit'):
         starttime = t[0]['TIME']
         endtime   = t[t.nrows()-1]['TIME']
         hours = (endtime-starttime)/3600.
+        roundhours = np.max([1,round(hours)])
         logger.debug(ms+' has length of '+str(hours)+' h.')
 
-        for timerange in np.array_split(sorted(set(t.getcol('TIME'))), round(hours)):
+        for timerange in np.array_split(sorted(set(t.getcol('TIME'))), roundhours):
             logger.info('%02i - Splitting timerange %f %f' % (tc, timerange[0], timerange[-1]))
             logger.info(f'Splitting timerange {timerange[-1]-timerange[0]} -> 3584s.')
             t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[0]+3584), sortlist='TIME,ANTENNA1,ANTENNA2')
