@@ -521,9 +521,9 @@ for cmaj in range(maxIter):
         # usually there are 3584/32=112 or 3584/16=224 or 3584/8=448 timesteps and \
         # 60 (halfband)/120 (fullband) chans, try to use multiple numbers
         iter_ph_solint = lib_util.Sol_iterator([4, 2, 1])  # 32 or 16 or 8 * [4,2,1] s
-        iter_amp1_solint = lib_util.Sol_iterator([28, 14, 7])  # 32 or 16 or 8 * [28,14,7] s
+        iter_amp1_solint = lib_util.Sol_iterator([28, 14])  # 32 or 16 or 8 * [28,14,7] 
         iter_amp2_solint = lib_util.Sol_iterator([112, 56])
-        iter_ph_soltype = 'diagonalphase' if (d.get_flux(freq_mid) > 5 and cmaj > 0) else 'scalarphase'
+        iter_ph_soltype = 'diagonalphase' if (d.get_flux(freq_mid) > 10 and cmaj > 0) else 'scalarphase'# Decameter
         datause = 'dual' if iter_ph_soltype == 'diagonalphase' else 'single'
         logger.info('RMS noise (init): %f' % (rms_noise_pre))
         logger.info('MM ratio (init): %f' % (mm_ratio_pre))
@@ -567,9 +567,9 @@ for cmaj in range(maxIter):
 
                 sm_MHz = 30 # this is the smoothness in MHz for the inner RS - distant RS will get a fraction of that
                 # less smoothing for brighter dirs
-                if d.get_flux(freq_mid) > 3:
+                if d.get_flux(freq_mid) > 30:
                     sm_MHz *= 0.5
-                elif d.get_flux(freq_mid) > 1.5:
+                elif d.get_flux(freq_mid) > 15:
                     sm_MHz *= 0.75
                 solint_group3 = int(np.round(solint_ph*2)) if int(np.round(solint_ph*2)) < solint_ph_short else solint_ph_short # make sure this group is always < sols_per_direction
                 ant_avg_factors = f"[CS*:{solint_ph_short},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{solint_ph_short},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{solint_group3},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{solint_ph}]"
@@ -709,14 +709,14 @@ for cmaj in range(maxIter):
                 logger.debug('BREAK ddcal self cycle with noise: %f (noise_pre: %f) - mmratio: %f (mmratio_pre: %f)' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
                 break
 
-            if (d.peel_off or cdd >= 3) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 30) or (d.get_flux(freq_mid) > 5)) and solve_amp:
+            if (d.peel_off or cdd >= 3) and ((d.get_flux(freq_mid) > 20 and mm_ratio >= 30) or (d.get_flux(freq_mid) > 70)) and solve_amp:
                 logger.debug('START AMP WITH MODE 1 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
             # correct more amp in the outskirts
-            elif (d.peel_off or cdd >= 3) and (d.dist_from_centre >= fwhm/4.) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 25) or d.get_flux(freq_mid) > 3) and solve_amp:
+            elif (d.peel_off or cdd >= 3) and (d.dist_from_centre >= fwhm/4.) and ((d.get_flux(freq_mid) > 20 and mm_ratio >= 25) or d.get_flux(freq_mid) > 60) and solve_amp:
                 logger.debug('START AMP WITH MODE 2 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
-            elif (d.peel_off or cdd >= 3) and (d.dist_from_centre >= fwhm/2.) and ((d.get_flux(freq_mid) > 1 and mm_ratio >= 20) or d.get_flux(freq_mid) > 2) and solve_amp:
+            elif (d.peel_off or cdd >= 3) and (d.dist_from_centre >= fwhm/2.) and ((d.get_flux(freq_mid) > 20 and mm_ratio >= 20) or d.get_flux(freq_mid) > 40) and solve_amp:
                 logger.debug('START AMP WITH MODE 3 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
 
