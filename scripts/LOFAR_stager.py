@@ -67,9 +67,6 @@ if os.path.exists(file_rc):
                 login = line.split('=')[-1].strip(' \t\n\r')
             elif 'password' in line:
                 password = line.split('=')[-1].strip(' \t\n\r')
-            else:
-                print('Unknown content of .wgetrc: %s' % line)
-                sys.exit()
 
 # The class of data to query
 cls = CorrelatedDataProduct

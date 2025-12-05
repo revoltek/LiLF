@@ -64,6 +64,8 @@ class StagerProxy:
 
     def create_proxy(self):
         user, password, api_token, hostname = self.parse_credentials()
+        user=None
+        password=None
         # For test purposes you can add the next line in the .stagingrc file, it will then not use the production StageIT interface
         # hostname=sdc-dev.astron.nl
         if hostname:
