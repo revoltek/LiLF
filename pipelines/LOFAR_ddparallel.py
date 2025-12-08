@@ -301,7 +301,7 @@ if max_facets: # if manually provided
 else: #default settings
     # use more facets for SPARSE (larger FoV)
     if 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
-        max_facets = [10, 22, 35, 35, 35, 35]
+        max_facets = [6,15,10, 22, 35, 35, 35, 35]
     elif 'OUTER' in MSs.getListObj()[0].getAntennaSet():
         max_facets = [8, 16, 25, 25, 25, 25]
     else:
