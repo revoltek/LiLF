@@ -345,7 +345,7 @@ with w.if_todo('solve_fr'):
          CIRC_PHASEDIFF_DATA[,2]=0+0i"', log='$nameMS_taql.log', commandType='general')
 
     logger.info('Creating MODEL_DATA_FR...')  # take from MODEL_DATA but overwrite
-    MSs.addcol('MODEL_DATA_FR', 'DATA', usedysco=False)
+    MSs.addcol('MODEL_DATA_FR', 'DATA', usedysco=False,usesisco=False)
     MSs.run('taql "UPDATE $pathMS SET MODEL_DATA_FR[,0]=0.5+0i, MODEL_DATA_FR[,1]=0.0+0i, MODEL_DATA_FR[,2]=0.0+0i, \
          MODEL_DATA_FR[,3]=0.5+0i"', log='$nameMS_taql.log', commandType='general')
 
@@ -474,8 +474,12 @@ for c in range(maxIter):
             correctfreqsmearing = c == 0 # only in cycle zero correct freq smearing
             MSs.run(f'DP3 {parset_dir}/DP3-predict-beam.parset msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch} pre.correctfreqsmearing={correctfreqsmearing}',
                     log='$nameMS_pre.log', commandType='DP3')
-            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/cal-fr.h5 msin.datacolumn={patch} msout.datacolumn={patch}\
+            # Sisco doesnt like it if we overwrite a model data column
+            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/cal-fr.h5 msin.datacolumn={patch} msout.datacolumn={patch}_tmp \
                        cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
+            MSs.run(f'taql ALTER TABLE $pathMS DELETE COLUMN {patch}',log='$nameMS_siscofix.log',commandType='general')
+            MSs.run(f'taql ALTER TABLE $pathMS RENAME COLUMN {patch}_tmp TO {patch}',log='$nameMS_siscofix.log',commandType='general')
+
             # pos = sm.getPatchPositions()[patch]
             # size = int((1.1*sm.getPatchSizes()[np.argwhere(sm.getPatchNames()==patch)]) // 4)
             # logger.info(f'Test image MODEL_DATA...')

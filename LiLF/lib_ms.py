@@ -181,7 +181,7 @@ class AllMSs(object):
 
         self.scheduler.run(check = True, maxProcs = maxProcs)
 
-    def addcol(self, newcol, fromcol, usedysco='auto', log='$nameMS_addcol.log', overwrite=True):
+    def addcol(self, newcol, fromcol, usedysco='auto', log='$nameMS_addcol.log', overwrite=True,usesisco=False):
         """
         # TODO: it might be that if col exists and is dysco, forcing no dysco will not work. Maybe force TiledColumnStMan in such cases?
         Use DP3 to add a new data column using values from an existing column.
@@ -211,6 +211,8 @@ class AllMSs(object):
                         sm = 'dysco'
             elif usedysco:
                 sm = 'dysco'
+            elif usesisco:
+                sm = 'sisco'
 
             self.run(f'DP3 msin=$pathMS msin.datacolumn={fromcol} msout=. msout.datacolumn={newcol} \
                      msout.storagemanager={sm} steps=[]', log=log, commandType="DP3")
