@@ -1,0 +1,41 @@
+Ncpu = 0
+
+[plotA]
+operation = PLOT
+soltab = sol000/amplitude000
+axesInPlot = [time,freq]
+axisInTable = ant
+prefix = plots/amp1_
+
+
+[bkp]
+operation = DUPLICATE
+soltab = sol000/amplitude000
+soltabOut = amplitudeNorm
+
+[norm]
+operation = NORM
+soltab = sol000/amplitudeNorm
+normVal = 1.
+axesToNorm = [time,freq,ant]
+log = True
+
+[clip]
+operation = CLIP
+soltab = sol000/amplitudeNorm
+mode = below
+clipLevel = 0.1
+
+[clip2]
+operation = CLIP
+soltab = sol000/amplitudeNorm
+mode = above
+clipLevel = 7.0
+
+[plotAsmooth]
+operation = PLOT
+soltab = sol000/amplitudeNorm
+axesInPlot = [time,freq]
+axisInTable = ant
+plotFlag = True
+prefix = plots/ampNorm_

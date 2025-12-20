@@ -41,6 +41,7 @@ parset_dir = parset.get('LOFAR_ddparallel','parset_dir')
 subfield_min_flux = parset.getfloat('LOFAR_ddparallel','subfield_min_flux') # default 20 Jy
 subfield = parset.get('LOFAR_ddparallel','subfield') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
 maxIter = parset.getint('LOFAR_ddparallel','maxIter') # default = 2 (try also 3)
+maxSubIter = parset.getint('LOFAR_ddparallel','maxSubIter') # default = 1 
 phaseSolMode = parset.get('LOFAR_ddparallel', 'ph_sol_mode') # tecandphase, tec, phase
 remove3c = parset.getboolean('LOFAR_ddparallel', 'remove3c') # get rid of 3c sources in the sidelobes
 fulljones = parset.getboolean('LOFAR_ddparallel', 'fulljones') # do fulljones DIE amp correction instead of diagonal (default: False)
@@ -364,7 +365,9 @@ with w.if_todo('solve_fr'):
 
 #####################################################################################################
 # Self-cal cycle
-for c in range(maxIter):
+bright_source = False
+c = 0
+while c < maxIter:
     logger.info('Start selfcal cycle: '+str(c))
 
     # get sourcedb
@@ -372,7 +375,7 @@ for c in range(maxIter):
     beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
     if not os.path.exists(sourcedb):
         logger.info(f'Creating skymodel {sourcedb}...')
-        if c == 0:
+        if c == 0 or (bright_source and c == 1):
             if start_sourcedb == '':  # if not provided, use LOTSS-DR3 as default, if the field is not fully covered, resort to GSM
                 if lib_dd_parallel.check_lotss_coverage(phasecentre, null_mid_freq/2):
                     logger.info('Target fully in LoTSS-DR3 - start from LoTSS + use more initial facets.')
@@ -419,6 +422,12 @@ for c in range(maxIter):
             min_facets[0] = 1
             max_facets[0] = 1
             mask_threshold = [7.0,6.5,6.0,6.0,6.0,6.0] # sigma values for beizorro mask in cycle c
+        if c == 1 and bright_source:
+            min_facets[1] = 1
+            max_facets[1] = 7
+        if c == 2 and bright_source:
+            min_facets[2] = 14
+            max_facets[2] = 18
         # check if there are less than the minimum requested bright sources to form the facets
         if sum(patch_fluxes/si_factor > facet_fluxes[c]) < min_facets[c]: # convert skymodel fluxes to MS central freq
             bright_sources_flux = np.sort(patch_fluxes)[-min_facets[c]] / si_factor # bright sources flux is at MSs central freq
@@ -462,6 +471,19 @@ for c in range(maxIter):
     patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=True)
     for patch in patches[np.argsort(patch_fluxes)[::-1]]:
         logger.info(f'{patch}: {patch_fluxes[patches==patch][0]:.1f} Jy')
+
+    if len(patches) == 1:
+        remove3c = False
+        bright_source = True
+        maxSubIter = 2
+        maxIter = 3
+    if c>0:
+        maxSubIter = 1
+
+    if bright_source and c>0:
+        fr_file = 'cal-fr-sf.h5'
+    else:
+        fr_file = 'cal-fr.h5'
   
     with w.if_todo('c%02i_init_model' % c):
         for patch in patches:
@@ -474,7 +496,7 @@ for c in range(maxIter):
             correctfreqsmearing = c == 0 # only in cycle zero correct freq smearing
             MSs.run(f'DP3 {parset_dir}/DP3-predict-beam.parset msin=$pathMS pre.sourcedb=$pathMS/{sourcedb_basename} pre.sources={patch} msout.datacolumn={patch} pre.correctfreqsmearing={correctfreqsmearing}',
                     log='$nameMS_pre.log', commandType='DP3')
-            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/cal-fr.h5 msin.datacolumn={patch} msout.datacolumn={patch}\
+            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/{fr_file} msin.datacolumn={patch} msout.datacolumn={patch}\
                        cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
             # pos = sm.getPatchPositions()[patch]
             # size = int((1.1*sm.getPatchSizes()[np.argwhere(sm.getPatchNames()==patch)]) // 4)
@@ -493,10 +515,10 @@ for c in range(maxIter):
         MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
         logger.info('Solving ionosphere (DD)...')
         if np.mean(MSs.getFreqs()) > 50e6:
-            smMHz = np.array([[2.5,4.0,10.0,15.0],[6.0,10.0,15.0,25.0]]) # [cycle0, cycle1]
+            smMHz = np.array([[2.5,4.0,10.0,15.0],[6.0,10.0,15.0,25.0], [6.0,10.0,15.0,25.0]]) # [cycle0, cycle1, cycle2]
         else:
-            smMHz = np.array([[1.0,1.5,3.0,5.0],[2.0,3.0,5.0,8.0]]) # less smoothing for decameter!
-        smMHz_factors = [smMHz[0]/np.max(smMHz[0]), smMHz[1]/np.max(smMHz[1])] # factors should be <1 otherwise trimming of kernel is off
+            smMHz = np.array([[1.0,1.5,3.0,5.0],[2.0,3.0,5.0,8.0], [2.0,3.0,5.0,8.0]]) # less smoothing for decameter!
+        smMHz_factors = [smMHz[0]/np.max(smMHz[0]), smMHz[1]/np.max(smMHz[1]), smMHz[2]/np.max(smMHz[2])] # factors should be <1 otherwise trimming of kernel is off
         solutions_per_direction = 15*np.ones(len(patches), dtype=int)
         # get twice as many solutions for brighter directions solint (i.e. one per time step) for bright directions
         solutions_per_direction[patch_fluxes > 4] *= 2
@@ -648,7 +670,7 @@ for c in range(maxIter):
     ########################### AMP-CAL PART ####################################
     # Only once in cycle 1: do di amp to capture element beam 2nd order effect
     # TODO add updateweights in production
-    if c == 1:
+    if c == 1 and not bright_source:
         with w.if_todo('amp_di_solve'):
 
             if fulljones:
@@ -708,7 +730,7 @@ for c in range(maxIter):
     with w.if_todo('c%02i-corrFR' % c):
         # Correct for FR CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Correcting for FR...')
-        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/cal-fr.h5 msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA\
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/{fr_file} msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA\
                 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
 
     facetregname = f'{sol_dir}/facetsP-c{c}.reg'
@@ -734,10 +756,10 @@ for c in range(maxIter):
             widefield_kwargs['beam_size'] = 15
 
         # c0: make quick initial image to get a mask
-        if c==0:
+        if c==0 or (c == 1 and bright_source):
             logger.info('Making wide-field image for clean mask...')
             lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename,  no_update_model_required='',
-                                 auto_threshold=5.0, auto_mask=8.0, multiscale_max_scales=3, nmiter=6, keep_concat=True, **widefield_kwargs)
+                                 auto_threshold=7.0, auto_mask=10.0, multiscale_max_scales=3, nmiter=6, keep_concat=True, **widefield_kwargs)
             # make initial mask
             current_best_mask = make_current_best_mask(imagename, mask_threshold[c], userReg)
             # safe a bit of time by reusing psf and dirty in first iteration
@@ -807,7 +829,7 @@ for c in range(maxIter):
         logger.info('Predict corrupted model of external region (wsclean)...')
         s.add(f'wsclean -predict -padding 1.8 -name img/wideDDPext-c{c} -j {s.max_cpucores} -channels-out {channels_out} \
                 -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
-                -model-storage-manager sisco -apply-facet-solutions {wide_h5} phase000 {MSs.getStrWsclean()}',
+                -apply-facet-solutions {wide_h5} phase000 {MSs.getStrWsclean()}',
             log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
         s.run(check=True)
 
@@ -821,11 +843,20 @@ for c in range(maxIter):
             MSs.addcol('SUBFIELD_DATA','PREPARED_DATA')
         else:
             logger.info('Add previous iteration sub-field corruption...')
+            if c == 1 and bright_source:
+                subiter_use = maxSubIter + 1
+            else:
+                subiter_use = maxSubIter
             MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                    cor.parmdb={sol_dir}/cal-tec-sf-c' + str(c-1) + '.h5 cor.correction=phase000 cor.invert=False',
+                    cor.parmdb={sol_dir}/cal-tec-sf-c' + str(c-1) + '-sc'+str(subiter_use-1)+'.h5 cor.correction=phase000 cor.invert=False',
                     log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
-            # Corrupt MSs:MODEL_DATA -> MODEL_DATA (sf corr, dieamp corr)
-            corr_die_amp(MSs, col='MODEL_DATA', fulljones=fulljones, invert=False)
+            if bright_source:
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                        cor.parmdb={sol_dir}/cal-subfield_ampl-c' + str(c-1) + '.h5 cor.correction=amplitudeNorm cor.invert=False',
+                        log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
+            if (c == 1 and not bright_source):
+                # Corrupt MSs:MODEL_DATA -> MODEL_DATA (sf corr, dieamp corr)
+                corr_die_amp(MSs, col='MODEL_DATA', fulljones=fulljones, invert=False)
 
         # subtract external region MSs: PREPARED_DATA - MODEL_DATA -> SUBFIELD_DATA
         logger.info('Subtracting external region model (SUBFIELD_DATA = PREPARED_DATA - MODEL_DATA)...')
@@ -838,70 +869,165 @@ for c in range(maxIter):
         logger.info('Predict model of internal region...')
         s.add(f'wsclean -predict -padding 1.8 -name img/wideDDPint-c{c} -j {s.max_cpucores} -channels-out {channels_out} \
                 -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
-                -model-storage-manager sisco {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
+                {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
         s.run(check=True)
 
-        # Corrupt for FR internal region - MSs: MODEL_DATA -> MODEL_DATA
-        logger.info('Corrupting internal region model with FR...')
-        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/cal-fr.h5 msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA\
-                       cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
     ### DONE
 
-    if c>0:
-        with w.if_todo('c%02i_subfield_corr_diamp' % c):
+    if (c == 1 and not bright_source):
+        with w.if_todo('c%02i_subfierld_corr_diamp' % c):
             # Correct amp MSs:SUBFIELD_DATA -> SUBFIELD_DATA
             corr_die_amp(MSs, col='SUBFIELD_DATA', fulljones=fulljones)
         ### DONE
 
-    with w.if_todo('c%02i_subfield_solve_tec' % c):
-        # Smooth MSs: SUBFIELD_DATA -> SMOOTHED_DATA
-        MSs.run_Blsmooth('SUBFIELD_DATA', logstr=f'smooth-c{c}')
-        # solve ionosphere phase - ms:SMOOTHED_DATA
-        logger.info('Solving ionosphere (subfield)...')
-        if np.mean(MSs.getFreqs()) > 50e6:
-            smMHz_sf = np.array([2.5,4.0,10.0,15.0])
-        else:
-            smMHz_sf = np.array([1.0,1.5,3.0,5.0]) # less smoothing for decameter!
-        smMHz_factors_sf = smMHz_sf/np.max(smMHz_sf) # factors should be <1 otherwise trimming of kernel is off, so normalize
-        ant_avg_factors = f'"[CS*:15,[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:4,[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:2,[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:1]"'
-        ant_smooth_factors = f'"[CS*:{smMHz_factors_sf[3]},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{smMHz_factors_sf[2]},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{smMHz_factors_sf[1]},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{smMHz_factors_sf[0]}]"'
+    if bright_source:
+        fr_file = 'cal-fr-sf.h5'
+    else:
+        fr_file = 'cal-fr.h5'
 
-        MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec-sf.h5 sol.solint=15 \
-                  sol.mode=scalarphase sol.smoothnessconstraint={max(smMHz_sf)}e6 sol.smoothnessreffrequency=54e6 sol.nchan=1  \
-                  sol.modeldatacolumns="[MODEL_DATA]" sol.solutions_per_direction="[15]" \
-                  sol.antenna_averaging_factors={ant_avg_factors} sol.antenna_smoothness_factors={ant_smooth_factors}',
+    for sc in range(0,maxSubIter): 
+        if sc>0 or not bright_source or c>0:
+                with w.if_todo('c%02i_subfield%02i_corrupt_fr' % (c, sc)):
+                    # Corrupt for FR internal region - MSs: MODEL_DATA -> MODEL_DATA
+                    logger.info('Corrupting internal region model with FR...')
+                    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/{fr_file} msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA\
+                                cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
+        
+        with w.if_todo('c%02i_subfield%02i_solve_tec' % (c, sc)):
+            # Smooth MSs: SUBFIELD_DATA -> SMOOTHED_DATA
+            MSs.run_Blsmooth('SUBFIELD_DATA', logstr=f'smooth-c{c}')
+            # solve ionosphere phase - ms:SMOOTHED_DATA
+            logger.info('Solving ionosphere (subfield)...')
+            smMHz_sf = np.array([1,1,2,4])
+            smMHz_factors_sf = smMHz_sf/np.max(smMHz_sf) # factors should be <1 otherwise trimming of kernel is off, so normalize
+            ant_avg_factors = f'"[CS*:1,[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:1,[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:1,[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:1]"'
+            ant_smooth_factors = f'"[CS*:{smMHz_factors_sf[3]},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{smMHz_factors_sf[2]},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{smMHz_factors_sf[1]},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{smMHz_factors_sf[0]}]"'
+
+            MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec-sf.h5 sol.solint=15 \
+                    sol.mode=scalarphase sol.smoothnessconstraint={max(smMHz_sf)}e6 sol.smoothnessreffrequency=54e6 sol.nchan=1  \
+                    sol.modeldatacolumns="[MODEL_DATA]" sol.solutions_per_direction="[15]" \
+                    sol.antenna_averaging_factors={ant_avg_factors} sol.antenna_smoothness_factors={ant_smooth_factors}',
                 log='$nameMS_solTEC-sf-c' + str(c) + '.log', commandType='DP3', maxProcs=8)
 
-        lib_util.run_losoto(s, f'tec-sf-c{c}',[ms + f'/tec-sf.h5' for ms in MSs.getListStr()],
-                            [parset_dir + '/losoto-refph.parset', f'{parset_dir}/losoto-plot-scalarph.parset'],
-                            plots_dir=f'{plot_dir}/plots-tec-sf-c{c}', h5_dir=sol_dir)
-    ### DONE
+            lib_util.run_losoto(s, f'tec-sf-c{c}-sc{sc}',[ms + f'/tec-sf.h5' for ms in MSs.getListStr()],
+                                [parset_dir + '/losoto-refph.parset', f'{parset_dir}/losoto-plot-scalarph.parset'],
+                                plots_dir=f'{plot_dir}/plots-tec-sf-c{c}-sc{sc}', h5_dir=sol_dir)
+        ### DONE
 
-    with w.if_todo('c%02i_subfield_corr_tec' % c):
-        # Correct MSs: SUBFIELD_DATA -> SUBFIELD_DATA
-        logger.info('Correct subfield iono...')
-        if sf_phaseSolMode in ['tec', 'tecandphase']:
-            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
-                    cor.parmdb={sol_dir}/cal-tec-sf-c' + str(c) + '.h5 cor.correction=tec000 ',
+        with w.if_todo('c%02i_subfield%02i_corr_tec' % (c, sc)):
+            # Correct MSs: SUBFIELD_DATA -> CORRECTED_SUBFIELD_DATA
+            logger.info('Correct subfield iono...')
+            if sf_phaseSolMode in ['tec', 'tecandphase']:
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=CORRECTED_SUBFIELD_DATA \
+                        cor.parmdb={sol_dir}/cal-tec-sf-c' + str(c) + f'-sc{sc}.h5 cor.correction=tec000 ',
+                        log='$nameMS_sf-correct.log', commandType='DP3')
+            if sf_phaseSolMode in ['phase', 'tecandphase']:
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=CORRECTED_SUBFIELD_DATA \
+                        cor.parmdb={sol_dir}/cal-tec-sf-c' + str(c) + f'-sc{sc}.h5 cor.correction=phase000',
+                        log='$nameMS_sf-correct.log', commandType='DP3')
+        if sc == 0 and c == 0 and bright_source:
+            with w.if_todo('solve_fr-sf'):
+                MSs.run_Blsmooth('CORRECTED_SUBFIELD_DATA', logstr=f'smooth-c{c}')
+                # Try the old school fr
+                MSs.run(f'DP3 {parset_dir}/DP3-solFR-sf.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/fr.h5 \
+                        sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase sol.nchan=8 \
+                        sol.solint=32', log='$nameMS_solFR.log', commandType="DP3")
+
+                if (min(MSs.getFreqs()) < 30.e6):
+                    lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs.getListStr()],
+                                        [parset_dir + '/losoto-plot-scalarphFR.parset', parset_dir + '/losoto-plot-rot.parset',
+                                        parset_dir + '/losoto-sf-fr-low.parset'])
+                else:
+                    lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs.getListStr()],
+                                        [parset_dir + '/losoto-plot-scalarphFR.parset', parset_dir + '/losoto-plot-rot.parset',
+                                        parset_dir + '/losoto-sf-fr.parset'])
+                lib_util.check_rm(f'{plot_dir}/plots-fr-sf')
+                lib_util.check_rm(f'{sol_dir}/cal-fr-sf.h5')
+                os.system(f'mv cal-fr.h5 {sol_dir}/cal-fr-sf.h5')
+                os.system(f'mv plots-fr {plot_dir}/plots-fr-sf')
+
+        with w.if_todo('c%02i_corrFR-subfield%02i' % (c, sc)):
+            logger.info('Correcting subfield region with FR...')
+            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/{fr_file} msin.datacolumn=CORRECTED_SUBFIELD_DATA msout.datacolumn=CORRECTED_SUBFIELD_DATA\
+                        cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+            
+        ### DONE
+
+        if (bright_source and sc > 0):
+            # add imaging to make a good model 
+            with w.if_todo('c%02i_image-subfield%02i' % (c, sc)):
+
+                imagename = 'img/subfieldDDPnomask-c' + str(c)+str(sc)
+                imagenameM = 'img/subfield-c' + str(c)+str(sc)            
+
+                # common imaging arguments used by all of the following wsclean calls
+                widefield_kwargs = dict(data_column='CORRECTED_SUBFIELD_DATA', use_shm=use_shm, size=int(2*subfield_size*3600/pixscale), scale=f'{pixscale}arcsec', weight='briggs -0.5', niter=1000000,
+                                        gridder='wgridder',  parallel_gridding=4, minuv_l=30, mgain=0.65, parallel_deconvolution=32, no_update_model_required='',
+                                        join_channels='', fit_spectral_pol=3, channels_out=4, deconvolution_channels=3, multiscale='',
+                                        multiscale_scale_bias=0.65, pol='i', shift=f'{subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}', concat_mss=True)
+
+                # for low-freq or low-dec data, allow the beam to be fitted, otherwise (survey) force 15"
+                if not(np.mean(MSs.getFreqs()) < 50e6) and not (phasecentre[1] < 23):
+                    widefield_kwargs['beam_size'] = 15
+
+                # c0: make quick initial image to get a mask
+                
+                logger.info('Making wide-field image for clean mask...')
+                lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename,
+                                    auto_threshold=7.0, auto_mask=15.0, multiscale_max_scales=3, nmiter=6, keep_concat=True, **widefield_kwargs)
+                # make initial mask
+                current_best_mask_sf = make_current_best_mask(imagename, mask_threshold[c], userReg)
+                # safe a bit of time by reusing psf and dirty in first iteration
+                reuse_kwargs = {'reuse_concat':True, 'reuse_psf':imagename, 'reuse_dirty':imagename}
+
+                # main wsclean call, with mask now
+                logger.info('Making wide field image ...')
+                lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask_sf,
+                                    nmiter=12,  auto_threshold=5.0, auto_mask=10.0,
+                                    use_differential_lofar_beam='', local_rms='', local_rms_window=50, local_rms_strength=0.5, **widefield_kwargs, **reuse_kwargs)
+
+                current_best_mask_sf = make_current_best_mask(imagenameM, mask_threshold[c]-0.5, userReg)
+
+                # reset NaNs if present
+                im = lib_img.Image(f'{imagenameM}-MFS-image.fits')
+                im.nantozeroModel()
+
+            with w.if_todo('c%02i_predict-subfield%02i' % (c, sc)):
+                logger.info('Predict model of internal region...')
+                s.add(f'wsclean -predict -padding 1.8 -name img/subfield-c{c}{sc}  -j {s.max_cpucores} \
+                        -shift {subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}  -channels-out 4 \
+                        {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
+                s.run(check=True)
+
+    if bright_source:
+        if c == 0:
+            with w.if_todo('c%02i_subfield_solve_amp' % (c)):
+                MSs.run_Blsmooth(f'CORRECTED_SUBFIELD_DATA', logstr=f'smooth-c{c}')
+                logger.info(f'Solving amplitude ...')
+                MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.modeldatacolumns="[MODEL_DATA]" sol.uvlambdamin=100\
+                        sol.smoothnessreffrequency=54000000.0 sol.smoothnessspectralexponent=0 sol.smoothnessconstraint=5e6 \
+                        sol.h5parm=$pathMS/subfield_ampl-c{c}.h5 sol.mode=scalarcomplexgain sol.coreconstraint=2700.0 \
+                        sol.solint=10 sol.nchan=4', log='$nameMS_solampl_subfield.log', commandType="DP3")
+
+                lib_util.run_losoto(s, f'subfield_ampl-c{c}', [ms + f'/subfield_ampl-c{c}.h5' for ms in MSs.getListStr()],
+                        [parset_dir + '/losoto-plot-sf-scalaramp.parset'], plots_dir = f'{plot_dir}/plots-ampl-c{c}', h5_dir=sol_dir)
+
+        with w.if_todo('c%02i_subfield_corr_ampl' % (c)):
+            logger.info(f'Apply amplitude ...')
+            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_SUBFIELD_DATA msout.datacolumn=CORRECTED_SUBFIELD_DATA\
+                    cor.parmdb={sol_dir}/cal-subfield_ampl-c0.h5 cor.correction=amplitudeNorm cor.updateweights=False', 
                     log='$nameMS_sf-correct.log', commandType='DP3')
-        if sf_phaseSolMode in ['phase', 'tecandphase']:
-            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
-                    cor.parmdb={sol_dir}/cal-tec-sf-c' + str(c) + '.h5 cor.correction=phase000',
-                    log='$nameMS_sf-correct.log', commandType='DP3')
-    ### DONE
 
     # Do a quick image of the subfield, not strictly necessary but good to have...
     with w.if_todo('c%02i_image-subfield' % c):
-        logger.info('Correcting subfield region with FR...')
-        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/cal-fr.h5 msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA\
-                       cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+
         logger.info('Test image subfield...')
         # Note that here the beam is not applied, so the image is suboptimal
-        lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='SUBFIELD_DATA', size=int(1.2*subfield_size*3600/pixscale), scale=f'{pixscale}arcsec',
-                             weight='briggs -0.5', niter=100000, gridder='wgridder',  parallel_gridding=MSs.getChout(4.e6), shift=f'{subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}',
-                             no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.85, nmiter=12, parallel_deconvolution=512, auto_threshold=3.0, auto_mask=5.0,
-                             join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
-                             multiscale='',  multiscale_scale_bias=0.7, pol='i')
+        lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='CORRECTED_SUBFIELD_DATA', size=int(1.2*subfield_size*3600/pixscale), scale=f'{pixscale}arcsec',
+                            weight='briggs -0.5', niter=100000, gridder='wgridder',  parallel_gridding=MSs.getChout(4.e6), shift=f'{subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}',
+                            no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.55, nmiter=12, parallel_deconvolution=512, auto_threshold=5.0, auto_mask=10.0,
+                            join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
+                            multiscale='',  multiscale_scale_bias=0.7, pol='i')
     ### DONE
 
     #####################################################################################################
@@ -926,8 +1052,12 @@ for c in range(maxIter):
             s.run(check=True)
             # Corrupt for FR - MSs: MODEL_DATA -> MODEL_DATA
             logger.info('Corrupting mainlobe region model with FR...')
-            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/cal-fr.h5 msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA\
+            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/{fr_file} msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA\
                        cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
+            if bright_source:
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                        cor.parmdb={sol_dir}/cal-subfield_ampl-c{c}.h5 cor.correction=amplitudeNorm cor.updateweights=False cor.invert=False',
+                        log='$nameMS_sf-correct.log', commandType='DP3')
 
             # subtract internal region from MSs: PREPARED_DATA - MODEL_DATA -> SUBFIELD_DATA
             logger.info('Subtract main-lobe (SUBFIELD_DATA = PREPARED_DATA - MODEL_DATA)...')
@@ -941,12 +1071,16 @@ for c in range(maxIter):
         with w.if_todo('correct-sidelobe'): # just for testing/debug
             logger.info('Correct sidelobe region with subfield solutions...')
             MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
-                    cor.parmdb={sol_dir}/cal-tec-sf-c' + str(c) + '.h5 cor.correction=phase000',
+                    cor.parmdb={sol_dir}/cal-tec-sf-c' + str(c) + '-sc'+str(maxSubIter-1)+'.h5 cor.correction=phase000',
                     log='$nameMS_sf-correct.log', commandType='DP3')
             # Corrected for FR - MSs: SUBFIELD_DATA -> SUBFIELD_DATA
             logger.info('Correct sidelobe region model with FR...')
-            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/cal-fr.h5 msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA\
+            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/{fr_file} msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA\
                        cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+            if bright_source:
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=SUBFIELD_DATA msout.datacolumn=SUBFIELD_DATA \
+                        cor.parmdb={sol_dir}/cal-subfield_ampl-c{c}.h5 cor.correction=amplitudeNorm cor.updateweights=False',
+                        log='$nameMS_sf-correct.log', commandType='DP3')
         ### DONE
 
         imagename_lr = 'img/wide-sidelobe'
@@ -1006,7 +1140,7 @@ for c in range(maxIter):
 
                 logger.info('Predict model of sidelobe region (wsclean)...')
                 # --facet-regions {facetregname_lr} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
-                s.add(f'wsclean -predict -model-storage-manager sisco -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} -channels-out {channels_out_lr} \
+                s.add(f'wsclean -predict -padding 1.8 -name {imagename_lr}-blank -j {s.max_cpucores} -channels-out {channels_out_lr} \
                       {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
                 s.run(check=True)
 
@@ -1019,11 +1153,15 @@ for c in range(maxIter):
                 
             logger.info('Corrupt sidelobe model with subfield solutions...')
             MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                    cor.parmdb={sol_dir}/cal-tec-sf-c' + str(c) + '.h5 cor.correction=phase000 cor.invert=False',
+                    cor.parmdb={sol_dir}/cal-tec-sf-c' + str(c) + '-sc'+str(maxSubIter-1)+'.h5 cor.correction=phase000 cor.invert=False',
                     log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
             logger.info('Corrupt sidelobe  model with FR...')
-            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/cal-fr.h5 msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA\
-                       cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
+            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/{fr_file} msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA\
+                    cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
+            if bright_source:
+                MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
+                        cor.parmdb={sol_dir}/cal-subfield_ampl-c{c}.h5 cor.correction=amplitudeNorm cor.invert=False cor.updateweights=False',
+                        log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
 
             logger.info('Subtract corrupted sidelobe model (PREPARED_DATA = PREPARED_DATA - MODEL_DATA)...')
             MSs.run('taql "update $pathMS set PREPARED_DATA = PREPARED_DATA - MODEL_DATA"', log='$nameMS_taql.log', commandType='general')
@@ -1034,21 +1172,26 @@ for c in range(maxIter):
         logger.info('Correct subfield ionosphere (PREPARED_DATA -> CORRECTED_DATA)...')
         # Correct MSs:PREPARED_DATA -> CORRECTED_DATA (sf corr)
         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=PREPARED_DATA msout.datacolumn=CORRECTED_DATA  \
-                cor.parmdb={sol_dir}/cal-tec-sf-c' + str(c) + '.h5 cor.correction=phase000',
+                cor.parmdb={sol_dir}/cal-tec-sf-c' + str(c) + '-sc'+str(maxSubIter-1)+'.h5 cor.correction=phase000',
                 log='$nameMS_sf-correct.log', commandType='DP3')
+        if bright_source:
+            MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA  \
+                    cor.parmdb={sol_dir}/cal-subfield_ampl-c0.h5 cor.correction=amplitudeNorm cor.updateweights=False',
+                    log='$nameMS_sf-correct.log', commandType='DP3')
     ### DONE
 
     # finally re-correct for die amp on the newly created CORRECTED_DATA
-    if c >= 1:
+    if (c == 1 and not bright_source):
         with w.if_todo('c%02i_corr_dieamp' % c):
             # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA (sf corr, dieamp corr)
             corr_die_amp(MSs, col='CORRECTED_DATA', fulljones=fulljones)
         ### DONE
+    c += 1
 
 with w.if_todo('final_fr_corr'):
     # Before leaving, apply also FR - MSs: CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Final FR correction...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/cal-fr.h5 msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA\
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/{fr_file} msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA\
             cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
 
 # Copy images

@@ -101,6 +101,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_timesplit', 'use_GNSS', 'False') # Use GNSS satellite data for pre correcting TEC and FR
     # ddparallel
     add_default('LOFAR_ddparallel', 'maxIter', '2')
+    add_default('LOFAR_ddparallel', 'maxSubIter', '1')
     add_default('LOFAR_ddparallel', 'subfield', '') # possible to provide a ds9 box region customized sub-field. DEfault='' -> Automated detection using subfield_min_flux.
     add_default('LOFAR_ddparallel', 'subfield_min_flux', '20') # min flux within calibration subfield
     add_default('LOFAR_ddparallel', 'ph_sol_mode', 'phase') # phase or tecandphase
