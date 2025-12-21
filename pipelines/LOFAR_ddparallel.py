@@ -81,20 +81,29 @@ def corrupt_model_dirs(MSs, c, model_columns, solmode='phase'):
     for model_column in model_columns:
         if solmode in ['tec', 'tecandphase']:
             MSs.run(
-                f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}]  \
+                f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column}_tmp cor.direction=[{model_column}]  \
                     cor.parmdb={sol_dir}/cal-tec-c{c}.h5 cor.correction=tec000 cor.invert=False',
                 log='$nameMS_corrupt.log', commandType='DP3')
+            MSs.run(f'taql ALTER TABLE $pathMS DELETE COLUMN {model_column}',log='$nameMS_siscofix.log',commandType='general')
+            MSs.run(f'DP3 msin=$pathMS msout=. steps=[] msin.datacolumn={model_column}_tmp msout.datacolumn={model_column} msout.storagemanager=sisco',commandType="DP3",log='$nameMS_siscofix.log')
+            MSs.run(f'taql ALTER TABLE $pathMS DELETE COLUMN {model_column}_tmp',log='$nameMS_siscofix.log',commandType='general')
         elif solmode in ['phase', 'tecandphase']:
             MSs.run(
-                f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
+                f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column}_tmp cor.direction=[{model_column}] \
                     cor.parmdb={sol_dir}/cal-tec-c{c}.h5 cor.correction=phase000 cor.invert=False',
                 log='$nameMS_corrupt.log', commandType='DP3')
+            MSs.run(f'taql ALTER TABLE $pathMS DELETE COLUMN {model_column}',log='$nameMS_siscofix.log',commandType='general')
+            MSs.run(f'DP3 msin=$pathMS msout=. steps=[] msin.datacolumn={model_column}_tmp msout.datacolumn={model_column} msout.storagemanager=sisco',commandType="DP3",log='$nameMS_siscofix.log')
+            MSs.run(f'taql ALTER TABLE $pathMS DELETE COLUMN {model_column}_tmp',log='$nameMS_siscofix.log',commandType='general')
         elif solmode in ['amplitude']:
             if not model_column.startswith('patch'):    
                 MSs.run(
-                    f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column} cor.direction=[{model_column}] \
+                    f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn={model_column} msout.datacolumn={model_column}_tmp cor.direction=[{model_column}] \
                         cor.parmdb={sol_dir}/cal-amp-3C.h5 cor.correction=amplitude000 cor.invert=False',
                     log='$nameMS_corrupt.log', commandType='DP3')
+                MSs.run(f'taql ALTER TABLE $pathMS DELETE COLUMN {model_column}',log='$nameMS_siscofix.log',commandType='general')
+                MSs.run(f'DP3 msin=$pathMS msout=. steps=[] msin.datacolumn={model_column}_tmp msout.datacolumn={model_column} msout.storagemanager=sisco',commandType="DP3",log='$nameMS_siscofix.log')
+                MSs.run(f'taql ALTER TABLE $pathMS DELETE COLUMN {model_column}_tmp',log='$nameMS_siscofix.log',commandType='general')
 
 def corr_die_amp(MSs, col='CORRECTED_DATA', fulljones=fulljones, invert=True):
     """
@@ -476,9 +485,11 @@ for c in range(maxIter):
                     log='$nameMS_pre.log', commandType='DP3')
             # Sisco doesnt like it if we overwrite a model data column
             MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={sol_dir}/cal-fr.h5 msin.datacolumn={patch} msout.datacolumn={patch}_tmp \
-                       cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
+                       cor.correction=rotationmeasure000 msout.storagemanager=sisco cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
+            # MSs.run(f'taql ALTER TABLE $pathMS RENAME COLUMN {patch}_tmp TO {patch}',log='$nameMS_siscofix.log',commandType='general')
             MSs.run(f'taql ALTER TABLE $pathMS DELETE COLUMN {patch}',log='$nameMS_siscofix.log',commandType='general')
-            MSs.run(f'taql ALTER TABLE $pathMS RENAME COLUMN {patch}_tmp TO {patch}',log='$nameMS_siscofix.log',commandType='general')
+            MSs.run(f'DP3 msin=$pathMS msout=. steps=[] msin.datacolumn={patch}_tmp msout.datacolumn={patch} msout.storagemanager=sisco',commandType="DP3",log='$nameMS_siscofix.log')
+            MSs.run(f'taql ALTER TABLE $pathMS DELETE COLUMN {patch}_tmp',log='$nameMS_siscofix.log',commandType='general')
 
             # pos = sm.getPatchPositions()[patch]
             # size = int((1.1*sm.getPatchSizes()[np.argwhere(sm.getPatchNames()==patch)]) // 4)
