@@ -13,12 +13,12 @@ Note that the FLoCS containers are generally built for a specific architecture, 
 -----------------------------
 Alternatively, if you enjoy debugging libraries yourself (you have been warned), you can install the requirements yourself. Note that deviating from these requirements may cause unpredictable results. Below we specify the software required for LiLF, along with the latest tested, compatible version:
 
-* DP3
-* WSclean
-* casacore
-* LSMtool
-* pyBDSF
-* losoto
+* DP3 v6.5.1
+* WSclean v3.6
+* casacore commit a67610f21
+* LSMtool v1.6.3
+* pyBDSF v1.12.0
+* losoto v2.5.1
 
 
 2. Setting up LiLF
