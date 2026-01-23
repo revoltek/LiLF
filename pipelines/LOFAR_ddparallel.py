@@ -425,7 +425,7 @@ while c < maxIter:
         # TODO we need some logic here to avoid picking up very extended sources.
         patch_fluxes = sm.getColValues('I', aggregate='sum', applyBeam=True)
         # disbale 3cremoval if bright source in the field and set max_facets to 1
-        if c==0 and (patch_fluxes/si_factor > 100).any():
+        if c==0 and (patch_fluxes/si_factor > 50).any():
             logger.warning(f'Found patch with flux > 100 Jy: {patch_fluxes[patch_fluxes > 100]}, turning off 3c removal and forcing max_facets=1.')
             remove3c = False
             min_facets[0] = 1
@@ -865,7 +865,7 @@ while c < maxIter:
                     log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
             if bright_source:
                 MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                        cor.parmdb={sol_dir}/cal-subfield_ampl-c' + str(c-1) + '.h5 cor.correction=amplitudeNorm cor.invert=False',
+                        cor.parmdb={sol_dir}/cal-subfield_ampl-c' + str(0) + '.h5 cor.correction=amplitudeNorm cor.invert=False',
                         log='$nameMS_sidelobe_corrupt.log', commandType='DP3')
             if (c == 1 and not bright_source):
                 # Corrupt MSs:MODEL_DATA -> MODEL_DATA (sf corr, dieamp corr)

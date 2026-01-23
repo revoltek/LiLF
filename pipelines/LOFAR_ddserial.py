@@ -182,7 +182,7 @@ for MS in MSs.getListObj():
     logger.info(f'{MS.nameMS}: Fractional flags: {MS.fractionalFlag()*100:.1f}%.')
 
 ##############################################################
-full_image = lib_img.Image('ddserial/init/wideDDP-c1-MFS-image.fits', userReg=userReg)
+full_image = lib_img.Image(glob.glob('ddserial/init/wideDDP-c?-MFS-image.fits')[0], userReg=userReg)
 
 for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
@@ -371,11 +371,14 @@ for cmaj in range(maxIter):
             # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions while data are corrected for cycle 1 subfield solutions.
             # Take this into account!
             # corrupt:
+            calfiles = sorted(glob.glob('ddparallel/solutions/cal-tec-sf*h5'))
+            tocorrect = calfiles[-1]
+            tocorrupt = calfiles[-2]
             MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                      cor.parmdb=ddparallel/solutions/cal-tec-sf-c0.h5 cor.correction=phase000 cor.invert=False', log='$nameMS_sf-correct.log', commandType='DP3')
+                      cor.parmdb={tocorrupt} cor.correction=phase000 cor.invert=False', log='$nameMS_sf-correct.log', commandType='DP3')
             # correct:
             MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                      cor.parmdb=ddparallel/solutions/cal-tec-sf-c1.h5 cor.correction=phase000 cor.invert=True', log='$nameMS_sf-correct.log', commandType='DP3')
+                      cor.parmdb={tocorrect} cor.correction=phase000 cor.invert=True', log='$nameMS_sf-correct.log', commandType='DP3')
 
     ### DONE
 
@@ -434,11 +437,14 @@ for cmaj in range(maxIter):
             if cmaj == 0:
                 logger.info('Corrupt MODEL_DATA with correct subfield solutions...')
                 # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
+                calfiles = sorted(glob.glob('ddparallel/solutions/cal-tec-sf*h5'))
+                tocorrect = calfiles[-1]
+                tocorrupt = calfiles[-2]
                 MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                      cor.parmdb=ddparallel/solutions/cal-tec-sf-c0.h5 cor.correction=phase000 cor.invert=False',
+                      cor.parmdb={tocorrupt} cor.correction=phase000 cor.invert=False',
                     log='$nameMS_sf-correct.log', commandType='DP3') # corrupt
                 MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                      cor.parmdb=ddparallel/solutions/cal-tec-sf-c1.h5 cor.correction=phase000 cor.invert=True',
+                      cor.parmdb={tocorrect} cor.correction=phase000 cor.invert=True',
                     log='$nameMS_sf-correct.log', commandType='DP3') # correct
 
             # Add back the model previously subtracted for this dd-cal
