@@ -176,12 +176,7 @@ RUN if [ $MARCH == "x86-64" ]; then \
     && cmake .. \
     && make -j `nproc --all` && make install; fi
 
-RUN if [ $MARCH == "broadwell" ]; then \
-    cd /opt/DP3 && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} .. \
-    && make -j `nproc --all` && make install; fi
-
-RUN if [ $MARCH == "znver3" ]; then \
+RUN if [ $MARCH == "broadwell" || $MARCH == "znver3" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
     && cmake -DTARGET_CPU=${MARCH} .. \
     && make -j `nproc --all` && make install; fi
@@ -207,12 +202,7 @@ RUN if [ $MARCH == "x86-64" ]; then \
     && cmake .. \
     && make -j `nproc --all` && make install; fi
 
-RUN if [ $MARCH == "broadwell" ]; then \
-    cd /opt/wsclean && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} .. \
-    && make -j `nproc --all` && make install; fi
-
-RUN if [ $MARCH == "znver3" ]; then \
+RUN if [ $MARCH == "broadwell" || $MARCH == "znver3" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
     && cmake -DTARGET_CPU=${MARCH} .. \
     && make -j `nproc --all` && make install; fi
