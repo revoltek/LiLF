@@ -19,7 +19,8 @@ RUN apt-get update
 RUN apt-get install -y cmake texinfo git wget flex bison sudo vim hdf5-tools rename python3-magic htop curl rust-all g++ gfortran \
     python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm \
     libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev libaio1t64 libaio-dev \
-    libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
+    libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev \
+    libdeflate-dev
 
 # GCC 14. Should be removed after upgrading the container base to Ubuntu version with native GCC >= 14.
 #RUN apt-get install -y software-properties-common
