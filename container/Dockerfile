@@ -1,4 +1,4 @@
-FROM ubuntu:24.10
+FROM ubuntu:24.04
 SHELL ["/bin/bash", "-c"]
 ARG DEBIAN_FRONTEND=noninteractive
 LABEL maintainer="Francesco de Gasperin"
