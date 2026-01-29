@@ -272,7 +272,7 @@ def create_h5bandpass(obs, h5parmFilename='bp_first.h5'):
     times = obs.getTimeRange()
     time = np.array([np.mean(times)])
     ants = obs.getAntennas()
-    ant_set = obs.getAntennasSet()
+    ant_set = obs.getAntennaSet()
     dir = obs.getPhaseCentre()
     dir = np.array([dir])
 
