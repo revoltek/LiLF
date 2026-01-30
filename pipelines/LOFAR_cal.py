@@ -29,6 +29,7 @@ less_aggressive_flag = parset.getboolean('LOFAR_cal', 'less_aggressive_flag') # 
 develop = parset.getboolean('LOFAR_cal', 'develop') # for development, don't delete files
 use_shm = parset.getboolean('LOFAR_cal', 'use_shm') # use shared memory for wsclean
 bl2flag = parset.get('flag', 'stations')
+beam_model = parset.get('LOFAR_cal', 'beam_model')
 use_GNSS = parset.getboolean('LOFAR_cal', 'use_GNSS') # Use GNSS for pre-TEC and FR
 #############################################################
 
@@ -312,10 +313,11 @@ with w.if_todo('cal_pa'):
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-tec.h5 msin.datacolumn=DATA\
                     cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
     else:
-        # Correct pre-iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
+        # Correct pre-iono concat_all:DATA -> CORRECTED_DATA
         logger.info('Iono correction (preliminary)...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5  msin.datacolumn=DATA \
                     cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+        # Correct pre-iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
                     cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
     # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA

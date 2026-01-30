@@ -78,7 +78,7 @@ if not download_file is None:
                     downloaded += [line.rstrip('\n') for line in flog]
             with open(macaroon_file,'r') as mf:
                 macaroon = mf.readlines()[-2].strip('\n')
-                
+
             for i, line in enumerate(df):
                 if line == "\n": continue
                 ms = re.findall(r'L[0-9]*.*_SB[0-9]*_uv', line)[0]
