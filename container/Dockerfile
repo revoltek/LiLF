@@ -258,6 +258,7 @@ RUN cd /opt/LSMTool && pip install . --upgrade
 ####################################################################
 ## LoSoTo (master 31/3/25)
 ####################################################################
+RUN apt-get remove -y python3-numexpr # temporary fix for "ERROR: Cannot uninstall numexpr 2.9.0, RECORD file not found. Hint: The package was installed by debian."
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
     && cd /opt/losoto && git checkout d5590a868bee8c8af6fb4ece3088d777b25326b2
 RUN cd /opt/losoto && pip install .
