@@ -175,12 +175,13 @@ L_inStage = multiprocessing.Manager().list()  # list of sids of active staging p
 L_toDownload = multiprocessing.Manager().list()  # list of surls ready to download
 L_inDownload = multiprocessing.Manager().list()  # list of surls being downloaded
 L_Downloaded = multiprocessing.Manager().list()  # list of surls downlaoded
+macaroon = multiprocessing.Manager().list()
 
 class Worker(multiprocessing.Process):
     """
     This is a global worker class to be inherited by the 3 specialized workers
     """
-    def __init__(self, stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded):
+    def __init__(self, stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded,macaroon):
         multiprocessing.Process.__init__(self)
         self.exit = multiprocessing.Event()
         self.stager = stager
@@ -189,6 +190,7 @@ class Worker(multiprocessing.Process):
         self.L_toDownload = L_toDownload
         self.L_inDownload = L_inDownload
         self.L_Downloaded = L_Downloaded
+        self.macaroon = macaroon
 
     def run(self):
         while not self.exit.is_set():
@@ -228,10 +230,15 @@ class Worker_checker(Worker):
         import time
         while not self.exit.is_set():
             for sid in self.L_inStage:
+                try:
+                    self.macaroon.append(self.stager.get_macaroons(sid)[0])
+                except:
+                    pass
 
                 try:
                     status = self.stager.get_status(sid)
                     surls = self.stager.get_surls_online(sid)
+                    surls = self.stager.get_webdav_urls_requested(sid)
                 except:
                     status = ""
                     surls = []
@@ -241,8 +248,8 @@ class Worker_checker(Worker):
                     if not surl in self.L_toDownload and not surl in self.L_inDownload and not surl in self.L_Downloaded:
                         # this should always be the case, but if the process is re-started it might have collected old staging processes,
                         # this if prevents us from downloading useless files
-                        if surl in uris:
-                            self.L_toDownload.append(surl)
+                        #if surl.split('pnfs')[1] in [x.split('pnfs')[1] for x in uris]:
+                        self.L_toDownload.append(surl)
 
                 # pass to download
                 if status == 'success' or status == 'partial success':
@@ -290,13 +297,13 @@ class Worker_downloader(Worker):
                     LTA_site = 'DE'
                 else:
                     print('ERROR: unknown archive for %s...' % surl)
-                    sys.exit()
+                    #sys.exit()
 
                 print("%s: Downloader -- Download: %s (from: %s) " % (time.ctime(), tar_file, LTA_site))
 
                 # loop until the sanity check on the downloaded MS is ok
                 while True:
-                    downlaoded = download_file(url, tar_file, login, password)
+                    downlaoded = download_file(surl, tar_file, login, password,self.macaroon[0])
                     if not downlaoded:
                         print('ERROR downloading %s. Giving up.' % url)
                         break
@@ -319,10 +326,10 @@ class Worker_downloader(Worker):
             time.sleep(2)
 
 # start processes
-w_stager = Worker_stager(stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded)
-w_checker = Worker_checker(stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded)
-w_downloader1 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded)
-w_downloader2 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded)
+w_stager = Worker_stager(stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded,macaroon)
+w_checker = Worker_checker(stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded,macaroon)
+w_downloader1 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded,macaroon)
+w_downloader2 = Worker_downloader(stager, L_toStage, L_inStage, L_toDownload, L_inDownload, L_Downloaded,macaroon)
 
 # fill the queue with uris
 [L_toStage.append(uri) for uri in uris]

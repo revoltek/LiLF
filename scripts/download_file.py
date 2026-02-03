@@ -5,23 +5,24 @@ import os
 from time import sleep
 import requests
 
-def download_file(url, filename, login=None, password=None):
+def download_file(url, filename, login=None, password=None,macaroon=None):
 
     downloaded=False
     while not downloaded:
+        macaroon=list(macaroon.values())[0]
         connected=False
         tries=1
         while not connected:
             try:
                 #print('Opening connection')
                 if (login is not None) and (password is not None):
-                    response = requests.get(url, stream=True, verify=True, timeout=60,
-                                            auth=(login, password))
+                    response = requests.get(url+f'?authz={macaroon}', stream=True, verify=False, timeout=60,
+                            auth=(login, password),headers={'Authorization':f'bearer {macaroon}'})
                 else:
                     response = requests.get(url, stream=True, verify=True, timeout=60)
+                    print('nooo')
 
                 if response.status_code!=200:
-                    print(response.headers)
                     raise RuntimeError('Code was %i' % response.status_code)
                 if 'Content-Length' in response.headers.keys():
                     esize = int(response.headers['Content-Length'])
