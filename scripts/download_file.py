@@ -4,12 +4,19 @@
 import os
 from time import sleep
 import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 def download_file(url, filename, login=None, password=None,macaroon=None):
 
     downloaded=False
     while not downloaded:
-        macaroon=list(macaroon.values())[0]
+        try:
+            macaroon=list(macaroon.values())[0]
+        except:
+            # In this case, the macaroon was already stored as a string, so nothing has to change
+            pass
         connected=False
         tries=1
         while not connected:
