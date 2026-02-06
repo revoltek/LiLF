@@ -89,6 +89,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_cal', 'develop', 'False') # if true prevents the deletion of files
     add_default('LOFAR_cal', 'use_GNSS', 'False') # Use GNSS satellite data for pre correcting TEC and FR
     add_default('LOFAR_cal', 'use_shm', 'False') # use /dev/shm for temporary files, if available
+    add_default('LOFAR_cal', 'beam_model', 'hamaker') # hamaker (default) or LOBES
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
