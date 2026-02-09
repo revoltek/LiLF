@@ -1,0 +1,16 @@
+Ncpu = 0
+
+[reset]
+operation = RESET
+soltab = sol000/tec000
+dataVal = 0.
+ant = [!ES*]
+refAnt = auto
+
+[reweight]
+operation = REWEIGHT
+soltabImport = sol000/tec000
+mode = uniform
+ant = [!ES*]
+weightVal = 1. #1=No Flags
+flagBad = False 

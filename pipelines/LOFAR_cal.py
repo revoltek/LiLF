@@ -152,14 +152,14 @@ if use_GNSS:
         MSs_concat_all.run('spinifex get_rm_h5parm_from_ms $pathMS -o cal-gps-rm.h5',
                            log='spinifex_gps_rm.log', commandType='general')
         lib_util.run_losoto(s, 'cal-gps-rm.h5', ['cal-gps-rm.h5'], [parset_dir + '/losoto-plot-rm.parset'], plots_dir='plots-gps-rm')
+        
         logger.info('Get TEC from GPS data (spinifex)...')
         MSs_concat_all.run('spinifex get_tec_h5parm_from_ms $pathMS -o cal-gps-tec.h5',
                            log='spinifex_gps_tec.log', commandType='general')
         # smooth gps TEC. (fitting works better on smoothed data)
         s.add("smooth_gps_tec.py cal-gps-tec.h5 tec", log='smooth_gps_tec.log', commandType='python')
         s.run()    
-        
-        lib_util.run_losoto(s, 'cal-gps-tec.h5', ['cal-gps-tec.h5'], [parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-gps-tec')
+        lib_util.run_losoto(s, 'cal-gps-tec.h5', ['cal-gps-tec.h5'], [parset_dir + '/losoto-plot-tec.parset', parset_dir + '/losoto-reset-tec.parset'], plots_dir='plots-gps-tec')
         
         # Preliminary tec correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('pre-correcion TEC from GPS...')
@@ -305,7 +305,7 @@ with w.if_todo('pre_iono'):
         logger.info('fit residual dTEC...')
         s.add("dtec_finder.py --gps_corrected cal-preiono.h5", log='dtec_finder.log', commandType='python')
         s.run(check=True)
-        lib_util.run_losoto(s, 'cal-dtec.h5', ['cal-dtec.h5'], [parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-dtec-finder')
+        lib_util.run_losoto(s, 'cal-dtec.h5', ['cal-dtec.h5'], [parset_dir + '/losoto-plot-tec.parset', parset_dir + '/losoto-reset-tec.parset'], plots_dir='plots-dtec-finder')
 
 ### DONE
 ########################################################
