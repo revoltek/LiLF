@@ -151,7 +151,7 @@ if use_GNSS:
         logger.info('Get RM from GPS data (spinifex)...')
         MSs_concat_all.run('spinifex get_rm_h5parm_from_ms $pathMS -o cal-gps-rm.h5',
                            log='spinifex_gps_rm.log', commandType='general')
-        lib_util.run_losoto(s, 'cal-gps-rm.h5', ['cal-gps-rm.h5'], [parset_dir + '/losoto-plot-rm.parset'], plots_dir='plots-gps-rm')
+        lib_util.run_losoto(s, 'cal-gps-rm.h5', ['cal-gps-rm.h5'], [parset_dir + '/losoto-plot-rm.parset', parset_dir + '/losoto-reset-rm.parset'], plots_dir='plots-gps-rm') 
         
         logger.info('Get TEC from GPS data (spinifex)...')
         MSs_concat_all.run('spinifex get_tec_h5parm_from_ms $pathMS -o cal-gps-tec.h5',
@@ -299,32 +299,47 @@ with w.if_todo('pre_iono'):
     lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
                         [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
     
+    
+    
     # fit residual dTEC (GNSS model on longest baselines not sufficient)
     if use_GNSS:
         lib_util.check_rm('cal-dtec.h5')
         logger.info('fit residual dTEC...')
         s.add("dtec_finder.py --gps_corrected cal-preiono.h5", log='dtec_finder.log', commandType='python')
         s.run(check=True)
-        lib_util.run_losoto(s, 'cal-dtec.h5', ['cal-dtec.h5'], [parset_dir + '/losoto-plot-tec.parset', parset_dir + '/losoto-reset-tec.parset'], plots_dir='plots-dtec-finder')
+        lib_util.run_losoto(s, 'cal-dtec.h5', ['cal-dtec.h5'], 
+                            [parset_dir + '/losoto-plot-tec.parset', parset_dir + '/losoto-reset-tec.parset'], plots_dir='plots-dtec-finder')
+        
+        lib_util.run_losoto(s, 'cal-preiono.h5', ['cal-preiono.h5'], 
+                            [parset_dir + '/losoto-reset-phases.parset'])
+        
+        # merge the solution with the bandpass before losoto
+        s.add('h5_merger.py --h5_out cal-preiono-merged.h5 --h5_tables cal-preiono.h5 cal-dtec.h5 --propagate_flags'
+                , log='h5_merger.log', commandType='python')
+        s.run(check=True)
+        lib_util.check_rm('cal-preiono.h5')
+        os.system('mv cal-preiono-merged.h5 cal-preiono.h5')
+        
+        
 
 ### DONE
 ########################################################
 
 # 2: find PA
 with w.if_todo('cal_pa'):
-    if use_GNSS:
-        # Correct TEC concat_all:CORRECTED_DATA -> CORRECTED_DATA
-        logger.info('dTEC correction (fitted)...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
-                    cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
-    else:
-        # Correct pre-iono concat_all:DATA -> CORRECTED_DATA
-        logger.info('Iono correction (preliminary)...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5  msin.datacolumn=DATA \
-                    cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
-        # Correct pre-iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
-                    cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+    #if use_GNSS:
+    #    # Correct TEC concat_all:CORRECTED_DATA -> CORRECTED_DATA
+    #    logger.info('dTEC correction (fitted)...')
+    #    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
+    #                cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
+    #else:
+    # Correct pre-iono concat_all:DATA -> CORRECTED_DATA
+    logger.info('Iono correction (preliminary)...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5  msin.datacolumn=DATA \
+                cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+    # Correct pre-iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
+                cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
     # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
 
@@ -404,15 +419,15 @@ with w.if_todo('cal_fr'):
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-gps-rm.h5 \
                     cor.correction=rotationmeasure000', log='$nameMS_cor-gps-rm.log', commandType="DP3")
         # Correct TEC concat_all:CORRECTED_DATA -> CORRECTED_DATA
-        logger.info('dTEC correction (fitted)...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
-                    cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
-    else:
-        logger.info('Iono correction (preliminary)...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
+        #logger.info('dTEC correction (fitted)...')
+        #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
+        #            cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
+    #else:
+    logger.info('Iono correction (preliminary)...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
+                cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
                     cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
-                        cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
         
     # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')

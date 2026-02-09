@@ -1,0 +1,14 @@
+Ncpu = 0
+
+[reset]
+operation = RESET
+soltab = sol000/rotationmeasure000
+dataVal = 0.
+ant = [!ES*]
+
+[reweight]
+operation = REWEIGHT
+soltabImport = sol000/rotationmeasure000
+ant = [!ES*]
+weightVal = 1. #1=No Flags
+flagBad = False 
