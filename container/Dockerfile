@@ -4,7 +4,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 LABEL maintainer="Francesco de Gasperin"
 LABEL version="20250228"
 
-ENV MARCH "x86-64"
+ENV MARCH "x86-64-v2"
 # AMD v3
 #ENV MARCH "znver3"
 # Intel
@@ -133,16 +133,16 @@ ENV EVERYBEAM_DATADIR /usr/local/share/everybeam
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/astron-idg/idg.git \
     && cd /opt/idg && git checkout tags/1.2.0
-RUN if [ $MARCH == "x86-64" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=True -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j `nproc --all` && make install; fi
-RUN if [ $MARCH != "x86-64" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j `nproc --all` && make install; fi
+RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=True -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j `nproc --all` && make install; fi
+RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j `nproc --all` && make install; fi
 
 #####################################################################
 ## AOFlagger v3.4.0
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
     && cd /opt/aoflagger && git checkout tags/v3.4.0
-RUN if [ $MARCH == "x86-64" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=True .. && make -j `nproc --all` && make install; fi
-RUN if [ $MARCH != "x86-64" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=False .. && make -j `nproc --all` && make install; fi
+RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=True .. && make -j `nproc --all` && make install; fi
+RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=False .. && make -j `nproc --all` && make install; fi
 
 #####################################################################
 ## Dysco v1.3
@@ -171,7 +171,7 @@ RUN ls /usr/local/lib
 RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
     && cd /opt/DP3 && git checkout 1128a066321804ea82f50c220ccd12e7d012573f
 
-RUN if [ $MARCH == "x86-64" ]; then \
+RUN if [ $MARCH == "x86-64-v2" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
     && cmake .. \
     && make -j `nproc --all` && make install; fi
@@ -202,7 +202,7 @@ ENV PYTHONPATH /usr/local/lib/python3.12/site-packages/:$PYTHONPATH
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
     && cd /opt/wsclean && git checkout f38e3bfee178ecc28e19842f18dd63adc80c9112
 
-RUN if [ $MARCH == "x86-64" ]; then \
+RUN if [ $MARCH == "x86-64-v2" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
     && cmake .. \
     && make -j `nproc --all` && make install; fi
