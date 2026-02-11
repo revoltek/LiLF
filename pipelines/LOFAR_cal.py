@@ -365,10 +365,10 @@ with w.if_todo('cal_pa'):
         s.run(check=True)
         MSs_pa = lib_ms.AllMSs(['concat_pa.MS'], s, check_flags=False)
 
-        # predict the element-corrupted model
+        # predict the full-corrupted model
         logger.info(f'Add beam-corrupted model of {calname} from {os.path.basename(skymodel)} to MODEL_DATA...')
         MSs_pa.run(f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname} \
-                  pre.usebeammodel=True, pre.beammode=element pre.beam_interval=120", log="$nameMS_pre.log", commandType="DP3")
+                  pre.usebeammodel=True, pre.beammode=full pre.beam_interval=120", log="$nameMS_pre.log", commandType="DP3")
         if use_GNSS:
             # FR corruption concat_pa.MS:MODEL_DATA -> MODEL_DATA
             logger.info('Faraday rotation corruption (MODEL_DATA - > MODEL_DATA)...')
@@ -378,7 +378,7 @@ with w.if_todo('cal_pa'):
         # Beam corruption concat_pa.MS:MODEL_DATA -> MODEL_DATA
         logger.info(f'Beam model corruption (MODEL_DATA - > MODEL_DATA)...')
         phase_center = MSs_pa.getListObj()[0].getPhaseCentre()
-        MSs_pa.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA setbeam.beammode=Element corrbeam.updateweights=False corrbeam.invert=False',
+        MSs_pa.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA setbeam.beammode=full corrbeam.updateweights=False corrbeam.invert=False',
             log='$nameMS_beam.log', commandType="DP3")
         # HE: sol.rotationdiagonalmode diagonalphase seemes to give more stable results and surpresses the ~60 MHz bump weirdness
         # HE: do not use smoothnessconstraint, gives quite bad results here, at least at 1-2 MHz kernel and above!
@@ -392,11 +392,11 @@ with w.if_todo('cal_pa'):
                 [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset',  parset_dir+'/losoto-pa.parset'])
 
     else:
-        # predict the element-corrupted model
+        # predict the full-corrupted model
         logger.info(f'Add beam-corrupted model of {calname} from {os.path.basename(skymodel)} to MODEL_DATA_BEAMCOR...')
         MSs_concat_all.run(f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS msout.datacolumn=MODEL_DATA_BEAMCOR \
                            pre.sourcedb={skymodel} pre.sources={calname} pre.beam_interval=120 \
-                           pre.usebeammodel=True, pre.beammode=element", log="$nameMS_pre.log", commandType="DP3")
+                           pre.usebeammodel=True, pre.beammode=full", log="$nameMS_pre.log", commandType="DP3")
         if use_GNSS:
             # FR corruption concat_concat_all.MS:MODEL_DATA_BEAMCOR -> MODEL_DATA_BEAMCOR
             MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA_BEAMCOR msout.datacolumn=MODEL_DATA_BEAMCOR \
@@ -857,7 +857,7 @@ if imaging:
         # Correct beam concat_all.MS:MODEL_DATA_CORRUPT -> MODEL_DATA_CORRUPT
         logger.info('Beam corruption...')
         MSs_concat_all.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA_CORRUPT msout.datacolumn=MODEL_DATA_CORRUPT \
-                        setbeam.beammode=element corrbeam.invert=False', log='$nameMS_beam.log', commandType='DP3')
+                        setbeam.beammode=full corrbeam.invert=False', log='$nameMS_beam.log', commandType='DP3')
         # Pol align correction concat_all.MS:MODEL_DATA_CORRUPT -> MODEL_DATA_CORRUPT
         logger.info('Polalign corruption...')
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA_CORRUPT msout.datacolumn=MODEL_DATA_CORRUPT \

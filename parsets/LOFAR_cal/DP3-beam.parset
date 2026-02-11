@@ -10,4 +10,4 @@ setbeam.beammode = none
 
 corrbeam.type = applybeam
 corrbeam.usechannelfreq = True
-corrbeam.beammode = Element
+corrbeam.beammode = full
