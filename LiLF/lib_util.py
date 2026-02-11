@@ -726,6 +726,7 @@ class Scheduler():
 
         if (log != ""):
             self.log_list.append((log, commandType))
+        return self
 
 
     def run(self, check = False, maxProcs = None):
