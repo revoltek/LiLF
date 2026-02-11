@@ -89,6 +89,37 @@ h5_iono_cs = cal_dir+'/cal-iono-cs.h5'
 if not os.path.exists(h5_pa) or not os.path.exists(h5_bp) or not os.path.exists(h5_iono) or not os.path.exists(h5_iono_cs):
     logger.error("Missing solutions in %s" % cal_dir)
     sys.exit()
+    
+####################################################
+
+if use_GNSS:
+    # Get tec and rm h5 parm from GPS data using spinifex (https://git.astron.nl/RD/spinifex).
+    # we only need one SB MS to get the GPS data, and spinifex can handle the rest.
+    MSs_spinifex = lib_ms.AllMSs( [sorted(glob.glob('*MS'))[0]], s ) 
+    with w.if_todo('get_gps_rm'):
+        lib_util.check_rm('target-gps-rm.h5')
+        logger.info('Get RM from GPS data (spinifex)...')
+        MSs_spinifex.run('spinifex get_rm_h5parm_from_ms $pathMS -o target-gps-rm.h5',
+                           log='spinifex_gps_rm.log', commandType='general')
+        os.system('python /homes/j.boxelaar/ulu/storage/scripts/add_dir_to_h5parm.py target-gps-rm.h5')
+        
+        lib_util.run_losoto(s, 'target-gps-rm.h5', ['target-gps-rm.h5'], 
+                            [parset_dir + '/losoto-plot-rm.parset', parset_dir + '/losoto-reset-rm.parset'], plots_dir='plots-target-gps-rm') 
+        
+    with w.if_todo('get_gps_tec'):
+        lib_util.check_rm('target-gps-tec.h5')
+        logger.info('Get TEC from GPS data (spinifex)...')
+        MSs_spinifex.run('spinifex get_tec_h5parm_from_ms $pathMS -o target-gps-tec.h5',
+                           log='spinifex_gps_tec.log', commandType='general')
+        # smooth gps TEC. (fitting works better on smoothed data)
+        s.add("smooth_gps_tec.py target-gps-tec.h5 tec", log='smooth_gps_tec.log', commandType='python')
+        s.run()    
+        os.system('cp target-gps-tec.h5 target-gps-tec-orig.h5')
+        os.system('python /homes/j.boxelaar/ulu/storage/scripts/add_dir_to_h5parm.py target-gps-tec.h5')
+        lib_util.run_losoto(s, 'target-gps-tec.h5', ['target-gps-tec.h5'], 
+                            [parset_dir + '/losoto-plot-tec.parset', parset_dir + '/losoto-reset-tec.parset'], plots_dir='plots-target-gps-tec')
+    del MSs_spinifex 
+
 
 ####################################################
 # Correct fist for PA+beam+BP(diag)+TEC+Clock and then for beam
@@ -105,16 +136,14 @@ with w.if_todo('apply'):
     if use_GNSS:
         # Correct gps-tec concat_all:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('TEC correction (GPS)...')
-        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb={cal_dir}/cal-gps-tec.h5 \
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb={cal_dir}/target-gps-tec.h5 \
                       cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
-        # Correct TEC concat_all:CORRECTED_DATA -> CORRECTED_DATA
-        logger.info('dTEC correction (fitted)...')
-        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb={cal_dir}/cal-dtec.h5 \
-                      cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
+
         # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Faraday rotation pre-correction (GPS)...')
-        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb={cal_dir}/cal-gps-rm.h5 \
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb={cal_dir}/target-gps-rm.h5 \
                         cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+        
     # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, calibrator corrected+reweight)
     logger.info('Iono correction...')
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_iono_cs} msin.datacolumn=CORRECTED_DATA \

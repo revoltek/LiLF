@@ -421,6 +421,7 @@ def write_smooth_tec_solutions(solspath, dtec, new_solspath: str = ""):
     solset = sols.getSolset(solset = "sol000")
     soltab = solset.getSoltab(soltab = "phase000")
     __, data = soltab.getValues()
+    soltab.delete()
     
     smoothed_dtec = np.zeros((len(data['time']), len(data['ant'])))
     for i, ant in enumerate(data['ant']):
