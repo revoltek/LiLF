@@ -252,7 +252,7 @@ class Worker_checker(Worker):
                         self.L_toDownload.append(surl)
 
                 # pass to download
-                if status == 'success' or status == 'partial success':
+                if status == 'success':
                     print("%s: Checker -- Sid %i completed." % (time.ctime(), sid))
                     self.L_inStage.remove(sid)
 
