@@ -30,6 +30,8 @@ ateam_clip = parset.get('LOFAR_timesplit', 'ateam_clip') # '' no clip
 use_GNSS = parset.getboolean('LOFAR_timesplit', 'use_GNSS')
 bl2flag = parset.get('flag','stations')
 #################################################
+cal_dir = '/iranet/groups/ulu/j.boxelaar/data/agn_vlbi/cals-pretec-new'
+use_GNSS = True
 
 # Clean
 with w.if_todo('clean'):
@@ -136,12 +138,12 @@ with w.if_todo('apply'):
     if use_GNSS:
         # Correct gps-tec concat_all:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('TEC correction (GPS)...')
-        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb={cal_dir}/target-gps-tec.h5 \
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=target-gps-tec.h5 \
                       cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
 
         # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Faraday rotation pre-correction (GPS)...')
-        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb={cal_dir}/target-gps-rm.h5 \
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=target-gps-rm.h5 \
                         cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
         
     # Apply cal sol - SB.MS:CORRECTED_DATA -> SB.MS:CORRECTED_DATA (polalign corrected, beam corrected+reweight, calibrator corrected+reweight)
