@@ -574,15 +574,16 @@ for cmaj in range(maxIter):
                             sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS201LBA,CS301LBA,CS401LBA,CS501LBA,CS103LBA,CS302LBA]] \
                             sol.solutions_per_direction=[{solint_ph_short}] sol.antenna_averaging_factors={ant_avg_factors} sol.antenna_smoothness_factors={ant_smooth_factors}',
                             log='$nameMS_solGph-'+logstringcal+'.log', commandType='DP3')
+                
                 lib_util.run_losoto(s, 'ph-ddserial', [ms+'/cal-ph-ddserial.h5' for ms in MSs_dir.getListStr()],
                                     [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-ph.parset'], plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                os.system('mv cal-ph-ddserial.h5 %s' % d.get_h5parm('ph-ddserial'))
+
                 # correct ph - ms:DATA -> ms:CORRECTED_DATA
                 logger.info('Correct ph...')
                 MSs_dir.run('DP3 '+parset_dir+'/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
-                             cor.parmdb=cal-ph-ddserial.h5 cor.correction=phase000',
+                             cor.parmdb='+d.get_h5parm('ph-ddserial')+' cor.correction=phase000',
                             log='$nameMS_correct-'+logstringcal+'.log', commandType='DP3')
-
-                os.system('mv cal-ph-ddserial.h5 %s' % d.get_h5parm('ph-ddserial'))
 
                 if doamp:
                    # Smoothing - ms:CORRECTED_DATA -> ms:SMOOTHED_DATA
@@ -595,9 +596,9 @@ for cmaj in range(maxIter):
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DP3')
 
                     if d.peel_off:
-                        losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-plot-amp1.parset']
+                        losoto_parsets = [parset_dir+'/losoto-peel-clip.parset', parset_dir+'/losoto-plot-amp1.parset']
                     else:
-                        losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
+                        losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
                     lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
                         plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp1.h5 %s' % d.get_h5parm('amp1'))
@@ -618,7 +619,7 @@ for cmaj in range(maxIter):
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DP3')
 
                     if d.peel_off:
-                        losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-plot-amp2.parset']
+                        losoto_parsets = [parset_dir+'/losoto-peel-clip2.parset', parset_dir+'/losoto-plot-amp2.parset']
                     else:
                         losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
 
