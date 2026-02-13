@@ -107,7 +107,7 @@ RUN apt-get clean
 RUN cd /opt && git clone --single-branch --branch master https://github.com/casacore/casacore.git \
     && cd /opt/casacore && git checkout 450a5682a2aa927de123e9953157f3610a5a4f3c
 RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused --no-verbose https://www.astron.nl/iers/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar && rm WSRT_Measures.ztar
-RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DBUILD_PYTHON=False -DBUILD_PYTHON3=True -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON .. && make -j `nproc --all` && make install
+RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON .. && make -j `nproc --all` && make install
 RUN cd /opt/casacore && rm -r $(ls -A | grep -v data)
 
 #####################################################################
