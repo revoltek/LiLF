@@ -123,7 +123,7 @@ RUN cd /opt/python-casacore && pip install .
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
     && cd /opt/EveryBeam && git checkout tags/v0.7.0
 RUN cd /opt/EveryBeam && mkdir build && cd build \
-    && cmake -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
+    && cmake -DBUILD_WITH_PYTHON=On .. \
     && make -j `nproc --all` && make install
 RUN rm -rf /opt/EveryBeam/
 ENV EVERYBEAM_DATADIR /usr/local/share/everybeam
