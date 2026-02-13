@@ -294,7 +294,7 @@ for cmaj in range(maxIter):
                 d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
                 d.set_region(loc='ddserial/c%02i/skymodels' % cmaj)
                 d.set_region_facets(facets_region_file=facetregname, loc='ddserial/c%02i/skymodels' % cmaj)
-                if not d.is_in_region(peelReg, wcs=full_image.getWCS()): d.peel_off = True
+                #if not d.is_in_region(peelReg, wcs=full_image.getWCS()): d.peel_off = True
                 directions.append(d)
 
             # cap at 40 directions
@@ -683,6 +683,8 @@ for cmaj in range(maxIter):
             d.add_rms_mm(rms_noise, mm_ratio) # track values for debug
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
             logger.info('MM ratio (cdd:%02i): %f' % (cdd,mm_ratio))
+            # Get amplitude 2 maximum
+            amp2max = np.nanmax(h5parm(d.get_h5parm('amp2')).getSolset('sol000').getSoltab('amplitude000')[0]) if doamp else None
 
             if rms_noise < lowest_rms_noise and use_lowest_rms:
                 lowest_rms_noise = rms_noise
@@ -710,6 +712,10 @@ for cmaj in range(maxIter):
                     # this happens if both ddcycle 0 and ddcycle 1 didn't improve
                     MSs_dir.run(f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={d.get_model("pre")}-sources.txt',   log='$nameMS_pre-'+logstring+'.log', commandType='DP3')
                 continue
+            # after starting amps, if amp2max above threshold value (3.0) break
+            elif amp2max is not None and amp2max > 3.0:
+                logger.warning('Breaking because amp2 solutions diverged (max amp2: %f)...' % amp2max)
+                break
             # if noise incresed and mm ratio decreased - or noise increased a lot!
             elif (cdd >= 4) and ((rms_noise > 1.01*rms_noise_pre and mm_ratio < 0.99*mm_ratio_pre) or rms_noise > 1.25*rms_noise_pre):
                 logger.debug('BREAK ddcal self cycle with noise: %f (noise_pre: %f) - mmratio: %f (mmratio_pre: %f)' % (rms_noise,rms_noise_pre,mm_ratio,mm_ratio_pre))
