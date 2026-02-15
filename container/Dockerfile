@@ -4,11 +4,11 @@ ARG DEBIAN_FRONTEND=noninteractive
 LABEL maintainer="Francesco de Gasperin"
 LABEL version="20260215"
 
-ENV MARCH "x86-64-v2"
+ENV MARCH="x86-64-v2"
 # AMD v3
-#ENV MARCH "znver3"
+#ENV MARCH="znver3"
 # Intel
-#ENV MARCH "broadwell"
+#ENV MARCH="broadwell"
 
 USER root
 
@@ -34,7 +34,7 @@ RUN useradd lofar -d /home/lofar -u 65527 -g 65527 -m -s /bin/bash
 RUN chown lofar:lofar /home/lofar
 
 # To avoid installing Python virtualenv
-ENV PIP_BREAK_SYSTEM_PACKAGES 1
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
 ##################################################################
 ## AMD specific
@@ -82,13 +82,13 @@ RUN if [ $MARCH == "broadwell" ]; then \
     apt-get install -y intel-oneapi-mkl intel-oneapi-mkl-devel; fi
 
 # Outside if condition, but does no harm if empty.
-ENV PKG_CONFIG_PATH /opt/intel/oneapi/mkl/latest/lib/pkgconfig:$PKG_CONFIG_PATH
-ENV CMAKE_PREFIX_PATH /opt/intel/oneapi/mkl/latest/lib/cmake:$CMAKE_PREFIX_PATH
-ENV LIBRARY_PATH /opt/intel/oneapi/mkl/latest/lib:$LIBRARY_PATH
-ENV LD_LIBRARY_PATH /opt/intel/oneapi/mkl/latest/lib:$LD_LIBRARY_PATH
-ENV MKLROOT /opt/intel/oneapi/mkl/latest
-ENV PATH /opt/intel/oneapi/mkl/latest/bin:$PATH
-ENV CPATH /opt/intel/oneapi/mkl/latest/include:$CPATH
+ENV PKG_CONFIG_PATH=/opt/intel/oneapi/mkl/latest/lib/pkgconfig:$PKG_CONFIG_PATH
+ENV CMAKE_PREFIX_PATH=/opt/intel/oneapi/mkl/latest/lib/cmake:$CMAKE_PREFIX_PATH
+ENV LIBRARY_PATH=/opt/intel/oneapi/mkl/latest/lib:$LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/opt/intel/oneapi/mkl/latest/lib:$LD_LIBRARY_PATH
+ENV MKLROOT=/opt/intel/oneapi/mkl/latest
+ENV PATH=/opt/intel/oneapi/mkl/latest/bin:$PATH
+ENV CPATH=/opt/intel/oneapi/mkl/latest/include:$CPATH
 ## end Intel specific
 
 RUN apt-get clean
@@ -118,7 +118,7 @@ RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
     && make -j `nproc --all` && make install
 RUN rm -rf /opt/EveryBeam/
-ENV EVERYBEAM_DATADIR /usr/local/share/everybeam
+ENV EVERYBEAM_DATADIR=/usr/local/share/everybeam
     
 #####################################################################
 ## idg v1.2.0
@@ -186,7 +186,7 @@ RUN if [ $MARCH == "znver3" ]; then \
 
 RUN rm -rf /opt/DP3/
 # add "import dp3"
-ENV PYTHONPATH /usr/local/lib/python3.12/site-packages/:$PYTHONPATH
+ENV PYTHONPATH=/usr/local/lib/python3.12/site-packages/:$PYTHONPATH
 
 #####################################################################
 ## Wsclean (master 14/2/26)
@@ -231,7 +231,7 @@ RUN cd /opt && wget https://lta.lofar.eu/software/lofar_lta-2.8.0.tar.gz && tar 
 RUN cd /opt/lofar_lta-2.8.0 && python3 setup.py install_oracle
 RUN cd /opt/lofar_lta-2.8.0 && python3 setup.py install
 RUN ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/instantclient_11_2/libaio.so.1
-ENV LD_LIBRARY_PATH /usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 
 #####################################################################
 ## Pybdsf (master 3/11/25)
@@ -342,10 +342,10 @@ RUN rm -rf /opt/{python-casacore,PyBDSF,LSMTool,losoto,RMextract,spinifex,mocpy,
 RUN mkdir /usr/share/casacore/
 RUN ln -s /usr/share/casacore/data/ /opt/casacore/data
 
-ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN ln -s /usr/bin/ipython3 /usr/bin/ipython
-ENV HDF5_USE_FILE_LOCKING FALSE
-ENV OMP_NUM_THREADS 1
-ENV OPENBLAS_NUM_THREADS 1
+ENV HDF5_USE_FILE_LOCKING=FALSE
+ENV OMP_NUM_THREADS=1
+ENV OPENBLAS_NUM_THREADS=1
 #ENTRYPOINT [ "ulimit -n 8192" ]
