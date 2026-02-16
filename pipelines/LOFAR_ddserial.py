@@ -684,7 +684,11 @@ for cmaj in range(maxIter):
             logger.info('RMS noise (cdd:%02i): %f' % (cdd,rms_noise))
             logger.info('MM ratio (cdd:%02i): %f' % (cdd,mm_ratio))
             # Get amplitude 2 maximum
-            amp2max = np.nanmax(h5parm(d.get_h5parm('amp2')).getSolset('sol000').getSoltab('amplitude000')[0]) if doamp else None
+            if doamp:
+                with h5parm(d.get_h5parm('amp2')) as h5:
+                    amp2max = np.nanmax(h5.getSolset('sol000').getSoltab('amplitude000').getValues()[0])
+            else:
+                amp2max = None
 
             if rms_noise < lowest_rms_noise and use_lowest_rms:
                 lowest_rms_noise = rms_noise
