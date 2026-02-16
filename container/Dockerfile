@@ -1,14 +1,14 @@
-FROM ubuntu:24.10
+FROM ubuntu:25.10
 SHELL ["/bin/bash", "-c"]
 ARG DEBIAN_FRONTEND=noninteractive
 LABEL maintainer="Francesco de Gasperin"
-LABEL version="20250228"
+LABEL version="20260215"
 
-ENV MARCH "x86-64-v2"
+ENV MARCH="x86-64-v2"
 # AMD v3
-#ENV MARCH "znver3"
+#ENV MARCH="znver3"
 # Intel
-#ENV MARCH "broadwell"
+#ENV MARCH="broadwell"
 
 USER root
 
@@ -17,17 +17,9 @@ RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
 RUN apt-get update
 RUN apt-get install -y cmake texinfo git wget flex bison sudo vim hdf5-tools rename python3-magic htop curl rust-all g++ gfortran \
-    python3-dev ipython3 python3-pip python3-setuptools python3-astropy python3-pyregion python3-regions python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-numexpr python3-numpy python3-astroquery python3-aplpy python3-cytoolz python3-shapely python3-tqdm \
+    python3-dev ipython3 python3-pip python3-setuptools python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-cytoolz python3-tqdm \
     libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev libaio1t64 libaio-dev \
-    libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev
-
-# GCC 14. Should be removed after upgrading the container base to Ubuntu version with native GCC >= 14.
-#RUN apt-get install -y software-properties-common
-#RUN add-apt-repository -y universe && apt-get update
-#RUN apt-get install -y gcc-14 g++-14 gfortran-14
-#RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 14 && \
-#    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 && \
-#    update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-14 14
+    libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev libdeflate-dev
 
 RUN curl -O http://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb
 RUN dpkg -i libaio1_0.3.113-4_amd64.deb && rm libaio1_0.3.113-4_amd64.deb
@@ -42,7 +34,7 @@ RUN useradd lofar -d /home/lofar -u 65527 -g 65527 -m -s /bin/bash
 RUN chown lofar:lofar /home/lofar
 
 # To avoid installing Python virtualenv
-ENV PIP_BREAK_SYSTEM_PACKAGES 1
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
 ##################################################################
 ## AMD specific
@@ -90,13 +82,13 @@ RUN if [ $MARCH == "broadwell" ]; then \
     apt-get install -y intel-oneapi-mkl intel-oneapi-mkl-devel; fi
 
 # Outside if condition, but does no harm if empty.
-ENV PKG_CONFIG_PATH /opt/intel/oneapi/mkl/latest/lib/pkgconfig:$PKG_CONFIG_PATH
-ENV CMAKE_PREFIX_PATH /opt/intel/oneapi/mkl/latest/lib/cmake:$CMAKE_PREFIX_PATH
-ENV LIBRARY_PATH /opt/intel/oneapi/mkl/latest/lib:$LIBRARY_PATH
-ENV LD_LIBRARY_PATH /opt/intel/oneapi/mkl/latest/lib:$LD_LIBRARY_PATH
-ENV MKLROOT /opt/intel/oneapi/mkl/latest
-ENV PATH /opt/intel/oneapi/mkl/latest/bin:$PATH
-ENV CPATH /opt/intel/oneapi/mkl/latest/include:$CPATH
+ENV PKG_CONFIG_PATH=/opt/intel/oneapi/mkl/latest/lib/pkgconfig:$PKG_CONFIG_PATH
+ENV CMAKE_PREFIX_PATH=/opt/intel/oneapi/mkl/latest/lib/cmake:$CMAKE_PREFIX_PATH
+ENV LIBRARY_PATH=/opt/intel/oneapi/mkl/latest/lib:$LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/opt/intel/oneapi/mkl/latest/lib:$LD_LIBRARY_PATH
+ENV MKLROOT=/opt/intel/oneapi/mkl/latest
+ENV PATH=/opt/intel/oneapi/mkl/latest/bin:$PATH
+ENV CPATH=/opt/intel/oneapi/mkl/latest/include:$CPATH
 ## end Intel specific
 
 RUN apt-get clean
@@ -118,15 +110,15 @@ RUN cd /opt && git clone https://github.com/casacore/python-casacore.git \
 RUN cd /opt/python-casacore && pip install .
 
 #####################################################################
-## EveryBeam v0.7.0
+## EveryBeam v0.8.0
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
-    && cd /opt/EveryBeam && git checkout tags/v0.7.0
+    && cd /opt/EveryBeam && git checkout tags/v0.8.0
 RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
     && make -j `nproc --all` && make install
 RUN rm -rf /opt/EveryBeam/
-ENV EVERYBEAM_DATADIR /usr/local/share/everybeam
+ENV EVERYBEAM_DATADIR=/usr/local/share/everybeam
     
 #####################################################################
 ## idg v1.2.0
@@ -137,12 +129,12 @@ RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/idg && mkdir build && cd build &&
 RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j `nproc --all` && make install; fi
 
 #####################################################################
-## AOFlagger v3.4.0
+## AOFlagger (master 10/2/26)
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
-    && cd /opt/aoflagger && git checkout tags/v3.4.0
-RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=True .. && make -j `nproc --all` && make install; fi
-RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=False .. && make -j `nproc --all` && make install; fi
+    && cd /opt/aoflagger && git checkout 398fcd5b
+RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=True -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
+RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=False -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
 
 #####################################################################
 ## Dysco v1.3
@@ -164,12 +156,12 @@ RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd bu
 #    && make -j `nproc --all` && make install
 
 ####################################################################
-## Dp3 master (2/9/25)
+## DP3 (master 12/2/26)
 #####################################################################
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
 RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
-    && cd /opt/DP3 && git checkout 1128a066321804ea82f50c220ccd12e7d012573f
+    && cd /opt/DP3 && git checkout 56995db9
 
 RUN if [ $MARCH == "x86-64-v2" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
@@ -194,13 +186,13 @@ RUN if [ $MARCH == "znver3" ]; then \
 
 RUN rm -rf /opt/DP3/
 # add "import dp3"
-ENV PYTHONPATH /usr/local/lib/python3.12/site-packages/:$PYTHONPATH
+ENV PYTHONPATH=/usr/local/lib/python3.12/site-packages/:$PYTHONPATH
 
 #####################################################################
-## Wsclean master (9/4/25)
+## Wsclean (master 14/2/26)
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-    && cd /opt/wsclean && git checkout f38e3bfee178ecc28e19842f18dd63adc80c9112
+    && cd /opt/wsclean && git checkout e4c63ab8
 
 RUN if [ $MARCH == "x86-64-v2" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
@@ -239,13 +231,13 @@ RUN cd /opt && wget https://lta.lofar.eu/software/lofar_lta-2.8.0.tar.gz && tar 
 RUN cd /opt/lofar_lta-2.8.0 && python3 setup.py install_oracle
 RUN cd /opt/lofar_lta-2.8.0 && python3 setup.py install
 RUN ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/instantclient_11_2/libaio.so.1
-ENV LD_LIBRARY_PATH /usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 
 #####################################################################
-## Pybdsf (v1.11.0)
+## Pybdsf (master 3/11/25)
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
-    && cd /opt/PyBDSF; git checkout tags/v1.11.0
+    && cd /opt/PyBDSF; git checkout 8b33037
 RUN cd /opt/PyBDSF && pip install .
 
 #####################################################################
@@ -256,10 +248,10 @@ RUN cd /opt && git clone https://git.astron.nl/RD/LSMTool.git \
 RUN cd /opt/LSMTool && pip install . --upgrade
 
 ####################################################################
-## LoSoTo (master 31/3/25)
+## LoSoTo (master 12/2/26)
 ####################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto && git checkout d5590a868bee8c8af6fb4ece3088d777b25326b2
+    && cd /opt/losoto; git checkout 86358eb
 RUN cd /opt/losoto && pip install .
 
 ####################################################################
@@ -277,10 +269,10 @@ RUN cd /opt && git clone https://git.astron.nl/RD/spinifex \
 RUN cd /opt/spinifex && pip install .
 
 ####################################################################
-## mocpy (v0.16.2)
+## mocpy (master 21/11/25)
 ####################################################################
 RUN cd /opt && git clone https://github.com/cds-astro/mocpy \
-    && cd /opt/mocpy && git checkout v0.16.2
+    && cd /opt/mocpy && git checkout 945b877
 RUN cd /opt/mocpy && pip install .
 
 ####################################################################
@@ -350,10 +342,10 @@ RUN rm -rf /opt/{python-casacore,PyBDSF,LSMTool,losoto,RMextract,spinifex,mocpy,
 RUN mkdir /usr/share/casacore/
 RUN ln -s /usr/share/casacore/data/ /opt/casacore/data
 
-ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN ln -s /usr/bin/ipython3 /usr/bin/ipython
-ENV HDF5_USE_FILE_LOCKING FALSE
-ENV OMP_NUM_THREADS 1
-ENV OPENBLAS_NUM_THREADS 1
+ENV HDF5_USE_FILE_LOCKING=FALSE
+ENV OMP_NUM_THREADS=1
+ENV OPENBLAS_NUM_THREADS=1
 #ENTRYPOINT [ "ulimit -n 8192" ]
