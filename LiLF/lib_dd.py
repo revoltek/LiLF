@@ -183,9 +183,9 @@ class Direction(object):
                 # Convert the intersection back to a DS9 polygon region
                 if len(intersection.polygons) == 1:
                     vertices = np.array(intersection.polygons[0].to_radec())
-                    region_str += "polygon(" + ", ".join(f"{v[0]}, {v[1]}" for v in vertices.T) + ")\n"
+                    region_str += "polygon(" + ", ".join(f"{v[0]:.16f}, {v[1]:.16f}" for v in vertices.T) + ")\n"
                     ra, dec = regions[i+1].center.ra.value, regions[i+1].center.dec.value
-                    region_str += f"point({ra},{dec}) # "+comments[i+1]+"\n"
+                    region_str += f"point({ra:.16f},{dec:.16f}) # "+comments[i+1]+"\n"
                     facet_dirs.append(comments[i+1].split("=")[1])
                 else:
                     logger.error("Intersection is not a single polygon. Unable to save.")
