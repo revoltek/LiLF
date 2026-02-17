@@ -186,7 +186,7 @@ RUN if [ $MARCH == "znver3" ]; then \
 
 RUN rm -rf /opt/DP3/
 # add "import dp3"
-ENV PYTHONPATH=/usr/local/lib/python3.12/site-packages/:$PYTHONPATH
+ENV PYTHONPATH=/usr/local/lib/python3.13/site-packages/:$PYTHONPATH
 
 #####################################################################
 ## Wsclean (master 14/2/26)
