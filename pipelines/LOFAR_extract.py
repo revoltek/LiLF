@@ -186,13 +186,6 @@ maxniter = args.maxniter
 subtract_reg_file = args.subreg
 use_idg = args.idg
 
-logger_obj = lib_log.Logger('pipeline-extract')
-logger = lib_log.logger
-s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
-w = lib_util.Walker('pipeline-extract.walker')
-warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
-cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
-
 if not pathdir:
     logger.error('Provide a path (-p) where to look for LBA observations.')
     sys.exit()
@@ -221,6 +214,13 @@ else:
 if not os.path.exists(targetname):
     os.system(f'mkdir {targetname}')
 os.chdir(str(targetname))
+
+logger_obj = lib_log.Logger('pipeline-extract')
+logger = lib_log.logger
+s = lib_util.Scheduler(log_dir=logger_obj.log_dir, dry = False)
+w = lib_util.Walker('pipeline-extract.walker')
+warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
+cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
 
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_extract','parset_dir')
