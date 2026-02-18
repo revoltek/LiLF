@@ -16,6 +16,8 @@ from scipy.optimize import curve_fit
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s: %(message)s')
 logging.info('dTEC fitter - Jort Boxelaar')
 
+GPS_CORRECTED = False
+
 def argparser() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='dTEC fitter')
     parser.add_argument('solspath', type=str, help='Path to the solutions file')
@@ -48,7 +50,8 @@ def fit_lombscargle(phases, data, tint, ant="CS002LBA", freq_split=0, plot=True,
         return np.nan, np.nan, np.array([]), np.array([])
     
     dtec_freqs = (-8067*(freqs/60)**-1) * np.pi / 180
-    bandwidth = dtec_freqs.ptp()
+    bandwidth = dtec_freqs.max() - dtec_freqs.min()
+    #bandwidth = dtec_freqs.ptp()
     n = len(dtec_freqs)
     lombfreqs = np.linspace(1/bandwidth, n/bandwidth, 5*n)
     
@@ -483,12 +486,14 @@ def dTEC_fitter(solspath: str, solint_dutch=5, solint_de=40, solint_int=1, nstac
             
         
     full_dtec = combine_dtec_tuples(results)
-    write_smooth_tec_solutions(solspath, full_dtec)
+    return full_dtec
+    
 
 if __name__ == "__main__":
     logging.info('Starting dTEC fitter')
     args = argparser()
     GPS_CORRECTED = args.gps_corrected
-    dTEC_fitter(args.solspath, args.solint_dutch, args.solint_de, args.solint_int, args.nstack_dutch)
+    full_dtec = dTEC_fitter(args.solspath, args.solint_dutch, args.solint_de, args.solint_int, args.nstack_dutch)
+    write_smooth_tec_solutions(args.solspath, full_dtec)
     logging.info('Done')
     
