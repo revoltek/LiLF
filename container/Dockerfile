@@ -21,7 +21,7 @@ RUN apt-get install -y cmake texinfo git wget flex bison sudo vim hdf5-tools ren
     libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev libaio1t64 libaio-dev \
     libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev libdeflate-dev
 
-RUN curl -O http://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb
+RUN curl -O https://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb
 RUN dpkg -i libaio1_0.3.113-4_amd64.deb && rm libaio1_0.3.113-4_amd64.deb
 
 # Add group. We chose GID 65527 to try avoiding conflicts.
