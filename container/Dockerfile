@@ -285,6 +285,7 @@ RUN cd /opt && git clone https://github.com/spacetelescope/spherical_geometry/ \
 RUN cd /opt/spherical_geometry && pip install .
 
 RUN rm -rf /opt/{python-casacore,PyBDSF,LSMTool,losoto,RMextract,spinifex,mocpy,spherical_geometry,aoflagger,wsclean}
+RUN rm -rf /opt/intel/oneapi/compiler/latest/bin/
 
 #####################################################################
 # msoverview
