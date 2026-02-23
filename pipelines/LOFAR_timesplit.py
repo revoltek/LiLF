@@ -103,7 +103,8 @@ if use_GNSS:
         logger.info('Get RM from GPS data (spinifex)...')
         MSs_spinifex.run('spinifex get_rm_h5parm_from_ms $pathMS -o target-gps-rm.h5',
                            log='spinifex_gps_rm.log', commandType='general')
-        os.system('python /homes/j.boxelaar/ulu/storage/scripts/add_dir_to_h5parm.py target-gps-rm.h5')
+        s.add("add_dir_to_h5parm.py target-gps-rm.h5", log='add_dir_to_h5parm.log', commandType='python').run()
+        #os.system('python /homes/j.boxelaar/ulu/storage/scripts/add_dir_to_h5parm.py target-gps-rm.h5')
         
         lib_util.run_losoto(s, 'target-gps-rm.h5', ['target-gps-rm.h5'], 
                             [parset_dir + '/losoto-plot-rm.parset'], plots_dir='plots-target-gps-rm') 
@@ -117,7 +118,8 @@ if use_GNSS:
         s.add("smooth_gps_tec.py target-gps-tec.h5 tec", log='smooth_gps_tec.log', commandType='python')
         s.run()    
         os.system('cp target-gps-tec.h5 target-gps-tec-orig.h5')
-        os.system('python /homes/j.boxelaar/ulu/storage/scripts/add_dir_to_h5parm.py target-gps-tec.h5')
+        #os.system('python /homes/j.boxelaar/ulu/storage/scripts/add_dir_to_h5parm.py target-gps-tec.h5')
+        s.add("add_dir_to_h5parm.py target-gps-tec.h5", log='add_dir_to_h5parm.log', commandType='python').run()
         lib_util.run_losoto(s, 'target-gps-tec.h5', ['target-gps-tec.h5'], 
                             [parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-target-gps-tec')
     del MSs_spinifex 

@@ -31,6 +31,7 @@ use_shm = parset.getboolean('LOFAR_cal', 'use_shm') # use shared memory for wscl
 bl2flag = parset.get('flag', 'stations')
 #beam_model = parset.get('LOFAR_cal', 'beam_model')
 use_GNSS = parset.getboolean('LOFAR_cal', 'use_GNSS') # Use GNSS for pre-TEC and FR
+use_GNSS = True
 #############################################################
 
 def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
@@ -151,8 +152,8 @@ if use_GNSS:
         logger.info('Get RM from GPS data (spinifex)...')
         MSs_concat_all.run('spinifex get_rm_h5parm_from_ms $pathMS -o cal-gps-rm.h5',
                            log='spinifex_gps_rm.log', commandType='general')
-        
-        os.system('python add_dir_to_h5parm.py cal-gps-rm.h5')
+        s.add("add_dir_to_h5parm.py cal-gps-rm.h5", log='add_dir_to_h5parm.log', commandType='python').run()
+        #os.system('python add_dir_to_h5parm.py cal-gps-rm.h5')
         lib_util.run_losoto(s, 'cal-gps-rm.h5', ['cal-gps-rm.h5'], 
                             [parset_dir + '/losoto-plot-rm.parset'], plots_dir='plots-gps-rm') 
 
@@ -163,7 +164,8 @@ if use_GNSS:
                            log='spinifex_gps_tec.log', commandType='general')
         # smooth gps TEC. (fitting works better on smoothed data)
         s.add("smooth_gps_tec.py cal-gps-tec.h5 tec", log='smooth_gps_tec.log', commandType='python').run()    
-        os.system('python add_dir_to_h5parm.py cal-gps-tec.h5')
+        s.add("add_dir_to_h5parm.py cal-gps-tec.h5", log='add_dir_to_h5parm.log', commandType='python').run()
+        #os.system('python add_dir_to_h5parm.py cal-gps-tec.h5')
         lib_util.run_losoto(s, 'cal-gps-tec.h5', ['cal-gps-tec.h5'], 
                             [parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-gps-tec')
         
