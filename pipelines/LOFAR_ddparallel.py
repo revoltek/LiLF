@@ -363,6 +363,23 @@ with w.if_todo('solve_fr'):
             log='$nameMS_taql.log', commandType='general')
 
 #####################################################################################################
+
+use_GNSS = False
+if use_GNSS:
+    lib_util.check_rm('target-gps-tec.h5')
+    logger.info('Get TEC from GPS data (spinifex)...')
+    MSs.run('spinifex get_tec_h5parm_from_ms $pathMS -o target-gps-tec.h5',
+                        log='spinifex_gps_tec.log', commandType='general')
+    # smooth gps TEC. (fitting works better on smoothed data)
+    s.add("smooth_gps_tec.py target-gps-tec.h5 tec", log='smooth_gps_tec.log', commandType='python')
+    s.run()
+    lib_util.run_losoto(s, 'target-gps-tec.h5', ['target-gps-tec.h5'], 
+                        [parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-target-gps-tec')
+    logger.info('TEC correction (GPS)...')
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=target-gps-tec.h5 \
+                    cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
+
+
 # Self-cal cycle
 for c in range(maxIter):
     logger.info('Start selfcal cycle: '+str(c))
