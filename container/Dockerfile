@@ -81,7 +81,9 @@ RUN if [ $MARCH == "broadwell" ]; then \
     apt-get update && \
     apt-get install -y intel-oneapi-mkl intel-oneapi-mkl-devel; fi
 
-# Outside if condition, but does no harm if empty.
+# Silence UndefinedVar warning from BuildKit Dockerfile linter
+ENV PKG_CONFIG_PATH="" CMAKE_PREFIX_PATH="" LIBRARY_PATH="" LD_LIBRARY_PATH="" CPATH="" PYTHONPATH=""
+# Outside MKLs if condition, but does no harm if empty
 ENV PKG_CONFIG_PATH=/opt/intel/oneapi/mkl/latest/lib/pkgconfig:$PKG_CONFIG_PATH
 ENV CMAKE_PREFIX_PATH=/opt/intel/oneapi/mkl/latest/lib/cmake:$CMAKE_PREFIX_PATH
 ENV LIBRARY_PATH=/opt/intel/oneapi/mkl/latest/lib:$LIBRARY_PATH
