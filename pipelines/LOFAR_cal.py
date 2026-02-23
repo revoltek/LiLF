@@ -154,7 +154,7 @@ if use_GNSS:
         
         os.system('python add_dir_to_h5parm.py cal-gps-rm.h5')
         lib_util.run_losoto(s, 'cal-gps-rm.h5', ['cal-gps-rm.h5'], 
-                            [parset_dir + '/losoto-reset-rm.parset', parset_dir + '/losoto-plot-rm.parset'], plots_dir='plots-gps-rm') 
+                            [parset_dir + '/losoto-plot-rm.parset'], plots_dir='plots-gps-rm') 
 
     with w.if_todo('get_gps_tec'):
         lib_util.check_rm('cal-gps-tec.h5')
@@ -165,7 +165,7 @@ if use_GNSS:
         s.add("smooth_gps_tec.py cal-gps-tec.h5 tec", log='smooth_gps_tec.log', commandType='python').run()    
         os.system('python add_dir_to_h5parm.py cal-gps-tec.h5')
         lib_util.run_losoto(s, 'cal-gps-tec.h5', ['cal-gps-tec.h5'], 
-                            [parset_dir + '/losoto-reset-tec.parset', parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-gps-tec')
+                            [parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-gps-tec')
         
         # Preliminary tec correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('pre-correction dTEC from GPS...')
@@ -314,10 +314,10 @@ with w.if_todo('pre_iono'):
         s.add("dtec_finder.py --gps_corrected cal-preiono.h5", log='dtec_finder.log', commandType='python')
         s.run(check=True)
         lib_util.run_losoto(s, 'cal-dtec.h5', ['cal-dtec.h5'], 
-                            [parset_dir + '/losoto-reset-tec-noref.parset', parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-dtec-finder')
+                            [parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-dtec-finder')
         
-        lib_util.run_losoto(s, 'cal-preiono.h5', ['cal-preiono.h5'], [
-            parset_dir + '/losoto-reset-phases.parset', parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'], plots_dir='plots-pretec')
+        #lib_util.run_losoto(s, 'cal-preiono.h5', ['cal-preiono.h5'], [
+        #    parset_dir + '/losoto-reset-phases.parset', parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'], plots_dir='plots-pretec')
         '''
         # merge the solution with the bandpass before losoto
         s.add('h5_merger.py --h5_out cal-preiono-merged.h5 --h5_tables cal-preiono.h5 cal-dtec.h5 --propagate_flags'
@@ -341,15 +341,16 @@ with w.if_todo('cal_pa'):
         logger.info('dTEC correction (fitted)...')
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
                     cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
-    #else:
-    # Correct pre-iono concat_all:DATA -> CORRECTED_DATA
-    logger.info('Iono correction (preliminary)...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5  msin.datacolumn=DATA \
-                cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
-    # Correct pre-iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
-                cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
-    # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
+    else:
+        # Correct pre-iono concat_all:DATA -> CORRECTED_DATA
+        logger.info('Iono correction (preliminary)...')
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5  msin.datacolumn=DATA \
+                    cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+        # Correct pre-iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
+                    cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+        # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
+        
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
 
     if MSs_concat_all.hasIS:
@@ -432,13 +433,13 @@ with w.if_todo('cal_fr'):
         logger.info('dTEC correction (fitted)...')
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
                     cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
-    #else:
-    logger.info('Iono correction (preliminary)...')
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
-                cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
-    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
+    else:
+        logger.info('Iono correction (preliminary)...')
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5 \
                     cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
-        
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
+                        cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+            
     # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
 

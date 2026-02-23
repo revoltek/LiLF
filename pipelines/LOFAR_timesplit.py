@@ -106,7 +106,7 @@ if use_GNSS:
         os.system('python /homes/j.boxelaar/ulu/storage/scripts/add_dir_to_h5parm.py target-gps-rm.h5')
         
         lib_util.run_losoto(s, 'target-gps-rm.h5', ['target-gps-rm.h5'], 
-                            [parset_dir + '/losoto-plot-rm.parset', parset_dir + '/losoto-reset-rm.parset'], plots_dir='plots-target-gps-rm') 
+                            [parset_dir + '/losoto-plot-rm.parset'], plots_dir='plots-target-gps-rm') 
         
     with w.if_todo('get_gps_tec'):
         lib_util.check_rm('target-gps-tec.h5')
@@ -119,7 +119,7 @@ if use_GNSS:
         os.system('cp target-gps-tec.h5 target-gps-tec-orig.h5')
         os.system('python /homes/j.boxelaar/ulu/storage/scripts/add_dir_to_h5parm.py target-gps-tec.h5')
         lib_util.run_losoto(s, 'target-gps-tec.h5', ['target-gps-tec.h5'], 
-                            [parset_dir + '/losoto-plot-tec.parset', parset_dir + '/losoto-reset-tec.parset'], plots_dir='plots-target-gps-tec')
+                            [parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-target-gps-tec')
     del MSs_spinifex 
 
 
