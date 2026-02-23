@@ -99,7 +99,7 @@ RUN apt-get clean
 RUN cd /opt && git clone --single-branch --branch master https://github.com/casacore/casacore.git \
     && cd /opt/casacore && git checkout 450a5682a2aa927de123e9953157f3610a5a4f3c
 RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused --no-verbose https://www.astron.nl/iers/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar && rm WSRT_Measures.ztar
-RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON .. && make -j `nproc --all` && make install
+RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON -DBLA_VENDOR=Intel10_64lp .. && make -j `nproc --all` && make install
 RUN cd /opt/casacore && rm -r $(ls -A | grep -v data)
 
 #####################################################################
@@ -170,7 +170,7 @@ RUN if [ $MARCH == "x86-64-v2" ]; then \
 
 RUN if [ $MARCH == "broadwell" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} -DBLA_VENDOR=Intel10_64lp .. \
+    && cmake -DTARGET_CPU=${MARCH} .. \
     && make -j `nproc --all` && make install; fi
 
 RUN if [ $MARCH == "znver3" ]; then \
@@ -201,7 +201,7 @@ RUN if [ $MARCH == "x86-64-v2" ]; then \
 
 RUN if [ $MARCH == "broadwell" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} -DBLA_VENDOR=Intel10_64lp .. \
+    && cmake -DTARGET_CPU=${MARCH} .. \
     && make -j `nproc --all` && make install; fi
 
 RUN if [ $MARCH == "znver3" ]; then \
