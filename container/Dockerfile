@@ -101,10 +101,14 @@ RUN apt-get clean
 ##################################################################
 RUN cd /opt && git clone --single-branch --branch master https://github.com/casacore/casacore.git \
     && cd /opt/casacore && git checkout 450a568
-RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused --no-verbose https://www.astron.nl/iers/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar && rm WSRT_Measures.ztar
-RUN if [ $MARCH == "broadwell" ]; then cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON -DBLA_VENDOR=Intel10_64lp .. && make -j `nproc --all` && make install; fi
-RUN if [ $MARCH != "broadwell" ]; then cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON .. && make -j `nproc --all` && make install; fi
-RUN cd /opt/casacore && rm -r $(ls -A | grep -v data)
+RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused --no-verbose https://www.astron.nl/iers/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar \
+    && rm WSRT_Measures.ztar
+RUN if [ $MARCH == "broadwell" ]; then cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data \
+    -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON -DBLA_VENDOR=Intel10_64lp .. && make -j `nproc --all` && make install && cd /opt/casacore \
+    && rm -r $(ls -A | grep -v data); fi
+RUN if [ $MARCH != "broadwell" ]; then cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data \
+    -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON .. && make -j `nproc --all` && make install && cd /opt/casacore \
+    && rm -r $(ls -A | grep -v data); fi
 
 #####################################################################
 ## CASACORE-python v3.7.1
