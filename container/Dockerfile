@@ -124,8 +124,9 @@ RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
     && cd /opt/EveryBeam && git checkout tags/v0.8.0
 RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
-    && make -j `nproc --all` && make install
-RUN rm -rf /opt/EveryBeam/
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/EveryBeam/
+
 ENV EVERYBEAM_DATADIR=/usr/local/share/everybeam
     
 #####################################################################
@@ -174,17 +175,20 @@ RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
 RUN if [ $MARCH == "x86-64-v2" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
     && cmake .. \
-    && make -j `nproc --all` && make install; fi
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/DP3/; fi
 
 RUN if [ $MARCH == "broadwell" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
     && cmake -DTARGET_CPU=${MARCH} .. \
-    && make -j `nproc --all` && make install; fi
-
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/DP3/; fi
+    
 RUN if [ $MARCH == "znver3" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
     && cmake -DTARGET_CPU=${MARCH} .. \
-    && make -j `nproc --all` && make install; fi
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/DP3/; fi
 
 #        -DBLAS_flexiblas_LIBRARY=${AOCL_ROOT}/lib/libblis.so \
 #        -DFFTW3F_LIB="${AOCL_ROOT}/lib/libfftw3f.so" \
@@ -192,7 +196,6 @@ RUN if [ $MARCH == "znver3" ]; then \
 #        -DFFTW3_INCLUDE_DIR="${AOCL_ROOT}/include/" \
 #        -DLAPACK_flexiblas_LIBRARY=${AOCL_ROOT}/lib/libflame.so \
 
-RUN rm -rf /opt/DP3/
 # add "import dp3"
 ENV PYTHONPATH=/usr/local/lib/python3.13/site-packages/:$PYTHONPATH
 
@@ -205,17 +208,20 @@ RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
 RUN if [ $MARCH == "x86-64-v2" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
     && cmake .. \
-    && make -j `nproc --all` && make install; fi
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/wsclean; fi
 
 RUN if [ $MARCH == "broadwell" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
     && cmake -DTARGET_CPU=${MARCH} .. \
-    && make -j `nproc --all` && make install; fi
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/wsclean; fi
 
 RUN if [ $MARCH == "znver3" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
     && cmake -DTARGET_CPU=${MARCH} .. \
-    && make -j `nproc --all` && make install; fi
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/wsclean; fi
 
 #    -DFFTW3_LIB="${AOCL_ROOT}/lib/libfftw3.so" \
 #    -DFFTW3_THREADS_LIB="${AOCL_ROOT}/lib/libfftw3_threads.so" \
@@ -226,8 +232,6 @@ RUN if [ $MARCH == "znver3" ]; then \
 #    -DLAPACK_LIBRARIES="${AOCL_ROOT}/lib/libflame.so" \
 #    -DCMAKE_CXX_FLAGS="-march=${MARCH} -L${AOCL_ROOT}/lib -lamdlibm -lm -O3 -Ofast" \
 #    -DCMAKE_C_FLAGS="-march=${MARCH} -L${AOCL_ROOT}/lib -lamdlibm -lm -O3 -Ofast" \
-
-#RUN rm -rf /opt/wsclean/
   
 #####################################################################
 ## LTA
