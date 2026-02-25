@@ -101,7 +101,7 @@ ENV CPATH=/opt/intel/oneapi/mkl/latest/include:$CPATH
 ## CASACORE master (2/9/25)
 ##################################################################
 RUN cd /opt && git clone --single-branch --branch master https://github.com/casacore/casacore.git \
-    && cd /opt/casacore && git checkout 450a568
+    && cd /opt/casacore && git checkout 450a568 && rm -rf .git/
 RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused --no-verbose https://www.astron.nl/iers/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar \
     && rm WSRT_Measures.ztar
 RUN if [ $MARCH == "broadwell" ]; then cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data \
@@ -184,7 +184,7 @@ RUN if [ $MARCH == "broadwell" ]; then \
     && cmake -DTARGET_CPU=${MARCH} .. \
     && make -j `nproc --all` && make install \
     && rm -rf /opt/DP3/; fi
-    
+
 RUN if [ $MARCH == "znver3" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
     && cmake -DTARGET_CPU=${MARCH} .. \
@@ -233,7 +233,7 @@ RUN if [ $MARCH == "znver3" ]; then \
 #    -DLAPACK_LIBRARIES="${AOCL_ROOT}/lib/libflame.so" \
 #    -DCMAKE_CXX_FLAGS="-march=${MARCH} -L${AOCL_ROOT}/lib -lamdlibm -lm -O3 -Ofast" \
 #    -DCMAKE_C_FLAGS="-march=${MARCH} -L${AOCL_ROOT}/lib -lamdlibm -lm -O3 -Ofast" \
-  
+
 #####################################################################
 ## LTA
 #####################################################################
@@ -293,7 +293,7 @@ RUN cd /opt/mocpy && pip install .
 ####################################################################
 RUN cd /opt && git clone https://github.com/spacetelescope/spherical_geometry/ \
     && cd /opt/spherical_geometry && git checkout 1.3.3
-RUN cd /opt/spherical_geometry && pip install .
+RUN cd /opt/spherical_geometry && pip install . && pip cache purge
 
 RUN rm -rf /opt/{python-casacore,PyBDSF,LSMTool,losoto,RMextract,spinifex,mocpy,spherical_geometry}
 
@@ -349,7 +349,7 @@ RUN rm -rf /opt/{python-casacore,PyBDSF,LSMTool,losoto,RMextract,spinifex,mocpy,
 #RUN cd /opt/LiLF && git checkout LBAdevel
 #ENV PYTHONPATH /opt/LiLF:$PYTHONPATH
 #ENV PATH /opt/LiLF/scripts:$PATH
-   
+
 #####################################################################
 
 RUN mkdir /usr/share/casacore/
