@@ -80,7 +80,9 @@ RUN if [ $MARCH == "broadwell" ]; then \
     wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null && \
     echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | tee /etc/apt/sources.list.d/oneAPI.list && \
     apt-get update && \
-    apt-get install -y intel-oneapi-mkl intel-oneapi-mkl-devel; fi
+    apt-get install -y intel-oneapi-mkl intel-oneapi-mkl-devel \
+    &&  apt-get clean \
+    && rm -rf /opt/intel/oneapi/compiler/latest/bin/; fi
 
 # Silence UndefinedVar warning from BuildKit Dockerfile linter
 ENV PKG_CONFIG_PATH="" CMAKE_PREFIX_PATH="" LIBRARY_PATH="" LD_LIBRARY_PATH="" CPATH="" PYTHONPATH=""
@@ -93,8 +95,6 @@ ENV MKLROOT=/opt/intel/oneapi/mkl/latest
 ENV PATH=/opt/intel/oneapi/mkl/latest/bin:$PATH
 ENV CPATH=/opt/intel/oneapi/mkl/latest/include:$CPATH
 ## end Intel specific
-
-RUN apt-get clean
 
 ##################################################################
 ## CASACORE master (2/9/25)
@@ -294,8 +294,7 @@ RUN cd /opt && git clone https://github.com/spacetelescope/spherical_geometry/ \
     && cd /opt/spherical_geometry && git checkout 1.3.3
 RUN cd /opt/spherical_geometry && pip install .
 
-RUN rm -rf /opt/{python-casacore,PyBDSF,LSMTool,losoto,RMextract,spinifex,mocpy,spherical_geometry,aoflagger,wsclean}
-RUN rm -rf /opt/intel/oneapi/compiler/latest/bin/
+RUN rm -rf /opt/{python-casacore,PyBDSF,LSMTool,losoto,RMextract,spinifex,mocpy,spherical_geometry}
 
 #####################################################################
 # msoverview
