@@ -115,8 +115,8 @@ RUN if [ $MARCH != "broadwell" ]; then cd /opt/casacore && mkdir build && cd bui
 ## CASACORE-python v3.7.1
 #####################################################################
 RUN cd /opt && git clone https://github.com/casacore/python-casacore.git \
-    && cd /opt/python-casacore && git checkout tags/v3.7.1 && rm -rf .git/objects/pack/
-RUN cd /opt/python-casacore && pip install .
+    && cd /opt/python-casacore && git checkout tags/v3.7.1 && \
+    pip install . && rm -rf /opt/python-casacore/
 
 #####################################################################
 ## EveryBeam v0.8.0
@@ -250,52 +250,50 @@ ENV LD_LIBRARY_PATH=/usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 ## Pybdsf (master 3/11/25)
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
-    && cd /opt/PyBDSF; git checkout 8b33037 && rm -rf .git/objects/pack/
-RUN cd /opt/PyBDSF && pip install .
+    && cd /opt/PyBDSF; git checkout 8b33037 && \
+    pip install . && rm -rf /opt/PyBDSF/
 
 #####################################################################
 ## LSMtool (master 27/3/25)
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/LSMTool.git \
-    && cd /opt/LSMTool; git checkout 367dfd3e && rm -rf .git/objects/pack/
-RUN cd /opt/LSMTool && pip install . --upgrade
+    && cd /opt/LSMTool; git checkout 367dfd3e && \
+    pip install . --upgrade && rm -rf /opt/LSMTool/
 
 ####################################################################
 ## LoSoTo (master 12/2/26)
 ####################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto; git checkout 86358eb && rm -rf .git/objects/pack/
-RUN cd /opt/losoto && pip install .
+    && cd /opt/losoto; git checkout 86358eb && \
+    pip install . && rm -rf /opt/losoto/
 
 ####################################################################
 ## RMExtract (0.5.1)
 ####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/RMextract \
-    && cd /opt/RMextract && git checkout v0.5.1 && rm -rf .git/objects/pack/
-RUN cd /opt/RMextract && pip install .
+    && cd /opt/RMextract && git checkout v0.5.1 && \
+    pip install . && rm -rf /opt/RMextract/
 
 ####################################################################
 ## spinifex (master 14/3/25)
 ####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/spinifex \
-    && cd /opt/spinifex && git checkout 1616fe1e && rm -rf .git/objects/pack/
-RUN cd /opt/spinifex && pip install .
+    && cd /opt/spinifex && git checkout 1616fe1e && \
+    pip install . && rm -rf /opt/spinifex/
 
 ####################################################################
 ## mocpy (master 21/11/25)
 ####################################################################
 RUN cd /opt && git clone https://github.com/cds-astro/mocpy \
-    && cd /opt/mocpy && git checkout 945b877 && rm -rf .git/objects/pack/
-RUN cd /opt/mocpy && pip install .
+    && cd /opt/mocpy && git checkout 945b877 && \
+    pip install . && rm -rf /opt/mocpy/
 
 ####################################################################
 ## spherical-geometry (v1.3.3)
 ####################################################################
 RUN cd /opt && git clone https://github.com/spacetelescope/spherical_geometry/ \
-    && cd /opt/spherical_geometry && git checkout 1.3.3 && rm -rf .git/objects/pack/
-RUN cd /opt/spherical_geometry && pip install . && pip cache purge
-
-RUN rm -rf /opt/{python-casacore,PyBDSF,LSMTool,losoto,RMextract,spinifex,mocpy,spherical_geometry}
+    && cd /opt/spherical_geometry && git checkout 1.3.3 && \
+    pip install .  && rm -rf /opt/spherical_geometry/ && cd .. && pip cache purge
 
 #####################################################################
 # msoverview
