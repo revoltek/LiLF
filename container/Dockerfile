@@ -115,14 +115,14 @@ RUN if [ $MARCH != "broadwell" ]; then cd /opt/casacore && mkdir build && cd bui
 ## CASACORE-python v3.7.1
 #####################################################################
 RUN cd /opt && git clone https://github.com/casacore/python-casacore.git \
-    && cd /opt/python-casacore && git checkout tags/v3.7.1
+    && cd /opt/python-casacore && git checkout tags/v3.7.1 && rm -rf .git/objects/pack/
 RUN cd /opt/python-casacore && pip install .
 
 #####################################################################
 ## EveryBeam v0.8.0
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
-    && cd /opt/EveryBeam && git checkout tags/v0.8.0
+    && cd /opt/EveryBeam && git checkout tags/v0.8.0 && rm -rf .git/objects/pack/
 RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
     && make -j `nproc --all` && make install \
@@ -134,7 +134,7 @@ ENV EVERYBEAM_DATADIR=/usr/local/share/everybeam
 ## idg v1.2.0
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/astron-idg/idg.git \
-    && cd /opt/idg && git checkout tags/1.2.0
+    && cd /opt/idg && git checkout tags/1.2.0 && rm -rf .git/objects/pack/
 RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=True -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j `nproc --all` && make install; fi
 RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j `nproc --all` && make install; fi
 
@@ -142,7 +142,7 @@ RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/idg && mkdir build && cd build &&
 ## AOFlagger (master 10/2/26)
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
-    && cd /opt/aoflagger && git checkout 398fcd5b
+    && cd /opt/aoflagger && git checkout 398fcd5b && rm -rf .git/objects/pack/
 RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=True -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
 RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=False -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
 
@@ -171,7 +171,7 @@ RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd bu
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
 RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
-    && cd /opt/DP3 && git checkout 56995db9
+    && cd /opt/DP3 && git checkout 56995db9 && rm -rf .git/objects/pack/
 
 RUN if [ $MARCH == "x86-64-v2" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
@@ -204,7 +204,7 @@ ENV PYTHONPATH=/usr/local/lib/python3.13/site-packages/:$PYTHONPATH
 ## Wsclean (master 14/2/26)
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-    && cd /opt/wsclean && git checkout e4c63ab8
+    && cd /opt/wsclean && git checkout e4c63ab8 && rm -rf .git/objects/pack/
 
 RUN if [ $MARCH == "x86-64-v2" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
@@ -250,49 +250,49 @@ ENV LD_LIBRARY_PATH=/usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 ## Pybdsf (master 3/11/25)
 #####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
-    && cd /opt/PyBDSF; git checkout 8b33037
+    && cd /opt/PyBDSF; git checkout 8b33037 && rm -rf .git/objects/pack/
 RUN cd /opt/PyBDSF && pip install .
 
 #####################################################################
 ## LSMtool (master 27/3/25)
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/LSMTool.git \
-    && cd /opt/LSMTool; git checkout 367dfd3e
+    && cd /opt/LSMTool; git checkout 367dfd3e && rm -rf .git/objects/pack/
 RUN cd /opt/LSMTool && pip install . --upgrade
 
 ####################################################################
 ## LoSoTo (master 12/2/26)
 ####################################################################
 RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto; git checkout 86358eb
+    && cd /opt/losoto; git checkout 86358eb && rm -rf .git/objects/pack/
 RUN cd /opt/losoto && pip install .
 
 ####################################################################
 ## RMExtract (0.5.1)
 ####################################################################
 RUN cd /opt && git clone https://github.com/lofar-astron/RMextract \
-    && cd /opt/RMextract && git checkout v0.5.1
+    && cd /opt/RMextract && git checkout v0.5.1 && rm -rf .git/objects/pack/
 RUN cd /opt/RMextract && pip install .
 
 ####################################################################
 ## spinifex (master 14/3/25)
 ####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/spinifex \
-    && cd /opt/spinifex && git checkout 1616fe1ed0ef1d70f1e1944914e26eec1dbbebfa
+    && cd /opt/spinifex && git checkout 1616fe1e && rm -rf .git/objects/pack/
 RUN cd /opt/spinifex && pip install .
 
 ####################################################################
 ## mocpy (master 21/11/25)
 ####################################################################
 RUN cd /opt && git clone https://github.com/cds-astro/mocpy \
-    && cd /opt/mocpy && git checkout 945b877
+    && cd /opt/mocpy && git checkout 945b877 && rm -rf .git/objects/pack/
 RUN cd /opt/mocpy && pip install .
 
 ####################################################################
 ## spherical-geometry (v1.3.3)
 ####################################################################
 RUN cd /opt && git clone https://github.com/spacetelescope/spherical_geometry/ \
-    && cd /opt/spherical_geometry && git checkout 1.3.3
+    && cd /opt/spherical_geometry && git checkout 1.3.3 && rm -rf .git/objects/pack/
 RUN cd /opt/spherical_geometry && pip install . && pip cache purge
 
 RUN rm -rf /opt/{python-casacore,PyBDSF,LSMTool,losoto,RMextract,spinifex,mocpy,spherical_geometry}
