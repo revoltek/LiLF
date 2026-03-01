@@ -100,7 +100,7 @@ ENV CPATH=/opt/intel/oneapi/mkl/latest/include:$CPATH
 ##################################################################
 ## CASACORE master (2/9/25)
 ##################################################################
-RUN cd /opt && git clone --single-branch --branch master https://github.com/casacore/casacore.git \
+RUN cd /opt && git clone --single-branch --filter=blob:none --branch master https://github.com/casacore/casacore.git \
     && cd /opt/casacore && git checkout 450a568 && rm -rf .git/
 RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused --no-verbose https://www.astron.nl/iers/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar \
     && rm WSRT_Measures.ztar
