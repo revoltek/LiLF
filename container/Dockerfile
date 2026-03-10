@@ -104,11 +104,11 @@ RUN cd /opt && git clone --single-branch --filter=blob:none --branch master http
     && cd /opt/casacore && git checkout 450a568 && rm -rf .git/
 RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused --no-verbose https://www.astron.nl/iers/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar \
     && rm WSRT_Measures.ztar
-RUN if [ $MARCH == "broadwell" ]; then cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data \
-    -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON -DBLA_VENDOR=Intel10_64lp .. && make -j `nproc --all` && make install && cd /opt/casacore \
-    && rm -r $(ls -A | grep -v data); fi
-RUN if [ $MARCH != "broadwell" ]; then cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data \
-    -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON .. && make -j `nproc --all` && make install && cd /opt/casacore \
+RUN if [ $MARCH == "broadwell" ]; then cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release \
+    -DDATA_DIR=/opt/casacore/data -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON -DBLA_VENDOR=Intel10_64lp .. && make -j `nproc --all` && make install && \
+    cd /opt/casacore && rm -r $(ls -A | grep -v data); fi
+RUN if [ $MARCH != "broadwell" ]; then cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release \
+    -DDATA_DIR=/opt/casacore/data -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON .. && make -j `nproc --all` && make install && cd /opt/casacore \
     && rm -r $(ls -A | grep -v data); fi
 
 #####################################################################
@@ -129,7 +129,7 @@ RUN cd /opt/EveryBeam && mkdir build && cd build \
     && rm -rf /opt/EveryBeam/
 
 ENV EVERYBEAM_DATADIR=/usr/local/share/everybeam
-    
+
 #####################################################################
 ## idg v1.2.0
 #####################################################################
@@ -143,8 +143,8 @@ RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/idg && mkdir build && cd build &&
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
     && cd /opt/aoflagger && git checkout 398fcd5b && rm -rf .git/objects/pack/
-RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=True -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
-RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=False -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
+RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=True -DBUILD_TESTING=OFF -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
+RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=False -DBUILD_TESTING=OFF -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
 
 #####################################################################
 ## Dysco v1.3
