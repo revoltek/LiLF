@@ -84,7 +84,7 @@ RUN if [ $MARCH == "broadwell" ]; then \
     &&  apt-get clean \
     && mv /opt/intel/oneapi/compiler/latest/lib/libiomp5.so /opt/intel/oneapi/mkl/latest/lib/ \
     && rm -rf /opt/intel/oneapi/compiler/ \
-    && rm -f /opt/intel/oneapi/mkl/latest/lib/libmkl_sycl.a; fi
+    && find /opt/intel/oneapi -type f -name "*.a" -delete; fi
 
 # Silence UndefinedVar warning from BuildKit Dockerfile linter
 ENV PKG_CONFIG_PATH="" CMAKE_PREFIX_PATH="" LIBRARY_PATH="" LD_LIBRARY_PATH="" CPATH="" PYTHONPATH=""
