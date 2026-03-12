@@ -291,12 +291,10 @@ center = target_reg.get_center() # center of the extract region
 
 list_dirs = [_d for _d in Path(str(pathdir)).iterdir() if _d.is_dir()]
 tocheck = []
+logger.info(f'Checking {pathdir} for pointings covering the target coordinates...')
 for dir in list_dirs:
     if (dir / 'wideDDS-c0-MFS-image-pb.fits').exists() and ((dir / 'interp.h5.gz').exists() or (dir / 'interp.h5').exists()):
         tocheck.append(dir)
-        if (dir/'interp.h5.gz').exists():
-            s.add(f'gunzip {dir}/interp.h5.gz')
-            s.run(check=True)
 close_pointings = []
 
 for pointing in tocheck:
@@ -358,8 +356,11 @@ with w.if_todo('cleaning'):
         os.makedirs('extract-files/init/'+p)
         os.system(f'cp {str(pathdir)}/{p}/wideDDS-c0-MFS-image-pb.fits extract-files/init/{p}')  # copy ddcal images
         os.system(f'cp {str(pathdir)}/{p}/wideDDS-c0-0*-model-fpb.fits extract-files/init/{p}')  # copy models
-        os.system(f'cp {str(pathdir)}/{p}/interp.h5 extract-files/init/{p}')  # copy final dde sols
+        os.system(f'cp {str(pathdir)}/{p}/interp.h5* extract-files/init/{p}')  # copy final dde sols
         os.system(f'cp {str(pathdir)}/{p}/facetsS-c0.reg extract-files/init/{p}')  # copy facet file
+        if Path(f'extract-files/init/{p}/interp.h5.gz').exists():
+            s.add(f' gunzip extract-files/init/{p}/interp.h5.gz')
+            s.run(check=True)
         lib_util.check_rm('mss-extract/'+p)
         if not os.path.exists('mss-extract/'+p):
             logger.info(f'Uncompressing .MS files of {p}...')
@@ -443,9 +444,9 @@ for p in close_pointings:
         lib_img.blank_image_reg(inmask, target_reg_file, outfile=outmask, inverse=False, blankval=0.)
 
         for im in glob.glob(f'extract-files/init/{p}/wideDDS-c0-0*model-fpb.fits'):
-            wideDDext = im.replace('wideDD', 'wideDDext')
-            os.system('cp %s %s' % (im, wideDDext))
-            lib_img.blank_image_reg(wideDDext, target_reg_file, blankval=0.)
+            wideDDSext = im.replace('wideDDS', 'wideDDSext')
+            os.system('cp %s %s' % (im, wideDDSext))
+            lib_img.blank_image_reg(wideDDSext, target_reg_file, blankval=0.)
 
         # # if we have subtract reg, unmask that part again to predict+subtract it.
         if subtract_reg_file:
@@ -462,7 +463,7 @@ for p in close_pointings:
             correct_for = 'phase000'
 
         facet_path = f'extract-files/init/{p}/facetsS-c0.reg'
-        s.add(f'wsclean -predict -padding 1.8 -name extract-files/init/{p}/wideDDextS-c0 -j ' + str(s.max_cpucores) + ' -channels-out ' + str(
+        s.add(f'wsclean -predict -padding 1.8 -name extract-files/init/{p}/wideDDSext-c0 -j ' + str(s.max_cpucores) + ' -channels-out ' + str(
             ch_out) + ' -facet-regions ' + facet_path + ' -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
             -apply-facet-solutions ' + dde_h5parm + ' ' + correct_for + ' \
             -reorder -parallel-reordering 4 ' + MSs.getStrWsclean(),
