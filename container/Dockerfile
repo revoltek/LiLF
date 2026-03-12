@@ -285,7 +285,7 @@ RUN cd /opt/spinifex && pip install .
 ####################################################################
 ## mocpy (master 21/11/25)
 ####################################################################
-RUN cd /opt && git clone https://github.com/cds-astro/mocpy \
+RUN cd /opt && git clone --single-branch --filter=blob:none --branch master https://github.com/cds-astro/mocpy \
     && cd /opt/mocpy && git checkout 945b877 && rm -rf .git/objects/pack/
 RUN cd /opt/mocpy && pip install .
 
