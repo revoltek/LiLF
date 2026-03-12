@@ -155,6 +155,7 @@ parser.add_argument('--phsol', dest='phsol', action='store', default='tecandphas
 parser.add_argument('--maxniter', dest='maxniter', type=int, default=10, help='Maximum number of selfcalibration cycles to perform.')
 parser.add_argument('--subreg', dest='subreg', action='store', default=None, type=str, help='Provide an optional mask for sources that need to be removed.')
 parser.add_argument('--idg', dest='idg', action='store', default='True', type=str, help='Use image domain gridding for beam correction. Set to False only in case of memory issues.')
+parser.add_argument('--fromarchived',action='store_true', default='False', type=bool, help='Start from archived data')
 
 args = parser.parse_args()
 coords = args.radec
@@ -172,6 +173,7 @@ phSolMode = args.phsol
 maxniter = args.maxniter
 subtract_reg_file = args.subreg
 use_idg = args.idg
+fromarchived = args.fromarchived
 
 if not os.path.exists(targetname):
     os.system(f'mkdir {targetname}')
@@ -260,17 +262,27 @@ center = target_reg.get_center() # center of the extract region
 list_dirs = [_d for _d in Path(str(pathdir)).iterdir() if _d.is_dir()]
 tocheck = []
 for dir in list_dirs:
-    if dir/'ddserial' in dir.iterdir() and dir/'mss-avg' in dir.iterdir():
-        tocheck.append(dir)
+    if fromarchived:
+        if dir/'wideDDS-c0-0000-model-fpb.fits' in dir.iterdir():
+            tocheck.append(dir)
+    else:
+        if dir/'ddserial' in dir.iterdir() and dir/'mss-avg' in dir.iterdir():
+            tocheck.append(dir)
 close_pointings = []
 
 
 for pointing in tocheck:
     #Pick latest DDcycle if not specified otherwise
     if not ddcycle:
-        ddcal_dir = [d for d in os.listdir(f'{pointing}/ddserial') if os.path.isdir(os.path.join(f'{pointing}/ddserial', d)) and d.startswith('c')]
-        highest_ddcal = max(ddcal_dir, key=lambda x: int(x[1:]))
-        logger.info(f'Pointing {pointing}: using DD calibration cycle {highest_ddcal}.')
+        highest_ddcal = None
+        if fromarchived: # start from archived pointing
+            for c in range(10):
+                if os.path.exists(f'wideDDS-c{c}-MFS-image-pb.fits'):
+                    highest_ddcal = f'c{c}'
+        else:
+            ddcal_dir = [d for d in os.listdir(f'{pointing}/ddserial') if os.path.isdir(os.path.join(f'{pointing}/ddserial', d)) and d.startswith('c')]
+            highest_ddcal = max(ddcal_dir, key=lambda x: int(x[1:]))
+            logger.info(f'Pointing {pointing}: using DD calibration cycle {highest_ddcal}.')
     else:
         if ddcycle == 1:
             highest_ddcal = 'c00'
@@ -278,8 +290,8 @@ for pointing in tocheck:
             highest_ddcal = 'c01'
         logger.info(f'Using DD calibration cycle {highest_ddcal}.')
 
-    chout_max = len(glob.glob(f'{pointing}/ddserial/primarybeam.fits'))
-    with fits.open(f'{pointing}/ddserial/primarybeam.fits') as f:
+    pb_file = f'{pointing}/primarybeam.fits' if fromarchived else f'{pointing}/ddserial/primarybeam.fits'
+    with fits.open(pb_file) as f:
         header, data = lib_img.flatten(f)
         wcs = WCS(header)
         c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
@@ -333,15 +345,26 @@ with w.if_todo('cleaning'):
 
     for i, p in enumerate(close_pointings):
         os.makedirs('extract/init/'+p)
-        os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/images/wideDD-{highest_ddcal}-MFS-image-pb.fits extract/init/{p}')  # copy ddcal images
-        os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/images/wideDD-{highest_ddcal}-0*-model-fpb.fits extract/init/{p}')  # copy models
-        os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/solutions/interp.h5 extract/init/{p}')  # copy final dde sols
-        os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/solutions/facets-{highest_ddcal}.reg extract/init/{p}')  # copy facet file
         lib_util.check_rm('mss-extract/'+p)
-        if not os.path.exists('mss-extract/'+p):
-            logger.info('Copying MS of '+p+'...')
-            os.makedirs('mss-extract/' + p)
-            os.system(f'cp -r {str(pathdir)}/{p}/mss-avg/* mss-extract/{p}')
+        if fromarchived:
+            os.system(f'cp {str(pathdir)}/{p}/wideDDS-c{highest_ddcal}-MFS-image-pb.fits extract/init/{p}')  # copy ddcal images
+            os.system(f'cp {str(pathdir)}/{p}/wideDDS-c{highest_ddcal}-0*-model-fpb.fits extract/init/{p}')  # copy models
+            os.system(f'cp {str(pathdir)}/{p}/facetsS-{highest_ddcal}.reg extract/init/{p}')  # copy facet file
+            os.system(f'gzip -dc {str(pathdir)}/{p}/interp.h5.gz extract/init/{p}/interp.h5')  # copy final dde sols
+            if not os.path.exists('mss-extract/'+p):
+                logger.info('Copying MS of '+p+'...')
+                if not os.path.exists('mss-avg'):
+                    logger.info('untar...')
+                    os.system(f'tar -xzf P[0-9][0-9][0-9]*[0-9][0-9]*.tgz')
+                os.system(f'cp -r {str(pathdir)}/{p}/mss-avg/* mss-extract/{p}')
+        else:
+            os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/images/wideDDS-{highest_ddcal}-MFS-image-pb.fits extract/init/{p}')  # copy ddcal images
+            os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/images/wideDDS-{highest_ddcal}-0*-model-fpb.fits extract/init/{p}')  # copy models
+            os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/solutions/interp.h5 extract/init/{p}')  # copy final dde sols
+            os.system(f'cp {str(pathdir)}/{p}/ddserial/{highest_ddcal}/solutions/facetsS-{highest_ddcal}.reg extract/init/{p}')  # copy facet file
+            if not os.path.exists('mss-extract/'+p):
+                logger.info('Copying MS of '+p+'...')
+                os.system(f'cp -r {str(pathdir)}/{p}/mss-avg/* mss-extract/{p}')
 
 if not extractreg:
     for p in close_pointings:
