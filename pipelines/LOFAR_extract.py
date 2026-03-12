@@ -155,7 +155,7 @@ parser.add_argument('--phsol', dest='phsol', action='store', default='tecandphas
 parser.add_argument('--maxniter', dest='maxniter', type=int, default=10, help='Maximum number of selfcalibration cycles to perform.')
 parser.add_argument('--subreg', dest='subreg', action='store', default=None, type=str, help='Provide an optional mask for sources that need to be removed.')
 parser.add_argument('--idg', dest='idg', action='store', default='True', type=str, help='Use image domain gridding for beam correction. Set to False only in case of memory issues.')
-parser.add_argument('--fromarchived',action='store_true', default='False', type=bool, help='Start from archived data')
+parser.add_argument('--fromarchived',action='store_true', default='False', help='Start from archived data')
 
 args = parser.parse_args()
 coords = args.radec
@@ -350,7 +350,7 @@ with w.if_todo('cleaning'):
             os.system(f'cp {str(pathdir)}/{p}/wideDDS-c{highest_ddcal}-MFS-image-pb.fits extract/init/{p}')  # copy ddcal images
             os.system(f'cp {str(pathdir)}/{p}/wideDDS-c{highest_ddcal}-0*-model-fpb.fits extract/init/{p}')  # copy models
             os.system(f'cp {str(pathdir)}/{p}/facetsS-{highest_ddcal}.reg extract/init/{p}')  # copy facet file
-            os.system(f'gzip -dc {str(pathdir)}/{p}/interp.h5.gz extract/init/{p}/interp.h5')  # copy final dde sols
+            os.system(f'gzip -dc {str(pathdir)}/{p}/interp.h5.gz > extract/init/{p}/interp.h5')  # copy final dde sols
             if not os.path.exists('mss-extract/'+p):
                 logger.info('Copying MS of '+p+'...')
                 if not os.path.exists('mss-avg'):
