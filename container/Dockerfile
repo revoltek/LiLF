@@ -81,10 +81,10 @@ RUN if [ $MARCH == "broadwell" ]; then \
     echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | tee /etc/apt/sources.list.d/oneAPI.list && \
     apt-get update && \
     apt-get install -y intel-oneapi-mkl intel-oneapi-mkl-devel \
-    &&  apt-get clean \
+    && apt-get clean \
     && mv /opt/intel/oneapi/compiler/latest/lib/libiomp5.so /opt/intel/oneapi/mkl/latest/lib/ \
     && rm -rf /opt/intel/oneapi/compiler/ \
-    && find /opt/intel/oneapi -type f -name "*.a" -delete; fi
+    && find /opt/intel/oneapi -type f \( -name "*.a" -o -name "libmkl_sycl*" \) -delete; fi
 
 # Silence UndefinedVar warning from BuildKit Dockerfile linter
 ENV PKG_CONFIG_PATH="" CMAKE_PREFIX_PATH="" LIBRARY_PATH="" LD_LIBRARY_PATH="" CPATH="" PYTHONPATH=""
