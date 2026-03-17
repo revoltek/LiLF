@@ -115,9 +115,9 @@ RUN if [ $MARCH != "broadwell" ]; then cd /opt/casacore && mkdir build && cd bui
 #####################################################################
 ## CASACORE-python v3.7.1
 #####################################################################
-RUN cd /opt && git clone https://github.com/casacore/python-casacore.git \
-    && cd /opt/python-casacore && git checkout tags/v3.7.1 && rm -rf .git/objects/pack/
-RUN cd /opt/python-casacore && pip install .
+#RUN cd /opt && git clone https://github.com/casacore/python-casacore.git \
+#    && cd /opt/python-casacore && git checkout tags/v3.7.1 && rm -rf .git/objects/pack/
+#RUN cd /opt/python-casacore && pip install .
 
 #####################################################################
 ## EveryBeam v0.8.0
