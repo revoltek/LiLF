@@ -120,10 +120,10 @@ RUN if [ $MARCH != "broadwell" ]; then cd /opt/casacore && mkdir build && cd bui
 #RUN cd /opt/python-casacore && pip install .
 
 #####################################################################
-## EveryBeam v0.8.0
+## EveryBeam v0.8.2
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
-    && cd /opt/EveryBeam && git checkout tags/v0.8.0 && rm -rf .git/objects/pack/
+    && cd /opt/EveryBeam && git checkout tags/v0.8.2 && rm -rf .git/objects/pack/
 RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
     && make -j `nproc --all` && make install \
