@@ -19,7 +19,7 @@ RUN apt-get update
 RUN apt-get install -y cmake texinfo git wget flex bison sudo vim hdf5-tools rename python3-magic htop curl rust-all g++ gfortran \
     python3-dev ipython3 python3-pip python3-setuptools python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-cytoolz python3-tqdm \
     libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev libaio1t64 libaio-dev \
-    libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev \ 
+    libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev \ 
     libdeflate-dev
 
 RUN curl -O https://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb
