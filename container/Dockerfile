@@ -248,53 +248,17 @@ RUN ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/instantclient_11_2/l
 ENV LD_LIBRARY_PATH=/usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 
 #####################################################################
-## Pybdsf (master 3/11/25)
+## PyBDSF master 3/11/25 | LSMtool master 27/3/25 | LoSoTo master 12/2/26 | RMExtract 0.5.1 | spinifex master 14/3/25 | mocpy master 21/11/25 | spherical-geometry v1.3.3
 #####################################################################
-RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
-    && cd /opt/PyBDSF; git checkout 8b33037 && \
-    pip install . && rm -rf /opt/PyBDSF/
-
-#####################################################################
-## LSMtool (master 27/3/25)
-#####################################################################
-RUN cd /opt && git clone https://git.astron.nl/RD/LSMTool.git \
-    && cd /opt/LSMTool; git checkout 367dfd3e && \
-    pip install . --upgrade && rm -rf /opt/LSMTool/
-
-####################################################################
-## LoSoTo (master 12/2/26)
-####################################################################
-RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto; git checkout 86358eb && \
-    pip install . && rm -rf /opt/losoto/
-
-####################################################################
-## RMExtract (0.5.1)
-####################################################################
-RUN cd /opt && git clone https://github.com/lofar-astron/RMextract \
-    && cd /opt/RMextract && git checkout v0.5.1 && \
-    pip install . && rm -rf /opt/RMextract/
-
-####################################################################
-## spinifex (master 14/3/25)
-####################################################################
-RUN cd /opt && git clone https://git.astron.nl/RD/spinifex \
-    && cd /opt/spinifex && git checkout 1616fe1e && \
-    pip install . && rm -rf /opt/spinifex/
-
-####################################################################
-## mocpy (master 21/11/25)
-####################################################################
-RUN cd /opt && git clone --single-branch --filter=blob:none --branch master https://github.com/cds-astro/mocpy \
-    && cd /opt/mocpy && git checkout 945b877 && \
-    pip install . && rm -rf /opt/mocpy/
-
-####################################################################
-## spherical-geometry (v1.3.3)
-####################################################################
-RUN cd /opt && git clone https://github.com/spacetelescope/spherical_geometry/ \
-    && cd /opt/spherical_geometry && git checkout 1.3.3 && \
-    pip install .  && rm -rf /opt/spherical_geometry/ && cd .. && pip cache purge
+RUN pip install \
+    git+https://github.com/lofar-astron/PyBDSF.git@8b33037 \
+    git+https://git.astron.nl/RD/LSMTool.git@367dfd3e \
+    git+https://github.com/revoltek/losoto.git@86358eb \
+    git+https://github.com/lofar-astron/RMextract@v0.5.1 \
+    git+https://git.astron.nl/RD/spinifex@1616fe1e \
+    git+https://github.com/cds-astro/mocpy@945b877 \
+    git+https://github.com/spacetelescope/spherical_geometry@1.3.3 \
+    && pip cache purge
 
 #####################################################################
 # msoverview
