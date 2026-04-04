@@ -99,21 +99,30 @@ ENV CPATH=/opt/intel/oneapi/mkl/latest/include:$CPATH
 ## end Intel specific
 
 ##################################################################
-## CASACORE master (2/9/25)
+## CASACore master (2/9/25)
 ##################################################################
-RUN cd /opt && git clone --single-branch --filter=blob:none --branch master https://github.com/casacore/casacore.git \
-    && cd /opt/casacore && git checkout 450a568 && rm -rf .git/
-RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused --no-verbose https://www.astron.nl/iers/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar \
-    && rm WSRT_Measures.ztar
-RUN if [ $MARCH == "broadwell" ]; then cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release \
-    -DDATA_DIR=/opt/casacore/data -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON -DBLA_VENDOR=Intel10_64lp .. && make -j `nproc --all` && make install && \
-    cd /opt/casacore && rm -r $(ls -A | grep -v data); fi
-RUN if [ $MARCH != "broadwell" ]; then cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release \
-    -DDATA_DIR=/opt/casacore/data -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON .. && make -j `nproc --all` && make install && cd /opt/casacore \
-    && rm -r $(ls -A | grep -v data); fi
+RUN cd /opt && \
+    git clone --single-branch --filter=blob:none --branch master https://github.com/casacore/casacore.git && \
+    cd casacore && \
+    git checkout 450a568 && \
+    mkdir data && cd data && \
+    wget --retry-connrefused --no-verbose https://www.astron.nl/iers/WSRT_Measures.ztar && \
+    tar xf WSRT_Measures.ztar && \
+    rm WSRT_Measures.ztar && \
+    cd .. && \
+    mkdir build && cd build && \
+    if [ "$MARCH" = "broadwell" ]; then \
+          CMAKE_EXTRA="-DBLA_VENDOR=Intel10_64lp"; else CMAKE_EXTRA=""; fi && \
+    cmake -DPORTABLE=False -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release \
+          -DDATA_DIR=/opt/casacore/data -DUSE_OPENMP=True -DUSE_HDF5=True \
+          -DBUILD_SISCO=ON $CMAKE_EXTRA .. && \
+    make -j $(nproc) && \
+    make install && \
+    cd /opt/casacore && \
+    find . -mindepth 1 -maxdepth 1 ! -name 'data' -exec rm -rf {} +
 
 #####################################################################
-## CASACORE-python v3.7.1
+## CASACore-python v3.7.1
 #####################################################################
 #RUN cd /opt && git clone https://github.com/casacore/python-casacore.git \
 #    && cd /opt/python-casacore && git checkout tags/v3.7.1 && rm -rf .git/objects/pack/
