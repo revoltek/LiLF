@@ -15,8 +15,8 @@ USER root
 # Support large mlocks
 RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
-RUN apt-get update
-RUN apt-get install -y bison cmake curl flex g++ gfortran git hdf5-tools htop ipython3 libaio1t64 libaio-dev libarmadillo-dev libblas-dev \
+RUN apt-get update && \
+    apt-get install -y bison cmake curl flex g++ gfortran git hdf5-tools htop ipython3 libaio1t64 libaio-dev libarmadillo-dev libblas-dev \
     libboost-date-time-dev libboost-dev libboost-filesystem-dev libboost-numpy-dev libboost-program-options-dev libboost-python-dev libboost-system-dev \
     libcfitsio-dev libdeflate-dev libfftw3-dev libgsl-dev liblua5.3-dev libpng-dev libxml2-dev \
     python3-cytoolz python3-dev python3-magic python3-pip python3-pybind11 python3-pymysql python3-requests python3-setuptools python3-sshtunnel \
