@@ -250,7 +250,7 @@ ENV LD_LIBRARY_PATH=/usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 #####################################################################
 ## PyBDSF master 3/11/25 | LSMtool master 27/3/25 | LoSoTo master 12/2/26 | RMExtract 0.5.1 | spinifex master 14/3/25 | mocpy master 21/11/25 | spherical-geometry v1.3.3
 #####################################################################
-RUN pip install \
+RUN pip install --root-user-action=ignore \
     git+https://github.com/lofar-astron/PyBDSF.git@8b33037 \
     git+https://git.astron.nl/RD/LSMTool.git@367dfd3e \
     git+https://github.com/revoltek/losoto.git@86358eb \
@@ -258,7 +258,8 @@ RUN pip install \
     git+https://git.astron.nl/RD/spinifex@1616fe1e \
     git+https://github.com/cds-astro/mocpy@945b877 \
     git+https://github.com/spacetelescope/spherical_geometry@1.3.3 \
-    && pip cache purge
+    && pip cache purge \
+    && rm -rf /root/.cache/pip
 
 #####################################################################
 # msoverview
@@ -317,8 +318,6 @@ RUN pip install \
 
 RUN mkdir /usr/share/casacore/
 RUN ln -s /usr/share/casacore/data/ /opt/casacore/data
-
-RUN rm -rf /root/.cache/pip
 
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 RUN ln -s /usr/bin/python3 /usr/bin/python
