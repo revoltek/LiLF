@@ -270,7 +270,8 @@ RUN pip install --root-user-action=ignore \
     git+https://github.com/cds-astro/mocpy@945b877 \
     git+https://github.com/spacetelescope/spherical_geometry@1.3.3 \
     && pip cache purge \
-    && rm -rf /root/.cache/pip
+    && rm -rf /root/.cache/pip \
+    && rm -rf /root/.cargo/{git,registry}
 
 #####################################################################
 # msoverview
