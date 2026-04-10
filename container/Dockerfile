@@ -22,10 +22,10 @@ RUN apt-get update && \
     libcfitsio-dev libdeflate-dev libfftw3-dev libgsl-dev liblua5.3-dev libpng-dev libxml2-dev \
     libopenmpi-dev openmpi-bin \
     python3-cytoolz python3-dev python3-magic python3-numpy python3-pip python3-pybind11 python3-pymysql python3-requests python3-setuptools python3-sshtunnel \
-    rename rustc sudo texinfo vim wcslib-dev wget
+    rename rustc cargo sudo texinfo vim wcslib-dev wget
 
-RUN curl -O https://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb
-RUN dpkg -i libaio1_0.3.113-4_amd64.deb && rm libaio1_0.3.113-4_amd64.deb
+RUN curl -O https://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb && \
+    dpkg -i libaio1_0.3.113-4_amd64.deb && rm libaio1_0.3.113-4_amd64.deb
 
 # Add group. We chose GID 65527 to try avoiding conflicts.
 RUN groupadd -g 65527 lofar
