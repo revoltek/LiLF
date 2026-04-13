@@ -22,7 +22,7 @@ RUN apt-get update && \
     libcfitsio-dev libdeflate-dev libfftw3-dev libgsl-dev liblua5.3-dev libpng-dev libxml2-dev \
     libopenmpi-dev openmpi-bin \
     python3-cytoolz python3-dev python3-magic python3-numpy python3-pip python3-pybind11 python3-pymysql python3-requests python3-setuptools python3-sshtunnel \
-    rename rustc cargo sudo texinfo vim wcslib-dev wget
+    rename sudo texinfo vim wcslib-dev wget
 
 RUN curl -O https://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb && \
     dpkg -i libaio1_0.3.113-4_amd64.deb && rm libaio1_0.3.113-4_amd64.deb
@@ -267,11 +267,16 @@ RUN pip install --root-user-action=ignore \
     git+https://github.com/revoltek/losoto.git@86358eb \
     git+https://github.com/lofar-astron/RMextract@v0.5.1 \
     git+https://git.astron.nl/RD/spinifex@1616fe1e \
-    git+https://github.com/cds-astro/mocpy@945b877 \
     git+https://github.com/spacetelescope/spherical_geometry@1.3.3 \
     && pip cache purge \
-    && rm -rf /root/.cache/pip \
-    && rm -rf /root/.cargo/{git,registry}
+    && rm -rf /root/.cache/pip
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    && export PATH="$HOME/.cargo/bin:$PATH" \
+    && pip install --root-user-action=ignore git+https://github.com/cds-astro/mocpy@945b877 \
+    && rustup self uninstall -y \
+    && pip cache purge \
+    && rm -rf /root/.cache/pip
 
 #####################################################################
 # msoverview
