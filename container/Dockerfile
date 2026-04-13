@@ -115,7 +115,7 @@ RUN cd /opt && \
     mkdir build && cd build && \
     if [ "$MARCH" = "broadwell" ]; then \
           CMAKE_EXTRA="-DBLA_VENDOR=Intel10_64lp"; else CMAKE_EXTRA=""; fi && \
-    cmake -DPORTABLE=False -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release \
+    cmake -Wno-dev -DPORTABLE=False -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release \
           -DDATA_DIR=/opt/casacore/data -DUSE_OPENMP=True -DUSE_HDF5=True \
           -DBUILD_SISCO=ON $CMAKE_EXTRA .. && \
     make -j $(nproc) && \
@@ -136,7 +136,7 @@ RUN cd /opt && \
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
     && cd /opt/EveryBeam && git checkout tags/v0.8.2 && rm -rf .git/objects/pack/
 RUN cd /opt/EveryBeam && mkdir build && cd build \
-    && cmake -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
+    && cmake -Wno-dev -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
     && make -j `nproc --all` && make install \
     && rm -rf /opt/EveryBeam/
 
@@ -155,8 +155,8 @@ RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/idg && mkdir build && cd build &&
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
     && cd /opt/aoflagger && git checkout 398fcd5b && rm -rf .git/objects/pack/
-RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=True -DBUILD_TESTING=OFF -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
-RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=False -DBUILD_TESTING=OFF -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
+RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -Wno-dev -DPORTABLE=True -DBUILD_TESTING=OFF -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
+RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -Wno-dev -DPORTABLE=False -DBUILD_TESTING=OFF -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
 
 #####################################################################
 ## Dysco v1.3
@@ -187,19 +187,19 @@ RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
 
 RUN if [ $MARCH == "x86-64-v2" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
-    && cmake .. \
+    && cmake -Wno-dev .. \
     && make -j `nproc --all` && make install \
     && rm -rf /opt/DP3/; fi
 
 RUN if [ $MARCH == "broadwell" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} .. \
+    && cmake -Wno-dev -DTARGET_CPU=${MARCH} .. \
     && make -j `nproc --all` && make install \
     && rm -rf /opt/DP3/; fi
 
 RUN if [ $MARCH == "znver3" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} .. \
+    && cmake -Wno-dev -DTARGET_CPU=${MARCH} .. \
     && make -j `nproc --all` && make install \
     && rm -rf /opt/DP3/; fi
 
@@ -220,19 +220,19 @@ RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
 
 RUN if [ $MARCH == "x86-64-v2" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
-    && cmake .. \
+    && cmake -Wno-dev .. \
     && make -j `nproc --all` && make install \
     && rm -rf /opt/wsclean; fi
 
 RUN if [ $MARCH == "broadwell" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} .. \
+    && cmake -Wno-dev -DTARGET_CPU=${MARCH} .. \
     && make -j `nproc --all` && make install \
     && rm -rf /opt/wsclean; fi
 
 RUN if [ $MARCH == "znver3" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} .. \
+    && cmake -Wno-dev -DTARGET_CPU=${MARCH} .. \
     && make -j `nproc --all` && make install \
     && rm -rf /opt/wsclean; fi
 
