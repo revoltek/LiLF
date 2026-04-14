@@ -21,8 +21,9 @@ RUN apt-get update && \
     libboost-date-time-dev libboost-dev libboost-filesystem-dev libboost-numpy-dev libboost-program-options-dev libboost-python-dev libboost-system-dev \
     libcfitsio-dev libdeflate-dev libfftw3-dev libgsl-dev liblua5.3-dev libpng-dev libxml2-dev \
     libopenmpi-dev openmpi-bin \
-    python3-cytoolz python3-dev python3-magic python3-numpy python3-pip python3-pybind11 python3-pymysql python3-requests python3-setuptools python3-sshtunnel \
-    rename sudo texinfo vim wcslib-dev wget
+    python3-cx-oracle python3-cytoolz python3-dev python3-magic python3-numpy python3-pip python3-pybind11 python3-pymysql python3-requests python3-setuptools python3-sshtunnel \
+    rename sudo texinfo vim wcslib-dev wget && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN curl -O https://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb && \
     dpkg -i libaio1_0.3.113-4_amd64.deb && rm libaio1_0.3.113-4_amd64.deb
@@ -78,6 +79,7 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 ##################################################################
 ## Intel specific
 RUN if [ $MARCH == "broadwell" ]; then \
+    apt-get update && \
     apt-get install -y gpg-agent gnupg && \
     wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null && \
     echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | tee /etc/apt/sources.list.d/oneAPI.list && \
@@ -86,6 +88,9 @@ RUN if [ $MARCH == "broadwell" ]; then \
     && apt-get clean \
     && mv /opt/intel/oneapi/compiler/latest/lib/libiomp5.so /opt/intel/oneapi/mkl/latest/lib/ \
     && rm -rf /opt/intel/oneapi/compiler/ \
+    && rm -rf /opt/intel/oneapi/mkl/latest/share/mkl/benchmarks/ \
+    && rm -rf /opt/intel/oneapi/mkl/latest/lib/*ilp64.so \
+    && rm -rf /var/lib/apt/lists/* \
     && find /opt/intel/oneapi -type f \( -name "*.a" -o -name "libmkl_sycl*" \) -delete; fi
 
 # Silence UndefinedVar warning from BuildKit Dockerfile linter
@@ -249,7 +254,6 @@ RUN if [ $MARCH == "znver3" ]; then \
 #####################################################################
 ## LTA
 #####################################################################
-RUN apt-get install -y python3-cx-oracle
 RUN cd /opt && wget https://lta.lofar.eu/software/lofar_lta-2.8.0.tar.gz && tar xf lofar_lta-2.8.0.tar.gz && rm lofar_lta-2.8.0.tar.gz
 # local patched version with correct url for download
 #COPY lofar_lta-2.8.0 /opt/lofar_lta-2.8.0
