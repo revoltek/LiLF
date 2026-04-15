@@ -15,14 +15,18 @@ USER root
 # Support large mlocks
 RUN echo "*        -   memlock     unlimited" > /etc/security/limits.conf
 
-RUN apt-get update
-RUN apt-get install -y cmake texinfo git wget flex bison sudo vim hdf5-tools rename python3-magic htop curl rust-all g++ gfortran \
-    python3-dev ipython3 python3-pip python3-setuptools python3-h5py python3-sshtunnel python3-pymysql python3-requests python3-cytoolz python3-tqdm \
-    libcfitsio-dev libpng-dev libxml2-dev libarmadillo-dev liblua5.3-dev libfftw3-dev python3-pybind11 wcslib-dev libgsl-dev libblas-dev libaio1t64 libaio-dev \
-    libboost-dev libboost-date-time-dev libboost-filesystem-dev libboost-system-dev libboost-test-dev libboost-python-dev libboost-numpy-dev libboost-program-options-dev libdeflate-dev
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends bison build-essential cmake curl flex gfortran git hdf5-tools htop ipython3 libaio1t64 libaio-dev libarmadillo-dev \
+    libblas-dev \
+    libboost-date-time-dev libboost-dev libboost-filesystem-dev libboost-numpy-dev libboost-program-options-dev libboost-python-dev libboost-system-dev \
+    libcfitsio-dev libdeflate-dev libfftw3-dev libgsl-dev liblua5.3-dev libpng-dev libxml2-dev \
+    libopenmpi-dev openmpi-bin \
+    python3-cx-oracle python3-cytoolz python3-dev python3-magic python3-numpy python3-pip python3-pybind11 python3-pymysql python3-requests python3-setuptools python3-sshtunnel \
+    rename sudo texinfo vim wcslib-dev wget && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN curl -O http://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb
-RUN dpkg -i libaio1_0.3.113-4_amd64.deb && rm libaio1_0.3.113-4_amd64.deb
+RUN curl -O https://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb && \
+    dpkg -i libaio1_0.3.113-4_amd64.deb && rm libaio1_0.3.113-4_amd64.deb
 
 # Add group. We chose GID 65527 to try avoiding conflicts.
 RUN groupadd -g 65527 lofar
@@ -75,13 +79,23 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 ##################################################################
 ## Intel specific
 RUN if [ $MARCH == "broadwell" ]; then \
-    apt-get install -y gpg-agent && \
+    apt-get update && \
+    apt-get install -y gpg-agent gnupg && \
     wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null && \
     echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | tee /etc/apt/sources.list.d/oneAPI.list && \
     apt-get update && \
-    apt-get install -y intel-oneapi-mkl intel-oneapi-mkl-devel; fi
+    apt-get install -y intel-oneapi-mkl intel-oneapi-mkl-devel \
+    && apt-get clean \
+    && mv /opt/intel/oneapi/compiler/latest/lib/libiomp5.so /opt/intel/oneapi/mkl/latest/lib/ \
+    && rm -rf /opt/intel/oneapi/compiler/ \
+    && rm -rf /opt/intel/oneapi/mkl/latest/share/mkl/benchmarks/ \
+    && rm -rf /opt/intel/oneapi/mkl/latest/lib/*ilp64.so \
+    && rm -rf /var/lib/apt/lists/* \
+    && find /opt/intel/oneapi -type f \( -name "*.a" -o -name "libmkl_sycl*" \) -delete; fi
 
-# Outside if condition, but does no harm if empty.
+# Silence UndefinedVar warning from BuildKit Dockerfile linter
+ENV PKG_CONFIG_PATH="" CMAKE_PREFIX_PATH="" LIBRARY_PATH="" LD_LIBRARY_PATH="" CPATH="" PYTHONPATH=""
+# Outside MKLs if condition, but does no harm if empty
 ENV PKG_CONFIG_PATH=/opt/intel/oneapi/mkl/latest/lib/pkgconfig:$PKG_CONFIG_PATH
 ENV CMAKE_PREFIX_PATH=/opt/intel/oneapi/mkl/latest/lib/cmake:$CMAKE_PREFIX_PATH
 ENV LIBRARY_PATH=/opt/intel/oneapi/mkl/latest/lib:$LIBRARY_PATH
@@ -91,40 +105,53 @@ ENV PATH=/opt/intel/oneapi/mkl/latest/bin:$PATH
 ENV CPATH=/opt/intel/oneapi/mkl/latest/include:$CPATH
 ## end Intel specific
 
-RUN apt-get clean
-
 ##################################################################
-## CASACORE master (2/9/25)
+## CASACore master (2/9/25)
 ##################################################################
-RUN cd /opt && git clone --single-branch --branch master https://github.com/casacore/casacore.git \
-    && cd /opt/casacore && git checkout 450a5682a2aa927de123e9953157f3610a5a4f3c
-RUN cd /opt/casacore && mkdir data && cd data && wget --retry-connrefused --no-verbose https://www.astron.nl/iers/WSRT_Measures.ztar && tar xf WSRT_Measures.ztar && rm WSRT_Measures.ztar
-RUN cd /opt/casacore && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_BUILD_TYPE=Release -DDATA_DIR=/opt/casacore/data -DUSE_OPENMP=True -DUSE_HDF5=True -DBUILD_SISCO=ON .. && make -j `nproc --all` && make install
-RUN cd /opt/casacore && rm -r $(ls -A | grep -v data)
+RUN cd /opt && \
+    git clone --single-branch --filter=blob:none --branch master https://github.com/casacore/casacore.git && \
+    cd casacore && \
+    git checkout 450a568 && \
+    mkdir data && cd data && \
+    wget --retry-connrefused --no-verbose https://www.astron.nl/iers/WSRT_Measures.ztar && \
+    tar xf WSRT_Measures.ztar && \
+    rm WSRT_Measures.ztar && \
+    cd .. && \
+    mkdir build && cd build && \
+    if [ "$MARCH" = "broadwell" ]; then \
+          CMAKE_EXTRA="-DBLA_VENDOR=Intel10_64lp"; else CMAKE_EXTRA=""; fi && \
+    cmake -Wno-dev -DPORTABLE=False -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release \
+          -DDATA_DIR=/opt/casacore/data -DUSE_OPENMP=True -DUSE_HDF5=True \
+          -DBUILD_SISCO=ON $CMAKE_EXTRA .. && \
+    make -j $(nproc) && \
+    make install && \
+    cd /opt/casacore && \
+    find . -mindepth 1 -maxdepth 1 ! -name 'data' -exec rm -rf {} +
 
 #####################################################################
-## CASACORE-python v3.7.1
+## CASACore-python v3.7.1
 #####################################################################
-RUN cd /opt && git clone https://github.com/casacore/python-casacore.git \
-    && cd /opt/python-casacore && git checkout tags/v3.7.1
-RUN cd /opt/python-casacore && pip install .
+#RUN cd /opt && git clone https://github.com/casacore/python-casacore.git \
+#    && cd /opt/python-casacore && git checkout tags/v3.7.1 && rm -rf .git/objects/pack/
+#RUN cd /opt/python-casacore && pip install .
 
 #####################################################################
-## EveryBeam v0.8.0
+## EveryBeam v0.8.2
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
-    && cd /opt/EveryBeam && git checkout tags/v0.8.0
+    && cd /opt/EveryBeam && git checkout tags/v0.8.2 && rm -rf .git/objects/pack/
 RUN cd /opt/EveryBeam && mkdir build && cd build \
-    && cmake -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
-    && make -j `nproc --all` && make install
-RUN rm -rf /opt/EveryBeam/
+    && cmake -Wno-dev -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/EveryBeam/
+
 ENV EVERYBEAM_DATADIR=/usr/local/share/everybeam
-    
+
 #####################################################################
 ## idg v1.2.0
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/astron-idg/idg.git \
-    && cd /opt/idg && git checkout tags/1.2.0
+    && cd /opt/idg && git checkout tags/1.2.0 && rm -rf .git/objects/pack/
 RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=True -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j `nproc --all` && make install; fi
 RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j `nproc --all` && make install; fi
 
@@ -132,9 +159,9 @@ RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/idg && mkdir build && cd build &&
 ## AOFlagger (master 10/2/26)
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
-    && cd /opt/aoflagger && git checkout 398fcd5b
-RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=True -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
-RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -DPORTABLE=False -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
+    && cd /opt/aoflagger && git checkout 398fcd5b && rm -rf .git/objects/pack/
+RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -Wno-dev -DPORTABLE=True -DBUILD_TESTING=OFF -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
+RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -Wno-dev -DPORTABLE=False -DBUILD_TESTING=OFF -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
 
 #####################################################################
 ## Dysco v1.3
@@ -161,22 +188,25 @@ RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd bu
 RUN ls /usr/local/share/everybeam
 RUN ls /usr/local/lib
 RUN cd /opt && git clone https://git.astron.nl/RD/DP3.git \
-    && cd /opt/DP3 && git checkout 56995db9
+    && cd /opt/DP3 && git checkout 56995db9 && rm -rf .git/objects/pack/
 
 RUN if [ $MARCH == "x86-64-v2" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
-    && cmake .. \
-    && make -j `nproc --all` && make install; fi
+    && cmake -Wno-dev .. \
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/DP3/; fi
 
 RUN if [ $MARCH == "broadwell" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} -DBLA_VENDOR=Intel10_64lp .. \
-    && make -j `nproc --all` && make install; fi
+    && cmake -Wno-dev -DTARGET_CPU=${MARCH} .. \
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/DP3/; fi
 
 RUN if [ $MARCH == "znver3" ]; then \
     cd /opt/DP3 && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} .. \
-    && make -j `nproc --all` && make install; fi
+    && cmake -Wno-dev -DTARGET_CPU=${MARCH} .. \
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/DP3/; fi
 
 #        -DBLAS_flexiblas_LIBRARY=${AOCL_ROOT}/lib/libblis.so \
 #        -DFFTW3F_LIB="${AOCL_ROOT}/lib/libfftw3f.so" \
@@ -184,7 +214,6 @@ RUN if [ $MARCH == "znver3" ]; then \
 #        -DFFTW3_INCLUDE_DIR="${AOCL_ROOT}/include/" \
 #        -DLAPACK_flexiblas_LIBRARY=${AOCL_ROOT}/lib/libflame.so \
 
-RUN rm -rf /opt/DP3/
 # add "import dp3"
 ENV PYTHONPATH=/usr/local/lib/python3.13/site-packages/:$PYTHONPATH
 
@@ -192,22 +221,25 @@ ENV PYTHONPATH=/usr/local/lib/python3.13/site-packages/:$PYTHONPATH
 ## Wsclean (master 14/2/26)
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/aroffringa/wsclean.git \
-    && cd /opt/wsclean && git checkout e4c63ab8
+    && cd /opt/wsclean && git checkout e4c63ab8 && rm -rf .git/objects/pack/
 
 RUN if [ $MARCH == "x86-64-v2" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
-    && cmake .. \
-    && make -j `nproc --all` && make install; fi
+    && cmake -Wno-dev .. \
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/wsclean; fi
 
 RUN if [ $MARCH == "broadwell" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} -DBLA_VENDOR=Intel10_64lp .. \
-    && make -j `nproc --all` && make install; fi
+    && cmake -Wno-dev -DTARGET_CPU=${MARCH} .. \
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/wsclean; fi
 
 RUN if [ $MARCH == "znver3" ]; then \
     cd /opt/wsclean && mkdir build && cd build \
-    && cmake -DTARGET_CPU=${MARCH} .. \
-    && make -j `nproc --all` && make install; fi
+    && cmake -Wno-dev -DTARGET_CPU=${MARCH} .. \
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/wsclean; fi
 
 #    -DFFTW3_LIB="${AOCL_ROOT}/lib/libfftw3.so" \
 #    -DFFTW3_THREADS_LIB="${AOCL_ROOT}/lib/libfftw3_threads.so" \
@@ -219,12 +251,9 @@ RUN if [ $MARCH == "znver3" ]; then \
 #    -DCMAKE_CXX_FLAGS="-march=${MARCH} -L${AOCL_ROOT}/lib -lamdlibm -lm -O3 -Ofast" \
 #    -DCMAKE_C_FLAGS="-march=${MARCH} -L${AOCL_ROOT}/lib -lamdlibm -lm -O3 -Ofast" \
 
-#RUN rm -rf /opt/wsclean/
-  
 #####################################################################
 ## LTA
 #####################################################################
-RUN apt-get install -y python3-cx-oracle
 RUN cd /opt && wget https://lta.lofar.eu/software/lofar_lta-2.8.0.tar.gz && tar xf lofar_lta-2.8.0.tar.gz && rm lofar_lta-2.8.0.tar.gz
 # local patched version with correct url for download
 #COPY lofar_lta-2.8.0 /opt/lofar_lta-2.8.0
@@ -234,55 +263,24 @@ RUN ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/instantclient_11_2/l
 ENV LD_LIBRARY_PATH=/usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 
 #####################################################################
-## Pybdsf (master 3/11/25)
+## PyBDSF master 3/11/25 | LSMtool master 27/3/25 | LoSoTo master 12/2/26 | RMExtract 0.5.1 | spinifex master 14/3/25 | mocpy master 21/11/25 | spherical-geometry v1.3.3
 #####################################################################
-RUN cd /opt && git clone https://github.com/lofar-astron/PyBDSF.git \
-    && cd /opt/PyBDSF; git checkout 8b33037
-RUN cd /opt/PyBDSF && pip install .
+RUN pip install --root-user-action=ignore \
+    git+https://github.com/lofar-astron/PyBDSF.git@8b33037 \
+    git+https://git.astron.nl/RD/LSMTool.git@367dfd3e \
+    git+https://github.com/revoltek/losoto.git@86358eb \
+    git+https://github.com/lofar-astron/RMextract@v0.5.1 \
+    git+https://git.astron.nl/RD/spinifex@1616fe1e \
+    git+https://github.com/spacetelescope/spherical_geometry@1.3.3 \
+    && pip cache purge \
+    && rm -rf /root/.cache/pip
 
-#####################################################################
-## LSMtool (master 27/3/25)
-#####################################################################
-RUN cd /opt && git clone https://git.astron.nl/RD/LSMTool.git \
-    && cd /opt/LSMTool; git checkout 367dfd3e
-RUN cd /opt/LSMTool && pip install . --upgrade
-
-####################################################################
-## LoSoTo (master 12/2/26)
-####################################################################
-RUN cd /opt && git clone https://github.com/revoltek/losoto.git \
-    && cd /opt/losoto; git checkout 86358eb
-RUN cd /opt/losoto && pip install .
-
-####################################################################
-## RMExtract (0.5.1)
-####################################################################
-RUN cd /opt && git clone https://github.com/lofar-astron/RMextract \
-    && cd /opt/RMextract && git checkout v0.5.1
-RUN cd /opt/RMextract && pip install .
-
-####################################################################
-## spinifex (master 14/3/25)
-####################################################################
-RUN cd /opt && git clone https://git.astron.nl/RD/spinifex \
-    && cd /opt/spinifex && git checkout 1616fe1ed0ef1d70f1e1944914e26eec1dbbebfa
-RUN cd /opt/spinifex && pip install .
-
-####################################################################
-## mocpy (master 21/11/25)
-####################################################################
-RUN cd /opt && git clone https://github.com/cds-astro/mocpy \
-    && cd /opt/mocpy && git checkout 945b877
-RUN cd /opt/mocpy && pip install .
-
-####################################################################
-## spherical-geometry (v1.3.3)
-####################################################################
-RUN cd /opt && git clone https://github.com/spacetelescope/spherical_geometry/ \
-    && cd /opt/spherical_geometry && git checkout 1.3.3
-RUN cd /opt/spherical_geometry && pip install .
-
-RUN rm -rf /opt/{python-casacore,PyBDSF,LSMTool,losoto,RMextract,spinifex,mocpy,spherical_geometry,aoflagger,wsclean}
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    && export PATH="$HOME/.cargo/bin:$PATH" \
+    && pip install --root-user-action=ignore git+https://github.com/cds-astro/mocpy@945b877 \
+    && rustup self uninstall -y \
+    && pip cache purge \
+    && rm -rf /root/.cache/pip
 
 #####################################################################
 # msoverview
@@ -336,13 +334,12 @@ RUN rm -rf /opt/{python-casacore,PyBDSF,LSMTool,losoto,RMextract,spinifex,mocpy,
 #RUN cd /opt/LiLF && git checkout LBAdevel
 #ENV PYTHONPATH /opt/LiLF:$PYTHONPATH
 #ENV PATH /opt/LiLF/scripts:$PATH
-   
+
 #####################################################################
 
 RUN mkdir /usr/share/casacore/
 RUN ln -s /usr/share/casacore/data/ /opt/casacore/data
 
-ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN ln -s /usr/bin/ipython3 /usr/bin/ipython
 ENV HDF5_USE_FILE_LOCKING=FALSE
