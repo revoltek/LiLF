@@ -89,6 +89,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_cal', 'develop', 'False') # if true prevents the deletion of files
     add_default('LOFAR_cal', 'use_GNSS', 'False') # Use GNSS satellite data for pre correcting TEC and FR
     add_default('LOFAR_cal', 'use_shm', 'False') # use /dev/shm for temporary files, if available
+    # add_default('LOFAR_cal', 'beam_model', 'hamaker') #
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
@@ -261,7 +262,7 @@ def lofar_nu2num(nu):
     """
     nu_clk = 200. # 160 or 200 MHz, clock freq
     # nyquist zone (1 for LBA, 2 for HBA low, 3 for HBA mid-high)
-    if nu < 90:
+    if nu < 100:
         n = 1
     elif nu < 190:
         n = 2
