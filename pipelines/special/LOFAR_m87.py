@@ -3,6 +3,7 @@
 
 import os, glob
 import numpy as np
+from pipelines.special.LOFAR_sat import MSs_concat_all
 
 patch = 'VirA'
 nouseblrange = ''
@@ -41,7 +42,7 @@ MSs = lib_ms.AllMSs( sorted(glob.glob(data_dir+'/*MS')), s )
 # copy data (avg to 1ch/sb and 10 sec)
 nchan = 1 #int(MSs.getListObj()[0].getNchan()) # no avg in freq
 timeint = MSs.getListObj()[0].getTimeInt()
-avg_time = int(np.rint(2./timeint)) # average to 1 s
+avg_time = int(np.rint(2./timeint)) # average to 2 s
 
 with w.if_todo('Averaging'):
     logger.info('Copy data...')
@@ -89,7 +90,7 @@ with w.if_todo('model'):
 #    logger.info('BL-based smoothing...')
 #    MSs.run('BLsmooth.py -r -s 0.7 -i DATA -o DATA $pathMS', log='$nameMS_smooth.log', commandType='python')
 
-for c in range(100):
+for c in range(10):
 
     logger.info('== Start cycle: %s ==' % c)
 
@@ -127,7 +128,7 @@ for c in range(100):
         logger.info('Converting to circular...')
         MSs.run('mslin2circ.py -i $pathMS:CORRECTED_DATA -o $pathMS:CORRECTED_DATA', log='$nameMS_circ2lin.log', commandType='python', maxProcs=5)
             
-        # Solve cal_SB.MS:CORRECTED_DATA (only solve)
+        # Solve CORRECTED_DATA (only solve)
         logger.info('Solving FR...')
         MSs.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=diagonal sol.datause=dual\
                      sol.smoothnessconstraint=3e6 sol.solint=5 sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solFR.log', commandType="DP3")
@@ -144,22 +145,17 @@ for c in range(100):
         MSs.run('DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA cor.parmdb=cal-pa-c0.h5 cor.correction=polalign', \
                 log='$nameMS_corPA3.log', commandType="DP3")
     
-        # Correct FR CORRECTED_DATA -> CORRECTED_DATA
-        logger.info('Faraday rotation correction...')
-        MSs.run('DP3 ' + parset_dir + '/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000', \
-                    log='$nameMS_corFR3.log', commandType="DP3")
-
-        # Beam correction (and update weight in case of imaging) CORRECTED_DATA -> CORRECTED_DATA
-        #logger.info('Beam correction...')
-        #if c == 0 and MSs.isLBA:
-        #    MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS corrbeam.updateweights='+str(updateweights), log='$nameMS_corBEAM3.log', commandType='DP3')
-        #else:
-        #    MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False', log='$nameMS_corBEAM3.log', commandType='DP3')
-    
-        # Solve cal_SB.MS:CORRECTED_DATA (only solve)
+        # FR corruption MODEL_DATA -> MODEL_DATA_FRCOR
+        logger.info('Faraday rotation corruption (MODEL_DATA - > MODEL_DATA_FRCOR)...')
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA_FRCOR \
+                        cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000 cor.invert=False',
+                       log='$nameMS_corFR.log', commandType="DP3")
+   
+        # Solve CORRECTED_DATA (only solve)
         logger.info('Solving IONO...')
-        MSs.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single \
-                                        sol.smoothnessconstraint=1e6 sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solIONO3.log', commandType="DP3")
+        MSs.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.modeldatacolumns=[MODEL_DATA_FRCOR] \
+                sol.h5parm=$pathMS/iono.h5 sol.mode=scalarphase sol.datause=single \
+                sol.smoothnessconstraint=1e6 sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solIONO3.log', commandType="DP3")
 
         lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-ph-nopol.parset'])
     
@@ -176,11 +172,13 @@ for c in range(100):
         # Solve MS:CORRECTED_DATA (only solve)
         logger.info('Solving BP...')
         if MSs.isLBA:
-            MSs.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/bp.h5 sol.mode=fulljones \
-                sol.uvlambdarange='+str(nouseblrange)+' sol.smoothnessconstraint=3e6 sol.nchan=1 sol.solint=50', log='$nameMS_solBP3.log', commandType="DP3")
+            MSs.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.modeldatacolumns=[MODEL_DATA_FRCOR] \
+                sol.h5parm=$pathMS/bp.h5 sol.mode=fulljones sol.uvlambdarange='+str(nouseblrange)+' \
+                sol.smoothnessconstraint=3e6 sol.nchan=1 sol.solint=50', log='$nameMS_solBP3.log', commandType="DP3")
         else:
-            MSs.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/bp.h5 sol.mode=fulljones \
-                sol.uvlambdarange='+str(nouseblrange)+' sol.nchan='+str(channels_out)+' sol.solint=10', log='$nameMS_solBP3.log', commandType="DP3")
+            MSs.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.modeldatacolumns=[MODEL_DATA_FRCOR] \
+                sol.h5parm=$pathMS/bp.h5 sol.mode=fulljones sol.uvlambdarange='+str(nouseblrange)+' \
+                sol.nchan='+str(channels_out)+' sol.solint=10', log='$nameMS_solBP3.log', commandType="DP3")
         
         lib_util.run_losoto(s, 'bp-c'+str(c), [ms+'/bp.h5' for ms in MSs.getListStr()], \
                 [parset_dir+'/losoto-plot-amp-nopol.parset',parset_dir+'/losoto-plot-ph-nopol.parset'])
@@ -190,13 +188,21 @@ for c in range(100):
         logger.info('BP correction...')
         if c == 0 and MSs.isLBA:
             MSs.run(f'DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.updateweights='+str(updateweights)+' cor.parmdb=cal-bp-c'+str(c)+'.h5 cor.correction=fulljones \
-                    cor.soltab=\[amplitude000,phase000\]', \
+                    cor.soltab=[amplitude000,phase000]', \
                     log='$nameMS_corBP3.log', commandType='DP3')
         else:
             MSs.run(f'DP3 '+parset_dir+'/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.updateweights=False cor.parmdb=cal-bp-c'+str(c)+'.h5 cor.correction=fulljones \
-                   cor.soltab=\[amplitude000,phase000\]', \
+                   cor.soltab=[amplitude000,phase000]', \
                    log='$nameMS_corBP3.log', commandType='DP3')
 
+        # FR corruption CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('Faraday rotation correction (CORRECTED_DATA -> CORRECTED_DATA)...')
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+                        cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000',
+                       log='$nameMS_corFR.log', commandType="DP3")
+
+    #####################################################
+    # 5: Imaging + Prediction
     with w.if_todo('image_c%02i' % c):
         logger.info('Cleaning (cycle %02i)...' % c)
         imagename = 'img/img-c%02i' % c
