@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import os, glob
+import sys
 import numpy as np
-from pipelines.special.LOFAR_sat import MSs_concat_all
 
 patch = 'VirA'
 nouseblrange = ''
@@ -17,6 +17,7 @@ logger_obj = lib_log.Logger('pipeline-m87')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-m87.walker')
+
 
 # parse parset
 parset = lib_util.getParset()
@@ -101,9 +102,9 @@ for c in range(10):
     ####################################################
     # 1: find PA and remove it
 
-    with w.if_todo('pa_c%02i' % c):
-        # Solve cal_SB.MS:DATA (only solve)
-        if not os.path.exists('cal-pa-c0.h5'):
+    # Solve cal_SB.MS:DATA (only solve)
+    if not os.path.exists('cal-pa-c0.h5'):
+        with w.if_todo('pa_c%02i' % c):
             logger.info('Solving PA...')
             MSs.run('DP3 ' + parset_dir + '/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
                 sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solPA.log', commandType="DP3")
@@ -147,7 +148,7 @@ for c in range(10):
     
         # FR corruption MODEL_DATA -> MODEL_DATA_FRCOR
         logger.info('Faraday rotation corruption (MODEL_DATA - > MODEL_DATA_FRCOR)...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA_FRCOR \
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA_FRCOR \
                         cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000 cor.invert=False',
                        log='$nameMS_corFR.log', commandType="DP3")
    
@@ -197,7 +198,7 @@ for c in range(10):
 
         # FR corruption CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Faraday rotation correction (CORRECTED_DATA -> CORRECTED_DATA)...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+        MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
                         cor.parmdb=cal-fr-c'+str(c)+'.h5 cor.correction=rotationmeasure000',
                        log='$nameMS_corFR.log', commandType="DP3")
 
@@ -208,28 +209,34 @@ for c in range(10):
         imagename = 'img/img-c%02i' % c
         
         if MSs.isLBA and not MSs.hasIS:
-            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=8, parallel_gridding=4,\
-                    reorder='', parallel_reordering=4, gridder='wgridder', size=1500, scale='2arcsec', padding=1.2, \
-                    weight='briggs -1.0', niter=50000, nmiter=50, mgain=0.4, \
+            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=8, parallel_gridding=32,\
+                    size=1500, scale='2arcsec', padding=1.2, \
+                    weight='briggs -1.5', niter=50000, nmiter=8, mgain=0.5, \
+                    multiscale="", multiscale_scales="0,3,9,27", multiscale_scale_bias=0.5, deconvolution_channels=6, fit_spectral_pol=3, \
+                    fits_mask='m87cocoon-mask.fits', auto_threshold=1, \
+                    join_channels='', channels_out=channels_out, do_predict=True)
+            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', parallel_gridding=32,\
+                    size=1500, scale='2arcsec', padding=1.2, \
+                    weight='briggs -1.5', niter=50000, nmiter=50, mgain=0.6, \
                     multiscale='', multiscale_scale_bias=0.6, deconvolution_channels=6, fit_spectral_pol=3, \
                     fits_mask='/home/baq1889/LiLF/parsets/LOFAR_ateam/masks/VirAlba.fits', auto_threshold=1, \
-                    join_channels='', channels_out=channels_out)
+                    join_channels='', channels_out=channels_out, cont=True)
 
         if MSs.isLBA and  MSs.hasIS:
-            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=8, parallel_gridding=4,\
-                    reorder='', parallel_reordering=4, gridder='wgridder', size=2000, scale='1arcsec', padding=1.2, \
-                    weight='briggs 0', taper_gaussian='0.75arcsec', niter=15000, nmiter=50, mgain=0.4, \
-                    multiscale='', multiscale_scale_bias=0.6, \
-                    fits_mask='/home/baq1889/LiLF/parsets/LOFAR_ateam/masks/VirAlbaIS.fits', auto_threshold=1, \
-                    join_channels='', channels_out=channels_out)
+            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=8, parallel_gridding=32,\
+                    size=1500, scale='0.25arcsec', padding=1.2, \
+                    weight='briggs 0', taper_gaussian='0.3arcsec', niter=15000, nmiter=50, mgain=0.4, \
+                    multiscale='', multiscale_scale_bias=0.6, fit_spectral_pol=3, deconvolution_channels=5, \
+                    fits_mask='m87cocoon-mask.fits', auto_threshold=1, \
+                    join_channels='',  channels_out=channels_out)
     
         if MSs.isHBA:
             #lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
             #        weight='briggs -0.2', niter=350, update_model_required='', mgain=0.5, \
             #        fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
             #        join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=channels_out) # use cont=True
-            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=6, minuv_l=175, \
-                    reorder='', parallel_reordering=4, wgridder='wgridder', size=1600, scale='1arcsec', padding=1.6, \
+            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=6, parallel_gridding=32, minuv_l=175, \
+                    size=1600, scale='1arcsec', padding=1.6, \
                     weight='briggs -1', niter=1000000, nmiter=100, mgain=0.85, \
                     multiscale='', multiscale_scales='0,20,40,80,160,320', \
                     fits_mask='/home/baq1889/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', auto_threshold=1, \
