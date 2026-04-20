@@ -21,7 +21,8 @@ RUN apt-get update && \
     libboost-date-time-dev libboost-dev libboost-filesystem-dev libboost-numpy-dev libboost-program-options-dev libboost-python-dev libboost-system-dev \
     libcfitsio-dev libdeflate-dev libfftw3-dev libgsl-dev liblua5.3-dev libpng-dev libxml2-dev \
     libopenmpi-dev openmpi-bin \
-    python3-cx-oracle python3-cytoolz python3-dev python3-magic python3-numpy python3-pip python3-pybind11 python3-pymysql python3-requests python3-setuptools python3-sshtunnel \
+    python-is-python3 python3-cx-oracle python3-cytoolz python3-dev python3-magic python3-numpy python3-pip python3-pybind11 python3-pymysql python3-requests \
+    python3-setuptools python3-sshtunnel \
     rename sudo texinfo vim wcslib-dev wget && \
     rm -rf /var/lib/apt/lists/*
 
@@ -340,7 +341,6 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
 RUN mkdir /usr/share/casacore/
 RUN ln -s /usr/share/casacore/data/ /opt/casacore/data
 
-RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN ln -s /usr/bin/ipython3 /usr/bin/ipython
 ENV HDF5_USE_FILE_LOCKING=FALSE
 ENV OMP_NUM_THREADS=1
