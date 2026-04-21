@@ -8,8 +8,6 @@
 import os, glob, re
 import casacore.tables as pt
 import numpy as np
-
-########################################################
 from LiLF import lib_ms, lib_util, lib_log, lib_h5
 
 logger_obj = lib_log.Logger('pipeline-cal')

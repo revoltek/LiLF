@@ -1,18 +1,30 @@
-import os, sys, logging, time
+# Logging utilities for the LiLF pipeline.
+# Provides a coloured console handler and a Logger class that sets up
+# per-run log files and convenience symlinks.
+
+import os
+import sys
+import logging
+import time
 
 import warnings
 from astropy.wcs import FITSFixedWarning
-# Suppress FITSFixedWarning
+
+# Suppress noisy FITS WCS warnings that are irrelevant to pipeline logic.
 warnings.simplefilter('ignore', FITSFixedWarning)
 
 class _ColorStreamHandler(logging.StreamHandler):
+    """A StreamHandler that wraps log messages in ANSI colour escape codes
+    based on severity level."""
 
+    # ANSI reset and colour codes.
     DEFAULT = '\x1b[0m'
     RED     = '\x1b[31m'
     GREEN   = '\x1b[32m'
     YELLOW  = '\x1b[33m'
     CYAN    = '\x1b[36m'
 
+    # Map log levels to colours.
     CRITICAL = RED
     ERROR    = RED
     WARNING  = YELLOW
@@ -21,6 +33,7 @@ class _ColorStreamHandler(logging.StreamHandler):
 
     @classmethod
     def _get_color(cls, level):
+        """Return the ANSI colour code appropriate for the given log level."""
         if level >= logging.CRITICAL:  return cls.CRITICAL
         elif level >= logging.ERROR:   return cls.ERROR
         elif level >= logging.WARNING: return cls.WARNING
@@ -28,77 +41,83 @@ class _ColorStreamHandler(logging.StreamHandler):
         elif level >= logging.DEBUG:   return cls.DEBUG
         else:                          return cls.DEFAULT
 
-    def __init__(self, stream=None):
-        logging.StreamHandler.__init__(self, stream)
-
     def format(self, record):
+        """Wrap the message in colour codes without permanently mutating the
+        shared LogRecord (which would cause codes to stack when multiple
+        handlers or repeated calls process the same record)."""
         color = self._get_color(record.levelno)
-        record.msg = color + record.msg + self.DEFAULT
-        return logging.StreamHandler.format(self, record)
+        # Save original message; record.msg may be any type, cast to str.
+        original_msg = record.msg
+        record.msg = color + str(record.msg) + self.DEFAULT
+        formatted = logging.StreamHandler.format(self, record)
+        # Restore the original so other handlers see the unmodified record.
+        record.msg = original_msg
+        return formatted
 
 class Logger():
+    """Sets up the LiLF logging infrastructure for a pipeline run.
 
-    def __init__(self, pipename):# logfile = "pipeline.logging", log_dir = "logs"):
+    Creates a timestamped log directory and log file, configures the
+    'LiLF' logger with both a file handler (DEBUG) and a coloured console
+    handler (INFO), and maintains 'latest' symlinks for convenience.
+    """
 
-        # hopefully kill other loggers
-        logger = logging.getLogger()
-        logger.propagate = False
-        logger.handlers = []
- 
+    def __init__(self, pipename):
+        # Silence the root logger to prevent duplicate output from any
+        # third-party library that calls logging.basicConfig() or adds
+        # handlers to the root logger.
+        root = logging.getLogger()
+        root.propagate = False
+        # Close existing handlers before discarding them to avoid file
+        # descriptor leaks.
+        for h in root.handlers[:]:
+            h.close()
+        root.handlers = []
+
+        # Build timestamped names for this run's log file and log directory.
         timestamp = time.strftime('%Y-%m-%d_%H:%M:%S', time.localtime())
-        self.logfile = pipename+'_'+timestamp+'.logger'
-        self.log_dir = 'logs_'+pipename+'_'+timestamp
+        self.logfile = pipename + '_' + timestamp + '.logger'
+        self.log_dir = 'logs_' + pipename + '_' + timestamp
         os.makedirs(self.log_dir)
-        #self.backup(logfile, log_dir)
+
         self.set_logger(self.logfile)
-        # Here we create symlinks for easier debugging and checking of the newest logs
-        # we create temp-symlinks and rename them so that we can overwrite existing symlinks.
-        os.symlink( self.log_dir, f'logs_{pipename}.tmp')
-        os.rename(f'logs_{pipename}.tmp',f'logs_{pipename}')
-        os.symlink(self.logfile, pipename+'.logger.tmp')
-        os.rename(pipename+'.logger.tmp', pipename+'.logger')
 
-
-#    def backup(self, logfile, log_dir):
-#
-#        # bkp old log dir
-#        if os.path.isdir(log_dir):
-#            current_time = time.localtime()
-#            log_dir_old = time.strftime(log_dir+'_bkp_%Y-%m-%d_%H:%M', current_time)
-#            os.system('mv %s %s' % ( log_dir, log_dir_old ))
-#        os.makedirs(log_dir)
-#
-#        # bkp old log file
-#        if os.path.exists(logfile):
-#            current_time = time.localtime()
-#            logfile_old = time.strftime(logfile+'_bkp_%Y-%m-%d_%H:%M', current_time)
-#            os.system('mv %s %s' % ( logfile, logfile_old ))
-            
+        # Create 'latest' symlinks so users can always find the most recent
+        # logs without knowing the timestamp.  A temp-then-rename pattern is
+        # used so the replacement is atomic and never leaves a broken link.
+        os.symlink(self.log_dir, f'logs_{pipename}.tmp')
+        os.rename(f'logs_{pipename}.tmp', f'logs_{pipename}')
+        os.symlink(self.logfile, pipename + '.logger.tmp')
+        os.rename(pipename + '.logger.tmp', pipename + '.logger')
 
     def set_logger(self, logfile):
-      
+        """Configure the 'LiLF' named logger with a file handler and a
+        coloured console handler."""
+
         logger = logging.getLogger("LiLF")
+        # Accept all levels here; individual handlers filter further.
         logger.setLevel(logging.DEBUG)
 
-        # create file handler which logs even debug messages
+        # File handler: capture everything down to DEBUG for post-mortem analysis.
         handlerFile = logging.FileHandler(logfile)
         handlerFile.setLevel(logging.DEBUG)
-        
-        # create console handler with a higher log level
+
+        # Console handler: show INFO and above with colour coding.
         handlerConsole = _ColorStreamHandler(stream=sys.stdout)
         handlerConsole.setLevel(logging.INFO)
-        
-        # create formatter and add it to the handlers
+
+        # Shared formatter: timestamp, level, and message.
         formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", "%Y-%m-%d %H:%M:%S")
         handlerFile.setFormatter(formatter)
         handlerConsole.setFormatter(formatter)
-        
-        # add the handlers to the logger
+
         logger.addHandler(handlerFile)
         logger.addHandler(handlerConsole)
 
         logger.info('Logging initialised in %s (file: %s)' % (os.getcwd(), logfile))
 
 
-# this is used by all libraries for logging
-logger = logging.getLogger("LiLF")
+# Module-level logger used by all LiLF library modules.
+# Note: Logger() must be instantiated by the pipeline entry point before
+# this logger emits any output, otherwise messages go to the root logger.
+logger = logging.getLogger("LiLF")s
