@@ -416,7 +416,7 @@ for cmaj in range(maxIter):
         if d.size > 0.5: logger.warning('Patch size large: %f' % d.size)
         logstring = 'c%02i-%s' % (cmaj, d.name)
 
-        # either faint sources that were not detected before or residuals of peeled sources - skip?
+        # either faint sources that were not detected before or residuals of peeled sources - skip
         if cmaj > 0 and d.peel_off:
             logger.info('This sources is far in the outkirts - skip.')
             continue

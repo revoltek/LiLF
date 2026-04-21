@@ -198,8 +198,7 @@ with w.if_todo('flag'):
     logger.info('Flagging...')
     flag_strat = '/HBAdefaultwideband.lua' if MSs.isHBA else '/LBAdefaultwideband.lua'
     MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\" \
-            aoflagger.strategy='+parset_dir+flag_strat,
-            log='$nameMS_DP3_flag.log', commandType='DP3')
+            aoflagger.strategy='+parset_dir+flag_strat, log='$nameMS_DP3_flag.log', commandType='DP3')
 
     if MSs.hasIS:
         # flagonmindata code cannot handle larger MS - anyway shouldn't be needed if we have the minvisratio in the solves?
@@ -207,6 +206,10 @@ with w.if_todo('flag'):
     else:
         logger.info('Remove bad timestamps...')
         MSs.run( 'flagonmindata.py -f 0.5 $pathMS', log='$nameMS_flagonmindata.log', commandType='python')
+
+    # print fractional flags
+    for MS in MSs.getListObj():
+        logger.info(f'{MS.nameMS}: Fractional flags: {MS.fractionalFlag()*100:.1f}%.')
 
     try:
         logger.info('Plot weights...')
@@ -233,9 +236,12 @@ if ateam_clip != '':
                 elif (a not in demixed) and (MSs.getListObj()[0].distBrightSource(a) > 15):
                     logger.info(f'{MS.nameMS}: Clipping {a} that was not demixed.')
                     cmd = f'DP3 msin={MS.pathMS} msout=. steps=[count,clipper,count] clipper.type=CLIPPER clipper.sourcedb={ateam_model} \
-                        clipper.sources=[{a}] clipper.usebeammodel=True clipper.correctfreqsmearing=True'
+                        clipper.sources=[{a}] clipper.usebeammodel=True clipper.amplmax=200 clipper.correctfreqsmearing=True'
                     s.add(cmd, log=MS.nameMS+'_clipper.log', commandType='DP3')
                     s.run(check=True)
+    # print fractional flags
+    for MS in MSs.getListObj():
+        logger.info(f'{MS.nameMS}: Fractional flags: {MS.fractionalFlag()*100:.1f}%.')
     ### DONE
 
 #####################################

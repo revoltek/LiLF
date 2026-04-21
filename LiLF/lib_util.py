@@ -392,7 +392,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
     #reordering_processors = np.min([len(MSs_files_clean),s.maxProcs])
 
     # basic parms
-    wsc_parms.append( '-j '+str(s.maxProcs)+' -reorder -parallel-reordering 4 ' )
+    wsc_parms.append( '-j '+str(s.maxProcs)+' -reorder -parallel-reordering 4 -wgridder-accuracy 0.0001 ' )
     if 'use_idg' in kwargs.keys():
         if s.cluster == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
             wsc_parms.append( '-idg-mode hybrid' )
