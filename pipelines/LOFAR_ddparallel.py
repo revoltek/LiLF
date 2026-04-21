@@ -974,7 +974,6 @@ while c < maxIter:
                         -shift {subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}  -channels-out 4 \
                         {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
                 s.run(check=True)
-    # TODO continue from here
     if bright_source:
         if c == 0:
             with w.if_todo('c%02i_subfield_solve_amp' % (c)):
