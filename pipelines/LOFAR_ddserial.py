@@ -180,7 +180,7 @@ for MS in MSs.getListObj():
     logger.info(f'{MS.nameMS}: Fractional flags: {MS.fractionalFlag()*100:.1f}%.')
 
 ##############################################################
-full_image = lib_img.Image('ddserial/init/wideDDP-c1-MFS-image.fits', userReg=userReg)
+full_image = lib_img.Image(sorted(glob.glob('ddserial/init/wideDDP-c[0-9]-MFS-image.fits'))[-1], userReg=userReg)
 
 for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
@@ -369,11 +369,14 @@ for cmaj in range(maxIter):
             # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions while data are corrected for cycle 1 subfield solutions.
             # Take this into account!
             # corrupt:
+            calfiles = sorted(glob.glob('ddparallel/solutions/cal-tec-sf*h5'))
+            tocorrect = calfiles[-1]
+            tocorrupt = calfiles[-2]
             MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                      cor.parmdb=ddparallel/solutions/cal-tec-sf-c0.h5 cor.correction=phase000 cor.invert=False', log='$nameMS_sf-correct.log', commandType='DP3')
+                      cor.parmdb={tocorrupt} cor.correction=phase000 cor.invert=False', log='$nameMS_sf-correct.log', commandType='DP3')
             # correct:
             MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                      cor.parmdb=ddparallel/solutions/cal-tec-sf-c1.h5 cor.correction=phase000 cor.invert=True', log='$nameMS_sf-correct.log', commandType='DP3')
+                      cor.parmdb={tocorrect} cor.correction=phase000 cor.invert=True', log='$nameMS_sf-correct.log', commandType='DP3')
 
     ### DONE
 
@@ -432,11 +435,14 @@ for cmaj in range(maxIter):
             if cmaj == 0:
                 logger.info('Corrupt MODEL_DATA with correct subfield solutions...')
                 # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
+                calfiles = sorted(glob.glob('ddparallel/solutions/cal-tec-sf*h5'))
+                tocorrect = calfiles[-1]
+                tocorrupt = calfiles[-2]
                 MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                      cor.parmdb=ddparallel/solutions/cal-tec-sf-c0.h5 cor.correction=phase000 cor.invert=False',
+                      cor.parmdb={tocorrupt} cor.correction=phase000 cor.invert=False',
                     log='$nameMS_sf-correct.log', commandType='DP3') # corrupt
                 MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
-                      cor.parmdb=ddparallel/solutions/cal-tec-sf-c1.h5 cor.correction=phase000 cor.invert=True',
+                      cor.parmdb={tocorrect} cor.correction=phase000 cor.invert=True',
                     log='$nameMS_sf-correct.log', commandType='DP3') # correct
 
             # Add back the model previously subtracted for this dd-cal
@@ -595,8 +601,8 @@ for cmaj in range(maxIter):
                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS208LBA,RS210LBA,RS305LBA,RS306LBA,RS307LBA,RS310LBA,RS406LBA,RS407LBA,RS409LBA,RS503LBA,RS508LBA,RS509LBA]]', \
                         log='$nameMS_solGamp1-'+logstringcal+'.log', commandType='DP3')
 
-                    if d.peel_off:
-                        losoto_parsets = [parset_dir+'/losoto-peel-clip.parset', parset_dir+'/losoto-plot-amp1.parset']
+                    if d.peel_off or freq_min < 20e6:
+                        losoto_parsets = [parset_dir+'/losoto-clip-strict.parset', parset_dir+'/losoto-plot-amp1.parset']
                     else:
                         losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
                     lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
@@ -619,7 +625,7 @@ for cmaj in range(maxIter):
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DP3')
 
                     if d.peel_off:
-                        losoto_parsets = [parset_dir+'/losoto-peel-clip2.parset', parset_dir+'/losoto-plot-amp2.parset']
+                        losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-plot-amp2.parset']
                     else:
                         losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
 
@@ -952,7 +958,7 @@ for cmaj in range(maxIter):
         s.run(check=True)
 
         # non-circ beam at low dec
-        if phase_center[1] < 23:
+        if (phase_center[1] < 23) or (np.mean(MSs.getFreqs()) < 50e6):
             logger.info(f'Low-declination observation ({phase_center[1]}deg). Use non-circular PSF')
             beam_kwargs = {}
         else:
