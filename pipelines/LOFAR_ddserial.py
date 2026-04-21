@@ -182,7 +182,7 @@ for MS in MSs.getListObj():
     logger.info(f'{MS.nameMS}: Fractional flags: {MS.fractionalFlag()*100:.1f}%.')
 
 ##############################################################
-full_image = lib_img.Image(glob.glob('ddserial/init/wideDDP-c?-MFS-image.fits')[0], userReg=userReg)
+full_image = lib_img.Image(sorted(glob.glob('ddserial/init/wideDDP-c?-MFS-image.fits'))[-1], userReg=userReg)
 
 for cmaj in range(maxIter):
     logger.info('Starting major cycle: %i' % cmaj)
