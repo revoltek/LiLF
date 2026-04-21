@@ -39,6 +39,7 @@ else:
 MSs = lib_ms.AllMSs( glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=False)
 ra, dec = MSs.getListObj()[0].getPhaseCentre()
 fwhm = MSs.getListObj()[0].getFWHM(elliptical=True)
+freq_factor = 54e6/np.mean(MSs.getFreqs()) # scale to 54e6 Hz
 qdict = {'ddparallel_c0_rms': None, 'ddparallel_c1_rms': None, 'ddserial_c0_rms': None,
                 'ddserial_c1_rms': None, 'nvss_ratio': None, 'nvss_match': None, 'flag_frac':None}
 
@@ -113,9 +114,10 @@ if os.path.exists(ddserial_dir):
     nvss.filter(sigma=5, ellipse=[ra, dec, fwhm[0]/2, fwhm[1]/2, 0], isolation=120)
     nvss.write('quality/debug_nvss.fits', overwrite=True, format='fits')
     lofar = lib_cat.RadioCat('quality/wideDDS-c0-MFS-image-pb.cat.fits', 'LOFAR', log=logger, wcs=wcs)
-    lofar.filter(sigma=5, ellipse=[ra, dec, fwhm[0]/2, fwhm[1]/2, 0], isolation=45, minflux=0.06, size=25)
+
+    lofar.filter(sigma=5, ellipse=[ra, dec, fwhm[0]/2, fwhm[1]/2, 0], isolation=45*freq_factor, minflux=0.06, size=25*freq_factor)
     lofar.write('quality/debug_lofar.fits', overwrite=True, format='fits')
-    lofar.match(nvss, 10)
+    lofar.match(nvss, 10*freq_factor)
     n_match = len(lofar.get_matches('NVSS'))
     lofar.write('quality/wideDDS-c0-MFS-image-pb.cat_match_nvss.fits', overwrite=True, format='fits')
     median_nvss_ratio = lofar.flux_ratio('NVSS')
