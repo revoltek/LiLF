@@ -363,6 +363,7 @@ with w.if_todo('solve_fr'):
             log='$nameMS_taql.log', commandType='general')
 
 #####################################################################################################
+
 # Self-cal cycle
 for c in range(maxIter):
     logger.info('Start selfcal cycle: '+str(c))
