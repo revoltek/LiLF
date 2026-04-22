@@ -30,8 +30,6 @@ ateam_clip = parset.get('LOFAR_timesplit', 'ateam_clip') # '' no clip
 use_GNSS = parset.getboolean('LOFAR_timesplit', 'use_GNSS')
 bl2flag = parset.get('flag','stations')
 #################################################
-cal_dir = '/iranet/groups/ulu/j.boxelaar/data/agn_vlbi/cals-pretec-new'
-use_GNSS = True
 
 # Clean
 with w.if_todo('clean'):

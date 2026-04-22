@@ -5,7 +5,7 @@
 # It isolates various systematic effects and
 # prepare them for the transfer to the target field.
 
-import os, glob, re, sys
+import os, glob, re
 import casacore.tables as pt
 import numpy as np
 
