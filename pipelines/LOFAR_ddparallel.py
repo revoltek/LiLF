@@ -52,6 +52,7 @@ data_dir = parset.get('LOFAR_ddparallel','data_dir')
 start_sourcedb = parset.get('model','sourcedb')
 userReg = parset.get('model','userReg')
 sf_phaseSolMode = 'phase' #'tec'
+remove3c=False
 
 #############################################################################
 
@@ -232,7 +233,7 @@ with w.if_todo('cleaning'):
 sol_dir = 'ddparallel/solutions'
 plot_dir = 'ddparallel/plots'
 
-MSs = lib_ms.AllMSs( glob.glob(data_dir + 'mss/TC*[0-9].MS'), s, check_flags=True, check_consistency=True)
+MSs = lib_ms.AllMSs( sorted(glob.glob(data_dir + 'mss/TC*[0-9].MS')), s, check_flags=True, check_consistency=True)
 MSs.print_HAcov()
 [MS.print_ateam_demix() for MS in MSs.getListObj()]
 for ateam in ['CasA', 'CygA', 'TauA', 'VirA']:
@@ -364,20 +365,6 @@ with w.if_todo('solve_fr'):
 
 #####################################################################################################
 
-use_GNSS = False
-if use_GNSS:
-    lib_util.check_rm('target-gps-tec.h5')
-    logger.info('Get TEC from GPS data (spinifex)...')
-    MSs.run('spinifex get_tec_h5parm_from_ms $pathMS -o target-gps-tec.h5',
-                        log='spinifex_gps_tec.log', commandType='general')
-    # smooth gps TEC. (fitting works better on smoothed data)
-    s.add("smooth_gps_tec.py target-gps-tec.h5 tec", log='smooth_gps_tec.log', commandType='python')
-    s.run()
-    lib_util.run_losoto(s, 'target-gps-tec.h5', ['target-gps-tec.h5'], 
-                        [parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-target-gps-tec')
-    logger.info('TEC correction (GPS)...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA cor.parmdb=target-gps-tec.h5 \
-                    cor.correction=tec000', log='$nameMS_cor-gps-tec.log', commandType="DP3")
 
 
 # Self-cal cycle
@@ -506,10 +493,33 @@ for c in range(maxIter):
 
     ### solve ionosphere phase - ms:SMOOTHED_DATA - > reset for all BUT most distant RS!
     with w.if_todo('c%02i_solve_iono' % c):
+        use_GNSS = False
+        if use_GNSS:
+            logger.info('Get TEC from GPS data (spinifex)...')
+            for i, MS in enumerate(MSs.getListStr()):
+                lib_util.check_rm(f'target-gps-tec-{i}.h5')
+                MSs_spinifex = lib_ms.AllMSs( [sorted(glob.glob(data_dir + 'mss/TC*[0-9].MS'))[-4:][i]], s ) 
+                
+                MSs_spinifex.run(f'spinifex get_tec_h5parm_from_ms $pathMS -o target-gps-tec-{i}.h5',
+                                    log='spinifex_gps_tec.log', commandType='general')
+                # smooth gps TEC. (fitting works better on smoothed data)
+                s.add(f"smooth_gps_tec.py target-gps-tec-{i}.h5 tec", log='smooth_gps_tec.log', commandType='python')
+                s.run()
+                lib_util.run_losoto(s, f'target-gps-tec-{i}.h5', [f'target-gps-tec-{i}.h5'], 
+                                    [parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-target-gps-tec')
+                logger.info('TEC correction (GPS)...')
+                MSs_spinifex.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA msout.datacolumn=CORRECTED_DATA_PRECORR cor.parmdb=target-gps-tec-{i}.h5 \
+                                cor.correction=tec000', log=f'$nameMS_cor-gps-tec-{i}.log', commandType="DP3")
+            
+            del MSs_spinifex 
+        
+        #MSs = lib_ms.AllMSs( sorted(glob.glob(data_dir + 'mss/TC*[0-9].MS')), s, check_flags=True, check_consistency=True)
+        
         # Smooth MSs:CORRECTED_DATA -> SMOOTHED_DATA
         MSs.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-c{c}')
+        
         logger.info('Solving ionosphere (DD)...')
-        smMHz = np.array([[2.5,4.0,10.0,15.0],[6.0,10.0,15.0,25.0]]) # [cycle0, cycle1]
+        smMHz = np.array([[0.6,1.0,7.0,15.0],[2.0,6.0,15.0,25.0]]) # [cycle0, cycle1]
         smMHz_factors = [smMHz[0]/np.max(smMHz[0]), smMHz[1]/np.max(smMHz[1])] # factors should be <1 otherwise trimming of kernel is off
         solutions_per_direction = 15*np.ones(len(patches), dtype=int)
         # get twice as many solutions for brighter directions solint (i.e. one per time step) for bright directions
@@ -527,11 +537,11 @@ for c in range(maxIter):
         #     maxProcs = 8
         # TODO use smoothness_dd_factors
         nchan_ph = round(0.195312e6 / MSs.getListObj()[0].getChanband())  # number of channels in 1 SBs
-        avg_factors = [15,5,2,1]
+        avg_factors = [8,3,1,1]
         ant_avg_factors = f"[CS*:{avg_factors[0]},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{avg_factors[1]},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{avg_factors[2]},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{avg_factors[3]}]"
         ant_smooth_factors = f"[CS*:{smMHz_factors[c][3]},[RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]:{smMHz_factors[c][2]},[RS208LBA,RS307LBA,RS406LBA,RS407LBA]:{smMHz_factors[c][1]},[RS210LBA,RS310LBA,RS409LBA,RS508LBA,RS509LBA]:{smMHz_factors[c][0]}]"
 
-        MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5 sol.solint=60 \
+        MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.h5parm=$pathMS/tec.h5 sol.solint=60\
                   sol.mode=scalarphase sol.smoothnessconstraint={max(smMHz[c])}e6 sol.smoothnessreffrequency=54e6 sol.nchan={nchan_ph}  \
                   sol.modeldatacolumns="[{",".join(patches)}]" sol.solutions_per_direction="{np.array2string(solutions_per_direction, separator=",")}" \
                   sol.antenna_averaging_factors={ant_avg_factors} sol.antenna_smoothness_factors={ant_smooth_factors} ',
@@ -543,7 +553,10 @@ for c in range(maxIter):
 
         # make sure the h5parm directions are correctly set - this should actually work automatically with DP3 -> eventually fix this in the DP3 solve call
         lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec-c{c}.h5', sourcedb)
+        
+        MSs.deletecol('CORRECTED_DATA_PRECORR') # delete intermediate column to save space
     ### DONE
+    #sys.exit()
 
     ### CORRUPT the MODEL_DATA columns for all patches
     with w.if_todo('c%02i_corrupt_iono' % c):
@@ -704,8 +717,8 @@ for c in range(maxIter):
             else:
                 logger.info('Solving amp-di (diagonal)...')
                 MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan={nchan_amp} sol.modeldatacolumns=[MODEL_DATA] \
-                     sol.mode=diagonal sol.h5parm=$pathMS/amp-di.h5 sol.solint=150 \
-                     sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
+                     sol.mode=diagonal sol.h5parm=$pathMS/amp-di.h5 sol.solint=150',# \
+                     #sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
                      log='$nameMS_diampsol.log', commandType='DP3')
 
                 lib_util.run_losoto(s, 'amp-di', [ms + '/amp-di.h5' for ms in MSs.getListStr()],

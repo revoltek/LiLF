@@ -30,8 +30,9 @@ ateam_clip = parset.get('LOFAR_timesplit', 'ateam_clip') # '' no clip
 use_GNSS = parset.getboolean('LOFAR_timesplit', 'use_GNSS')
 bl2flag = parset.get('flag','stations')
 #################################################
-cal_dir = '/iranet/groups/ulu/j.boxelaar/data/agn_vlbi/cals-pretec-new'
-use_GNSS = True
+#cal_dir = '/iranet/groups/ulu/j.boxelaar/data/agn_vlbi/cals-pretec-new'
+use_GNSS = False
+apply_fr = True
 
 # Clean
 with w.if_todo('clean'):
@@ -119,7 +120,7 @@ if use_GNSS:
         s.run()    
         os.system('cp target-gps-tec.h5 target-gps-tec-orig.h5')
         #os.system('python /homes/j.boxelaar/ulu/storage/scripts/add_dir_to_h5parm.py target-gps-tec.h5')
-        s.add("add_dir_to_h5parm.py target-gps-tec.h5", log='add_dir_to_h5parm.log', commandType='python').run()
+        #s.add("add_dir_to_h5parm.py target-gps-tec.h5", log='add_dir_to_h5parm.log', commandType='python').run()
         lib_util.run_losoto(s, 'target-gps-tec.h5', ['target-gps-tec.h5'], 
                             [parset_dir + '/losoto-plot-tec.parset'], plots_dir='plots-target-gps-tec')
     del MSs_spinifex 
@@ -137,6 +138,12 @@ with w.if_todo('apply'):
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
     logger.info('Beam correction...')
     MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM.log', commandType='DP3')
+    
+    logger.info('BP correction...')
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_bp} msin.datacolumn=CORRECTED_DATA \
+                    cor.correction=amplitudeSmooth cor.updateweights=True',
+                    log='$nameMS_corBP.log', commandType="DP3")
+    
     if use_GNSS:
         # Correct gps-tec concat_all:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('TEC correction (GPS)...')
@@ -155,10 +162,6 @@ with w.if_todo('apply'):
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_iono} msin.datacolumn=CORRECTED_DATA \
                 cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
 
-    logger.info('BP correction...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_bp} msin.datacolumn=CORRECTED_DATA \
-                    cor.correction=amplitudeSmooth cor.updateweights=True',
-                    log='$nameMS_corBP.log', commandType="DP3")
     if apply_fr:
         logger.info('FR correction...')
         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={cal_dir}/cal-fr.h5 msin.datacolumn=CORRECTED_DATA \
