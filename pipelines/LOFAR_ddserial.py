@@ -33,7 +33,6 @@ develop = parset.getboolean('LOFAR_ddserial', 'develop') # for development, make
 use_shm = parset.getboolean('LOFAR_ddserial', 'use_shm') # use shared memory for wsclean
 use_shm_ddcal = parset.getboolean('LOFAR_ddserial', 'use_shm_ddcal') # use shared memory for ddcal
 userReg = parset.get('model','userReg')
-use_shm_ddcal = False
 
 def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=6.5):
     """

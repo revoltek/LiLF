@@ -30,7 +30,7 @@ develop = parset.getboolean('LOFAR_cal', 'develop') # for development, don't del
 use_shm = parset.getboolean('LOFAR_cal', 'use_shm') # use shared memory for wsclean
 bl2flag = parset.get('flag', 'stations')
 #beam_model = parset.get('LOFAR_cal', 'beam_model')
-use_GNSS = parset.getboolean('LOFAR_cal', 'use_GNSS') # Use GNSS for pre-TEC and FR
+use_GNSS = parset.getboolean('LOFAR_cal', 'use_GNSS') # Use GNSS for pre-TEC and FR (Needs SPINIFEX update)
 #############################################################
 
 def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
@@ -318,17 +318,7 @@ with w.if_todo('pre_iono'):
         
         lib_util.run_losoto(s, 'cal-preiono.h5', ['cal-preiono.h5'], [
             parset_dir + '/losoto-reset-phases.parset', parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'], plots_dir='plots-pretec')
-        '''
-        # merge the solution with the bandpass before losoto
-        s.add('h5_merger.py --h5_out cal-preiono-merged.h5 --h5_tables cal-preiono.h5 cal-dtec.h5 --propagate_flags'
-                , log='h5_merger.log', commandType='python')
-        s.run(check=True)
-        os.system('mv cal-preiono.h5 cal-preiono-orig.h5')
-        os.system('mv cal-preiono-merged.h5 cal-preiono.h5')
-        
-        lib_util.run_losoto(s, 'preiono-merged', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
-        '''
+
         
 
 ### DONE
