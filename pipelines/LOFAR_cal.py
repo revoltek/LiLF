@@ -353,7 +353,7 @@ with w.if_todo('cal_pa'):
         s.run(check=True)
         MSs_pa = lib_ms.AllMSs(['concat_pa.MS'], s, check_flags=False)
 
-        # predict the full-corrupted model
+        # predict the full-beam-corrupted model
         logger.info(f'Add beam-corrupted model of {calname} from {os.path.basename(skymodel)} to MODEL_DATA...')
         MSs_pa.run(f"DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname} \
                   pre.usebeammodel=True, pre.beammode=full pre.beam_interval=120", log="$nameMS_pre.log", commandType="DP3")
