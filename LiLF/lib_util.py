@@ -89,6 +89,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_cal', 'develop', 'False') # if true prevents the deletion of files
     add_default('LOFAR_cal', 'use_GNSS', 'True') # Use GNSS satellite data for pre correcting TEC and FR
     add_default('LOFAR_cal', 'use_shm', 'False') # use /dev/shm for temporary files, if available
+    # add_default('LOFAR_cal', 'beam_model', 'hamaker') #
     # timesplit
     add_default('LOFAR_timesplit', 'data_dir', 'data-bkp/')
     add_default('LOFAR_timesplit', 'cal_dir', '') # by default the repository is tested, otherwise ../obsid_3[c|C]*
@@ -390,7 +391,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
     #reordering_processors = np.min([len(MSs_files_clean),s.maxProcs])
 
     # basic parms
-    wsc_parms.append( '-j '+str(s.maxProcs)+' -reorder -parallel-reordering 4 ' )
+    wsc_parms.append( '-j '+str(s.maxProcs)+' -reorder -parallel-reordering 4 -wgridder-accuracy 0.0001 ' )
     if 'use_idg' in kwargs.keys():
         if s.cluster == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
             wsc_parms.append( '-idg-mode hybrid' )

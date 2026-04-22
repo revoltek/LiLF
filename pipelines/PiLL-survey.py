@@ -3,22 +3,23 @@
 import os, sys, glob, getpass, socket, pickle, random
 from datetime import datetime
 from LiLF.surveys_db import SurveysDB
+
+#######################################################
 from LiLF import lib_util, lib_log
 logger_obj = lib_log.Logger('PiLL')
 logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('PiLL.walker')
 
-LiLF_dir = os.path.dirname(os.path.dirname(lib_util.__file__))
-
-parset = lib_util.getParset(parsetFile='lilf.config')
-
 # get parameters
 # use lilf.config (this is also used by all other scripits)
+parset = lib_util.getParset(parsetFile='lilf.config')
+logger.info('Parset: '+str(dict(parset['PiLL'])))
 working_dir = os.path.abspath(parset.get('PiLL','working_dir'))
 minmaxhrs = parset.get('PiLL','minmaxhrs').split(',')
 logfile = parset.get('PiLL','logfile')
 
+LiLF_dir = os.path.dirname(os.path.dirname(lib_util.__file__))
 caldirroot = ('/iranet/groups/ulu/fdg/surveycals/done/')
 tgtdirroot = ('/iranet/groups/ulu/fdg/surveytgts/download*/mss/')
 
@@ -83,26 +84,25 @@ with SurveysDB(survey='lba',readonly=True) as sdb:
     else:
         # get all fields with max priority
         #sdb.execute('SELECT * FROM fields WHERE status = "Downloaded" AND priority = (SELECT MAX(priority) FROM fields WHERE status = "Downloaded")')
+        mn, mx = int(minmaxhrs[0]), int(minmaxhrs[1])
+        # select all eligible fields, then pick randomly among those with the highest priority
         sdb.execute(f'''
-                    SELECT f.id
-                    FROM fields f
-                    JOIN field_obs fo ON f.id = fo.field_id
-                    WHERE f.status = "Downloaded"
-                        AND f.priority = (
-                            SELECT MAX(priority)
-                            FROM fields
-                            WHERE status = "Downloaded"
-                        )
-                    GROUP BY f.id
-                    HAVING COUNT(fo.field_id) BETWEEN {minmaxhrs[0]} AND {minmaxhrs[1]}
-                    ''')
+            SELECT f.id, f.priority
+            FROM fields f
+            JOIN field_obs fo ON f.id = fo.field_id
+            WHERE f.status = "Downloaded"
+            GROUP BY f.id, f.priority
+            HAVING COUNT(fo.field_id) BETWEEN {mn} AND {mx}
+        ''')
         r = sdb.cur.fetchall()
         if len(r) == 0:
             logger.warning('No field left in the db...')
             sys.exit()
-        
-        rndidx = random.randint(0, len(r)-1) # select a random field
-        target = r[rndidx]['id'] # here we set $target
+
+        max_prio = max(row['priority'] for row in r)
+        top = [row for row in r if row['priority'] == max_prio]
+        target = random.choice(top)['id']  # here we set $target
+
         # save target name
         with open("target.txt", "w") as file:
             print(target, file=file)
@@ -247,6 +247,7 @@ with w.if_todo('saveproducts_%s' % target):
     os.system(f'cp ddparallel/images/wideDDP-c*-MFS-image.fits {archive}')
     os.system(f'cp ddparallel/images/wide-sidelobe-MFS-image.fits {archive}')
     os.system(f'cp ddparallel/solutions/facetsP-c*.reg {archive}')
+    os.system(f'gzip ddparallel/solutions/cal-tec-c1.h5; cp ddparallel/solutions/cal-tec-c1.h5.gz {archive}')
     os.system(f'gzip ddparallel/solutions/cal-amp-di.h5; cp ddparallel/solutions/cal-amp-di.h5.gz {archive}')
     os.system(f'gzip ddparallel/solutions/cal-tec-sf-c1.h5; cp ddparallel/solutions/cal-tec-sf-c1.h5.gz {archive}')
     os.system(f'gzip ddparallel/solutions/cal-fr.h5; cp ddparallel/solutions/cal-fr.h5.gz {archive}')
