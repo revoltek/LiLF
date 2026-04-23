@@ -1,27 +1,22 @@
+import os
+import subprocess
+import multiprocessing
+from threading import Thread
+from queue import Queue
+
+from LiLF.lib_log import logger
 
 class Scheduler():
-    def __init__(self, maxProcs = None, max_cpucores = None, log_dir = 'logs', dry = False):
+    def __init__(self, max_proc = None, max_cpucores = None, log_dir = '.', dry_run = False):
         """
-        maxProcs:       max number of parallel processes
+        max_proc:       max number of parallel processes
         max_cpucores:   max number of cpu cores usable in a node
-        dry:            don't schedule job
+        dry_run:        don't schedule job
         """
-        self.hostname = socket.gethostname()
-        self.cluster = self.get_cluster()
         self.log_dir = log_dir
-        #self.qsub    = qsub
-        # if qsub/max_thread/max_cpucores not set, guess from the cluster
-        # if they are set, double check number are reasonable
-        #if (self.qsub == None):
-        #    self.qsub = False
-        #else:
-        #    if ((self.qsub is False and self.cluster == "Hamburg") or
-        #       (self.qsub is True and (self.cluster == "Leiden" or self.cluster == "CEP3" or
-        #                               self.cluster == "Hamburg_fat" or self.cluster == "Pleiadi" or self.cluster == "Herts"))):
-        #        logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
-        #        sys.exit(1)
+        self.dry_run = dry_run
 
-        if (max_cpucores == None):
+        if max_cpucores is None:
             # check if running in a slurm environment with a limited number of CPUs (less than cpu_count())
             slurm_cpus = os.getenv('SLURM_CPUS_ON_NODE', False)
             if slurm_cpus:
@@ -31,40 +26,15 @@ class Scheduler():
         else:
             self.max_cpucores = max_cpucores
 
-        if (maxProcs is None) or (maxProcs > self.max_cpucores):
-            self.maxProcs = self.max_cpucores
+        if (max_proc is None) or (max_proc > self.max_cpucores):
+            self.max_proc = self.max_cpucores
         else:
-            self.maxProcs = maxProcs
+            self.max_proc = max_proc
 
-        self.dry = dry
-
-        logger.info("Scheduler initialised for cluster " + self.cluster + ": " + self.hostname +
-                    " (maxProcs: " + str(self.maxProcs) + ", max_cpucores: " + str(self.max_cpucores) + ").")
+        logger.info(f"Scheduler initialised: max_proc={self.max_proc}, max_cpucores={self.max_cpucores}.")
 
         self.action_list = []
         self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
-
-
-    def get_cluster(self):
-        """
-        Find in which computing cluster the pipeline is running
-        """
-        hostname = self.hostname
-        if (hostname == 'lgc1' or hostname == 'lgc2'):
-            return "Hamburg"
-        elif ('r' == hostname[0] and 'c' == hostname[3] and 's' == hostname[6]):
-            return "Pleiadi"
-        elif ('node3' in hostname):
-            return "Hamburg_fat"
-        elif ('node' in hostname):
-            return "Herts"
-        elif ('leidenuniv' in hostname):
-            return "Leiden"
-        elif ('spider' in hostname):
-            return "Spider"
-        else:
-            logger.debug('Hostname %s unknown.' % hostname)
-            return "Unknown"
 
 
     def add(self, cmd = '', log = '', logAppend = True, commandType = ''):
@@ -76,28 +46,21 @@ class Scheduler():
         commandType: can be a list of known command types as "wsclean", "DP3", ...
         """
 
-        if (log != ''):
-            log = self.log_dir + '/' + log
-
-            if (logAppend):
-                cmd += " >> "
-            else:
-                cmd += " > "
-            cmd += log + " 2>&1"
+        if log:
+            log = os.path.join(self.log_dir, log)
+            redirect = '>>' if logAppend else '>'
+            cmd += f' {redirect} {log} 2>&1'
 
         if commandType == 'wsclean':
-            logger.debug('Running wsclean: %s' % cmd)
+            logger.debug(f'Running wsclean: {cmd}')
         elif commandType == 'DP3':
-            logger.debug('Running DP3: %s' % cmd)
-        #elif commandType == 'singularity':
-        #    cmd = 'SINGULARITY_TMPDIR=/dev/shm singularity exec -B /tmp,/dev/shm,/localwork,/localwork.ssd,/home /home/fdg/node31/opt/src/lofar_sksp_ddf.simg ' + cmd
-        #    logger.debug('Running singularity: %s' % cmd)
+            logger.debug(f'Running DP3: {cmd}')
         elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
-            logger.debug('Running DDFacet: %s' % cmd)
+            logger.debug(f'Running DDFacet: {cmd}')
         elif commandType == 'python':
-            logger.debug('Running python: %s' % cmd)
+            logger.debug(f'Running python: {cmd}')
         else:
-            logger.debug('Running general: %s' % cmd)
+            logger.debug(f'Running general: {cmd}')
 
         #if self.qsub:
         #    if qsub_cpucores == 'max':
@@ -113,50 +76,48 @@ class Scheduler():
         #        qsub_cpucores = self.max_cpucores
         #    self.action_list.append([str(qsub_cpucores), '\'' + cmd + '\''])
         #else:
-        self.action_list.append(cmd)
 
-        if (log != ""):
+        self.action_list.append(cmd)
+        if log:
             self.log_list.append((log, commandType))
 
 
-    def run(self, check = False, maxProcs = None):
+    def run(self, check = False, max_proc = None):
         """
         If 'check' is True, a check is done on every log in 'self.log_list'.
-        If max_thread != None, then it overrides the global values, useful for special commands that need a lower number of threads.
+        If max_proc != None, then it overrides the global values, useful for special commands that need a lower number of threads.
         """
 
         def worker(queue):
             for cmd in iter(queue.get, None):
-                #if self.qsub and self.cluster == "Hamburg":
+                #if self.qsub:
                 #    cmd = 'salloc --job-name LBApipe --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+\
                 #            ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
-                gc.collect()
                 subprocess.call(cmd, shell = True)
 
         # limit number of processes
-        if (maxProcs == None):
-            maxProcs_run = self.maxProcs
+        if max_proc is None:
+            max_proc_run = self.max_proc
         else:
-            maxProcs_run = min(maxProcs, self.maxProcs)
+            max_proc_run = min(max_proc, self.max_proc)
 
         q       = Queue()
-        threads = [Thread(target = worker, args=(q,)) for _ in range(maxProcs_run)]
+        threads = [Thread(target = worker, args=(q,)) for _ in range(max_proc_run)]
 
-        for i, t in enumerate(threads): # start workers
+        for t in threads: # start workers
             t.daemon = True
             t.start()
 
-        for action in self.action_list:
-            if (self.dry):
-                continue # don't schedule if dry run
-            q.put_nowait(action)
+        if not self.dry_run:
+            for action in self.action_list:
+                q.put_nowait(action)
         for _ in threads:
             q.put(None) # signal no more commands
         for t in threads:
             t.join()
 
         # check outcomes on logs
-        if (check):
+        if check:
             for log, commandType in self.log_list:
                 self.check_run(log, commandType)
 
@@ -172,68 +133,43 @@ class Scheduler():
         """
 
         if (not os.path.exists(log)):
-            logger.warning("No log file found to check results: " + log)
+            logger.warning(f'No log file found to check results: {log}')
             return 1
 
         if (commandType == "DP3"):
-            out = subprocess.check_output(r'grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "Aborted (core dumped)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -i -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            #out += subprocess.check_output(r'grep -i -l "already a beam correction applied" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(f'grep -L "Finishing processing" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(f'grep -El "Segmentation fault|Killed|Aborted \(core dumped\)|misspelled" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(f'grep -il "Exception" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            #out += subprocess.check_output(f'grep -i -l "already a beam correction applied" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
             # this interferes with the missingantennabehaviour=error option...
-            # out += subprocess.check_output('grep -l "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "misspelled" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            # out += subprocess.check_output(f'grep -l "error" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "CASA"):
-            out = subprocess.check_output(r'grep -l "[a-z]Error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "An error occurred running" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "\*\*\* Error \*\*\*" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(f'grep -El "[a-z]Error|An error occurred running|\*\*\* Error \*\*\*" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "wsclean"):
-            out = subprocess.check_output(r'grep -l "exception occur" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "Aborted" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "Bus error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "(core dumped)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            # out += subprocess.check_output('grep -L "Cleaning up temporary files..." '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(f'grep -El "exception occur|Segmentation fault|Killed|Aborted|Bus error|\(core dumped\)" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            # out += subprocess.check_output(f'grep -L "Cleaning up temporary files..." {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
-            out = subprocess.check_output(r'grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "exception occur" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "raise Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" ' + log + ' ; exit 0', shell=True,
-                                           stderr=subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "killed by signal" ' + log + ' ; exit 0', shell=True,
-                                           stderr=subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "Aborted" ' + log + ' ; exit 0', shell=True, stderr=subprocess.STDOUT)
+            out = subprocess.check_output(f'grep -El "Traceback \(most recent call last\):|exception occur|raise Exception|Segmentation fault|Killed|killed by signal|Aborted" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "python"):
-            out = subprocess.check_output(r'grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "Segmentation fault\|Killed" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            # out += subprocess.check_output(r'grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "ERROR" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "ImportError" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "Traceback (most recent call last)" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(r'grep -l "Permission denied" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-
-#        elif (commandType == "singularity"):
-#            out = subprocess.check_output('grep -l "Traceback (most recent call last):" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-#            out += subprocess.check_output('grep -i -l \'(?=^((?!error000).)*$).*Error.*\' '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
-#            out += subprocess.check_output('grep -i -l "Critical" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(f'grep -El "Traceback \(most recent call last\):|Segmentation fault|Killed|ImportError|Permission denied|ERROR" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(f'grep -il "Critical" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            # out += subprocess.check_output(f'grep -i -l \'(?=^((?!error000).)*$).*Error.*\' {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "general"):
-            out = subprocess.check_output('grep -l -i "error" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(f'grep -l -i "error" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         else:
-            logger.warning("Unknown command type for log checking: '" + commandType + "'")
+            logger.warning(f"Unknown command type for log checking: '{commandType}'")
             return 1
 
         if out != b'':
             out = out.split(b'\n')[0].decode()
-            logger.error(commandType+' run problem on:\n'+out)
-            errlines = subprocess.check_output('tail -n 10 '+log, shell = True, stderr = subprocess.STDOUT).decode()
-            raise RuntimeError(commandType+' run problem on:\n'+out+'\n'+errlines)
+            logger.error(f'{commandType} run problem on:\n{out}')
+            errlines = subprocess.check_output(f'tail -n 10 {log}', shell = True, stderr = subprocess.STDOUT).decode()
+            raise RuntimeError(f'{commandType} run problem on:\n{out}\n{errlines}')
 
         return 0

@@ -1,0 +1,15 @@
+#
+# THIS FILE IS FIXED, DO NOT MODIFY IT.
+#
+# RemoteStation.conf for testing and validating a station LCU
+#
+# Describes the amount of available hardware on the station.
+#
+
+RS.STATION_ID  = 0
+RS.N_RSPBOARDS = 12
+RS.N_TBBOARDS  = 6
+RS.N_LBAS      = 96
+RS.N_HBAS      = 48
+RS.HBA_SPLIT   = NO
+RS.WIDE_LBAS   = NO

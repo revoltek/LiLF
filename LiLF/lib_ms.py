@@ -32,7 +32,7 @@ class AllMSs(object):
         # sort them, useful for some concatenating steps
         if len(pathsMS) == 0:
             logger.error('Cannot find MS files.')
-            raise('Cannot find MS files.')
+            raise RuntimeError('Cannot find MS files.')
 
         self.mssListObj = []
         for pathMS in sorted(pathsMS):
@@ -45,22 +45,22 @@ class AllMSs(object):
                 self.mssListObj.append(ms)
         
         if len(self.mssListObj) == 0:
-            raise('ALL MS files flagged.')
+            raise RuntimeError('ALL MS files flagged.')
 
         # check that antenna mode and time/freq resolutions are the same for all datasets
         if check_consistency:
             antenna_modes = [ms.getAntennaSet() for ms in self.mssListObj]
             if len(set(antenna_modes)) > 1:
-                logger.error('Mixed antenna modes in AllMSs:', antenna_modes)
-                sys.exit()
+                logger.error('Mixed antenna modes in AllMSs:', set(antenna_modes))
+                raise RuntimeError('Mixed antenna modes in AllMSs')
             time_ints = [round(ms.getTimeInt()) for ms in self.mssListObj]
             if len(set(time_ints)) > 1:
-                logger.error('Mixed time intervals in AllMSs:', time_ints)
-                sys.exit()
+                logger.error('Mixed time intervals in AllMSs:', set(time_ints))
+                raise RuntimeError('Mixed time intervals in AllMSs')
             freq_chan = [ms.getNchan() for ms in self.mssListObj]
             if len(set(freq_chan)) > 1:
-                logger.error('Mixed nchan in AllMSs:', freq_chan)
-                sys.exit()
+                logger.error('Mixed nchan in AllMSs:', set(freq_chan))
+                raise RuntimeError('Mixed nchan in AllMSs')
 
         self.mssListStr = [ms.pathMS for ms in self.mssListObj]
         self.resolution = self.mssListObj[0].getResolution(check_flags=False)
@@ -87,17 +87,17 @@ class AllMSs(object):
         """
         return self.mssListStr
 
-    def getNThreads(self, maxProcs=None):
+    def getNThreads(self, max_proc=None):
         """
         Return the max number of threads per process assuming all MSs run at the same time
-        with a max parallel runs of maxProcs
+        with a max parallel runs of max_proc
         """
         NumMSs = len(self.mssListStr)
         if self.scheduler.max_cpucores < NumMSs: 
             NThreads = 1
         else:
-            if maxProcs != None:
-                Nprocs = min(maxProcs, NumMSs)
+            if max_proc != None:
+                Nprocs = min(max_proc, NumMSs)
             else:
                 Nprocs = NumMSs
 
@@ -157,7 +157,7 @@ class AllMSs(object):
         return np.mean([ms.fractionalFlag() for ms in self.getListObj()])
 
 
-    def run(self, command, log, commandType='', maxProcs=None):
+    def run(self, command, log, commandType='', max_proc=None):
         """
         Run command 'command' of type 'commandType', and use 'log' for logger,for each MS of AllMSs.
         The command and log file path can be customised for each MS using keywords (see: 'MS.concretiseString()').
@@ -165,7 +165,7 @@ class AllMSs(object):
         """
         # add max num of threads given the total jobs to run
         # e.g. in a 64 processors machine running on 16 MSs, would result in numthreads=4
-        if commandType == 'DP3': command += ' numthreads='+str(self.getNThreads(maxProcs))
+        if commandType == 'DP3': command += ' numthreads='+str(self.getNThreads(max_proc))
 
         for MSObject in self.mssListObj:
             commandCurrent = MSObject.concretiseString(command)
@@ -179,7 +179,7 @@ class AllMSs(object):
             #lib_util.printLineBold("logCurrent:")
             #print (logCurrent)
 
-        self.scheduler.run(check = True, maxProcs = maxProcs)
+        self.scheduler.run(check = True, max_proc = max_proc)
 
     def addcol(self, newcol, fromcol, usedysco='auto', log='$nameMS_addcol.log', overwrite=True):
         """
@@ -251,10 +251,10 @@ class AllMSs(object):
 
         # if multiple MSs - parallelize on MSs before adding chunks
         n_ms = len(self.getListObj())
-        maxProcs = min([n_ms, 8])
-        # possibly, we need to reduce the maxProcs for IS observations? Let's see.
+        max_proc = min([n_ms, 8])
+        # possibly, we need to reduce the max_proc for IS observations? Let's see.
         # if self.hasIS:
-        #     maxProcs = 1
+        #     max_proc = 1
 
         # calculate the "size" of a single MS (~times*freq*BL). We assume that all MSs have the same size here.
         ms_size = self.mssListObj[0].getNtime() # N_times
@@ -267,20 +267,20 @@ class AllMSs(object):
         # TODO: If this runs out of memory, we need to increase the prefactor (4) below
         chunks = 4 * ms_size / reference_size
         # if we have less than 8 threads, we can also reduce the number of chunks
-        chunks *= maxProcs/8
+        chunks *= max_proc/8
         # make sure chunks >= 1 and integer
         if chunks < 1: chunks = 1
         chunks = int(np.round(chunks))
 
-        ncpu = round(self.scheduler.max_cpucores / maxProcs)  # cpu max_proc / threads
+        ncpu = round(self.scheduler.max_cpucores / max_proc)  # cpu max_proc / threads
 
         extra_flags = ''
         if notime: extra_flags += ' -t'
         if nofreq: extra_flags += ' -q'
 
-        logger.info(f'BL-smooth: chunks={chunks}; ncpu={ncpu}; max processes={maxProcs}...')
+        logger.info(f'BL-smooth: chunks={chunks}; ncpu={ncpu}; max processes={max_proc}...')
         self.run(f'BLsmooth.py -c {chunks} -n {ncpu} -f {ionf} -r -i {incol} -o {outcol} {extra_flags} $pathMS',
-                log=f'$nameMS_{logstr}.log', commandType='python', maxProcs=maxProcs)
+                log=f'$nameMS_{logstr}.log', commandType='python', max_proc=max_proc)
 
     def print_HAcov(self, png=None):
         """
@@ -709,38 +709,30 @@ class MS(object):
         else:
             raise('Only LOFAR or GMRT implemented.')
 
-    def getAvgFactors(self, keep_IS):
+    def getAvgFactors(self, keep_IS, minfreq):
         """
         Get the time and frequency averaging factor to arrive at the standard LiLF widefield processing resolution
         depending on SPARSE/OUTER, frequency coverage and Dutch/IS.
         keep_IS: compute resolution for IS data
         """
-        nchan_per_sb = round(0.195312e6/self.getChanband())
+        nchan_per_sb = round(0.195312e6 / self.getChanband())
         logger.debug(f'nchan_per_sb: {nchan_per_sb}')
         timeint = self.getTimeInt()
-        minfreq = np.min(self.getFreqs())
-        if nchan_per_sb == 1:
-            avg_factor_f = 1
-        # elif nchan % 2 == 0 and MSs.isHBA: # case HBA
-        #    avg_factor_f = int(nchan / 4)  # to 2 ch/SB
-        elif nchan_per_sb % 8 == 0 and minfreq < 40e6:
-            avg_factor_f = int(nchan_per_sb / 8)  # to 8 ch/SB
-        elif nchan_per_sb % 8 == 0 and 'SPARSE' in self.getAntennaSet():
-            avg_factor_f = int(nchan_per_sb / 8)  # to 8 ch/SB
-        elif nchan_per_sb % 4 == 0:
-            avg_factor_f = int(nchan_per_sb / 4)  # to 4 ch/SB
-        elif nchan_per_sb % 5 == 0:
-            avg_factor_f = int(nchan_per_sb / 5)  # to 5 ch/SB
-        else:
-            logger.error('Channels should be a multiple of 4 or 5.')
-            sys.exit(1)
 
         if keep_IS:
-            avg_factor_f = int(nchan_per_sb / 32)  # to have the full FoV in LBA we need 32 ch/SB
-        if avg_factor_f < 1: avg_factor_f = 1
+            avg_factor_f = max(1, nchan_per_sb // 32)  # 32 ch/SB for full LBA FoV with IS
+        elif nchan_per_sb == 1:
+            avg_factor_f = 1
+        elif nchan_per_sb % 8 == 0 and (minfreq < 40e6 or 'ALL' in self.getAntennaSet() or 'SPARSE' in self.getAntennaSet()):
+            avg_factor_f = nchan_per_sb // 8   # to 8 ch/SB
+        elif nchan_per_sb % 4 == 0:
+            avg_factor_f = nchan_per_sb // 4   # to 4 ch/SB
+        elif nchan_per_sb % 5 == 0:
+            avg_factor_f = nchan_per_sb // 5   # to 5 ch/SB
+        else:
+            raise RuntimeError(f'nchan_per_sb={nchan_per_sb} is not a multiple of 4 or 5.')
 
-        avg_factor_t = int(np.round(2 / timeint)) if keep_IS else int(np.round(4 / timeint))  # to 4 sec (2 for IS)
-        if avg_factor_t < 1: avg_factor_t = 1
+        avg_factor_t = max(1, int(np.round(2 / timeint if keep_IS else 4 / timeint)))  # 2 s (IS) or 4 s
         return avg_factor_t, avg_factor_f
 
     def makeBeamReg(self, outfile, pb_cut=None, to_pbval=0.5, freq='mid'):

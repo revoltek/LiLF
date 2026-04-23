@@ -248,10 +248,10 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
         MSs_files_clean = MSs_files
 
     wsc_parms = []
-    #reordering_processors = np.min([len(MSs_files_clean),s.maxProcs])
+    #reordering_processors = np.min([len(MSs_files_clean),s.max_proc])
 
     # basic parms
-    wsc_parms.append( '-j '+str(s.maxProcs)+' -reorder -parallel-reordering 4 -wgridder-accuracy 0.0001 ' )
+    wsc_parms.append( '-j '+str(s.max_proc)+' -reorder -parallel-reordering 4 -wgridder-accuracy 0.0001 ' )
     if 'use_idg' in kwargs.keys():
         if s.cluster == 'Hamburg_fat' and socket.gethostname() in ['node31', 'node32', 'node33', 'node34', 'node35']:
             wsc_parms.append( '-idg-mode hybrid' )
@@ -259,9 +259,9 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
         else:
             wsc_parms.append( '-idg-mode cpu' )
             
-    # limit parallel gridding to maxProcs
-    if 'parallel_gridding' in kwargs.keys() and kwargs['parallel_gridding'] > s.maxProcs:
-            kwargs['parallel_gridding'] = s.maxProcs
+    # limit parallel gridding to max_proc
+    if 'parallel_gridding' in kwargs.keys() and kwargs['parallel_gridding'] > s.max_proc:
+            kwargs['parallel_gridding'] = s.max_proc
 
     tmp_dir = None
     if use_shm and os.access('/dev/shm/', os.W_OK) and 'temp_dir' not in kwargs:
@@ -319,7 +319,7 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
             # Test without reorder as it apperas to be faster
             # wsc_parms.insert(0, ' -reorder -parallel-reordering 4 ')
             command_string = 'wsclean -predict -padding 1.8 ' \
-                             '-j '+str(s.maxProcs)+' '+' '.join(wsc_parms)
+                             '-j '+str(s.max_proc)+' '+' '.join(wsc_parms)
             s.add(command_string, log=logfile, commandType='wsclean')
             s.run(check=True)
     finally:

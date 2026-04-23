@@ -84,3 +84,27 @@ class Walker():
     def alldone(self):
         delta = 'h '.join(str(datetime.datetime.now() - self.__globaltimeinit__).split(':')[:-1])+'m'
         logger.info('Done. Total time: '+delta)
+
+    def is_done(self, stepname):
+        """Return True when *stepname* has already been recorded as completed."""
+        with open(self.filename, 'r') as f:
+            for line in f:
+                if stepname == line.split('#')[0].rstrip():
+                    return True
+        return False
+
+    def mark_done(self, stepname, timeinit=None):
+        """Write *stepname* to the walker file, optionally recording elapsed time."""
+        with open(self.filename, 'a') as f:
+            if timeinit is not None:
+                delta_td = datetime.datetime.now() - timeinit
+                total_seconds = int(delta_td.total_seconds())
+                days, rem = divmod(total_seconds, 86400)
+                hours, rem = divmod(rem, 3600)
+                minutes, seconds = divmod(rem, 60)
+                delta = f'{days}d {hours}h {minutes}m {seconds}s'
+                f.write(f'{stepname} # {delta}\n')
+                logger.info(f'<< done << {stepname} - {delta}')
+            else:
+                f.write(f'{stepname}\n')
+                logger.info(f'<< done << {stepname}')

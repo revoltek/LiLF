@@ -1,0 +1,10 @@
+#
+# HardwareMonitor.conf for TEST
+#
+WatchRSPboards  =       1
+WatchTBboards   =       1
+WatchEnvCntrl  =  1
+closingDelay    =       2.0
+
+# IP address of Environmental Controller "10.151.x.3"
+EnvCntrl_IP    = "10.151.0.3"

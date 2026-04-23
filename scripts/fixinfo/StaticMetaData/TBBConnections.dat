@@ -1,0 +1,94 @@
+#
+# List of TBB Connections for all stations
+# Each station is connected to a single storage node
+# This table contains the mapping.
+#
+# $Id: $
+#
+# Station  Board      DestinationNode
+CS001      TBB_0      locus010
+CS002      TBB_0      locus011
+CS003      TBB_0      locus012
+CS004      TBB_0      locus013
+CS005      TBB_0      locus014
+CS006      TBB_0      locus015
+CS007      TBB_0      locus016
+CS010      TBB_0      locus017
+CS011      TBB_0      locus018
+CS012      TBB_0      locus019
+CS013      TBB_0      locus020
+CS014      TBB_0      locus021
+CS015      TBB_0      locus022
+CS016      TBB_0      locus023
+CS017      TBB_0      locus024
+CS018      TBB_0      locus025
+CS019      TBB_0      locus026
+CS020      TBB_0      locus027
+CS021      TBB_0      locus028
+CS022      TBB_0      locus029
+CS023      TBB_0      locus030
+CS024      TBB_0      locus031
+CS026      TBB_0      locus032
+CS028      TBB_0      locus033
+CS029      TBB_0      locus034
+CS030      TBB_0      locus035
+CS031      TBB_0      locus036
+CS032      TBB_0      locus037
+#
+CS101      TBB_0      locus038
+CS103      TBB_0      locus039
+CS201      TBB_0      locus040
+CS301      TBB_0      locus041
+CS302      TBB_0      locus042
+CS401      TBB_0      locus043
+CS501      TBB_0      locus044
+#
+# Remote Stations
+#
+RS104      TBB_0      locus045
+RS106      TBB_0      locus046
+RS107      TBB_0      locus047
+#
+RS205      TBB_0      locus048
+RS206      TBB_0      locus049
+RS207      TBB_0      locus050
+RS208      TBB_0      locus051
+RS210      TBB_0      locus052
+#
+RS305      TBB_0      locus082
+RS306      TBB_0      locus053
+RS307      TBB_0      locus054
+RS308      TBB_0      locus055
+RS309      TBB_0      locus056
+RS310      TBB_0      locus057
+RS311      TBB_0      locus058
+#
+RS404      TBB_0      locus059
+RS406      TBB_0      locus060
+RS407      TBB_0      locus061
+RS408      TBB_0      locus062
+RS409      TBB_0      locus063
+RS410      TBB_0      locus064
+RS411      TBB_0      locus065
+RS412      TBB_0      locus066
+RS413      TBB_0      locus067
+#
+RS503      TBB_0      locus068
+RS506      TBB_0      locus069
+RS507      TBB_0      locus070
+RS508      TBB_0      locus071
+RS509      TBB_0      locus072
+#
+# European stations
+#
+DE601      TBB_0      locus073
+DE602      TBB_0      locus074
+DE603      TBB_0      locus075
+DE604      TBB_0      locus076
+DE605      TBB_0      locus077
+FR606      TBB_0      locus078
+SE607      TBB_0      locus079
+UK608      TBB_0      locus080
+FI609      TBB_0      locus081
+# Test entries can follow here
+

@@ -1,0 +1,169 @@
+#
+# THIS FILE IS FIXED, DO NOT MODIFY IT.
+#
+# TBBDriver.conf for test and validation of LCUs
+#
+# Configuration of the TBBDriver
+#
+
+#
+# Write trigger message info to a file
+# see /opt/lofar/var/log/<date>_TRIGGER.dat
+# 
+TBBDriver.SAVE_TRIGGERS_TO_FILE=1
+
+#
+# Ethernet interface on which to contact the TBB boards.
+# This interface would normally be connected to the switch.
+#
+TBBDriver.IF_NAME=eth1
+
+#
+# Communication settings for TBB boards
+#
+TBBDriver.TP_RETRIES=3
+TBBDriver.TP_TIMEOUT=1.0
+
+#
+# Specify the MAC addresses of all TBB boards. These are the 
+# MAC addresses for the control data and are only visible
+# internal to the station. Therefore, these are equal among 
+# all stations.
+#
+TBBDriver.MAC_ADDR_0=10:FA:00:00:00:02
+TBBDriver.MAC_ADDR_1=10:FA:00:00:02:02
+TBBDriver.MAC_ADDR_2=10:FA:00:00:04:02
+TBBDriver.MAC_ADDR_3=10:FA:00:00:06:02
+TBBDriver.MAC_ADDR_4=10:FA:00:00:08:02
+TBBDriver.MAC_ADDR_5=10:FA:00:00:0A:02
+TBBDriver.MAC_ADDR_6=10:FA:00:00:0C:02
+TBBDriver.MAC_ADDR_7=10:FA:00:00:0E:02
+TBBDriver.MAC_ADDR_8=10:FA:00:00:10:02
+TBBDriver.MAC_ADDR_9=10:FA:00:00:12:02
+TBBDriver.MAC_ADDR_10=10:FA:00:00:14:02
+TBBDriver.MAC_ADDR_11=10:FA:00:00:16:02
+#
+# End of TBB-board MAC address configuration
+
+
+#
+# Destination MAC addresses configuration
+# for data output TBB boards. The data streams to 
+# the storage nodes directly, so these must
+# match the MAC addresses of CEP storage nodes.
+#
+# NOTE: These addresses are FAKE and used only for test/validation
+# purposes
+#
+TBBDriver.DST_MAC_ADDR_0 = 10:00:00:00:00:00
+TBBDriver.DST_MAC_ADDR_1 = 10:00:00:00:00:01
+TBBDriver.DST_MAC_ADDR_2 = 10:00:00:00:00:02
+TBBDriver.DST_MAC_ADDR_3 = 10:00:00:00:00:03
+TBBDriver.DST_MAC_ADDR_4 = 10:00:00:00:00:04
+TBBDriver.DST_MAC_ADDR_5 = 10:00:00:00:00:05
+TBBDriver.DST_MAC_ADDR_6 = 10:00:00:00:00:06
+TBBDriver.DST_MAC_ADDR_7 = 10:00:00:00:00:07
+TBBDriver.DST_MAC_ADDR_8 = 10:00:00:00:00:08
+TBBDriver.DST_MAC_ADDR_9 = 10:00:00:00:00:09
+TBBDriver.DST_MAC_ADDR_10= 10:00:00:00:00:0A
+TBBDriver.DST_MAC_ADDR_11= 10:00:00:00:00:0B
+#
+# End of Destination MAC address configuration
+
+#
+# Destination IP adress in UDP header for each TBB board
+# These are the IP addresses of the Storage nodes. Although
+# these are not used for routing the data, they are useful to
+# identify data packages.
+#
+# NOTE: These addresses are FAKE and used only for test/validation
+# purposes
+#
+TBBDriver.DST_IP_ADDR_0 = 10.0.0.1
+TBBDriver.DST_IP_ADDR_1 = 10.0.0.2
+TBBDriver.DST_IP_ADDR_2 = 10.0.0.3
+TBBDriver.DST_IP_ADDR_3 = 10.0.0.4
+TBBDriver.DST_IP_ADDR_4 = 10.0.0.5
+TBBDriver.DST_IP_ADDR_5 = 10.0.0.6
+TBBDriver.DST_IP_ADDR_6 = 10.0.0.7
+TBBDriver.DST_IP_ADDR_7 = 10.0.0.8
+TBBDriver.DST_IP_ADDR_8 = 10.0.0.9
+TBBDriver.DST_IP_ADDR_9 = 10.0.0.10
+TBBDriver.DST_IP_ADDR_10= 10.0.0.11
+TBBDriver.DST_IP_ADDR_11= 10.0.0.12
+#
+# End of Destination IP address configuration
+
+#
+# Source MAC addresses configuration
+# for data output TBB boards. These addresses are
+# not used for routing, but can be used to trace
+# data packets, if necessary.
+#
+# NOTE: These addresses are FAKE and used only for test/validation
+# purposes
+#
+TBBDriver.SRC_MAC_ADDR_0 = 00:22:86:00:00:20
+TBBDriver.SRC_MAC_ADDR_1 = 00:22:86:00:00:21
+TBBDriver.SRC_MAC_ADDR_2 = 00:22:86:00:00:22
+TBBDriver.SRC_MAC_ADDR_3 = 00:22:86:00:00:23
+TBBDriver.SRC_MAC_ADDR_4 = 00:22:86:00:00:24
+TBBDriver.SRC_MAC_ADDR_5 = 00:22:86:00:00:25
+TBBDriver.SRC_MAC_ADDR_6 = 00:22:86:00:00:26
+TBBDriver.SRC_MAC_ADDR_7 = 00:22:86:00:00:27
+TBBDriver.SRC_MAC_ADDR_8 = 00:22:86:00:00:28
+TBBDriver.SRC_MAC_ADDR_9 = 00:22:86:00:00:29
+TBBDriver.SRC_MAC_ADDR_10= 00:22:86:00:00:2a
+TBBDriver.SRC_MAC_ADDR_11= 00:22:86:00:00:2b
+#
+# End of Source MAC address configuration
+
+#
+# Source IP address in UDP header for each TBB board. 
+# These are the IP addresses of the data side of the TBB
+# boards. These are not used for routing, but should be
+# unique to identify data packages.
+#
+# NOTE: These addresses are FAKE and used only for test/validation
+# purposes
+#
+TBBDriver.SRC_IP_ADDR_0=10.0.0.63
+TBBDriver.SRC_IP_ADDR_0=10.0.0.64
+TBBDriver.SRC_IP_ADDR_1=10.0.0.65
+TBBDriver.SRC_IP_ADDR_2=10.0.0.66
+TBBDriver.SRC_IP_ADDR_3=10.0.0.67
+TBBDriver.SRC_IP_ADDR_4=10.0.0.68
+TBBDriver.SRC_IP_ADDR_5=10.0.0.69
+TBBDriver.SRC_IP_ADDR_6=10.0.0.70
+TBBDriver.SRC_IP_ADDR_7=10.0.0.71
+TBBDriver.SRC_IP_ADDR_8=10.0.0.72
+TBBDriver.SRC_IP_ADDR_9=10.0.0.73
+TBBDriver.SRC_IP_ADDR_10=10.0.0.74
+TBBDriver.SRC_IP_ADDR_11=10.0.0.75
+#
+# End of Source IP address configuration
+
+#
+# RCU to TBB_channel conversion for the first tbbboard
+# all other channels can be calculated with this info
+# TBB_CH = RCU_CH
+#
+TBBDriver.TBB_CH_0=8
+TBBDriver.TBB_CH_1=9
+TBBDriver.TBB_CH_2=0
+TBBDriver.TBB_CH_3=1
+TBBDriver.TBB_CH_4=10
+TBBDriver.TBB_CH_5=11
+TBBDriver.TBB_CH_6=2
+TBBDriver.TBB_CH_7=3 
+TBBDriver.TBB_CH_8=12
+TBBDriver.TBB_CH_9=13
+TBBDriver.TBB_CH_10=4
+TBBDriver.TBB_CH_11=5
+TBBDriver.TBB_CH_12=14
+TBBDriver.TBB_CH_13=15
+TBBDriver.TBB_CH_14=6
+TBBDriver.TBB_CH_15=7
+#
+# End of the conversion table
+

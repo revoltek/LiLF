@@ -97,6 +97,18 @@ class Logger():
         logger = logging.getLogger("LiLF")
         # Accept all levels here; individual handlers filter further.
         logger.setLevel(logging.DEBUG)
+        # Prevent messages from propagating to the root logger.
+        # Without this, every record is handled by our handlers AND then
+        # forwarded to the root logger which — when it has no handlers —
+        # falls back to Python's lastResort handler, producing the bare
+        # "INFO: message" duplicate lines.
+        logger.propagate = False
+
+        # Remove any handlers attached in a previous Logger() call
+        # (e.g. PiLL's top-level logger) so we don't accumulate duplicates.
+        for h in logger.handlers[:]:
+            h.close()
+        logger.handlers = []
 
         # File handler: capture everything down to DEBUG for post-mortem analysis.
         handlerFile = logging.FileHandler(logfile)
@@ -120,4 +132,4 @@ class Logger():
 # Module-level logger used by all LiLF library modules.
 # Note: Logger() must be instantiated by the pipeline entry point before
 # this logger emits any output, otherwise messages go to the root logger.
-logger = logging.getLogger("LiLF")s
+logger = logging.getLogger("LiLF")

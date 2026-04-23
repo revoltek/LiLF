@@ -1,0 +1,77 @@
+#!/usr/bin/env python
+
+import sys
+import os
+import pyrap.tables as pt
+
+
+def makeStateTable():
+    # Convert the text file to a table.
+    # The text file from Ruud had to be massaged by adding 'A A I A A A'
+    # as the second line and removing the trailing lines.
+    t1 = pt.tablefromascii ('AntennaStates.tab_tmp', 'AntennaStates.txt')
+    # Select the correct columns (ignore the dummy ones).
+    # Convert the date and time string to a proper time.
+    t2 = t1.query ('',
+                   columns='pvssname, value, mjd(\date+"/"+time) s as time, date as datestr, time as timestr')
+    # Sort on name and descending on time and make a deep copy.
+    t3 = t2.query ('', sortlist='pvssname, time desc', name='AntennaStates.tab as plain')
+    t1.close()
+    t2.close();
+    t3.close()
+    pt.tabledelete ('AntennaStates.tab_tmp')
+
+
+def fixbeam (msname, filedir):
+    # Create an empty failed tile file (failed during observation).
+    file = open(msname + '_beamtxt2', 'w')
+    file.close()
+    # Create the broken tile file (broken at start of observation).
+    file = open(msname + '_beamtxt1', 'w')
+    # Open the state table and select the times < starttime in MS.
+    t1 = pt.taql ('select from "' + filedir + '/AntennaStates.tab" where time < (select TIME-INTERVAL/2 from ' + msname + ' limit 1)[0]')
+    # Iterate on name through the result.
+    # The first entry is the last time before the start of the observation.
+    # Take it if its state > 10 (which means broken).
+    for tab in t1.iter('pvssname', sort=False):
+        if tab.getcell ('value', 0) > 10:
+            name = tab.getcell ('pvssname', 0)
+            date = tab.getcell ('datestr', 0)
+            time = tab.getcell ('timestr', 0)
+            parts = name.split('.')
+            match = False
+            if len(parts) > 4  and  len(parts[4]) > 3:
+                # parts[3] is station name; parts[4] is tile name/number
+                type = parts[4][0:3]
+                if type == "LBA"  or  type == "HBA":
+                    file.write ('%s %s %s %s\n' % (parts[3],parts[4],date,time))
+                    match = True
+            if not match  and  len(parts) > 7  and  len(parts[7]) > 3:
+                # parts[3] is station name; parts[7] is RCU name/number
+                type = parts[7][0:3]
+                if type == "RCU":
+                    file.write ('%s %s %s %s\n' % (parts[3],parts[7],date,time))
+    # Everything is done, so close all.
+    file.close()
+    t1.close()
+    # Now make the new beamtables in the MS and delete the text files.
+    os.system ('makebeamtables ms="' + msname + '" overwrite=true antennasetfile="' + filedir + '/AntennaSets.conf" antennafielddir="' + filedir + '/StaticMetaData" ihbadeltadir="' + filedir + '/StaticMetaData"')
+    os.system ('addfailedtileinfo ms="' + msname + '" BrokenTileFile="' + msname + '_beamtxt1" FailedTileFile="' + msname + '_beamtxt2"')
+    os.system ('rm -f "' + msname + '"_beamtxt[12]')
+    # Add a line to the HISTORY table telling it is done.
+    t = pt.taql ('insert into "%s/HISTORY" (TIME,OBSERVATION_ID,MESSAGE,PRIORITY,ORIGIN,APPLICATION) values (mjd(),0,"Fixed MS beamtables","NORMAL","fixbeaminfo","fixbeaminfo")' % msname)
+    t.close()
+
+
+# This is the main entry.
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print 'Incorrect number of arguments; run as:'
+        print '   fixbeaminfo ms'
+        print '      ms           MS of which the beamtables to fix'
+    if sys.argv[1] == '':
+        makeStateTable()
+    else:
+        # Get the base name of the script, which is where the data files are.
+        dname = os.path.dirname (sys.argv[0])
+        fixbeam (sys.argv[1], dname)

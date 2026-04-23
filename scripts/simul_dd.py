@@ -9,8 +9,8 @@ logger = lib_log.logger
 s = lib_util.Scheduler(log_dir = logger_obj.log_dir, dry = False)
 w = lib_util.Walker('pipeline-simul.walker')
 
-parset_dir_para = os.path.dirname(os.path.realpath(__file__))+'/../parsets/LOFAR_ddparallel'
-parset_dir_ser = os.path.dirname(os.path.realpath(__file__))+'/../parsets/LOFAR_ddserial'
+parset_dir_para = os.path.dirname(os.path.realpath(__file__))+'/../parsets/ddparallel'
+parset_dir_ser = os.path.dirname(os.path.realpath(__file__))+'/../parsets/ddserial'
 
 def main(ms, skymodel, h5parm):
     logger.info("Simulation script initialized.")
