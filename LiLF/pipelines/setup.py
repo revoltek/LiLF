@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys, os, re, glob
+import os, re, glob
 
 import lsmtool
 import numpy as np

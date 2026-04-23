@@ -1,15 +1,10 @@
 import os, sys, glob
 import socket
-import datetime
 import tempfile
 
 import numpy as np
-import multiprocessing, subprocess
-from threading import Thread
-from queue import Queue
 import pyregion
 from astropy.io import fits
-import gc
 
 # remove some annoying warnings from astropy
 import warnings

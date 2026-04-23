@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import os, glob
-import sys
 import numpy as np
 
 patch = 'VirA'

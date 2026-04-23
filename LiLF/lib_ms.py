@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import os, sys, shutil
+import os, shutil
 import numpy as np
 import pyregion
 from pyregion.parser_helper import Shape

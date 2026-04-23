@@ -4,8 +4,6 @@ import datetime
 
 from LiLF.lib_log import logger
 
-
-
 class Skip(Exception):
     pass
 
