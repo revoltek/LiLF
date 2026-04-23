@@ -2,11 +2,6 @@ import os, sys
 import numpy as np
 import mocpy
 import astropy.units as u
-try:
-    from scipy.spatial import Voronoi, voronoi_plot_2d
-except:
-    logger.error("Load latest scipy with 'use Pythonlibs'")
-    sys.exit(1)
 
 from LiLF.lib_log import logger
 

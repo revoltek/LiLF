@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import argparse, sys, glob, os
+import argparse, sys, os
 from LiLF import lib_ms, lib_util, lib_log
 import lsmtool
 
