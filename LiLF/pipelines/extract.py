@@ -111,7 +111,7 @@ def run(step):
         if empty:
             logger.info('Cleaning empty (' + str(p) + ')...')
             imagename = 'img/empty-' + str(p)
-            lib_util.run_wsclean(s, 'wscleanE-' + str(p) + '.log', MSs.getStrWsclean(), concat_mss = False, name=imagename,
+            lib_scheduler.run_wsclean(s, 'wscleanE-' + str(p) + '.log', MSs.getStrWsclean(), concat_mss = False, name=imagename,
                                  data_column='SUBTRACTED_DATA',
                                  size=imsize, scale=str(pixscale) + 'arcsec',
                                  weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0,
@@ -126,7 +126,7 @@ def run(step):
                 logger.info('Cleaning (' + str(p) + ')...')
                 imagename = 'img/extract-' + str(p)
 
-                lib_util.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename, concat_mss = False,
+                lib_scheduler.run_wsclean(s, 'wscleanA-' + str(p) + '.log', MSs.getStrWsclean(), name=imagename, concat_mss = False,
                                      size=imsize, scale=str(pixscale) + 'arcsec',
                                      weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l,
                                      mgain=0.85, parallel_deconvolution=512, auto_threshold=5, join_channels='',
@@ -182,7 +182,7 @@ def run(step):
             if fits_mask:
                 arg_dict['fits_mask'] = fits_mask
 
-            lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), concat_mss = False, name=imagenameM,
+            lib_scheduler.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), concat_mss = False, name=imagenameM,
                                  size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter,
                                  minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
                                  parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
@@ -547,9 +547,13 @@ def run(step):
                          sol.mode=scalarphase sol.solint=' + str(solint_ph) + ' sol.smoothnessconstraint=5e6 sol.smoothnessreffrequency=54e6 \
                          sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
                          log='$nameMS_solGph-c%02i.log' % c, commandType='DP3')
-                lib_util.run_losoto(s, 'ph', [ms + '/cal-ph.h5' for ms in MSs_extract.getListStr()],
-                                    [parset_dir + '/losoto-plot1.parset'],
-                                    plots_dir='extract-files/plots-%s' % c)
+                lib_scheduler.run_losoto(
+                        s,
+                        [ms + '/cal-ph.h5' for ms in MSs_extract.getListStr()],
+                        [parset_dir + '/losoto-plot1.parset'],
+                        logname='losoto-ph.log',
+                        h5_out='cal-ph.h5',
+                        plots_dir='extract-files/plots-%s' % c)
                 os.system('mv cal-ph.h5 %s' % h5ph)
 
             with w.if_todo('cor-ph-c%02i' % c):
@@ -565,9 +569,13 @@ def run(step):
                          sol.mode=tecandphase sol.solint=' + str(solint_ph) + ' sol.nchan=1 sol.smoothnessconstraint=5e6 sol.smoothnessreffrequency=54e6 \
                          sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
                          log='$nameMS_soltecandphase-c%02i.log' % c, commandType='DP3')
-                lib_util.run_losoto(s, 'ph', [ms + '/cal-ph.h5' for ms in MSs_extract.getListStr()],
-                                    [parset_dir + '/losoto-plottecandphase.parset'],
-                                    plots_dir='extract-files/plots-%s' % c)
+                lib_scheduler.run_losoto(
+                        s,
+                        [ms + '/cal-ph.h5' for ms in MSs_extract.getListStr()],
+                        [parset_dir + '/losoto-plottecandphase.parset'],
+                        logname='losoto-ph.log',
+                        h5_out='cal-ph.h5',
+                        plots_dir='extract-files/plots-%s' % c)
                 os.system('mv cal-ph.h5 %s' % h5ph)
             logger.info('tecandphase calibration...')
 
@@ -595,8 +603,13 @@ def run(step):
 
                     losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-norm.parset',
                                           parset_dir + '/losoto-plot2.parset']
-                    lib_util.run_losoto(s, 'amp1', [ms + '/cal-amp1.h5' for ms in MSs_extract.getListStr()], losoto_parsets,
-                                        plots_dir='extract-files/plots-%s' % c)
+                    lib_scheduler.run_losoto(
+                            s,
+                            [ms + '/cal-amp1.h5' for ms in MSs_extract.getListStr()],
+                            losoto_parsets,
+                            logname='losoto-amp1.log',
+                            h5_out='cal-amp1.h5',
+                            plots_dir='extract-files/plots-%s' % c)
                     os.system('mv cal-amp1.h5 %s' % h5amp1)
 
                 with w.if_todo('cor-amp1-c%02i' % c):
@@ -616,8 +629,13 @@ def run(step):
 
                     losoto_parsets = [parset_dir + '/losoto-clip2.parset', parset_dir + '/losoto-norm.parset',
                                       parset_dir + '/losoto-plot3.parset']
-                    lib_util.run_losoto(s, 'amp2', [ms + '/cal-amp2.h5' for ms in MSs_extract.getListStr()], losoto_parsets,
-                                        plots_dir='extract-files/plots-%s' % c)
+                    lib_scheduler.run_losoto(
+                            s,
+                            [ms + '/cal-amp2.h5' for ms in MSs_extract.getListStr()],
+                            losoto_parsets,
+                            logname='losoto-amp2.log',
+                            h5_out='cal-amp2.h5',
+                            plots_dir='extract-files/plots-%s' % c)
                     os.system('mv cal-amp2.h5 %s' % h5amp2)
 
                 with w.if_todo('cor-amp2-c%02i' % c):
@@ -643,8 +661,13 @@ def run(step):
                             f'sol.h5parm=$pathMS/cal-fulljones.h5 sol.mode=fulljones sol.smoothnessconstraint=5e6 sol.nchan=1 sol.solint={solint_amp2}',
                             log=f'$nameMS_solFulljones-c{c}.log', commandType="DP3")
 
-                    lib_util.run_losoto(s, 'fulljones', [ms + '/cal-fulljones.h5' for ms in MSs_extract.getListStr()], \
-                                        [parset_dir + '/losoto-fulljones.parset'], plots_dir='extract-files/plots-%s' % c)
+                    lib_scheduler.run_losoto(
+                            s,
+                            [ms + '/cal-fulljones.h5' for ms in MSs_extract.getListStr()],
+                            [parset_dir + '/losoto-fulljones.parset'],
+                            logname='losoto-fulljones.log',
+                            h5_out='cal-fulljones.h5',
+                            plots_dir='extract-files/plots-%s' % c)
                     os.system('mv cal-fulljones.h5 %s' % h5fj)
 
                 # Correct gain amp and ph CORRECTED_DATA -> CORRECTED_DATA

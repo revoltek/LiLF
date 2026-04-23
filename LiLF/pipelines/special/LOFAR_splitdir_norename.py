@@ -19,7 +19,7 @@ def test_image_dutch(MSs, imgname, data_col='SUBTRACTED_DATA'):
         logger.warning('skip image')
     else:
         """ Create a quick debug image..."""
-        lib_util.run_wsclean(s, 'wsclean-test.log', MSs.getStrWsclean(), name=f'img/{imgname}',
+        lib_scheduler.run_wsclean(s, 'wsclean-test.log', MSs.getStrWsclean(), name=f'img/{imgname}',
                              data_column=data_col, size=3000, scale=f'4arcsec',
                              weight='briggs -0.5', niter=100000, gridder='wgridder', parallel_gridding=6,
                              no_update_model_required='', minuv_l=30, maxuvw_m=max_uvw_m_dutch, mgain=0.88, nmiter=10,
@@ -33,7 +33,7 @@ def test_image_is(MSs, imgname, data_col='DATA'):
         logger.warning('skip image')
     else:
         """ Create a quick debug image..."""
-        lib_util.run_wsclean(s, 'wsclean-test.log', MSs.getStrWsclean(), name=f'img/{imgname}',
+        lib_scheduler.run_wsclean(s, 'wsclean-test.log', MSs.getStrWsclean(), name=f'img/{imgname}',
                              data_column=data_col, size=3000, scale=f'0.15arcsec',
                              weight='briggs -1.1', niter=10000, gridder='wgridder', parallel_gridding=6,
                              no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=10,
@@ -160,7 +160,7 @@ with w.if_todo('interph5'):
     s.add(f'h5_merger.py --h5_out interp_merged.h5 --h5_tables interp.h5 -ms "mss-hires/TC*.MS" --freq_av {nchan} --time_av {solint} --add_ms_stations --no_antenna_crash --propagate_flags')
     s.run(check=True)
     # logger.info('Test image (dd-corrected)...')
-    # lib_util.run_wsclean(s, 'wsclean-c.log', MSs.getStrWsclean(), name='img/dutchddcorrmerged',
+    # lib_scheduler.run_wsclean(s, 'wsclean-c.log', MSs.getStrWsclean(), name='img/dutchddcorrmerged',
     #                      data_column='CORRECTED_DATA', size=3000, scale='4arcsec',
     #                      weight='briggs -0.3', niter=100000, gridder='wgridder', parallel_gridding=32,
     #                      no_update_model_required='', minuv_l=30, nmiter=20, mgain=0.85,

@@ -108,7 +108,12 @@ with w.if_todo('calibrate'):
            	sol.flagunconverged=True sol.flagdivergedonly=True sol.solint=30 sol.nchan=8', \
                 log='$nameMS_solG.log', commandType='DP3')
 
-    lib_util.run_losoto(s, 'quick', [ms+'/quick.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms+'/quick.h5' for ms in MSs.getListStr()],
+            [parset_dir+'/losoto-plot.parset'],
+            logname='losoto-quick.log',
+            h5_out='cal-quick.h5')
 ### DONE
 
 with w.if_todo('correct'):
@@ -127,7 +132,7 @@ imagename = 'img/quick'
 with w.if_todo('imaging'):
     logger.info('Cleaning...')
     # make temp mask for cycle 0, in cycle 1 use the maske made from cycle 0 image
-    lib_util.run_wsclean(s, 'wsclean.log', MSs.getStrWsclean(), name=imagename,
+    lib_scheduler.run_wsclean(s, 'wsclean.log', MSs.getStrWsclean(), name=imagename,
                                  size=imgsizepix, scale='60arcsec',
                                  weight='briggs -0.5', niter=100000, no_update_model_required='',
                                  parallel_gridding=2, baseline_averaging='', mgain=0.85,

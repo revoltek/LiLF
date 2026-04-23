@@ -126,7 +126,7 @@ class Logger():
         logger.addHandler(handlerFile)
         logger.addHandler(handlerConsole)
 
-        logger.info('Logging initialised in %s (file: %s)' % (os.getcwd(), logfile))
+        logger.info(f'Logging initialised (file: {logfile})')
 
 
 # Module-level logger used by all LiLF library modules.

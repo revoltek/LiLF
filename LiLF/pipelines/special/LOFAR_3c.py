@@ -189,8 +189,12 @@ for c in range(100):
         MSs.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/calGp.h5 sol.mode=scalarcomplexgain \
                 sol.solint='+str(solint)+' sol.smoothnessconstraint=5e6',
                 log='$nameMS_solGp-c'+str(c)+'.log', commandType="DP3")
-        lib_util.run_losoto(s, 'Gp-c'+str(c), [ms+'/calGp.h5' for ms in MSs.getListStr()],
-                        [parset_dir+'/losoto-clip-large.parset', parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms+'/calGp.h5' for ms in MSs.getListStr()],
+                [parset_dir+'/losoto-clip-large.parset', parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot.parset'],
+                logname='losoto-' + ('Gp-c'+str(c)) + '.log',
+                h5_out='cal-' + ('Gp-c'+str(c)) + '.h5')
     
         # Correct DATA -> CORRECTED_DATA
         logger.info('Correction PH...')
@@ -208,8 +212,12 @@ for c in range(100):
             MSs.run('DP3 ' + parset_dir + '/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/calGa.h5 sol.mode=fulljones \
                     sol.solint='+str(solint)+' sol.smoothnessconstraint=2e6',
                     log='$nameMS_solGa-c'+str(c)+'.log', commandType="DP3")
-            lib_util.run_losoto(s, 'Ga-c'+str(c), [ms+'/calGa.h5' for ms in MSs.getListStr()],
-                        [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot2d-pol.parset', parset_dir+'/losoto-plot-pol.parset'])
+            lib_scheduler.run_losoto(
+                    s,
+                    [ms+'/calGa.h5' for ms in MSs.getListStr()],
+                    [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-plot2d.parset', parset_dir+'/losoto-plot2d-pol.parset', parset_dir+'/losoto-plot-pol.parset'],
+                    logname='losoto-' + ('Ga-c'+str(c)) + '.log',
+                    h5_out='cal-' + ('Ga-c'+str(c)) + '.h5')
                         #, parset_dir+'/losoto-ampnorm.parset'])
     
             # Correct CORRECTED_DATA -> CORRECTED_DATA
@@ -227,7 +235,7 @@ for c in range(100):
             # Low res image
             logger.info('Cleaning wide 1...')
             imagename = 'img/img-wide'
-            lib_util.run_wsclean(s, 'wsclean-wide.log', MSs.getStrWsclean(), name=imagename,
+            lib_scheduler.run_wsclean(s, 'wsclean-wide.log', MSs.getStrWsclean(), name=imagename,
                              parallel_gridding=4, baseline_averaging='', size=2500,
                              scale='10arcsec', weight='briggs -0.7',
                              taper_gaussian='30arcsec',
@@ -243,7 +251,7 @@ for c in range(100):
 
             logger.info('Cleaning wide 2...')
             imagenameM = 'img/img-wideM'
-            lib_util.run_wsclean(s, 'wsclean-wide.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
+            lib_scheduler.run_wsclean(s, 'wsclean-wide.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
                                  parallel_gridding=4, baseline_averaging='', size=2500, reuse_psf=imagename, reuse_dirty=imagename,
                                  scale='10arcsec', weight='briggs -0.7',
                                  taper_gaussian='30arcsec', fits_mask=maskfits,
@@ -329,7 +337,7 @@ for c in range(100):
                 # image
                 logger.info('Peel - Image...')
                 imagename_peel = 'peel-%s/img_%s' % (name, name)
-                lib_util.run_wsclean(s, 'wsclean-c%02i-peel.log' % c, MSs_shift.getStrWsclean(),
+                lib_scheduler.run_wsclean(s, 'wsclean-c%02i-peel.log' % c, MSs_shift.getStrWsclean(),
                                      do_predict=True, name=imagename_peel, size=512,
                                      parallel_gridding=4, baseline_averaging='', scale='2.5arcsec',
                                      niter=100000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0,
@@ -342,10 +350,13 @@ for c in range(100):
                         sol.h5parm=$pathMS/calGp.h5 sol.mode=scalarcomplexgain \
                         sol.solint=10 sol.smoothnessconstraint=5e6',
                         log='$nameMS_solGp-peel.log', commandType="DP3")
-                lib_util.run_losoto(s, 'Gp-peel_%s' % name,
-                                    [ms + '/calGp.h5' for ms in MSs_shift.getListStr()],
-                                    [parset_dir + '/losoto-plot2d.parset', parset_dir + '/losoto-plot.parset'],
-                                    plots_dir='peel-%s' % name)
+                lib_scheduler.run_losoto(
+                        s,
+                        [ms + '/calGp.h5' for ms in MSs_shift.getListStr()],
+                        [parset_dir + '/losoto-plot2d.parset', parset_dir + '/losoto-plot.parset'],
+                        logname='losoto-' + ('Gp-peel_%s' % name) + '.log',
+                        h5_out='cal-' + ('Gp-peel_%s' % name) + '.h5',
+                        plots_dir='peel-%s' % name)
 
                 # predict in MSs
                 logger.info('Peel - Predict final...')
@@ -413,7 +424,7 @@ for c in range(100):
 
         # if next is a "cont" then I need the do_predict
         logger.info('Cleaning shallow (cycle: '+str(c)+')...')
-        lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, name=imagename,
+        lib_scheduler.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, name=imagename,
                 parallel_gridding=4, baseline_averaging='', scale='2.5arcsec',
                 niter=1000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0,
                 auto_threshold=5, local_rms='', local_rms_method='rms-with-min',
@@ -428,7 +439,7 @@ for c in range(100):
             lib_img.blank_image_reg(maskfits, region, blankval = 1.)
 
         logger.info('Cleaning full (cycle: '+str(c)+')...')
-        lib_util.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename,
+        lib_scheduler.run_wsclean(s, 'wsclean-c%02i.log' % c, MSs.getStrWsclean(), do_predict=True, cont=True, name=imagename,
                 parallel_gridding=4, scale='2.5arcsec',
                 niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.4, nmiter=0,
                 auto_threshold=0.5, auto_mask=2., local_rms='', local_rms_method='rms-with-min', fits_mask=maskfits,
@@ -450,7 +461,7 @@ for c in range(100):
 # Low res image
 logger.info('Cleaning low-res...')
 imagename = 'img/img-low'
-lib_util.run_wsclean(s, 'wsclean-lr.log', MSs.getStrWsclean(), name=imagename, save_source_list='',
+lib_scheduler.run_wsclean(s, 'wsclean-lr.log', MSs.getStrWsclean(), name=imagename, save_source_list='',
         parallel_gridding=4, size=500, scale='10arcsec', weight='briggs -0.7', taper_gaussian='60arcsec',
         niter=1000000, no_update_model_required='', minuv_l=30, mgain=0.75, nmiter=0,
         auto_threshold=0.5, auto_mask=1, local_rms='',

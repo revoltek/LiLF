@@ -104,8 +104,12 @@ for c in range(100):
                     ' sol.antennaconstraint=[[CS001HBA0,CS001HBA1,CS002HBA0,CS002HBA1,CS003HBA0,CS003HBA1,CS004HBA0,CS004HBA1,CS005HBA0,CS005HBA1,CS006HBA0,CS006HBA1,CS007HBA0,CS007HBA1,CS011HBA0,CS011HBA1,CS013HBA0,CS013HBA1,CS017HBA0,CS017HBA1,CS021HBA0,CS021HBA1,CS024HBA0,CS024HBA1,CS026HBA0,CS026HBA1,CS028HBA0,CS028HBA1,CS030HBA0,CS030HBA1,CS031HBA0,CS031HBA1,CS032HBA0,CS032HBA1,CS101HBA0,CS101HBA1,CS103HBA0,CS103HBA1,CS201HBA0,CS201HBA1,CS301HBA0,CS301HBA1,CS302HBA0,CS302HBA1,CS401HBA0,CS401HBA1,CS501HBA0,CS501HBA1,RS106HBA,RS205HBA,RS208HBA,RS210HBA,RS305HBA,RS306HBA,RS307HBA,RS310HBA,RS406HBA,RS407HBA,RS409HBA,RS503HBA,RS508HBA,RS509HBA]]', \
                     log='$nameMS_solPA.log', commandType="DP3")
 
-            lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
-                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
+            lib_scheduler.run_losoto(
+                    s,
+                    [ms+'/pa.h5' for ms in MSs.getListStr()],
+                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'],
+                    logname='losoto-' + ('pa-c'+str(c)) + '.log',
+                    h5_out='cal-' + ('pa-c'+str(c)) + '.h5')
 
     #################################################
     # 2: find the FR and remve it
@@ -131,8 +135,12 @@ for c in range(100):
                     ' sol.antennaconstraint=[[CS001HBA0,CS001HBA1,CS002HBA0,CS002HBA1,CS003HBA0,CS003HBA1,CS004HBA0,CS004HBA1,CS005HBA0,CS005HBA1,CS006HBA0,CS006HBA1,CS007HBA0,CS007HBA1,CS011HBA0,CS011HBA1,CS013HBA0,CS013HBA1,CS017HBA0,CS017HBA1,CS021HBA0,CS021HBA1,CS024HBA0,CS024HBA1,CS026HBA0,CS026HBA1,CS028HBA0,CS028HBA1,CS030HBA0,CS030HBA1,CS031HBA0,CS031HBA1,CS032HBA0,CS032HBA1,CS101HBA0,CS101HBA1,CS103HBA0,CS103HBA1,CS201HBA0,CS201HBA1,CS301HBA0,CS301HBA1,CS302HBA0,CS302HBA1,CS401HBA0,CS401HBA1,CS501HBA0,CS501HBA1,RS106HBA,RS205HBA,RS208HBA,RS210HBA,RS305HBA,RS306HBA,RS307HBA,RS310HBA,RS406HBA,RS407HBA,RS409HBA,RS503HBA,RS508HBA,RS509HBA]]', \
                     log='$nameMS_solFR.log', commandType="DP3")
             
-        lib_util.run_losoto(s, 'fr-c'+str(c), [ms+'/fr.h5' for ms in MSs.getListStr()], \
-                    [parset_dir + '/losoto-fr.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms+'/fr.h5' for ms in MSs.getListStr()],
+                [parset_dir + '/losoto-fr.parset'],
+                logname='losoto-' + ('fr-c'+str(c)) + '.log',
+                h5_out='cal-' + ('fr-c'+str(c)) + '.h5')
 
     #####################################################
     # 3: find BANDPASS/IONO
@@ -161,7 +169,12 @@ for c in range(100):
                 ' sol.antennaconstraint=[[CS001HBA0,CS001HBA1,CS002HBA0,CS002HBA1,CS003HBA0,CS003HBA1,CS004HBA0,CS004HBA1,CS005HBA0,CS005HBA1,CS006HBA0,CS006HBA1,CS007HBA0,CS007HBA1,CS011HBA0,CS011HBA1,CS013HBA0,CS013HBA1,CS017HBA0,CS017HBA1,CS021HBA0,CS021HBA1,CS024HBA0,CS024HBA1,CS026HBA0,CS026HBA1,CS028HBA0,CS028HBA1,CS030HBA0,CS030HBA1,CS031HBA0,CS031HBA1,CS032HBA0,CS032HBA1,CS101HBA0,CS101HBA1,CS103HBA0,CS103HBA1,CS201HBA0,CS201HBA1,CS301HBA0,CS301HBA1,CS302HBA0,CS302HBA1,CS401HBA0,CS401HBA1,CS501HBA0,CS501HBA1,RS106HBA,RS205HBA,RS208HBA,RS210HBA,RS305HBA,RS306HBA,RS307HBA,RS310HBA,RS406HBA,RS407HBA,RS409HBA,RS503HBA,RS508HBA,RS509HBA]]', \
                 log='$nameMS_solIONO.log', commandType="DP3")
     
-        lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-ph-nopol.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms+'/iono.h5' for ms in MSs.getListStr()],
+                [parset_dir+'/losoto-plot-ph-nopol.parset'],
+                logname='losoto-' + ('iono-c'+str(c)) + '.log',
+                h5_out='cal-' + ('iono-c'+str(c)) + '.h5')
     
         # Correct all CORRECTED_DATA -> CORRECTED_DATA
         logger.info('IONO correction...')
@@ -175,8 +188,12 @@ for c in range(100):
                 sol.antennaconstraint=[[CS001HBA0,CS001HBA1,CS002HBA0,CS002HBA1,CS003HBA0,CS003HBA1,CS004HBA0,CS004HBA1,CS005HBA0,CS005HBA1,CS006HBA0,CS006HBA1,CS007HBA0,CS007HBA1,CS011HBA0,CS011HBA1,CS013HBA0,CS013HBA1,CS017HBA0,CS017HBA1,CS021HBA0,CS021HBA1,CS024HBA0,CS024HBA1,CS026HBA0,CS026HBA1,CS028HBA0,CS028HBA1,CS030HBA0,CS030HBA1,CS031HBA0,CS031HBA1,CS032HBA0,CS032HBA1,CS101HBA0,CS101HBA1,CS103HBA0,CS103HBA1,CS201HBA0,CS201HBA1,CS301HBA0,CS301HBA1,CS302HBA0,CS302HBA1,CS401HBA0,CS401HBA1,CS501HBA0,CS501HBA1,RS106HBA,RS205HBA,RS208HBA,RS210HBA,RS305HBA,RS306HBA,RS307HBA,RS310HBA,RS406HBA,RS407HBA,RS409HBA,RS503HBA,RS508HBA,RS509HBA]]', \
                 log='$nameMS_solBP3.log', commandType="DP3")
         
-        lib_util.run_losoto(s, 'bp-c'+str(c), [ms+'/bp.h5' for ms in MSs.getListStr()], \
-                [parset_dir+'/losoto-plot-amp-nopol.parset',parset_dir+'/losoto-plot-ph-nopol.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms+'/bp.h5' for ms in MSs.getListStr()],
+                [parset_dir+'/losoto-plot-amp-nopol.parset',parset_dir+'/losoto-plot-ph-nopol.parset'],
+                logname='losoto-' + ('bp-c'+str(c)) + '.log',
+                h5_out='cal-' + ('bp-c'+str(c)) + '.h5')
     
         # Correct BP CORRECTED_DATA -> CORRECTED_DATA
         logger.info('BP correction...')
@@ -187,7 +204,7 @@ for c in range(100):
         logger.info('Cleaning (cycle %02i)...' % c)
         imagename = 'img/img-c%02i' % c
         
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=6, minuv_l=175, \
+        lib_scheduler.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, no_update_model_required='', baseline_averaging=6, minuv_l=175, \
                     reorder='', parallel_reordering=4, gridder='wgridder', size=1600, scale='0.1arcsec', padding=1.6, \
                     weight='briggs -1', niter=1000000, nmiter=100, mgain=0.85, \
                     multiscale='', multiscale_scales='0,5,10,20,40,80,160,320', \
@@ -211,7 +228,7 @@ for c in range(100):
 #
 #        logger.info('Cleaning wide (cycle %i)...' % c)
 #        imagename = 'img/imgsub-c'+str(c)
-#        lib_util.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
+#        lib_scheduler.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
 #                weight='briggs 0.4', taper_gaussian='100arcsec', niter=10000, no_update_model_required='', mgain=0.85, \
 #                baseline_averaging=5, deconvolution_channels=4, \
 #                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16)

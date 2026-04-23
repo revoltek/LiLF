@@ -77,7 +77,7 @@ def run(step):
 
             logger.info('Cleaning empty ('+str(p)+')...')
             imagename = 'img/empty-'+str(p)
-            lib_util.run_wsclean(s, 'wscleanE-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, data_column='SUBTRACTED_DATA',
+            lib_scheduler.run_wsclean(s, 'wscleanE-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, data_column='SUBTRACTED_DATA',
                     size=imsize, scale=str(localpixscale)+'arcsec',
                     weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0,
                     baseline_averaging='')
@@ -86,7 +86,7 @@ def run(step):
             # clean 1
             logger.info('Cleaning ('+str(p)+')...')
             imagename = 'img/ddserial-'+str(p)
-            lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename,
+            lib_scheduler.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename,
                     size=imsize, scale=str(localpixscale)+'arcsec',
                     weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                     baseline_averaging='', parallel_deconvolution=512, auto_threshold=5, parallel_gridding=ch_out,
@@ -107,7 +107,7 @@ def run(step):
             # No beam correction as it is already applied when splitting the mss-dir
             logger.info('Cleaning w/ mask ('+str(p)+')...')
             imagenameM = 'img/ddserialM-'+str(p)
-            lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True, parallel_gridding=ch_out,
+            lib_scheduler.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True, parallel_gridding=ch_out,
                     size=imsize, save_source_list='', scale=str(localpixscale)+'arcsec', reuse_psf=imagename, reuse_dirty=imagename,
                     weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                     multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', 
@@ -398,7 +398,7 @@ def run(step):
                 clean(f'init-{cmaj}', MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
             imagenameEMPTY = 'img/wideDebug-empty-init'
             logger.info('Cleaning (empty with no sols image for debug)...')
-            lib_util.run_wsclean(s, 'wscleanEMPTY-c' + str(cmaj) + '.log', MSs.getStrWsclean(), name=imagenameEMPTY,
+            lib_scheduler.run_wsclean(s, 'wscleanEMPTY-c' + str(cmaj) + '.log', MSs.getStrWsclean(), name=imagenameEMPTY,
                                  data_column='SUBTRACTED_DATA',
                                  size=imgsizepix, scale=str(pixscale) + 'arcsec', weight='briggs -0.5', niter=1,
                                  gridder='wgridder',
@@ -582,8 +582,13 @@ def run(step):
                                 sol.solutions_per_direction=[{solint_ph_short}] sol.antenna_averaging_factors={ant_avg_factors} sol.antenna_smoothness_factors={ant_smooth_factors}',
                                 log='$nameMS_solGph-'+logstringcal+'.log', commandType='DP3')
                 
-                    lib_util.run_losoto(s, 'ph-ddserial', [ms+'/cal-ph-ddserial.h5' for ms in MSs_dir.getListStr()],
-                                        [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-ph.parset'], plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                    lib_scheduler.run_losoto(
+                            s,
+                            [ms+'/cal-ph-ddserial.h5' for ms in MSs_dir.getListStr()],
+                            [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-ph.parset'],
+                            logname='losoto-ph-ddserial.log',
+                            h5_out='cal-ph-ddserial.h5',
+                            plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-ph-ddserial.h5 %s' % d.get_h5parm('ph-ddserial'))
 
                     # correct ph - ms:DATA -> ms:CORRECTED_DATA
@@ -606,8 +611,13 @@ def run(step):
                             losoto_parsets = [parset_dir+'/losoto-clip-strict.parset', parset_dir+'/losoto-plot-amp1.parset']
                         else:
                             losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
-                        lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
-                            plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                        lib_scheduler.run_losoto(
+                                s,
+                                [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()],
+                                losoto_parsets,
+                                logname='losoto-amp1.log',
+                                h5_out='cal-amp1.h5',
+                                plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                         os.system('mv cal-amp1.h5 %s' % d.get_h5parm('amp1'))
 
                         logger.info('Correct amp 1...')
@@ -633,8 +643,13 @@ def run(step):
                         # ugly workaround to remove broken losoto plots in case of only 1 solution in time is present
                         if ((len(MSs_dir.getListObj()) == 1) and (solint_amp2 >= MSs_dir.getListObj()[0].getNtime())): losoto_parsets.pop()
 
-                        lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
-                            plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                        lib_scheduler.run_losoto(
+                                s,
+                                [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()],
+                                losoto_parsets,
+                                logname='losoto-amp2.log',
+                                h5_out='cal-amp2.h5',
+                                plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                         os.system('mv cal-amp2.h5 %s' % d.get_h5parm('amp2'))
 
                         logger.info('Correct amp 2...')
@@ -769,9 +784,13 @@ def run(step):
                            --no_antenna_crash --min_distance 0.00027', log='h5_merger.log', commandType='python')
                     s.run(check=True)
                     # plot the merged h5parm for debug
-                    lib_util.run_losoto(s, 'ph1', d.get_h5parm('ph1', -2),
-                                        [f'{parset_dir}/losoto-plot-ph1.parset'],
-                                        plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstring))
+                    lib_scheduler.run_losoto(
+                            s,
+                            [d.get_h5parm('ph1', -2)],
+                            [f'{parset_dir}/losoto-plot-ph1.parset'],
+                            logname='losoto-ph1.log',
+                            h5_out='cal-ph1.h5',
+                            plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstring))
                     lib_util.check_rm('cal-ph1.h5') # remove the h5parm copied by losoto
 
                 # remove the DD-cal from original dataset using new solutions
@@ -975,7 +994,7 @@ def run(step):
 
             # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
             logger.info('Cleaning...')
-            lib_util.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA',
+            lib_scheduler.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA',
                     size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
                     parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
                     channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
@@ -1011,8 +1030,14 @@ def run(step):
         MSs.run('DP3 '+ parset_dir + f'/DP3-solGfj.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-leak.h5 \
             sol.solint={int(MSs.getListObj()[0].getNtime()/2)} sol.nchan=1 sol.smoothnessconstraint=3e6',
             log='$nameMS_sol_leak.log', commandType='DP3')
-        lib_util.run_losoto(s, 'leak', [ms+'/cal-leak.h5' for ms in MSs.getListStr()],
-                            [parset_dir+'/losoto-plot-fullj.parset'], plots_dir='ddserial/c00/plots/plots-leak', h5_dir = 'ddserial/c00/solutions')
+        lib_scheduler.run_losoto(
+                s,
+                [ms+'/cal-leak.h5' for ms in MSs.getListStr()],
+                [parset_dir+'/losoto-plot-fullj.parset'],
+                logname='losoto-leak.log',
+                h5_out='cal-leak.h5',
+                plots_dir='ddserial/c00/plots/plots-leak',
+                h5_dir = 'ddserial/c00/solutions')
         for ms in MSs.getListStr():
             lib_util.check_rm(ms + '/cal-leak.h5')  # remove the h5parm copied by losoto
 
@@ -1045,7 +1070,7 @@ def run(step):
         logger.info('Cleaning (time dep images)...')
         for tc, msfile in enumerate(MSs_lres.getListStr()):
             imagenameT = 'img/wideDDS-TC%02i-c%01i' % (tc, cmaj)
-            lib_util.run_wsclean(s, 'wscleanTC'+str(tc)+'-c'+str(cmaj)+'.log', msfile, concat_mss=False, use_shm=use_shm, name=imagenameT, data_column='DATA',
+            lib_scheduler.run_wsclean(s, 'wscleanTC'+str(tc)+'-c'+str(cmaj)+'.log', msfile, concat_mss=False, use_shm=use_shm, name=imagenameT, data_column='DATA',
                     size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', taper_gaussian='40arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
                     parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                     channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
@@ -1060,7 +1085,7 @@ def run(step):
     with w.if_todo('output-lres'):
         imagenameL = f'img/wideDDS-lres-c{cmaj}'
         logger.info('Cleaning (low res)...')
-        lib_util.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameL, data_column='DATA',
+        lib_scheduler.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameL, data_column='DATA',
                     size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='40arcsec', niter=1000000, gridder='wgridder',
                     parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=20, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                     channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
@@ -1075,7 +1100,7 @@ def run(step):
     with w.if_todo('output-vstokes-leakcal'):
        imagenameV = f'img/wideDDS-leak-c{cmaj}'
        logger.info('Cleaning (lres I+V leakage-corrected)...')
-       lib_util.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
+       lib_scheduler.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
                    taper_gaussian='40arcsec', weight='briggs 0', niter=100000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=20, mgain=0.85, parallel_deconvolution=512,
                    auto_threshold=2.0, auto_mask=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                    pol='IQUV', join_polarizations = '', apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
@@ -1092,7 +1117,7 @@ def run(step):
 
         imagenameLS = f'img/wideDDS-lressub-c{cmaj}'
         logger.info('Cleaning (low res sub)...')
-        lib_util.run_wsclean(s, 'wscleanLRS-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameLS, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
+        lib_scheduler.run_wsclean(s, 'wscleanLRS-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameLS, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
                     weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=len(h5parms['ph'])*ch_out, no_update_model_required='', minuv_l=20, mgain=0.85, parallel_deconvolution=512,
                     auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                     multiscale='', multiscale_scale_bias=0.65, pol='i', taper_gaussian='40arcsec',
@@ -1104,7 +1129,7 @@ def run(step):
     with w.if_todo('output-debugempty'):
         imagenameEMPTY = f'img/wideDebug-empty-c{cmaj}'
         logger.info('Cleaning (empty with no sols image for debug)...')
-        lib_util.run_wsclean(s, 'wscleanEMPTY-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagenameEMPTY, data_column='SUBTRACTED_DATA',
+        lib_scheduler.run_wsclean(s, 'wscleanEMPTY-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagenameEMPTY, data_column='SUBTRACTED_DATA',
                     size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1, gridder='wgridder',
                     parallel_gridding=ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
                     channels_out=str(ch_out), deconvolution_channels=3, pol='i',

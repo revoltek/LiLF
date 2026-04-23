@@ -57,10 +57,14 @@ def solve_and_apply(MSs_object, suffix, sol_factor_t=1, sol_factor_f=1, column_i
                       f'sol.uvlambdamin={uvlambdamin} sol.usemodelcolumn=True',
                       log=f'$nameMS_sol_iono-{suffix}.log', commandType="DP3")
 
-        lib_util.run_losoto(s, f'iono-{suffix}', [ms + '/iono.h5' for ms in MSs_object.getListStr()], \
-                            [   parset_dir + '/losoto-flag.parset',
+        lib_scheduler.run_losoto(
+                s,
+                [ms + '/iono.h5' for ms in MSs_object.getListStr()],
+                [   parset_dir + '/losoto-flag.parset',
                                 parset_dir + '/losoto-plot-scalaramp.parset',
-                                parset_dir + '/losoto-plot-scalarph.parset'])
+                                parset_dir + '/losoto-plot-scalarph.parset'],
+                logname=f'losoto-iono-{suffix}.log',
+                h5_out=f'cal-iono-{suffix}.h5')
 
         move(f'cal-iono-{suffix}.h5', 'peel/solutions/')
         move(f'plots-iono-{suffix}', 'peel/plots/')
@@ -81,8 +85,12 @@ def solve_and_apply(MSs_object, suffix, sol_factor_t=1, sol_factor_f=1, column_i
                       f'sol.usemodelcolumn=True', log=f'$nameMS_sol_fulljones-{suffix}.log',
                       commandType="DP3")
 
-        lib_util.run_losoto(s, f'fulljones-{suffix}', [ms + '/fulljones.h5' for ms in MSs_object.getListStr()], \
-                            [  parset_dir + '/losoto-plot-fulljones.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms + '/fulljones.h5' for ms in MSs_object.getListStr()],
+                [  parset_dir + '/losoto-plot-fulljones.parset'],
+                logname=f'losoto-fulljones-{suffix}.log',
+                h5_out=f'cal-fulljones-{suffix}.h5')
         move(f'cal-fulljones-{suffix}.h5', 'peel/solutions/')
         move(f'plots-fulljones-{suffix}', 'peel/plots/')
 
@@ -135,7 +143,7 @@ def corrupt_subtract_testimage(MSs_object, suffix, sol_suffix=None, column_in='D
 
     with w.if_todo(f'test-image-empty-{suffix}'):
         logger.info('Test empty... (SUBTRACTED_DATA)')
-        lib_util.run_wsclean(s, f'wsclean-peel.log', MSs_object.getStrWsclean(), weight='briggs -0.5',
+        lib_scheduler.run_wsclean(s, f'wsclean-peel.log', MSs_object.getStrWsclean(), weight='briggs -0.5',
                              data_column='SUBTRACTED_DATA', channels_out=3,
                              name='img/test-empty-' + suffix, scale='2.0arcsec', size=2000, niter=0, nmiter=0,
                              no_update_model_required='', minuv_l=uvlambdamin)
@@ -215,7 +223,7 @@ def do_testimage(MSs_files, datacolumn='CORRECTED_DATA2'):
         if not os.path.exists(basemask):
             logger.info('Create masks...')
             # dummy clean to get image -> mask
-            lib_util.run_wsclean(s, 'wsclean-mask-corrected.log', MSs_files.getStrWsclean(), niter=0, channel_range='0 1', no_reorder='',
+            lib_scheduler.run_wsclean(s, 'wsclean-mask-corrected.log', MSs_files.getStrWsclean(), niter=0, channel_range='0 1', no_reorder='',
                                  interval='0 10', name=imagename, scale=wsclean_params['scale'], size=wsclean_params['size'], nmiter=0)
             # create basemask
             copy2(f'{parset_dir}/masks/VirAhba.reg', f'{peelReg.filename}')
@@ -223,7 +231,7 @@ def do_testimage(MSs_files, datacolumn='CORRECTED_DATA2'):
             lib_img.blank_image_reg(basemask, peelReg.filename, inverse=True, blankval=0.)
             lib_img.blank_image_reg(basemask, peelReg.filename, inverse=False, blankval=1.)
             logger.info('Cleaning corrected...')
-            lib_util.run_wsclean(s, f'wsclean-corrected.log', MSs_files.getStrWsclean(), niter=1000000,
+            lib_scheduler.run_wsclean(s, f'wsclean-corrected.log', MSs_files.getStrWsclean(), niter=1000000,
                                  multiscale_scales='0,20,40,80,160,320', fits_mask=basemask, **wsclean_params)
             os.system(f'cat logs/wsclean-corrected.log | grep "background noise"')
 
@@ -416,7 +424,7 @@ if 1/3600 < pointing_distance: # CASE 1 -> model and MS not aligned, peel
     if not os.path.exists(peelMask):
         logger.info('Create mask...')
         # dummy clean to get image -> mask
-        lib_util.run_wsclean(s, 'wsclean-mask.log', MSs_shiftavg.getStrWsclean(), niter=0, channel_range='0 1',
+        lib_scheduler.run_wsclean(s, 'wsclean-mask.log', MSs_shiftavg.getStrWsclean(), niter=0, channel_range='0 1',
                              no_reorder='', interval='0 10', name='img/mask', scale=pixscale, size=imgsize, nmiter=0)
         # create peelMask
         copy2(f'img/mask-dirty.fits', f'{peelMask}')
@@ -443,7 +451,7 @@ if 1/3600 < pointing_distance: # CASE 1 -> model and MS not aligned, peel
 #     if not os.path.exists(peelMask):
 #         logger.info('Create mask...')
 #         # dummy clean to get image -> mask
-#         lib_util.run_wsclean(s, 'wsclean-mask.log', MSs.getStrWsclean(), niter=0, channel_range='0 1',
+#         lib_scheduler.run_wsclean(s, 'wsclean-mask.log', MSs.getStrWsclean(), niter=0, channel_range='0 1',
 #                              no_reorder='', interval='0 10', name='img/mask', scale=pixscale, size=imgsize, nmiter=0)
 #         # create peelMask
 #         copy2(f'img/mask-dirty.fits', f'{peelMask}')
@@ -568,7 +576,7 @@ with w.if_todo('peel-corrbeam'):
 #             f'sol.h5parm=$pathMS/di.h5 sol.mode=scalarphase sol.uvlambdamin={uvlambdamin} sol.sourcedb=$pathMS/field.skydb',
 #             log='$nameMS_sol_di.log', commandType="DP3")
 #
-#         lib_util.run_losoto(s, f'di', [ms + '/di.h5' for ms in MSs_peel.getListStr()], \
+#         lib_scheduler.run_losoto(s, f'di', [ms + '/di.h5' for ms in MSs_peel.getListStr()], \
 #                             [ # parset_dir+'/losoto-flag.parset',
 #                               # parset_dir + '/losoto-plot-scalaramp.parset',
 #                               parset_dir + '/losoto-plot-scalarph.parset'])
@@ -584,7 +592,7 @@ with w.if_todo('peel-corrbeam'):
 #
 with w.if_todo(f'test-image-wide'):
     logger.info('Cleaning wide...') # IMAGING - either on DATA or if present, CORRECTED_DATA
-    lib_util.run_wsclean(s, f'wsclean-wide.log', MSs_peel.getStrWsclean(), weight='briggs -0.0',
+    lib_scheduler.run_wsclean(s, f'wsclean-wide.log', MSs_peel.getStrWsclean(), weight='briggs -0.0',
                          name='img/peel-wide',  parallel_deconvolution=1024, scale='4.0arcsec', size=5000, niter=500000,
                          nmiter=8, minuv_l=uvlambdamin, channels_out=3, join_channels='',  mgain=0.9, auto_threshold=1.0, auto_mask=4.0,
                          no_update_model_required='', do_predict=False, local_rms='')

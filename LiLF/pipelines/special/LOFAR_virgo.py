@@ -217,10 +217,14 @@ for c in range(100):
                 f'sol.h5parm=$pathMS/iono.h5 sol.mode=scalarcomplexgain sol.nchan=1 sol.solint=1 sol.smoothnessconstraint=1e6 '
                 f'sol.uvlambdamin={uvlambdamin_sol}', log=f'$nameMS_sol_iono-c{c:02}.log', commandType="DP3")
 
-        lib_util.run_losoto(s, f'iono-c{c:02}', [ms + '/iono.h5' for ms in MSs.getListStr()], \
-                            [#parset_dir + '/losoto-flag.parset', # disabled to not flag too much in many iterations...
+        lib_scheduler.run_losoto(
+                s,
+                [ms + '/iono.h5' for ms in MSs.getListStr()],
+                [#parset_dir + '/losoto-flag.parset', # disabled to not flag too much in many iterations...
                              parset_dir + '/losoto-plot-scalaramp.parset',
-                             parset_dir + '/losoto-plot-scalarph.parset'])
+                             parset_dir + '/losoto-plot-scalarph.parset'],
+                logname=f'losoto-iono-c{c:02}.log',
+                h5_out=f'cal-iono-c{c:02}.h5')
         move(f'cal-iono-c{c:02}.h5', 'self/solutions/')
         move(f'plots-iono-c{c:02}', 'self/plots/')
 
@@ -239,8 +243,12 @@ for c in range(100):
                 f'sol.uvlambdamin={uvlambdamin_sol}', log=f'$nameMS_sol_fulljones-c{c}.log',
                 commandType="DP3")
 
-        lib_util.run_losoto(s, f'fulljones-c{c:02}', [ms + '/fulljones.h5' for ms in MSs.getListStr()], \
-                            [parset_dir + '/losoto-fulljones.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms + '/fulljones.h5' for ms in MSs.getListStr()],
+                [parset_dir + '/losoto-fulljones.parset'],
+                logname=f'losoto-fulljones-c{c:02}.log',
+                h5_out=f'cal-fulljones-c{c:02}.h5')
 
         move(f'cal-fulljones-c{c:02}.h5', 'self/solutions/')
         move(f'plots-fulljones-c{c:02}', 'self/plots/')
@@ -300,7 +308,7 @@ for c in range(100):
         if not os.path.exists(basemask) or not os.path.exists(basemaskC):
             logger.info('Create masks...')
             # dummy clean to get image -> mask
-            lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSs.getStrWsclean(), niter=0, channel_range='0 1', no_reorder='',
+            lib_scheduler.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSs.getStrWsclean(), niter=0, channel_range='0 1', no_reorder='',
                                  interval='0 10', name=imagename, scale=wsclean_params['scale'], size=wsclean_params['size'], nmiter=0)
             # create basemask
             copy2(f'{parset_dir}/masks/VirAhba.reg', f'{baseregion}')
@@ -316,13 +324,13 @@ for c in range(100):
 
         if not is_IS:
             logger.info('Cleaning...')
-            lib_util.run_wsclean(s, f'wsclean-c{c}.log', MSs.getStrWsclean(), niter=1000000,
+            lib_scheduler.run_wsclean(s, f'wsclean-c{c}.log', MSs.getStrWsclean(), niter=1000000,
                                  multiscale_scales='0,10,17,30,50,80,140,200,340', fits_mask=basemask, **wsclean_params)
             os.system(f'cat logs/wsclean-c{c}.log | grep "background noise"')
         else: # International LOFAR Telescope
             logger.info('Cleaning...')
             wsclean_params['mgain'] = 0.5
-            lib_util.run_wsclean(s, f'wsclean-c{c}.log', MSs.getStrWsclean(), niter=1000000,
+            lib_scheduler.run_wsclean(s, f'wsclean-c{c}.log', MSs.getStrWsclean(), niter=1000000,
                                  auto_mask= 3.0, fits_mask=basemask, multiscale_scales='0,10,20,40,80,160,320', mem=95,
                                  taper_gaussian='0.8asec', maxuv_l=250000,
                                   **wsclean_params) # taper_gaussian='2.0asec', # 250000 should be a 0.8asec or so
@@ -337,7 +345,7 @@ for c in range(100):
     #         MSs.run('taql "UPDATE $pathMS SET SUBTRACTED_DATA = CORRECTED_DATA-MODEL_DATA"', log='$nameMS_taql_subtract.log', commandType='general')
     #
     #         logger.info('Cleaning Virgo A subtracted wide-field image...')
-    #         lib_util.run_wsclean(s, f'wsclean-wide-c{c}.log', MSs.getStrWsclean(), weight='briggs -0.5', data_column='SUBTRACTED_DATA',
+    #         lib_scheduler.run_wsclean(s, f'wsclean-wide-c{c}.log', MSs.getStrWsclean(), weight='briggs -0.5', data_column='SUBTRACTED_DATA',
     #                              name=imagename+'-wide', parallel_deconvolution=1024, scale='2.0arcsec', size=9000, niter=500000,
     #                              join_channels='', channels_out=6, nmiter=15, fit_spectral_pol=3, minuv_l=uvlambdamin, multiscale='', multiscale_max_scales=5,
     #                              mgain=0.85, auto_threshold=1.0, auto_mask=4.0, baseline_averaging='', no_update_model_required='', do_predict=True, local_rms='',
@@ -347,7 +355,7 @@ for c in range(100):
 
             # logger.info('Cleaning Virgo A subtracted low-res wide-field image...')
             # TODO eventuall 5arcsec lowrs
-            # lib_util.run_wsclean(s, f'wsclean-wide-lr-c{c}.log', MSs.getStrWsclean(), weight='briggs -0.5', taper_gaussian='30arcsec', data_column='SUBTRACTED_DATA',
+            # lib_scheduler.run_wsclean(s, f'wsclean-wide-lr-c{c}.log', MSs.getStrWsclean(), weight='briggs -0.5', taper_gaussian='30arcsec', data_column='SUBTRACTED_DATA',
             #                      name=imagename+'-wide-lr', parallel_deconvolution=2048, scale='6.0arcsec', size=3000, niter=500000,
             #                      join_channels='', channels_out=6, fit_spectral_pol=3, minuv_l=uvlambdamin, multiscale='', multiscale_max_scales=5,
             #                      mgain=0.85, auto_threshold=1.0, auto_mask=3.0, baseline_averaging='', no_update_model_required='')
@@ -366,7 +374,7 @@ for c in range(100):
             # logger.info('Set SUBTRACTED_DATA = SUBTRACTED_DATA - MODEL_DATA')
             # MSs.run('taql "UPDATE $pathMS SET SUBTRACTED_DATA = SUBTRACTED_DATA-MODEL_DATA"', log='$nameMS_taql_subtract_empty.log',
             #         commandType='general')
-            # lib_util.run_wsclean(s, f'wsclean-empty-c{c}.log', MSs.getStrWsclean(), weight='briggs -0.5', data_column='SUBTRACTED_DATA',
+            # lib_scheduler.run_wsclean(s, f'wsclean-empty-c{c}.log', MSs.getStrWsclean(), weight='briggs -0.5', data_column='SUBTRACTED_DATA',
             #                      name=imagename+'-empty', scale='2.0arcsec', size=7200, minuv_l=uvlambdamin, no_update_model_required='')
 
             # logger.info('Corrupt widefield MODEL_DATA...')
@@ -418,7 +426,7 @@ logger.info("Done.")
 #         if not os.path.exists(basemask) or not os.path.exists(basemaskC):
 #             logger.info('Create masks...')
 #             # dummy clean to get image -> mask
-#             lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSs.getStrWsclean(), niter=0, channel_range='0 1',
+#             lib_scheduler.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSs.getStrWsclean(), niter=0, channel_range='0 1',
 #                                  interval='0 10', name=imagename, scale=wsclean_params['scale'], size=wsclean_params['size'], nmiter=0)
 #             # create basemask
 #             copy2(f'{parset_dir}/masks/VirAhba.reg', f'{baseregion}')
@@ -449,7 +457,7 @@ logger.info("Done.")
 #                 # Clean delta scale on cocoon
 #                 with w.if_todo(f'imaging_cocoon_c{c:02}-{i:02}'):
 #                     logger.info('Cleaning cocoon...')
-#                     lib_util.run_wsclean(s, f'wsclean1-c{c}.log', MSs.getStrWsclean(), niter=5000000, fits_mask=basemaskC,
+#                     lib_scheduler.run_wsclean(s, f'wsclean1-c{c}.log', MSs.getStrWsclean(), niter=5000000, fits_mask=basemaskC,
 #                                          gain=0.07, **wsclean_params)
 #                     os.system(f'cat logs/wsclean1-c{c}.log | grep "background noise"')
 #                     if i == 0:
@@ -471,7 +479,7 @@ logger.info("Done.")
 #                     am['auto_mask'] = 3.0
 #                 with w.if_todo(f'imaging_extended_c{c:02}-{i:02}'):
 #                     logger.info('Cleaning (multi-scale) halo...')
-#                     lib_util.run_wsclean(s, f'wsclean2-c{c}.log', MSs.getStrWsclean(), niter=400000, multiscale='',
+#                     lib_scheduler.run_wsclean(s, f'wsclean2-c{c}.log', MSs.getStrWsclean(), niter=400000, multiscale='',
 #                                          multiscale_shape='gaussian', #multiscale_convolution_padding=1.2,
 #                                          multiscale_scales='0,20,40,80,160,320', fits_mask=basemask, **{**am, **wsclean_params})
 #                     os.system(f'cat logs/wsclean2-c{c}.log | grep "background noise"')

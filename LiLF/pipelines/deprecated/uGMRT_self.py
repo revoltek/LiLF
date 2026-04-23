@@ -94,8 +94,12 @@ for c in range(3):
         MSs.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/gs.h5 \
                  sol.solint=1 sol.nchan=1 sol.mode=complexgain sol.smoothnessconstraint=1e6', \
                     log='$nameMS_solG-c'+str(c)+'.log', commandType='DP3')
-        lib_util.run_losoto(s, 'gs'+str(c), [MS+'/gs.h5' for MS in MSs.getListStr()], \
-                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-norm.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [MS+'/gs.h5' for MS in MSs.getListStr()],
+                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', parset_dir+'/losoto-norm.parset'],
+                logname='losoto-' + ('gs'+str(c)) + '.log',
+                h5_out='cal-' + ('gs'+str(c)) + '.h5')
         os.system('mv plots-gs'+str(c)+'* self/solutions/')
         os.system('mv cal-gs'+str(c)+'*.h5 self/solutions/')
         # correct phases - MS:DATA -> MS:CORRECTED_DATA
@@ -111,8 +115,12 @@ for c in range(3):
         MSs.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/tec.h5 \
                  sol.solint=1 sol.nchan=1 sol.mode=tec', \
                     log='$nameMS_solG-c'+str(c)+'.log', commandType='DP3')
-        lib_util.run_losoto(s, 'tec'+str(c), [MS+'/tec.h5' for MS in MSs.getListStr()], \
-                [parset_dir+'/losoto-plot-tec.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [MS+'/tec.h5' for MS in MSs.getListStr()],
+                [parset_dir+'/losoto-plot-tec.parset'],
+                logname='losoto-' + ('tec'+str(c)) + '.log',
+                h5_out='cal-' + ('tec'+str(c)) + '.h5')
         os.system('mv plots-tec'+str(c)+'* self/plots/')
         os.system('mv cal-tec'+str(c)+'*.h5 self/solutions/')
         # correct phases - MS:DATA -> MS:CORRECTED_DATA
@@ -128,7 +136,7 @@ for c in range(3):
     # clean mask clean
     logger.info('Cleaning (cycle: '+str(c)+')...')
     imagename = 'img/wide-'+str(c)
-    lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='2arcsec', \
+    lib_scheduler.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='2arcsec', \
             weight='briggs 0.', niter=10000, no_update_model_required='', mgain=0.9, \
             baseline_averaging=5, parallel_deconvolution=256, auto_threshold=20, \
             join_channels='', fit_spectral_pol=2, channels_out=8)
@@ -141,7 +149,7 @@ for c in range(3):
     # TODO: add -parallel-deconvolution=256 when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
     logger.info('Cleaning w/ mask (cycle: '+str(c)+')...')
     imagename = 'img/wideM-'+str(c)
-    lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='2arcsec', \
+    lib_scheduler.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=imgsizepix, scale='2arcsec', \
             weight='briggs 0.', niter=100000, no_update_model_required='', mgain=0.9, \
             #multiscale='', multiscale_scales='0,5,10,20,40', \
             baseline_averaging=5, auto_threshold=1, fits_mask=im.maskname, \
@@ -178,7 +186,7 @@ MSs.run('taql "update $pathMS set CORRECTED_DATA_DIE = CORRECTED_DATA"', log='$n
 # TESTTESTTEST
 imgsizepix = int(1.5*MSs.getListObj()[0].getFWHM()/(2./3600))
 imgsizepix += imgsizepix % 2 # make even
-lib_util.run_wsclean(s, 'wscleanTEST-c'+str(c)+'.log', MSs.getStrWsclean(), name='img/testinit', size=imgsizepix, scale='2arcsec', \
+lib_scheduler.run_wsclean(s, 'wscleanTEST-c'+str(c)+'.log', MSs.getStrWsclean(), name='img/testinit', size=imgsizepix, scale='2arcsec', \
         data_column='CORRECTED_DATA_DIE', \
         weight='briggs 0.', niter=100000, no_update_model_required='', mgain=0.9, \
         baseline_averaging=5, auto_threshold=1, \
@@ -299,7 +307,7 @@ for c in range(3):
     # TESTTESTTEST
     imgsizepix = int(1.5*MSs.getListObj()[0].getFWHM()/(2./3600))
     imgsizepix += imgsizepix % 2 # make even
-    lib_util.run_wsclean(s, 'wscleanTEST-c'+str(c)+'.log', MSs.getStrWsclean(), name='img/testempty', size=imgsizepix, scale='2arcsec', \
+    lib_scheduler.run_wsclean(s, 'wscleanTEST-c'+str(c)+'.log', MSs.getStrWsclean(), name='img/testempty', size=imgsizepix, scale='2arcsec', \
             data_column='SUBTRACTED_DATA', \
             weight='briggs 0.', niter=100000, no_update_model_required='', mgain=0.9, \
             baseline_averaging=5, auto_threshold=1, \
@@ -316,7 +324,12 @@ for c in range(3):
             log='$nameMS_solDD-c'+str(c)+'.log', commandType='DP3')
 
     # Plot solutions
-    lib_util.run_losoto(s, 'dd-c'+str(c), [MS+'/cal-dd-c'+str(c)+'.h5' for MS in MSs.getListStr()], [parset_dir+'/losoto-plot-amp-dd.parset', parset_dir+'/losoto-plot-ph-dd.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [MS+'/cal-dd-c'+str(c)+'.h5' for MS in MSs.getListStr()],
+            [parset_dir+'/losoto-plot-amp-dd.parset', parset_dir+'/losoto-plot-ph-dd.parset'],
+            logname='losoto-' + ('dd-c'+str(c)) + '.log',
+            h5_out='cal-' + ('dd-c'+str(c)) + '.h5')
     os.system('mv plots-dd-c'+str(c)+'* ddcal/plots')
 
     ###########################################################
@@ -391,7 +404,7 @@ for c in range(3):
         # clean 1
         logger.info('Cleaning ('+d.name+')...')
         imagename = 'img/ddcal-'+d.name
-        lib_util.run_wsclean(s, 'wscleanA-'+d.name+'.log', MSs_shift.getStrWsclean(), name=imagename, size=imsize, scale='2arcsec', \
+        lib_scheduler.run_wsclean(s, 'wscleanA-'+d.name+'.log', MSs_shift.getStrWsclean(), name=imagename, size=imsize, scale='2arcsec', \
                 weight='briggs 0.', niter=10000, no_update_model_required='', minuv_l=30, mgain=0.85, \
                 baseline_averaging=5, parallel_deconvolution=256, \
                 auto_threshold=20, join_channels='', fit_spectral_pol=2, channels_out=8)
@@ -404,7 +417,7 @@ for c in range(3):
         # TODO: add -parallel-deconvolution when source lists can be saved (https://sourceforge.net/p/wsclean/tickets/141/)
         logger.info('Cleaning w/ mask ('+d.name+')...')
         imagename = 'img/ddcalM-'+d.name
-        lib_util.run_wsclean(s, 'wscleanB-'+d.name+'.log', MSs_shift.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale='2arcsec', \
+        lib_scheduler.run_wsclean(s, 'wscleanB-'+d.name+'.log', MSs_shift.getStrWsclean(), name=imagename, size=imsize, save_source_list='', scale='2arcsec', \
                 weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85, \
                 baseline_averaging=5, auto_threshold=0.1, fits_mask=im.maskname, \
                 join_channels='', fit_spectral_pol=2, channels_out=8)

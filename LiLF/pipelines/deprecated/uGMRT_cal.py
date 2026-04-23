@@ -51,9 +51,12 @@ for msID in msIDs:
     logger.info('Calibrating...')
     MSs_cals.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/diag.h5 sol.mode=diagonal', log='$nameMS_sol.log', commandType="DP3")
     
-    lib_util.run_losoto(s, 'diag', [ms+'/diag.h5' for ms in MSs_cals.getListStr()], \
-            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset', \
-            parset_dir+'/losoto-pa.parset', parset_dir+'/losoto-iono.parset', parset_dir+'/losoto-bp.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms+'/diag.h5' for ms in MSs_cals.getListStr()],
+            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-flag.parset',             parset_dir+'/losoto-pa.parset', parset_dir+'/losoto-iono.parset', parset_dir+'/losoto-bp.parset'],
+            logname='losoto-diag.log',
+            h5_out='cal-diag.h5')
 
     # Transfer to target
     MSs_tgts = lib_ms.AllMSs( glob.glob('tgts/*/mss/%02i*MS' % msID), s )

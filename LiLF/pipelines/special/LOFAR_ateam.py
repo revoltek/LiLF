@@ -163,8 +163,12 @@ for c in range(100):
         MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/pa.h5 sol.mode=rotation+diagonal \
             sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solPA.log', commandType="DP3")
 
-        lib_util.run_losoto(s, 'pa-c'+str(c), [ms+'/pa.h5' for ms in MSs.getListStr()], \
-                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms+'/pa.h5' for ms in MSs.getListStr()],
+                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'],
+                logname='losoto-' + ('pa-c'+str(c)) + '.log',
+                h5_out='cal-' + ('pa-c'+str(c)) + '.h5')
 
     #################################################
     # 2: find the FR and remve it
@@ -187,8 +191,12 @@ for c in range(100):
     MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/fr.h5 sol.mode=diagonal \
              sol.smoothnessconstraint=1e6 sol.solint=3 sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solFR.log', commandType="DP3")
     
-    lib_util.run_losoto(s, 'fr-c'+str(c), [ms+'/fr.h5' for ms in MSs.getListStr()], \
-            [parset_dir + '/losoto-fr.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms+'/fr.h5' for ms in MSs.getListStr()],
+            [parset_dir + '/losoto-fr.parset'],
+            logname='losoto-' + ('fr-c'+str(c)) + '.log',
+            h5_out='cal-' + ('fr-c'+str(c)) + '.h5')
 
    #####################################################
    # 3: find BANDPASS/IONO
@@ -215,8 +223,12 @@ for c in range(100):
     MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/iono.h5 sol.mode=scalarcomplexgain \
                                     sol.smoothnessconstraint=1e6 sol.uvlambdarange='+str(nouseblrange), log='$nameMS_solIONO3.log', commandType="DP3")
 
-    lib_util.run_losoto(s, 'iono-c'+str(c), [ms+'/iono.h5' for ms in MSs.getListStr()], \
-                        [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms+'/iono.h5' for ms in MSs.getListStr()],
+            [parset_dir+'/losoto-flag.parset',parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'],
+            logname='losoto-' + ('iono-c'+str(c)) + '.log',
+            h5_out='cal-' + ('iono-c'+str(c)) + '.h5')
 
     # Correct all CORRECTED_DATA -> CORRECTED_DATA
     logger.info('IONO correction...')
@@ -228,8 +240,12 @@ for c in range(100):
     MSs.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/bp.h5 sol.mode=fulljones \
             sol.uvlambdarange='+str(nouseblrange)+' sol.smoothnessconstraint=2e6 sol.nchan=1 sol.solint=50', log='$nameMS_solBP3.log', commandType="DP3")
     
-    lib_util.run_losoto(s, 'bp-c'+str(c), [ms+'/bp.h5' for ms in MSs.getListStr()], \
-            [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms+'/bp.h5' for ms in MSs.getListStr()],
+            [parset_dir+'/losoto-plot-amp.parset',parset_dir+'/losoto-plot-ph.parset'],
+            logname='losoto-' + ('bp-c'+str(c)) + '.log',
+            h5_out='cal-' + ('bp-c'+str(c)) + '.h5')
 
 
     # Correct BP CORRECTED_DATA -> CORRECTED_DATA
@@ -246,7 +262,7 @@ for c in range(100):
     logger.info('Cleaning (cycle %02i)...' % c)
     imagename = 'img/img-c%02i' % c
     if patch == 'CygA':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1000, scale='1.5arcsec', \
+        lib_scheduler.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1000, scale='1.5arcsec', \
                 weight='briggs -1.4', niter=50000, no_update_model_required='', nmiter=50, mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.5, multiscale_scales='0,5,10,20,40', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CygA.fits', \
@@ -254,7 +270,7 @@ for c in range(100):
                 join_channels='', deconvolution_channels=8, fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'CasA':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1300, scale='2arcsec', \
+        lib_scheduler.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1300, scale='2arcsec', \
                 weight='briggs -1.2', niter=75000, no_update_model_required='', nmiter=50, mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/CasA.fits', \
@@ -262,11 +278,11 @@ for c in range(100):
                 join_channels='', deconvolution_channels=8, fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'TauA':
-        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1500, scale='1arcsec', \
+        lib_scheduler.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1500, scale='1arcsec', \
                 weight='briggs -1.2', niter=30, update_model_required='', mgain=0.3, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/pulsar.fits', \
                 join_channels='', deconvolution_channels=8, fit_spectral_pol=4, channels_out=61) # use cont=True
-        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1500, scale='2arcsec', \
+        lib_scheduler.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1500, scale='2arcsec', \
                 weight='briggs -1.2', niter=100000, no_update_model_required='', nmiter=50, mgain=0.5, \
                 multiscale='', multiscale_scale_bias=0.6, multiscale_scales='0,5,10,20,40,80', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/TauA.fits', \
@@ -274,7 +290,7 @@ for c in range(100):
                 join_channels='', deconvolution_channels=8, fit_spectral_pol=4, channels_out=61)
 
     elif patch == 'VirA' and lofar_system == 'lba':
-        lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1500, scale='2arcsec', \
+        lib_scheduler.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, save_source_list='', size=1500, scale='2arcsec', \
                 weight='briggs -1.0', niter=50000, no_update_model_required='', nmiter=50, mgain=0.4, \
                 multiscale='', multiscale_scale_bias=0.6, multiscale_scales='0,5,10,20,40,80,160', \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAlba.fits', \
@@ -284,11 +300,11 @@ for c in range(100):
             rev_reg(modelfile,'/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/virgohole.reg')
 
     elif patch == 'VirA' and lofar_system == 'hba':
-        lib_util.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
+        lib_scheduler.run_wsclean(s, 'wscleanA-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
                 weight='briggs -0.2', niter=350, update_model_required='', mgain=0.5, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAphba.fits', \
                 join_channels='', deconvolution_channels=5, fit_spectral_pol=5, channels_out=10) # use cont=True
-        lib_util.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=1000, scale='2arcsec', \
+        lib_scheduler.run_wsclean(s, 'wscleanB-c'+str(c)+'.log', MSs.getStrWsclean(), cont=True, name=imagename, size=1000, scale='2arcsec', \
                 weight='briggs -0.2', niter=5000000, no_update_model_required='', nmiter=100, mgain=0.4, \
                 multiscale='', multiscale_scale_bias=0.7, \
                 fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
@@ -297,7 +313,7 @@ for c in range(100):
         sys.exit()
 
         #fits_mask='/home/fdg/scripts/LiLF/parsets/LOFAR_ateam/masks/VirAhba.fits', \
-        #lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
+        #lib_scheduler.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='2arcsec', \
         #        weight='briggs -0.2', niter=5000000, no_update_model_required='', nmiter=20, mgain=0.4, \
         #        multiscale='', multiscale_scale_bias=0.5, \
         #        auto_threshold=0.5, baseline_averaging=10, \
@@ -326,7 +342,7 @@ for c in range(100):
 #
 #        logger.info('Cleaning wide (cycle %i)...' % c)
 #        imagename = 'img/imgsub-c'+str(c)
-#        lib_util.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
+#        lib_scheduler.run_wsclean(s, 'wscleanSUB-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename, size=1000, scale='15arcsec', \
 #                weight='briggs 0.4', taper_gaussian='100arcsec', niter=10000, no_update_model_required='', mgain=0.85, \
 #                baseline_averaging=5, deconvolution_channels=4, \
 #                auto_threshold=1, join_channels='', fit_spectral_pol=2, channels_out=16)

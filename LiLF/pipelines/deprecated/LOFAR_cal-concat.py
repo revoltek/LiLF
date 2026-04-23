@@ -101,8 +101,12 @@ with w.if_todo('cal_pa'):
             sol.solint='+str(2*base_solint)+' sol.nchan='+str(2*base_nchan),
             log='$nameMS_solPA.log', commandType="DP3")
 
-    lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs.getListStr()],
-            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms+'/pa.h5' for ms in MSs.getListStr()],
+            [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset', parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-pa.parset'],
+            logname='losoto-pa.log',
+            h5_out='cal-pa.h5')
 
     # Pol align correction DATA -> CORRECTED_DATA
     logger.info('Polalign correction...')
@@ -153,7 +157,12 @@ with w.if_todo('cal_fr'):
     MSs_concat.run('DP3 ' + parset_dir + '/DP3-soldd.parset msin=$pathMS msin.datacolumn=DATA \
      sol.modeldatacolumns=[FR_MODEL_DATA] sol.h5parm=$pathMS/fr.h5 sol.mode=phaseonly sol.solint='+str(4*base_solint)+' sol.nchan='+str(4*base_nchan)+' \
      sol.coreconstraint=2e3 sol.smoothnessconstraint=5e6 sol.smoothnessreffrequency=54e6', log='$nameMS_solFR.log', commandType="DP3")
-    lib_util.run_losoto(s, 'fr', ['concat.MS/fr.h5'], [parset_dir + '/losoto-fr.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            ['concat.MS/fr.h5'],
+            [parset_dir + '/losoto-fr.parset'],
+            logname='losoto-fr.log',
+            h5_out='cal-fr.h5')
 
     # delete concat.MS
     lib_util.check_rm('concat.MS')
@@ -195,9 +204,13 @@ with w.if_todo('cal_bp'):
             sol.solint='+str(base_solint)+' sol.nchan=1', \
             log='$nameMS_solAMP.log', commandType="DP3")
 
-    lib_util.run_losoto(s, 'amp', ['concat.MS/amp.h5'],
+    lib_scheduler.run_losoto(
+            s,
+            ['concat.MS/amp.h5'],
             [parset_dir + '/losoto-flag.parset', parset_dir+'/losoto-plot-amp.parset',
-             parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-bp.parset'])
+             parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-bp.parset'],
+            logname='losoto-amp.log',
+            h5_out='cal-amp.h5')
 
     # delete concat.MS
     lib_util.check_rm('concat.MS')
@@ -248,14 +261,26 @@ with w.if_todo('cal_iono'):
              log='$nameMS_solIONO.log', commandType="DP3")
 
     if iono3rd:
-        lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()],
-            [parset_dir+'/losoto-plot-scalarph.parset', parset_dir+'/losoto-iono3rd.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms+'/iono.h5' for ms in MSs.getListStr()],
+                [parset_dir+'/losoto-plot-scalarph.parset', parset_dir+'/losoto-iono3rd.parset'],
+                logname='losoto-iono.log',
+                h5_out='cal-iono.h5')
     elif MSs.isHBA:
-        lib_util.run_losoto(s, 'iono', [ms + '/iono.h5' for ms in MSs.getListStr()],
-                            [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-iono-hba.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms + '/iono.h5' for ms in MSs.getListStr()],
+                [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-iono-hba.parset'],
+                logname='losoto-iono.log',
+                h5_out='cal-iono.h5')
     else:
-        lib_util.run_losoto(s, 'iono', [ms+'/iono.h5' for ms in MSs.getListStr()],
-            [parset_dir+'/losoto-plot-scalarph.parset', parset_dir+'/losoto-iono.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms+'/iono.h5' for ms in MSs.getListStr()],
+                [parset_dir+'/losoto-plot-scalarph.parset', parset_dir+'/losoto-iono.parset'],
+                logname='losoto-iono.log',
+                h5_out='cal-iono.h5')
 
 ### DONE
 
@@ -317,8 +342,12 @@ if imaging:
                 sol.solint='+str(base_solint)+' sol.nchan='+str(base_nchan), \
                 log='$nameMS_solLEAK.log', commandType="DP3")
     
-        lib_util.run_losoto(s, 'leak', [ms+'/leak.h5' for ms in MSs.getListStr()], \
-                [parset_dir+'/losoto-flag-leak.parset', parset_dir+'/losoto-plot-fullj.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms+'/leak.h5' for ms in MSs.getListStr()],
+                [parset_dir+'/losoto-flag-leak.parset', parset_dir+'/losoto-plot-fullj.parset'],
+                logname='losoto-leak.log',
+                h5_out='cal-leak.h5')
 
         logger.info('LEAK correction...')
         MSs.run("DP3 " + parset_dir + '/DP3-cor.parset msin=$pathMS cor.parmdb=cal-leak.h5 cor.correction=fulljones\
@@ -338,7 +367,7 @@ if imaging:
     
         logger.info('Cleaning normal...')
         imagename = 'img/cal'
-        lib_util.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='3arcsec',
+        lib_scheduler.run_wsclean(s, 'wscleanA.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='3arcsec',
                 auto_mask=5, local_rms='', local_rms_method='rms-with-min',
                 weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.5,
                 baseline_averaging='', auto_threshold=2, join_channels='', fit_spectral_pol=5, channels_out=12)
@@ -348,7 +377,7 @@ if imaging:
        # im.makeMask(threshpix=5)
     
        # logger.info('Cleaning w/ mask...')
-       # lib_util.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec',
+       # lib_scheduler.run_wsclean(s, 'wscleanB.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, scale='5arcsec',
        #         weight='briggs 0.', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.85,
        #         baseline_averaging='', auto_threshold=1, fits_mask=im.maskname, join_channels='', fit_spectral_pol=3, channels_out=12)
        # os.system('cat %s/wscleanB.log | grep "background noise"' % logger_obj.log_dir)

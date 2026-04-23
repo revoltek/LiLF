@@ -70,7 +70,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
 
         logger.info('Cleaning empty ('+str(p)+')...')
         imagename = 'img/empty-'+str(p)
-        lib_util.run_wsclean(s, 'wscleanE-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, data_column='SUBTRACTED_DATA',
+        lib_scheduler.run_wsclean(s, 'wscleanE-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, data_column='SUBTRACTED_DATA',
                 size=imsize, scale=str(pixscale)+'arcsec',
                 weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0,
                 baseline_averaging='')
@@ -79,7 +79,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
         # clean 1
         logger.info('Cleaning ('+str(p)+')...')
         imagename = 'img/ddcal-'+str(p)
-        lib_util.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename,
+        lib_scheduler.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename,
                 size=imsize, scale=str(pixscale)+'arcsec',
                 weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                 baseline_averaging='', parallel_deconvolution=512, auto_threshold=5,
@@ -100,7 +100,7 @@ def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg=None):
         # TODO: add deconvolution_channels when bug fixed
         logger.info('Cleaning w/ mask ('+str(p)+')...')
         imagenameM = 'img/ddcalM-'+str(p)
-        lib_util.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
+        lib_scheduler.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True,
                 size=imsize, save_source_list='', scale=str(pixscale)+'arcsec', reuse_psf=imagename, reuse_dirty=imagename,
                 weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                 multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', 
@@ -484,8 +484,13 @@ for cmaj in range(maxIter):
                     sol.mode=scalarphase sol.solint='+str(solint_ph)+' sol.smoothnessconstraint=5e6 sol.smoothnessreffrequency=54e6 \
                     sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA]]',
                     log='$nameMS_solGph-'+logstringcal+'.log', commandType='DP3')
-                lib_util.run_losoto(s, 'ph', [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()],
-                    [parset_dir+'/losoto-plot-ph1.parset'], plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                lib_scheduler.run_losoto(
+                        s,
+                        [ms+'/cal-ph.h5' for ms in MSs_dir.getListStr()],
+                        [parset_dir+'/losoto-plot-ph1.parset'],
+                        logname='losoto-ph.log',
+                        h5_out='cal-ph.h5',
+                        plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                 os.system('mv cal-ph.h5 %s' % d.get_h5parm('ph'))
 
                 # correct ph - ms:DATA -> ms:CORRECTED_DATA
@@ -507,8 +512,13 @@ for cmaj in range(maxIter):
                         #losoto_parsets = [parset_dir+'/losoto-clip.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
                     #else:
                     losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp1.parset']
-                    lib_util.run_losoto(s, 'amp1', [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
-                        plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                    lib_scheduler.run_losoto(
+                            s,
+                            [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()],
+                            losoto_parsets,
+                            logname='losoto-amp1.log',
+                            h5_out='cal-amp1.h5',
+                            plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp1.h5 %s' % d.get_h5parm('amp1'))
 
                     logger.info('Correct amp 1...')
@@ -528,8 +538,13 @@ for cmaj in range(maxIter):
                         #losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
                     #else:
                     losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
-                    lib_util.run_losoto(s, 'amp2', [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()], losoto_parsets,
-                        plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                    lib_scheduler.run_losoto(
+                            s,
+                            [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()],
+                            losoto_parsets,
+                            logname='losoto-amp2.log',
+                            h5_out='cal-amp2.h5',
+                            plots_dir='ddcal/c%02i/plots/plots-%s' % (cmaj,logstringcal))
                     os.system('mv cal-amp2.h5 %s' % d.get_h5parm('amp2'))
 
                     logger.info('Correct amp 2...')

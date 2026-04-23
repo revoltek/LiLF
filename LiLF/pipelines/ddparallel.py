@@ -59,12 +59,12 @@ def run(step):
     def clean_empty(MSs, name, col='CORRECTED_DATA', size=5000, shift=None):
         """ For testing/debugging only"""
         if shift is None:
-            lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
+            lib_scheduler.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
                                 data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=1, nmiter=0,
                                 weight='briggs 0.0', gridder='wgridder', parallel_gridding=1,
                                 no_update_model_required='', apply_primary_beam='')
         else:
-            lib_util.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
+            lib_scheduler.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
                                 data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=1, nmiter=0,
                                 weight='briggs 0.0', gridder='wgridder', parallel_gridding=1, shift= f'{shift[0]} {shift[1]}',
                                 no_update_model_required='', apply_primary_beam='')
@@ -320,7 +320,7 @@ def run(step):
     MSs.getListObj()[0].makeBeamReg(beamReg, freq='min', to_pbval=0)
     if not os.path.exists(beamMask):
         logger.info('Making mask of primary beam...')
-        lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), data_column='DATA', \
+        lib_scheduler.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name=beamMask.replace('.fits',''), data_column='DATA', \
                              size=imgsizepix_lr, scale='30arcsec')
         os.system(f'mv {beamMask.replace(".fits","-image.fits")} {beamMask}') # beam-image.fits -> beam.fits
         lib_img.blank_image_reg(beamMask, beamReg, blankval = 1.)
@@ -357,7 +357,12 @@ def run(step):
 
         MSs.run(f'DP3 {parset_dir}/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5',
                 log='$nameMS_solFR.log', commandType="DP3")
-        lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms + '/fr.h5' for ms in MSs.getListStr()],
+                [parset_dir + '/losoto-fr.parset'],
+                logname='losoto-fr.log',
+                h5_out='cal-fr.h5')
         os.system(f'mv cal-fr.h5 {sol_dir}')
         os.system(f'mv plots-fr {plot_dir}')
 
@@ -497,7 +502,7 @@ def run(step):
                 # pos = sm.getPatchPositions()[patch]
                 # size = int((1.1*sm.getPatchSizes()[np.argwhere(sm.getPatchNames()==patch)]) // 4)
                 # logger.info(f'Test image MODEL_DATA...')
-                # lib_util.run_wsclean(s, 'wscleanMODEL-c' + str(c) + '.log', MSs.getStrWsclean(), name=f'ddparallel/skymodel/{patch}',
+                # lib_scheduler.run_wsclean(s, 'wscleanMODEL-c' + str(c) + '.log', MSs.getStrWsclean(), name=f'ddparallel/skymodel/{patch}',
                 #                      data_column=patch, size=size, scale='8arcsec', shift=f'{pos[0].to(u.hourangle).to_string()} {pos[1].to_string()}',
                 #                      weight='briggs -0.5', niter=10000, gridder='wgridder', parallel_gridding=MSs.getChout(4.e6), no_update_model_required='', minuv_l=30, mgain=0.9,
                 #                      parallel_deconvolution=512, beam_size=15, join_channels='', fit_spectral_pol=3,
@@ -538,9 +543,13 @@ def run(step):
                       sol.antenna_averaging_factors={ant_avg_factors} sol.antenna_smoothness_factors={ant_smooth_factors} ',
                       log='$nameMS_solTEC-c' + str(c) + '.log', commandType='DP3', max_proc=8)
 
-            lib_util.run_losoto(s, f'tec-c{c}', [ms + f'/tec.h5' for ms in MSs.getListStr()],
-                                [parset_dir + '/losoto-refph.parset', parset_dir + '/losoto-plot-scalarph.parset'],
-                                plots_dir=f'{plot_dir}/plots-tec-c{c}', h5_dir=sol_dir)
+            lib_scheduler.run_losoto(
+                    s,
+                    [ms + f'/tec.h5' for ms in MSs.getListStr()],
+                    [parset_dir + '/losoto-refph.parset', parset_dir + '/losoto-plot-scalarph.parset'],
+                    logname=f'losoto-tec-c{c}.log',
+                    h5_out=os.path.join(sol_dir, os.path.basename(f'cal-tec-c{c}.h5')),
+                    plots_dir=f'{plot_dir}/plots-tec-c{c}')
 
             # make sure the h5parm directions are correctly set - this should actually work automatically with DP3 -> eventually fix this in the DP3 solve call
             lib_h5.point_h5dirs_to_skymodel(f'{sol_dir}/cal-tec-c{c}.h5', sourcedb)
@@ -575,8 +584,13 @@ def run(step):
 
                     #losoto_parsets = [parset_dir + '/losoto-clip.parset', parset_dir + '/losoto-plot-amp.parset']
                     losoto_parsets = [parset_dir + '/losoto-plot-amp.parset']
-                    lib_util.run_losoto(s, 'amp-3C', [ms + '/amp-3C.h5' for ms in MSs.getListStr()], losoto_parsets,
-                                        plots_dir=f'{plot_dir}/plots-amp-3C', h5_dir=sol_dir)
+                    lib_scheduler.run_losoto(
+                            s,
+                            [ms + '/amp-3C.h5' for ms in MSs.getListStr()],
+                            losoto_parsets,
+                            logname='losoto-amp-3C.log',
+                            h5_out=os.path.join(sol_dir, 'cal-amp-3C.h5'),
+                            plots_dir=f'{plot_dir}/plots-amp-3C')
                     ### DONE
 
                 with w.if_todo('3C_corrupt_subtract'):
@@ -652,10 +666,13 @@ def run(step):
                     s.add(f'h5_merger.py --h5_out {sol_dir}/cal-tec-no3c-c{c}.h5 --h5_tables {sol_dir}/cal-tec-c{c}.h5 --h5_time_freq {sol_dir}/cal-tec-c{c}.h5 \
                           --no_antenna_crash --no_pol --propagate_flags {filter_directions}', log='h5_merger.log', commandType='python')
                     s.run(check=True)
-                    lib_util.run_losoto(s, f'tec-no3c-c{c}', f'{sol_dir}/cal-tec-no3c-c{c}.h5',
-                                        [f'{parset_dir}/losoto-plot-scalarph.parset'],
-                                        plots_dir=f'{plot_dir}/plots-tec-no3c-c{c}',
-                                        h5_dir=sol_dir)
+                    lib_scheduler.run_losoto(
+                            s,
+                            [f'{sol_dir}/cal-tec-no3c-c{c}.h5'],
+                            [f'{parset_dir}/losoto-plot-scalarph.parset'],
+                            logname=f'losoto-tec-no3c-c{c}.log',
+                            h5_out=os.path.join(sol_dir, os.path.basename(f'cal-tec-no3c-c{c}.h5')),
+                            plots_dir=f'{plot_dir}/plots-tec-no3c-c{c}')
             else:
                 remove3c = False
             ### DONE
@@ -673,9 +690,13 @@ def run(step):
                          sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
                          log='$nameMS_diampsol.log', commandType='DP3')
 
-                    lib_util.run_losoto(s, 'amp-di', [ms + '/amp-di.h5' for ms in MSs.getListStr()],
-                                    [f'{parset_dir}/losoto-plot-fj.parset', f'{parset_dir}/losoto-amp-difj.parset'],
-                                    plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
+                    lib_scheduler.run_losoto(
+                            s,
+                            [ms + '/amp-di.h5' for ms in MSs.getListStr()],
+                            [f'{parset_dir}/losoto-plot-fj.parset', f'{parset_dir}/losoto-amp-difj.parset'],
+                            logname='losoto-amp-di.log',
+                            h5_out=os.path.join(sol_dir, 'cal-amp-di.h5'),
+                            plots_dir=f'{plot_dir}/plots-amp-di')
             
                     # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
                     logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
@@ -690,8 +711,13 @@ def run(step):
                             sol.modeldatacolumns=[MODEL_DATA] sol.mode=scalaramplitude sol.h5parm=$pathMS/amp-dinorm.h5',
                             log='$nameMS_diampsol.log', commandType='DP3')
 
-                    lib_util.run_losoto(s, 'amp-dinorm', [ms + '/amp-dinorm.h5' for ms in MSs.getListStr()],
-                                    [f'{parset_dir}/losoto-plot-amp2d.parset'], plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
+                    lib_scheduler.run_losoto(
+                            s,
+                            [ms + '/amp-dinorm.h5' for ms in MSs.getListStr()],
+                            [f'{parset_dir}/losoto-plot-amp2d.parset'],
+                            logname='losoto-amp-dinorm.log',
+                            h5_out=os.path.join(sol_dir, 'cal-amp-dinorm.h5'),
+                            plots_dir=f'{plot_dir}/plots-amp-di')
 
                     with h5parm(f'{sol_dir}/cal-amp-dinorm.h5') as h5:
                         meanamp = np.nanmean(h5.getSolset('sol000').getSoltab('amplitude000').val)
@@ -709,9 +735,13 @@ def run(step):
                          sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
                          log='$nameMS_diampsol.log', commandType='DP3')
 
-                    lib_util.run_losoto(s, 'amp-di', [ms + '/amp-di.h5' for ms in MSs.getListStr()],
-                                    [f'{parset_dir}/losoto-plot-amp.parset', f'{parset_dir}/losoto-plot-ph.parset', f'{parset_dir}/losoto-amp-di.parset'],
-                                    plots_dir=f'{plot_dir}/plots-amp-di', h5_dir=sol_dir)
+                    lib_scheduler.run_losoto(
+                            s,
+                            [ms + '/amp-di.h5' for ms in MSs.getListStr()],
+                            [f'{parset_dir}/losoto-plot-amp.parset', f'{parset_dir}/losoto-plot-ph.parset', f'{parset_dir}/losoto-amp-di.parset'],
+                            logname='losoto-amp-di.log',
+                            h5_out=os.path.join(sol_dir, 'cal-amp-di.h5'),
+                            plots_dir=f'{plot_dir}/plots-amp-di')
 
                     # Correct MSs:CORRECTED_DATA -> CORRECTED_DATA
                     logger.info('Correct amp-di (CORRECTED_DATA -> CORRECTED_DATA)...')
@@ -751,7 +781,7 @@ def run(step):
             # c0: make quick initial image to get a mask
             if c==0 or (c == 1 and bright_source):
                 logger.info('Making wide-field image for clean mask...')
-                lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename,  no_update_model_required='',
+                lib_scheduler.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename,  no_update_model_required='',
                                      auto_threshold=5.0, auto_mask=8.0, multiscale_max_scales=3, nmiter=6, keep_concat=True, **widefield_kwargs)
                 # make initial mask
                 current_best_mask = make_current_best_mask(imagename, mask_threshold[c], userReg)
@@ -763,7 +793,7 @@ def run(step):
 
             # main wsclean call, with mask now
             logger.info('Making wide field image ...')
-            lib_util.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask,
+            lib_scheduler.run_wsclean(s, 'wsclean-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask,
                                  save_source_list='', no_update_model_required='',  nmiter=12,  auto_threshold=2.0, auto_mask=4.0,
                                  apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
                                  local_rms='', local_rms_window=50, local_rms_strength=0.5, **widefield_kwargs, **reuse_kwargs)
@@ -892,9 +922,13 @@ def run(step):
                           sol.antenna_averaging_factors={ant_avg_factors} sol.antenna_smoothness_factors={ant_smooth_factors}',
                         log='$nameMS_solTEC-sf-c' + str(c) + '.log', commandType='DP3', max_proc=8)
 
-                lib_util.run_losoto(s, f'tec-sf-c{c}-sc{sc}',[ms + f'/tec-sf.h5' for ms in MSs.getListStr()],
-                                    [parset_dir + '/losoto-refph.parset', f'{parset_dir}/losoto-plot-scalarph.parset'],
-                                    plots_dir=f'{plot_dir}/plots-tec-sf-c{c}-sc{sc}', h5_dir=sol_dir)
+                lib_scheduler.run_losoto(
+                        s,
+                        [ms + f'/tec-sf.h5' for ms in MSs.getListStr()],
+                        [parset_dir + '/losoto-refph.parset', f'{parset_dir}/losoto-plot-scalarph.parset'],
+                        logname=f'losoto-tec-sf-c{c}-sc{sc}.log',
+                        h5_out=os.path.join(sol_dir, os.path.basename(f'cal-tec-sf-c{c}-sc{sc}.h5')),
+                        plots_dir=f'{plot_dir}/plots-tec-sf-c{c}-sc{sc}')
             ### DONE
 
             with w.if_todo('c%02i_subfield%02i_corr_tec' % (c, sc)):
@@ -917,15 +951,24 @@ def run(step):
                             sol.solint=32', log='$nameMS_solFR.log', commandType="DP3")
 
                     if (min(MSs.getFreqs()) < 30.e6):
-                        lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs.getListStr()],
-                                            [parset_dir + '/losoto-plot-scalarphFR.parset', parset_dir + '/losoto-plot-rot.parset',
+                        lib_scheduler.run_losoto(
+                                s,
+                                [ms + '/fr.h5' for ms in MSs.getListStr()],
+                                [parset_dir + '/losoto-plot-scalarphFR.parset', parset_dir + '/losoto-plot-rot.parset',
                                             parset_dir + '/losoto-sf-fr-low.parset'],
-                                            plots_dir=f'{plot_dir}/plots-fr-sf', h5_dir=sol_dir)
+                                logname='losoto-fr.log',
+                                h5_out=os.path.join(sol_dir, 'cal-fr.h5'),
+                                plots_dir=f'{plot_dir}/plots-fr-sf')
                     else:
-                        lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs.getListStr()],
-                                            [parset_dir + '/losoto-plot-scalarphFR.parset', parset_dir + '/losoto-plot-rot.parset',
+                        lib_scheduler.run_losoto(
+                                s,
+                                [ms + '/fr.h5' for ms in MSs.getListStr()],
+                                [parset_dir + '/losoto-plot-scalarphFR.parset', parset_dir + '/losoto-plot-rot.parset',
                                             parset_dir + '/losoto-sf-fr.parset'],
-                                            plots_dir = f'{plot_dir}/plots-fr-sf', h5_dir = sol_dir)
+                                logname='losoto-fr.log',
+                                h5_out='cal-fr.h5',
+                                plots_dir = f'{plot_dir}/plots-fr-sf',
+                                h5_dir = sol_dir)
 
             with w.if_todo('c%02i_corrFR-subfield%02i' % (c, sc)):
                 logger.info('Correcting subfield region with FR...')
@@ -949,7 +992,7 @@ def run(step):
 
                     # c0: make quick initial image to get a mask
                     logger.info('Making wide-field image for clean mask...')
-                    lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename,
+                    lib_scheduler.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagename,
                                         auto_threshold=7.0, auto_mask=15.0, multiscale_max_scales=3, nmiter=6, keep_concat=True, **widefield_kwargs)
                     # make initial mask
                     current_best_mask_sf = make_current_best_mask(imagename, mask_threshold[c], userReg)
@@ -958,7 +1001,7 @@ def run(step):
 
                     # main wsclean call, with mask now
                     logger.info('Making wide field image ...')
-                    lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask_sf,
+                    lib_scheduler.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=imagenameM, fits_mask=current_best_mask_sf,
                                         nmiter=12,  auto_threshold=5.0, auto_mask=10.0,
                                         use_differential_lofar_beam='', local_rms='', local_rms_window=50, local_rms_strength=0.5, **widefield_kwargs, **reuse_kwargs)
 
@@ -984,8 +1027,13 @@ def run(step):
                             sol.h5parm=$pathMS/subfield_ampl-c{c}.h5 sol.mode=scalarcomplexgain sol.coreconstraint=2700.0 \
                             sol.solint=10 sol.nchan=4', log='$nameMS_solampl_subfield.log', commandType="DP3")
 
-                    lib_util.run_losoto(s, f'subfield_ampl-c{c}', [ms + f'/subfield_ampl-c{c}.h5' for ms in MSs.getListStr()],
-                            [parset_dir + '/losoto-plot-sf-scalaramp.parset'], plots_dir = f'{plot_dir}/plots-ampl-c{c}', h5_dir=sol_dir)
+                    lib_scheduler.run_losoto(
+                            s,
+                            [ms + f'/subfield_ampl-c{c}.h5' for ms in MSs.getListStr()],
+                            [parset_dir + '/losoto-plot-sf-scalaramp.parset'],
+                            logname=f'losoto-subfield_ampl-c{c}.log',
+                            h5_out=os.path.join(sol_dir, os.path.basename(f'cal-subfield_ampl-c{c}.h5')),
+                            plots_dir = f'{plot_dir}/plots-ampl-c{c}')
 
             with w.if_todo('c%02i_subfield_corr_ampl' % (c)):
                 logger.info(f'Apply amplitude ...')
@@ -998,7 +1046,7 @@ def run(step):
 
             logger.info('Test image subfield...')
             # Note that here the beam is not applied, so the image is suboptimal
-            lib_util.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='CORRECTED_SUBFIELD_DATA', size=int(1.2*subfield_size*3600/pixscale), scale=f'{pixscale}arcsec',
+            lib_scheduler.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='CORRECTED_SUBFIELD_DATA', size=int(1.2*subfield_size*3600/pixscale), scale=f'{pixscale}arcsec',
                                 weight='briggs -0.5', niter=100000, gridder='wgridder',  parallel_gridding=MSs.getChout(4.e6), shift=f'{subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}',
                                 no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.55, nmiter=12, parallel_deconvolution=512, auto_threshold=5.0, auto_mask=10.0,
                                 join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
@@ -1073,7 +1121,7 @@ def run(step):
                 #facet_regions=facetregname_lr, apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='',
                 # --facet-regions {facetregname_lr} -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam
                 logger.info('Cleaning sidelobe low-res...')
-                lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, data_column='SUBFIELD_DATA',
+                lib_scheduler.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, data_column='SUBFIELD_DATA',
                                     size=imgsizepix_lr, scale='30arcsec', save_source_list='',  parallel_gridding=channels_out_lr, baseline_averaging='',
                                     weight='briggs -0.5', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                                     taper_gaussian='200arcsec', mgain=0.85, channels_out=channels_out_lr, parallel_deconvolution=512,

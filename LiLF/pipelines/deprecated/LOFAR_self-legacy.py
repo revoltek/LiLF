@@ -165,7 +165,12 @@ for c in range(2):
             logger.info('Solving circ phase difference ...')
             MSs.run('DP3 ' + parset_dir + '/DP3-solFR.parset msin=$pathMS sol.h5parm=$pathMS/fr.h5 sol.solint='+str(30*base_solint),
                     log='$nameMS_solFR-c' + str(c) + '.log', commandType="DP3")
-            lib_util.run_losoto(s, f'fr-c{c}', [ms + '/fr.h5' for ms in MSs.getListStr()], [parset_dir + '/losoto-fr.parset'])
+            lib_scheduler.run_losoto(
+                    s,
+                    [ms + '/fr.h5' for ms in MSs.getListStr()],
+                    [parset_dir + '/losoto-fr.parset'],
+                    logname=f'losoto-fr-c{c}.log',
+                    h5_out=f'cal-fr-c{c}.h5')
             os.system('mv cal-fr-c' + str(c) + '.h5 self/solutions/')
             os.system('mv plots-fr-c' + str(c) + ' self/plots/')
             # Delete cols again to not waste space
@@ -196,7 +201,12 @@ for c in range(2):
                 #+' sol.nchan='+str(8*base_nchan), \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
-        lib_util.run_losoto(s, 'tec1-c'+str(c), [ms+'/tec1.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms+'/tec1.h5' for ms in MSs.getListStr()],
+                [parset_dir+'/losoto-plot-tec.parset'],
+                logname='losoto-' + ('tec1-c'+str(c)) + '.log',
+                h5_out='cal-' + ('tec1-c'+str(c)) + '.h5')
         os.system('mv cal-tec1-c'+str(c)+'.h5 self/solutions/')
         os.system('mv plots-tec1-c'+str(c)+' self/plots/')
     ### DONE
@@ -222,7 +232,12 @@ for c in range(2):
                 #+' sol.nchan='+str(4*base_nchan), \
                 log='$nameMS_solTEC-c'+str(c)+'.log', commandType='DP3')
 
-        lib_util.run_losoto(s, 'tec2-c'+str(c), [ms+'/tec2.h5' for ms in MSs.getListStr()], [parset_dir+'/losoto-plot-tec.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms+'/tec2.h5' for ms in MSs.getListStr()],
+                [parset_dir+'/losoto-plot-tec.parset'],
+                logname='losoto-' + ('tec2-c'+str(c)) + '.log',
+                h5_out='cal-' + ('tec2-c'+str(c)) + '.h5')
         os.system('mv cal-tec2-c'+str(c)+'.h5 self/solutions/')
         os.system('mv plots-tec2-c'+str(c)+' self/plots/')
     ### DONE
@@ -242,8 +257,12 @@ for c in range(2):
             logger.info('Solving slow G...')
             MSs.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS sol.h5parm=$pathMS/g.h5 sol.solint='+str(120*base_solint)+' sol.nchan='+str(16*base_nchan),
                     log='$nameMS_solG-c'+str(c)+'.log', commandType='DP3')
-            lib_util.run_losoto(s, 'g-c'+str(c), [MS+'/g.h5' for MS in MSs.getListStr()],
-                    [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-amp.parset'])
+            lib_scheduler.run_losoto(
+                    s,
+                    [MS+'/g.h5' for MS in MSs.getListStr()],
+                    [parset_dir+'/losoto-plot-amp.parset', parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-amp.parset'],
+                    logname='losoto-' + ('g-c'+str(c)) + '.log',
+                    h5_out='cal-' + ('g-c'+str(c)) + '.h5')
             os.system('mv plots-g-c'+str(c)+' self/plots/')
             os.system('mv cal-g-c'+str(c)+'.h5 self/solutions/')
         ### DONE
@@ -277,7 +296,7 @@ for c in range(2):
         logger.info('Cleaning (cycle: '+str(c)+')...')
         if c == 0:
             # make temp mask for cycle 0, in cycle 1 use the maske made from cycle 0 image
-            lib_util.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(), name=imagename,
+            lib_scheduler.run_wsclean(s, 'wsclean-c' + str(c) + '.log', MSsClean.getStrWsclean(), name=imagename,
                                  size=imgsizepix, scale='10arcsec',
                                  weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
                                  parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
@@ -291,7 +310,7 @@ for c in range(2):
         else: 
             kwargs = {}
 
-        lib_util.run_wsclean(s, 'wscleanM-c'+str(c)+'.log', MSsClean.getStrWsclean(), name=imagenameM, save_source_list='',
+        lib_scheduler.run_wsclean(s, 'wscleanM-c'+str(c)+'.log', MSsClean.getStrWsclean(), name=imagenameM, save_source_list='',
                 size=imgsizepix, scale='10arcsec',
                 weight='briggs -0.3', niter=1000000, no_update_model_required='', minuv_l=30,
                 parallel_gridding=2, baseline_averaging='', maxuv_l=4500, mgain=0.85,
@@ -321,7 +340,7 @@ for c in range(2):
         with w.if_todo('lowres_img_c%02i' % c):
             # Making beam mask
             logger.info('Preparing mask for low-res clean...')
-            lib_util.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name='img/tmp', size=imgsizepix, scale='30arcsec')
+            lib_scheduler.run_wsclean(s, 'wscleanLRmask.log', MSs.getStrWsclean(), name='img/tmp', size=imgsizepix, scale='30arcsec')
             os.system('mv img/tmp-image.fits img/wide-lr-mask.fits')
             lib_img.blank_image_reg('img/wide-lr-mask.fits', beamReg, blankval = 0.)
             lib_img.blank_image_reg('img/wide-lr-mask.fits', beamReg, blankval = 1., inverse=True)
@@ -329,7 +348,7 @@ for c in range(2):
             # reclean low-resolution
             logger.info('Cleaning low-res...')
             imagename_lr = 'img/wide-lr'
-            lib_util.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=False,
+            lib_scheduler.run_wsclean(s, 'wscleanLR.log', MSs.getStrWsclean(), name=imagename_lr, do_predict=False,
                     parallel_gridding=4, temp_dir='./', size=imgsizepix, scale='30arcsec',
                     weight='briggs -0.3', niter=50000, no_update_model_required='', minuv_l=30, maxuvw_m=6000,
                     taper_gaussian='200arcsec', mgain=0.85, parallel_deconvolution=512, baseline_averaging='',
@@ -352,7 +371,7 @@ for c in range(2):
             imagename_ls = 'img/wide-largescale'
             #                     intervals_out=len(MSs.mssListObj)*4,
             #use_idg = '', aterm_kernel_size = 16, aterm_config = parset_dir + '/aconfig.txt',
-            lib_util.run_wsclean(s, 'wscleanLS.log', MSs.getStrWsclean(), name=imagename_ls, do_predict=False,
+            lib_scheduler.run_wsclean(s, 'wscleanLS.log', MSs.getStrWsclean(), name=imagename_ls, do_predict=False,
                                  temp_dir='./', size=2000, scale='20arcsec',
                                  no_fit_beam='', circular_beam='', beam_size='200arcsec',
                                  multiscale='', multiscale_scales='0,4,8,16,32,64',
@@ -410,7 +429,7 @@ for c in range(2):
 with w.if_todo('imaging-pol'):
     logger.info('Cleaning (Pol)...')
     imagenameP = 'img/wideP'
-    lib_util.run_wsclean(s, 'wscleanP.log', MSs.getStrWsclean(), name=imagenameP, pol='QUV',
+    lib_scheduler.run_wsclean(s, 'wscleanP.log', MSs.getStrWsclean(), name=imagenameP, pol='QUV',
         size=imgsizepix, scale='10arcsec', weight='briggs -0.3', niter=0, no_update_model_required='',
         parallel_gridding=2, baseline_averaging='', minuv_l=30, maxuv_l=4500,
         join_channels='', channels_out=MSs.getChout(4.e6))

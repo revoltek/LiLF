@@ -51,7 +51,7 @@ def debug_imaging(MSs, suffix, column='CORRECTED_DATA'):
 
     logger.info('Cleaning...')
     imagename = f'img/cal-{suffix}'
-    lib_util.run_wsclean(s, 'wsclean.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, data_column=column,
+    lib_scheduler.run_wsclean(s, 'wsclean.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, data_column=column,
                          scale=scale, pol='I,V', auto_mask=5, # local_rms='', local_rms_method='rms-with-min',
                          weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.6,
                          baseline_averaging='', auto_threshold=2, join_channels='', fit_spectral_pol=5,
@@ -158,8 +158,12 @@ if debugplots:
             sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
             sol.solint=1 sol.nchan=1', \
             log='$nameMS_solTEST.log', commandType="DP3")
-    lib_util.run_losoto(s, 'test-init', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
-                        [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
+            [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'],
+            logname='losoto-test-init.log',
+            h5_out='cal-test-init.h5')
 
 ###################################################
 
@@ -183,8 +187,12 @@ with w.if_todo('pre_cal'):
                         sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin}', log='$nameMS_solIONO_CS.log',
                        commandType="DP3")
 
-    lib_util.run_losoto(s, 'preiono-cs', [ms + '/preiono.h5' for ms in MSs_concat_all.getListStr()],
-                        [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-ionoCS.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms + '/preiono.h5' for ms in MSs_concat_all.getListStr()],
+            [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-ionoCS.parset'],
+            logname='losoto-preiono-cs.log',
+            h5_out='cal-preiono-cs.h5')
 
     # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA (unit correction for RS)
     logger.info('Iono correction (Core Stations)...')
@@ -214,11 +222,19 @@ with w.if_todo('pre_cal'):
                            log='$nameMS_solIONO.log', commandType="DP3")
 
     if min(MSs_concat_all.getFreqs()) < 35.e6:
-        lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-                            [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset']) # parset_dir + '/losoto-iono3rd.parset'
+        lib_scheduler.run_losoto(
+                s,
+                [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
+                [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'],
+                logname='losoto-preiono.log',
+                h5_out='cal-preiono.h5') # parset_dir + '/losoto-iono3rd.parset'
     else:
-        lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-                            [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset']) # parset_dir + '/losoto-iono.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
+                [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'],
+                logname='losoto-preiono.log',
+                h5_out='cal-preiono.h5') # parset_dir + '/losoto-iono.parset'])
 ### DONE
 ########################################################
 
@@ -256,8 +272,12 @@ with w.if_todo('cal_pa'):
                sol.mode=rotation+diagonal sol.rotationdiagonalmode=diagonalphase \
                sol.solint=1 sol.nchan=1', log='$nameMS_solPA.log', commandType="DP3")
 
-        lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs_pa.getListStr()],
-                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset',  parset_dir+'/losoto-pa.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms+'/pa.h5' for ms in MSs_pa.getListStr()],
+                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset',  parset_dir+'/losoto-pa.parset'],
+                logname='losoto-pa.log',
+                h5_out='cal-pa.h5')
 
     else:
         # predict the element-corrupted model
@@ -272,10 +292,18 @@ with w.if_todo('cal_pa'):
                    sol.mode=rotation+diagonal sol.rotationdiagonalmode=diagonalphase \
                    sol.solint={small_timestep} sol.nchan={small_freqstep}', log='$nameMS_solPA.log', commandType="DP3")
 
-        lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs_concat_all.getListStr()],
-                    [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset',  parset_dir+'/losoto-pa.parset'])
-        lib_util.run_losoto(s, 'pa', [ms+'/pa.h5' for ms in MSs_concat_all.getListStr()],
-                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset',  parset_dir+'/losoto-pa.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms+'/pa.h5' for ms in MSs_concat_all.getListStr()],
+                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset',  parset_dir+'/losoto-pa.parset'],
+                logname='losoto-pa.log',
+                h5_out='cal-pa.h5')
+        lib_scheduler.run_losoto(
+                s,
+                [ms+'/pa.h5' for ms in MSs_concat_all.getListStr()],
+                [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset',  parset_dir+'/losoto-pa.parset'],
+                logname='losoto-pa.log',
+                h5_out='cal-pa.h5')
 ### DONE
 
 ########################################################
@@ -318,7 +346,7 @@ with w.if_todo('cal_fr'):
     #MSs_fr.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=DATA sol.h5parm=$pathMS/fr.h5 \
     #           sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalar\
     #           sol.solint=1 sol.nchan=1', log='$nameMS_solFR.log', commandType="DP3")
-    #lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_fr.getListStr()],
+    #lib_scheduler.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_fr.getListStr()],
     #                    [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
     #                     parset_dir + '/losoto-plot-scalaramp.parset', parset_dir + '/losoto-fr.parset'])
     #lib_util.check_rm('concat_fr.MS')
@@ -332,9 +360,13 @@ with w.if_todo('cal_fr'):
                sol.solint={small_timestep} sol.nchan={small_freqstep}', log='$nameMS_solFR.log', commandType="DP3")
 
     # TODO add residual rotation plot after FR fit as soon as this option is present in LoSoTo!
-    lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_concat_all.getListStr()],
-                        [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
-                         parset_dir + '/losoto-fr.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms + '/fr.h5' for ms in MSs_concat_all.getListStr()],
+            [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
+                         parset_dir + '/losoto-fr.parset'],
+            logname='losoto-fr.log',
+            h5_out='cal-fr.h5')
 
 ### DONE
 
@@ -365,8 +397,12 @@ with w.if_todo('cal_iono'):
                         sol.smoothnessconstraint=0.5e6 sol.uvlambdamin={uvlambdamin}', log='$nameMS_solIONO_CS.log',
                        commandType="DP3")
 
-    lib_util.run_losoto(s, 'iono-cs', [ms + '/iono.h5' for ms in MSs_concat_all.getListStr()],
-                        [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-ionoCS.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms + '/iono.h5' for ms in MSs_concat_all.getListStr()],
+            [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-ionoCS.parset'],
+            logname='losoto-iono-cs.log',
+            h5_out='cal-iono-cs.h5')
 
     # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA (unit correction for others)
     logger.info('Iono correction (Core Stations)...')
@@ -397,11 +433,19 @@ with w.if_todo('cal_iono'):
                            log='$nameMS_solIONO.log', commandType="DP3")
    
     if (min(MSs_concat_phaseupIONO.getFreqs()) < 35.e6):
-        lib_util.run_losoto(s, 'iono', [ms + '/iono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-                            [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-iono3rd.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms + '/iono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
+                [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-iono3rd.parset'],
+                logname='losoto-iono.log',
+                h5_out='cal-iono.h5')
     else:
-        lib_util.run_losoto(s, 'iono', [ms + '/iono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
-                            [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-iono.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms + '/iono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
+                [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-iono.parset'],
+                logname='losoto-iono.log',
+                h5_out='cal-iono.h5')
 ### DONE
 
 ######################################################
@@ -436,8 +480,12 @@ with w.if_todo('cal_bp'):
                        log='$nameMS_solBP.log', commandType="DP3")
 
     flag_parset = '/losoto-flag-sparse.parset' if sparse_sb else '/losoto-flag.parset'
-    lib_util.run_losoto(s, 'bp', [ms + '/bp.h5' for ms in MSs_concat_all.getListStr()],
-                        [parset_dir + '/losoto-bp.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms + '/bp.h5' for ms in MSs_concat_all.getListStr()],
+            [parset_dir + '/losoto-bp.parset'],
+            logname='losoto-bp.log',
+            h5_out='cal-bp.h5')
 ### DONE
 
 if debugplots:
@@ -454,8 +502,12 @@ if debugplots:
                 sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
                 sol.solint=1 sol.nchan=1', \
                 log='$nameMS_solTEST.log', commandType="DP3")
-    lib_util.run_losoto(s, 'test-pa', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
-                [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
+            [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'],
+            logname='losoto-test-pa.log',
+            h5_out='cal-test-pa.h5')
 
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Beam correction...')
@@ -470,8 +522,12 @@ if debugplots:
                 sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
                 sol.solint=1 sol.nchan=1', \
                 log='$nameMS_solTEST.log', commandType="DP3")
-    lib_util.run_losoto(s, 'test-pabeam', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
-                [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
+            [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'],
+            logname='losoto-test-pabeam.log',
+            h5_out='cal-test-pabeam.h5')
 
     # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
     logger.info('BP correction...')
@@ -487,8 +543,12 @@ if debugplots:
                 sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
                 sol.solint=1 sol.nchan=1', \
                 log='$nameMS_solTEST.log', commandType="DP3")
-    lib_util.run_losoto(s, 'test-pabeambp', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
-                [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
+            [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'],
+            logname='losoto-test-pabeambp.log',
+            h5_out='cal-test-pabeambp.h5')
     
     # Correct FR CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Faraday rotation correction...')
@@ -503,8 +563,12 @@ if debugplots:
                 sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
                 sol.solint=1 sol.nchan=1', \
                 log='$nameMS_solTEST.log', commandType="DP3")
-    lib_util.run_losoto(s, 'test-pabeambpfr', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
-                [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
+            [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'],
+            logname='losoto-test-pabeambpfr.log',
+            h5_out='cal-test-pabeambpfr.h5')
 
     # Correct iono CORRECTED_DATA -> CORRECTED_DATA
     logger.info('Iono correction...')
@@ -521,8 +585,12 @@ if debugplots:
                 sol.h5parm=$pathMS/test.h5 sol.mode=fulljones \
                 sol.solint=1 sol.nchan=1', \
                 log='$nameMS_solTEST.log', commandType="DP3")
-    lib_util.run_losoto(s, 'test-pabeambpfriono', [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
-                [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'])
+    lib_scheduler.run_losoto(
+            s,
+            [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
+            [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'],
+            logname='losoto-test-pabeambpfriono.log',
+            h5_out='cal-test-pabeambpfriono.h5')
 
 if not develop:
     with w.if_todo('compressing_h5'):
@@ -583,8 +651,12 @@ if imaging:
                             sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint=4 sol.nchan=1 sol.smoothnessconstraint=3e6',
                            log='$nameMS_solBP.log', commandType="DP3")
 
-        lib_util.run_losoto(s, 'amp', [ms + '/amp.h5' for ms in MSs_concat_all.getListStr()],
-                            [parset_dir + '/losoto-plot-scalaramp.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms + '/amp.h5' for ms in MSs_concat_all.getListStr()],
+                [parset_dir + '/losoto-plot-scalaramp.parset'],
+                logname='losoto-amp.log',
+                h5_out='cal-amp.h5')
 
         # FR correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('amp correction...')
@@ -607,8 +679,12 @@ if imaging:
                             sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint=' + str(timestep) + ' sol.nchan=' + str(nchan),
                            log='$nameMS_solFJ.log', commandType="DP3")
 
-        lib_util.run_losoto(s, 'fj', [ms + '/fj.h5' for ms in MSs_concat_all.getListStr()],
-                            [parset_dir + '/losoto-plot-fullj.parset'])
+        lib_scheduler.run_losoto(
+                s,
+                [ms + '/fj.h5' for ms in MSs_concat_all.getListStr()],
+                [parset_dir + '/losoto-plot-fullj.parset'],
+                logname='losoto-fj.log',
+                h5_out='cal-fj.h5')
 
     with w.if_todo('cal_imaging'):
 
