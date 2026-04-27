@@ -2,7 +2,7 @@
 # It isolates various systematic effects and
 # prepare them for the transfer to the target field.
 
-import os, glob, re
+import os, glob, re, shutil, subprocess
 import casacore.tables as pt
 import numpy as np
 from LiLF import lib_ms, lib_scheduler, lib_util, lib_log, lib_h5, lib_walker
@@ -58,8 +58,9 @@ def run(step):
         lib_util.check_rm(f'{output_dir}/*.MS {output_dir}/*.h5 {output_dir}/plots*')
         lib_util.check_rm(f'{output_dir}/cal*.h5')
         lib_util.check_rm(f'{output_dir}/ionex*') # spinifex iono data
+        os.makedirs(f'{output_dir}/plots-weights', exist_ok=True)
     ### DONE
-
+    
     # unpack tar files if present in the tmp dir
     tar_files = glob.glob(f'{input_dir}/*tar')
     for tarfile in tar_files:
@@ -101,11 +102,11 @@ def run(step):
                            '3C196 is usable but not optimal and on the wrong scale. 3C380 is usable and scales between 40 and 70 MHz.'
                            'For 3C48 and 3C147, using S&H point sources which may give reasonable results.')
             if calname.lower() in ['3c196', '3c380']:
-                skymodel = os.path.dirname(__file__) + '/../models/calib-highres.skymodel'
+                skymodel = os.path.dirname(__file__) + '/../../models/calib-highres.skymodel'
             elif calname.lower() in ['3c48', '3c147']:
-                skymodel = os.path.dirname(__file__) + '/../models/calib-simple.skymodel'
+                skymodel = os.path.dirname(__file__) + '/../../models/calib-simple.skymodel'
         else:
-            skymodel = os.path.dirname(__file__) + '/../models/calib-simple.skymodel'
+            skymodel = os.path.dirname(__file__) + '/../../models/calib-simple.skymodel'
 
     logger.info(f"Initial time res: {tint:.1f}, nchan: {nchan}")
 
@@ -145,9 +146,10 @@ def run(step):
     # rescale data to expected theoretical bandpass
     with w.if_todo('scale_bp'):
         # check weights
-        MSs_concat_all.run(f'reweight.py $pathMS -v -p -a {MSs_concat_all.getListObj()[0].getAntennas()[0]}',
+        ant1 = MSs_concat_all.getListObj()[0].getAntennas()[0]
+        MSs_concat_all.run(f'reweight.py $pathMS -v -p -a {ant1}',
                     log='$nameMS_weights.log', commandType='python')
-        os.system(f'mkdir {tmp_dir}/plots-weights; mv prebptheo.png {tmp_dir}/plots-weights/prebptheo.png')
+        shutil.move(f'{ant1}.png', f'{output_dir}/plots-weights/prebptheo.png')
     
         logger.info("Scale data to expected bandpass...")
         # Solve concat_all.MS:DATA
@@ -163,9 +165,10 @@ def run(step):
                            log="$nameMS_bpscale.log", commandType="DP3")
 
         # check weights
-        MSs_concat_all.run(f'reweight.py $pathMS -v -p -a {MSs_concat_all.getListObj()[0].getAntennas()[0]}',
+        ant1 = MSs_concat_all.getListObj()[0].getAntennas()[0]
+        MSs_concat_all.run(f'reweight.py $pathMS -v -p -a {ant1}',
                     log='$nameMS_weights.log', commandType='python')
-        os.system(f'mv postbptheo.png {tmp_dir}/plots-weights/postbptheo.png')
+        shutil.move(f'{ant1}.png', f'{output_dir}/plots-weights/postbptheo.png')
     ### DONE
 
     # flag bad stations, flags will propagate
@@ -242,10 +245,11 @@ def run(step):
             log='$nameMS_beam.log', commandType="DP3")
 
         # check weights
+        ant1 = MSs_concat_all.getListObj()[0].getAntennas()[0]
         MSs_concat_all.run(
-            f'reweight.py $pathMS -v -p -a {MSs_concat_all.getListObj()[0].getAntennas()[0]}',
+            f'reweight.py $pathMS -v -p -a {ant1}',
             log='$nameMS_weights.log', commandType='python')
-        os.system(f'mv postbeam.png {tmp_dir}/plots-weights/postbeam.png')
+        shutil.move(f'{ant1}.png', f'{output_dir}/plots-weights/postbeam.png')
 
         if use_GNSS:
             # TODO: this should be a corruption!
@@ -562,7 +566,7 @@ def run(step):
         MSs_concat_phaseupIONO = lib_ms.AllMSs([f'{tmp_dir}/concat_all-phaseup-IONO.MS'], s, check_flags=False)
 
         logger.info(f'Add model of {calname} from {os.path.basename(skymodel)} to MODEL_DATA...')
-        os.system(f'cp -r {skymodel} {MSs_concat_phaseupIONO.getListObj()[0].pathMS}')
+        shutil.copy2(skymodel, MSs_concat_phaseupIONO.getListObj()[0].pathMS)
         MSs_concat_phaseupIONO.run(
             f'DP3 {parset_dir}/DP3-predict.parset msin=$pathMS pre.sourcedb={skymodel} pre.sources={calname}',
             log="$nameMS_pre.log", commandType="DP3")
@@ -816,11 +820,11 @@ def run(step):
 
             s.run(max_proc=1, check=True) # final check on losoto-compress.log
 
-            os.system(f'h5repack {tmp_dir}/cal-pa.h5 {tmp_dir}/cal-pa-compressed.h5; mv {tmp_dir}/cal-pa-compressed.h5 {tmp_dir}/cal-pa.h5')
-            os.system(f'h5repack {tmp_dir}/cal-fr.h5 {tmp_dir}/cal-fr-compressed.h5; mv {tmp_dir}/cal-fr-compressed.h5 {tmp_dir}/cal-fr.h5')
-            os.system(f'h5repack {tmp_dir}/cal-bp.h5 {tmp_dir}/cal-bp-compressed.h5; mv {tmp_dir}/cal-bp-compressed.h5 {tmp_dir}/cal-bp.h5')
-            os.system(f'h5repack {tmp_dir}/cal-iono-cs.h5 {tmp_dir}/cal-iono-cs-compressed.h5; mv {tmp_dir}/cal-iono-cs-compressed.h5 {tmp_dir}/cal-iono-cs.h5')
-            os.system(f'h5repack {tmp_dir}/cal-iono.h5 {tmp_dir}/cal-iono-compressed.h5; mv {tmp_dir}/cal-iono-compressed.h5 {tmp_dir}/cal-iono.h5')
+            for _h5 in ['cal-pa', 'cal-fr', 'cal-bp', 'cal-iono-cs', 'cal-iono']:
+                _src = f'{tmp_dir}/{_h5}.h5'
+                _tmp = f'{tmp_dir}/{_h5}-compressed.h5'
+                subprocess.run(['h5repack', _src, _tmp], check=True)
+                os.rename(_tmp, _src)
     ### DONE
 
     # a debug image
@@ -847,9 +851,10 @@ def run(step):
 
         
             # check weights
-            #MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (MSs_concat_all.getListObj()[0].getAntennas()[0]),
+            #ant1 = MSs_concat_all.getListObj()[0].getAntennas()[0]
+            #MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (ant1),
             #        log='$nameMS_weights.log', commandType='python')
-            #os.system('mv *png plots-weights/postbp.png')
+            #os.system(f'mv {ant1} plots-weights/postbp.png')
 
             ### DEBUG
             # FR correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA_FR
@@ -875,9 +880,10 @@ def run(step):
             #    cor.correction=amplitude000  cor.updateweights=True', log='$nameMS_corBP.log', commandType="DP3")
 
             # check weights
-            #MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (MSs_concat_all.getListObj()[0].getAntennas()[0]),
+            #ant1 = MSs_concat_all.getListObj()[0].getAntennas()[0]
+            #MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (ant1),
             #        log='$nameMS_weights.log', commandType='python')
-            #os.system('mv *png plots-weights/postfastamp.png')
+            #os.system(f'mv {ant1}.png plots-weights/postfastamp.png')
 
             ### DEBUG
             # FR correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA_FR
@@ -953,6 +959,6 @@ def run(step):
     if not develop:
         logger.info('Cleaning up...')
         lib_util.check_rm(f'{tmp_dir}/cal-preiono.h5 {tmp_dir}/cal-preiono-cs.h5 {tmp_dir}/cal-bp-sub.h5 {tmp_dir}/cal-bp-theo.h5')
-        os.system(f'rm -r {tmp_dir}/*MS')
+        lib_util.check_rm(f'{tmp_dir}/*MS')
 
     w.alldone()
