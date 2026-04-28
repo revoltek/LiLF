@@ -206,7 +206,7 @@ def run(step: lib_cfg.Step):
                 [f'{tmp_dir}/cal-gps-rm.h5'], 
                 [f'{parset_dir}/losoto-reset-rm.parset', f'{parset_dir}/losoto-plot-rm.parset'],
                 h5_out=f'{tmp_dir}/cal-gps-rm-dutchreset.h5', 
-                plots_dir=f'{tmp_dir}/plots-gps-rm'
+                plots_dir=f'{output_dir}/plots-gps-rm'
             )
             
             #corrupt with gps rm concat_all.MS:MODEL_DATA -> MODEL_DATA
@@ -228,7 +228,7 @@ def run(step: lib_cfg.Step):
                 [f'{tmp_dir}/cal-gps-tec.h5'], 
                 [f'{parset_dir}/losoto-reset-tec.parset', f'{parset_dir}/losoto-plot-tec.parset'],
                 h5_out=f'{tmp_dir}/cal-gps-tec-dutchreset.h5', 
-                plots_dir=f'{tmp_dir}/plots-gps-tec'
+                plots_dir=f'{output_dir}/plots-gps-tec'
                 )
             
             # Preliminary tec correction concat_all.MS:DATA -> DATA
@@ -286,7 +286,8 @@ def run(step: lib_cfg.Step):
                 [ms + '/preiono.h5' for ms in MSs_concat_all.getListStr()],
                 [f'{parset_dir}/losoto-plot-scalarph.parset', f'{parset_dir}/losoto-ionoCS.parset'],
                 logname='losoto-preiono-cs.log',
-                h5_out=f'{tmp_dir}/cal-preiono-cs.h5')
+                h5_out=f'{tmp_dir}/cal-preiono-cs.h5',
+                plots_dir=f'{output_dir}/plots-preiono-cs')
 
         # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA (unit correction for RS)
         logger.info('Iono correction (Core Stations)...')
@@ -333,7 +334,9 @@ def run(step: lib_cfg.Step):
                 [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
                 [f'{parset_dir}/losoto-ref-ph.parset', f'{parset_dir}/losoto-plot-scalarph.parset'],
                 logname='losoto-preiono.log',
-                h5_out=f'{tmp_dir}/cal-preiono.h5')
+                h5_out=f'{tmp_dir}/cal-preiono.h5',
+                plots_dir=f'{output_dir}/plots-preiono'
+        )
         
         if use_GNSS:
             #lib_util.check_rm('cal-dtec.h5')
@@ -345,7 +348,7 @@ def run(step: lib_cfg.Step):
                 [f'{tmp_dir}/cal-dtec.h5'], 
                 [f'{tmp_dir}/losoto-reset-tec-noref.parset', f'{tmp_dir}/losoto-plot-tec.parset'],
                 h5_out=f'{tmp_dir}/cal-dtec-dutchreset.h5', 
-                plots_dir=f'{tmp_dir}/plots-dtec-finder'
+                plots_dir=f'{output_dir}/plots-dtec-finder'
             )
             
             lib_scheduler.run_losoto(
@@ -353,7 +356,7 @@ def run(step: lib_cfg.Step):
                 [f'{tmp_dir}/cal-preiono.h5'], 
                 [ f'{tmp_dir}/losoto-reset-phases.parset', f'{tmp_dir}/losoto-ref-ph.parset', f'{tmp_dir}/losoto-plot-scalarph.parset'], 
                 h5_out=f'{tmp_dir}/cal-preiono.h5', # int. phases are reset here
-                plots_dir=f'{tmp_dir}/plots-pretec'
+                plots_dir=f'{output_dir}/plots-pretec'
             )
             
             # Preliminary residual dtec correction (fitted) concat_all.MS:DATA -> DATA
@@ -420,7 +423,9 @@ def run(step: lib_cfg.Step):
                     [ms+'/pa.h5' for ms in MSs_pa.getListStr()],
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset',  parset_dir+'/losoto-pa.parset'],
                     logname='losoto-pa.log',
-                    h5_out=f'{tmp_dir}/cal-pa.h5')
+                    h5_out=f'{tmp_dir}/cal-pa.h5',
+                    plots_dir=f'{output_dir}/plots-pa'
+                    )
 
         else:
             # predict the full-corrupted model
@@ -445,7 +450,9 @@ def run(step: lib_cfg.Step):
                     [ms+'/pa.h5' for ms in MSs_concat_all.getListStr()],
                     [parset_dir+'/losoto-plot-ph.parset', parset_dir+'/losoto-plot-rot.parset',  parset_dir+'/losoto-pa.parset'],
                     logname='losoto-pa.log',
-                    h5_out=f'{tmp_dir}/cal-pa.h5')
+                    h5_out=f'{tmp_dir}/cal-pa.h5',
+                    plots_dir=f'{output_dir}/plots-pa'
+                    )
     ### DONE
     ########################################################
 
@@ -486,7 +493,9 @@ def run(step: lib_cfg.Step):
                     [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
                                  parset_dir + '/losoto-fr-low.parset'],
                     logname='losoto-fr.log',
-                    h5_out=f'{tmp_dir}/cal-fr.h5')
+                    h5_out=f'{tmp_dir}/cal-fr.h5',
+                    plots_dir=f'{output_dir}/plots-fr'
+                    )
         elif MSs_concat_all.hasIS:
             lib_scheduler.run_losoto(
                     s,
@@ -494,7 +503,9 @@ def run(step: lib_cfg.Step):
                     [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
                                  parset_dir + '/losoto-fr-IS.parset'],
                     logname='losoto-fr.log',
-                    h5_out=f'{tmp_dir}/cal-fr.h5')
+                    h5_out=f'{tmp_dir}/cal-fr.h5',
+                    plots_dir=f'{output_dir}/plots-fr'
+                    )
             # workaround to remove all flags from cal-fr.h5
             #logger.info('unflag cal-fr.h5...')
             #s.add("h5_remove_flags.py cal-fr.h5 rotationmeasure", log='h5_remove_flag.log', commandType='python')
@@ -508,7 +519,9 @@ def run(step: lib_cfg.Step):
                     [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
                                  parset_dir + '/losoto-fr.parset'],
                     logname='losoto-fr.log',
-                    h5_out=f'{tmp_dir}/cal-fr.h5')
+                    h5_out=f'{tmp_dir}/cal-fr.h5',
+                    plots_dir=f'{output_dir}/plots-fr'
+                    )
 
     ### DONE
     #################################################
@@ -544,7 +557,9 @@ def run(step: lib_cfg.Step):
                 [ms + '/iono.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-ionoCS.parset'],
                 logname='losoto-iono-cs.log',
-                h5_out=f'{tmp_dir}/cal-iono-cs.h5')
+                h5_out=f'{tmp_dir}/cal-iono-cs.h5',
+                plots_dir=f'{output_dir}/plots-iono-cs'
+                )
 
         # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA (unit correction for others)
         logger.info('Iono correction (Core Stations)...')
@@ -589,7 +604,9 @@ def run(step: lib_cfg.Step):
                     [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset',
                                  parset_dir + '/losoto-iono3rd.parset'],
                     logname='losoto-iono.log',
-                    h5_out=f'{tmp_dir}/cal-iono.h5')
+                    h5_out=f'{tmp_dir}/cal-iono.h5',
+                    plots_dir=f'{output_dir}/plots-iono'
+                    )
         else:
             lib_scheduler.run_losoto(
                     s,
@@ -597,7 +614,9 @@ def run(step: lib_cfg.Step):
                     [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset',
                                  parset_dir + '/losoto-iono.parset'],
                     logname='losoto-iono.log',
-                    h5_out=f'{tmp_dir}/cal-iono.h5')
+                    h5_out=f'{tmp_dir}/cal-iono.h5',
+                    plots_dir=f'{output_dir}/plots-iono'
+                    )
     ### DONE
     ######################################################
 
@@ -648,7 +667,9 @@ def run(step: lib_cfg.Step):
                 [ms + '/bp-sub.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir + flag_parset],
                 logname='losoto-bp-sub.log',
-                h5_out=f'{tmp_dir}/cal-bp-sub.h5')
+                h5_out=f'{tmp_dir}/cal-bp-sub.h5',
+                plots_dir=f'{output_dir}/plots-bp-sub'
+                )
 
         # merge the solution with the bandpass before losoto
         s.add(f'h5_merger.py --h5_out {tmp_dir}/cal-bp.h5 --h5_tables {tmp_dir}/cal-bp-sub.h5 {tmp_dir}/cal-bp-theo.h5 --propagate_flags'
@@ -698,7 +719,9 @@ def run(step: lib_cfg.Step):
                 [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'],
                 logname='losoto-test-pa.log',
-                h5_out=f'{tmp_dir}/cal-test-pa.h5')
+                h5_out=f'{tmp_dir}/cal-test-pa.h5',
+                plots_dir=f'{output_dir}/plots-test-pa'
+                )
 
         # Beam correction CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Beam correction...')
@@ -718,7 +741,9 @@ def run(step: lib_cfg.Step):
                 [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'],
                 logname='losoto-test-pabeam.log',
-                h5_out=f'{tmp_dir}/cal-test-pabeam.h5')
+                h5_out=f'{tmp_dir}/cal-test-pabeam.h5',
+                plots_dir=f'{output_dir}/plots-test-pabeam'
+                )
 
         # Correct amp BP CORRECTED_DATA -> CORRECTED_DATA
         logger.info('BP correction...')
@@ -739,7 +764,9 @@ def run(step: lib_cfg.Step):
                 [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'],
                 logname='losoto-test-pabeambp.log',
-                h5_out=f'{tmp_dir}/cal-test-pabeambp.h5')
+                h5_out=f'{tmp_dir}/cal-test-pabeambp.h5',
+                plots_dir=f'{output_dir}/plots-test-pabeambp'
+                )
 
         # Correct FR CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Faraday rotation correction...')
@@ -759,7 +786,9 @@ def run(step: lib_cfg.Step):
                 [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'],
                 logname='losoto-test-pabeambpfr.log',
-                h5_out=f'{tmp_dir}/cal-test-pabeambpfr.h5')
+                h5_out=f'{tmp_dir}/cal-test-pabeambpfr.h5',
+                plots_dir=f'{output_dir}/plots-test-pabeambpfr'
+                )
 
         # Correct iono CORRECTED_DATA -> CORRECTED_DATA
         logger.info('Iono correction...')
@@ -781,7 +810,9 @@ def run(step: lib_cfg.Step):
                 [ms + '/test.h5' for ms in MSs_concat_all.getListStr()],
                 [parset_dir + '/losoto-plot-fullj.parset', parset_dir + '/losoto-bp.parset'],
                 logname='losoto-test-pabeambpfriono.log',
-                h5_out=f'{tmp_dir}/cal-test-pabeambpfriono.h5')
+                h5_out=f'{tmp_dir}/cal-test-pabeambpfriono.h5',
+                plots_dir=f'{output_dir}/plots-test-pabeambpfriono'
+                )
 
     if not develop:
         with w.if_todo('compressing_h5'):
