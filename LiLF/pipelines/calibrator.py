@@ -202,7 +202,7 @@ def run(step):
                     [f'{tmp_dir}/cal-gps-rm.h5'],
                     [f'{parset_dir}/losoto-plot-rm.parset'],
                     logname='losoto-cal-gps-rm.log',
-                    plots_dir=f'{tmp_dir}/plots-gps')
+                    plots_dir=f'{output_dir}/plots-gps')
             logger.info('Get TEC from GPS data (spinifex)...')
             MSs_concat_all.run(f'spinifex get_tec_h5parm_from_ms $pathMS -o {tmp_dir}/cal-gps-tec.h5',
                                log='spinifex_gps_tec.log', commandType='general')
@@ -215,7 +215,7 @@ def run(step):
                     [f'{tmp_dir}/cal-gps-tec.h5'],
                     [f'{parset_dir}/losoto-plot-tec.parset'],
                     logname='losoto-cal-gps-tec.log',
-                    plots_dir=f'{tmp_dir}/plots-gps')
+                    plots_dir=f'{output_dir}/plots-gps')
 
             # TODO: here there should be a correction od DATA for TEC and a corruption of MODEL_DATA for RM
 
@@ -333,7 +333,7 @@ def run(step):
                     [f'{parset_dir}/losoto-plot-tec.parset'],
                     logname='losoto-cal-dtec.log',
                     h5_out=f'{tmp_dir}/cal-dtec.h5',
-                    plots_dir=f'{tmp_dir}/plots-gps')
+                    plots_dir=f'{output_dir}/plots-gps')
 
     ### DONE
     ########################################################
@@ -673,7 +673,7 @@ def run(step):
                     [parset_dir + '/losoto-bp-decameter.parset'],
                     logname='losoto-cal-bp.log',
                     h5_out=f'{tmp_dir}/cal-bp.h5',
-                    plots_dir=f'{tmp_dir}/plots-bp')
+                    plots_dir=f'{output_dir}/plots-bp')
         else:
             lib_scheduler.run_losoto(
                     s,
@@ -681,7 +681,7 @@ def run(step):
                     [parset_dir + '/losoto-bp.parset'],
                     logname='losoto-cal-bp.log',
                     h5_out=f'{tmp_dir}/cal-bp.h5',
-                    plots_dir=f'{tmp_dir}/plots-bp')
+                    plots_dir=f'{output_dir}/plots-bp')
     ### DONE
 
     if develop:
@@ -800,7 +800,7 @@ def run(step):
             # os.system('cp cal-fr.h5 fullcal-fr.h5') # no need to keep orig
             # os.system('cp cal-bp.h5 fullcal-bp.h5')
             # os.system('cp cal-iono.h5 fullcal-iono.h5')
-            s.add('losoto -d sol000/phaseOrig000 cal-pa.h5', log='losoto-compress.log', commandType="python")
+            s.add('losoto -d sol000/phaseOrig000 {}cal-pa.h5', log='losoto-compress.log', commandType="python")
             s.add('losoto -d sol000/phase000 cal-pa.h5', log='losoto-compress.log', commandType="python")
             s.add('losoto -d sol000/rotation000 cal-pa.h5', log='losoto-compress.log', commandType="python")
 
