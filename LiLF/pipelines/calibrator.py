@@ -415,7 +415,7 @@ def run(step: lib_cfg.Step):
             # Beam corruption concat_pa.MS:MODEL_DATA -> MODEL_DATA
             logger.info(f'Beam model corruption (MODEL_DATA - > MODEL_DATA)...')
             MSs_pa.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
-                       setbeam.beammode=Element corrbeam.updateweights=False corrbeam.invert=False',
+                       setbeam.beammode=Full corrbeam.updateweights=False corrbeam.invert=False',
                        log='$nameMS_beam.log', commandType="DP3")
             
             # HE: sol.rotationdiagonalmode diagonalphase seemes to give more stable results and surpresses the ~60 MHz bump weirdness
@@ -441,6 +441,7 @@ def run(step: lib_cfg.Step):
             
             if use_GNSS:
                 # FR corruption concat_concat_all.MS:MODEL_DATA_BEAMCOR -> MODEL_DATA_BEAMCOR
+                logger.info('Faraday rotation corruption (MODEL_DATA_BEAMCOR - > MODEL_DATA_BEAMCOR)...')
                 MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=MODEL_DATA_BEAMCOR msout.datacolumn=MODEL_DATA_BEAMCOR \
                                     cor.parmdb={tmp_dir}/cal-gps-rm-dutchreset.h5 cor.correction=rotationmeasure000 cor.invert=False',
                                 log='$nameMS_corGPSFR.log', commandType="DP3")
@@ -448,7 +449,7 @@ def run(step: lib_cfg.Step):
             # Beam corruption concat_all.MS:MODEL_DATA_BEAMCOR -> MODEL_DATA_BEAMCOR
             logger.info(f'Beam model corruption (MODEL_DATA_BEAMCOR - > MODEL_DATA_BEAMCOR)...')
             MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA_BEAMCOR msout.datacolumn=MODEL_DATA_BEAMCOR \
-                       setbeam.beammode=Element corrbeam.updateweights=False corrbeam.invert=False',
+                       setbeam.beammode=Full corrbeam.updateweights=False corrbeam.invert=False',
                        log='$nameMS_beam.log', commandType="DP3")
 
             # Solve concat_all.MS:SMOOTHED_DATA (only solve)
