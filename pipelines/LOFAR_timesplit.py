@@ -133,6 +133,12 @@ with w.if_todo('apply'):
     # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
     logger.info('Beam correction...')
     MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM.log', commandType='DP3')
+    
+    logger.info('BP correction...')
+    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_bp} msin.datacolumn=CORRECTED_DATA \
+                    cor.correction=amplitudeSmooth cor.updateweights=True',
+                    log='$nameMS_corBP.log', commandType="DP3")
+    
     if use_GNSS:
         # Correct gps-tec concat_all:CORRECTED_DATA -> CORRECTED_DATA
         logger.info('TEC correction (GPS)...')
@@ -151,10 +157,6 @@ with w.if_todo('apply'):
     MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_iono} msin.datacolumn=CORRECTED_DATA \
                 cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
 
-    logger.info('BP correction...')
-    MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={h5_bp} msin.datacolumn=CORRECTED_DATA \
-                    cor.correction=amplitudeSmooth cor.updateweights=True',
-                    log='$nameMS_corBP.log', commandType="DP3")
     if apply_fr:
         logger.info('FR correction...')
         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={cal_dir}/cal-fr.h5 msin.datacolumn=CORRECTED_DATA \

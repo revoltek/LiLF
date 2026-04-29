@@ -326,12 +326,6 @@ with w.if_todo('pre_iono'):
 
 # 2: find PA
 with w.if_todo('cal_pa'):
-    if use_GNSS:
-        # Correct TEC concat_all:CORRECTED_DATA -> CORRECTED_DATA
-        logger.info('dTEC correction (fitted)...')
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
-                    cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
-    #else:
     # Correct pre-iono concat_all:DATA -> CORRECTED_DATA
     logger.info('Iono correction (preliminary)...')
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono-cs.h5  msin.datacolumn=DATA \
@@ -339,6 +333,13 @@ with w.if_todo('cal_pa'):
     # Correct pre-iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono.h5 \
                 cor.correction=phase000', log='$nameMS_cor-preIONO.log', commandType="DP3")
+    
+    if use_GNSS:
+        # Correct TEC concat_all:CORRECTED_DATA -> CORRECTED_DATA
+        logger.info('dTEC correction (fitted)...')
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-dtec.h5 \
+                    cor.correction=tec000', log='$nameMS_cor-dtec.log', commandType="DP3")
+    
     # Smooth data concat_all:CORRECTED_DATA -> SMOOTHED_DATA
     MSs_concat_all.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
 
@@ -450,12 +451,6 @@ with w.if_todo('cal_fr'):
         lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_concat_all.getListStr()],
                             [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
                              parset_dir + '/losoto-fr-IS.parset'])
-        # workaround to remove all flags from cal-fr.h5
-        #logger.info('unflag cal-fr.h5...')
-        #s.add("h5_remove_flags.py cal-fr.h5 rotationmeasure", log='h5_remove_flag.log', commandType='python')
-        #s.run()
-        #os.system('mv cal-fr.h5 cal-fr-original.h5')
-        #os.system('mv cal-fr-noflag.h5 cal-fr.h5')
     else:
         lib_util.run_losoto(s, 'fr', [ms + '/fr.h5' for ms in MSs_concat_all.getListStr()],
                             [parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset',
