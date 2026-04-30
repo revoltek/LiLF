@@ -149,10 +149,10 @@ RUN cd /opt/EveryBeam && mkdir build && cd build \
 ENV EVERYBEAM_DATADIR=/usr/local/share/everybeam
 
 #####################################################################
-## idg v1.2.0
+## IDG (master 20/04/2026)
 #####################################################################
 RUN cd /opt && git clone https://gitlab.com/astron-idg/idg.git \
-    && cd /opt/idg && git checkout tags/1.2.0 && rm -rf .git/objects/pack/
+    && cd /opt/idg && git checkout 54464d64 && rm -rf .git/objects/pack/
 RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=True -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j `nproc --all` && make install; fi
 RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/idg && mkdir build && cd build && cmake -DPORTABLE=False -DCMAKE_INSTALL_PREFIX:PATH=/ .. && make -j `nproc --all` && make install; fi
 
@@ -163,16 +163,6 @@ RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
     && cd /opt/aoflagger && git checkout 398fcd5b && rm -rf .git/objects/pack/
 RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -Wno-dev -DPORTABLE=True -DBUILD_TESTING=OFF -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
 RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -Wno-dev -DPORTABLE=False -DBUILD_TESTING=OFF -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
-
-#####################################################################
-## Dysco v1.3
-## not needed, it comes with casacore
-#####################################################################
-#RUN cd /opt && git clone https://github.com/aroffringa/dysco.git \
-#    && cd /opt/dysco && git checkout tags/v1.3
-#RUN cd /opt/dysco && mkdir build && cd build \
-#    && cmake -DPORTABLE=True .. \
-#    && make -j `nproc --all` && make install
 
 #####################################################################
 ## LofarStMan
