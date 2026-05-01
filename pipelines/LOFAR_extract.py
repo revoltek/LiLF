@@ -172,7 +172,7 @@ parser.add_argument('--idg', dest='idg', action='store', default='True', type=st
 
 args = parser.parse_args()
 coords = args.radec
-pathdir = args.path
+pathdir = os.path.abspath(args.path) if args.path else args.path   # resolve NOW, before any os.chdir()
 ztarget = args.redshift
 targetname = args.name
 beam_cut = args.beamcut
@@ -300,7 +300,7 @@ close_pointings = []
 for pointing in tocheck:
 
     chout_max = len(glob.glob(f'{pointing}/primarybeam.fits'))
-    with fits.open(f'{pointing}/primarybeam.fits') as f:
+    with fits.open(f'{pointing}/primarybeam.fits', mode='readonly') as f:
         header, data = lib_img.flatten(f)
         wcs = WCS(header)
         c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
