@@ -23,7 +23,6 @@ minmax = [-3.14,3.14]
 [plotP2]
 operation = PLOT
 soltab = sol000/phase000
-freq.minmaxstep = [40e6,100e6,10000]
 axesInPlot = [time]
 axisInTable = ant
 prefix = plots/ph1_
