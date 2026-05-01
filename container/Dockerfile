@@ -26,7 +26,7 @@ RUN apt-get update && \
     rename sudo texinfo vim wcslib-dev wget && \
     rm -rf /var/lib/apt/lists/*
 
-RUN curl -O https://launchpadlibrarian.net/646633572/libaio1_0.3.113-4_amd64.deb && \
+RUN curl -O https://ftp.debian.org/debian/pool/main/liba/libaio/libaio1_0.3.113-4_amd64.deb && \
     dpkg -i libaio1_0.3.113-4_amd64.deb && rm libaio1_0.3.113-4_amd64.deb
 
 # Add group. We chose GID 65527 to try avoiding conflicts.
