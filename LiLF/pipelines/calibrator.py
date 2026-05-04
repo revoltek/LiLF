@@ -828,23 +828,23 @@ def run(step: lib_cfg.Step):
             # os.system('cp cal-fr.h5 fullcal-fr.h5') # no need to keep orig
             # os.system('cp cal-bp.h5 fullcal-bp.h5')
             # os.system('cp cal-iono.h5 fullcal-iono.h5')
-            s.add('losoto -d sol000/phaseOrig000 cal-pa.h5', log='losoto-compress.log', commandType="python")
-            s.add('losoto -d sol000/phase000 cal-pa.h5', log='losoto-compress.log', commandType="python")
-            s.add('losoto -d sol000/rotation000 cal-pa.h5', log='losoto-compress.log', commandType="python")
+            s.add(f'losoto -d sol000/phaseOrig000 {tmp_dir}/cal-pa.h5', log='losoto-compress.log', commandType="python")
+            s.add(f'losoto -d sol000/phase000 {tmp_dir}/cal-pa.h5', log='losoto-compress.log', commandType="python")
+            s.add(f'losoto -d sol000/rotation000 {tmp_dir}/cal-pa.h5', log='losoto-compress.log', commandType="python")
 
-            s.add('losoto -d sol000/phase000 cal-fr.h5', log='losoto-compress.log', commandType="python")
-            s.add('losoto -d sol000/rotation000 cal-fr.h5', log='losoto-compress.log', commandType="python")
-            s.add('losoto -d sol000/rotationResid000 cal-fr.h5', log='losoto-compress.log', commandType="python")
+            s.add(f'losoto -d sol000/phase000 {tmp_dir}/cal-fr.h5', log='losoto-compress.log', commandType="python")
+            s.add(f'losoto -d sol000/rotation000 {tmp_dir}/cal-fr.h5', log='losoto-compress.log', commandType="python")
+            s.add(f'losoto -d sol000/rotationResid000 {tmp_dir}/cal-fr.h5', log='losoto-compress.log', commandType="python")
 
-            s.add('losoto -d sol000/amplitude000 cal-bp.h5', log='losoto-compress.log', commandType="python")
-            s.add('losoto -d sol000/phase000 cal-bp.h5', log='losoto-compress.log', commandType="python")
-            #s.add('losoto -d sol000/amplitudeRes cal-bp.h5', log='losoto-compress.log', commandType="python") # keep for quality evaluation
+            s.add(f'losoto -d sol000/amplitude000 {tmp_dir}/cal-bp.h5', log='losoto-compress.log', commandType="python")
+            s.add(f'losoto -d sol000/phase000 {tmp_dir}/cal-bp.h5', log='losoto-compress.log', commandType="python")
+            #s.add(f'losoto -d sol000/amplitudeRes {tmp_dir}/cal-bp.h5', log='losoto-compress.log', commandType="python") # keep for quality evaluation
 
-            s.add('losoto -d sol000/phase_offset000 cal-iono-cs.h5', log='losoto-compress.log', commandType="python")
-            s.add('losoto -d sol000/phaseResid000 cal-iono-cs.h5', log='losoto-compress.log', commandType="python")
+            s.add(f'losoto -d sol000/phase_offset000 {tmp_dir}/cal-iono-cs.h5', log='losoto-compress.log', commandType="python")
+            s.add(f'losoto -d sol000/phaseResid000 {tmp_dir}/cal-iono-cs.h5', log='losoto-compress.log', commandType="python")
 
-            s.add('losoto -d sol000/phase_offset000 cal-iono.h5', log='losoto-compress.log', commandType="python")
-            s.add('losoto -d sol000/phaseResid000 cal-iono.h5', log='losoto-compress.log', commandType="python")
+            s.add(f'losoto -d sol000/phase_offset000 {tmp_dir}/cal-iono.h5', log='losoto-compress.log', commandType="python")
+            s.add(f'losoto -d sol000/phaseResid000 {tmp_dir}/cal-iono.h5', log='losoto-compress.log', commandType="python")
 
             s.run(max_proc=1, check=True) # final check on losoto-compress.log
 
@@ -860,20 +860,20 @@ def run(step: lib_cfg.Step):
             # Pol align correction concat_all.MS:DATA -> CORRECTED_DATA
             logger.info('Polalign correction...')
             MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
-                           cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DP3")
+                           cor.parmdb={tmp_dir}/cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DP3")
             # Correct beam concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Beam correction...')
             MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False',
                                log='$nameMS_beam.log', commandType="DP3")
             # Correct amp BP concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
             logger.info('BP correction...')
-            MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-bp-sub.h5 \
+            MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={tmp_dir}/cal-bp-sub.h5 \
                 cor.correction=amplitude000 cor.updateweights=True', log='$nameMS_corBP.log', commandType="DP3")
             # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
             logger.info('Iono correction...')
-            MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 \
+            MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={tmp_dir}/cal-iono-cs.h5 \
                         cor.correction=phase000', log='$nameMS_corIONO_CS.log', commandType="DP3")
-            MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
+            MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={tmp_dir}/cal-iono.h5 \
                         cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
 
         
@@ -916,7 +916,7 @@ def run(step: lib_cfg.Step):
             # FR correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA_FR
             #logger.info('FR correction (for imaging)...')
             #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msout.datacolumn=CORRECTED_DATA_FR \
-            #                    cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+            #                    cor.parmdb={tmp_dir}/cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
             #debug_imaging(MSs_concat_all, 'afteramp', column='CORRECTED_DATA_FR')
             ###
 
@@ -939,7 +939,7 @@ def run(step: lib_cfg.Step):
 
             # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
             #logger.info('Faraday rotation correction...')
-            #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 \
+            #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={tmp_dir}/cal-fr.h5 \
             #               cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
 
         with w.if_todo('cal_imaging'):
@@ -955,7 +955,7 @@ def run(step: lib_cfg.Step):
             MSs_concat_all.addcol('MODEL_DATA_CORRUPT', 'MODEL_DATA', log='$nameMS_addcol.log')
             # Correct FR concat_all.MS:MODEL_DATA -> MODEL_DATA_CORRUPT
             logger.info('Faraday rotation corruption...')
-            MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fr.h5 msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA_CORRUPT\
+            MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={tmp_dir}/cal-fr.h5 msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA_CORRUPT\
                            cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
             # Correct iono concat_all:MODEL_DATA_CORRUPT -> MODEL_DATA_CORRUPT
             logger.info('Iono corruption...')
