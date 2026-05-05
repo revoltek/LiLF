@@ -34,14 +34,14 @@ def run(step: lib_cfg.Step):
         MSs: lib_ms.AllMSs
         suffix: name of the image
         """
-        if not os.path.exists('img'):
-            os.makedirs('img')
+        if not os.path.exists(f'{output_dir}/img'):
+            os.makedirs(f'{output_dir}/img')
 
         imgsizepix = 2048 if MSs.hasIS else 1024
         scale = '0.3arcsec' if MSs.hasIS else '3arcsec'
 
         logger.info('Cleaning...')
-        imagename = f'img/cal-{suffix}'
+        imagename = f'{output_dir}/img/cal-{suffix}'
         lib_scheduler.run_wsclean(s, 'wsclean.log', MSs.getStrWsclean(), name=imagename, size=imgsizepix, data_column=column,
                              scale=scale, pol='I,V', auto_mask=5, # local_rms='', local_rms_method='rms-with-min',
                              weight='briggs -0.3', niter=100000, no_update_model_required='', minuv_l=30, mgain=0.6,
@@ -821,39 +821,6 @@ def run(step: lib_cfg.Step):
                 plots_dir=f'{output_dir}/plots-test-pabeambpfriono'
                 )
 
-    if not develop:
-        with w.if_todo('compressing_h5'):
-            logger.info('Compressing caltables...')
-            # os.system('cp cal-pa.h5 fullcal-pa.h5')
-            # os.system('cp cal-fr.h5 fullcal-fr.h5') # no need to keep orig
-            # os.system('cp cal-bp.h5 fullcal-bp.h5')
-            # os.system('cp cal-iono.h5 fullcal-iono.h5')
-            s.add(f'losoto -d sol000/phaseOrig000 {tmp_dir}/cal-pa.h5', log='losoto-compress.log', commandType="python")
-            s.add(f'losoto -d sol000/phase000 {tmp_dir}/cal-pa.h5', log='losoto-compress.log', commandType="python")
-            s.add(f'losoto -d sol000/rotation000 {tmp_dir}/cal-pa.h5', log='losoto-compress.log', commandType="python")
-
-            s.add(f'losoto -d sol000/phase000 {tmp_dir}/cal-fr.h5', log='losoto-compress.log', commandType="python")
-            s.add(f'losoto -d sol000/rotation000 {tmp_dir}/cal-fr.h5', log='losoto-compress.log', commandType="python")
-            s.add(f'losoto -d sol000/rotationResid000 {tmp_dir}/cal-fr.h5', log='losoto-compress.log', commandType="python")
-
-            s.add(f'losoto -d sol000/amplitude000 {tmp_dir}/cal-bp.h5', log='losoto-compress.log', commandType="python")
-            s.add(f'losoto -d sol000/phase000 {tmp_dir}/cal-bp.h5', log='losoto-compress.log', commandType="python")
-            #s.add(f'losoto -d sol000/amplitudeRes {tmp_dir}/cal-bp.h5', log='losoto-compress.log', commandType="python") # keep for quality evaluation
-
-            s.add(f'losoto -d sol000/phase_offset000 {tmp_dir}/cal-iono-cs.h5', log='losoto-compress.log', commandType="python")
-            s.add(f'losoto -d sol000/phaseResid000 {tmp_dir}/cal-iono-cs.h5', log='losoto-compress.log', commandType="python")
-
-            s.add(f'losoto -d sol000/phase_offset000 {tmp_dir}/cal-iono.h5', log='losoto-compress.log', commandType="python")
-            s.add(f'losoto -d sol000/phaseResid000 {tmp_dir}/cal-iono.h5', log='losoto-compress.log', commandType="python")
-
-            s.run(max_proc=1, check=True) # final check on losoto-compress.log
-
-            for _h5 in ['cal-pa', 'cal-fr', 'cal-bp', 'cal-iono-cs', 'cal-iono']:
-                _src = f'{tmp_dir}/{_h5}.h5'
-                _tmp = f'{output_dir}/{_h5}.h5'
-                subprocess.run(['h5repack', _src, _tmp], check=True)
-    ### DONE
-
     # a debug image
     if imaging:
         with w.if_todo('cal_final'):
@@ -875,78 +842,21 @@ def run(step: lib_cfg.Step):
                         cor.correction=phase000', log='$nameMS_corIONO_CS.log', commandType="DP3")
             MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={tmp_dir}/cal-iono.h5 \
                         cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
-
-        
-            # check weights
-            #ant1 = MSs_concat_all.getListObj()[0].getAntennas()[0]
-            #MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (ant1),
-            #        log='$nameMS_weights.log', commandType='python')
-            #os.system(f'mv {ant1} plots-weights/postbp.png')
-
-            ### DEBUG
-            # FR correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA_FR
-            #logger.info('FR correction (for imaging)...')
-            #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msout.datacolumn=CORRECTED_DATA_FR \
-            #                    cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
-            #debug_imaging(MSs_concat_all, 'afterbp', column='CORRECTED_DATA_FR')
-            ###
-
-            # Here we solve for fast scalaramp - this should capture scintillations. BLsmooth might smear the scintillations for the CS, but seems to give better results in image space
-            # Solve concat_all.MS:CORRECTED_DATA (only solve) against FR-corrupted MODEL_DATA
-            #logger.info('Calibrating amp scintillations...')
-            #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/amp.h5 sol.mode=scalaramplitude sol.datause=full \
-            #                    sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint=1 sol.nchan=1 sol.smoothnessconstraint=5e6',
-            #                   log='$nameMS_solBP.log', commandType="DP3")
-
-            #lib_scheduler.run_losoto(s, 'amp', [ms + '/amp.h5' for ms in MSs_concat_all.getListStr()],
-            #                    [f'{parset_dir}/losoto-plot-scalaramp.parset'])
-
-            # Fast amp correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
-            #logger.info('Amp scintillation correction...')
-            #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-amp.h5 \
-            #    cor.correction=amplitude000  cor.updateweights=True', log='$nameMS_corBP.log', commandType="DP3")
-
-            # check weights
-            #ant1 = MSs_concat_all.getListObj()[0].getAntennas()[0]
-            #MSs_concat_all.run('reweight.py $pathMS -v -p -a %s' % (ant1),
-            #        log='$nameMS_weights.log', commandType='python')
-            #os.system(f'mv {ant1}.png plots-weights/postfastamp.png')
-
-            ### DEBUG
-            # FR correction concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA_FR
-            #logger.info('FR correction (for imaging)...')
-            #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msout.datacolumn=CORRECTED_DATA_FR \
-            #                    cor.parmdb={tmp_dir}/cal-fr.h5 cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
-            #debug_imaging(MSs_concat_all, 'afteramp', column='CORRECTED_DATA_FR')
-            ###
-
-            # Solve concat_all.MS:CORRECTED_DATA (only solve)
-            #logger.info('Calibrating slow leakage...')
-            #timestep = 20*round(120 / tint)  # brings down to 20min
-            #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
-            #                   sol.h5parm=$pathMS/fj.h5 sol.mode=fulljones sol.minvisratio=0 \
-            #                   sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.smoothnessconstraint=5e6',
-            #                   log='$nameMS_solFJ.log', commandType="DP3")
-
-            #lib_scheduler.run_losoto(s, 'fj', [ms + '/fj.h5' for ms in MSs_concat_all.getListStr()],
-            #                    [f'{parset_dir}/losoto-plot-fullj.parset'])
-        
-            # Correct amp BP concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
-            #logger.info('Leakage correction...')
-            #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-fj.h5 \
-            #                    cor.correction=fulljones cor.soltab=[amplitude000,phase000] cor.updateweights=False',
-            #                    log='$nameMS_corBP.log', commandType="DP3")
-
             # Correct FR concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
-            #logger.info('Faraday rotation correction...')
-            #MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={tmp_dir}/cal-fr.h5 \
-            #               cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+            logger.info('Faraday rotation correction...')
+            MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={tmp_dir}/cal-fr.h5 \
+                           cor.correction=rotationmeasure000', log='$nameMS_corFR.log', commandType="DP3")
+            if use_GNSS:
+                # FR corruption concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
+                logger.info('Faraday rotation correction (GNSS)...')
+                MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb={tmp_dir}/cal-gps-rm-dutchreset.h5 \
+                               cor.correction=rotationmeasure000', log='$nameMS_corGPSFR.log', commandType="DP3")
 
         with w.if_todo('cal_imaging'):
             debug_imaging(MSs_concat_all, 'final')
-            logger.info('Source to peel: set SUBTRACTED_CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_FRCOR')
+            logger.info('Source to peel: set SUBTRACTED_CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA')
             MSs_concat_all.addcol('SUBTRACTED_CORRECTED_DATA', 'DATA', log='$nameMS_addcol.log')
-            MSs_concat_all.run('taql "update $pathMS set SUBTRACTED_CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA_FRCOR"', \
+            MSs_concat_all.run('taql "update $pathMS set SUBTRACTED_CORRECTED_DATA = CORRECTED_DATA - MODEL_DATA"', \
                             log='$nameMS_taql.log', commandType='general')
             debug_imaging(MSs_concat_all, 'subtractedcorr', column='SUBTRACTED_CORRECTED_DATA')
         ### DONE
@@ -983,9 +893,40 @@ def run(step: lib_cfg.Step):
             debug_imaging(MSs_concat_all, 'subtracted', column='SUBTRACTED_DATA')
 
 
+    with w.if_todo('compressing_h5'):
+        logger.info('Compressing caltables...')
+        for _h5 in ['cal-pa', 'cal-fr', 'cal-bp', 'cal-iono-cs', 'cal-iono']:
+            shutil.copy2(f'{tmp_dir}/{_h5}.h5', f'{output_dir}/{_h5}.h5')
+
+        s.add(f'losoto -d sol000/phaseOrig000 {output_dir}/cal-pa.h5', log='losoto-compress.log', commandType="python")
+        s.add(f'losoto -d sol000/phase000 {output_dir}/cal-pa.h5', log='losoto-compress.log', commandType="python")
+        s.add(f'losoto -d sol000/rotation000 {output_dir}/cal-pa.h5', log='losoto-compress.log', commandType="python")
+
+        s.add(f'losoto -d sol000/phase000 {output_dir}/cal-fr.h5', log='losoto-compress.log', commandType="python")
+        s.add(f'losoto -d sol000/rotation000 {output_dir}/cal-fr.h5', log='losoto-compress.log', commandType="python")
+        s.add(f'losoto -d sol000/rotationResid000 {output_dir}/cal-fr.h5', log='losoto-compress.log', commandType="python")
+
+        s.add(f'losoto -d sol000/amplitude000 {output_dir}/cal-bp.h5', log='losoto-compress.log', commandType="python")
+        s.add(f'losoto -d sol000/phase000 {output_dir}/cal-bp.h5', log='losoto-compress.log', commandType="python")
+        #s.add(f'losoto -d sol000/amplitudeRes {output_dir}/cal-bp.h5', log='losoto-compress.log', commandType="python") # keep for quality evaluation
+
+        s.add(f'losoto -d sol000/phase_offset000 {output_dir}/cal-iono-cs.h5', log='losoto-compress.log', commandType="python")
+        s.add(f'losoto -d sol000/phaseResid000 {output_dir}/cal-iono-cs.h5', log='losoto-compress.log', commandType="python")
+
+        s.add(f'losoto -d sol000/phase_offset000 {output_dir}/cal-iono.h5', log='losoto-compress.log', commandType="python")
+        s.add(f'losoto -d sol000/phaseResid000 {output_dir}/cal-iono.h5', log='losoto-compress.log', commandType="python")
+
+        s.run(max_proc=1, check=True) # one at the time
+
+        for _h5 in ['cal-pa', 'cal-fr', 'cal-bp', 'cal-iono-cs', 'cal-iono']:
+            _src = f'{output_dir}/{_h5}.h5'
+            _tmp = f'{output_dir}/{_h5}.h5.tmp'
+            subprocess.run(['h5repack', _src, _tmp], check=True)
+            shutil.move(_tmp, _src)
+    ### DONE
+
     if not develop:
         logger.info('Cleaning up...')
-        lib_util.check_rm(f'{tmp_dir}/cal-preiono.h5 {tmp_dir}/cal-preiono-cs.h5 {tmp_dir}/cal-bp-sub.h5 {tmp_dir}/cal-bp-theo.h5')
-        lib_util.check_rm(f'{tmp_dir}/*MS')
+        lib_util.check_rm(f'{tmp_dir}')
 
     w.alldone()
