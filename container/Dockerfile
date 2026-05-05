@@ -263,7 +263,7 @@ RUN pip install --root-user-action=ignore \
     git+https://github.com/lofar-astron/RMextract@v0.5.1 \
     git+https://git.astron.nl/RD/spinifex@1616fe1e \
     git+https://github.com/spacetelescope/spherical_geometry@1.3.3 \
-    pyregion regions \
+    psutil pyregion regions \
     && pip cache purge \
     && rm -rf /root/.cache/pip
 
