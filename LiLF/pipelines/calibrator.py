@@ -19,11 +19,11 @@ def run(step: lib_cfg.Step):
     tmp_dir = output_dir + '.tmp'
     skymodel = step['skymodel']
     imaging = step['imaging']
-    fillmissingedges = step['fillmissingedges']
+    fillmissingedges = step['fill_missing_edges']
     less_aggressive_flag = step['less_aggressive_flag']
     develop = step['develop']
     use_shm = step['use_shm']
-    bl2flag = step.get('bl2flag', '')
+    flag_ants = step['flag_ants']
     use_GNSS = step['use_GNSS']
 
     def debug_imaging(MSs: lib_ms.AllMSs, suffix, column='CORRECTED_DATA'):
@@ -176,7 +176,7 @@ def run(step: lib_cfg.Step):
     # flag bad stations, flags will propagate
     with w.if_todo('flag'):
         logger.info("Flagging...")
-        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-flag.parset msin=$pathMS ant.baseline=\"{bl2flag}\" \
+        MSs_concat_all.run(f'DP3 {parset_dir}/DP3-flag.parset msin=$pathMS ant.baseline=\"{flag_ants}\" \
                 aoflagger.strategy={parset_dir}/LBAdefaultwideband.lua',
                 log='$nameMS_flag.log', commandType='DP3')
     

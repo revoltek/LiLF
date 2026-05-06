@@ -21,14 +21,14 @@ def run(step):
     parset_dir = step['parset_dir']
     data_dir = step['data_dir']
     cal_dir = step['cal_dir']
-    fillmissingedges = step['fillmissingedges']
+    fillmissingedges = step['fill_missing_edges']
     ngroups = step['ngroups']
     initc = step['initc']
     apply_fr = step['apply_fr']
     no_aoflagger = step['no_aoflagger']
     ateam_clip = step['ateam_clip']
     use_GNSS = step['use_GNSS']
-    bl2flag = step.get('bl2flag', '')
+    flag_ants = step['flag_ants']
 
 
     with w.if_todo('clean'):
