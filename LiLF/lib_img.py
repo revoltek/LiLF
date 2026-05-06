@@ -195,10 +195,10 @@ class Image(object):
         lsm.write(self.skymodel_cut, format = 'makesourcedb', clobber=True)
         del lsm
 
-        # convert from txt to blob
-        logger.info('%s: Make skydb...' % self.imagename)
-        lib_util.check_rm(self.skydb)
-        os.system('makesourcedb outtype="blob" format="<" in="'+self.skymodel_cut+'" out="'+self.skydb+'"')
+        # # convert from txt to blob
+        # logger.info('%s: Make skydb...' % self.imagename)
+        # lib_util.check_rm(self.skydb)
+        # os.system('makesourcedb outtype="blob" format="<" in="'+self.skymodel_cut+'" out="'+self.skydb+'"')
 
     def getNoise(self, boxsize=None, useMask=True):
         """
