@@ -332,6 +332,22 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
 RUN mkdir /usr/share/casacore/
 RUN ln -s /usr/share/casacore/data/ /opt/casacore/data
 
+# Sanity check
+RUN python - <<'PY'
+import numpy
+import casacore
+import everybeam
+import dp3
+import bdsf
+import losoto
+import pyregion
+import regions
+import shapely
+import pyrap.tables
+from pyrap.tables import table
+print("All imports OK")
+PY
+
 RUN ln -s /usr/bin/ipython3 /usr/bin/ipython
 ENV HDF5_USE_FILE_LOCKING=FALSE
 ENV OMP_NUM_THREADS=1
