@@ -275,6 +275,19 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
     && rm -rf /root/.cache/pip
 
 #####################################################################
+## EveryBeam (master 07/05/2026)
+#####################################################################
+# Temporary fix to overwrite everybeam 0.8.2 (now too old) installed from PyPI as a dependency.
+# Otherwise `import everybeam` won't work:
+# ImportError: /usr/local/lib/python3.13/dist-packages/everybeam.cpython-313-x86_64-linux-gnu.so: undefined symbol: _ZTIN9everybeam8casacore12MConvertBaseE
+RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
+    && cd /opt/EveryBeam && git checkout ef6f1ece && rm -rf .git/objects/pack/
+RUN cd /opt/EveryBeam && mkdir build && cd build \
+    && cmake -Wno-dev -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/EveryBeam/
+
+#####################################################################
 # msoverview
 #####################################################################
 #RUN cd /opt && mkdir -p msoverview/src && cd msoverview/src && wget https://git.astron.nl/ro/lofar/-/raw/LOFAR-Release-4_0_17/CEP/MS/src/msoverview.cc \
