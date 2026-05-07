@@ -2,7 +2,7 @@ FROM ubuntu:25.10
 SHELL ["/bin/bash", "-c"]
 ARG DEBIAN_FRONTEND=noninteractive
 LABEL maintainer="Francesco de Gasperin"
-LABEL version="20260215"
+LABEL version="20260428"
 
 ENV MARCH="x86-64-v2"
 # AMD v3
