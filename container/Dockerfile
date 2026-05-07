@@ -107,12 +107,12 @@ ENV CPATH=/opt/intel/oneapi/mkl/latest/include:$CPATH
 ## end Intel specific
 
 ##################################################################
-## CASACore master (2/9/25)
+## CASACore master (07/05/2026)
 ##################################################################
 RUN cd /opt && \
     git clone --single-branch --filter=blob:none --branch master https://github.com/casacore/casacore.git && \
     cd casacore && \
-    git checkout 450a568 && \
+    git checkout aaf72eb && \
     mkdir data && cd data && \
     wget --retry-connrefused --no-verbose https://www.astron.nl/iers/WSRT_Measures.ztar && \
     tar xf WSRT_Measures.ztar && \
@@ -137,10 +137,10 @@ RUN cd /opt && \
 #RUN cd /opt/python-casacore && pip install .
 
 #####################################################################
-## EveryBeam v0.8.2
+## EveryBeam (master 07/05/2026)
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
-    && cd /opt/EveryBeam && git checkout tags/v0.8.2 && rm -rf .git/objects/pack/
+    && cd /opt/EveryBeam && git checkout ef6f1ece && rm -rf .git/objects/pack/
 RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -Wno-dev -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
     && make -j `nproc --all` && make install \
@@ -273,6 +273,19 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
     && rustup self uninstall -y \
     && pip cache purge \
     && rm -rf /root/.cache/pip
+
+#####################################################################
+## EveryBeam (master 07/05/2026)
+#####################################################################
+# Temporary fix to overwrite everybeam 0.8.2 (now too old) installed from PyPI as a dependency.
+# Otherwise `import everybeam` won't work:
+# ImportError: /usr/local/lib/python3.13/dist-packages/everybeam.cpython-313-x86_64-linux-gnu.so: undefined symbol: _ZTIN9everybeam8casacore12MConvertBaseE
+RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
+    && cd /opt/EveryBeam && git checkout ef6f1ece && rm -rf .git/objects/pack/
+RUN cd /opt/EveryBeam && mkdir build && cd build \
+    && cmake -Wno-dev -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
+    && make -j `nproc --all` && make install \
+    && rm -rf /opt/EveryBeam/
 
 #####################################################################
 # msoverview
