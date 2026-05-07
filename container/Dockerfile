@@ -137,10 +137,10 @@ RUN cd /opt && \
 #RUN cd /opt/python-casacore && pip install .
 
 #####################################################################
-## EveryBeam v0.8.2
+## EveryBeam (master 07/05/2026)
 #####################################################################
 RUN cd /opt && git clone https://git.astron.nl/RD/EveryBeam.git \
-    && cd /opt/EveryBeam && git checkout tags/v0.8.2 && rm -rf .git/objects/pack/
+    && cd /opt/EveryBeam && git checkout ef6f1ece && rm -rf .git/objects/pack/
 RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -Wno-dev -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
     && make -j `nproc --all` && make install \
