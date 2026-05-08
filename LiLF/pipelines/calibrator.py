@@ -925,7 +925,7 @@ def run(step: lib_cfg.Step):
             shutil.move(_tmp, _src)
     ### DONE
 
-    if not develop:
+    if not develop or not imaging:
         logger.info('Cleaning up...')
         lib_util.check_rm(f'{tmp_dir}')
 

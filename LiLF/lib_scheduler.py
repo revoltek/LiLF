@@ -3,6 +3,7 @@ import subprocess
 import multiprocessing
 from threading import Thread
 from queue import Queue
+import numpy as np
 
 from LiLF.lib_log import logger
 from LiLF.lib_util import check_rm
@@ -299,8 +300,8 @@ def run_wsclean(s, logfile, MSs_files, do_predict=False, concat_mss=False, keep_
         tmp_dir = tempfile.mkdtemp(dir='/dev/shm')
         wsc_parms.append(f'-temp-dir {tmp_dir}')
         wsc_parms.append('-mem 90')  # use 90% of memory
-    elif s.cluster == 'Spider':
-        wsc_parms.append('-temp-dir /tmp/')
+    #elif s.cluster == 'Spider':
+    #    wsc_parms.append('-temp-dir /tmp/')
     #elif s.cluster == 'Hamburg_fat' and not 'temp_dir' in list(kwargs.keys()):
     #    wsc_parms.append( '-temp-dir /localwork.ssd' )
 
