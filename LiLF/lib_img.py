@@ -428,7 +428,7 @@ def select_connected_island(filename, coords, outfile=None):
         selected_pixel = w.world_to_pixel(SkyCoord(coords[0], coords[1]))
 
         # Label connected components in the array
-        labeled_array, __num_features = label(mask.byteswap().newbyteorder())
+        labeled_array, __num_features = label(mask.view(mask.dtype.newbyteorder()))
         # Get the label of the starting pixel
         #print(labeled_array.shape, selected_pixel)
         selected_label = labeled_array[0,0,int(selected_pixel[1]),int(selected_pixel[0])]
