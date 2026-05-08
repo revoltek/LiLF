@@ -38,7 +38,7 @@ def run(step: lib_cfg.Step):
             os.makedirs(f'{output_dir}/img')
 
         imgsizepix = 2048 if MSs.hasIS else 1024
-        scale = '0.3arcsec' if MSs.hasIS else '3arcsec'
+        scale = '0.15arcsec' if MSs.hasIS else '3arcsec'
 
         logger.info('Cleaning...')
         imagename = f'{output_dir}/img/cal-{suffix}'
