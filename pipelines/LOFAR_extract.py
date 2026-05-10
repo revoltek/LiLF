@@ -170,6 +170,8 @@ parser.add_argument('--phsol', dest='phsol', action='store', default='tecandphas
 parser.add_argument('--maxniter', dest='maxniter', type=int, default=10, help='Maximum number of selfcalibration cycles to perform.')
 parser.add_argument('--subreg', dest='subreg', action='store', default=None, type=str, help='Provide an optional mask for sources that need to be removed.')
 parser.add_argument('--idg', dest='idg', action='store', default='True', type=str, help='Use image domain gridding for beam correction. Set to False only in case of memory issues.')
+parser.add_argument('--exclude_pointing', dest='exclude_pointing', nargs='+', default=None, metavar='POINTING',
+                    help='One or more pointing directory names to exclude from the extraction (e.g. P110+27s P112+18).')
 
 args = parser.parse_args()
 coords = args.radec
@@ -186,6 +188,7 @@ phSolMode = args.phsol
 maxniter = args.maxniter
 subtract_reg_file = args.subreg
 use_idg = args.idg
+exclude_pointings = args.exclude_pointing if args.exclude_pointing else []
 
 if not pathdir:
     logger.error('Provide a path (-p) where to look for LBA observations.')
@@ -245,6 +248,8 @@ logger.info(f'Type of amplitude solver: {ampSolMode}.')
 logger.info(f'Type of phase solver: {phSolMode}.')
 logger.info(f'Max number of selfcalibration cycles: {maxniter}')
 logger.info(f'Subtraction region set: {subtract_reg_file}.')
+if exclude_pointings:
+    logger.info(f'Pointings to exclude: {", ".join(exclude_pointings)}.')
 
 if ampcal.lower() not in ['false', 'true', 'auto']:
     logger.error('ampcal must be true, false or auto.')
@@ -354,6 +359,15 @@ else:
     with open('pointinglist.txt', 'r') as f:
         close_pointings = f.readlines()
         close_pointings = [line.rstrip() for line in close_pointings]
+
+if exclude_pointings:
+    excluded_found = [p for p in close_pointings if p in exclude_pointings]
+    close_pointings = [p for p in close_pointings if p not in exclude_pointings]
+    if excluded_found:
+        logger.info(f'Excluded pointing(s): {", ".join(excluded_found)}.')
+    not_found = [p for p in exclude_pointings if p not in excluded_found]
+    if not_found:
+        logger.warning(f'The following pointing(s) requested for exclusion were not found: {", ".join(not_found)}.')
 
 
 if not len(close_pointings): # raise error if none are found!
