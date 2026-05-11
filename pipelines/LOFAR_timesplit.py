@@ -70,7 +70,7 @@ if cal_dir == '':
     if len(cal_dir) > 0:
         cal_dir = cal_dir[0]
     else:
-        logger.error('Cannot find solutions.')
+        logger.error('Cannot find solutions [obsid=%i].' % obsid)
         sys.exit()
 else:
     if not cal_dir[0] == '/': # if not abolute path
