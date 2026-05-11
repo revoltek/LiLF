@@ -393,9 +393,9 @@ class MS(object):
         for h in hist:
             #print(h)
             if 'demixer.subtractsources' in h:
-                logger.debug(f'{self.nameMS}: DEMIX - Sources = {h.split('=')[1]}')
+                logger.debug(f'{self.nameMS}: DEMIX - Sources = {h.split("=")[1]}')
             if 'demixer.ignoretarget' in h:
-                logger.debug(f'{self.nameMS}: DEMIX - Ignoretarget = {h.split('=')[1]}')
+                logger.debug(f'{self.nameMS}: DEMIX - Ignoretarget = {h.split("=")[1]}')
 
 
     def get_ateam_demix(self):
@@ -651,7 +651,7 @@ class MS(object):
 
     def getAntennaSet(self):
         """
-        If LBA observation, return obs mode: INNER, OUTER, SPARSE_EVEN, SPARSE_ODD
+        If LBA observation, return obs mode: LBA_ALL, INNER, OUTER, SPARSE_EVEN, SPARSE_ODD
         """
         if self.getTelescope() != 'LOFAR':
             raise("Only LOFAR has Antenna Sets.")
