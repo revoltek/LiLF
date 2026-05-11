@@ -256,6 +256,10 @@ ENV LD_LIBRARY_PATH=/usr/lib/instantclient_11_2:$LD_LIBRARY_PATH
 #####################################################################
 ## PyBDSF master 3/11/25 | LSMtool master 27/3/25 | LoSoTo master 12/2/26 | RMExtract 0.5.1 | spinifex master 14/3/25 | mocpy master 21/11/25 | spherical-geometry v1.3.3
 #####################################################################
+# Workaround for https://github.com/revoltek/LiLF/issues/209#issuecomment-4420636225
+RUN pip install --ignore-installed typing-extensions \
+    && pip cache purge \
+    && rm -rf /root/.cache/pip
 RUN pip install --root-user-action=ignore \
     git+https://github.com/lofar-astron/PyBDSF.git@8b33037 \
     git+https://git.astron.nl/RD/LSMTool.git@367dfd3e \
@@ -263,7 +267,7 @@ RUN pip install --root-user-action=ignore \
     git+https://github.com/lofar-astron/RMextract@v0.5.1 \
     git+https://git.astron.nl/RD/spinifex@1616fe1e \
     git+https://github.com/spacetelescope/spherical_geometry@1.3.3 \
-    psutil pyregion regions shapely \
+    astropy-healpix psutil pyregion regions shapely \
     && pip cache purge \
     && rm -rf /root/.cache/pip
 
