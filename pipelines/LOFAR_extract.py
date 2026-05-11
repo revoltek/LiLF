@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys, os, glob, argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
 import lsmtool as lsm
 from astropy.io import fits
@@ -138,7 +139,7 @@ def clean(p, MSs, res='normal', size=[1, 1], empty=False, userReg=None, apply_be
         lib_util.run_wsclean(s, 'wscleanB-' + str(p) + '.log', MSs.getStrWsclean(), concat_mss = False, name=imagenameM,
                              size=imsize, scale=str(pixscale) + 'arcsec', weight=weight, niter=numiter,
                              minuv_l=minuv, maxuv_l=maxuv_l, mgain=0.85, multiscale='',
-                             parallel_deconvolution=512, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
+                             parallel_deconvolution=1024, auto_threshold=0.5, auto_mask=3.0, save_source_list='',
                              join_channels='', fit_spectral_pol=3, channels_out=ch_out, **arg_dict)  # , deconvolution_channels=3)
 
         os.system('cat '+logger_obj.log_dir+'/wscleanB-' + str(p) + '.log | grep "background noise"')
@@ -159,7 +160,7 @@ parser.add_argument('-p', '--path', dest='path', action='store', default='', typ
 parser.add_argument('-radec', '--radec', dest='radec', nargs=2, type=float, default=None, help='RA/DEC where to center the extraction in deg. Use if you wish to extract only one target.')
 parser.add_argument('--z', dest='redshift', type=float, default=-99, help='Redshift of the target. Not necessary unless one wants to perform compact source subtraction.')
 parser.add_argument('--name', dest='name', type=str, default=None, help='Name of the target. Will be used to create the directory containing the extracted data.')
-parser.add_argument('--beamcut', dest='beamcut', type=float, default=0.3, help='Beam sensitivity threshold.')
+parser.add_argument('--beamcut', dest='beamcut', type=float, default=0.5, help='Beam sensitivity threshold.')
 parser.add_argument('--noselfcal', dest='noselfcal', help='Do not perform selfcalibration.', action='store_true')
 parser.add_argument('--extreg', dest='extreg', action='store', default=None, type=str, help='Provide an extraction region.')
 parser.add_argument('--maskreg', dest='maskreg', action='store', default=None, type=str, help='Provide a user mask for cleaning.')
@@ -169,10 +170,12 @@ parser.add_argument('--phsol', dest='phsol', action='store', default='tecandphas
 parser.add_argument('--maxniter', dest='maxniter', type=int, default=10, help='Maximum number of selfcalibration cycles to perform.')
 parser.add_argument('--subreg', dest='subreg', action='store', default=None, type=str, help='Provide an optional mask for sources that need to be removed.')
 parser.add_argument('--idg', dest='idg', action='store', default='True', type=str, help='Use image domain gridding for beam correction. Set to False only in case of memory issues.')
+parser.add_argument('--exclude_pointing', dest='exclude_pointing', nargs='+', default=None, metavar='POINTING',
+                    help='One or more pointing directory names to exclude from the extraction (e.g. P110+27s P112+18).')
 
 args = parser.parse_args()
 coords = args.radec
-pathdir = args.path
+pathdir = os.path.abspath(args.path) if args.path else args.path   # resolve NOW, before any os.chdir()
 ztarget = args.redshift
 targetname = args.name
 beam_cut = args.beamcut
@@ -185,6 +188,7 @@ phSolMode = args.phsol
 maxniter = args.maxniter
 subtract_reg_file = args.subreg
 use_idg = args.idg
+exclude_pointings = args.exclude_pointing if args.exclude_pointing else []
 
 if not pathdir:
     logger.error('Provide a path (-p) where to look for LBA observations.')
@@ -222,6 +226,12 @@ w = lib_util.Walker('pipeline-extract.walker')
 warnings.filterwarnings('ignore', category=astropy.wcs.FITSFixedWarning)
 cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
 
+_workdir = Path(os.getcwd()).resolve()
+_pdir    = Path(pathdir).resolve()
+if _pdir == _workdir or _workdir in _pdir.parents or _pdir in _workdir.parents:
+    logger.error(f'FATAL: The directory specified with -p ({_pdir}) overlaps with the working directory ({_workdir}). These must be completely separate paths.')
+    sys.exit(1)
+
 parset = lib_util.getParset()
 parset_dir = parset.get('LOFAR_extract','parset_dir')
 
@@ -238,6 +248,8 @@ logger.info(f'Type of amplitude solver: {ampSolMode}.')
 logger.info(f'Type of phase solver: {phSolMode}.')
 logger.info(f'Max number of selfcalibration cycles: {maxniter}')
 logger.info(f'Subtraction region set: {subtract_reg_file}.')
+if exclude_pointings:
+    logger.info(f'Pointings to exclude: {", ".join(exclude_pointings)}.')
 
 if ampcal.lower() not in ['false', 'true', 'auto']:
     logger.error('ampcal must be true, false or auto.')
@@ -290,29 +302,55 @@ target_reg = lib_util.Region_helper(target_reg_file)
 center = target_reg.get_center() # center of the extract region
 
 list_dirs = [_d for _d in Path(str(pathdir)).iterdir() if _d.is_dir()]
-tocheck = []
-logger.info(f'Checking {pathdir} for pointings covering the target coordinates...')
-for dir in list_dirs:
-    if (dir / 'wideDDS-c0-MFS-image-pb.fits').exists() and ((dir / 'interp.h5.gz').exists() or (dir / 'interp.h5').exists()):
-        tocheck.append(dir)
 close_pointings = []
+logger.info(f'Checking {pathdir} for pointings covering the target coordinates...')
 
-for pointing in tocheck:
+def _check_pointing(dir_path):
+    """
+    Worker function (runs in a thread pool).
+    Returns the pointing name (str) if it covers the target with beam > beam_cut,
+    or None otherwise.
+    """
+    # Must have the required files
+    if not ((dir_path / 'wideDDS-c0-MFS-image-pb.fits').exists() and
+            ((dir_path / 'interp.h5.gz').exists() or (dir_path / 'interp.h5').exists())):
+        return None
 
-    chout_max = len(glob.glob(f'{pointing}/primarybeam.fits'))
-    with fits.open(f'{pointing}/primarybeam.fits') as f:
-        header, data = lib_img.flatten(f)
-        wcs = WCS(header)
-        c_pix = np.rint(wcs.wcs_world2pix([center], 0)).astype(int)[0]
-        if np.all(c_pix > 0):
-            try:
-                beam_value = data[c_pix[1]][c_pix[0]]  # Checked -  1 and 0 are correct here.
-            except IndexError:
-                continue
-        else:
-            continue
-        if beam_value > beam_cut**2: # square since Norm is sqrt(beam response)
-            close_pointings.append(str(pointing).split('/')[-1])
+    pb_file = dir_path / 'primarybeam.fits'
+    try:
+        with fits.open(pb_file, mode='readonly') as f:
+            header, data = lib_img.flatten(f)
+    except OSError as e:
+        logger.warning(f'Skipping {dir_path}: cannot open primarybeam.fits ({e})')
+        return None
+
+    wcs = WCS(header)
+    c_pix_float = np.rint(wcs.wcs_world2pix([center], 0))[0]
+
+    # Skip if WCS projection returns NaN (target outside coverage)
+    if not np.all(np.isfinite(c_pix_float)):
+        return None
+
+    c_pix = c_pix_float.astype(int)
+    if not np.all(c_pix > 0):
+        return None
+
+    try:
+        beam_value = data[c_pix[1]][c_pix[0]]  # indices checked: [dec, ra]
+    except IndexError:
+        return None
+
+    if beam_value > beam_cut ** 2:  # square since Norm is sqrt(beam response)
+        return str(dir_path).split('/')[-1]
+    return None
+
+n_threads = min(16, len(list_dirs))
+with ThreadPoolExecutor(max_workers=n_threads) as pool:
+    futures = {pool.submit(_check_pointing, d): d for d in list_dirs}
+    for fut in as_completed(futures):
+        result = fut.result()
+        if result is not None:
+            close_pointings.append(result)
 
 if len(close_pointings): # only write if we find something
     with open('pointinglist.txt', 'w') as f:
@@ -321,6 +359,15 @@ else:
     with open('pointinglist.txt', 'r') as f:
         close_pointings = f.readlines()
         close_pointings = [line.rstrip() for line in close_pointings]
+
+if exclude_pointings:
+    excluded_found = [p for p in close_pointings if p in exclude_pointings]
+    close_pointings = [p for p in close_pointings if p not in exclude_pointings]
+    if excluded_found:
+        logger.info(f'Excluded pointing(s): {", ".join(excluded_found)}.')
+    not_found = [p for p in exclude_pointings if p not in excluded_found]
+    if not_found:
+        logger.warning(f'The following pointing(s) requested for exclusion were not found: {", ".join(not_found)}.')
 
 
 if not len(close_pointings): # raise error if none are found!
