@@ -130,6 +130,15 @@ RUN cd /opt && \
     find . -mindepth 1 -maxdepth 1 ! -name 'data' -exec rm -rf {} +
 
 #####################################################################
+## LofarStMan
+## needed for raw (from the correlator) MS
+#####################################################################
+RUN cd /opt && git clone https://github.com/lofar-astron/LofarStMan
+RUN cd /opt/LofarStMan && mkdir build && cd build \
+    && cmake -DPORTABLE=True .. \
+    && make -j `nproc --all` && make install
+
+#####################################################################
 ## CASACore-python v3.7.1
 #####################################################################
 #RUN cd /opt && git clone https://github.com/casacore/python-casacore.git \
@@ -163,15 +172,6 @@ RUN cd /opt && git clone https://gitlab.com/aroffringa/aoflagger.git \
     && cd /opt/aoflagger && git checkout 398fcd5b && rm -rf .git/objects/pack/
 RUN if [ $MARCH == "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -Wno-dev -DPORTABLE=True -DBUILD_TESTING=OFF -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
 RUN if [ $MARCH != "x86-64-v2" ]; then cd /opt/aoflagger && mkdir build && cd build && mkdir install && cmake -Wno-dev -DPORTABLE=False -DBUILD_TESTING=OFF -DENABLE_GUI=OFF .. && make -j `nproc --all` && make install; fi
-
-#####################################################################
-## LofarStMan
-## not needed, only for raw (from the correlator) MS
-#####################################################################
-RUN cd /opt && git clone https://github.com/lofar-astron/LofarStMan
-RUN cd /opt/LofarStMan && mkdir build && cd build \
-    && cmake -DPORTABLE=True .. \
-    && make -j `nproc --all` && make install
 
 ####################################################################
 ## DP3 (master 12/2/26)
@@ -290,12 +290,6 @@ RUN cd /opt/EveryBeam && mkdir build && cd build \
     && cmake -Wno-dev -DDOWNLOAD_LOBES=Off -DBUILD_WITH_PYTHON=On .. \
     && make -j `nproc --all` && make install \
     && rm -rf /opt/EveryBeam/
-
-#####################################################################
-# msoverview
-#####################################################################
-#RUN cd /opt && mkdir -p msoverview/src && cd msoverview/src && wget https://git.astron.nl/ro/lofar/-/raw/LOFAR-Release-4_0_17/CEP/MS/src/msoverview.cc \
-#    && gcc -I/usr/local/include/casacore -L/usr/local/lib msoverview.cc -o /usr/local/bin/msoverview -lcasa_casa -lcasa_ms -lcasa_tables -lstdc++
 
 #####################################################################
 ## BUILD DDF FROM SOURCE
