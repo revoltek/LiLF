@@ -17,7 +17,7 @@ function execute(input)
   -- { 'I', 'Q' } to flag only on Stokes I and Q
   local flag_polarizations = input:get_polarizations()
 
-  local base_threshold = 1.2 -- lower means more sensitive detection
+  local base_threshold = 1.5 -- lower means more sensitive detection
   -- How to flag complex values, options are: phase, amplitude, real, imaginary, complex
   -- May have multiple values to perform detection multiple times
   local flag_representations = { "amplitude" }
@@ -72,7 +72,7 @@ function execute(input)
 
         -- Do timestep & channel flagging
         local chdata = converted_data:copy()
-        aoflagger.threshold_timestep_rms(converted_data, 3.5)
+        aoflagger.threshold_timestep_rms(converted_data, 5.0)
         aoflagger.threshold_channel_rms(chdata, 3.0 * threshold_factor, true)
         converted_data:join_mask(chdata)
 
