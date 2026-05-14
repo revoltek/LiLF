@@ -177,7 +177,7 @@ def run(step: lib_cfg.Step):
     with w.if_todo('flag'):
         logger.info("Flagging...")
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-flag.parset msin=$pathMS ant.baseline=\"{flag_ants}\" \
-                aoflagger.strategy={parset_dir}/LBAdefaultwideband.lua',
+                aoflagger.strategy={parset_dir}/LBA2defaultwideband.lua',
                 log='$nameMS_flag.log', commandType='DP3')
     
         # extend flags on bad time/freq slots

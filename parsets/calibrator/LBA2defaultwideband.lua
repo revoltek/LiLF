@@ -1,6 +1,7 @@
 --[[
  This is a LBA AOFlagger strategy for combined subbands, version 2021-03-30
  Author: André Offringa
+ Edit: Henrik Edler 2026-05-15: made flagging (especially in timesteps) less aggressive
 ]]
 
 aoflagger.require_min_version("3.1")
