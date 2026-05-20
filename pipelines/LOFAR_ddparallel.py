@@ -407,7 +407,7 @@ for c in range(maxIter):
         logger.debug(f'Extrapolating input skymodel fluxes from {np.mean(sm.getColValues("ReferenceFrequency"))/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
         si_factor = (np.mean(MSs.getFreqs())/np.mean(sm.getColValues('ReferenceFrequency')))**0.7 # S60 = si_factor * S54
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
-        sm.group('threshold', FWHM=2/60, root='Src') # group nearby components to single source patch
+        sm.group('threshold', FWHM=3/60, root='Src') # group nearby components to single source patch
         sm.setPatchPositions(method='wmean', applyBeam=True)
         sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=True)
         # TODO we need some logic here to avoid picking up very extended sources.
