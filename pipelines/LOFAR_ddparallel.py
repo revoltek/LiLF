@@ -25,6 +25,8 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy import wcs
+from astropy.utils.iers import conf
+conf.auto_max_age = None
 from losoto.h5parm import h5parm
 import lsmtool
 
@@ -278,7 +280,7 @@ mask_threshold = [5.0,4.5,4.0,4.0,4.0,4.0] # sigma values for beizorro mask in c
 # if we have LOTSS-DR3 or a custom sky model, we will start from 3Jy not 4Jy sources!
 if 'OUTER' in MSs.getListObj()[0].getAntennaSet():
     facet_fluxes = np.array([4, 2.2, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
-elif 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
+elif 'SPARSE' in MSs.getListObj()[0].getAntennaSet() or 'ALL' in MSs.getListObj()[0].getAntennaSet():
     facet_fluxes = np.array([4, 2.6, 1.3, 1.1, 1.0, 0.9])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
 
 if min_facets: # if manually provided
@@ -287,7 +289,7 @@ if min_facets: # if manually provided
         min_facets = np.array(min_facets).astype(int)
 else: #default settings
     # use more facets for SPARSE (larger FoV)
-    if 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
+    if 'SPARSE' in MSs.getListObj()[0].getAntennaSet() or 'ALL' in MSs.getListObj()[0].getAntennaSet():
         min_facets = [3, 6, 18, 24, 24, 24]
     elif 'OUTER' in MSs.getListObj()[0].getAntennaSet():
         min_facets = [2, 4, 12, 20, 20, 20]
@@ -300,7 +302,7 @@ if max_facets: # if manually provided
         max_facets = np.array(max_facets).astype(int)
 else: #default settings
     # use more facets for SPARSE (larger FoV)
-    if 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
+    if 'SPARSE' in MSs.getListObj()[0].getAntennaSet() or 'ALL' in MSs.getListObj()[0].getAntennaSet():
         max_facets = [10, 22, 35, 35, 35, 35]
     elif 'OUTER' in MSs.getListObj()[0].getAntennaSet():
         max_facets = [8, 16, 25, 25, 25, 25]
@@ -407,7 +409,7 @@ for c in range(maxIter):
         logger.debug(f'Extrapolating input skymodel fluxes from {np.mean(sm.getColValues("ReferenceFrequency"))/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
         si_factor = (np.mean(MSs.getFreqs())/np.mean(sm.getColValues('ReferenceFrequency')))**0.7 # S60 = si_factor * S54
         sm.select(f'{beamMask}==True')  # remove outside of FoV (should be subtracted (c>0) or not present (c==0)!)
-        sm.group('threshold', FWHM=3/60, root='Src') # group nearby components to single source patch
+        sm.group('threshold', FWHM=2/60, root='Src') # group nearby components to single source patch
         sm.setPatchPositions(method='wmean', applyBeam=True)
         sm = lib_dd_parallel.merge_nearby_bright_facets(sm, 1/60, 0.5, applyBeam=True)
         # TODO we need some logic here to avoid picking up very extended sources.
