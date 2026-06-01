@@ -27,7 +27,7 @@ backup_full_res = parset.getboolean('LOFAR_preprocess','backup_full_res')
 demix_sources = parset.get('LOFAR_preprocess','demix_sources') # demix the sources in these patches (e.g. CasA or [VirA,TauA]), default: No demix. Assumes intrinsic sky
 demix_skymodel = parset.get('LOFAR_preprocess','demix_skymodel') # Use non-default demix skymodel
 demix_field_skymodel = parset.get('LOFAR_preprocess','demix_field_skymodel') # provide a custom target skymodel instead of online gsm model - assumes intrinsic sky.
-run_aoflagger = parset.getboolean('LOFAR_preprocess','run_aoflagger') # run aoflagger on individual subbands - do this only in rare cases where it was not done by the observatory!
+raw_data = step['raw_data']  # raw correlator data, set autoweights and run aoflagger
 tar = parset.getboolean('LOFAR_preprocess','tar') # tar the output ms
 data_dir = parset.get('LOFAR_preprocess','data_dir') # directory where the data is stored
 
@@ -109,12 +109,11 @@ else:
         t = MS.get_time()
         times.append(int(t.iso.replace('-','')[0:8]))
     
-if run_aoflagger:
-    with w.if_todo('flag'):
-        # Flag in an identical way to the observatory flagging
-        logger.info('Flagging...')
-        MSs.run('DP3 ' + parset_dir + '/DP3-flag.parset msin=$pathMS aoflagger.strategy=' + parset_dir + '/LBAdefaultwideband.lua',
-            log='$nameMS_flag.log', commandType='DP3') # there might be a better way of parallelizing as this might be I/O or memory limited
+if raw_data: # for raw correlator data, set autoweights and run aoflagger in a way identical to the preprocess pipeline
+    with w.if_todo('set_weight_flag'):
+        logger.info('Setting weights and flagging...')
+        MSs.run(f'DP3 {parset_dir}/DP3-flag.parset msin.autoweight=True msin.forceautoweight=True msin=$pathMS aoflagger.strategy={parset_dir}/LBAdefaultwideband.lua',
+            log='$nameMS_weightflag.log', commandType='DP3')
 
 if fix_table:
     with w.if_todo('fix_table'):
