@@ -127,6 +127,8 @@ with w.if_todo('cleaning'):
     lib_util.check_rm('img')
     os.makedirs('img')
     lib_util.check_rm('mss-avg')
+    lib_util.check_rm('mss-dir')
+    lib_util.check_rm('mss-lres')
 ### DONE
 
 # use unaveraged MSs to be sure to get the same pixscale and imgsizepix of ddparallel
@@ -135,6 +137,7 @@ pixscale = MSs.getListObj()[0].getPixelScale()
 imgsizepix = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='max', elliptical=True)) * 3600 / pixscale) # roughly to smallest null
 if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
 if imgsizepix % 2 != 0: imgsizepix += 1  # prevent odd img sizes
+close_to_ateam = any(MSs.getListObj()[0].distBrightSource(a) < 15 for a in ['CasA', 'CygA', 'VirA', 'TauA'])
 
 # goes down to 8 seconds and multiple of 48 chans
 # data should be at multiple of 48 channels already from timesplit, check is redundant and can be removed late 2025.
@@ -613,9 +616,14 @@ for cmaj in range(maxIter):
                     MSs_dir.run_Blsmooth('CORRECTED_DATA', logstr=f'smooth-{logstringcal}')
 
                     logger.info('Gain amp calibration 2 (solint: %i)...' % solint_amp2)
+                    if close_to_ateam:
+                        uvlambdamin = 200
+                    else:
+                        uvlambdamin = 100
                     # Calibration - ms:CORRECTED_DATA
                     MSs_dir.run('DP3 '+parset_dir+'/DP3-solG.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA sol.h5parm=$pathMS/cal-amp2.h5 \
-                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.model_weighted_constraints=true',
+                        sol.mode=diagonal sol.solint='+str(solint_amp2)+' sol.smoothnessconstraint=10e6 sol.model_weighted_constraints=true \
+                        sol.uvlambdamin='+str(uvlambdamin), \
                         log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DP3')
 
                     if d.peel_off:
@@ -702,6 +710,10 @@ for cmaj in range(maxIter):
                 logger.debug('START AMP WITH MODE 3 - flux: %f - mmratio: %f - dist: %f' % (d.get_flux(freq_mid), mm_ratio, d.dist_from_centre))
                 doamp = True
 
+            # no amp for sources close to Ateam
+            if close_to_ateam and d.get_flux(freq_mid) < 3:
+                doamp = False # for fainter sources close to bright sources, don't do amp sol as they are likely contaminated by the bright source and will diverge easily
+
             d.set_model(image.root, typ='best', apply_region=False)  # current best model
             rms_noise_pre = rms_noise
             mm_ratio_pre = mm_ratio
@@ -710,8 +722,8 @@ for cmaj in range(maxIter):
         ##################################
 
         if use_shm_ddcal and os.access('/dev/shm/', os.W_OK):
-            # use shared memory for DP3
-            lib_util.check_rm(tmp_shm_dir)
+            if 'tmp_shm_dir' in dir():
+                lib_util.check_rm(tmp_shm_dir)
 
         # if died the first cycle or diverged
         if cdd == 0 or ((rms_noise_pre >= d.rms_noise_init) and (mm_ratio_pre/2 < d.mm_ratio_init)):
@@ -801,7 +813,7 @@ for cmaj in range(maxIter):
                 if not d.peel_off:
                     # Corrupt for the beam
                     logger.info('Corrupting beam...')
-                    # Convince DP3 that MODELDATA is corrected for the beam in the dd-cal direction, so I can corrupt.
+                    # Convince DP3 that MODEL_DATA is corrected for the beam in the dd-cal direction, so I can corrupt.
                     # Then correct for the element to align with the phase centre situation
                     MSs.run('DP3 '+parset_dir+'/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA \
                            setbeam.direction=['+str(d.position[0])+'deg,'+str(d.position[1])+'deg] \
