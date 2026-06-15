@@ -128,6 +128,8 @@ def run(step):
         lib_util.check_rm('img')
         os.makedirs('img')
         lib_util.check_rm('mss-avg')
+        lib_util.check_rm('mss-dir')
+        lib_util.check_rm('mss-lres')
     ### DONE
 
     # use unaveraged MSs to be sure to get the same pixscale and imgsizepix of ddparallel
