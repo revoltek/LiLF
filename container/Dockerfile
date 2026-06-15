@@ -23,7 +23,7 @@ RUN apt-get update && \
     libopenmpi-dev openmpi-bin \
     python-is-python3 python3-cx-oracle python3-cytoolz python3-dev python3-magic python3-numpy python3-pip python3-pybind11 python3-pymysql python3-requests \
     python3-setuptools python3-sshtunnel \
-    rename sudo texinfo vim wcslib-dev wget montage && \
+    rename sudo texinfo vim wcslib-dev wget montage stilts && \
     rm -rf /var/lib/apt/lists/*
 
 RUN curl -O https://ftp.debian.org/debian/pool/main/liba/libaio/libaio1_0.3.113-4_amd64.deb && \
@@ -267,7 +267,7 @@ RUN pip install --root-user-action=ignore \
     git+https://github.com/lofar-astron/RMextract@v0.5.1 \
     git+https://git.astron.nl/RD/spinifex@1616fe1e \
     git+https://github.com/spacetelescope/spherical_geometry@1.3.3 \
-    astropy-healpix psutil pyregion regions shapely reproject \
+    astropy-healpix psutil pyregion regions shapely reproject tqdm \
     && pip cache purge \
     && rm -rf /root/.cache/pip
 
