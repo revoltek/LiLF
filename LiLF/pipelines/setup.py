@@ -29,7 +29,7 @@ def run(step):
     demix_sources = step['demix_sources']
     demix_skymodel = step['demix_skymodel']
     demix_field_skymodel = step['demix_field_skymodel']
-    run_aoflagger = step['run_aoflagger']
+    raw_data = step['raw_data'] # raw correlator data, set autoweights and run aoflagger
     tar = step['tar']
     validate = step['validate']
 
@@ -77,12 +77,11 @@ def run(step):
     timeint = MSs.getListObj()[0].getTimeInt()
     logger.info(f'Starting from: nchan={nchan}, timeint={timeint:.2f}s (antennaset={antennaset})')
 
-    if run_aoflagger:
-        with w.if_todo('flag'):
-            # Flag in an identical way to the observatory flagging
-            logger.info('Flagging...')
-            MSs.run(f'DP3 {parset_dir}/DP3-flag.parset msin=$pathMS aoflagger.strategy={parset_dir}/LBAdefaultwideband.lua',
-                log='$nameMS_flag.log', commandType='DP3')
+    if raw_data: # for raw correlator data, set autoweights and run aoflagger in a way identical to the preprocess pipeline
+        with w.if_todo('set_weight_flag'):
+            logger.info('Setting weights and flagging...')
+            MSs.run(f'DP3 {parset_dir}/DP3-flag.parset msin.autoweight=True msin.forceautoweight=True msin=$pathMS aoflagger.strategy={parset_dir}/LBAdefaultwideband.lua',
+                log='$nameMS_weightflag.log', commandType='DP3')
 
     if fix_table:
         with w.if_todo('fix_table'):
