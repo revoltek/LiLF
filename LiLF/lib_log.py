@@ -76,8 +76,8 @@ class Logger():
 
         # Build timestamped names for this run's log file and log directory.
         timestamp = time.strftime('%Y-%m-%d_%H:%M:%S', time.localtime())
-        self.logfile = pipename + '_' + timestamp + '.logger'
-        self.log_dir = 'logs_' + pipename + '_' + timestamp
+        self.logfile = "logs/" + pipename + '_' + timestamp + '.logger'
+        self.log_dir = 'logs/logs_' + pipename + '_' + timestamp
         os.makedirs(self.log_dir)
 
         self.set_logger(self.logfile)
@@ -85,10 +85,10 @@ class Logger():
         # Create 'latest' symlinks so users can always find the most recent
         # logs without knowing the timestamp.  A temp-then-rename pattern is
         # used so the replacement is atomic and never leaves a broken link.
-        os.symlink(self.log_dir, f'logs_{pipename}.tmp')
-        os.rename(f'logs_{pipename}.tmp', f'logs_{pipename}')
-        os.symlink(self.logfile, pipename + '.logger.tmp')
-        os.rename(pipename + '.logger.tmp', pipename + '.logger')
+        os.symlink(self.log_dir, f'logs/logs_{pipename}.tmp')
+        os.rename(f'logs/logs_{pipename}.tmp', f'logs/logs_{pipename}')
+        os.symlink(self.logfile, "logs/" + pipename + '.logger.tmp')
+        os.rename("logs/" + pipename + '.logger.tmp', "logs/" + pipename + '.logger')
 
     def set_logger(self, logfile):
         """Configure the 'LiLF' named logger with a file handler and a

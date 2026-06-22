@@ -107,3 +107,6 @@ ENV/
 .DS_Store
 pipelines/LOFAR_ddparallel_test.py
 pipelines/LOFAR_cal_test.py
+
+# LiLF specific
+logs/
