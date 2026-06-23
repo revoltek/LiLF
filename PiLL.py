@@ -24,7 +24,7 @@ def check_done(step: lib_cfg.Step):
     Raises RuntimeError so the caller can decide how to handle it (the walker
     will not mark the step as done and it will be retried on the next run).
     """
-    pattern = f'pipeline-{step.kind}-{step.name}_*.logger'
+    pattern = f'logs/pipeline-{step.kind}-{step.name}.logger'
     matches = sorted(glob.glob(pattern))
     if not matches:
         raise RuntimeError(
