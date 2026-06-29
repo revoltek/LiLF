@@ -21,8 +21,13 @@ class Walker():
     Adopted from https://stackoverflow.com/questions/12594148/skipping-execution-of-with-block
     """
     def __init__(self, filename):
-        open(filename, 'a').close() # create the file if doesn't exists
+        self.__dir__ = "walkers"
+        os.makedirs(self.__dir__, exist_ok=True) # create the walker directory if it doesn't exist
+        filepath = f"{self.__dir__ }/{filename}" # prepend directory
+        open(filepath, 'a').close() # create the file if doesn't exist
+
         self.filename = os.path.abspath(filename)
+        self.filepath = os.path.abspath(filepath)
         self.__skip__ = False
         self.__step__ = None
         self.__inittime__ = None
@@ -35,7 +40,7 @@ class Walker():
         """
         self.__skip__ = False
         self.__step__ = stepname
-        with open(self.filename, "r") as f:
+        with open(self.filepath, "r") as f:
             for stepname_done in f:
                 if stepname == stepname_done.split('#')[0].rstrip():
                     self.__skip__ = True
@@ -62,7 +67,7 @@ class Walker():
         Catch "Skip" errors, if not skipped, write to file after exited without exceptions.
         """
         if type is None:
-            with open(self.filename, "a") as f:
+            with open(self.filepath, "a") as f:
                 delta_td = datetime.datetime.now() - self.__timeinit__
                 total_seconds = int(delta_td.total_seconds())
                 days, rem = divmod(total_seconds, 86400)
@@ -85,7 +90,7 @@ class Walker():
 
     def is_done(self, stepname):
         """Return True when *stepname* has already been recorded as completed."""
-        with open(self.filename, 'r') as f:
+        with open(self.filepath, 'r') as f:
             for line in f:
                 if stepname == line.split('#')[0].rstrip():
                     return True
@@ -93,7 +98,7 @@ class Walker():
 
     def mark_done(self, stepname, timeinit=None):
         """Write *stepname* to the walker file, optionally recording elapsed time."""
-        with open(self.filename, 'a') as f:
+        with open(self.filepath, 'a') as f:
             if timeinit is not None:
                 delta_td = datetime.datetime.now() - timeinit
                 total_seconds = int(delta_td.total_seconds())
