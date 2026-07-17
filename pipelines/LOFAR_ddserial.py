@@ -1157,7 +1157,7 @@ with w.if_todo('output-debugempty'):
 
 with w.if_todo('output_PB'):
     logger.info('Make primary beam...')
-    s.add('makepb.py -o ddserial/primarybeam.fits -s 10 -p 120 %s' % MSs.getStrWsclean(), log='makepb.log', commandType='python')
+    s.add('makepb.py -o ddserial/primarybeam.fits -s 26 -p 120 %s' % MSs.getStrWsclean(), log='makepb.log', commandType='python')
     s.run(check=True)
 ### DONE
 
