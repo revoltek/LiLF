@@ -79,6 +79,7 @@ def getParset(parsetFile=''):
     add_default('LOFAR_preprocess', 'demix_field_skymodel', 'LOTSS-DR3')  # Provide a custom target skymodel instead of online gsm model. Set to '' to ignore target.
     add_default('LOFAR_preprocess', 'run_aoflagger', 'False')  # run aoflagger on individual sub-bands, only in cases where this was not one by the observatory!
     add_default('LOFAR_preprocess', 'tar', 'True')  # Tar MS files at the end
+    add_default('LOFAR_preprocess', 'raw_data', 'False')  # working on raw correlator data? (I.e., no ASTRON preprocess pipeline was run?)
     add_default('LOFAR_preprocess', 'data_dir', '')
     # cal
     add_default('LOFAR_cal', 'data_dir', 'data-bkp/')
