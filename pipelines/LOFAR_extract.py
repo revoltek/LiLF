@@ -356,9 +356,13 @@ if len(close_pointings): # only write if we find something
     with open('pointinglist.txt', 'w') as f:
         f.write('\n'.join(close_pointings))
 else:
-    with open('pointinglist.txt', 'r') as f:
-        close_pointings = f.readlines()
-        close_pointings = [line.rstrip() for line in close_pointings]
+    # Fall back to a pre-existing pointinglist.txt (e.g. from a previous run), if any.
+    try:
+        with open('pointinglist.txt', 'r') as f:
+            close_pointings = f.readlines()
+            close_pointings = [line.rstrip() for line in close_pointings]
+    except FileNotFoundError:
+        close_pointings = []
 
 if exclude_pointings:
     excluded_found = [p for p in close_pointings if p in exclude_pointings]
