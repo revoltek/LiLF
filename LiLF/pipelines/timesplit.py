@@ -19,8 +19,8 @@ def run(step):
     w = lib_walker.Walker(f'pipeline-{step.kind}-{step.name}.walker')
 
     parset_dir = step['parset_dir']
-    data_dir = step['data_dir']
-    cal_dir = step['cal_dir']
+    data_dir = step['input_mss']
+    cal_dir = step['input_h5']
     fillmissingedges = step['fill_missing_edges']
     ngroups = step['ngroups']
     initc = step['initc']
@@ -196,7 +196,7 @@ def run(step):
     with w.if_todo('flag'):
         logger.info('Flagging...')
         flag_strat = '/HBAdefaultwideband.lua' if MSs.isHBA else '/LBAdefaultwideband.lua'
-        MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\" \
+        MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS ant.baseline=\"' + flag_ants + '\" \
                 aoflagger.strategy='+parset_dir+flag_strat, log='$nameMS_DP3_flag.log', commandType='DP3')
 
         if MSs.hasIS:
