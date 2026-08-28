@@ -758,11 +758,11 @@ for c in range(maxniter):
         best_iter = c
     else: best_iter = c - 1
 
-    if ampcal.lower =='true':
+    if ampcal.lower() == 'true':
         if (rms_noise > 0.98 * rms_noise_pre and mm_ratio < 1.01 * mm_ratio_pre) or rms_noise > 1.2 * rms_noise_pre:
             if (mm_ratio < 10 and c >= 2) or (mm_ratio < 20 and c >= 3) or (c >= 5):
                 break
-    elif ampcal.lower == 'false':
+    elif ampcal.lower() == 'false':
         pass
     else:
         if (rms_noise > 0.98 * rms_noise_pre and mm_ratio < 1.01 * mm_ratio_pre) or rms_noise > 1.2 * rms_noise_pre:
@@ -770,10 +770,10 @@ for c in range(maxniter):
                 break
 
     if c >= 3 and mm_ratio >= 20:
-        if ampcal.lower == 'true':
+        if ampcal.lower() == 'true':
             logger.info('Starting amplitude calibration in next cycle...')
             doamp = True
-        elif ampcal.lower == 'false':
+        elif ampcal.lower() == 'false':
             logger.info('Amplitude calibration set to false. Just using phase...')
             doamp = False
         else:
@@ -890,5 +890,4 @@ with open(logfile, 'r') as f:
             logger.info('It contains the compact-source-subtracted visibilities.')
         else:
             logger.info(f'Nominal and high resolution images are in the extract-images/ directory of {targetname}.')
-
 
