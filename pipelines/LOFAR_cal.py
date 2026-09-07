@@ -347,7 +347,7 @@ with w.if_todo('cal_pa'):
         # Beam corruption concat_pa.MS:MODEL_DATA -> MODEL_DATA
         logger.info(f'Beam model corruption (MODEL_DATA - > MODEL_DATA)...')
         phase_center = MSs_pa.getListObj()[0].getPhaseCentre()
-        MSs_pa.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA setbeam.beammode=Element corrbeam.updateweights=False corrbeam.invert=False',
+        MSs_pa.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA setbeam.beammode=full corrbeam.updateweights=False corrbeam.invert=False',
             log='$nameMS_beam.log', commandType="DP3")
         # HE: sol.rotationdiagonalmode diagonalphase seemes to give more stable results and surpresses the ~60 MHz bump weirdness
         # HE: do not use smoothnessconstraint, gives quite bad results here, at least at 1-2 MHz kernel and above!
