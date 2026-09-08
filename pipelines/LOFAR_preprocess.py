@@ -27,7 +27,7 @@ backup_full_res = parset.getboolean('LOFAR_preprocess','backup_full_res')
 demix_sources = parset.get('LOFAR_preprocess','demix_sources') # demix the sources in these patches (e.g. CasA or [VirA,TauA]), default: No demix. Assumes intrinsic sky
 demix_skymodel = parset.get('LOFAR_preprocess','demix_skymodel') # Use non-default demix skymodel
 demix_field_skymodel = parset.get('LOFAR_preprocess','demix_field_skymodel') # provide a custom target skymodel instead of online gsm model - assumes intrinsic sky.
-raw_data = step['raw_data']  # raw correlator data, set autoweights and run aoflagger
+raw_data = parset.getboolean('LOFAR_preprocess','raw_data') #  raw correlator data, set autoweights and run aoflagger
 tar = parset.getboolean('LOFAR_preprocess','tar') # tar the output ms
 data_dir = parset.get('LOFAR_preprocess','data_dir') # directory where the data is stored
 
