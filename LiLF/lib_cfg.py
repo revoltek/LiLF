@@ -49,8 +49,8 @@ DEFAULTS = {
         'use_shm':                False,
     },
     'timesplit': {
-        'data_dir':               'data-bkp/',
-        'cal_dir':                '',
+        'input_mss':              'data-bkp/',
+        'input_h5':               '',
         'ngroups':                1,
         'initc':                  0,
         'apply_fr':               False,
