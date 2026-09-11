@@ -578,7 +578,8 @@ with w.if_todo('cal_bp'):
                            log='$nameMS_solBP.log', commandType="DP3")
     else:
         MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/bp-sub.h5 sol.mode=diagonal sol.datause=full \
-                            sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.nchan=1',
+                            sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.nchan=1 sol.smoothnessconstraint=0.1e6 \
+                            sol.antenna_smoothness_factors=[RS*:0.0,CS*:0.0] sol.smoothnessreffrequency=0. ', # smooth only IS
                            log='$nameMS_solBP.log', commandType="DP3")
 
     flag_parset = '/losoto-flag-lessaggressive.parset' if less_aggressive_flag else '/losoto-flag.parset'
