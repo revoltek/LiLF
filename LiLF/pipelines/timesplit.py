@@ -7,6 +7,7 @@
 import sys, os, glob, re
 import numpy as np
 import casacore.tables as pt
+from pathlib import Path
 
 ########################################################
 from LiLF import lib_ms, lib_util, lib_log, lib_scheduler, lib_walker
@@ -19,7 +20,8 @@ def run(step):
     w = lib_walker.Walker(f'pipeline-{step.kind}-{step.name}.walker')
 
     parset_dir = step['parset_dir']
-    data_dir = step['input_mss']
+    input_dir = step['input_mss']
+    output_dir = step['output']
     cal_dir = step['input_h5']
     fillmissingedges = step['fill_missing_edges']
     ngroups = step['ngroups']
@@ -33,32 +35,39 @@ def run(step):
 
     with w.if_todo('clean'):
         logger.info('Cleaning...')
-        mss_list = glob.glob('mss*/*MS')
+        mss_list = glob.glob(os.path.join(output_dir, 'mss*', '*MS'))
         if len(mss_list) > 0:
             raise ValueError(f'mss folders exist already {mss_list}! If this is the output of a previous LOFAR_timesplit.py run and you want to re-run LOFAR_timesplit.py, then delete them manually.')
     ### DONE
 
     with w.if_todo('copy'):
-        #if not os.path.exists(data_dir):
-        #    os.system('mkdir '+data_dir)
-        #    for ms in sorted(glob.glob('*.MS')):
-        #        os.system(f'cp -r {ms} {data_dir}')
-        for tarfile in glob.glob(data_dir + '/*tar'):
-            if not os.path.exists(tarfile.replace('.tar','')):
-                s.add(f'tar xf {tarfile} --one-top-level={data_dir}', log='tar.log', commandType='general')
+        for tarfile in glob.glob(input_dir + '/*tar'):
+            if not os.path.exists(tarfile.replace('.tar', '')):
+                s.add(
+                    f'tar xf {tarfile} --one-top-level={input_dir}',
+                    log='tar.log',
+                    commandType='general'
+                )
         if len(s.action_list) > 0:
             logger.info('Untar files...')
             s.run(check=True, max_proc=5)
 
-        MSs = lib_ms.AllMSs( glob.glob(data_dir+'/*MS'), s )
+        MSs = lib_ms.AllMSs(
+            glob.glob(os.path.join(input_dir, '*MS')), s
+        )
 
         logger.info('Copy data...')
+        os.makedirs(output_dir, exist_ok=True)
         for MS in MSs.getListObj():
             # overwrite=True to prevent updating the weights twice
-            MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=True)
+            # MS.move(MS.nameMS+'.MS', keepOrig=True, overwrite=True)
+            MS.move(os.path.join(output_dir, MS.nameMS + '.MS'), keepOrig=True, overwrite=True)
+
     ### DONE
 
-    MSs = lib_ms.AllMSs( glob.glob('*MS'), s )
+    MSs = lib_ms.AllMSs(
+        glob.glob(os.path.join(output_dir, '*MS')), s
+    )
 
     ##################################################
     # Find solutions to apply
@@ -97,7 +106,7 @@ def run(step):
         logger.info('Apply solutions (pa)...')
         MSs.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
                 cor.parmdb={h5_pa} cor.correction=polalign', log='$nameMS_corPA.log', commandType='DP3')
-    
+
         # Beam correction CORRECTED_DATA -> CORRECTED_DATA (polalign corrected, beam corrected+reweight)
         logger.info('Beam correction...')
         MSs.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=True', log='$nameMS_corBEAM.log', commandType='DP3')
@@ -135,7 +144,7 @@ def run(step):
     ###################################################################################################
     # Create groups
     groupnames = []
-    for i, msg in enumerate(np.array_split(sorted(glob.glob('*MS')), ngroups)):
+    for i, msg in enumerate(np.array_split(sorted(glob.glob(os.path.join(output_dir, '*MS'))), ngroups)):
         if ngroups == 1:
             groupname = 'mss'
         else:
@@ -145,9 +154,10 @@ def run(step):
         groupnames.append(groupname)
 
         # skip if already done
-        if not os.path.exists(groupname):
+        group_dir = Path(output_dir) / groupname
+        if not group_dir.exists():
             logger.info('Concatenating in frequency...')
-            os.makedirs(groupname)
+            group_dir.mkdir(parents=True, exist_ok=True)
 
             if fillmissingedges:
                 # add missing SB with a fake name not to leave frequency holes
@@ -172,8 +182,8 @@ def run(step):
                 DP3str = ''
 
             # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected)
-            s.add('DP3 '+parset_dir+'/DP3-concat.parset msin="['+','.join(msg)+']" msin.missingdata=True msin.orderms=False \
-                   msout='+groupname+'/'+groupname+'-temp.MS '+DP3str, log=groupname+'_DP3_concat.log', commandType='DP3')
+            s.add(f'DP3 {parset_dir}/DP3-concat.parset msin="[{','.join(msg)}]" msin.missingdata=True msin.orderms=False \
+                   msout={group_dir / groupname}-temp.MS {DP3str}', log=groupname+'_DP3_concat.log', commandType='DP3')
             s.run(check=True)
 
             # We need a number of channels that is - after averaging to the final dutch wide-field resolution - divisable by 48; discard high freq unused channels
@@ -183,13 +193,13 @@ def run(step):
             averaging_factor = max([1,int(round(final_freqres_dutch / freqres))])
             nchan = nchan_init - nchan_init % (48*averaging_factor)
             logger.info('Reducing total channels: %ich -> %ich)' % (nchan_init, nchan))
-            s.add(f'DP3 {parset_dir}/DP3-concat.parset msin={groupname}/{groupname}-temp.MS msin.datacolumn=DATA msin.nchan={nchan} msout={groupname}/{groupname}.MS',
+            s.add(f'DP3 {parset_dir}/DP3-concat.parset msin={str(group_dir / groupname)}-temp.MS msin.datacolumn=DATA msin.nchan={nchan} msout={group_dir}/{groupname}.MS',
                   log=groupname+'_DP3_concat.log', commandType='DP3')
             s.run(check=True)
             # delete temporary MSs:
-            os.system(f'rm -r {groupname}/{groupname}-temp.MS')
+            os.system(f'rm -r {str(group_dir / groupname)}-temp.MS')
 
-    MSs = lib_ms.AllMSs( glob.glob('mss*/*MS'), s )
+    MSs = lib_ms.AllMSs( glob.glob(f'{output_dir}/mss*/*MS'), s )
 
     #############################################################
     # Flagging on concatenated dataset - also flag low-elevation
@@ -234,7 +244,7 @@ def run(step):
                         logger.warning(f'Can clip only Ateam (Cas, Cyg, Vir, Tau), not {a} -> skip.')
                     elif (a not in demixed) and (MSs.getListObj()[0].distBrightSource(a) > 15):
                         logger.info(f'{MS.nameMS}: Clipping {a} that was not demixed.')
-                        cmd = f'DP3 msin={MS.pathMS} msout=. steps=[count,clipper,count] clipper.type=CLIPPER clipper.sourcedb={ateam_model} \
+                        cmd = f'DP3 msin={MS.pathMS} msout={output_dir} steps=[count,clipper,count] clipper.type=CLIPPER clipper.sourcedb={ateam_model} \
                             clipper.sources=[{a}] clipper.usebeammodel=True clipper.amplmax=200 clipper.correctfreqsmearing=True'
                         s.add(cmd, log=MS.nameMS+'_clipper.log', commandType='DP3')
                         s.run(check=True)
@@ -250,45 +260,48 @@ def run(step):
         logger.info('Splitting in time...')
         tc = initc
         for groupname in groupnames:
-            ms = groupname + '/' + groupname + '.MS'
-            if not os.path.exists(ms):
+            ms = Path(output_dir) / groupname / (groupname + '.MS')
+            if not ms.exists():
                 continue
 
-            t = pt.table(ms, ack=False)
+            t = pt.table(str(ms), ack=False)
             starttime = t[0]['TIME']
             endtime   = t[t.nrows()-1]['TIME']
             hours = (endtime-starttime)/3600.
-            logger.debug(ms+' has length of '+str(hours)+' h.')
+            logger.debug(str(ms)+' has length of '+str(hours)+' h.')
 
             for timerange in np.array_split(sorted(set(t.getcol('TIME'))), round(hours)):
                 logger.info('%02i - Splitting timerange %f %f' % (tc, timerange[0], timerange[-1]))
                 logger.info(f'Splitting timerange {timerange[-1]-timerange[0]} -> 3584s.')
                 t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[0]+3584), sortlist='TIME,ANTENNA1,ANTENNA2')
-                splitms = groupname+'/TC%02i.MS' % tc
+                splitms = str(Path(output_dir) / (groupname+'/TC%02i.MS' % tc))
                 lib_util.check_rm(splitms)
                 t1.copy(splitms, True)
                 t1.close()
                 tc += 1
             t.close()
 
-            lib_util.check_rm(ms) # remove not-timesplitted file
+            lib_util.check_rm(str(ms)) # remove not-timesplitted file
     ### DONE
 
     # If we have IS present, also split out the averaged dutch baselines for DDparallel processing
     if MSs.hasIS:
         for groupname in groupnames:
-            MSs = lib_ms.AllMSs( glob.glob(groupname+'/*MS'), s )
+            group_dir = Path(output_dir) / groupname
+            MSs = lib_ms.AllMSs( glob.glob(group_dir+'/*MS'), s )
             groupname_dutch = groupname.replace("-IS","")
             with w.if_todo('avgdutch'):
-                if not os.path.exists(groupname_dutch):
-                    os.system(f'mkdir {groupname_dutch}')
+                group_dir_dutch = Path(output_dir) / groupname_dutch
+                if not group_dir_dutch.exists():
+                    os.system(f'mkdir {group_dir_dutch}')
 
                 avg_factor_t, avg_factor_f = MSs.getListObj()[0].getAvgFactors(keep_IS=False)
                 logger.info(f'Averaging Dutch MSs: x{avg_factor_t} time; x{avg_factor_f} freq')
-                MSs.run(f'DP3 {parset_dir}/DP3-avgdutch.parset msin=$pathMS msout={groupname_dutch}/$nameMS.MS avg.freqstep={avg_factor_f} avg.timestep={avg_factor_t}',
+                MSs.run(f'DP3 {parset_dir}/DP3-avgdutch.parset msin=$pathMS msout={group_dir_dutch}/$nameMS.MS avg.freqstep={avg_factor_f} avg.timestep={avg_factor_t}',
                                   log='$nameMS_avg.log', commandType='DP3')
 
     logger.info('Cleaning up...')
-    os.system('rm -r *MS')
+    for ms in glob.glob(os.path.join(output_dir, '*MS')):
+        lib_util.check_rm(ms)
 
     w.alldone()
