@@ -197,8 +197,14 @@ MSs = lib_ms.AllMSs( glob.glob('mss*/*MS'), s )
 with w.if_todo('flag'):
     logger.info('Flagging...')
     flag_strat = '/HBAdefaultwideband.lua' if MSs.isHBA else '/LBAdefaultwideband.lua'
-    MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\" \
-            aoflagger.strategy='+parset_dir+flag_strat, log='$nameMS_DP3_flag.log', commandType='DP3')
+    if no_aoflagger:
+        logger.info('Without AOFlagger...')
+        MSs.run('DP3 '+parset_dir+'/DP3-flag-no_aoflagger.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\"',
+                log='$nameMS_DP3_flag.log', commandType='DP3')
+    else:
+        logger.info('With AOFlagger...')
+        MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS ant.baseline=\"' + bl2flag + '\" \
+                aoflagger.strategy='+parset_dir+flag_strat, log='$nameMS_DP3_flag.log', commandType='DP3')
 
     if MSs.hasIS:
         # flagonmindata code cannot handle larger MS - anyway shouldn't be needed if we have the minvisratio in the solves?

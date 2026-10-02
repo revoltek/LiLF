@@ -48,7 +48,7 @@ def fit_lombscargle(phases, data, tint, ant="CS002LBA", freq_split=0, plot=True,
         return np.nan, np.nan, np.array([]), np.array([])
     
     dtec_freqs = (-8067*(freqs/60)**-1) * np.pi / 180
-    bandwidth = dtec_freqs.ptp()
+    bandwidth = np.ptp(dtec_freqs)
     n = len(dtec_freqs)
     lombfreqs = np.linspace(1/bandwidth, n/bandwidth, 5*n)
     
