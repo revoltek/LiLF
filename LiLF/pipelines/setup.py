@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os, re, glob
+from pathlib import Path
 
 import lsmtool
 import numpy as np
@@ -32,6 +33,8 @@ def run(step):
     raw_data = step['raw_data'] # raw correlator data, set autoweights and run aoflagger
     tar = step['tar']
     validate = step['validate']
+    
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
 
 
     def getName(ms):
