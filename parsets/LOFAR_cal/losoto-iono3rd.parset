@@ -8,11 +8,14 @@ soltabOut = phaseResid000
 [ct]
 operation = CLOCKTEC
 soltab = sol000/phase000
+numParams = 4 # clock + TEC + offset + 3rd-order TEC, for < 35 MHz
 CombinePol = False
-FlagBadChannels = False
-#Fit3rdOrder = False
-Fit3rdOrder = True # only for very low-freq dataset
 Circular = False
+lofar2Mode = False 
+clocksoltabOut = clock000
+tecsoltabOut = tec000
+offsetsoltabOut = phase_offset000
+tec3rdsoltabOut = tec3rd000
 
 [plotClock]
 operation = PLOT
