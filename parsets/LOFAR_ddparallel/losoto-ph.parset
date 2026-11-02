@@ -13,12 +13,13 @@ minmax = [-3.14,3.14]
 [ct]
 operation = CLOCKTEC
 soltab = sol000/phase000
+numParams = 3 # clock + TEC + phase offset
 CombinePol = False
-FlagBadChannels = False
-Fit3rdOrder = False
 Circular = False
-removePhaseWraps = False
-chi2cut = 1e9
+lofar2Mode = False 
+clocksoltabOut = clock000
+tecsoltabOut = tec000
+offsetsoltabOut = phase_offset000
 
 [plotClock]
 operation = PLOT
