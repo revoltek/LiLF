@@ -77,7 +77,7 @@ if not download_file is None:
                 with open('renamed.txt','r') as flog:
                     downloaded += [line.rstrip('\n') for line in flog]
             with open(macaroon_file,'r') as mf:
-                macaroon = mf.readlines()[-2].strip('\n')
+                macaroon = max(mf.read().split(), key=len) # seperate at whitespaces and pick longest string
 
             for i, line in enumerate(df):
                 if line == "\n": continue
