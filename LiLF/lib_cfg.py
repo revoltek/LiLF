@@ -61,6 +61,7 @@ DEFAULTS = {
     'combine': {},
     'ddparallel': {
         'maxIter':                2,
+        'maxSubIter':             1,
         'subfield':               '',
         'subfield_min_flux':      20,
         'ph_sol_mode':            'phase',
@@ -69,8 +70,9 @@ DEFAULTS = {
         'min_facets':             '',
         'max_facets':             '',
         'develop':                False,
-        'data_dir':               '',
+        'input_list':             None,
         'use_shm':                False,
+        'temp_dir_wsclean':       None,
     },
     'ddserial': {
         'maxIter':                1,
@@ -110,7 +112,7 @@ MANDATORY = {
     'calibrator':   ['input', 'output'],
     'timesplit':    ['input_h5', 'input_mss', 'output'],
     'combine':      ['input', 'output'],
-    'ddparallel':   ['input', 'output'],
+    'ddparallel':   ['input_list', 'output'],
     'ddserial':     ['input', 'output'],
     'quality':      ['input'],
     'extract':      ['input', 'output', 'extractRegion'],
@@ -241,7 +243,7 @@ class Step:
         missing = []
         for key in self._mandatory:
             val = self[key]
-            if val is None or val == '':
+            if not val:
                 missing.append(key)
         if missing:
             return ValidationError(self.name, self.kind, missing)

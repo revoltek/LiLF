@@ -182,7 +182,7 @@ def run(step):
                 DP3str = ''
 
             # prepare concatenated mss - SB.MS:CORRECTED_DATA -> group#.MS:DATA (cal corr data, beam corrected)
-            s.add(f'DP3 {parset_dir}/DP3-concat.parset msin="[{','.join(msg)}]" msin.missingdata=True msin.orderms=False \
+            s.add(f'DP3 {parset_dir}/DP3-concat.parset msin="[{",".join(msg)}]" msin.missingdata=True msin.orderms=False \
                    msout={group_dir / groupname}-temp.MS {DP3str}', log=groupname+'_DP3_concat.log', commandType='DP3')
             s.run(check=True)
 
