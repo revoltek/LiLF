@@ -96,6 +96,19 @@ class Walker():
                     return True
         return False
 
+    def has_entries(self):
+        """Return True when at least one completed step is recorded."""
+        return os.path.getsize(self.filepath) > 0
+
+    def reset(self):
+        """Forget all completed steps (truncate the walker file).
+
+        Used when the products a previous run relied on are gone, so that the
+        recorded progress is no longer valid.
+        """
+        with open(self.filepath, 'w'):
+            pass
+
     def mark_done(self, stepname, timeinit=None):
         """Write *stepname* to the walker file, optionally recording elapsed time."""
         with open(self.filepath, 'a') as f:

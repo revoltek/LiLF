@@ -997,9 +997,8 @@ def run(step):
                                 [parset_dir + '/losoto-plot-scalarphFR.parset', parset_dir + '/losoto-plot-rot.parset',
                                             parset_dir + '/losoto-sf-fr.parset'],
                                 logname='losoto-fr.log',
-                                h5_out='cal-fr.h5',
-                                plots_dir = f'{plot_dir}/plots-fr-sf',
-                                h5_dir = sol_dir)
+                                h5_out=os.path.join(sol_dir, 'cal-fr.h5'),
+                                plots_dir = f'{plot_dir}/plots-fr-sf')
 
             with w.if_todo('c%02i_corrFR-subfield%02i' % (c, sc)):
                 logger.info('Correcting subfield region with FR...')

@@ -40,7 +40,7 @@ class Scheduler():
         logger.info(f"Scheduler initialised: max_proc={self.max_proc}, max_cpucores={self.max_cpucores}.")
 
         self.action_list = []
-        self.log_list    = []  # list of 2-tuples of the type: (log filename, type of action)
+        self.log_list    = []  # list of 3-tuples of the type: (log filename, type of action, command)
 
 
     def add(self, cmd = '', log = '', logAppend = True, commandType = ''):
@@ -85,7 +85,7 @@ class Scheduler():
 
         self.action_list.append(cmd)
         if log:
-            self.log_list.append((log, commandType))
+            self.log_list.append((log, commandType, cmd))
 
 
     def run(self, check = False, max_proc = None):
@@ -124,15 +124,15 @@ class Scheduler():
 
         # check outcomes on logs
         if check:
-            for log, commandType in self.log_list:
-                self.check_run(log, commandType)
+            for log, commandType, cmd in self.log_list:
+                self.check_run(log, commandType, cmd)
 
         # reset list of commands
         self.action_list = []
         self.log_list    = []
 
 
-    def check_run(self, log = "", commandType = ""):
+    def check_run(self, log = "", commandType = "", cmd = ""):
         """
         Produce a warning if a command didn't close the log properly i.e. it crashed
         NOTE: grep, -L inverse match, -l return only filename
@@ -175,7 +175,14 @@ class Scheduler():
         if out != b'':
             out = out.split(b'\n')[0].decode()
             logger.error(f'{commandType} run problem on:\n{out}')
-            errlines = subprocess.check_output(f'tail -n 10 {log}', shell = True, stderr = subprocess.STDOUT).decode()
+            if os.path.getsize(log) == 0:
+                logger.error('Log file is empty: the command produced no output.')
+                errlines = '<log file is empty: the command produced no output>'
+            else:
+                errlines = subprocess.check_output(f'tail -n 10 {log}', shell = True, stderr = subprocess.STDOUT).decode()
+            if cmd:
+                logger.error(f'Command was: {cmd}')
+                errlines += f'\nCommand: {cmd}'
             raise RuntimeError(f'{commandType} run problem on:\n{out}\n{errlines}')
 
         return 0
