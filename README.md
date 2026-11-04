@@ -181,6 +181,7 @@ ngroups: int [1] # number of frequency groups to create
 initc: int [0] # init number for time chunk numbering
 
 ### LOFAR_ddparallel
+temp_dir_wsclean: directory used by wsclean for temporary files (maps to wsclean's `-temp-dir`). Default: unset, so wsclean uses its own default (typically the user's home directory).
 
 ### LOFAR_ddserial
 maxIter: int [2] # iterations
