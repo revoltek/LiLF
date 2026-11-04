@@ -20,6 +20,7 @@
 
 import os, glob, random
 import numpy as np
+import json
 from regions import Regions
 import astropy.units as u
 from astropy.coordinates import SkyCoord
@@ -50,21 +51,33 @@ def run(step):
     max_facets = step['max_facets']
     develop = step['develop']
     use_shm = step['use_shm']
-    data_dir = step['data_dir']
+    temp_dir_wsclean = step['temp_dir_wsclean']
     start_sourcedb = step['start_sourcedb']
     userReg = step['userReg']
     sf_phaseSolMode = 'phase'
+
+    # input_list: one or more directories (typically the output of a timesplit
+    # run) that each contain an mss/ dir with the TC*.MS of that dataset.
+    input_list = step['input_list']
+    if isinstance(input_list, str):
+        input_list = [input_list]
+    input_list = [d.rstrip('/') for d in input_list]
+
+    # dedicated output directory for all products of this step
+    output_dir = step['output'].rstrip('/')
+    ddp_dir = os.path.join(output_dir, 'ddparallel')
+    img_dir = os.path.join(output_dir, 'img')
 
 
     def clean_empty(MSs, name, col='CORRECTED_DATA', size=5000, shift=None):
         """ For testing/debugging only"""
         if shift is None:
-            lib_scheduler.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
+            lib_scheduler.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'{img_dir}/{name}',
                                 data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=1, nmiter=0,
                                 weight='briggs 0.0', gridder='wgridder', parallel_gridding=1,
                                 no_update_model_required='', apply_primary_beam='')
         else:
-            lib_scheduler.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'img/{name}',
+            lib_scheduler.run_wsclean(s, 'wsclean-empty.log', MSs.getStrWsclean(), name=f'{img_dir}/{name}',
                                 data_column=col, size=size, scale=f'{int(pixscale*2)}arcsec', niter=1, nmiter=0,
                                 weight='briggs 0.0', gridder='wgridder', parallel_gridding=1, shift= f'{shift[0]} {shift[1]}',
                                 no_update_model_required='', apply_primary_beam='')
@@ -174,12 +187,12 @@ def run(step):
                 threshold = a * (sep - hnmf) + 1
         
             if source in ["3C 196", "3C 380", "3C 295"]: # take pre-existing model for calibrators
-                sourcedb = os.path.dirname(__file__) + '/../models/calib-simple.skymodel'
+                sourcedb = os.path.dirname(__file__) + '/../../models/calib-simple.skymodel'
                 sm_3c = lsmtool.load(sourcedb, beamMS=sm.beamMS)
                 sm_3c.select(f'patch=={source.replace(" ","")}')
                 sm_3c.setColValues('LogarithmicSI', ['True']*len(sm_3c.getColValues('I'))) # add standard spidx
             else:
-                sourcedb = os.path.dirname(__file__) + f'/../models/3CRR/{source.replace(" ","")}.txt'
+                sourcedb = os.path.dirname(__file__) + f'/../../models/3CRR/{source.replace(" ","")}.txt'
                 if not os.path.exists(sourcedb):
                     logger.warning(f'No model found for {source} (seperation {sep:.2f} deg)')
                     continue
@@ -199,41 +212,57 @@ def run(step):
         return sm
 
     def make_source_regions(sm, c):
-        lib_util.check_rm(f'ddparallel/skymodel/regions_c{c}')
-        lib_util.check_rm(f'ddparallel/skymodel/patches_c{c}.reg')
-        os.makedirs(f'ddparallel/skymodel/regions_c{c}')
+        lib_util.check_rm(f'{ddp_dir}/skymodel/regions_c{c}')
+        lib_util.check_rm(f'{ddp_dir}/skymodel/patches_c{c}.reg')
+        os.makedirs(f'{ddp_dir}/skymodel/regions_c{c}')
         for p in sm.getPatchNames():
             sm_p = sm.copy()
             sm_p.select(f'patch=={p}')
-            sm_p.write(f'ddparallel/skymodel/regions_c{c}/{p}.reg', format='ds9', clobber=True)
-            regs = Regions.read(f'ddparallel/skymodel/regions_c{c}/{p}.reg')
+            sm_p.write(f'{ddp_dir}/skymodel/regions_c{c}/{p}.reg', format='ds9', clobber=True)
+            regs = Regions.read(f'{ddp_dir}/skymodel/regions_c{c}/{p}.reg')
             col = '#{:06x}'.format(random.randint(0, 256 ** 3))
             for reg in regs:
                 reg.visual['facecolor'] = col
                 reg.visual['edgecolor'] = col
-            regs.write(f'ddparallel/skymodel/regions_c{c}/{p}.reg',overwrite=True)
-            os.system(f'cat ddparallel/skymodel/regions_c{c}/*.reg >> ddparallel/skymodel/patches_c{c}.reg')
-        lib_util.check_rm(f'ddparallel/skymodel/regions_c{c}')
+            regs.write(f'{ddp_dir}/skymodel/regions_c{c}/{p}.reg',overwrite=True)
+            os.system(f'cat {ddp_dir}/skymodel/regions_c{c}/*.reg >> {ddp_dir}/skymodel/patches_c{c}.reg')
+        lib_util.check_rm(f'{ddp_dir}/skymodel/regions_c{c}')
 
     #############################################################################
     # Clear
     with w.if_todo('cleaning'):
         logger.info('Cleaning...')
-        lib_util.check_rm('img')
-        os.makedirs('img')
+        lib_util.check_rm(img_dir)
+        os.makedirs(img_dir)
 
         # here images, models, solutions for each group will be saved
-        lib_util.check_rm('ddparallel')
-        if not os.path.exists('ddparallel/images'): os.makedirs('ddparallel/images')
-        if not os.path.exists('ddparallel/solutions'): os.makedirs('ddparallel/solutions')
-        if not os.path.exists('ddparallel/plots'): os.makedirs('ddparallel/plots')
-        if not os.path.exists('ddparallel/skymodel'): os.makedirs('ddparallel/skymodel')
+        lib_util.check_rm(ddp_dir)
+        if not os.path.exists(f'{ddp_dir}/images'): os.makedirs(f'{ddp_dir}/images')
+        if not os.path.exists(f'{ddp_dir}/solutions'): os.makedirs(f'{ddp_dir}/solutions')
+        if not os.path.exists(f'{ddp_dir}/plots'): os.makedirs(f'{ddp_dir}/plots')
+        if not os.path.exists(f'{ddp_dir}/skymodel'): os.makedirs(f'{ddp_dir}/skymodel')
     ### DONE
 
-    sol_dir = 'ddparallel/solutions'
-    plot_dir = 'ddparallel/plots'
+    sol_dir = f'{ddp_dir}/solutions'
+    plot_dir = f'{ddp_dir}/plots'
 
-    MSs = lib_ms.AllMSs( glob.glob(data_dir + 'mss/TC*[0-9].MS'), s, check_flags=True, check_consistency=True)
+    # gather the TCs of all input datasets
+    mss_list = []
+    for input_dir in input_list:
+        mss = sorted(glob.glob(os.path.join(input_dir, 'mss', 'TC*[0-9].MS')))
+        if len(mss) == 0:
+            raise ValueError(f'No MSs found in {input_dir}/mss.')
+        logger.info(f'Found {len(mss)} MSs in {input_dir}.')
+        mss_list += mss
+    if len(input_list) > 1:
+        logger.info(f'Calibrating {len(mss_list)} MSs from {len(input_list)} input datasets.')
+        # MS names are used to name the log files, so duplicates would overwrite them
+        names = [os.path.basename(ms) for ms in mss_list]
+        if len(set(names)) != len(names):
+            logger.warning('Duplicate MS names found across the input datasets - '
+                           'per-MS logs may be overwritten.')
+
+    MSs = lib_ms.AllMSs(mss_list, s, check_flags=True, check_consistency=True)
     MSs.print_HAcov()
     [MS.print_ateam_demix() for MS in MSs.getListObj()]
     for ateam in ['CasA', 'CygA', 'TauA', 'VirA']:
@@ -315,8 +344,8 @@ def run(step):
 
 
     # Make beam mask/reg
-    beamMask = 'ddparallel/beam.fits'
-    beamReg = 'ddparallel/beam.reg'
+    beamMask = f'{ddp_dir}/beam.fits'
+    beamReg = f'{ddp_dir}/beam.reg'
     MSs.getListObj()[0].makeBeamReg(beamReg, freq='min', to_pbval=0)
     if not os.path.exists(beamMask):
         logger.info('Making mask of primary beam...')
@@ -325,7 +354,7 @@ def run(step):
         os.system(f'mv {beamMask.replace(".fits","-image.fits")} {beamMask}') # beam-image.fits -> beam.fits
         lib_img.blank_image_reg(beamMask, beamReg, blankval = 1.)
         lib_img.blank_image_reg(beamMask, beamReg, blankval = 0., inverse=True)
-    subfield_path = 'ddparallel/skymodel/subfield.reg'
+    subfield_path = f'{ddp_dir}/skymodel/subfield.reg'
 
     with w.if_todo('addcol'):
         MSs.addcol('CORRECTED_DATA', 'DATA') # carries on varies correction
@@ -374,16 +403,17 @@ def run(step):
     # Self-cal cycle
     bright_source = False
     c = 0  # while loop since the maxIter may change in case of bright source
+
     while c < maxIter:
         logger.info('Start selfcal cycle: '+str(c))
 
         # get sourcedb
-        sourcedb = f'ddparallel/skymodel/tgts-c{c}.skymodel'
+        sourcedb = f'{ddp_dir}/skymodel/tgts-c{c}.skymodel'
         beamMS = MSs.getListStr()[int(len(MSs.getListStr()) / 2)] # use central MS, should not make a big difference
         if not os.path.exists(sourcedb):
             logger.info(f'Creating skymodel {sourcedb}...')
             if c == 0 or (bright_source and c == 1):
-                if start_sourcedb == '':  # if not provided, use LOTSS-DR3 as default, if the field is not fully covered, resort to GSM
+                if not start_sourcedb:  # if not provided, use LOTSS-DR3 as default, if the field is not fully covered, resort to GSM
                     if lib_dd_parallel.check_lotss_coverage(phasecentre, null_mid_freq/2):
                         logger.info('Target fully in LoTSS-DR3 - start from LoTSS + use more initial facets.')
                         start_sourcedb = 'LOTSS-DR3'
@@ -404,14 +434,14 @@ def run(step):
                 # using components downloaded from https://www.lofar-surveys.org/downloads/DR3/catalogues/LoTSS_DR3_v0.1_gaus.fits
                 # componentlist prepared on 11-03-2025 (total flux in Jy)
                 elif start_sourcedb.upper() == 'LOTSS-DR3':
-                    sm = lib_cat.get_LOTSS_DR3_cone_as_skymodel(phasecentre, null_mid_freq/2, 'ddparallel/skymodel/starting.skymodel', beamMS=beamMS)
+                    sm = lib_cat.get_LOTSS_DR3_cone_as_skymodel(phasecentre, null_mid_freq/2, f'{ddp_dir}/skymodel/starting.skymodel', beamMS=beamMS)
                 # otherwise if provided, use manual model
                 else:
                     logger.info(f'Using input skymodel {start_sourcedb}')
                     sm = lsmtool.load(start_sourcedb, beamMS=beamMS)
             else:
                     # get wsclean skymodel of previous iteration
-                    wsc_src = f'img/wideDDP-c{c-1}-sources-pb.txt'
+                    wsc_src = f'{img_dir}/wideDDP-c{c-1}-sources-pb.txt'
                     sm = lsmtool.load(wsc_src, beamMS=beamMS)
             # if using e.g. LoTSS, adjust for the frequency
             logger.debug(f'Extrapolating input skymodel fluxes from {np.mean(sm.getColValues("ReferenceFrequency"))/1e6:.0f}MHz to {np.mean(MSs.getFreqs())/1e6:.0f}MHz assuming si=-0.7')
@@ -459,7 +489,7 @@ def run(step):
             logger.info(f'Load existing skymodel {sourcedb}')
             sm = lsmtool.load(sourcedb, beamMS=beamMS)
     
-        sm.plot(f'ddparallel/skymodel/patches-c{c}.png', 'patch')
+        sm.plot(f'{ddp_dir}/skymodel/patches-c{c}.png', 'patch')
 
         # copy sourcedb into each MS to prevent concurrent access from multiprocessing to the sourcedb
         sourcedb_basename = sourcedb.split('/')[-1]
@@ -502,7 +532,7 @@ def run(step):
                 # pos = sm.getPatchPositions()[patch]
                 # size = int((1.1*sm.getPatchSizes()[np.argwhere(sm.getPatchNames()==patch)]) // 4)
                 # logger.info(f'Test image MODEL_DATA...')
-                # lib_scheduler.run_wsclean(s, 'wscleanMODEL-c' + str(c) + '.log', MSs.getStrWsclean(), name=f'ddparallel/skymodel/{patch}',
+                # lib_scheduler.run_wsclean(s, 'wscleanMODEL-c' + str(c) + '.log', MSs.getStrWsclean(), name=f'{ddp_dir}/skymodel/{patch}',
                 #                      data_column=patch, size=size, scale='8arcsec', shift=f'{pos[0].to(u.hourangle).to_string()} {pos[1].to_string()}',
                 #                      weight='briggs -0.5', niter=10000, gridder='wgridder', parallel_gridding=MSs.getChout(4.e6), no_update_model_required='', minuv_l=30, mgain=0.9,
                 #                      parallel_deconvolution=512, beam_size=15, join_channels='', fit_spectral_pol=3,
@@ -601,7 +631,6 @@ def run(step):
                     if debug_3c_sub:
                         MSs.addcol('DATA_SUB', 'PREPARED_DATA')
                         with open(parset_dir+"/3C_coordinates.json", "r") as file:
-                            import json
                             all_3c = json.load(file)
                         
                     for patch in _3c_patches:
@@ -766,13 +795,15 @@ def run(step):
                 --pixelscale {pixscale} --writevoronoipoints --output {facetregname}', log='facet_generator.log', commandType='python')
             s.run(check = True)
 
-            imagename = 'img/wideDDPnomask-c' + str(c)
-            imagenameM = 'img/wideDDP-c' + str(c)
+            imagename = f'{img_dir}/wideDDPnomask-c' + str(c)
+            imagenameM = f'{img_dir}/wideDDP-c' + str(c)
             # common imaging arguments used by all of the following wsclean calls
             widefield_kwargs = dict(data_column='CORRECTED_DATA', use_shm=use_shm, size=imgsizepix_wide, scale=f'{pixscale}arcsec', weight='briggs -0.5', niter=1000000,
                                     gridder='wgridder',  parallel_gridding=len(sm.getPatchNames())*channels_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
                                     join_channels='', fit_spectral_pol=3, channels_out=channels_out, deconvolution_channels=3, multiscale='',
                                     multiscale_scale_bias=0.65, pol='i', facet_regions=facetregname, apply_facet_solutions=f'{wide_h5} phase000', concat_mss=True)
+            if temp_dir_wsclean:
+                widefield_kwargs['temp_dir'] = temp_dir_wsclean
 
             # for low-freq or low-dec data, allow the beam to be fitted, otherwise (survey) force 15"
             if not(np.mean(MSs.getFreqs()) < 50e6) and not (phasecentre[1] < 23):
@@ -788,7 +819,7 @@ def run(step):
                 # safe a bit of time by reusing psf and dirty in first iteration
                 reuse_kwargs = {'reuse_concat':True, 'reuse_psf':imagename, 'reuse_dirty':imagename}
             else:
-                current_best_mask = f'img/wideDDP-c{c-1}-mask.fits' # is this already set by the make_current_best_mask() below? Nsot if we restart
+                current_best_mask = f'{img_dir}/wideDDP-c{c-1}-mask.fits' # is this already set by the make_current_best_mask() below? Nsot if we restart
                 reuse_kwargs = {}
 
             # main wsclean call, with mask now
@@ -815,11 +846,11 @@ def run(step):
 
         # Generate a subfield
         if not os.path.exists(subfield_path):
-            sm = lsmtool.load(f'img/wideDDP-c{c}-sources.txt')
-            # sm.remove('img/wide-sidelobe-mask.fits=1')  # remove sidelobe sources that were subtracted
+            sm = lsmtool.load(f'{img_dir}/wideDDP-c{c}-sources.txt')
+            # sm.remove(f'{img_dir}/wide-sidelobe-mask.fits=1')  # remove sidelobe sources that were subtracted
             sm.remove('MajorAxis > 80')  # remove largest scales
             field_center1, field_size1 = lib_dd.make_subfield_region(subfield_path, MSs.getListObj()[0], sm,
-                                                                         subfield_min_flux, pixscale, imgsizepix_wide, debug_dir='img/')
+                                                                         subfield_min_flux, pixscale, imgsizepix_wide, debug_dir=f'{img_dir}/')
 
         subfield_reg = Regions.read(subfield_path)[0]
         subfield_center = [subfield_reg.center.ra, subfield_reg.center.dec]
@@ -829,16 +860,16 @@ def run(step):
             # prepare model of central/external regions combining the subfield_reg and the mask of
             # sources so not to cut anything at the edges
             logger.info('Blanking central region of model files and reverse...')
-            current_best_mask = f'img/wideDDP-c{c}-mask.fits'
-            subfield_intmask='ddparallel/images/subfieldint-mask.fits'
+            current_best_mask = f'{img_dir}/wideDDP-c{c}-mask.fits'
+            subfield_intmask=f'{ddp_dir}/images/subfieldint-mask.fits'
             os.system(f'cp {current_best_mask} {subfield_intmask}')
             lib_img.blank_image_reg(subfield_intmask, subfield_path, blankval = 1.)
             lib_img.select_connected_island(subfield_intmask, subfield_center)
-            subfield_extmask='ddparallel/images/subfieldext-mask.fits'
+            subfield_extmask=f'{ddp_dir}/images/subfieldext-mask.fits'
             os.system(f'cp {current_best_mask} {subfield_extmask}')
             lib_img.blank_image_fits(subfield_extmask, subfield_intmask, blankval = 0.)
 
-            for im in glob.glob(f'img/wideDDP-c{c}*model*.fits'):
+            for im in glob.glob(f'{img_dir}/wideDDP-c{c}*model*.fits'):
                 wideDDPint = im.replace('wideDDP','wideDDPint')
                 os.system('cp %s %s' % (im, wideDDPint))
                 lib_img.blank_image_fits(wideDDPint, subfield_intmask, blankval = 0., inverse=True)
@@ -850,7 +881,7 @@ def run(step):
         with w.if_todo('c%02i_extreg_subtract' % c):
             # Predict (with dd-sol) external region for subtraction - MSs: MODEL_DATA
             logger.info('Predict corrupted model of external region (wsclean)...')
-            s.add(f'wsclean -predict -padding 1.8 -name img/wideDDPext-c{c} -j {s.max_cpucores} -channels-out {channels_out} \
+            s.add(f'wsclean -predict -padding 1.8 -name {img_dir}/wideDDPext-c{c} -j {s.max_cpucores} -channels-out {channels_out} \
                     -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                     -apply-facet-solutions {wide_h5} phase000 {MSs.getStrWsclean()}',
                 log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
@@ -885,7 +916,7 @@ def run(step):
         with w.if_todo('c%02i_intreg_predict' % c):
             # Predict internal region - MSs: MODEL_DATA
             logger.info('Predict model of internal region...')
-            s.add(f'wsclean -predict -padding 1.8 -name img/wideDDPint-c{c} -j {s.max_cpucores} -channels-out {channels_out} \
+            s.add(f'wsclean -predict -padding 1.8 -name {img_dir}/wideDDPint-c{c} -j {s.max_cpucores} -channels-out {channels_out} \
                     -facet-regions {facetregname}  -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam \
                     {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
             s.run(check=True)
@@ -981,14 +1012,16 @@ def run(step):
                 # add imaging to make a good model
                 with w.if_todo('c%02i_image-subfield%02i' % (c, sc)):
 
-                    imagename = 'img/subfieldDDPnomask-c' + str(c)+str(sc)
-                    imagenameM = 'img/subfield-c' + str(c)+str(sc)
+                    imagename = f'{img_dir}/subfieldDDPnomask-c' + str(c)+str(sc)
+                    imagenameM = f'{img_dir}/subfield-c' + str(c)+str(sc)
 
                     # common imaging arguments used by all of the following wsclean calls
                     widefield_kwargs = dict(data_column='CORRECTED_SUBFIELD_DATA', use_shm=use_shm, size=int(2*subfield_size*3600/pixscale), scale=f'{pixscale}arcsec', weight='briggs -0.5', niter=1000000,
                                             gridder='wgridder',  parallel_gridding=4, minuv_l=30, mgain=0.65, parallel_deconvolution=32, no_update_model_required='',
                                             join_channels='', fit_spectral_pol=3, channels_out=4, deconvolution_channels=3, multiscale='',
                                             multiscale_scale_bias=0.65, pol='i', shift=f'{subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}', concat_mss=True)
+                    if temp_dir_wsclean:
+                        widefield_kwargs['temp_dir'] = temp_dir_wsclean
 
                     # c0: make quick initial image to get a mask
                     logger.info('Making wide-field image for clean mask...')
@@ -1013,7 +1046,7 @@ def run(step):
 
                 with w.if_todo('c%02i_predict-subfield%02i' % (c, sc)):
                     logger.info('Predict model of internal region...')
-                    s.add(f'wsclean -predict -padding 1.8 -name img/subfield-c{c}{sc}  -j {s.max_cpucores} \
+                    s.add(f'wsclean -predict -padding 1.8 -name {img_dir}/subfield-c{c}{sc}  -j {s.max_cpucores} \
                             -shift {subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}  -channels-out 4 \
                             {MSs.getStrWsclean()}', log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
                     s.run(check=True)
@@ -1046,7 +1079,7 @@ def run(step):
 
             logger.info('Test image subfield...')
             # Note that here the beam is not applied, so the image is suboptimal
-            lib_scheduler.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'img/subfield-{c}', data_column='CORRECTED_SUBFIELD_DATA', size=int(1.2*subfield_size*3600/pixscale), scale=f'{pixscale}arcsec',
+            lib_scheduler.run_wsclean(s, 'wscleanSF-c'+str(c)+'.log', MSs.getStrWsclean(), name=f'{img_dir}/subfield-{c}', data_column='CORRECTED_SUBFIELD_DATA', size=int(1.2*subfield_size*3600/pixscale), scale=f'{pixscale}arcsec',
                                 weight='briggs -0.5', niter=100000, gridder='wgridder',  parallel_gridding=MSs.getChout(4.e6), shift=f'{subfield_center[0].to(u.hourangle).to_string()} {subfield_center[1].to_string()}',
                                 no_update_model_required='', minuv_l=30, beam_size=15, mgain=0.55, nmiter=12, parallel_deconvolution=512, auto_threshold=5.0, auto_mask=10.0,
                                 join_channels='', fit_spectral_pol=3, multiscale_max_scales=5, channels_out=MSs.getChout(4.e6), deconvolution_channels=3, baseline_averaging='',
@@ -1059,7 +1092,7 @@ def run(step):
             # Predict the main-lobe with DD-sols and subtract it
             with w.if_todo('subtract_mainlobe'):
                 logger.info('Blanking central region of model files and reverse...')
-                for im in glob.glob('img/wideDDP-c0*model*.fits'):
+                for im in glob.glob(f'{img_dir}/wideDDP-c0*model*.fits'):
                     wideDDPintpb = im.replace('wideDDP', 'wideDDPintpb')
                     os.system('cp %s %s' % (im, wideDDPintpb))
                     lib_img.blank_image_reg(wideDDPintpb, beamReg , blankval=0., inverse=True)
@@ -1068,7 +1101,7 @@ def run(step):
                     lib_img.blank_image_reg(wideDDPextpb, beamReg, blankval=0.)
                 # Recreate MODEL_DATA of internal region for subtraction
                 logger.info('Predict corrupted model of internal region...')
-                s.add(f'wsclean -predict -padding 1.8 -name img/wideDDPintpb-c0 -j {s.max_cpucores} -channels-out {channels_out} \
+                s.add(f'wsclean -predict -padding 1.8 -name {img_dir}/wideDDPintpb-c0 -j {s.max_cpucores} -channels-out {channels_out} \
                        -apply-facet-beam -facet-beam-update 120 -use-differential-lofar-beam -facet-regions {facetregname} \
                        -apply-facet-solutions {wide_h5} phase000 {MSs.getStrWsclean()}',
                     log='wscleanPRE-c' + str(c) + '.log', commandType='wsclean')
@@ -1106,7 +1139,7 @@ def run(step):
                             log='$nameMS_sf-correct.log', commandType='DP3')
             ### DONE
 
-            imagename_lr = 'img/wide-sidelobe'
+            imagename_lr = f'{img_dir}/wide-sidelobe'
             channels_out_lr = MSs.getChout(2.e6) if MSs.getChout(2.e6) > 1 else 2
             # Image the sidelobe data and predict model
             # MSs: create MODEL_DATA (with just the sidelobe flux)
@@ -1220,16 +1253,16 @@ def run(step):
     # TODO: add leackage correction
 
     # Copy images
-    [ os.system('mv img/wideDDP-c'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
-    [ os.system('mv img/wideDDP-c'+str(c)+'-MFS-residual*.fits ddparallel/images') for c in range(maxIter) ]
-    [ os.system('mv img/wideDDP-c'+str(c)+'-sources*.txt ddparallel/images') for c in range(maxIter) ]
-    [ os.system('mv img/subfield-'+str(c)+'-MFS-image*.fits ddparallel/images') for c in range(maxIter) ]
-    os.system('mv img/wide-sidelobe-MFS-image.fits ddparallel/images')
+    [ os.system(f'mv {img_dir}/wideDDP-c'+str(c)+f'-MFS-image*.fits {ddp_dir}/images') for c in range(maxIter) ]
+    [ os.system(f'mv {img_dir}/wideDDP-c'+str(c)+f'-MFS-residual*.fits {ddp_dir}/images') for c in range(maxIter) ]
+    [ os.system(f'mv {img_dir}/wideDDP-c'+str(c)+f'-sources*.txt {ddp_dir}/images') for c in range(maxIter) ]
+    [ os.system(f'mv {img_dir}/subfield-'+str(c)+f'-MFS-image*.fits {ddp_dir}/images') for c in range(maxIter) ]
+    os.system(f'mv {img_dir}/wide-sidelobe-MFS-image.fits {ddp_dir}/images')
 
     # debug images
     if develop:
-        os.system('mv img/only*image.fits ddparallel/images')
-        os.system('mv img/empty*image.fits ddparallel/images')
+        os.system(f'mv {img_dir}/only*image.fits {ddp_dir}/images')
+        os.system(f'mv {img_dir}/empty*image.fits {ddp_dir}/images')
     else:
         # remove MODEL_DATA cols...
         logger.info('Removing unwanted columns...')
@@ -1237,8 +1270,8 @@ def run(step):
             MSs.deletecol(patch)
 
     # Copy model
-    os.system(f'mv img/wideDDP-c{maxIter-1}-*-model.fits ddparallel/skymodel')
-    os.system(f'mv img/wideDDP-c{maxIter-1}-*-model-fpb.fits ddparallel/skymodel')
-    os.system(f'mv img/wideDDP-c{maxIter-1}-*-model-pb.fits ddparallel/skymodel')
+    os.system(f'mv {img_dir}/wideDDP-c{maxIter-1}-*-model.fits {ddp_dir}/skymodel')
+    os.system(f'mv {img_dir}/wideDDP-c{maxIter-1}-*-model-fpb.fits {ddp_dir}/skymodel')
+    os.system(f'mv {img_dir}/wideDDP-c{maxIter-1}-*-model-pb.fits {ddp_dir}/skymodel')
 
     w.alldone()
