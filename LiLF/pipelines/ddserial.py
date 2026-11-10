@@ -3,8 +3,9 @@
 
 # Pipeline for direction dependent calibration
 
-import sys, os, glob, pickle, collections, fileinput, tempfile
+import sys, os, glob, re, json, pickle, collections, fileinput, tempfile, shutil, subprocess, signal
 import numpy as np
+import casacore.tables as tables
 from astropy.table import Table as astrotab
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -33,6 +34,114 @@ def run(step):
     use_shm = step['use_shm']
     use_shm_ddcal = step['use_shm_ddcal']
     userReg = step['userReg']
+
+    # input: the output directory of the ddparallel step. It contains the
+    # ddparallel/ products (solutions, images, skymodel) and its img/ dir.
+    ddp_root = step['input'].rstrip('/')
+    ddp_dir = os.path.join(ddp_root, 'ddparallel')
+
+    # output: all final products of this step (images, solutions, plots, ...)
+    out_root = step['output'].rstrip('/')
+    dds_dir = os.path.join(out_root, 'ddserial')
+    img_dir = os.path.join(out_root, 'img')
+    if os.path.abspath(out_root) == os.path.abspath(ddp_root):
+        raise ValueError('The ddserial output directory must differ from its input (the ddparallel output directory).')
+
+    # intermediate products (linked/averaged/direction MSs). Defaults to the
+    # working directory when temp_dir is not set in the config.
+    temp_dir = (step['temp_dir'] or os.getcwd()).rstrip('/')
+    mss_link_dir = os.path.join(temp_dir, 'mss-link')
+    mss_avg_dir = os.path.join(temp_dir, 'mss-avg')
+    mss_dir_path = os.path.join(temp_dir, 'mss-dir')
+    mss_lres_dir = os.path.join(temp_dir, 'mss-lres')
+
+    # input_list: one or more directories (typically the output of a timesplit
+    # run) that each contain an mss/ dir with the TC*.MS of that dataset.
+    input_list = step['input_list']
+    if isinstance(input_list, str):
+        input_list = [input_list]
+    input_list = [d.rstrip('/') for d in input_list]
+
+    # The walker lives in the working directory while the intermediate products
+    # live in temp_dir, which may be wiped between runs (e.g. /tmp inside a
+    # container) or changed in the config. Record the configuration next to the
+    # walker and forget any recorded progress when that configuration (or the
+    # products it relied on) is not the one from the previous run.
+    state_path = os.path.splitext(w.filepath)[0] + '.state'
+    signature = {
+        'input': ddp_root,
+        'input_list': input_list,
+        'output': out_root,
+        'temp_dir': temp_dir,
+    }
+    reset_reason = None
+    if not os.path.exists(mss_avg_dir):
+        reset_reason = f'intermediate MSs missing ({mss_avg_dir})'
+    elif not os.path.exists(dds_dir):
+        reset_reason = f'output directory missing ({dds_dir})'
+    elif w.has_entries():
+        try:
+            with open(state_path) as f:
+                old_signature = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            old_signature = None
+        if old_signature != signature:
+            reset_reason = 'configuration changed or state file missing'
+    if reset_reason:
+        if w.has_entries():
+            logger.warning(f'Resetting walker for this step: {reset_reason}.')
+        w.reset()
+    with open(state_path, 'w') as f:
+        json.dump(signature, f, indent=2)
+
+    # The TC numbering restarts for every observation, so link the MSs into a
+    # local dir with unique names (<dataset>_<TC>.MS) to keep the per-MS
+    # outputs (mss-avg, mss-dir, mss-lres, logs) from overwriting each other.
+    os.makedirs(mss_link_dir, exist_ok=True)
+    mss_list = []
+    tags = [os.path.basename(d) for d in input_list]
+    for i, input_dir in enumerate(input_list):
+        mss = sorted(glob.glob(os.path.join(input_dir, 'mss', 'TC*[0-9].MS')))
+        if len(mss) == 0:
+            raise ValueError(f'No MSs found in {input_dir}/mss.')
+        logger.info(f'Found {len(mss)} MSs in {input_dir}.')
+        tag = tags[i] if tags.count(tags[i]) == 1 else f'{i}_{tags[i]}'
+        for ms in mss:
+            link = os.path.join(mss_link_dir, f'{tag}_{os.path.basename(ms)}')
+            if os.path.lexists(link):
+                os.unlink(link)
+            os.symlink(os.path.abspath(ms), link)
+            mss_list.append(link)
+    if len(mss_list) == 0:
+        raise ValueError('No MSs found in the input_list.')
+    logger.info(f'Using {len(mss_list)} MSs from {len(input_list)} dataset(s); intermediate products in {temp_dir}.')
+
+    # Use the newest ddparallel cycle for the starting solutions/facets.
+    def newest_file(pattern):
+        files = glob.glob(pattern)
+        if not files:
+            raise FileNotFoundError(f'No files matching {pattern}')
+        def cycle_number(f):
+            match = re.search(r'-c(\d+)', os.path.basename(f))
+            return int(match.group(1)) if match else -1
+        return max(files, key=cycle_number)
+
+    facetregname = newest_file(os.path.join(ddp_dir, 'solutions', 'facetsP-c[0-9]*.reg'))
+    ddparallel_h5parm = newest_file(os.path.join(ddp_dir, 'solutions', 'cal-tec-c[0-9]*.h5'))
+    # subfield solutions are on top of the last two ddparallel cycles
+    calfiles = sorted(glob.glob(os.path.join(ddp_dir, 'solutions', 'cal-tec-sf*h5')))
+    if len(calfiles) < 2:
+        raise FileNotFoundError(f'Need at least two subfield solution files in {ddp_dir}/solutions (found {len(calfiles)}).')
+    logger.info(f'Using ddparallel solutions: {ddparallel_h5parm}')
+    logger.info(f'Using ddparallel facet regions: {facetregname}')
+
+    # fail fast if the ddparallel products needed below are missing
+    if len(glob.glob(os.path.join(ddp_dir, 'images', 'wideDDP-*image.fits'))) == 0:
+        raise FileNotFoundError(f'No wideDDP images found in {ddp_dir}/images')
+    if len(glob.glob(os.path.join(ddp_dir, 'skymodel', 'wideDDP-*model*.fits'))) == 0:
+        raise FileNotFoundError(f'No wideDDP models found in {ddp_dir}/skymodel')
+    if manual_dd_cal != '' and len(glob.glob(os.path.join(ddp_dir, 'images', 'wideDDP-*residual.fits'))) == 0:
+        raise FileNotFoundError(f'No wideDDP residual image found in {ddp_dir}/images')
 
 
     def clean(p, MSs, res='normal', size=[1,1], empty=False, imagereg='', masksigma=6.5):
@@ -76,18 +185,18 @@ def run(step):
         if empty:
 
             logger.info('Cleaning empty ('+str(p)+')...')
-            imagename = 'img/empty-'+str(p)
+            imagename = f'{img_dir}/empty-'+str(p)
             lib_scheduler.run_wsclean(s, 'wscleanE-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename, data_column='SUBTRACTED_DATA',
-                    size=imsize, scale=str(localpixscale)+'arcsec',
+                    temp_dir=temp_dir, size=imsize, scale=str(localpixscale)+'arcsec',
                     weight=weight, niter=0, no_update_model_required='', minuv_l=30, mgain=0,
                     baseline_averaging='')
         else:
 
             # clean 1
             logger.info('Cleaning ('+str(p)+')...')
-            imagename = 'img/ddserial-'+str(p)
+            imagename = f'{img_dir}/ddserial-'+str(p)
             lib_scheduler.run_wsclean(s, 'wscleanA-'+str(p)+'.log', MSs.getStrWsclean(), name=imagename,
-                    size=imsize, scale=str(localpixscale)+'arcsec',
+                    temp_dir=temp_dir, size=imsize, scale=str(localpixscale)+'arcsec',
                     weight=weight, niter=10000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                     baseline_averaging='', parallel_deconvolution=512, auto_threshold=5, parallel_gridding=ch_out,
                     join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
@@ -106,9 +215,9 @@ def run(step):
             # TODO: add deconvolution_channels when bug fixed
             # No beam correction as it is already applied when splitting the mss-dir
             logger.info('Cleaning w/ mask ('+str(p)+')...')
-            imagenameM = 'img/ddserialM-'+str(p)
+            imagenameM = f'{img_dir}/ddserialM-'+str(p)
             lib_scheduler.run_wsclean(s, 'wscleanB-'+str(p)+'.log', MSs.getStrWsclean(), name=imagenameM, do_predict=True, parallel_gridding=ch_out,
-                    size=imsize, save_source_list='', scale=str(localpixscale)+'arcsec', reuse_psf=imagename, reuse_dirty=imagename,
+                    temp_dir=temp_dir, size=imsize, save_source_list='', scale=str(localpixscale)+'arcsec', reuse_psf=imagename, reuse_dirty=imagename,
                     weight=weight, niter=100000, no_update_model_required='', minuv_l=30, maxuv_l=maxuv_l, mgain=0.85,
                     multiscale='', multiscale_scale_bias=0.7, multiscale_scales='0,10,20,40,80', 
                     baseline_averaging='',  auto_threshold=0.75, auto_mask=2.5, fits_mask=imagename+'-mask.fits',
@@ -119,21 +228,21 @@ def run(step):
     #############################################################
     with w.if_todo('cleaning'):
         logger.info('Cleaning...')
-        lib_util.check_rm('ddserial')
-        os.makedirs('ddserial/init')
-        os.system('cp ddparallel/skymodel/wideDDP-*model*.fits ddserial/init/')
-        os.system('cp '+sorted(glob.glob("ddparallel/images/wideDDP-*image.fits"))[-1]+' ddserial/init/')
+        lib_util.check_rm(dds_dir)
+        os.makedirs(f'{dds_dir}/init')
+        os.system(f'cp {ddp_dir}/skymodel/wideDDP-*model*.fits {dds_dir}/init/')
+        os.system('cp '+sorted(glob.glob(f'{ddp_dir}/images/wideDDP-*image.fits'))[-1]+f' {dds_dir}/init/')
         if manual_dd_cal != '':
-            os.system('cp '+sorted(glob.glob("ddparallel/images/wideDDP-*residual.fits"))[-1]+' ddserial/init/')
-        lib_util.check_rm('img')
-        os.makedirs('img')
-        lib_util.check_rm('mss-avg')
-        lib_util.check_rm('mss-dir')
-        lib_util.check_rm('mss-lres')
+            os.system('cp '+sorted(glob.glob(f'{ddp_dir}/images/wideDDP-*residual.fits'))[-1]+f' {dds_dir}/init/')
+        lib_util.check_rm(img_dir)
+        os.makedirs(img_dir)
+        lib_util.check_rm(mss_avg_dir)
+        lib_util.check_rm(mss_dir_path)
+        lib_util.check_rm(mss_lres_dir)
     ### DONE
 
     # use unaveraged MSs to be sure to get the same pixscale and imgsizepix of ddparallel
-    MSs = lib_ms.AllMSs( glob.glob('mss/TC*[0-9].MS'), s, check_consistency=True)
+    MSs = lib_ms.AllMSs(mss_list, s, check_consistency=True)
     pixscale = MSs.getListObj()[0].getPixelScale() 
     imgsizepix = int(1.85*max(MSs.getListObj()[0].getFWHM(freq='max', elliptical=True)) * 3600 / pixscale) # roughly to smallest null
     if imgsizepix > 10000: imgsizepix = 10000 # keep SPARSE doable
@@ -141,7 +250,7 @@ def run(step):
 
     # goes down to 8 seconds and multiple of 48 chans
     # data should be at multiple of 48 channels already from timesplit, check is redundant and can be removed late 2025.
-    if not os.path.exists('mss-avg'):
+    if not os.path.exists(mss_avg_dir):
         timeint = MSs.getListObj()[0].getTimeInt()
         avgtimeint = int(round(8/timeint))  # to 8 seconds
         nchan_init = MSs.getListObj()[0].getNchan()
@@ -149,16 +258,72 @@ def run(step):
         # survey after avg (x8): 60, final number of sol 10
         # pointed after avg (x8): 120, final number of sol 20
         nchan = nchan_init - nchan_init % 48
-        os.makedirs('mss-avg')
+        os.makedirs(mss_avg_dir)
+        avg_parset = os.path.join(parset_dir, 'DP3-avg.parset')
         logger.info('Averaging in time (%is -> %is), channels: %ich -> %ich)' % (timeint,timeint*avgtimeint,nchan_init,nchan))
-        MSs.run('DP3 '+parset_dir+'/DP3-avg.parset msin=$pathMS msout=mss-avg/$nameMS.MS msin.datacolumn=CORRECTED_DATA msin.nchan='+str(nchan)+' \
-                avg.timestep='+str(avgtimeint)+' avg.freqstep=1', log='$nameMS_initavg.log', commandType='DP3')
+        logger.info(f'DP3 averaging parset: {avg_parset} (exists: {os.path.isfile(avg_parset)}, readable: {os.access(avg_parset, os.R_OK)})')
+        if not os.path.isfile(avg_parset):
+            raise FileNotFoundError(f'DP3 averaging parset not found: {avg_parset}')
+        dp3_exe = shutil.which('DP3')
+        logger.info(f'DP3 executable: {dp3_exe}')
+        if dp3_exe is None:
+            raise RuntimeError('DP3 executable not found in PATH')
+        try:
+            dp3_check = subprocess.run([dp3_exe, '-v'], capture_output=True, text=True, timeout=30)
+        except Exception as e:
+            raise RuntimeError(f'Could not run DP3 ({dp3_exe}): {e!r}')
+        if dp3_check.returncode != 0:
+            if dp3_check.returncode < 0:
+                try:
+                    reason = signal.Signals(-dp3_check.returncode).name
+                except ValueError:
+                    reason = f'signal {-dp3_check.returncode}'
+            else:
+                reason = f'exit code {dp3_check.returncode}'
+            raise RuntimeError(
+                f'DP3 executable {dp3_exe} failed its version check with {reason} '
+                f'(stdout={dp3_check.stdout.strip()!r}, stderr={dp3_check.stderr.strip()!r}). '
+                'This usually means the DP3 binary is incompatible with this CPU. '
+                'Run "which -a DP3" and make sure a working DP3 (one where "DP3 -v" succeeds) is first in PATH.'
+            )
+        logger.info(f'DP3 version check: {dp3_check.stdout.strip()}')
+        logger.info(f'Averaging output directory: {mss_avg_dir} (exists: {os.path.isdir(mss_avg_dir)}, writable: {os.access(mss_avg_dir, os.W_OK)})')
+        if not os.path.isdir(mss_avg_dir):
+            raise FileNotFoundError(f'Averaging output directory does not exist: {mss_avg_dir}')
+        usage = shutil.disk_usage(mss_avg_dir)
+        logger.info(f'Averaging output filesystem: {usage.free / 1e9:.1f} GB free of {usage.total / 1e9:.1f} GB')
+        for ms_obj in MSs.getListObj():
+            ms_path = ms_obj.pathMS
+            ms_real = os.path.realpath(ms_path)
+            logger.info(f'Input MS for averaging: {ms_path} -> {ms_real} (exists: {os.path.exists(ms_real)})')
+            if not os.path.isdir(ms_real):
+                raise FileNotFoundError(f'Input MS for averaging does not exist or is not a directory: {ms_real}')
+            with tables.table(ms_path, ack=False) as t:
+                cols = t.colnames()
+                logger.info(f'  {ms_obj.nameMS}: rows={t.nrows()}, CORRECTED_DATA={"CORRECTED_DATA" in cols}')
+                if 'CORRECTED_DATA' not in cols:
+                    raise RuntimeError(f'Input MS has no CORRECTED_DATA column: {ms_path}')
+        avg_cmd = (dp3_exe + ' ' + avg_parset + ' msin=$pathMS msout=' + mss_avg_dir + '/$nameMS.MS msin.datacolumn=CORRECTED_DATA msin.nchan=' + str(nchan) +
+                   ' avg.timestep=' + str(avgtimeint) + ' avg.freqstep=1')
+        logger.info(f'Averaging command template: {avg_cmd}')
+        try:
+            MSs.run(avg_cmd, log='$nameMS_initavg.log', commandType='DP3')
+        except RuntimeError:
+            for ms_obj in MSs.getListObj():
+                ms_log = os.path.join(log_dir, f'{ms_obj.nameMS}_initavg.log')
+                ms_out = os.path.join(mss_avg_dir, f'{ms_obj.nameMS}.MS')
+                log_size = os.path.getsize(ms_log) if os.path.exists(ms_log) else -1
+                logger.error(f'DP3 averaging failed for {ms_obj.nameMS}: log={ms_log} ({log_size} bytes), '
+                             f'output={ms_out} (exists: {os.path.isdir(ms_out)})')
+            raise
+    else:
+        logger.info(f'Re-using averaged MSs from {mss_avg_dir}.')
 
-    MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
+    MSs = lib_ms.AllMSs(glob.glob(os.path.join(mss_avg_dir, '*.MS')), s, check_flags=True)
     fwhm = max(MSs.getListObj()[0].getFWHM(freq='mid', elliptical=True))
-    workingReg = 'ddserial/workingRegion.reg' # sources outside of this region will be ignored (and not peeled)
+    workingReg = f'{dds_dir}/workingRegion.reg' # sources outside of this region will be ignored (and not peeled)
     MSs.getListObj()[0].makeBeamReg(workingReg, freq='min', to_pbval=0)
-    peelReg = 'ddserial/peelingRegion.reg' # sources outside of this region will be peeled
+    peelReg = f'{dds_dir}/peelingRegion.reg' # sources outside of this region will be peeled
     MSs.getListObj()[0].makeBeamReg(peelReg, freq='max', to_pbval=0.12) # this is slighly smaller than the null
     freq_min = np.min(MSs.getFreqs())
     freq_mid = np.mean(MSs.getFreqs())
@@ -166,35 +331,58 @@ def run(step):
     timeint = MSs.getListObj()[0].getTimeInt()
     ch_out = MSs.getChout(4e6)  # for full band (48e6 MHz) is 12
 
-    facetregname = 'ddparallel/solutions/facetsP-c1.reg'
-    ddparallel_h5parm = 'ddparallel/solutions/cal-tec-c1.h5'
     interp_h5parm = ddparallel_h5parm # this variable points to the most recent dd-solutions and will be updated before each imaging step
     correct_for = 'phase000'  # if needed add amplitudes000 before imaging
 
-    with w.if_todo('add_columns'):
+    # Add the working columns if they are missing. This is checked explicitly
+    # instead of relying only on the walker: the mss-avg copies can be created
+    # again (e.g. when temp_dir is a container-scratch path) while an older
+    # walker entry still claims that the columns were already added.
+    colnames = {}
+    for ms in MSs.getListStr():
+        with tables.table(ms, ack=False) as t:
+            colnames[ms] = t.colnames()
+    n_ms = len(colnames)
+    missing_cols = []
+    for col in ['CORRECTED_DATA', 'SUBTRACTED_DATA', 'FLAG_BKP']:
+        present = sum(col in cols for cols in colnames.values())
+        if present == 0:
+            missing_cols.append(col)
+        elif present != n_ms:
+            raise RuntimeError(f'Column {col} exists in only {present}/{n_ms} MSs in '
+                               f'{mss_avg_dir}. Remove that directory and re-run.')
+    if missing_cols:
+        if w.is_done('add_columns'):
+            logger.warning('Columns are missing but add_columns is marked as done '
+                           '(stale walker state) - adding them again.')
         logger.info('Add columns...')
         # using mix of ms.addcol and addcol2ms because ms.addcol does not work with non-data columns
-        MSs.addcol('CORRECTED_DATA', 'DATA', log='$nameMS_addcol.log')
-        MSs.addcol('SUBTRACTED_DATA', 'DATA', log='$nameMS_addcol.log')
-        MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+        if 'CORRECTED_DATA' in missing_cols:
+            MSs.addcol('CORRECTED_DATA', 'DATA', log='$nameMS_addcol.log')
+        if 'SUBTRACTED_DATA' in missing_cols:
+            MSs.addcol('SUBTRACTED_DATA', 'DATA', log='$nameMS_addcol.log')
+        if 'FLAG_BKP' in missing_cols:
+            MSs.run('addcol2ms.py -m $pathMS -c FLAG_BKP -i FLAG', log='$nameMS_addcol.log', commandType='python')
+    else:
+        logger.info('Columns already present.')
 
     # print fractional flags
     for MS in MSs.getListObj():
         logger.info(f'{MS.nameMS}: Fractional flags: {MS.fractionalFlag()*100:.1f}%.')
 
     ##############################################################
-    full_image = lib_img.Image(sorted(glob.glob('ddserial/init/wideDDP-c[0-9]-MFS-image.fits'))[-1], userReg=userReg)
+    full_image = lib_img.Image(sorted(glob.glob(f'{dds_dir}/init/wideDDP-c[0-9]-MFS-image.fits'))[-1], userReg=userReg)
 
     for cmaj in range(maxIter):
         logger.info('Starting major cycle: %i' % cmaj)
 
         # cycle specific variables
-        picklefile = 'ddserial/directions-c%02i.pickle' % cmaj
-        mask_ddcal = 'ddserial/c%02i/skymodels/mask-ddcal-c%02i.fits' % (cmaj, cmaj)
+        picklefile = f'{dds_dir}/directions-c%02i.pickle' % cmaj
+        mask_ddcal = f'{dds_dir}/c%02i/skymodels/mask-ddcal-c%02i.fits' % (cmaj, cmaj)
 
-        if not os.path.exists('ddserial/c%02i' % cmaj): os.makedirs('ddserial/c%02i' % cmaj)
+        if not os.path.exists(f'{dds_dir}/c%02i' % cmaj): os.makedirs(f'{dds_dir}/c%02i' % cmaj)
         for subdir in ['plots','images','solutions','skymodels']:
-            if not os.path.exists('ddserial/c%02i/%s' % (cmaj, subdir)): os.makedirs('ddserial/c%02i/%s' % (cmaj, subdir))
+            if not os.path.exists(f'{dds_dir}/c%02i/%s' % (cmaj, subdir)): os.makedirs(f'{dds_dir}/c%02i/%s' % (cmaj, subdir))
 
         if not os.path.exists(picklefile):
             directions = []
@@ -220,7 +408,7 @@ def run(step):
             ids_to_merge = [np.flatnonzero(cal['Isl_id'] == this_isl) for this_isl in populated_isl]  # list of lists of source ids that belong to populated cluster
             [grouper.merge_ids(ids) for ids in ids_to_merge]  # merge ids so to rejoin islands
             clusters = grouper.clusters
-            os.system('mv grouping*png ddserial/c%02i/plots/' % cmaj)
+            os.system('mv grouping*png %s' % (f'{dds_dir}/c%02i/plots/' % cmaj))
             img_beam = full_image.getBeam()
 
             # reorder clusters based on flux
@@ -293,8 +481,8 @@ def run(step):
                     logger.debug("%s: flux density @ 60 MHz: %.1f mJy (good)" % (name, 1e3 * d.get_flux(60e6)))
                     #print('DEBUG:',name,fluxes,spidx_coeffs,gauss_area,freq_mid,size,img_beam,lsm.getColValues('MajorAxis')[idx])
                     d.set_size(cal['RA'][cluster_idxs], cal['DEC'][cluster_idxs], cal['Maj'][cluster_idxs], img_beam[0]/3600)
-                    d.set_region(loc='ddserial/c%02i/skymodels' % cmaj)
-                    d.set_region_facets(facets_region_file=facetregname, loc='ddserial/c%02i/skymodels' % cmaj)
+                    d.set_region(loc=f'{dds_dir}/c%02i/skymodels' % cmaj)
+                    d.set_region_facets(facets_region_file=facetregname, loc=f'{dds_dir}/c%02i/skymodels' % cmaj)
                     if not d.is_in_region(peelReg, wcs=full_image.getWCS()): d.peel_off = True
                     directions.append(d)
 
@@ -321,7 +509,7 @@ def run(step):
                     if man_cal[0].contains(sc, wcs):
                         logger.info(f'{d.name} containted in manual region, remove auto-found direction.')
                         directions.pop(i)
-                name = 'ddcal-' + manual_dd_cal.split('.')[0]
+                name = 'ddcal-' + os.path.basename(manual_dd_cal).split('.')[0]
                 d = lib_dd.Direction(name)
                 d.fluxes = reg_flux
                 d.spidx_coeffs = -0.8
@@ -332,14 +520,14 @@ def run(step):
                 ra, dec = man_cal[0].center.ra.to_value('deg'), man_cal[0].center.dec.to_value('deg')
                 d.set_position([ra, dec], phase_center)
                 d.set_size([ra], [dec], [man_cal[0].radius.to_value('deg')], img_beam[0] / 3600)
-                d.set_region(loc='ddserial/c%02i/skymodels' % cmaj)
-                d.set_region_facets(facets_region_file=facetregname, loc='ddserial/c%02i/skymodels' % cmaj)
+                d.set_region(loc=f'{dds_dir}/c%02i/skymodels' % cmaj)
+                d.set_region_facets(facets_region_file=facetregname, loc=f'{dds_dir}/c%02i/skymodels' % cmaj)
                 directions.insert(0, d)
             
             # create a concat region for debugging
-            os.system('cat ddserial/c%02i/skymodels/ddcal[0-9][0-9][0-9][0-9].reg > ddserial/c%02i/skymodels/ddcals-c%01i.reg' % (cmaj,cmaj,cmaj))
+            os.system('cat %s/c%02i/skymodels/ddcal[0-9][0-9][0-9][0-9].reg > %s/c%02i/skymodels/ddcals-c%01i.reg' % (dds_dir,cmaj,dds_dir,cmaj,cmaj))
             # save catalogue for debugging
-            cal.write('ddserial/c%02i/skymodels/initcat-c%01i.fits' % (cmaj,cmaj), format='fits', overwrite=True)
+            cal.write(f'{dds_dir}/c%02i/skymodels/initcat-c%01i.fits' % (cmaj,cmaj), format='fits', overwrite=True)
 
             # order directions from the fluxiest one
             directions = [x for _, x in sorted(zip([d.get_flux(freq_mid) for d in directions],directions))][::-1]
@@ -372,7 +560,6 @@ def run(step):
                 # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions while data are corrected for cycle 1 subfield solutions.
                 # Take this into account!
                 # corrupt:
-                calfiles = sorted(glob.glob('ddparallel/solutions/cal-tec-sf*h5'))
                 tocorrect = calfiles[-1]
                 tocorrupt = calfiles[-2]
                 MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
@@ -396,12 +583,12 @@ def run(step):
                         log='$nameMS_taql.log', commandType='general')
 
             ### TESTTESTTEST: empty image
-            if develop and not os.path.exists(f'img/empty-init-c{cmaj}-image.fits'):
+            if develop and not os.path.exists(f'{img_dir}/empty-init-c{cmaj}-image.fits'):
                 clean(f'init-{cmaj}', MSs, size=(fwhm*1.5, fwhm*1.5), res='normal', empty=True)
-            imagenameEMPTY = 'img/wideDebug-empty-init'
+            imagenameEMPTY = f'{img_dir}/wideDebug-empty-init'
             logger.info('Cleaning (empty with no sols image for debug)...')
             lib_scheduler.run_wsclean(s, 'wscleanEMPTY-c' + str(cmaj) + '.log', MSs.getStrWsclean(), name=imagenameEMPTY,
-                                 data_column='SUBTRACTED_DATA',
+                                 data_column='SUBTRACTED_DATA', temp_dir=temp_dir,
                                  size=imgsizepix, scale=str(pixscale) + 'arcsec', weight='briggs -0.5', niter=1,
                                  gridder='wgridder',
                                  parallel_gridding=ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024,
@@ -410,7 +597,7 @@ def run(step):
                                  no_update_model_required='', nmiter=12, auto_threshold=2.0, auto_mask=3.0,
                                  local_rms='', local_rms_window=50, local_rms_strength=0.75,
                                  concat_mss=True)
-            os.system('mv %s-MFS-image.fits ddserial/c%02i/images' % (imagenameEMPTY, cmaj))
+            os.system('mv %s-MFS-image.fits %s/c%02i/images' % (imagenameEMPTY, dds_dir, cmaj))
         ### DONE
 
         for dnum, d in enumerate(directions):
@@ -438,7 +625,6 @@ def run(step):
                 if cmaj == 0:
                     logger.info('Corrupt MODEL_DATA with correct subfield solutions...')
                     # LOFAR_ddparallel cycle 1 dd-solutions are on top of cycle 0 subfield solutions. Take this into account!
-                    calfiles = sorted(glob.glob('ddparallel/solutions/cal-tec-sf*h5'))
                     tocorrect = calfiles[-1]
                     tocorrupt = calfiles[-2]
                     MSs.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=MODEL_DATA msout.datacolumn=MODEL_DATA  \
@@ -454,22 +640,23 @@ def run(step):
                         log='$nameMS_taql.log', commandType='general')
     
                 ### TTESTTESTTEST: empty image but with the DD cal
-                if develop and not os.path.exists('img/empty-butcal-%s-image.fits' % (logstring)):
+                if develop and not os.path.exists(f'{img_dir}/empty-butcal-%s-image.fits' % (logstring)):
                      clean('butcal-%s' % (logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
             ### DONE
 
             # Determine parameters for correction of closest ddparallel facet
             closest = lib_h5.get_closest_dir(ddparallel_h5parm, d.position)
+            tmp_shm_dir = None
             with w.if_todo('%s-shift' % logstring):
 
                 logger.info(f'Phase shift, apply phase of closest facet ({closest}) and avg...')
-                lib_util.check_rm('mss-dir')
+                lib_util.check_rm(mss_dir_path)
                 if use_shm_ddcal and os.access('/dev/shm/', os.W_OK):
                     # use shared memory for direction
                     tmp_shm_dir = tempfile.mkdtemp(dir='/dev/shm')
-                    os.system(f'ln -s {tmp_shm_dir} mss-dir')
+                    os.system(f'ln -s {tmp_shm_dir} {mss_dir_path}')
                 else:
-                    os.makedirs('mss-dir')
+                    os.makedirs(mss_dir_path)
 
 
                 # Determine parameters for averaging - ms:SUBTRACTED_DATA -> ms-dir:DATA (->8/16/32 s and 1 chan every 2 SBs: tot of 60 or 120 chan)
@@ -483,7 +670,7 @@ def run(step):
                     avgfreqint = int(round(MSs.getListObj()[0].getNchan() / MSs.getChout(size=4*0.195312e6)))  # avg to 1 ch every 4 SBs
                 if not (avgfreqint == 8 or avgfreqint == 16 or avgfreqint == 32):
                     logger.warning('Strange averaging of channels (%i): %i -> %i' % (avgfreqint,MSs.getListObj()[0].getNchan(),int(MSs.getListObj()[0].getNchan()/avgfreqint)))
-                MSs.run(f'DP3 {parset_dir}/DP3-shiftcorravg.parset msin=$pathMS msout=mss-dir/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=DATA \
+                MSs.run(f'DP3 {parset_dir}/DP3-shiftcorravg.parset msin=$pathMS msout={mss_dir_path}/$nameMS.MS msin.datacolumn=SUBTRACTED_DATA msout.datacolumn=DATA \
                         avg.timestep={avgtimeint} avg.freqstep={avgfreqint} cor.parmdb={ddparallel_h5parm} cor.correction=phase000 cor.direction={closest} \
                         shift.phasecenter=[{d.position[0]}deg,{d.position[1]}deg]', log='$nameMS_shiftcorravg-'+logstring+'.log', commandType='DP3')
 
@@ -492,7 +679,8 @@ def run(step):
                 d.avg_f = avgfreqint
             ### DONE
 
-            MSs_dir = lib_ms.AllMSs( glob.glob('mss-dir/*MS'), s, check_flags=False )
+            logger.info(f"Looking in {mss_dir_path}")
+            MSs_dir = lib_ms.AllMSs( glob.glob(os.path.join(mss_dir_path, '*MS')), s, check_flags=False )
 
             with w.if_todo('%s-flag' % logstring):
                 logger.info('Flag on mindata...')
@@ -517,7 +705,7 @@ def run(step):
             ### DONE
 
             # get initial noise and set iterators for timeint solutions
-            image = lib_img.Image('img/ddserialM-%s-pre-MFS-image.fits' % logstring, userReg=userReg)
+            image = lib_img.Image(f'{img_dir}/ddserialM-%s-pre-MFS-image.fits' % logstring, userReg=userReg)
             d.rms_noise_init = image.getNoise(); rms_noise_pre = d.rms_noise_init
             d.mm_ratio_init = image.getMaxMinRatio(); mm_ratio_pre = d.mm_ratio_init
             d.set_model(image.root, typ='pre', apply_region=False)  # current best model
@@ -546,14 +734,14 @@ def run(step):
                 solint_ph = next(iter_ph_solint)
                 dir_timeint = MSs_dir.getListObj()[0].getTimeInt()
                 solint_ph_short = int(min(8*solint_ph, 512/dir_timeint)) # no more than ~8 minutes
-                d.add_h5parm('ph-ddserial', 'ddserial/c%02i/solutions/cal-ph-ddserial%s.h5' % (cmaj,logstringcal) )
-                d.add_h5parm('ph1', 'ddserial/c%02i/solutions/cal-ph1-%s.h5' % (cmaj,logstringcal) )
+                d.add_h5parm('ph-ddserial', f'{dds_dir}/c%02i/solutions/cal-ph-ddserial%s.h5' % (cmaj,logstringcal) )
+                d.add_h5parm('ph1', f'{dds_dir}/c%02i/solutions/cal-ph1-%s.h5' % (cmaj,logstringcal) )
                 if doamp:
                     solint_amp1 = next(iter_amp1_solint)
                     solch_amp1 = int(round(MSs_dir.getListObj()[0].getNchan() / ch_out / 4)) # TEST /4
-                    d.add_h5parm('amp1', 'ddserial/c%02i/solutions/cal-amp1-%s.h5' % (cmaj,logstringcal) )
+                    d.add_h5parm('amp1', f'{dds_dir}/c%02i/solutions/cal-amp1-%s.h5' % (cmaj,logstringcal) )
                     solint_amp2 = next(iter_amp2_solint)
-                    d.add_h5parm('amp2', 'ddserial/c%02i/solutions/cal-amp2-%s.h5' % (cmaj,logstringcal) )
+                    d.add_h5parm('amp2', f'{dds_dir}/c%02i/solutions/cal-amp2-%s.h5' % (cmaj,logstringcal) )
                 else:
                     # not necessary but cleaner
                     d.add_h5parm('amp1', None )
@@ -589,9 +777,9 @@ def run(step):
                             [ms+'/cal-ph-ddserial.h5' for ms in MSs_dir.getListStr()],
                             [parset_dir+'/losoto-refph.parset', parset_dir+'/losoto-plot-ph.parset'],
                             logname='losoto-ph-ddserial.log',
-                            h5_out='cal-ph-ddserial.h5',
-                            plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
-                    os.system('mv cal-ph-ddserial.h5 %s' % d.get_h5parm('ph-ddserial'))
+                            h5_out=f'{temp_dir}/cal-ph-ddserial.h5',
+                            plots_dir=f'{dds_dir}/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                    os.system('mv %s/cal-ph-ddserial.h5 %s' % (temp_dir, d.get_h5parm('ph-ddserial')))
 
                     # correct ph - ms:DATA -> ms:CORRECTED_DATA
                     logger.info('Correct ph...')
@@ -618,9 +806,9 @@ def run(step):
                                 [ms+'/cal-amp1.h5' for ms in MSs_dir.getListStr()],
                                 losoto_parsets,
                                 logname='losoto-amp1.log',
-                                h5_out='cal-amp1.h5',
-                                plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
-                        os.system('mv cal-amp1.h5 %s' % d.get_h5parm('amp1'))
+                                h5_out=f'{temp_dir}/cal-amp1.h5',
+                                plots_dir=f'{dds_dir}/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                        os.system('mv %s/cal-amp1.h5 %s' % (temp_dir, d.get_h5parm('amp1')))
 
                         logger.info('Correct amp 1...')
                         # correct amp - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
@@ -650,9 +838,9 @@ def run(step):
                                 [ms+'/cal-amp2.h5' for ms in MSs_dir.getListStr()],
                                 losoto_parsets,
                                 logname='losoto-amp2.log',
-                                h5_out='cal-amp2.h5',
-                                plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstringcal))
-                        os.system('mv cal-amp2.h5 %s' % d.get_h5parm('amp2'))
+                                h5_out=f'{temp_dir}/cal-amp2.h5',
+                                plots_dir=f'{dds_dir}/c%02i/plots/plots-%s' % (cmaj,logstringcal))
+                        os.system('mv %s/cal-amp2.h5 %s' % (temp_dir, d.get_h5parm('amp2')))
 
                         logger.info('Correct amp 2...')
                         # correct amp2 - ms:CORRECTED_DATA -> ms:CORRECTED_DATA
@@ -676,7 +864,7 @@ def run(step):
                     clean('%s' % logstringcal, MSs_dir, res='normal', size=[d.size,d.size], imagereg=userReg)
                 ### DONE
 
-                image = lib_img.Image('img/ddserialM-%s-MFS-image.fits' % logstringcal, userReg=userReg)
+                image = lib_img.Image(f'{img_dir}/ddserialM-%s-MFS-image.fits' % logstringcal, userReg=userReg)
                 # something went wrong during last imaging, break
                 if not os.path.exists(image.imagename):
                     logger.warning('Breaking because the imaging diverged...')
@@ -735,7 +923,13 @@ def run(step):
 
             if use_shm_ddcal and os.access('/dev/shm/', os.W_OK):
                 # use shared memory for DP3
-                lib_util.check_rm(tmp_shm_dir)
+                if tmp_shm_dir is None and os.path.islink(mss_dir_path):
+                    # the shift step was restored from the walker: clean up the linked shm dir
+                    link_target = os.path.realpath(mss_dir_path)
+                    if link_target.startswith('/dev/shm/'):
+                        tmp_shm_dir = link_target
+                if tmp_shm_dir is not None:
+                    lib_util.check_rm(tmp_shm_dir)
 
             # if died the first cycle or diverged
             if cdd == 0 or ((rms_noise_pre >= d.rms_noise_init) and (mm_ratio_pre/2 < d.mm_ratio_init)):
@@ -754,7 +948,7 @@ def run(step):
                 d.converged = True
                 logger.info('%s: converged.' % d.name)
                 # copy in the ddcal dir the best model
-                model_skymodel = 'ddserial/c%02i/skymodels/%s-best-source.txt' % (cmaj, d.name)
+                model_skymodel = f'{dds_dir}/c%02i/skymodels/%s-best-source.txt' % (cmaj, d.name)
                 os.system('cp %s %s' % (d.get_model('best')+'-sources.txt', model_skymodel))
 
                 # restrict to initial mask
@@ -775,7 +969,7 @@ def run(step):
                     assert len(p_idx) == 1 # sanity check
                     p_idx = p_idx[0]
                     # name of split h5parm, need to remove square brackets for system commands...
-                    split_h5 = f'ddserial/c0{cmaj}/solutions/'+ddparallel_h5parm.split('/')[-1].replace('.h5','_'+closest.replace('[','').replace(']','')+'.h5')
+                    split_h5 = f'{dds_dir}/c0{cmaj}/solutions/'+ddparallel_h5parm.split('/')[-1].replace('.h5','_'+closest.replace('[','').replace(']','')+'.h5')
                     s.add(f'h5_merger.py --h5_out {split_h5} --h5_tables {ddparallel_h5parm} --filter_directions [{p_idx}] --no_pol --no_antenna_crash --no_weight_prop',
                         log='h5_merger.log', commandType='python')
                     s.run(check=True)
@@ -791,9 +985,9 @@ def run(step):
                             [d.get_h5parm('ph1', -2)],
                             [f'{parset_dir}/losoto-plot-ph1.parset'],
                             logname='losoto-ph1.log',
-                            h5_out='cal-ph1.h5',
-                            plots_dir='ddserial/c%02i/plots/plots-%s' % (cmaj,logstring))
-                    lib_util.check_rm('cal-ph1.h5') # remove the h5parm copied by losoto
+                            h5_out=f'{temp_dir}/cal-ph1.h5',
+                            plots_dir=f'{dds_dir}/c%02i/plots/plots-%s' % (cmaj,logstring))
+                    lib_util.check_rm(f'{temp_dir}/cal-ph1.h5') # remove the h5parm copied by losoto
 
                 # remove the DD-cal from original dataset using new solutions
                 with w.if_todo('%s-subtract' % logstring):
@@ -860,7 +1054,7 @@ def run(step):
                 ### DONE
 
             ### TTESTTESTTEST: empty image
-            if develop and not os.path.exists('img/empty-%02i-%s-image.fits' % (dnum, logstring)):
+            if develop and not os.path.exists(f'{img_dir}/empty-%02i-%s-image.fits' % (dnum, logstring)):
                  clean('%02i-%s' % (dnum, logstring), MSs, size=(fwhm*1.5,fwhm*1.5), res='normal', empty=True)
             ###
 
@@ -892,7 +1086,7 @@ def run(step):
 
             # replace color in the region file to distinguish region that converged from those that didn't
             if d.converged:
-                for line in fileinput.input('ddserial/c%02i/skymodels/ddcals-c%01i.reg' % (cmaj,cmaj), inplace=True):
+                for line in fileinput.input(f'{dds_dir}/c%02i/skymodels/ddcals-c%01i.reg' % (cmaj,cmaj), inplace=True):
                     if d.name in line:
                         if d.get_h5parm('amp1',-2) is not None:
                             print(line.replace('color=red','color=green'), end='')
@@ -907,11 +1101,11 @@ def run(step):
         # full imaging
 
         # be sure not to use flagged MS as ddf doesn't like them
-        MSs = lib_ms.AllMSs(glob.glob('mss-avg/TC*[0-9].MS'), s, check_flags=True)
+        MSs = lib_ms.AllMSs(glob.glob(os.path.join(mss_avg_dir, '*.MS')), s, check_flags=True)
     
-        imagename = f'img/wideDDS-c{cmaj}'
+        imagename = f'{img_dir}/wideDDS-c{cmaj}'
         maskname = imagename+'_mask.fits'
-        facetregname = 'ddserial/c%02i/solutions/facetsS-c%01i.reg' % (cmaj, cmaj)
+        facetregname = f'{dds_dir}/c%02i/solutions/facetsS-c%01i.reg' % (cmaj, cmaj)
 
         # combine the h5parms
         h5parms = {'ph':[], 'amp1':[], 'amp2':[]}
@@ -938,14 +1132,14 @@ def run(step):
         else: correct_for = 'phase000'
 
         # update interp_h5parm to current cycle
-        interp_h5parm = 'ddserial/c%02i/solutions/interp.h5' % cmaj
+        interp_h5parm = f'{dds_dir}/c%02i/solutions/interp.h5' % cmaj
         with w.if_todo('c%02i-interpsol' % cmaj):
             logger.info("Imaging - preparing solutions:")
 
             for typ, h5parm_list in h5parms.items():
                 # rename direction
                 for h5parmFile in h5parm_list:
-                    dirname = h5parmFile.split('-')[3]
+                    dirname = os.path.basename(h5parmFile).split('-')[3]
                     lib_h5.repoint(h5parmFile, dirname)
                     if typ == 'ph':
                         lib_h5.addpol(h5parmFile, 'phase000')
@@ -997,7 +1191,7 @@ def run(step):
             # HE: What is optimal choice of subimage size and parallel gridding? Is cleaning to 3sigma enough?
             logger.info('Cleaning...')
             lib_scheduler.run_wsclean(s, 'wsclean-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagename, data_column='CORRECTED_DATA',
-                    size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
+                    temp_dir=temp_dir, size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
                     parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
                     channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                     save_source_list='', no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
@@ -1006,11 +1200,11 @@ def run(step):
                     concat_mss=True, use_shm=use_shm, **beam_kwargs)
  
             os.system(f'mv {imagename}*MFS-image*fits {imagename}*MFS-model*fits {imagename}*MFS-residual*fits {imagename}*MFS-psf*fits \
-                      {imagename}-0*image*fits {imagename}-0*model*fits ddserial/c{cmaj:02}/images')
+                      {imagename}-0*image*fits {imagename}-0*model*fits {dds_dir}/c{cmaj:02}/images')
 
         ### DONE
 
-        full_image = lib_img.Image('ddserial/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
+        full_image = lib_img.Image(f'{dds_dir}/c%02i/images/%s-MFS-image.fits' % (cmaj, imagename.split('/')[-1]), userReg=userReg)
         full_image.nantozeroModel()
         # min_cal_flux60 *= 0.8  # go deeper
     ##############################################################################################################
@@ -1037,30 +1231,29 @@ def run(step):
                 [ms+'/cal-leak.h5' for ms in MSs.getListStr()],
                 [parset_dir+'/losoto-plot-fullj.parset'],
                 logname='losoto-leak.log',
-                h5_out='cal-leak.h5',
-                plots_dir='ddserial/c00/plots/plots-leak',
-                h5_dir = 'ddserial/c00/solutions')
+                h5_out=f'{dds_dir}/c00/solutions/cal-leak.h5',
+                plots_dir=f'{dds_dir}/c00/plots/plots-leak')
         for ms in MSs.getListStr():
             lib_util.check_rm(ms + '/cal-leak.h5')  # remove the h5parm copied by losoto
 
-    if not os.path.exists('mss-lres'):
+    if not os.path.exists(mss_lres_dir):
         timeint = MSs.getListObj()[0].getTimeInt()
         avgtimeint = int(round(16/timeint))  # to 16 seconds
         nchan_init = MSs.getListObj()[0].getNchan()
         # chan: avg (x8) sol (x6) - we need a multiple of 8x6=48, the largest that is <nchan
         # survey after avg (x8): 60, final number of sol 10
         # pointed after avg (x8): 120, final number of sol 20
-        os.makedirs('mss-lres')
+        os.makedirs(mss_lres_dir)
         logger.info('Averaging in time (%is -> %is), channels: %ich -> %ich)' % (timeint,timeint*avgtimeint,nchan_init,nchan_init/4))
-        MSs.run('DP3 '+parset_dir+'/DP3-avg.parset msin=$pathMS msout=mss-lres/$nameMS.MS msin.datacolumn=CORRECTED_DATA  \
+        MSs.run('DP3 '+parset_dir+'/DP3-avg.parset msin=$pathMS msout='+mss_lres_dir+'/$nameMS.MS msin.datacolumn=CORRECTED_DATA  \
                 avg.timestep='+str(avgtimeint)+' avg.freqstep=4', log='$nameMS_lresavg.log', commandType='DP3')
 
-    MSs_lres = lib_ms.AllMSs( glob.glob('mss-lres/TC*[0-9].MS'), s)
+    MSs_lres = lib_ms.AllMSs( glob.glob(os.path.join(mss_lres_dir, '*.MS')), s)
 
     with w.if_todo('corr-leakage'):
            logger.info('Correct amp-di (fulljones)...')
            MSs_lres.run(f'DP3 {parset_dir}/DP3-correct.parset msin=$pathMS msin.datacolumn=DATA msout.datacolumn=CORRECTED_DATA \
-                   cor.parmdb=ddserial/c00/solutions/cal-leak.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] \
+                   cor.parmdb={dds_dir}/c00/solutions/cal-leak.h5 cor.correction=fulljones cor.soltab=[amplitude000,phase000] \
                    cor.updateweights=False', log='$nameMS_leakcorr.log', commandType='DP3')
 
     ##############################################################################################################
@@ -1071,44 +1264,44 @@ def run(step):
     with w.if_todo('output-timedep'):
         logger.info('Cleaning (time dep images)...')
         for tc, msfile in enumerate(MSs_lres.getListStr()):
-            imagenameT = 'img/wideDDS-TC%02i-c%01i' % (tc, cmaj)
+            imagenameT = f'{img_dir}/wideDDS-TC%02i-c%01i' % (tc, cmaj)
             lib_scheduler.run_wsclean(s, 'wscleanTC'+str(tc)+'-c'+str(cmaj)+'.log', msfile, concat_mss=False, use_shm=use_shm, name=imagenameT, data_column='DATA',
-                    size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', taper_gaussian='40arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
+                    temp_dir=temp_dir, size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', taper_gaussian='40arcsec', weight='briggs -0.5', niter=1000000, gridder='wgridder',
                     parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                     channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                     no_update_model_required='',  nmiter=12, auto_threshold=1.0, auto_mask=3.0,
                     apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
                     apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60)
 
-            os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits ddserial/c%02i/images' % (imagenameT, imagenameT, cmaj))
+            os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits %s/c%02i/images' % (imagenameT, imagenameT, dds_dir, cmaj))
     ### DONE
 
     # LOW RES ouput - clean deeper
     with w.if_todo('output-lres'):
-        imagenameL = f'img/wideDDS-lres-c{cmaj}'
+        imagenameL = f'{img_dir}/wideDDS-lres-c{cmaj}'
         logger.info('Cleaning (low res)...')
         lib_scheduler.run_wsclean(s, 'wscleanLR-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameL, data_column='DATA',
-                    size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='40arcsec', niter=1000000, gridder='wgridder',
+                    temp_dir=temp_dir, size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec', weight='briggs 0', taper_gaussian='40arcsec', niter=1000000, gridder='wgridder',
                     parallel_gridding=len(h5parms['ph'])*ch_out, minuv_l=20, mgain=0.85, parallel_deconvolution=512, join_channels='', fit_spectral_pol=3,
                     channels_out=str(ch_out), deconvolution_channels=3,  multiscale='',  multiscale_scale_bias=0.65, pol='i',
                     no_update_model_required='',  nmiter=12, auto_threshold=1.0, auto_mask=3.0,
                     apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
                     apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60)
 
-        os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits %s-MFS-psf.fits ddserial/c%02i/images' % (imagenameL, imagenameL, imagenameL, cmaj))
+        os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits %s-MFS-psf.fits %s/c%02i/images' % (imagenameL, imagenameL, imagenameL, dds_dir, cmaj))
     ### DONE
 
     ### Stokes V after leakage Calibration
     with w.if_todo('output-vstokes-leakcal'):
-       imagenameV = f'img/wideDDS-leak-c{cmaj}'
+       imagenameV = f'{img_dir}/wideDDS-leak-c{cmaj}'
        logger.info('Cleaning (lres I+V leakage-corrected)...')
-       lib_scheduler.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
+       lib_scheduler.run_wsclean(s, 'wscleanV-c'+str(cmaj)+'.log', MSs_lres.getStrWsclean(), concat_mss=True, name=imagenameV, data_column='CORRECTED_DATA', temp_dir=temp_dir, size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
                    taper_gaussian='40arcsec', weight='briggs 0', niter=100000, gridder='wgridder', parallel_gridding=32, no_update_model_required='', minuv_l=20, mgain=0.85, parallel_deconvolution=512,
                    auto_threshold=2.0, auto_mask=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                    pol='IQUV', join_polarizations = '', apply_facet_beam='', facet_beam_update=120, use_differential_lofar_beam='', facet_regions=facetregname,
                    apply_facet_solutions=f'{interp_h5parm} {correct_for}', local_rms='', local_rms_window=50, local_rms_strength=0.75, beam_size=60 )
-       os.system('mv %s-MFS-I-image*.fits %s-MFS-I-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, cmaj))
-       os.system('mv %s-MFS-V-image*.fits %s-MFS-V-residual.fits ddserial/c%02i/images' % (imagenameV, imagenameV, cmaj))
+       os.system('mv %s-MFS-I-image*.fits %s-MFS-I-residual.fits %s/c%02i/images' % (imagenameV, imagenameV, dds_dir, cmaj))
+       os.system('mv %s-MFS-V-image*.fits %s-MFS-V-residual.fits %s/c%02i/images' % (imagenameV, imagenameV, dds_dir, cmaj))
 
     ### TODO dynspec part
 
@@ -1117,33 +1310,33 @@ def run(step):
         MSs.run('taql "update $pathMS set SUBTRACTED_DATA = CORRECTED_DATA - MODEL_DATA"',
             log='$nameMS_taql.log', commandType='general')
 
-        imagenameLS = f'img/wideDDS-lressub-c{cmaj}'
+        imagenameLS = f'{img_dir}/wideDDS-lressub-c{cmaj}'
         logger.info('Cleaning (low res sub)...')
-        lib_scheduler.run_wsclean(s, 'wscleanLRS-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameLS, data_column='SUBTRACTED_DATA', size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
+        lib_scheduler.run_wsclean(s, 'wscleanLRS-c'+str(cmaj)+'.log', MSs.getStrWsclean(), concat_mss=True, use_shm=use_shm, name=imagenameLS, data_column='SUBTRACTED_DATA', temp_dir=temp_dir, size=int(imgsizepix/4), scale=str(pixscale*4)+'arcsec',
                     weight='briggs 0', niter=1000000, gridder='wgridder', parallel_gridding=len(h5parms['ph'])*ch_out, no_update_model_required='', minuv_l=20, mgain=0.85, parallel_deconvolution=512,
                     auto_threshold=3.0, join_channels='', fit_spectral_pol=3, channels_out=str(ch_out), deconvolution_channels=3,
                     multiscale='', multiscale_scale_bias=0.65, pol='i', taper_gaussian='40arcsec',
                     apply_facet_beam='', use_differential_lofar_beam='', facet_beam_update=120, facet_regions=facetregname, apply_facet_solutions=f'{interp_h5parm} {correct_for}')
  
-        os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits %s-MFS-psf.fits ddserial/c%02i/images' % (imagenameLS, imagenameLS, imagenameLS, cmaj))
+        os.system('mv %s-MFS-image*.fits %s-MFS-residual.fits %s-MFS-psf.fits %s/c%02i/images' % (imagenameLS, imagenameLS, imagenameLS, dds_dir, cmaj))
     ### DONE
 
     with w.if_todo('output-debugempty'):
-        imagenameEMPTY = f'img/wideDebug-empty-c{cmaj}'
+        imagenameEMPTY = f'{img_dir}/wideDebug-empty-c{cmaj}'
         logger.info('Cleaning (empty with no sols image for debug)...')
         lib_scheduler.run_wsclean(s, 'wscleanEMPTY-c'+str(cmaj)+'.log', MSs.getStrWsclean(), name=imagenameEMPTY, data_column='SUBTRACTED_DATA',
-                    size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1, gridder='wgridder',
+                    temp_dir=temp_dir, size=imgsizepix, scale=str(pixscale)+'arcsec', weight='briggs -0.5', niter=1, gridder='wgridder',
                     parallel_gridding=ch_out, minuv_l=30, mgain=0.85, parallel_deconvolution=1024, join_channels='', fit_spectral_pol=3,
                     channels_out=str(ch_out), deconvolution_channels=3, pol='i',
                     no_update_model_required='',  nmiter=12, auto_threshold=2.0, auto_mask=3.0,
                     local_rms='', local_rms_window=50, local_rms_strength=0.75,
                     concat_mss=True)
-        os.system('mv %s-MFS-image.fits ddserial/c%02i/images' % (imagenameEMPTY, cmaj))
+        os.system('mv %s-MFS-image.fits %s/c%02i/images' % (imagenameEMPTY, dds_dir, cmaj))
     ### DONE
 
     with w.if_todo('output_PB'):
         logger.info('Make primary beam...')
-        s.add('makepb.py -o ddserial/primarybeam.fits -s 10 -p 120 %s' % MSs.getStrWsclean(), log='makepb.log', commandType='python')
+        s.add('makepb.py -o %s/primarybeam.fits -s 10 -p 120 %s' % (dds_dir, MSs.getStrWsclean()), log='makepb.log', commandType='python')
         s.run(check=True)
     ### DONE
 
