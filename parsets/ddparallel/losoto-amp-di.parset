@@ -1,5 +1,19 @@
 Ncpu = 0
 
+# flag diverged solutions (e.g. at band edges next to fully flagged subbands) before they are
+# smoothed, normalised and applied: a single extreme cell can otherwise propagate to NaN solutions downstream
+[clipLow]
+operation = CLIP
+soltab = sol000/amplitude000
+mode = below
+clipLevel = 0.1
+
+[clipHigh]
+operation = CLIP
+soltab = sol000/amplitude000
+mode = above
+clipLevel = 7.0
+
 [bkp]
 operation = DUPLICATE
 soltab = sol000/amplitude000

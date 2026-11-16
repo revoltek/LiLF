@@ -36,7 +36,7 @@ DEFAULTS = {
         'demix_sources':          '',
         'demix_skymodel':         '',
         'demix_field_skymodel':   'LOTSS-DR3',
-        'run_aoflagger':          False,
+        'raw_data':               False, # raw correlator data: set autoweights and run AOFlagger
         'validate':               False,
         'tar':                    True,
     },
@@ -311,6 +311,13 @@ class Pipeline:
     # --- plan ---------------------------------------------------------------
 
     def execution_plan(self):
+        # every name listed in 'steps' must match a [section], otherwise it would be
+        # silently dropped (and an empty plan ends the run with "Done")
+        listed  = [n for item in self.steps_order for n in (item if isinstance(item, list) else [item])]
+        missing = [n for n in listed if n not in self.steps]
+        if missing:
+            raise ValueError(f"Step(s) {missing} listed in 'steps' have no matching [section]. "
+                             f"Available sections: {list(self.steps)}")
         plan = []
         for item in self.steps_order:
             if isinstance(item, list):

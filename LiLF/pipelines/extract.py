@@ -218,16 +218,16 @@ def run(step):
         logger.error('ampSolMode {} not supported. Choose diagonal, fulljones.')
         sys.exit()
 
-    if userReg is not None:
-        if not extreg:
+    if userReg:
+        if not extractreg:
             logger.error('To specify a mask region, an extraction region must also be provided.')
             sys.exit()
         else:
-            userReg = str(mask_reg)
+            userReg = str(userReg)
             logger.info("A mask for cleaning was provided.")
 
-    if subtract_reg_file is not None:
-        if not extreg:
+    if subtract_reg_file:
+        if not extractreg:
             logger.error('To specify a mask region, an extraction region must also be provided.')
             sys.exit()
         else:

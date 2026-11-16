@@ -202,7 +202,7 @@ def run(step):
                     join_channels='', fit_spectral_pol=3, channels_out=ch_out, deconvolution_channels=3)
     
             # make mask
-            if imagereg != '':
+            if imagereg:
                 s.add('breizorro.py -t %f -r %s -b 50 -o %s --merge %s' % (masksigma, imagename+'-MFS-image.fits', imagename+'-mask.fits', imagereg), 
                         log='makemask-'+str(p)+'.log', commandType='python')
                 s.run(check=True)        
@@ -826,7 +826,7 @@ def run(step):
                             log='$nameMS_solGamp2-'+logstringcal+'.log', commandType='DP3')
 
                         if d.peel_off:
-                            losoto_parsets = [parset_dir+'/losoto-clip2.parset', parset_dir+'/losoto-plot-amp2.parset']
+                            losoto_parsets = [parset_dir+'/losoto-peel-clip2.parset', parset_dir+'/losoto-plot-amp2.parset']
                         else:
                             losoto_parsets = [parset_dir+'/losoto-norm.parset', parset_dir+'/losoto-plot-amp2.parset']
 

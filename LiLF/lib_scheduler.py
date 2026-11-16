@@ -144,29 +144,29 @@ class Scheduler():
 
         if (commandType == "DP3"):
             out = subprocess.check_output(f'grep -L "Finishing processing" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
-            out += subprocess.check_output(f'grep -El "Segmentation fault|Killed|Aborted \(core dumped\)|misspelled" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out += subprocess.check_output(rf'grep -El "Segmentation fault|Killed|Aborted \(core dumped\)|misspelled|command not found" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(f'grep -il "Exception" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
             #out += subprocess.check_output(f'grep -i -l "already a beam correction applied" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
             # this interferes with the missingantennabehaviour=error option...
             # out += subprocess.check_output(f'grep -l "error" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "CASA"):
-            out = subprocess.check_output(f'grep -El "[a-z]Error|An error occurred running|\*\*\* Error \*\*\*" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(rf'grep -El "[a-z]Error|An error occurred running|\*\*\* Error \*\*\*|command not found" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "wsclean"):
-            out = subprocess.check_output(f'grep -El "exception occur|Segmentation fault|Killed|Aborted|Bus error|\(core dumped\)" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(rf'grep -El "exception occur|Segmentation fault|Killed|Aborted|Bus error|\(core dumped\)|command not found" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
             # out += subprocess.check_output(f'grep -L "Cleaning up temporary files..." {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType.lower() == "ddfacet" or commandType.lower() == 'ddf'):
-            out = subprocess.check_output(f'grep -El "Traceback \(most recent call last\):|exception occur|raise Exception|Segmentation fault|Killed|killed by signal|Aborted" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(rf'grep -El "Traceback \(most recent call last\):|exception occur|raise Exception|Segmentation fault|Killed|killed by signal|Aborted|command not found" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "python"):
-            out = subprocess.check_output(f'grep -El "Traceback \(most recent call last\):|Segmentation fault|Killed|ImportError|Permission denied|ERROR" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(rf'grep -El "Traceback \(most recent call last\):|Segmentation fault|Killed|ImportError|Permission denied|ERROR|command not found" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output(f'grep -il "Critical" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
             # out += subprocess.check_output(f'grep -i -l \'(?=^((?!error000).)*$).*Error.*\' {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         elif (commandType == "general"):
-            out = subprocess.check_output(f'grep -l -i "error" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
+            out = subprocess.check_output(f'grep -l -i -E "error|command not found" {log} ; exit 0', shell = True, stderr = subprocess.STDOUT)
 
         else:
             logger.warning(f"Unknown command type for log checking: '{commandType}'")

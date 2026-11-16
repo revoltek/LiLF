@@ -92,7 +92,7 @@ def run(step):
             # only ms created in range (2/2013->2/2014)
             if 20130200 < time < 20140300:
                 logger.info('Fix beam table...')
-                MSs.run('fixbeaminfo ' + MS, log='fixbeam.log', commandType='python')
+                MSs.run('fixbeaminfo $pathMS', log='fixbeam.log', commandType='python')
 
     # Rescale visibilities by 1e3 if before 2014-03-19 (old correlator), and by 1e-2 otherwise
     with w.if_todo('rescale_flux'):
@@ -145,7 +145,7 @@ def run(step):
                         s.run(check=True, max_proc=1) # limit threads to prevent I/O isssues
                     else:
                         # special case: run demix and average in demixer call
-                        _models_dir = os.path.join(os.path.dirname(__file__), '..', 'models')
+                        _models_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'models')
                         demix_sm_file = demix_skymodel or os.path.join(_models_dir, 'demix_all.skymodel')
                         demix_sm = lsmtool.load(demix_sm_file, beamMS=MS.pathMS) # load demix sm
                         ra, dec = MS.getPhaseCentre()  # to calculate distance
