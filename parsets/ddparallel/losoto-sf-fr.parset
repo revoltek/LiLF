@@ -1,0 +1,35 @@
+Ncpu = 0
+
+[duplicate]
+operation = DUPLICATE
+soltab = sol000/rotation000
+soltabOut = rotationResid000
+
+[faraday]
+operation = FARADAY
+soltab = sol000/rotation000
+refAnt = auto
+maxResidual = 1.
+freq.minmaxstep = [30e6,1e9]
+
+[plotFR]
+operation = PLOT
+soltab = sol000/rotationmeasure000
+axesInPlot = [time]
+axisInTable = ant
+prefix = plots/fr
+
+[residuals]
+operation = RESIDUALS
+soltab = sol000/rotationResid000
+soltabsToSub = rotationmeasure000
+
+[plotRES]
+operation = PLOT
+soltab = sol000/rotationResid000
+axesInPlot = [time,freq]
+AxisInTable = ant
+plotFlag = True
+prefix = plots/rotRes_
+refAnt = auto
+minmax = [-1.6,1.6]

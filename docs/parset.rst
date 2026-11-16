@@ -86,7 +86,7 @@ LiLF is able to use a parset file. The default parset file can be found in ``LiL
   demix_sources = 
   demix_skymodel = 
   demix_field_skymodel = LOTSS-DR3
-  run_aoflagger = False
+  raw_data = False
   tar = True
   data_dir = 
   

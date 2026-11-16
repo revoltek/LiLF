@@ -374,43 +374,60 @@ class MS(object):
 
     def get_hist(self):
         """
-        Return the Hystory subtable cell 1 (containing preprocessin ginfo) as a list
+        Return the APP_PARAMS entries of all rows of the HISTORY subtable as a flat list of strings
+        (e.g. 'demixer.subtractsources=[CasA,CygA]').
         """
-
+        hist = []
         with tables.table(self.pathMS + "/HISTORY", ack=False) as table:
-            col = table.col('APP_PARAMS')
-            try:
-                return col.getcell(1)
-            except:
-                return []
+            if 'APP_PARAMS' not in table.colnames():
+                return hist
+            for row in range(table.nrows()):
+                try:
+                    hist += list(table.getcell('APP_PARAMS', row))
+                except Exception:
+                    continue
+        return hist
+
+
+    def _get_demix_params(self):
+        """
+        Return {key: value} for all parameters of DP3 demix steps recorded in the HISTORY.
+        DP3 parset keys are '<stepname>.<param>' and the step name is arbitrary (the LOFAR observatory
+        pipeline used 'demixer', LiLF setup uses 'demix'), so a demix step is identified by
+        '<stepname>.type=demixer' or by having a '<stepname>.subtractsources' parameter.
+        """
+        params = {}
+        for h in self.get_hist():
+            if '=' not in h: continue
+            key, val = h.split('=', 1)
+            params[key.strip()] = val.strip()
+        demix_steps = {k[:-len('.type')] for k, v in params.items()
+                       if k.endswith('.type') and v.strip('\'" ').lower() in ['demixer', 'demix']}
+        demix_steps |= {k[:-len('.subtractsources')] for k in params if k.endswith('.subtractsources')}
+        return {k: v for k, v in params.items() if k.rsplit('.', 1)[0] in demix_steps}
 
 
     def print_ateam_demix(self):
         """
         Some debug logs on the ateam
         """
-        hist = self.get_hist()
-        for h in hist:
-            #print(h)
-            if 'demixer.subtractsources' in h:
-                logger.debug(f'{self.nameMS}: DEMIX - Sources = {h.split("=")[1]}')
-            if 'demixer.ignoretarget' in h:
-                logger.debug(f'{self.nameMS}: DEMIX - Ignoretarget = {h.split("=")[1]}')
+        for k, v in self._get_demix_params().items():
+            if k.endswith('.subtractsources') or k.endswith('.ignoretarget'):
+                logger.debug(f'{self.nameMS}: DEMIX - {k} = {v}')
 
 
     def get_ateam_demix(self):
         """
-        Return a list of the demixed ateam sources
+        Return a list of the demixed ateam sources (from any DP3 demix step recorded in the HISTORY)
         """
-        hist = self.get_hist()
-        demixed = None
-        for h in hist:
-            if 'demixer.subtractsources' in h:
-                demixed = h.split('=')[1].replace('\'','').replace(' ','')
-        try:
-            return demixed[1:-1].split(',')
-        except:
-            return []
+        demixed = []
+        for k, v in self._get_demix_params().items():
+            if k.endswith('.subtractsources'):
+                for src in v.strip('[] ').replace('\'', '').replace('"', '').split(','):
+                    src = src.strip()
+                    if src and src not in demixed:
+                        demixed.append(src)
+        return demixed
 
     def distBrightSource(self, name):
         """

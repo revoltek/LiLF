@@ -206,8 +206,13 @@ def run(step):
     with w.if_todo('flag'):
         logger.info('Flagging...')
         flag_strat = '/HBAdefaultwideband.lua' if MSs.isHBA else '/LBAdefaultwideband.lua'
-        MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS ant.baseline=\"' + flag_ants + '\" \
-                aoflagger.strategy='+parset_dir+flag_strat, log='$nameMS_DP3_flag.log', commandType='DP3')
+        if no_aoflagger:
+            logger.warning('no_aoflagger=True: skipping AOFlagger (antenna and elevation flagging still applied).')
+            flag_steps = 'steps=[ant,elev,count]'
+        else:
+            flag_steps = 'aoflagger.strategy='+parset_dir+flag_strat
+        MSs.run('DP3 '+parset_dir+'/DP3-flag.parset msin=$pathMS ant.baseline=\"' + flag_ants + '\" ' + flag_steps,
+                log='$nameMS_DP3_flag.log', commandType='DP3')
 
         if MSs.hasIS:
             # flagonmindata code cannot handle larger MS - anyway shouldn't be needed if we have the minvisratio in the solves?
@@ -235,7 +240,7 @@ def run(step):
     if ateam_clip != '':
         with w.if_todo('clipping'):
             ateam_clip = ateam_clip.replace('[', '').replace(']', '').split(',')
-            ateam_model = os.path.dirname(__file__) + '/../models/demix_all.skymodel'
+            ateam_model = os.path.dirname(__file__) + '/../../models/demix_all.skymodel'
             for MS in MSs.getListObj():
                 demixed = MS.get_ateam_demix()
                 #print(MS.pathMS, demixed, ateam_clip)
@@ -244,7 +249,7 @@ def run(step):
                         logger.warning(f'Can clip only Ateam (Cas, Cyg, Vir, Tau), not {a} -> skip.')
                     elif (a not in demixed) and (MSs.getListObj()[0].distBrightSource(a) > 15):
                         logger.info(f'{MS.nameMS}: Clipping {a} that was not demixed.')
-                        cmd = f'DP3 msin={MS.pathMS} msout={output_dir} steps=[count,clipper,count] clipper.type=CLIPPER clipper.sourcedb={ateam_model} \
+                        cmd = f'DP3 msin={MS.pathMS} msout=. steps=[count,clipper,count] clipper.type=CLIPPER clipper.sourcedb={ateam_model} \
                             clipper.sources=[{a}] clipper.usebeammodel=True clipper.amplmax=200 clipper.correctfreqsmearing=True'
                         s.add(cmd, log=MS.nameMS+'_clipper.log', commandType='DP3')
                         s.run(check=True)

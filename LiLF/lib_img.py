@@ -365,7 +365,7 @@ def flatten(f, channel = 0, freqaxis = 0):
 
     naxis=f[0].header['NAXIS']
     if (naxis < 2):
-        raise RadioError("Can\'t make map from this")
+        raise RuntimeError("Can\'t make map from this")
     if (naxis == 2):
         return f[0].header,f[0].data
 

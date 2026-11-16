@@ -306,10 +306,15 @@ def run(step):
 
     # define list of facet fluxes per iteration -> this can go into the config
     # if we have LOTSS-DR3 or a custom sky model, we will start from 3Jy not 4Jy sources!
-    if 'OUTER' in MSs.getListObj()[0].getAntennaSet():
+    antset = MSs.getListObj()[0].getAntennaSet()
+    # LBA_ALL (LOFAR2.0, all 96 dipoles) has the same station footprint (beam size) as SPARSE -> treat it as SPARSE
+    sparse_like = ('SPARSE' in antset) or ('ALL' in antset)
+    if 'OUTER' in antset:
         facet_fluxes = np.array([4, 2.2, 1.2, 1.0, 0.9, 0.8])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
-    elif 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
+    elif sparse_like:
         facet_fluxes = np.array([4, 2.6, 1.3, 1.1, 1.0, 0.9])*(54e6/np.mean(MSs.getFreqs()))**0.7 # this is not the total flux, but the flux of bright sources used to construct the facets. still needs to be tuned, maybe also depends on the field
+    else:
+        raise ValueError(f'{antset} not recognized.')
 
     if min_facets: # if manually provided
         if not isinstance(min_facets, list):
@@ -317,12 +322,12 @@ def run(step):
             min_facets = np.array(min_facets).astype(int)
     else: #default settings
         # use more facets for SPARSE (larger FoV)
-        if 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
+        if sparse_like:
             min_facets = [3, 6, 18, 24, 24, 24]
-        elif 'OUTER' in MSs.getListObj()[0].getAntennaSet():
+        elif 'OUTER' in antset:
             min_facets = [2, 4, 12, 20, 20, 20]
         else:
-            raise ValueError(f'{MSs.getListObj()[0].getAntennaSet()} not recognized.')
+            raise ValueError(f'{antset} not recognized.')
 
     if max_facets: # if manually provided
         if not isinstance(max_facets, list):
@@ -330,14 +335,14 @@ def run(step):
             max_facets = np.array(max_facets).astype(int)
     else: #default settings
         # use more facets for SPARSE (larger FoV)
-        if 'SPARSE' in MSs.getListObj()[0].getAntennaSet():
+        if sparse_like:
             max_facets = [10, 22, 35, 35, 35, 35]
             if np.min(MSs.getFreqs())  < 30e6: # use less facets for decameter
                 max_facets = [6, 15, 22, 35, 35, 35]
-        elif 'OUTER' in MSs.getListObj()[0].getAntennaSet():
+        elif 'OUTER' in antset:
             max_facets = [8, 16, 25, 25, 25, 25]
         else:
-            raise ValueError(f'{MSs.getListObj()[0].getAntennaSet()} not recognized.')
+            raise ValueError(f'{antset} not recognized.')
 
     if (min_facets[0] > max_facets[0]) or (min_facets[1] > max_facets[1]):
         raise ValueError(f'min_facets {min_facets} and max_facets {max_facets} are not compatible.')
@@ -716,7 +721,7 @@ def run(step):
                     logger.info('Solving amp-di (fulljones)...')
                     MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan={nchan_amp} sol.modeldatacolumns=[MODEL_DATA] \
                          sol.mode=fulljones sol.h5parm=$pathMS/amp-di.h5 sol.solint=150 \
-                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
+                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]]',
                          log='$nameMS_diampsol.log', commandType='DP3')
 
                     lib_scheduler.run_losoto(
@@ -761,7 +766,7 @@ def run(step):
                     logger.info('Solving amp-di (diagonal)...')
                     MSs.run(f'DP3 {parset_dir}/DP3-soldd.parset msin=$pathMS sol.datause=full sol.nchan={nchan_amp} sol.modeldatacolumns=[MODEL_DATA] \
                          sol.mode=diagonal sol.h5parm=$pathMS/amp-di.h5 sol.solint=150 \
-                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LB]]',
+                         sol.antennaconstraint=[[CS001LBA,CS002LBA,CS003LBA,CS004LBA,CS005LBA,CS006LBA,CS007LBA,CS011LBA,CS013LBA,CS017LBA,CS021LBA,CS024LBA,CS026LBA,CS028LBA,CS030LBA,CS031LBA,CS032LBA,CS101LBA,CS103LBA,CS201LBA,CS301LBA,CS302LBA,CS401LBA,CS501LBA,RS106LBA,RS205LBA,RS305LBA,RS306LBA,RS503LBA]]',
                          log='$nameMS_diampsol.log', commandType='DP3')
 
                     lib_scheduler.run_losoto(
